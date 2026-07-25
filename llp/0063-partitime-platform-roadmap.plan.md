@@ -30,6 +30,247 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 July 23 authority ratification):** 2026-07-24 (Charlie
+Cheever supplied the exact preregistered statements ratifying
+`partitime-ws8-memory-construct-v2-2026-07-23`,
+`partitime-ws8-web-instrument-v3-2026-07-23`,
+`partitime-ws8-authored-source-v3-2026-07-23`, and
+`partitime-ws8-native-observer-v3-2026-07-23`. Their authority files and the
+comparison-protocol registry now record the transition. This authorizes the
+specified calibration and independent-holdout lanes; it does not promote a
+claim before their retained receipts pass.)
+**Revised (Step 4 web-v3 pre-ratification probe):** 2026-07-24 (The complete
+12-cell web and 12-cell build quick path ran from clean Snapback `e62175b2…`
+and Exact `d71e12389…` sources against the proposed web-v3 invalidation. Local
+Snapback/SQLite and remote Supabase/Convex fixtures were all healthy with three
+rows, and teardown reported no cleanup errors. The retained receipt is
+`acceptance/results/step4-performance-v3-quick.json` (sha256
+`8297b48bae05a85a58b5f52a0efafef706c4fd0642843ad65cd56b988182a13b`) and
+binds invalidation sha256
+`445cf49e9f5a327d4de5af5ca45b83a33513ddb13a680bf6bc65714be3b40a13`.
+It uses zero warmups, one sample, and a 200 ms idle window; therefore its
+measurements are diagnostic only. The receipt has `claimEligible=false`,
+freezes no threshold, and does not substitute for ratification, the full
+calibration cohort, or an independent holdout.)
+**Revised (Step 4 native-observer pre-ratification probe):** 2026-07-24 (The
+preregistered non-claim quick probe passed from clean Snapback `7408c7d3…`,
+Exact `d71e12389…`, and the feature-bound Ibex observer archive on the iOS
+26.3 iPhone 17 Pro simulator. All six required substitution/runtime markers
+were observed, the diagnostic runtime and agent were absent before first
+frame, the product emitted its structured authoritative-data marker, and
+cleanup was clean. The retained receipt is
+`acceptance/results/step4-native-exact-performance-observer-v3-quick.json`
+(sha256 `96e3dc34caa98fa0213558f5d2abbde8ccd8aced45d7b7f92af9a30cabd4ec71`).
+Its single diagnostic sample was 19 ms Hermes evaluation, 2,179,871 HBC bytes,
+1,448 ms cold launch, and 1,341 ms first authoritative data. The receipt has
+`claimEligible=false`, freezes no threshold, and does not substitute for
+ratification, calibration, or holdout.)
+**Revised (Step 4 proposal ratification-integrity checkpoint):** 2026-07-24
+(The four proposed July 23 authorities now preregister their exact required
+owner statements. Memory, web-v3, native-observer-v3, and authored-source-v3
+claim samplers fail closed if a document is merely relabelled `ratified`
+without recording that exact statement; the aggregate independently enforces
+the web and source statements, while the memory authority validator and native
+sampler own their corresponding checks. This changes no proposal status,
+threshold, measurement, or claim.)
+**Revised (Step 4 final authored-source authority proposal):** 2026-07-23
+(The fail-closed aggregate found that the unratified source-v2 candidate
+described the earlier partial UI: the completed React product inventory is
+41,447 bytes rather than 27,517. Source v2 is preserved as superseded,
+never-ratified evidence. Proposed amendment
+`partitime-ws8-authored-source-v3-2026-07-23` freezes the completed symmetric
+workload at 41,447 React bytes and 36,212 Contract bytes, derives the 45,591
+Contract threshold solely from the React control and the unchanged 1.10
+multiplier, and remains ineligible for claim promotion until owner
+ratification.)
+**Revised (Step 4 strict browser citizenship checkpoint):** 2026-07-23
+(The clean cumulative receipt now passes all 21 required rows with no skips or
+cleanup errors. Hash-bound native evidence covers iOS Safari 26.5 and 26.4
+plus physical Android 16 Chrome 150 Stable: real Japanese IME composition,
+native autofill, focus containment/restoration, bfcache state restoration, and
+native Find usability. Fresh source-bound Safari 26.5.2 and Firefox 152
+receipts plus Chrome 150's 19/19 product gate and Find receipt cover both
+desktop assertions against Exact `ab8e87a6…`. The strict citizenship claim is
+green. Its clean downstream aggregate now passes all 12 immutable production,
+hydration, routing, metadata, push, Exact-registry, and residual-citizenship
+requirements, so `STEP4.PRODUCTION_WEB` is green as well.)
+**Revised (Step 4 v3 web/source authority proposal):** 2026-07-23 (The
+committed v2 calibration/holdout proved the optimized build rows green but
+exposed two invalid instruments. First UI was first observed only at
+`DOMContentLoaded`, after a prerendered Contract document's module evaluation,
+and relative-only CPU thresholds fell to 0.199–0.742 task ms/s while the same
+React controls moved by more than the five-percent margin between independent
+cohorts. A proposed v3 invalidation observes parser mutations from document
+start and establishes a 1 task-ms/s de minimis resolution floor below the
+unchanged 25 task-ms/s absolute ceiling. Separately, the frozen source-line
+control omitted React's 11,552-byte stylesheet and acquired later
+Contract-only hydration/prerender obligations without a workload rollover.
+The proposed source v2 row compares complete product-authoring bytes
+(Contract 21,618 against a 30,268-byte threshold derived only from React's
+27,517 bytes) and retains integration-support bytes/lines as non-gating
+inventory. Both proposals remain fail-closed until owner ratification and the
+web v3 calibration/committed holdout rerun.)
+**Revised (Step 4 production-path packaging checkpoint):** 2026-07-23
+(Exact `ee0186858…` keeps the released-v1 diagnostic validator intact while
+giving browser adoption a bounded production predicate, allocation-free
+capture sink, and one preflight-to-commit node ledger. Snapback adds an
+identity-preserving `@snapback/client/online` entry and the Partitime cell
+imports only the three Exact runtime capabilities its Online surface needs.
+Fresh production builds put Contract × Snapback at 366,504/103,957
+minified/deterministic-gzip bytes against 422,417/119,451; Supabase at
+213,102/63,321 against 213,488/67,246; and Convex/SQLite at
+213,092/63,318–63,319 against 213,483/67,246. All four byte gates are green.
+The surface-owned production HTML also stops loading Exact's full dev-server
+agent plugin during `vite build`; one-sample nonclaim probes fall from
+900–1,091 ms to 465–549 ms, below all four frozen production-build limits.
+The full 43/43 browser baseline, package identity test, focused Exact 33/33
+hydration/direct-host suite, production reachability check, all-profile Exact
+typecheck, and five-mode Contract build pass. Claim promotion still requires
+the ratified full calibration/committed holdout; this checkpoint does not
+promote Step 4.)
+**Revised (Step 4 memory-v2 collector checkpoint):** 2026-07-23 (The proposed
+two-part construct now has separate production-feed and no-DOM sibling
+entries, a fail-closed collector, OLS/one-sided-confidence-bound and conjunctive
+holdout tests, randomized count order, and target-destruction cleanup custody.
+Non-claim React × Supabase and Contract × Supabase one-sample diagnostics
+exercise all four subscriber counts. React reports a roughly 3.37 KB/subscriber
+slope and Contract roughly 0.84 KB/subscriber; their one-sample upper bounds
+are roughly 5.86 KB and 1.68 KB respectively, while ordinary-product total
+heap remains roughly 1.26 MB and 1.63 MB. These are smoke diagnostics, not
+thresholds or claims. They support the LLP 0381 hypothesis that the hard
+remainder is fixed production representation rather than marginal logical
+subscription cost. The amendment remains proposed and calibration remains
+forbidden until ratification.)
+**Revised (Step 4 memory-construct preregistration checkpoint):** 2026-07-23
+(Exact LLP 0381's production-program work exposed that the frozen
+`memoryPerActiveSubscriptionBytes` row is a one-subscription total-heap
+observation, not a measurement of marginal subscription memory. Proposed
+amendment `partitime-ws8-memory-construct-v2-2026-07-23` preserves that result
+as historical evidence and preregisters a conjunctive replacement: same-cell
+warm total heap plus the one-sided 95% upper bound of a fitted marginal slope
+over 1, 8, 32, and 64 logical subscribers. Only same-backend React calibration,
+the pre-frozen 1.10 multiplier, and a fixed 4,096-byte resolution floor may
+derive Contract thresholds. A fail-closed validator protects the construct,
+sampling, cleanup, cohort isolation, and artifact identities. The amendment
+remains proposed: neither calibration nor claim promotion is authorized until
+Charlie Cheever ratifies it.)
+**Revised (Step 4 H2-candidate holdout checkpoint):** 2026-07-23 (Charlie
+Cheever ratified Exact LLP 0386 §3.8 and both 2026-07-22 Snapback WS8
+invalidations. Exact `8659784e0…` adds strict producer validation for static
+hydration artifacts, diagnostic-only validation for request-time/direct SSR,
+real serialized-HTML round-trip checks, and duplicate-anchor rejection; its
+focused 129-test hydration/server/renderer corpus, all JavaScript typecheck
+profiles, corpus checks, route-fallback checks, and release web build pass.
+A fresh claim-eligible holdout at Snapback `baa1082e…` and that Exact revision
+consumed the unchanged committed calibration `b991f364…`, completed all twelve
+web and twelve build cells, kept all four backends healthy, and reported no
+cleanup errors. Thirty of 44 Contract rows pass. All four warm-startup,
+subscription-memory, and production-build rows remain red; idle CPU is also
+red for Snapback and Supabase. The refreshed aggregate is 14 pass / 12 red /
+9 nonclaims, while production web remains 11/12 on the citizenship row. The
+roughly 377-byte H2 increase leaves Contract × Snapback minified comfortably
+green and the three other Contract cells roughly 9.2 KB above their frozen
+minified thresholds; deterministic gzip remains green for all four. This valid
+failing evidence promotes neither claim.)
+**Revised (Step 4 citizenship red-evidence custody checkpoint):** 2026-07-23
+(The cumulative collector now retains a complete, clean, source-bound desktop
+WebDriver failure as an admitted red row with its receipt hash and diagnostic,
+rather than collapsing that completed check into “evidence missing.” The
+current receipt remains 5 pass / 16 red / 0 skipped: the iOS-current IME row
+and four Chrome/Firefox rows pass; Safari's two completed machine checks are
+explicitly red at the locked host-console boundary; and the other fourteen
+mobile rows still lack admitted evidence. This reporting correction changes no
+threshold, promotes no row, and keeps `STEP4.PRODUCTION_WEB` at 11/12.)
+**Revised (Step 4 desktop-Safari rerun checkpoint):** 2026-07-23 (A fresh
+claim-eligible Safari 26.5.2 / safaridriver rerun at Snapback `4e0483b7…`
+and Exact `f5251ef80…` remains 0/2 red. The product document reaches its
+ready state with feed copy and the create trigger present, but native
+WebDriver input does not reach the trigger; System Events simultaneously
+reports Safari running with zero Accessibility windows and no frontmost
+process, so ordinary native Find also cannot observe the visible copy. The
+harness now records post-click DOM state to distinguish this locked remote
+console from a missing product surface. Neither row is promoted; a fresh
+interactive macOS login session is still required.)
+**Revised (Step 4 clean H1-candidate holdout checkpoint):** 2026-07-23 (The
+first holdout against the Exact H1 candidate stopped at Contract × Snapback
+before writing evidence: production Contract IR had stripped its authored
+`uses` inventory while the new opaque-prepare diagnostic still read that
+inventory. Exact `f5251ef80…` retains only opaque import specs/spans in a
+production hydration-locus table and adds production-shaped codegen/runtime
+regressions; 101 focused and neighboring tests, all JavaScript typecheck
+profiles, and a real quick Contract × Snapback production probe pass. The
+clean full holdout at Snapback `8188c973…` and Exact `f5251ef80…` then
+completed all twelve web and twelve build cells with healthy dependencies,
+no cleanup errors, and the frozen calibration at `b991f364…`. Thirty-four of
+44 Contract rows pass. The ten red rows are all four warm-startup and memory
+rows plus idle CPU for Snapback and Supabase; first-live latency and all four
+production/incremental build rows are now green. The refreshed cumulative
+budget receipt is 15 pass / 11 red, and production web remains 11/12 because
+citizenship is red. This valid failing receipt promotes neither claim.)
+**Revised (Step 4 ratified-v2 calibration checkpoint):** 2026-07-23 (The first
+full calibration under the ratified 2026-07-22 web-custody correction completed
+at Snapback `4215dc9f…` and Exact `b8149e155…`. All twelve browser cells and all
+twelve production/incremental build cells produced two warmups plus seven
+samples with healthy remote Supabase and Convex preflights. The four Contract
+cells pass 31 of 44 prospective web/build thresholds. Thirteen rows remain
+red: every Contract cell misses warm startup and memory per active
+subscription; Contract × Snapback also misses idle CPU; Contract × Supabase
+misses idle CPU and production build; and Contract × Convex and Contract ×
+SQLite miss production build. The calibration artifact is claim-eligible as a
+threshold-producing receipt, not a passing candidate: it promotes neither
+`STEP4.BUDGETS` nor `STEP4.PRODUCTION_WEB`. An independent holdout must consume
+this exact committed calibration revision.)
+**Revised (Step 4 ratified-v2 holdout checkpoint):** 2026-07-23 (An independent
+holdout at Snapback `b991f364…` consumed the calibration from that exact commit
+and retained Exact `b8149e155…`. It completed all twelve web cells, all twelve
+build cells, and all 44 Contract validation rows with healthy remote
+dependencies and claim-eligible custody. Twenty-seven rows pass and seventeen
+remain red. Every Contract cell misses warm startup, idle CPU, memory per
+active subscription, and production build; Contract × Snapback additionally
+misses first-live latency. This is a valid failing holdout, so
+`STEP4.BUDGETS` remains red and no claim is promoted.)
+**Revised (Step 4 post-holdout aggregate checkpoint):** 2026-07-23 (Refreshing
+the retained Step 0 receipt after the live-milestone change exposed a witness
+predicate that treated connection lifecycle records, which have no polling
+field, as failed subscription-custody records. The corrected development and
+production predicates inspect fallback custody only on established
+subscriptions. A full rerun passes 43/43 with all three fallback-disabled push
+witnesses; the immutable production-browser rerun passes 9/9, including
+byte-identical adoption, live connection replay, and hydrated unsolicited
+push. The refreshed `STEP4.BUDGETS` aggregate is 14 pass / 12 red, of which ten
+red rows are nonclaims; byte budgets remain green, while authored source, push
+freshness, red holdout categories, and absent v2 native receipts keep the
+claim red. The refreshed `STEP4.PRODUCTION_WEB` aggregate is 11/12: its sole
+red requirement is the strict citizenship receipt, currently 6/21 because all
+fifteen iOS/Android rows lack admitted device evidence. Neither claim is
+promoted.)
+**Revised (Step 4 iOS-current IME and citizenship-custody checkpoint):**
+2026-07-23 (Exact `72ea2d978…` implements the LLP 0202 browser-ownership rule
+in both Contract web hosts: marked text stays in the native control,
+controlled presentation commits cannot replace it, and `compositionend`
+publishes the final value exactly once while suppressing a duplicate final
+`input`. The focused host suite passes 89/89, the registered IME acceptance
+gate passes, and the revision is published on Exact `origin/main`. A production
+Contract × Snapback candidate at Snapback `0df687d1…`, with polling fallback
+disabled, was rebuilt from that clean Exact revision and exercised on iOS 26.5
+Mobile Safari 26.5 with the real Japanese Romaji keyboard. The retained
+device receipt and screenshots show visibly marked `かんぱい`, selection of
+`乾杯`, and the committed native control accessibility value `乾杯`; only
+`ios-safari-current/ime-composition` is admitted. A control probe also
+invalidates the available iOS 26.3.1 current−1 simulator image: the same
+system-only Safari page renders every Japanese and emoji glyph as missing
+while iOS 26.5 renders them correctly. That invalidation promotes no row and
+keeps all five current−1 rows red pending a complete runtime. Prior desktop
+receipts are intentionally not carried into the regenerated cumulative result
+because their bound test or linked-Exact inputs drifted; they require fresh
+runs. Fresh clean-candidate reruns restore both Chrome 150 and Firefox 152
+rows. Safari's rerun is a complete 0/2 red receipt because the macOS console is
+currently non-interactive: Safari exposes a document through scripting but
+System Events reports no frontmost process or Accessibility windows, so neither
+WebDriver input nor the native Find UI is admissible. The older green Safari
+row is not carried across the Exact candidate change. The strict receipt is
+therefore 5 pass / 16 red / 0 skipped at this checkpoint, and
+`STEP4.PRODUCTION_WEB` remains red.)
 **Revised (Step 4 subscription-memory remediation checkpoint):** 2026-07-22
 (A paired Chrome retained-heap diagnostic localized the remaining Contract ×
 Supabase miss after the bfcache correction. Exact's production signal gate
@@ -132,6 +373,69 @@ ratified the amendment on 2026-07-23 by stating, “I ratify Exact LLP 0386 §3.
 and the Snapback WS8 web/native invalidations dated 2026-07-22.” Exact does
 not yet emit the qualifying production-bundled iOS HBC carrier, so native
 calibration, holdout, and claim promotion remain open.)
+**Revised (Step 4 native-v2 carrier checkpoint):** 2026-07-23 (The ratified
+v2 lane now has product-owned raw collectors for both carriers and a paired
+orchestrator that alternates order, requires two warmups plus seven
+observations, verifies exact same-host identity, and publishes raw receipts
+only after Release/Simulator/HBC/agent-off custody checks. Review caught that
+Exact's startup-artifact endpoint still emits the development module table, so
+its otherwise valid 2,561,112-byte HBC / 265-module / zero-agent-module output
+is retained only as a rejected nonclaim diagnostic. The corrected collector
+instead builds a single production Vite/Rollup graph. That 1,515,793-byte
+source artifact maps 358 modules and has no development module table, but
+still retains five lazy dynamic imports; Hermes therefore cannot compile it
+into the ratified single-HBC carrier. If the rejected module-table HBC is
+forcibly staged, the next boundary is also red: the ordinary production
+runtime cannot be constructed because Ibex advertises no executable Exact
+Apple target while its report-derived CapSec cells remain incomplete.
+Claim-grade collection now fails closed at the first boundary. All four native
+calibration/holdout categories remain red; no threshold or claim is promoted.)
+**Revised (Step 4 native-v2 single-HBC checkpoint):** 2026-07-23 (Exact
+`f9db1c9fa…` adds a build-only Hermes release transform that preserves literal
+dynamic imports for Rollup and replaces opaque development-only imports with
+explicit rejected promises. The Partitime Exact carrier now composes the
+shared runtime bootstrap and native application through a platform-selected
+single production entry. The resulting production IIFE is 1,938,338 source
+bytes across 437 modules, contains zero dynamic imports and no development
+module table, compiles to a roughly 3.17 MB HBC, and is byte-for-byte admitted
+by an Exact Release/Simulator carrier. The carrier still refuses before HBC
+evaluation: Ibex reports that the iOS target cannot attest the mapped Hermes
+image, and its current report-derived CapSec registry advertises zero
+executable targets and no iOS exact-target row. Exact `4922328ac…` makes that
+immutable prelude refusal visible to the collector, which now preserves the
+specific error instead of only `JS evaluation failed`. Extending Apple image
+attestation alone would not authorize execution; Ibex LLP 0021 still requires
+a complete content-addressed target conformance report. This closes the
+production-graph/HBC construction gap but not native calibration or holdout;
+all four native categories remain red and no diagnostic-runtime substitution
+is admitted. The clean claim-eligible red receipt at
+`acceptance/results/step4-native-exact-performance.json` binds Snapback
+`476a867d…`, Exact `4922328ac…`, a 3,168,939-byte admitted HBC, and the
+specific refusal at sha256 `40a2a3a7d1862a3d3bfdab1b1cecb721036696f4b360beb99144a249a3e46c95`.)
+**Revised (Step 4 native observer proposal):** 2026-07-23 (Ibex now proves
+the exact loaded iOS Simulator Hermes image, including the selected slice of a
+universal framework, so the Release carrier advances to the distinct
+report-derived target-advertisement refusal. Completing that advertisement
+currently entails 22,999 CapSec recipe obligations, 18,321 of them unresolved;
+it is a separate security-conformance program rather than a bounded carrier
+measurement task. Proposed amendment
+`partitime-ws8-native-observer-v3-2026-07-23` therefore registers a
+default-off, Release/iOS-Simulator-only observer. It preserves strict snapshot
+and expected-identity loading, construction-fresh nonce/digest, loaded-engine,
+protected-artifact, project-root, enforce-context, and typed Exact-ingress
+checks, then makes two explicit measurement substitutions: complete report
+target-cell dispositions, and authenticated-root
+`network:fetch:127.0.0.1` through the still-legacy native fetch adapter so the
+local gateway and witness are reachable. The latter rejects empty, non-root,
+unknown, or mixed package stacks, every other host, and every non-fetch
+capability; it is not typed-fetch migration evidence. The feature cannot
+compile for device, desktop, or Debug; its Cargo artifact cache and linked
+archive stamp are mode-bound, and six runtime markers make both substitutions
+and the carrier posture receipt-visible. It cannot support an Ibex/Exact
+security, CapSec-conformance, typed-network, ordinary-release,
+physical-device, or target-support claim. Quick executions are non-claim
+probes, and calibration/holdout remain forbidden until Charlie Cheever
+ratifies the amendment with its exact statement.)
 **Revised (Step 4 performance-custody correction ratification):** 2026-07-23
 (The warm web collector primed and measured in the same browser target, so
 Chrome's back/forward cache retained the priming document while
@@ -213,6 +517,20 @@ cost, warm startup, SQLite update fan-out/patches, and two production-build
 rows. The red Exact native launch still prevents native calibration/holdout.
 The cumulative budget receipt remains 7 pass / 19 red, with 16 nonclaims, so
 the ratified measurement is a real red result rather than Step 4 exit.)
+**Revised (Step 4 OQ9 executable-claim checkpoint):** 2026-07-22 (the six
+shared `STEP4.UI.*` claims are now mandatory in every graduation outcome and
+carry fail-closed responsive, keyboard, focus, reduced-motion, accessibility,
+and visual witnesses. Both React and Contract arms pass all six families in
+desktop Chrome and Firefox. The isolated visual harness captured and
+hash-verified all 156 product-intent cells, but independent human approval is
+still pending; desktop Safari, simulator-reachable iOS Safari, and the
+real-device IME/autofill/focus checklist remain missing. The OQ9 aggregate
+therefore remains red at 0/6 and this amendment does not promote Step 4. A
+reproducible Chrome cleanup false failure was fixed without changing the
+workload or timeout: native group-exit remains mandatory, after which inherited
+parent pipe handles are released. The unchanged remote-backed matrix then
+passed 43/43, and the attribution rerun retained the frozen
+`partitime-thresholds-v1-sha256-343dcc1429e20e07` threshold set.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
 (the package root no longer retains the full agent-custody implementation just
 to validate an optional `agentAuthority` constructor value. A package-private
@@ -1362,6 +1680,36 @@ launch is red: 7,109,789 script bytes, 460 modules, 6,231,550 module-source
 bytes, and 6,414.54 ms evaluation led to no rendered frame within 15 seconds.
 Without a frame or first-authoritative-data stage, that run is diagnostic
 evidence, not an admissible native performance sample.
+
+### 2026-07-23 two-part subscription-memory construct
+
+The one-subscription `memoryPerActiveSubscriptionBytes` result is retained, but
+its name overstates what the collector measured: it is a post-GC total heap
+observation with one active subscription, not the marginal cost of adding a
+subscription. Proposed amendment
+`partitime-ws8-memory-construct-v2-2026-07-23` replaces that claim with a
+conjunction:
+
+1. `warmHeapTotalBytesP95` retains the total-footprint constraint for one
+   canonical feed subscription; and
+2. `marginalHeapBytesPerLogicalSubscriptionUpper95` fits an OLS slope with an
+   intercept across all retained observations at 1, 8, 32, and 64 independent
+   logical subscribers, then judges its one-sided 95% upper confidence bound.
+
+Each Contract threshold is derived only from the same-backend React
+calibration: 1.10 times its total p95, and 1.10 times its marginal upper bound
+with a pre-frozen 4,096-byte measurement-resolution floor. A judged Contract
+measurement can never feed its own target. Calibration and holdout each retain
+seven observations per count and use separate committed cohorts. Every fresh
+target warms and disposes one unreported subscriber before its zero-active
+baseline, then proves zero active/ready logical subscribers, full provider/root
+disposal, and CDP target destruction before the next observation. Same-target
+post-disposal high-water caches are diagnostic only. The machine validator
+locks these rules and all receipt identities.
+
+This is a preregistration artifact, not a replacement result. The amendment is
+still proposed, so no calibration, threshold freeze, keep decision, or Step 4
+claim promotion may occur yet.
 
 ## Sequence
 

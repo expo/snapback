@@ -56,13 +56,14 @@ const command = (program, args, options = {}) => {
     return execFileSync(program, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
       ...options,
     }).trim();
   }
   catch { return null; }
 };
 const requiredCommand = (program, args, options = {}) =>
-  execFileSync(program, args, { encoding: 'utf8', ...options }).trim();
+  execFileSync(program, args, { encoding: 'utf8', timeout: 15_000, ...options }).trim();
 const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const identity = (path) => ({ path: relative(repoRoot, path), sha256: digest(path), bytes: readFileSync(path).length });
 const installedNodeModulesRoot = join(surfaceRoot, 'node_modules');
@@ -149,6 +150,7 @@ await runAcceptance(suite, async () => {
   const gatewayUrl = await startGateway(snapbackUrl);
   const vite = await startVite(snapbackUrl, gatewayUrl);
   cleanups.push(() => vite.stop());
+  if (browser === 'safari') await stopSafariApp('before WebDriver');
   const driver = await startDriver();
   cleanups.push(() => driver.stop());
   const session = await driver.newSession(browserConfig.capabilities);
@@ -160,14 +162,31 @@ await runAcceptance(suite, async () => {
   await suite.check(`contract × snapback traps and restores focus in desktop ${browser}`, async () => {
     if (browser === 'safari') {
       // Safari intentionally does not focus buttons on mouse click. Give the
-      // opener explicit focus before WebDriver's native click so focusRestore
-      // is tested against a real focused element rather than body.
+      // opener explicit focus, then activate it with WebDriver's native Enter
+      // action. The citizenship claim is keyboard focus containment/restore;
+      // using the same keyboard path also avoids Safari returning success for
+      // a pointer click that it does not dispatch from a non-frontmost
+      // automation window.
       await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
-      await session.click('[data-testid="new-event"]');
+      await session.keys([press('\uE007')]);
     } else {
       await session.click('[data-testid="new-event"]');
     }
-    await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
+    try {
+      await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
+    } catch (error) {
+      const state = await session.execute(`
+        return {
+          ready: Boolean(window.partifulMatrixReady),
+          pathname: location.pathname,
+          activeTestId: document.activeElement?.dataset?.testid ?? null,
+          overlayPresent: Boolean(document.querySelector('[data-testid="create-overlay"]')),
+          openerPresent: Boolean(document.querySelector('[data-testid="new-event"]')),
+          bodyHasFeed: document.body?.textContent?.includes('Sunset Supper Club') ?? false,
+        };
+      `);
+      throw new Error(`${error.message}; post-activation state: ${JSON.stringify(state)}`);
+    }
     const initial = await session.execute(`return document.activeElement?.dataset?.testid ?? null`);
     await session.keys([keyDown('\uE008'), press('\uE004'), keyUp('\uE008')]);
     const reverseWrapped = await session.execute(`return document.activeElement?.dataset?.testid ?? null`);
@@ -189,8 +208,7 @@ await runAcceptance(suite, async () => {
     // real menu and Accessibility surface.
     await session.close();
     await driver.stop();
-    requiredCommand('/usr/bin/osascript', ['-e', 'tell application "Safari" to quit']);
-    await sleep(500);
+    await stopSafariApp('between WebDriver and native Find');
   }
 
   await suite.check(`contract × snapback exposes visible content to desktop ${browser} find-on-page`, async () => {
@@ -216,31 +234,58 @@ await runAcceptance(suite, async () => {
       const query = 'Sunset Supper Club';
       requiredCommand('/usr/bin/open', ['-a', 'Safari', `${vite.url}/?user=eve`]);
       await waitSafariCondition(`
-        const se=Application("System Events");
-        const items=se.processes.byName("Safari").windows[0].entireContents();
-        items.some((item)=>{try{return item.role()==="AXStaticText" && item.name()==="${query}"}catch(_){return false}})
-      `, 'ordinary Safari candidate window did not expose the canonical event copy');
+        const safari=Application("Safari");
+        const expected=${JSON.stringify(`${vite.url}/?user=eve`)};
+        safari.running() && safari.documents.length > 0
+          && String(safari.documents[0].url()).startsWith(expected)
+      `, 'ordinary Safari candidate window did not load the candidate URL');
+      // Native Find below is the content witness. Waiting only for the
+      // ordinary document URL avoids assuming that authored text is exposed
+      // as AXStaticText rather than through its enclosing interactive control.
+      await sleep(500);
       requiredCommand('/usr/bin/osascript', [
         '-e', 'tell application "Safari" to activate',
         '-e', 'tell application "System Events" to keystroke "f" using command down',
       ]);
       await sleep(500);
-      requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to keystroke "a" using command down',
-        '-e', `tell application "System Events" to keystroke "${query}"`,
-      ]);
-      await sleep(500);
-      const findValue = requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get value of text field 1',
-      ]);
-      const findControls = requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get name of every button of text field 1',
-      ]);
+      // Safari 26.5 moved the Find Banner under a different AX group layout.
+      // Select its semantically named search field and result-status control
+      // instead of depending on positional splitter/group indices.
+      const findState = JSON.parse(requiredCommand('/usr/bin/osascript', [
+        '-l', 'JavaScript',
+        '-e', `
+          const query = ${JSON.stringify(query)};
+          const systemEvents = Application("System Events");
+          const process = systemEvents.processes.byName("Safari");
+          process.frontmost = true;
+          const contents = process.windows[0].entireContents();
+          const safe = (read) => {
+            try { return read(); } catch (_) { return null; }
+          };
+          const field = contents.find((item) =>
+            safe(() => item.role()) === "AXTextField"
+            && safe(() => item.description()) === "search text field");
+          if (!field) throw new Error("Safari Find Banner search field is unavailable");
+          field.value = query;
+          systemEvents.keyCode(36);
+          delay(0.5);
+          const current = process.windows[0].entireContents();
+          const status = current.find((item) =>
+            safe(() => item.role()) === "AXButton"
+            && safe(() => item.description()) === "cancel");
+          JSON.stringify({
+            value: safe(() => field.value()),
+            status: status ? safe(() => status.name()) : null,
+          });
+        `,
+      ]));
       nativeFind = {
         present: true,
-        value: findValue,
-        status: findControls,
-        notFound: findControls.includes('Not found'),
+        value: findState.value,
+        status: findState.status,
+        notFound:
+          typeof findState.status !== 'string'
+          || /not found|0 matches/i.test(findState.status),
       };
       requiredCommand('/usr/bin/osascript', [
         '-e', 'tell application "System Events" to key code 53',
@@ -309,6 +354,20 @@ async function waitSafariCondition(source, failure, timeout = 15_000) {
     await sleep(100);
   }
   throw new Error(failure);
+}
+
+async function stopSafariApp(stage, timeout = 10_000) {
+  const running = () => command('/usr/bin/osascript', [
+    '-l', 'JavaScript', '-e', 'Application("Safari").running()',
+  ]) === 'true';
+  if (!running()) return;
+  requiredCommand('/usr/bin/osascript', ['-e', 'tell application "Safari" to quit']);
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (!running()) return;
+    await sleep(100);
+  }
+  throw new Error(`Safari did not terminate ${stage}`);
 }
 
 async function startSnapback() {

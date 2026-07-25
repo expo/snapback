@@ -20,6 +20,10 @@ import {
   writeStep4Report,
 } from './step4-closure-helpers.mjs';
 import { evaluateHoldoutMetric } from './step4-budget-holdout.mjs';
+import {
+  validateMemoryConstructAmendment,
+  validateMemoryConstructRegistration,
+} from './step4-memory-authority.mjs';
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — every WS8
 // category receives a machine row; missing prospective instruments remain red
@@ -37,12 +41,16 @@ const supabaseRealtimePath = 'demos/partiful-matrix/acceptance/results/supabase-
 const convexRealtimePath = 'demos/partiful-matrix/acceptance/results/convex-realtime-web.json';
 const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json';
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
-const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json';
+const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json';
 const nativePerformanceInvalidationPath = 'demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json';
+const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
 const nativePerformanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-holdout.json';
+const memoryAmendmentPath = 'demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json';
+const memoryCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json';
+const memoryHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json';
 
 const protocol = readJson(protocolPath);
 const thresholdSource = readCommittedJson(attributionPath);
@@ -58,12 +66,18 @@ const contractConvexRealtime = readJson(contractConvexRealtimePath);
 const performanceAmendment = readJson(performanceAmendmentPath);
 const performanceInvalidation = readJson(performanceInvalidationPath);
 const nativePerformanceInvalidation = readJson(nativePerformanceInvalidationPath);
+const authoredSourceInvalidation = readJson(authoredSourceInvalidationPath);
+const memoryAmendment = readJson(memoryAmendmentPath);
 const optionalReceipt = (path) => existsSync(resolve(repoRoot, path)) ? readJson(path) : null;
 const performanceCalibration = optionalReceipt(performanceCalibrationPath);
 const performanceHoldout = optionalReceipt(performanceHoldoutPath);
 const nativePerformanceCalibration = optionalReceipt(nativePerformanceCalibrationPath);
 const nativePerformanceHoldout = optionalReceipt(nativePerformanceHoldoutPath);
+const memoryCalibration = optionalReceipt(memoryCalibrationPath);
+const memoryHoldout = optionalReceipt(memoryHoldoutPath);
 validateRetainedWebReceipt(webReceipt);
+validateMemoryConstructAmendment(memoryAmendment);
+validateMemoryConstructRegistration(protocol, memoryAmendment);
 
 const protocolAmendment = protocol.amendments.find(({ id }) => id === performanceAmendment.amendmentId);
 assert(protocolAmendment, `protocol does not register ${performanceAmendment.amendmentId}`);
@@ -73,12 +87,40 @@ const protocolInvalidation = protocol.amendments.find(({ id }) => id === perform
 assert(protocolInvalidation, `protocol does not register ${performanceInvalidation.amendmentId}`);
 assert.equal(protocolInvalidation.path, performanceInvalidationPath);
 assert.equal(protocolInvalidation.status, performanceInvalidation.status);
+assert.equal(
+  performanceInvalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-web-instrument-v3-2026-07-23.',
+);
+if (performanceInvalidation.status === 'ratified') {
+  assert.equal(
+    performanceInvalidation.ratificationStatement,
+    performanceInvalidation.requiredRatificationStatement,
+    'web performance v3 authority lacks the exact owner ratification statement',
+  );
+}
 const protocolNativeInvalidation = protocol.amendments.find(
   ({ id }) => id === nativePerformanceInvalidation.amendmentId,
 );
 assert(protocolNativeInvalidation, `protocol does not register ${nativePerformanceInvalidation.amendmentId}`);
 assert.equal(protocolNativeInvalidation.path, nativePerformanceInvalidationPath);
 assert.equal(protocolNativeInvalidation.status, nativePerformanceInvalidation.status);
+const protocolAuthoredSourceInvalidation = protocol.amendments.find(
+  ({ id }) => id === authoredSourceInvalidation.amendmentId,
+);
+assert(protocolAuthoredSourceInvalidation, `protocol does not register ${authoredSourceInvalidation.amendmentId}`);
+assert.equal(protocolAuthoredSourceInvalidation.path, authoredSourceInvalidationPath);
+assert.equal(protocolAuthoredSourceInvalidation.status, authoredSourceInvalidation.status);
+assert.equal(
+  authoredSourceInvalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-authored-source-v3-2026-07-23.',
+);
+if (authoredSourceInvalidation.status === 'ratified') {
+  assert.equal(
+    authoredSourceInvalidation.ratificationStatement,
+    authoredSourceInvalidation.requiredRatificationStatement,
+    'authored-source v3 authority lacks the exact owner ratification statement',
+  );
+}
 const performanceInvalidationIdentity = identity(performanceInvalidationPath);
 const webPerformanceReceiptsCurrent = [performanceCalibration, performanceHoldout].every((receipt) =>
   receipt?.methodId === performanceInvalidation.replacement.methodId
@@ -89,7 +131,7 @@ const webPerformanceGovernanceRatified = performanceAmendment.status === 'ratifi
 const webPerformanceStatus = webPerformanceGovernanceRatified && webPerformanceReceiptsCurrent
   ? 'ratified'
   : webPerformanceGovernanceRatified
-    ? 'ratified-but-v2-receipts-missing'
+    ? 'ratified-but-v3-receipts-missing'
     : performanceInvalidation.status;
 const nativePerformanceInvalidationIdentity = identity(nativePerformanceInvalidationPath);
 const nativePerformanceReceiptsCurrent = [nativePerformanceCalibration, nativePerformanceHoldout].every(
@@ -105,6 +147,16 @@ const nativePerformanceStatus = nativePerformanceGovernanceRatified && nativePer
   : nativePerformanceGovernanceRatified
     ? 'ratified-but-v2-receipts-missing'
     : nativePerformanceInvalidation.status;
+const memoryAmendmentIdentity = identity(memoryAmendmentPath);
+const memoryReceiptsCurrent = [memoryCalibration, memoryHoldout].every((receipt) =>
+  receipt?.methodId === memoryAmendment.replacement.methodId
+  && receipt?.workloadVersion === memoryAmendment.replacement.workloadVersion
+  && JSON.stringify(receipt?.amendment) === JSON.stringify(memoryAmendmentIdentity));
+const memoryStatus = memoryAmendment.status === 'ratified' && memoryReceiptsCurrent
+  ? 'ratified'
+  : memoryAmendment.status === 'ratified'
+    ? 'ratified-but-v2-receipts-missing'
+    : memoryAmendment.status;
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
 assert.equal(frozen.methodId, protocol.protocolId);
@@ -124,25 +176,37 @@ for (const build of candidateBuilds) {
   assert.equal(build.status, 0, `candidate production build failed: ${JSON.stringify(build)}`);
 }
 
-const sourceGroups = {
+const productSourcePaths = {
   react: [
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
-    'demos/partiful-matrix/surfaces/react/src/main.tsx',
-    'demos/partiful-matrix/surfaces/react/src/provider.ts',
+    'demos/partiful-matrix/surfaces/react/src/styles.css',
   ],
   contract: [
     'demos/partiful-matrix/surfaces/contract/feed.contract',
     'demos/partiful-matrix/surfaces/contract/event.contract',
-    'demos/partiful-matrix/surfaces/contract/main.ts',
-    'demos/partiful-matrix/surfaces/contract/provider.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts',
     'demos/partiful-matrix/surfaces/contract/connection-badge.contract',
-    'demos/partiful-matrix/surfaces/contract/production-hydration.ts',
     'demos/partiful-matrix/surfaces/contract/ui.ts',
     'demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts',
+  ],
+};
+assert.deepEqual(productSourcePaths, authoredSourceInvalidation.replacement.comparison);
+const supportSourcePaths = {
+  react: [
+    'demos/partiful-matrix/surfaces/react/src/main.tsx',
+    'demos/partiful-matrix/surfaces/react/src/provider.ts',
+  ],
+  contract: [
+    'demos/partiful-matrix/surfaces/contract/main.ts',
+    'demos/partiful-matrix/surfaces/contract/provider.ts',
+    'demos/partiful-matrix/surfaces/contract/production-hydration.ts',
     'demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs',
   ],
+};
+const sourceGroups = {
+  react: [...productSourcePaths.react, ...supportSourcePaths.react],
+  contract: [...productSourcePaths.contract, ...supportSourcePaths.contract],
   vanilla: [
     'demos/partiful-matrix/surfaces/vanilla/src/main.js',
     'demos/partiful-matrix/surfaces/vanilla/src/provider.js',
@@ -161,11 +225,27 @@ const inventorySubset = (group, paths) => {
   const wanted = new Set(paths);
   const files = sourceInventory[group].files.filter(({ path }) => wanted.has(path));
   assert.equal(files.length, paths.length, `candidate glue inventory omitted ${group} sources`);
-  return { files, totalLines: files.reduce((sum, file) => sum + file.lines, 0) };
+  return {
+    files,
+    totalLines: files.reduce((sum, file) => sum + file.lines, 0),
+    totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+  };
 };
+const productSourceInventory = {
+  react: inventorySubset('react', productSourcePaths.react),
+  contract: inventorySubset('contract', productSourcePaths.contract),
+};
+assert.deepEqual(
+  {
+    react: productSourceInventory.react.files,
+    contract: productSourceInventory.contract.files,
+  },
+  authoredSourceInvalidation.replacement.frozenInventory,
+  'ratification-candidate product source inventory drifted; issue a new dated source amendment',
+);
 const glueInventory = {
-  react: inventorySubset('react', sourceGroups.react.slice(1)),
-  contract: inventorySubset('contract', sourceGroups.contract.slice(2)),
+  react: inventorySubset('react', supportSourcePaths.react),
+  contract: inventorySubset('contract', supportSourcePaths.contract),
   vanilla: inventorySubset('vanilla', sourceGroups.vanilla.slice(1)),
 };
 const cells = Object.fromEntries(arms.flatMap((arm) => backends.map((backend) => [
@@ -211,7 +291,7 @@ const compressedRows = contractBudgetRows('deterministicGzipBytes', 'compressedJ
 const minifiedPass = minifiedRows.every(({ pass }) => pass);
 const compressedPass = compressedRows.every(({ pass }) => pass);
 
-const sourceRows = [
+const historicalSourceRows = [
   {
     metric: 'contractSourceLines',
     actual: sourceInventory.contract.totalLines,
@@ -225,7 +305,27 @@ const sourceRows = [
     formula: protocol.thresholdFormulas.snapbackBackendLines,
   },
 ].map((row) => ({ ...row, pass: row.actual <= row.threshold }));
-const sourcePass = sourceRows.every(({ pass }) => pass);
+assert.equal(
+  productSourceInventory.react.totalBytes,
+  authoredSourceInvalidation.replacement.reactBaselineBytes,
+  'ratification-candidate React product inventory drifted; issue a new dated source amendment',
+);
+const sourceRows = [
+  {
+    metric: authoredSourceInvalidation.replacement.metric,
+    actual: productSourceInventory.contract.totalBytes,
+    threshold: authoredSourceInvalidation.replacement.contractThresholdBytes,
+    formula: authoredSourceInvalidation.replacement.thresholdFormula,
+  },
+  {
+    metric: 'snapbackBackendLines',
+    actual: sourceInventory.snapbackBackend.totalLines,
+    threshold: frozen.thresholds.snapbackBackendLines,
+    formula: protocol.thresholdFormulas.snapbackBackendLines,
+  },
+].map((row) => ({ ...row, pass: row.actual <= row.threshold }));
+const sourcePass = authoredSourceInvalidation.status === 'ratified'
+  && sourceRows.every(({ pass }) => pass);
 
 const requiredCheckRow = {
   actual: webReceipt.passed,
@@ -294,6 +394,45 @@ const nativePerformanceInstrument = (id, metricName) => {
   }, pass ? undefined : 'nonclaim');
 };
 
+const memoryV2Instrument = () => {
+  const rows = memoryHoldout?.holdoutValidation?.rows ?? [];
+  const expectedRows = 8;
+  const pass = memoryStatus === 'ratified'
+    && memoryHoldout?.claimEligible === true
+    && memoryHoldout?.holdoutValidation?.ok === true
+    && rows.length === expectedRows
+    && rows.every((row) => row.pass === true);
+  return requirement(
+    'two-part-subscription-memory-v2',
+    pass ? 'pass' : 'red',
+    pass
+      ? 'STEP4_BUDGET_MEMORY_V2_PASSED'
+      : 'STEP4_BUDGET_MEMORY_V2_NOT_GREEN',
+    {
+      claimId: memoryAmendment.replacement.claimId,
+      methodId: memoryAmendment.replacement.methodId,
+      workloadVersion: memoryAmendment.replacement.workloadVersion,
+      conjunctionRequired: memoryAmendment.construct.conjunctionRequired,
+      metricNames: [
+        memoryAmendment.construct.total.name,
+        memoryAmendment.construct.marginal.name,
+      ],
+      amendment: memoryAmendmentIdentity,
+      amendmentStatus: memoryStatus,
+      calibration: memoryCalibration ? identity(memoryCalibrationPath) : null,
+      holdout: memoryHoldout ? identity(memoryHoldoutPath) : null,
+      rows,
+      expectedRows,
+      historicalMetric: {
+        name: memoryAmendment.supersedesMetric.name,
+        disposition: memoryAmendment.supersedesMetric.disposition,
+        receipt: performanceHoldout ? identity(performanceHoldoutPath) : null,
+      },
+    },
+    pass ? undefined : 'nonclaim',
+  );
+};
+
 const nativeReceiptEvidence = {
   retainedReceipts: [
     identity(nativeAggregatePath),
@@ -328,10 +467,23 @@ const requirements = [
     ),
   }),
   requirement('authored-source-lines', sourcePass ? 'pass' : 'red', sourcePass
-    ? 'STEP4_BUDGET_SOURCE_VOLUME_PASSED'
-    : 'STEP4_BUDGET_SOURCE_VOLUME_EXCEEDS_FROZEN_THRESHOLDS', {
+    ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_PASSED'
+    : authoredSourceInvalidation.status === 'ratified'
+      ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_EXCEEDS_THRESHOLDS'
+      : 'STEP4_BUDGET_SOURCE_VOLUME_V3_AMENDMENT_NOT_RATIFIED', {
+    methodId: authoredSourceInvalidation.replacement.methodId,
+    workloadVersion: authoredSourceInvalidation.replacement.workloadVersion,
+    thresholdFormulaSetId: authoredSourceInvalidation.replacement.thresholdFormulaSetId,
+    amendment: identity(authoredSourceInvalidationPath),
+    amendmentStatus: authoredSourceInvalidation.status,
     rows: sourceRows,
-    thresholdId: frozen.thresholdId,
+    productInventory: productSourceInventory,
+    supportInventory: glueInventory,
+    historicalV1: {
+      disposition: authoredSourceInvalidation.invalidates.disposition,
+      rows: historicalSourceRows,
+      thresholdId: frozen.thresholdId,
+    },
   }),
   requirement('glue-file-and-line-inventory', 'pass', 'STEP4_BUDGET_GLUE_INVENTORY_PRESENT', {
     inventory: glueInventory,
@@ -348,7 +500,7 @@ const requirements = [
   webPerformanceInstrument('first-live-data-ms-p95', 'firstAuthoritativeAndLiveDataMsP95', 'firstLiveDataMs'),
   webPerformanceInstrument('idle-cpu', 'idleCpuAndNetwork', 'idleCpuTaskMsPerSecond'),
   webPerformanceInstrument('idle-network-use', 'idleCpuAndNetwork', 'idleNetworkBytesPerSecond'),
-  webPerformanceInstrument('memory-per-active-subscription-bytes-p95', 'memoryPerActiveSubscriptionBytesP95', 'memoryPerActiveSubscriptionBytes'),
+  memoryV2Instrument(),
   webPerformanceInstrument('update-fanout-count-p95', 'fanoutAndHostPatchCountP95', 'updateFanoutCount'),
   webPerformanceInstrument('dom-or-host-patch-count-p95', 'fanoutAndHostPatchCountP95', 'domOrHostPatchCount'),
   webPerformanceInstrument('production-build-latency-ms-p95', 'productionAndIncrementalBuildMsP95', 'productionBuildMs'),
@@ -384,10 +536,16 @@ const requirements = [
   }),
   requirement('prospective-category-amendments-and-holdout-validation', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
+    && memoryStatus === 'ratified'
+    && authoredSourceInvalidation.status === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
+    && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
+    && memoryStatus === 'ratified'
+    && authoredSourceInvalidation.status === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
+    && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true
     ? 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_PASSED'
     : 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_NOT_GREEN', {
@@ -397,15 +555,23 @@ const requirements = [
     amendment: identity(performanceAmendmentPath),
     invalidation: identity(performanceInvalidationPath),
     nativeInvalidation: nativePerformanceInvalidationIdentity,
+    memoryAmendment: memoryAmendmentIdentity,
+    authoredSourceInvalidation: identity(authoredSourceInvalidationPath),
     amendmentStatus: webPerformanceStatus,
     nativeAmendmentStatus: nativePerformanceStatus,
+    memoryAmendmentStatus: memoryStatus,
+    authoredSourceAmendmentStatus: authoredSourceInvalidation.status,
     holdoutValidationArtifacts: [
       performanceHoldout ? identity(performanceHoldoutPath) : null,
+      memoryHoldout ? identity(memoryHoldoutPath) : null,
       nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
     ],
-    finding: webPerformanceStatus === 'ratified' && nativePerformanceStatus === 'ratified'
-      ? 'Both corrected methods are ratified; holdout rows remain red until web/build and paired release-native receipts are independently green.'
-      : 'The invalid artifacts remain preserved, but both proposed v2 corrections require owner ratification before replacement calibration or claim promotion.',
+    finding: webPerformanceStatus === 'ratified'
+      && nativePerformanceStatus === 'ratified'
+      && memoryStatus === 'ratified'
+      && authoredSourceInvalidation.status === 'ratified'
+      ? 'All corrected methods are ratified; holdout rows remain red until web/build, two-part memory, and paired release-native receipts are independently green.'
+      : 'Invalid historical artifacts remain preserved; every replacement requires owner-ratified authority plus an independently bound green holdout before claim promotion.',
   }, 'nonclaim'),
   requirement('native-realtime-follow-up-matrix-before-ranking', 'pass', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_COMPLETE', {
     existingNativeWorkload: protocol.workloadVersion,
@@ -451,6 +617,7 @@ const report = finalizeReport({
       thresholdFormulaSetId: protocol.thresholdFormulaSetId,
       productionBuilds: candidateBuilds,
       sourceInventory,
+      productSourceInventory,
       glueInventory,
       cells,
       attribution: byteAttribution,
@@ -463,10 +630,21 @@ const report = finalizeReport({
         holdout: performanceHoldout ? identity(performanceHoldoutPath) : null,
         nativeCalibration: nativePerformanceCalibration ? identity(nativePerformanceCalibrationPath) : null,
         nativeHoldout: nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
+        memoryAmendment: memoryAmendmentIdentity,
+        memoryCalibration: memoryCalibration ? identity(memoryCalibrationPath) : null,
+        memoryHoldout: memoryHoldout ? identity(memoryHoldoutPath) : null,
+        authoredSourceInvalidation: identity(authoredSourceInvalidationPath),
       },
     },
     frozenThresholds: frozen.thresholds,
-    conclusion: 'Contract byte budgets pass. Authored source, red web holdout rows, and the missing native holdout keep the aggregate budget claim red.',
+    conclusion: requirements.every(({ status }) => status === 'pass')
+      ? 'Every Step 4 budget requirement passes.'
+      : `The aggregate Step 4 budget claim remains red: ${
+        requirements
+          .filter(({ status }) => status === 'red')
+          .map(({ id }) => id)
+          .join(', ')
+      }.`,
   },
 });
 

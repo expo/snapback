@@ -8,6 +8,8 @@ use statusLabel from "./helpers.ts"
 use goingCount from "./helpers.ts"
 use myStatus from "./helpers.ts"
 use openFeed from "./helpers.ts"
+use navigatePartitimeCollection from "./helpers.ts"
+use minimumFeedbackDelay from "./helpers.ts"
 use backgroundFor from "./ui.ts"
 use textFor from "./ui.ts"
 use mutedFor from "./ui.ts"
@@ -23,8 +25,14 @@ component PartifulEvent
     userName: string = "Someone"
     backendName: string = "backend"
     visualVariant: string = "warm"
+    initialUiState: string = "ready"
 
   state draft = ""
+  state eventFailed = initialUiState == "event-error"
+  state guestSheetOpen = false
+  state optionsOpen = false
+  state pendingRsvp = ""
+  state pendingMessage = initialUiState == "wall-pending" ? "Visual pending message" : ""
   query event = eventDetails({ eventId: eventId })
   query guests = guestList({ eventId: eventId })
   query wall = eventWall({ eventId: eventId })
@@ -36,23 +44,64 @@ component PartifulEvent
     openFeed()
   action respond(status) mutates rsvpMut
     rsvpMut({ eventId: eventId, guestName: userName, status: status })
+  action retryEvent writes eventFailed
+    eventFailed = false
+  action openGuestSheet writes guestSheetOpen
+    guestSheetOpen = true
+  action closeGuestSheet writes guestSheetOpen
+    guestSheetOpen = false
+  action toggleOptions writes optionsOpen
+    optionsOpen = !optionsOpen
+  action closeOptions writes optionsOpen
+    optionsOpen = false
+  action navigateCollection(key)
+    navigatePartitimeCollection(key)
+  action requestRespond(status) writes pendingRsvp
+    pendingRsvp = status
+  action cancelRespond writes pendingRsvp
+    pendingRsvp = ""
+  action confirmRespond writes pendingRsvp mutates rsvpMut
+    rsvpMut({ eventId: eventId, guestName: userName, status: pendingRsvp })
+    pendingRsvp = ""
   action setDraft(value) writes draft
     draft = value
-  action post writes draft mutates postMut
-    postMut({ eventId: eventId, authorName: userName, message: draft.trim() })
+  action post writes draft, pendingMessage mutates postMut
+    let message = draft.trim()
+    pendingMessage = message
     draft = ""
+    let result = await postMut({ eventId: eventId, authorName: userName, message: message })
+    await minimumFeedbackDelay()
+    pendingMessage = ""
 
   contract
     has node testId="event-page"
     press button "← All plans" -> back
-    action post writes draft
+    press button "Open guest list" -> openGuestSheet
+    press button "Event options" -> toggleOptions
+    action post writes draft, pendingMessage
 
   view
-    column width="100%" minHeight="100vh" padding=38 background=backgroundFor(visualVariant) gap=0 testId="event-page"
-      row align="center" paddingBottom=22
+    main width="100%" minHeight="100vh" padding=38 background=backgroundFor(visualVariant) gap=0 testId="event-page"
+      row align="center" paddingBottom=22 gap=12
         button press=back testId="back" background="transparent" flex=1
           text "← All plans" size=11 color=textFor(visualVariant)
         text `CONTRACT · ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
+        button press=toggleOptions label="Event options" accessibilityExpanded=optionsOpen testId="event-options-trigger" background="transparent" padding=9 anchor="event-options-trigger"
+          text "Event options" size=11 color=textFor(visualVariant)
+      when optionsOpen
+        column role="menu" label="Event options" keydown=navigateCollection focusTrap=true focusRestore=true dismiss=closeOptions anchor="event-options-trigger" anchorPlacement="bottom-end" anchorStrategy="fixed" anchorOffset=8 portalTarget="overlay" portalLevel=80 presence="entered" position="fixed" right=38 top=77 zIndex=80 testId="event-options-menu" width=220 padding=8 background=backgroundFor(visualVariant) borderWidth=1 borderColor="rgba(23,21,18,0.35)"
+          button press=closeOptions role="menuitem" label="Copy invite link" testId="event-options-first-item" padding=11 background="transparent"
+            text "Copy invite link" size=12 color=textFor(visualVariant)
+          button press=closeOptions role="menuitem" label="Add to calendar" padding=11 background="transparent"
+            text "Add to calendar" size=12 color=textFor(visualVariant)
+          button press=closeOptions role="menuitem" label="Mute updates" padding=11 background="transparent"
+            text "Mute updates" size=12 color=textFor(visualVariant)
+      when eventFailed
+        section role="alert" label="Event failed to load" testId="event-error" gap=12 padding=30 borderWidth=1 borderColor="#c43b2f" background="#fff3ef"
+          text "We couldn't load this plan." headingLevel=1 size=28 weight=800 color="#171512"
+          text "The event route is still here. Try the event query again." size=13 color="#625b52"
+          button press=retryEvent label="Try again" testId="event-retry" padding=11 background="#171512"
+            text "Try again" size=12 color="#ffffff"
       async event
         loading
           text "Loading the plan…" size=14 color="#5f594f"
@@ -68,21 +117,21 @@ component PartifulEvent
                   text ev.emoji size=66 background="rgba(255,255,255,0.22)" padding=30 radius=999
                   column gap=10 flex=1
                     text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                    text ev.title size=52 weight=800 color="#171512" lineHeight=0.9
+                    text ev.title headingLevel=1 size=52 weight=800 color="#171512" lineHeight=0.9
                     text ev.description size=14 color="#473b31"
-                  ConnectionBadge(value=event.connection)
+                  ConnectionBadge(value=event.connection, visualVariant=visualVariant)
               else
                 column gap=18 padding=28 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
                   text ev.emoji size=48 background="rgba(255,255,255,0.22)" padding=20 radius=999
                   text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                  text ev.title size=40 weight=800 color="#171512" lineHeight=0.95
+                  text ev.title headingLevel=1 size=40 weight=800 color="#171512" lineHeight=0.95
                   text ev.description size=14 color="#473b31"
-                  ConnectionBadge(value=event.connection)
+                  ConnectionBadge(value=event.connection, visualVariant=visualVariant)
             column gap=8 padding=32 borderWidth=1 borderColor="rgba(23,21,18,0.25)"
               text "MEET HERE" size=10 color=mutedFor(visualVariant)
               text ev.location size=27 weight=800 color=textFor(visualVariant)
-      row align="start" borderWidth=1 borderColor="rgba(127,120,110,0.35)" style=surfaceStyle(visualVariant, "surface")
-        column gap=16 padding=32 flex=2 borderWidth=1 borderColor="rgba(127,120,110,0.25)" testId="wall"
+      row align="start" wrap="wrap" borderWidth=1 borderColor="rgba(127,120,110,0.35)" style=surfaceStyle(visualVariant, "surface")
+        column gap=16 padding=32 flex=2 minWidth=300 borderWidth=1 borderColor="rgba(127,120,110,0.25)" testId="wall"
           row align="baseline"
             text "THE WALL" size=10 color="#665e54" flex=1
           async wall
@@ -98,11 +147,16 @@ component PartifulEvent
                   row gap=12 paddingTop=14 paddingBottom=14 borderWidth=1 borderColor="rgba(23,21,18,0.12)"
                     text item.authorName size=12 weight=800 color="#171512" width=90
                     text item.message size=13 color="#3f3a34" flex=1
-          row gap=8
-            input label=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-input" padding=12 flex=1 borderWidth=1 style=fieldStyle(visualVariant, false)
-            button press=post testId="wall-send" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background=textFor(visualVariant)
+          when pendingMessage != ""
+            row gap=12 paddingTop=14 paddingBottom=14 opacity=0.68 borderWidth=1 borderColor="rgba(23,21,18,0.12)" testId="wall-pending-row"
+              text userName size=12 weight=800 color=textFor(visualVariant) width=90
+              text pendingMessage size=13 color=textFor(visualVariant) flex=1
+              text "Sending…" role="status" live="polite" testId="wall-pending-status" size=10 color=mutedFor(visualVariant)
+          section role="form" label="Post to the event wall" gap=8 testId="wall-composer"
+            input label=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-message" padding=12 flex=1 borderWidth=1 style=fieldStyle(visualVariant, false)
+            button press=post label="Post message" testId="wall-submit" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background=textFor(visualVariant)
               text "Send ↗" size=12 color=backgroundFor(visualVariant)
-        column gap=14 padding=32 flex=1 testId="guest-list"
+        column gap=14 padding=32 flex=1 minWidth=280 testId="guest-list"
           async guests
             loading
               text "Loading guests…" size=12 color="#665e54"
@@ -115,17 +169,52 @@ component PartifulEvent
                 row align="baseline"
                   text "WHO'S IN" size=10 color="#665e54" flex=1
                   text goingCount(guestRows) size=20 weight=800 color="#171512"
+                button press=openGuestSheet label="Open guest list" testId="guest-list-trigger" padding=9 background="transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                  text "View all guests" size=10 color=textFor(visualVariant)
                 when myStatus(guestRows, userId) == "host"
                   text "You're hosting this one ✦" size=12 color="#171512" background="#dce3bf" padding=12
                 else
-                  row gap=5
-                    button press=respond("going") testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Going" size=10 color=myStatus(guestRows, userId) == "going" ? "#ffffff" : "#171512"
-                    button press=respond("maybe") testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? "#ffffff" : "#171512"
-                    button press=respond("cant") testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? "#ffffff" : "#171512"
-                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 testId="virtual-guest-list"
-                  row gap=10 align="center" paddingTop=8 paddingBottom=8 testId=`guest-${guest.userId}`
+                  row gap=5 role="radiogroup" label="RSVP"
+                    button press=respond("going") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "going" label="Going" testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Going" size=10 color=myStatus(guestRows, userId) == "going" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
+                    button press=respond("maybe") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "maybe" label="Maybe" testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
+                    button press=respond("cant") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "cant" label="Can't go" testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
+                  button press=requestRespond("going") label="Change RSVP" testId="rsvp-trigger" padding=10 background=textFor(visualVariant)
+                    text "Change RSVP…" size=10 color=backgroundFor(visualVariant)
+                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="virtual-guest-list"
+                  button gap=10 align="center" paddingTop=8 paddingBottom=8 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-${guest.userId}` background="transparent" borderWidth=0
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
+      when guestSheetOpen
+        stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=110 testId="guest-sheet-overlay"
+          button press=closeGuestSheet label="Close guest list" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="guest-list-sheet-backdrop"
+          section role="dialog" label="Guest list" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeGuestSheet presence="entered" testId="guest-list-sheet" zIndex=1 width="100%" maxWidth=620 padding=30 gap=16 style=surfaceStyle(visualVariant, "panel")
+            row align="center"
+              text "Guest list" headingLevel=2 size=27 weight=800 color=textFor(visualVariant) flex=1
+              button press=closeGuestSheet label="Close guest list" testId="guest-sheet-close" background="transparent" padding=10
+                text "Close" size=12 color=textFor(visualVariant)
+            async guests
+              loading
+                text "Loading guests…" size=12 color=mutedFor(visualVariant)
+              error sheetErr
+                text sheetErr.message role="alert" size=12 color="#aa2c20"
+              empty
+                text "Nobody yet." size=12 color=mutedFor(visualVariant)
+              ready sheetRows
+                virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="guest-sheet-list"
+                  button gap=10 align="center" paddingTop=10 paddingBottom=10 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-sheet-${guest.userId}` background="transparent" borderWidth=0
+                    text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
+                    text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
+      when pendingRsvp != ""
+        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 align="center" justify="center" padding=24 testId="rsvp-confirm-overlay"
+          button press=cancelRespond label="Cancel RSVP change" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="rsvp-confirm-backdrop"
+          section role="dialog" label="Confirm RSVP" accessibilityModal=true focusTrap=true focusRestore=true dismiss=cancelRespond presence="entered" testId="rsvp-confirm-dialog" zIndex=1 width="100%" maxWidth=460 padding=30 gap=18 style=surfaceStyle(visualVariant, "panel")
+            text "Confirm RSVP" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)
+            text `Set your RSVP to ${pendingRsvp}?` size=14 color=mutedFor(visualVariant)
+            row gap=10 justify="end"
+              button press=cancelRespond label="Cancel RSVP change" testId="rsvp-cancel" padding=11 background="transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                text "Cancel" size=12 color=textFor(visualVariant)
+              button press=confirmRespond label="Confirm RSVP change" testId="rsvp-confirm" padding=11 background=textFor(visualVariant)
+                text "Confirm" size=12 color=backgroundFor(visualVariant)

@@ -1,9 +1,10 @@
 import {
-  createContractHydrationCapture,
+  createBoundaryContractDataProvider,
+  createContractMockQueryBoundary,
+  createProviderQueryHandle,
   mount,
   readContractSizeClass,
   reset,
-  validateContractHydrationManifest,
   type ContractDataProvider,
   type ContractHydrationManifest,
   type MountHandle,
@@ -11,12 +12,6 @@ import {
 import { setThemeReducedMotion, setThemeViewportWidth } from '@exact/facet-core';
 import { installContractWebHost, type ContractWebHostHandle } from '@exact/renderer/web-host';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createOnlineSnapbackContractSurface } from '../../../../packages/snapback-contract/online-surface.mjs';
-import artifactIndex from '../../snapback/generated/artifacts.json';
-import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
-import functionsManifest from '../../snapback/generated/functions.manifest.json';
-import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import feedApp from './feed.contract';
 import {
@@ -30,6 +25,7 @@ import {
   linksForProvider,
   type HydrationProviderEvidence,
 } from './production-hydration';
+import { readPartitimeHydrationManifest } from './hydration-manifest-reader';
 import { PERSONAS, type BackendMode } from '../../shared/model';
 
 declare const __MATRIX_BACKEND__: BackendMode;
@@ -45,7 +41,7 @@ let active: {
   provider?: ContractDataProvider;
   hydrationEvidence?: () => HydrationProviderEvidence | null;
 } | null = null;
-let routeTransition = Promise.resolve<unknown>(undefined);
+let routeTransition: Promise<unknown> = Promise.resolve();
 const subscriptionEvents: Record<string, unknown>[] = [];
 let forcedQueryState: { dispose(): void } | null = null;
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -54,12 +50,29 @@ const syncReducedMotion = () => setThemeReducedMotion(reducedMotionQuery.matches
 addEventListener('resize', syncViewport);
 reducedMotionQuery.addEventListener('change', syncReducedMotion);
 
+// @ref LLP 0063#workstream-8--performance-and-packaging-budgets — adoption
+// needs the released-v1 identity sink, not the producer transcript. Keeping
+// this inert sink at the app boundary preserves the published Exact 0.1.5
+// consumer lane without retaining the producer-only capture implementation.
+const hydrationAdoptionCapture = Object.freeze({
+  recordHostState() {},
+  recordNode() {},
+  recordComponentState() {},
+  recordHandler() {},
+  noteDeferredMountTasks() {},
+  noteMountTasksReleasedBeforeAdoption() {},
+});
+
+function clearForcedQueryState(): void {
+  forcedQueryState?.dispose();
+  forcedQueryState = null;
+}
+
 const debug = {
   forceFeedState(state: 'loading' | 'error' | 'empty' | 'ready') {
-    forcedQueryState?.dispose();
-    forcedQueryState = null;
+    clearForcedQueryState();
     const force = active?.provider?.forceQueryState;
-    if (!force) throw new Error('The active Contract provider does not expose forceQueryState().');
+    if (!force) throw new Error('Contract provider lacks forceQueryState().');
     const cell = state === 'loading'
       ? { status: 'pending', connection: 'connecting' }
       : state === 'error'
@@ -71,8 +84,7 @@ const debug = {
     return state;
   },
   restoreFeedState() {
-    forcedQueryState?.dispose();
-    forcedQueryState = null;
+    clearForcedQueryState();
   },
 };
 
@@ -100,17 +112,26 @@ function eventIdFromLocation(params: URLSearchParams): string | null {
     ? location.pathname.slice(base.length)
     : location.pathname.replace(/^\//, '');
   const match = relative.match(/^events\/([^/]+)\/?$/);
+  if (match?.[1] === 'new') return null;
   return match ? decodeURIComponent(match[1]!) : params.get('event');
 }
 
-function routeIdFor(eventId: string | null): string {
-  return eventId === null ? '/' : `/events/${encodeURIComponent(eventId)}/`;
+function isCreateRoute(): boolean {
+  const base = normalizedBasePath();
+  const relative = location.pathname.startsWith(base)
+    ? location.pathname.slice(base.length)
+    : location.pathname.replace(/^\//, '');
+  return /^events\/new\/?$/.test(relative);
 }
 
-function updateDocumentMetadata(eventId: string | null): void {
+function routeIdFor(eventId: string | null, createRoute: boolean): string {
+  return createRoute ? '/events/new/' : eventId === null ? '/' : `/events/${encodeURIComponent(eventId)}/`;
+}
+
+function updateDocumentMetadata(eventId: string | null, createRoute: boolean): void {
   const event = eventId === null ? null : seed.tables.events.find((row) => row._id === eventId) ?? null;
-  document.title = event ? `${event.title} · Partitime` : 'Partitime · plans worth leaving the chat for';
-  const description = event?.description ?? 'Small gatherings, good people, and plans worth leaving the chat for.';
+  document.title = createRoute ? 'Create an event · Partitime' : event ? `${event.title} · Partitime` : 'Partitime · plans worth leaving the chat for';
+  const description = createRoute ? 'Create a Partitime event.' : event?.description ?? 'Small gatherings, good people, and plans worth leaving the chat for.';
   let descriptionNode = document.querySelector<HTMLMetaElement>('meta[name="description"]');
   if (!descriptionNode) {
     descriptionNode = document.createElement('meta');
@@ -124,7 +145,7 @@ function updateDocumentMetadata(eventId: string | null): void {
     canonical.rel = 'canonical';
     document.head.appendChild(canonical);
   }
-  canonical.href = new URL(`${normalizedBasePath()}${eventId === null ? '' : `events/${encodeURIComponent(eventId)}/`}`, location.origin).href;
+  canonical.href = new URL(`${normalizedBasePath()}${createRoute ? 'events/new/' : eventId === null ? '' : `events/${encodeURIComponent(eventId)}/`}`, location.origin).href;
 }
 
 function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolean): ContractHydrationManifest | null {
@@ -133,12 +154,12 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   const script = document.getElementById('__partitime-hydration');
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
-    const validation = validateContractHydrationManifest(JSON.parse(script.textContent ?? 'null'));
-    if (!validation.ok || validation.manifest.routeId !== expectedRouteId) return null;
+    const manifest = readPartitimeHydrationManifest(JSON.parse(script.textContent ?? 'null'));
+    if (!manifest || manifest.routeId !== expectedRouteId) return null;
     // The parsed manifest owns the adoption turn from here. Leaving the
     // serialized copy in the live DOM retains the same node/path ledger twice.
     script.remove();
-    return validation.manifest;
+    return manifest;
   } catch {
     return null;
   }
@@ -148,15 +169,16 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   const requested = params.get('user');
   const persona = PERSONAS.find((item) => item.id === requested || item.userId === requested) ?? PERSONAS[0];
+  const createRoute = isCreateRoute();
   const eventId = eventIdFromLocation(params);
-  const routeId = routeIdFor(eventId);
+  const routeId = routeIdFor(eventId, createRoute);
   const visualVariant = params.get('theme') === 'night' ? 'night' : 'warm';
   const hydrationManifest = staticHydrationManifest(
     routeId,
     persona.userId === PERSONAS[0]!.userId && visualVariant === 'warm',
   );
   status(`Connecting Contract to ${__MATRIX_BACKEND__}…`);
-  updateDocumentMetadata(eventId);
+  updateDocumentMetadata(eventId, createRoute);
 
   let surface: {
     links: GeneratedProviderLinks;
@@ -166,6 +188,24 @@ async function boot() {
   };
 
   if (__MATRIX_BACKEND__ === 'snapback') {
+    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — gateway
+    // cells must not retain the Snapback client, Contract adapter, or generated
+    // manifests merely because the comparison entry point can select them.
+    const [
+      { SnapbackClient },
+      { createOnlineSnapbackContractSurface },
+      { default: artifactIndex },
+      { default: contractDataManifest },
+      { default: functionsManifest },
+      { default: schemaManifest },
+    ] = await Promise.all([
+      import('../../../../packages/snapback-client/online.mjs'),
+      import('../../../../packages/snapback-contract/online-surface.mjs'),
+      import('../../snapback/generated/artifacts.json'),
+      import('../../snapback/generated/contract-data.manifest.json'),
+      import('../../snapback/generated/functions.manifest.json'),
+      import('../../snapback/generated/schema.manifest.json'),
+    ]);
     const client = new SnapbackClient(__SNAPBACK_API_ORIGIN__ || '/snapback');
     await client.health();
     // @ref LLP 0034#5 — one idempotent ensure per mount; never reset from a
@@ -179,7 +219,11 @@ async function boot() {
           { name: 'eventWall', args: { eventId } },
         ];
     const created = await createOnlineSnapbackContractSurface({
-      runtime: await import('@exact/contract/runtime'),
+      runtime: {
+        createBoundaryContractDataProvider,
+        createContractMockQueryBoundary,
+        createProviderQueryHandle,
+      },
       client,
       userId: persona.userId,
       manifest: contractDataManifest, artifactIndex, schemaManifest, functionManifest: functionsManifest,
@@ -203,7 +247,7 @@ async function boot() {
     surface = { links: provider.links(), provider, dispose: () => provider.dispose() };
   } else {
     const provider = new GatewayContractProvider(__MATRIX_BACKEND__, __MATRIX_GATEWAY_ORIGIN__ || '/matrix-api', persona.userId);
-    surface = { links: provider.links() as GeneratedProviderLinks, provider, dispose: () => provider.dispose() };
+    surface = { links: linksForProvider(provider), provider, dispose: () => provider.dispose() };
   }
 
   let hydrationProvider: ReturnType<typeof createHydrationSeededProvider> | null = null;
@@ -220,8 +264,29 @@ async function boot() {
   let hydrationResult: Record<string, unknown> | null = null;
   let adoptedText: string | null = null;
   let preMountSizeClass: string | null = null;
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+  // feed's one-subscription memory instrument must not retain the unopened
+  // event route's generated IR and AOT closures.
+  const component = eventId === null
+    ? feedApp
+    : (await import('./event.contract')).default;
+  const props = eventId === null
+    ? {
+        userName: persona.name,
+        backendName: __MATRIX_BACKEND__,
+        initialVariant: visualVariant,
+        initialCreating: createRoute,
+        initialUiState: params.get('uiState') ?? 'ready',
+      }
+    : {
+        eventId,
+        userId: persona.userId,
+        userName: persona.name,
+        backendName: __MATRIX_BACKEND__,
+        visualVariant,
+        initialUiState: params.get('uiState') ?? 'ready',
+      };
   if (hydrationManifest) {
-    const capture = createContractHydrationCapture(hydrationManifest.capabilities);
     let resolveHydrationReported!: () => void;
     const hydrationReported = new Promise<void>((resolve) => {
       resolveHydrationReported = resolve;
@@ -253,20 +318,14 @@ async function boot() {
     setThemeViewportWidth(hydrationManifest.capabilities.viewport?.width ?? innerWidth);
     setThemeReducedMotion(hydrationManifest.capabilities.reducedMotion ?? false);
     preMountSizeClass = readContractSizeClass();
-    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
-    // feed's one-subscription memory instrument must not retain the unopened
-    // event route's generated IR and AOT closures. Keep the startup route
-    // eager and load the event carrier only when navigation selects it.
-    const component = eventId === null
-      ? feedApp
-      : (await import('./event.contract')).default;
-    const props = eventId === null
-      ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
-      : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
     mounted = mount(component, {
       rootId: hydrationManifest.rootId,
       props,
-      hydration: { capabilities: hydrationManifest.capabilities, capture, deferMountTasks: true },
+      hydration: {
+        capabilities: hydrationManifest.capabilities,
+        capture: hydrationAdoptionCapture,
+        deferMountTasks: true,
+      },
     });
     // Seeded query delivery can settle after mount returns. Keep captured
     // capability inputs authoritative until the web host confirms that its
@@ -282,9 +341,7 @@ async function boot() {
     syncReducedMotion();
     root.replaceChildren();
     host = installContractWebHost({ container: root });
-    mounted = eventId === null
-      ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant } })
-      : mount((await import('./event.contract')).default, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
+    mounted = mount(component, { props });
   }
 
   // Preserve the mounted provider as the evidence source even after disposeActive
@@ -309,7 +366,7 @@ async function boot() {
     backend: __MATRIX_BACKEND__,
     authoring: 'contract',
     transport: __MATRIX_BACKEND__ === 'snapback' || __MATRIX_BACKEND__ === 'convex-realtime' ? 'push' : 'poll',
-    screen: eventId ? 'event' : 'feed',
+    screen: createRoute ? 'create' : eventId ? 'event' : 'feed',
     eventId,
     routeId,
     hydration: hydrationManifest ? {
@@ -330,8 +387,7 @@ async function boot() {
 }
 
 async function disposeActive() {
-  forcedQueryState?.dispose();
-  forcedQueryState = null;
+  clearForcedQueryState();
   const current = active;
   active = null;
   await current?.dispose?.();
@@ -339,12 +395,23 @@ async function disposeActive() {
   reset();
 }
 
-function mountCurrentRoute() {
+function mountCurrentRoute(focusTestId?: string) {
   routeTransition = routeTransition.then(async () => {
     await disposeActive();
     return boot();
   });
-  const ready = routeTransition.catch((error) => {
+  const ready = routeTransition.then(async (result) => {
+    if (focusTestId) {
+      // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
+      // route remounts replace the overlay opener, so restore to the new
+      // semantic target only after the replacement tree has committed.
+      await new Promise<void>((resolveFocus) => requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focusTestId)}"]`)?.focus();
+        resolveFocus();
+      })));
+    }
+    return result;
+  }).catch((error) => {
     console.error('[partiful-matrix/contract] boot failed', error);
     status(`Boot failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     throw error;
@@ -353,7 +420,12 @@ function mountCurrentRoute() {
   return ready;
 }
 
-const onRouteChange = () => { void mountCurrentRoute(); };
+const onRouteChange = (event: Event) => {
+  const focusTestId = event instanceof CustomEvent && typeof event.detail?.focusTestId === 'string'
+    ? event.detail.focusTestId
+    : undefined;
+  mountCurrentRoute(focusTestId);
+};
 addEventListener('popstate', onRouteChange);
 addEventListener('partitime:navigate', onRouteChange);
 const ready = mountCurrentRoute();

@@ -4,6 +4,9 @@ export default defineContractModule('./helpers.ts', {
   statusLabel: pure({ params: ['status'], result: 'string', depends: 'args' }),
   goingCount: pure({ params: ['rows'], result: 'number', depends: 'args' }),
   myStatus: pure({ params: ['rows','userId'], result: 'string', depends: 'args' }),
+  minimumFeedbackDelay: capability({ params: {}, effects: ['time.delay'] }),
+  navigatePartitimeCollection: capability({ params: { key: 'string' }, effects: ['host:focus'] }),
   openEvent: capability({ params: { eventId: 'string' }, effects: ['device.url.open'] }),
+  openCreateRoute: capability({ params: {}, effects: ['device.url.open'] }),
   openFeed: capability({ params: {}, effects: ['device.url.open'] }),
 });

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { arch, cpus, platform, release, tmpdir, totalmem } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,25 +17,58 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const demoRoot = resolve(here, '..', '..');
 const protocol = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'comparison-protocol.v1.json'), 'utf8'));
+const phase4VisualSpec = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'visual-spec.v1.json'), 'utf8'));
+const axeSource = readFileSync(join(repoRoot, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const geckoDriverBin = process.env.GECKODRIVER_BIN || '/opt/homebrew/bin/geckodriver';
+const firefoxBin = process.env.FIREFOX_BIN || '/Applications/Firefox.app/Contents/MacOS/firefox';
+const safariDriverBin = process.env.SAFARIDRIVER_BIN || '/System/Cryptexes/App/usr/bin/safaridriver';
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 const selectedArm = option('arm');
 const selectedBackend = option('backend');
+const selectedBrowser = option('browser') ?? 'chrome';
 const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
+const phase4Only = process.argv.includes('--phase4-only');
+const selectedPhase4Claim = option('phase4-claim');
+const captureVisualDir = option('capture-visual-dir');
 const productionWeb = process.argv.includes('--production-web');
+const phase4ClaimIds = new Set([
+  'STEP4.UI.RESPONSIVE',
+  'STEP4.UI.KEYBOARD',
+  'STEP4.UI.FOCUS',
+  'STEP4.UI.REDUCED-MOTION',
+  'STEP4.UI.A11Y',
+  'STEP4.UI.VISUAL',
+]);
+if (!['chrome', 'firefox', 'safari'].includes(selectedBrowser)) {
+  throw new Error(`unknown --browser ${selectedBrowser}`);
+}
+if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
+  throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
+}
+if (captureVisualDir && selectedPhase4Claim !== 'STEP4.UI.VISUAL') {
+  throw new Error('--capture-visual-dir requires --phase4-claim STEP4.UI.VISUAL');
+}
 const arms = productionWeb ? ['contract'] : selectedArm ? [selectedArm] : productUi ? ['react', 'contract'] : ['react', 'contract', 'vanilla'];
 const backends = productionWeb ? ['snapback'] : selectedBackend ? [selectedBackend] : productUi ? ['snapback'] : ['snapback', 'supabase', 'convex', 'sqlite'];
 const cells = arms.flatMap((arm) => backends.map((backend) => ({ arm, backend })));
 
 const vanillaCells = cells.filter(({ arm }) => arm === 'vanilla');
 const snapbackCells = cells.filter(({ backend }) => backend === 'snapback');
-const productUiChecks = productUi
+const productUiChecks = productUi && !phase4Only
   ? (cells.length * 5) + cells.filter(({ arm, backend }) => arm === 'contract' && backend === 'snapback').length
   : 0;
-const expectedChecks = productionWeb ? 9 : (cells.length * 3) + vanillaCells.length + snapbackCells.length + productUiChecks;
+const phase4ClaimsPerCell = selectedPhase4Claim ? 1 : 6;
+const phase4A11yDelta = productUi && !phase4Only && (!selectedPhase4Claim || selectedPhase4Claim === 'STEP4.UI.A11Y') && cells.some(({ arm }) => arm === 'react') && cells.some(({ arm }) => arm === 'contract') ? 1 : 0;
+const phase4UiChecks = productUi ? (cells.length * phase4ClaimsPerCell) + phase4A11yDelta : 0;
+const expectedChecks = productionWeb
+  ? 9
+  : phase4Only
+    ? phase4UiChecks
+    : (cells.length * 3) + vanillaCells.length + snapbackCells.length + productUiChecks + phase4UiChecks;
 const suiteTitle = productionWeb
   ? 'partitime / production Contract web'
   : productUi
@@ -45,9 +78,15 @@ const suite = createSuite(suiteTitle, {
   expectedChecks,
 });
 const cleanups = [];
-if (!existsSync(chromeBin) || !existsSync(serverBin)) {
+const phase4A11y = new Map();
+const browserPrerequisites = selectedBrowser === 'chrome'
+  ? [{ prerequisite: 'chrome', path: chromeBin }]
+  : selectedBrowser === 'firefox'
+    ? [{ prerequisite: 'geckodriver', path: geckoDriverBin }, { prerequisite: 'firefox', path: firefoxBin }]
+    : [{ prerequisite: 'safaridriver', path: safariDriverBin }];
+if (browserPrerequisites.some(({ path }) => !existsSync(path)) || !existsSync(serverBin)) {
   const missing = [
-    ...(!existsSync(chromeBin) ? [{ prerequisite: 'chrome', path: chromeBin }] : []),
+    ...browserPrerequisites.filter(({ path }) => !existsSync(path)),
     ...(!existsSync(serverBin) ? [{ prerequisite: 'snapback-server', path: serverBin }] : []),
   ];
   const report = {
@@ -65,7 +104,7 @@ if (!existsSync(chromeBin) || !existsSync(serverBin)) {
     cleanupErrorCount: 0,
   };
   if (receiptFile) writeMachineReport(receiptFile, report);
-  console.error(`SKIP partiful matrix browser — required prerequisites unavailable: ${missing.map(({ prerequisite }) => prerequisite).join(', ')}`);
+  console.error(`SKIP partiful matrix ${selectedBrowser} — required prerequisites unavailable: ${missing.map(({ prerequisite }) => prerequisite).join(', ')}`);
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(report));
   process.exit(1);
@@ -237,9 +276,15 @@ await runAcceptance(suite, async () => {
   const gateway = await startGateway(snapbackUrl);
   const gatewayUrl = gateway.url;
   reportIdentity.backendHealth = gateway.preflight;
-  const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partiful-matrix-' });
-  cleanups.push(() => chrome.stop());
-  const cdp = await connectCdp(chrome.ws);
+  let productSnapbackCellsStarted = 0;
+  let cdp;
+  if (selectedBrowser === 'chrome') {
+    const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partiful-matrix-' });
+    cleanups.push(() => chrome.stop());
+    cdp = await connectCdp(chrome.ws);
+  } else {
+    cdp = createWebDriverHarness({ browserName: selectedBrowser });
+  }
   cleanups.push(() => cdp.close());
 
   if (productionWeb) {
@@ -259,10 +304,22 @@ await runAcceptance(suite, async () => {
       skipRemoteCell(cell, health);
       continue;
     }
-    const vite = await startVite(cell, snapbackUrl, gatewayUrl);
+    // Phase-4 product checks mutate their fixture (create, RSVP, wall post).
+    // Give each authoring arm an independent in-memory authority so the next
+    // arm's canonical responsive/a11y observations cannot inherit those
+    // writes. The ordinary matrix intentionally retains its shared authority.
+    const cellSnapbackUrl = productUi && cell.backend === 'snapback' && productSnapbackCellsStarted++ > 0
+      ? await startSnapback()
+      : snapbackUrl;
+    const vite = await startVite(cell, cellSnapbackUrl, gatewayUrl);
     const page = await cdp.newPage();
     try {
       await page.navigate(`${vite.url}/?user=eve`);
+      if (phase4Only) {
+        await waitForMatrixBoot(page);
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url, cdp });
+        continue;
+      }
       await suite.check(`${cell.arm} × ${cell.backend} boots its identified cell`, async () => {
         const boot = await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
         if (boot.arm !== undefined && boot.arm !== cell.arm) throw new Error(`wrong arm: ${boot.arm}`);
@@ -312,6 +369,7 @@ await runAcceptance(suite, async () => {
       }
       if (productUi) {
         await runProductUiChecks({ suite, page, cell });
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url, cdp });
       }
     } finally {
       try { await page.close(); }
@@ -383,6 +441,18 @@ await runAcceptance(suite, async () => {
         }
       });
     }
+  }
+  if (phase4A11yDelta === 1) {
+    await suite.check('STEP4.UI.A11Y axe delta keeps Contract at or below the React control', async () => {
+      const react = phase4A11y.get('react:snapback');
+      const contract = phase4A11y.get('contract:snapback');
+      if (!react || !contract) throw new Error(`axe measurements are incomplete: ${JSON.stringify([...phase4A11y])}`);
+      const newCriticalSerious = contract.criticalSerious.filter((item) => !react.criticalSerious.some((baseline) => baseline.id === item.id));
+      if (newCriticalSerious.length > 0 || contract.criticalSerious.length > react.criticalSerious.length) {
+        throw new Error(`Contract adds critical/serious axe violations: ${JSON.stringify({ react, contract, newCriticalSerious })}`);
+      }
+      return { claimId: 'STEP4.UI.A11Y', oracle: 'react-control-delta', react, contract, newCriticalSerious };
+    });
   }
 }, {
   cleanups,
@@ -542,8 +612,12 @@ function skipRemoteCell(cell, health) {
   }
 }
 
-async function waitForMatrixBoot(page) {
-  return page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
+async function waitForMatrixBoot(page, label = 'matrix boot') {
+  try {
+    return await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
+  } catch (error) {
+    throw new Error(`${label}: ${error.message}`);
+  }
 }
 
 async function runProductUiChecks({ suite: activeSuite, page, cell }) {
@@ -585,30 +659,30 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   });
 
   await activeSuite.check(`${label} provides an accessible portal form and keyboard focus scope`, async () => {
-    await page.eval(`document.querySelector('[data-testid="new-event"]')?.focus()`);
-    await page.click('new-event');
+    await page.eval(`document.querySelector('[data-testid="create-event"]')?.focus()`);
+    await page.click('create-event');
     await page.pollText('create-panel', 'plan', 5_000);
     await page.eval('new Promise(r=>requestAnimationFrame(r))');
-    const semantics = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const overlay=document.querySelector('[data-testid="create-overlay"]');const shell=document.querySelector('[data-testid="product-shell"]');const description=document.querySelector('[data-testid="create-description"]');const box=overlay?.getBoundingClientRect();return {role:panel?.getAttribute('role'),modal:panel?.getAttribute('aria-modal'),labelledBy:panel?.getAttribute('aria-labelledby'),describedBy:panel?.getAttribute('aria-describedby'),portal:!!overlay&&(!shell?.contains(overlay)||(getComputedStyle(overlay).position==='fixed'&&box?.width>=innerWidth&&box?.height>=innerHeight)),portalDetached:!!overlay&&!shell?.contains(overlay),overlayPosition:overlay?getComputedStyle(overlay).position:null,descriptionTag:description?.tagName,activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
+    const semantics = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const overlay=document.querySelector('[data-testid="create-overlay"]');const shell=document.querySelector('[data-testid="product-shell"]');const description=document.querySelector('[data-testid="event-description"]');const box=overlay?.getBoundingClientRect();return {role:panel?.getAttribute('role'),modal:panel?.getAttribute('aria-modal'),labelledBy:panel?.getAttribute('aria-labelledby'),describedBy:panel?.getAttribute('aria-describedby'),portal:!!overlay&&(!shell?.contains(overlay)||(getComputedStyle(overlay).position==='fixed'&&box?.width>=innerWidth&&box?.height>=innerHeight)),portalDetached:!!overlay&&!shell?.contains(overlay),overlayPosition:overlay?getComputedStyle(overlay).position:null,descriptionTag:description?.tagName,activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
     if (semantics.role !== 'dialog' || semantics.modal !== 'true' || !semantics.labelledBy || !semantics.describedBy || !semantics.portal || semantics.descriptionTag !== 'TEXTAREA') {
       throw new Error(`dialog semantics or portal lowering are incomplete: ${JSON.stringify(semantics)}`);
     }
-    await page.click('create-submit');
+    await page.click('create-event-submit');
     await page.eval('new Promise(r=>setTimeout(r,0))');
-    const validation = await page.eval(`(()=>{const title=document.querySelector('[data-testid="create-title"]');const location=document.querySelector('[data-testid="create-location"]');const titleError=document.querySelector('[data-testid="create-title-error"]');const locationError=document.querySelector('[data-testid="create-location-error"]');return {titleInvalid:title?.getAttribute('aria-invalid'),locationInvalid:location?.getAttribute('aria-invalid'),titleDescribedBy:title?.getAttribute('aria-describedby'),locationDescribedBy:location?.getAttribute('aria-describedby'),titleErrorRole:titleError?.getAttribute('role'),locationErrorRole:locationError?.getAttribute('role'),activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
+    const validation = await page.eval(`(()=>{const title=document.querySelector('[data-testid="event-title"]');const location=document.querySelector('[data-testid="event-location"]');const titleError=document.querySelector('[data-testid="event-title-error"]');const locationError=document.querySelector('[data-testid="event-location-error"]');return {titleInvalid:title?.getAttribute('aria-invalid'),locationInvalid:location?.getAttribute('aria-invalid'),titleDescribedBy:title?.getAttribute('aria-describedby'),locationDescribedBy:location?.getAttribute('aria-describedby'),titleErrorRole:titleError?.getAttribute('role'),locationErrorRole:locationError?.getAttribute('role'),activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
     if (!validation.titleDescribedBy || !validation.locationDescribedBy || validation.titleErrorRole !== 'alert' || validation.locationErrorRole !== 'alert') {
       throw new Error(`validation errors are not accessibly associated: ${JSON.stringify(validation)}`);
     }
     const trapped = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const nodes=[...panel.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];nodes.at(-1)?.focus();return {last:nodes.at(-1)?.getAttribute('data-testid'),count:nodes.length}})()`);
     await page.key('Tab');
     const wrappedTo = await page.eval(`document.activeElement?.getAttribute('data-testid')`);
-    if (!wrappedTo || !['create-close', 'create-emoji', 'create-title'].includes(wrappedTo)) {
+    if (!wrappedTo || !['create-close', 'create-emoji', 'event-title'].includes(wrappedTo)) {
       throw new Error(`focus trap did not wrap: ${JSON.stringify({ trapped, wrappedTo })}`);
     }
     await page.key('Escape');
     await page.eval('new Promise(r=>setTimeout(r,0))');
     const restored = await page.eval(`({overlay:!!document.querySelector('[data-testid="create-overlay"]'),activeTestId:document.activeElement?.getAttribute('data-testid')})`);
-    if (restored.overlay || restored.activeTestId !== 'new-event') {
+    if (restored.overlay || restored.activeTestId !== 'create-event') {
       throw new Error(`Escape dismissal did not restore opener focus: ${JSON.stringify(restored)}`);
     }
     return { semantics, validation, trapped, wrappedTo, restored };
@@ -616,7 +690,7 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
 
   await activeSuite.check(`${label} honors reduced-motion preference`, async () => {
     await page.emulateReducedMotion(true);
-    await page.click('new-event');
+    await page.click('create-event');
     await page.pollText('create-panel', 'plan', 5_000);
     const motion = await page.eval(`(()=>{const overlay=document.querySelector('[data-testid="create-overlay"]');const panel=document.querySelector('[data-testid="create-panel"]');const style=getComputedStyle(panel);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,animationDuration:style.animationDuration,transitionDuration:style.transitionDuration,overlayTransition:getComputedStyle(overlay).transitionDuration}})()`);
     if (!motion.matches || [motion.animationDuration, motion.transitionDuration, motion.overlayTransition].some((value)=>value && parseFloat(value) > 0.001)) {
@@ -628,6 +702,13 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   });
 
   await activeSuite.check(`${label} mounts a bounded virtual guest window`, async () => {
+    // The preceding responsive assertion intentionally leaves the page at the
+    // compact breakpoint. This assertion is about bounded mounting rather than
+    // compact layout, so restore the fixture's canonical desktop viewport before
+    // navigating. Keeping the two concerns separate also makes the virtual-list
+    // witness reproducible across authoring arms.
+    await page.setViewport(1280, 900);
+    await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()`);
     await page.click('open-event_sunset');
     if (cell.arm === 'contract') await waitForMatrixBoot(page);
     await page.pollText('event-page', 'Sunset Supper Club', 15_000);
@@ -659,6 +740,329 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
       return { provider: 'Snapback ContractDataProvider.forceQueryState', observations };
     });
   }
+}
+
+async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl, cdp }) {
+  const cellId = `${cell.arm}:${cell.backend}`;
+  const label = `${cell.arm} × ${cell.backend}`;
+
+  await phase4Claim(activeSuite, 'STEP4.UI.RESPONSIVE', `${label} matches compact regular and expanded structure`, async () => {
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity=crypto.randomUUID();return window.__phase4ResponsiveIdentity})()`);
+    const observations = [];
+    for (const viewport of [
+      { id: 'compact', width: 390, height: 844, columns: 1 },
+      { id: 'regular', width: 768, height: 1024, columns: 2 },
+      { id: 'expanded', width: 1280, height: 800, columns: 3 },
+    ]) {
+      await page.setViewport(viewport.width, viewport.height);
+      await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,120))})()`);
+      const observed = await page.eval(`(()=>{const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')];const xs=[...new Set(cards.map(node=>Math.round(node.getBoundingClientRect().x)))];return {count:cards.length,columns:xs.length,xs,width:innerWidth,identity:window.__phase4ResponsiveIdentity,path:location.pathname,cardRects:cards.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})}})()`);
+      if (observed.count !== 3 || observed.columns !== viewport.columns || observed.width !== viewport.width || observed.identity !== identity || observed.path !== '/') {
+        throw new Error(`${viewport.id} structure drifted: ${JSON.stringify(observed)}`);
+      }
+      observations.push({ ...viewport, ...observed });
+    }
+    return { claimId: 'STEP4.UI.RESPONSIVE', cell: cellId, observations, documentIdentityRetained: true };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
+    const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      await taskPage.focus('create-event');
+      await taskPage.key('Enter');
+      if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard create-route boot');
+      await taskPage.pollText('create-panel', 'plan', 5_000);
+      await tabTo(taskPage, (state) => state.testId === 'event-title');
+      await taskPage.insertText('Keyboard Picnic');
+      await tabTo(taskPage, (state) => state.testId === 'event-location');
+      await taskPage.insertText('Dolores Park');
+      await tabTo(taskPage, (state) => state.testId === 'create-event-submit');
+      await taskPage.key('Enter');
+      const outcome = await taskPage.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
+      if (!outcome?.includes('Keyboard Picnic')) throw new Error(`keyboard create flow did not land its outcome: ${outcome}`);
+      return 'Keyboard Picnic';
+    });
+
+    const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      await taskPage.pollText('event-card-event_sunset', 'Sunset Supper Club', 15_000);
+      await taskPage.focus('open-event_sunset');
+      await taskPage.key('Enter');
+      if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard open-event boot');
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.focus('event-options-trigger');
+      await taskPage.key('Enter');
+      await taskPage.pollText('event-options-menu', 'Copy invite link', 5_000);
+      await taskPage.eval('new Promise(r=>requestAnimationFrame(r))');
+      const first = await taskPage.active();
+      await taskPage.key('ArrowDown');
+      const second = await taskPage.active();
+      if (!first?.insideMenu || !second?.insideMenu || second.testId === first.testId || second.text === first.text) throw new Error(`menu arrow navigation failed: ${JSON.stringify({ first, second })}`);
+      await taskPage.key('Escape');
+      await assertFocused(taskPage, 'event-options-trigger', 'menu Escape');
+      return { first, second };
+    });
+
+    const rsvp = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.pollText('rsvp-going', 'Going', 5_000);
+      await taskPage.focus('rsvp-going');
+      await taskPage.key('Space');
+      const outcome = await taskPage.pollText('guest-user_eve', 'Going', 5_000);
+      if (!outcome?.includes('Going')) throw new Error(`Space did not activate RSVP: ${outcome}`);
+      return outcome;
+    });
+
+    const guest = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.focus('guest-list-trigger');
+      await taskPage.key('Enter');
+      await taskPage.pollText('guest-list-sheet', 'Guest list', 5_000);
+      await tabTo(taskPage, (state) => state.role === 'listbox' || (state.testId?.startsWith('guest-sheet-') && state.role === 'option'));
+      const first = await taskPage.active();
+      const firstDescendant = await taskPage.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+      await taskPage.key('ArrowDown');
+      const second = await taskPage.active();
+      const secondDescendant = await taskPage.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+      const movedByDescendant = firstDescendant
+        && secondDescendant
+        && firstDescendant !== secondDescendant;
+      const movedByOptionFocus = second.role === 'option'
+        && second.testId !== first.testId;
+      const moved = movedByDescendant || movedByOptionFocus;
+      if (!moved) throw new Error(`guest-list arrow navigation failed: ${JSON.stringify({ first, second, firstDescendant, secondDescendant })}`);
+      await taskPage.key('Escape');
+      await assertFocused(taskPage, 'guest-list-trigger', 'guest sheet Escape');
+      return { first, second, firstDescendant, secondDescendant };
+    });
+
+    const wall = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.focus('wall-message');
+      await taskPage.insertText('Keyboard picnic');
+      await taskPage.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
+      await taskPage.key('Enter');
+      const pending = await taskPage.eval(`(async()=>{const d=Date.now()+2000;while(!window.__phase4PendingWitness?.witness.seen&&Date.now()<d)await new Promise(r=>setTimeout(r,20));const result=window.__phase4PendingWitness?.witness??null;window.__phase4PendingWitness?.observer.disconnect();delete window.__phase4PendingWitness;return result})()`);
+      const posted = await taskPage.pollText('wall', 'Keyboard picnic', 5_000);
+      if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
+      return { pending, posted: 'Keyboard picnic' };
+    });
+
+    return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, created, menu, rsvp, guest, wall };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.FOCUS', `${label} traps and restores every overlay`, async () => {
+    const observations = [];
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    await page.focus('create-event'); await page.click('create-event');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('create-panel', 'plan', 5_000);
+    observations.push({ overlay: 'create', opened: await waitForOverlayFocus(page, 'dialog', 'create') });
+    await page.key('Escape'); observations.push({ overlay: 'create', dismissed: await assertFocused(page, 'create-event', 'create Escape') });
+
+    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+    await page.pollText('guest-user_eve', 'Eve', 5_000);
+    await page.pollText('wall', 'Grace', 5_000);
+    await page.pollText('connection', 'live', 5_000);
+    await page.focus('event-options-trigger'); await page.click('event-options-trigger');
+    await page.pollText('event-options-menu', 'Copy invite link', 5_000);
+    observations.push({ overlay: 'menu', opened: await waitForOverlayFocus(page, 'menu', 'menu') });
+    await page.key('Escape'); observations.push({ overlay: 'menu', dismissed: await assertFocused(page, 'event-options-trigger', 'menu Escape') });
+
+    await page.focus('guest-list-trigger'); await page.click('guest-list-trigger');
+    await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+    observations.push({ overlay: 'guest-sheet', opened: await waitForOverlayFocus(page, 'dialog', 'guest sheet') });
+    await page.click('guest-sheet-close'); observations.push({ overlay: 'guest-sheet', dismissed: await assertFocused(page, 'guest-list-trigger', 'guest explicit close') });
+    await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+    await page.click('guest-list-sheet-backdrop'); observations.push({ overlay: 'guest-sheet-scrim', dismissed: await assertFocused(page, 'guest-list-trigger', 'guest scrim') });
+
+    await page.focus('rsvp-trigger'); await page.click('rsvp-trigger');
+    await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000);
+    observations.push({ overlay: 'rsvp', opened: await waitForOverlayFocus(page, 'dialog', 'RSVP dialog') });
+    await page.click('rsvp-cancel'); observations.push({ overlay: 'rsvp-cancel', dismissed: await assertFocused(page, 'rsvp-trigger', 'RSVP cancel') });
+    await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000);
+    await page.click('rsvp-confirm'); observations.push({ overlay: 'rsvp-confirm', dismissed: await assertFocused(page, 'rsvp-trigger', 'RSVP confirm') });
+
+    await page.click('back');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    observations.push({ route: 'event-to-feed', focused: await assertFocused(page, 'create-event', 'route back') });
+    if (observations.some((entry) => entry.opened?.tag === 'BODY')) throw new Error(`an overlay opened with focus on body: ${JSON.stringify(observations)}`);
+    return { claimId: 'STEP4.UI.FOCUS', cell: cellId, observations };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.REDUCED-MOTION', `${label} preserves non-motion outcomes`, async () => {
+    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+    await page.emulateReducedMotion(true);
+    try {
+      await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+      const overlayMotion = await page.eval(`(()=>{const nodes=['guest-list-sheet','guest-list-sheet-overlay'].map(id=>document.querySelector('[data-testid="'+id+'"]')).filter(Boolean);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,nodes:nodes.map(node=>{const s=getComputedStyle(node);return {animationDuration:s.animationDuration,transitionDuration:s.transitionDuration}})}})()`);
+      if (!overlayMotion.matches || overlayMotion.nodes.some((entry) => parseFloat(entry.animationDuration) > 0.001 || parseFloat(entry.transitionDuration) > 0.001)) throw new Error(`reduced overlay motion remains: ${JSON.stringify(overlayMotion)}`);
+      await page.key('Escape');
+      await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); await page.click('rsvp-confirm');
+      const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
+      await page.focus('wall-message'); await page.insertText('Reduced motion status');
+      await page.eval(`(()=>{const witness={seen:false,text:null,firstSeenAt:null,removedAt:null};let present=false;const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');const now=performance.now();if(node){witness.seen=true;witness.text=node.textContent;witness.firstSeenAt??=now;present=true}else if(present&&witness.removedAt===null){witness.removedAt=now;present=false}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4ReducedPendingWitness={witness,observer,inspect};return true})()`);
+      await page.key('Enter');
+      const pending = await page.eval(`(async()=>{const d=performance.now()+1500;while(performance.now()<d){window.__phase4ReducedPendingWitness?.inspect();const w=window.__phase4ReducedPendingWitness?.witness;if(w?.seen&&w.removedAt!==null)break;await new Promise(r=>setTimeout(r,20))}const state=window.__phase4ReducedPendingWitness;state?.inspect();state?.observer.disconnect();const witness=state?.witness??null;delete window.__phase4ReducedPendingWitness;return witness?{...witness,visibleMs:witness.firstSeenAt===null?null:(witness.removedAt??performance.now())-witness.firstSeenAt}:null})()`);
+      if (!rsvp?.includes('Going') || !pending?.seen || !pending.text?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
+      return { claimId: 'STEP4.UI.REDUCED-MOTION', cell: cellId, overlayMotion, semanticEndState: { rsvp: 'Going', pending: 'Sending…', pendingVisibleMs: pending.visibleMs } };
+    } finally {
+      await page.emulateReducedMotion(false);
+    }
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.A11Y', `${label} satisfies semantic clauses and records axe`, async () => {
+    const audits = [];
+    for (const scenario of [
+      { path: '/', params: { user: 'eve' }, open: null },
+      { path: '/events/event_sunset/', params: { user: 'eve' }, open: 'guest-list-trigger' },
+      { path: '/events/new/', params: { user: 'eve' }, open: null },
+    ]) {
+      await loadPhase4Route(page, cell, baseUrl, scenario.path, scenario.params);
+      if (scenario.open) { await page.click(scenario.open); await page.pollText('guest-list-sheet', 'Guest list', 5_000); }
+      const semantics = await page.eval(`(()=>{const widgets=[...document.querySelectorAll('button,input,textarea,a,[role="menuitem"],[role="option"],[role="listbox"],[role="dialog"]')];const name=node=>node.getAttribute('aria-label')||node.getAttribute('aria-labelledby')?.split(/\\s+/).map(id=>document.getElementById(id)?.textContent??'').join(' ').trim()||[...(node.labels??[])].map(label=>label.textContent??'').join(' ').trim()||node.textContent?.trim()||node.getAttribute('title')||'';const unnamed=widgets.filter(node=>!name(node)).map(node=>({tag:node.tagName,role:node.getAttribute('role'),testId:node.getAttribute('data-testid')}));const headings=[...document.querySelectorAll('h1,h2,h3,h4,h5,h6,[aria-level]')].map(node=>Number(node.getAttribute('aria-level')||node.tagName.slice(1)));const skipped=headings.some((level,index)=>index>0&&level>headings[index-1]+1);return {main:document.querySelectorAll('main').length,unnamed,headings,skipped,listboxes:document.querySelectorAll('[role="listbox"]').length,dialogs:[...document.querySelectorAll('[role="dialog"]')].map(node=>({modal:node.getAttribute('aria-modal'),name:name(node)})),rsvpStates:[...document.querySelectorAll('[data-testid^="rsvp-"][role="radio"]')].map(node=>({id:node.getAttribute('data-testid'),checked:node.getAttribute('aria-checked')}))}})()`);
+      if (semantics.main !== 1 || semantics.unnamed.length > 0 || semantics.skipped || (scenario.path.includes('/events/') && !scenario.path.includes('/new/') && semantics.listboxes < 1) || semantics.dialogs.some((dialog) => !dialog.name || dialog.modal !== 'true')) {
+        throw new Error(`semantic S2 clauses failed at ${scenario.path}: ${JSON.stringify(semantics)}`);
+      }
+      await page.eval(`${axeSource}\n;true`);
+      const axe = await page.eval(`axe.run(document,{resultTypes:['violations'],runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa']}}).then(result=>({violations:result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length,help:v.help}))}))`);
+      audits.push({ scenario, semantics, axe });
+    }
+    const criticalSerious = audits.flatMap((audit) => audit.axe.violations).filter((violation) => violation.impact === 'critical' || violation.impact === 'serious');
+    const measurement = { claimId: 'STEP4.UI.A11Y', cell: cellId, axeVersion: '4.12.1', criticalSerious, totalViolations: audits.reduce((sum, audit) => sum + audit.axe.violations.length, 0), audits };
+    phase4A11y.set(cellId, measurement);
+    return measurement;
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.VISUAL', `${label} implements every representative state`, async () => {
+    const states = [];
+    const themes = captureVisualDir ? phase4VisualSpec.themes : [phase4VisualSpec.themes[0]];
+    const viewports = captureVisualDir ? phase4VisualSpec.viewports : [phase4VisualSpec.viewports.at(-1)];
+    for (const theme of themes) for (const viewport of viewports) for (const state of phase4VisualSpec.states) {
+      await page.setViewport(viewport.width, viewport.height);
+      await prepareVisualState({ page, cell, baseUrl, state: state.id, theme: theme.id });
+      await waitForFontsAndPaint(page);
+      const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
+      const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
+      if (invalid.length > 0) throw new Error(`${state.id}/${theme.id}/${viewport.id} violates required visibility: ${JSON.stringify(invalid)}`);
+      const relations = await page.eval(`(()=>{const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')].map(node=>{const r=node.getBoundingClientRect();return {id:node.getAttribute('data-testid'),left:r.left,top:r.top,right:r.right,bottom:r.bottom}});const overlaps=[];for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){const a=cards[i],b=cards[j];if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlaps.push([a.id,b.id])}const trigger=rect('event-options-trigger'),menu=rect('event-options-menu');const contained=['event-options-menu','guest-list-sheet','rsvp-confirm-dialog'].map(id=>({id,rect:rect(id)})).filter(x=>x.rect).map(x=>({...x,inside:x.rect.left>=0&&x.rect.top>=0&&x.rect.right<=innerWidth&&x.rect.bottom<=innerHeight}));return {viewport:{width:innerWidth,height:innerHeight},cardOverlaps:overlaps,menuAnchor:trigger&&menu?{rightDelta:Math.abs(trigger.right-menu.right),verticalGap:menu.top-trigger.bottom}:null,contained}})()`);
+      if (relations.cardOverlaps.length > 0 || relations.contained.some((entry) => !entry.inside) || (state.id === 'options-menu-open' && (!relations.menuAnchor || relations.menuAnchor.rightDelta > 2 || relations.menuAnchor.verticalGap < 0 || relations.menuAnchor.verticalGap > 16))) {
+        throw new Error(`${state.id}/${theme.id}/${viewport.id} violates visual relations: ${JSON.stringify(relations)}`);
+      }
+      let artifact = null;
+      if (captureVisualDir) {
+        const artifactPath = resolve(repoRoot, captureVisualDir, cell.arm, theme.id, viewport.id, `${state.id}.png`);
+        mkdirSync(dirname(artifactPath), { recursive: true });
+        const viewportOnly = ['guest-list-sheet-open', 'create-event-form-default', 'create-event-form-validation-error', 'options-menu-open', 'rsvp-confirm-dialog-open'].includes(state.id);
+        writeFileSync(artifactPath, Buffer.from(await page.screenshot({ fullPage: !viewportOnly }), 'base64'));
+        const image = readFileSync(artifactPath);
+        artifact = { path: relative(repoRoot, artifactPath), sha256: createHash('sha256').update(image).digest('hex'), bytes: image.byteLength, approval: 'pending-human-review' };
+      }
+      states.push({ state: state.id, theme: theme.id, viewport: viewport.id, specVersion: phase4VisualSpec.specVersion, structural, relations, artifact });
+    }
+    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: captureVisualDir ? '78-cell per-arm capture with pending human approvals' : '13-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
+  });
+}
+
+async function phase4Claim(activeSuite, claimId, title, check) {
+  if (selectedPhase4Claim && selectedPhase4Claim !== claimId) return;
+  return activeSuite.check(`${claimId} ${title}`, check);
+}
+
+async function withPhase4KeyboardPage(cdp, cell, baseUrl, pathname, run) {
+  const taskPage = await cdp.newPage();
+  try {
+    await taskPage.setViewport(1280, 800);
+    await loadPhase4Route(taskPage, cell, baseUrl, pathname, { user: 'eve' });
+    return await run(taskPage);
+  } finally {
+    await taskPage.close();
+  }
+}
+
+async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
+  const url = new URL(pathname.replace(/^\//, ''), `${baseUrl}/`);
+  for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
+  await page.navigate(url.href);
+  const boot = await waitForMatrixBoot(page);
+  if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
+  await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  return boot;
+}
+
+async function waitForFontsAndPaint(page) {
+  if (selectedBrowser !== 'safari') {
+    await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+    return;
+  }
+  const deadline = Date.now() + 5_000;
+  let status = null;
+  while (Date.now() < deadline) {
+    status = await page.eval(`document.fonts?.status??'loaded'`);
+    if (status === 'loaded') {
+      await sleep(100);
+      return;
+    }
+    await sleep(50);
+  }
+  throw new Error(`Safari fonts did not settle before visual inspection: ${status}`);
+}
+
+async function tabTo(page, predicate, limit = 16) {
+  for (let index = 0; index < limit; index += 1) {
+    const state = await page.active();
+    if (predicate(state)) return state;
+    await page.key('Tab');
+  }
+  const state = await page.active();
+  throw new Error(`Tab traversal did not reach the requested target: ${JSON.stringify(state)}`);
+}
+
+async function assertFocused(page, testId, label) {
+  const deadline = Date.now() + 5_000;
+  let state = null;
+  while (Date.now() < deadline) {
+    state = await page.active();
+    if (state?.testId === testId) return state;
+    await sleep(50);
+  }
+  throw new Error(`${label} did not restore focus to ${testId}: ${JSON.stringify(state)}`);
+}
+
+async function waitForOverlayFocus(page, kind, label) {
+  const deadline = Date.now() + 5_000;
+  let state = null;
+  while (Date.now() < deadline) {
+    state = await page.active();
+    if ((kind === 'menu' && state?.insideMenu) || (kind === 'dialog' && state?.insideDialog)) return state;
+    await sleep(50);
+  }
+  throw new Error(`${label} did not move focus into its overlay: ${JSON.stringify(state)}`);
+}
+
+async function prepareVisualState({ page, cell, baseUrl, state, theme = 'light' }) {
+  const params = { user: 'eve', theme: theme === 'dark' ? 'night' : 'warm' };
+  const event = () => loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', params);
+  if (state === 'feed-empty') return loadPhase4Route(page, cell, baseUrl, '/', { ...params, uiState: 'feed-empty' });
+  if (state === 'feed-loading-skeleton') return loadPhase4Route(page, cell, baseUrl, '/', { ...params, uiState: 'feed-loading' });
+  if (state === 'feed-populated') return loadPhase4Route(page, cell, baseUrl, '/', params);
+  if (state === 'event-detail-error') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'event-error' });
+  if (state === 'create-event-form-default') return loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
+  if (state === 'create-event-form-validation-error') {
+    await loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
+    await page.pollText('create-panel', 'plan', 5_000);
+    await page.click('create-event-submit');
+    return;
+  }
+  await event();
+  await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+  if (state === 'event-detail-going') { await page.click('rsvp-going'); await page.pollText('guest-user_eve', 'Going', 5_000); return; }
+  if (state === 'event-detail-maybe') { await page.click('rsvp-maybe'); await page.pollText('guest-user_eve', 'Maybe', 5_000); return; }
+  if (state === 'guest-list-sheet-open') { await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000); return; }
+  if (state === 'wall-composer-active') { await page.focus('wall-message'); return; }
+  if (state === 'wall-optimistic-pending') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'wall-pending' });
+  if (state === 'options-menu-open') { await page.click('event-options-trigger'); await page.pollText('event-options-menu', 'Copy invite link', 5_000); return; }
+  if (state === 'rsvp-confirm-dialog-open') { await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); }
 }
 
 async function stopChild(child, label) {
@@ -722,13 +1126,15 @@ function runIdentity() {
       }).trim();
     } catch { /* an aggregate Step 0 run will reject a missing counterpart */ }
   }
-  let chromeVersion = null;
-  try { chromeVersion = execFileSync(chromeBin, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
+  const browserBinary = selectedBrowser === 'chrome' ? chromeBin : selectedBrowser === 'firefox' ? firefoxBin : safariDriverBin;
+  let browserVersion = null;
+  try { browserVersion = execFileSync(browserBinary, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
   let bunVersion = null;
   try { bunVersion = execFileSync('bun', ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
   const testPaths = [
     'demos/_kit/harness.mjs',
     'demos/_kit/chrome-process.mjs',
+    'demos/_kit/server-process.mjs',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
     'demos/partiful-matrix/surfaces/react/src/provider.ts',
@@ -750,8 +1156,11 @@ function runIdentity() {
       node: process.version,
       bun: bunVersion,
       os: `${platform()}-${release()}-${arch()}`,
-      chrome: chromeBin,
-      chromeVersion,
+      browser: selectedBrowser,
+      browserBinary,
+      browserVersion,
+      chrome: selectedBrowser === 'chrome' ? chromeBin : null,
+      chromeVersion: selectedBrowser === 'chrome' ? browserVersion : null,
       cpu: cpus()[0]?.model ?? null,
       logicalCpus: cpus().length,
       totalMemoryBytes: totalmem(),
@@ -795,7 +1204,16 @@ async function connectCdp(url) {
   });
   return { close: () => socket.close(), newPage: async () => {
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' }); const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true }); await send('Page.enable', {}, sessionId); await send('Runtime.enable', {}, sessionId);
-    const evalRaw = async (expression) => { const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId); if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text); return result.result?.value; };
+    const evalRaw = async (expression) => {
+      let result;
+      try {
+        result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId);
+      } catch (error) {
+        throw new Error(`${error.message}; expression=${String(expression).replace(/\s+/g, ' ').slice(0, 180)}`);
+      }
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+      return result.result?.value;
+    };
     const selector = (id) => `[data-testid="${id}"]`;
     return {
       navigate: (pageUrl) => send('Page.navigate', { url: pageUrl }, sessionId),
@@ -805,18 +1223,232 @@ async function connectCdp(url) {
       setViewport: (width, height) => send('Emulation.setDeviceMetricsOverride', {
         width, height, deviceScaleFactor: 1, mobile: width < 600,
       }, sessionId),
+      screenshot: async ({ fullPage = false } = {}) => {
+        const params = { format: 'png', fromSurface: true, captureBeyondViewport: fullPage };
+        if (fullPage) {
+          const metrics = await send('Page.getLayoutMetrics', {}, sessionId);
+          const size = metrics.cssContentSize ?? metrics.contentSize;
+          params.clip = { x: 0, y: 0, width: Math.ceil(size.width), height: Math.ceil(size.height), scale: 1 };
+        }
+        return (await send('Page.captureScreenshot', params, sessionId)).data;
+      },
       emulateReducedMotion: (enabled) => send('Emulation.setEmulatedMedia', {
         features: [{ name: 'prefers-reduced-motion', value: enabled ? 'reduce' : 'no-preference' }],
       }, sessionId),
       key: async (key) => {
-        await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key }, sessionId);
-        await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key }, sessionId);
+        const keyCodes = { Enter: 13, Space: 32, Tab: 9, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35 };
+        const virtualKeyCode = keyCodes[key] ?? 0;
+        const resolved = key === 'Space' ? { key: ' ', code: 'Space', text: ' ' } : key === 'Enter' ? { key, code: key, text: '\r' } : { key, code: key };
+        const codes = virtualKeyCode ? { windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode } : {};
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', ...resolved, ...codes }, sessionId);
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', ...resolved, text: undefined, ...codes }, sessionId);
       },
+      insertText: (text) => send('Input.insertText', { text }, sessionId),
       eval: evalRaw,
+      focus: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!(el instanceof HTMLElement))throw new Error('missing focus target ${id}');el.focus();return el===document.activeElement})()`),
+      active: () => evalRaw(`(()=>{const el=document.activeElement;return {tag:el?.tagName??null,testId:el?.getAttribute('data-testid')??null,role:el?.getAttribute('role')??null,text:el?.textContent?.trim()??null,insideMenu:!!el?.closest('[role="menu"]'),insideDialog:!!el?.closest('[role="dialog"]')}})()`),
       click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
       text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),
       pollText: (id, pattern, timeout) => evalRaw(`(async()=>{const d=Date.now()+${timeout};let v=null;while(Date.now()<d){v=document.querySelector('${selector(id)}')?.textContent?.trim()??null;if(v&&new RegExp(${JSON.stringify(pattern)},'i').test(v))return v;await new Promise(r=>setTimeout(r,100));}return v})()`),
       transportEvidence: () => evalRaw(`(async()=>{const ready=await window.partifulMatrixReady;return ready.transportEvidence?.()??ready.provider?.transportEvidence?.()??[];})()`),
     };
   } };
+}
+
+function createWebDriverHarness({ browserName }) {
+  const pages = new Set();
+  let closing = false;
+  return {
+    async newPage() {
+      if (closing) throw new Error(`${browserName} WebDriver harness is closing`);
+      const driver = await launchWebDriverServer(browserName);
+      let sessionId = null;
+      try {
+        const reducedMotion = browserName === 'firefox' && selectedPhase4Claim === 'STEP4.UI.REDUCED-MOTION';
+        const needsBidiViewport = browserName === 'firefox' && ['STEP4.UI.RESPONSIVE', 'STEP4.UI.VISUAL'].includes(selectedPhase4Claim);
+        const capabilities = browserName === 'firefox'
+          ? {
+              browserName: 'firefox',
+              ...(needsBidiViewport ? { webSocketUrl: true } : {}),
+              'moz:firefoxOptions': {
+                args: ['-headless'],
+                prefs: { 'ui.prefersReducedMotion': reducedMotion ? 1 : 0 },
+              },
+            }
+          : { browserName: 'safari' };
+        const created = await webdriverRequest(driver.url, '/session', {
+          method: 'POST',
+          body: { capabilities: { alwaysMatch: capabilities } },
+          timeoutMs: 45_000,
+        });
+        sessionId = created.sessionId;
+        if (!sessionId) throw new Error(`${browserName} WebDriver omitted sessionId`);
+        const base = `/session/${sessionId}`;
+        const bidi = typeof created.capabilities?.webSocketUrl === 'string'
+          ? await connectBidi(created.capabilities.webSocketUrl)
+          : null;
+        const bidiTree = bidi ? await bidi.send('browsingContext.getTree', { maxDepth: 0 }) : null;
+        const bidiContext = bidiTree?.contexts?.[0]?.context ?? null;
+        await webdriverRequest(driver.url, `${base}/timeouts`, {
+          method: 'POST',
+          body: { script: 30_000, pageLoad: 30_000, implicit: 0 },
+        });
+        let closed = false;
+        const evalRaw = async (expression) => {
+          const envelope = await webdriverRequest(driver.url, `${base}/execute/async`, {
+            method: 'POST',
+            body: {
+              script: `const expression=arguments[0],done=arguments[arguments.length-1];Promise.resolve().then(()=>eval(expression)).then(value=>done({ok:true,value}),error=>done({ok:false,error:{message:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:null}}));`,
+              args: [expression],
+            },
+            timeoutMs: 35_000,
+          });
+          if (!envelope?.ok) throw new Error(`${browserName} script failed: ${envelope?.error?.message ?? 'unknown error'}${envelope?.error?.stack ? `\n${envelope.error.stack}` : ''}`);
+          return envelope.value;
+        };
+        const selector = (id) => `[data-testid="${id}"]`;
+        const close = async () => {
+          if (closed) return;
+          closed = true;
+          pages.delete(page);
+          let firstError = null;
+          try { bidi?.close(); }
+          catch (error) { firstError = error; }
+          try { await webdriverRequest(driver.url, base, { method: 'DELETE', timeoutMs: 10_000 }); }
+          catch (error) { firstError = error; }
+          try { await driver.stop(); }
+          catch (error) { firstError ??= error; }
+          if (firstError) throw firstError;
+        };
+        const page = {
+          navigate: (pageUrl) => webdriverRequest(driver.url, `${base}/url`, { method: 'POST', body: { url: pageUrl }, timeoutMs: 35_000 }),
+          close,
+          waitForNavigation: () => sleep(50),
+          setScriptExecutionDisabled: async (value) => {
+            if (value) throw new Error(`${browserName} WebDriver does not expose script-disable emulation`);
+          },
+          setViewport: (width, height) => bidi && bidiContext
+            ? bidi.send('browsingContext.setViewport', { context: bidiContext, viewport: { width, height }, devicePixelRatio: 1 })
+            : webdriverRequest(driver.url, `${base}/window/rect`, { method: 'POST', body: { width, height } }),
+          screenshot: async () => webdriverRequest(driver.url, `${base}/screenshot`, { method: 'GET' }),
+          emulateReducedMotion: async (enabled) => {
+            if (!enabled) return;
+            const matches = await evalRaw(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
+            if (!matches) throw new Error(`${browserName} WebDriver session cannot witness prefers-reduced-motion`);
+          },
+          key: async (key) => {
+            const keys = { Enter: '\uE007', Space: ' ', Tab: '\uE004', Escape: '\uE00C', ArrowLeft: '\uE012', ArrowUp: '\uE013', ArrowRight: '\uE014', ArrowDown: '\uE015', Home: '\uE011', End: '\uE010' };
+            const value = keys[key] ?? key;
+            await webdriverRequest(driver.url, `${base}/actions`, {
+              method: 'POST',
+              body: { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value }, { type: 'keyUp', value }] }] },
+            });
+          },
+          insertText: async (text) => {
+            const active = await webdriverRequest(driver.url, `${base}/element/active`, { method: 'GET' });
+            const elementId = active?.['element-6066-11e4-a52e-4f735466cecf'];
+            if (!elementId) throw new Error(`${browserName} WebDriver omitted active element id`);
+            await webdriverRequest(driver.url, `${base}/element/${encodeURIComponent(elementId)}/value`, {
+              method: 'POST',
+              body: { text, value: [...text] },
+            });
+          },
+          eval: evalRaw,
+          focus: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!(el instanceof HTMLElement))throw new Error('missing focus target ${id}');el.focus();return el===document.activeElement})()`),
+          active: () => evalRaw(`(()=>{const el=document.activeElement;return {tag:el?.tagName??null,testId:el?.getAttribute('data-testid')??null,role:el?.getAttribute('role')??null,text:el?.textContent?.trim()??null,insideMenu:!!el?.closest('[role="menu"]'),insideDialog:!!el?.closest('[role="dialog"]')}})()`),
+          click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
+          text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),
+          pollText: (id, pattern, timeout) => evalRaw(`(async()=>{const d=Date.now()+${timeout};let v=null;while(Date.now()<d){v=document.querySelector('${selector(id)}')?.textContent?.trim()??null;if(v&&new RegExp(${JSON.stringify(pattern)},'i').test(v))return v;await new Promise(r=>setTimeout(r,100));}return v})()`),
+          transportEvidence: () => evalRaw(`(async()=>{const ready=await window.partifulMatrixReady;return ready.transportEvidence?.()??ready.provider?.transportEvidence?.()??[];})()`),
+        };
+        pages.add(page);
+        return page;
+      } catch (error) {
+        try {
+          if (sessionId) await webdriverRequest(driver.url, `/session/${sessionId}`, { method: 'DELETE', timeoutMs: 5_000 });
+        } catch { /* retain primary failure */ }
+        try { await driver.stop(); } catch { /* retain primary failure */ }
+        throw new Error(`${error.message}${driver.log() ? `\n${driver.log().slice(-4_000)}` : ''}`);
+      }
+    },
+    async close() {
+      closing = true;
+      const failures = [];
+      for (const page of [...pages]) {
+        try { await page.close(); } catch (error) { failures.push(error); }
+      }
+      if (failures.length === 1) throw failures[0];
+      if (failures.length > 1) throw new AggregateError(failures, `${browserName} WebDriver cleanup failed`);
+    },
+  };
+}
+
+async function launchWebDriverServer(browserName) {
+  const port = await freePort();
+  const binary = browserName === 'firefox' ? geckoDriverBin : safariDriverBin;
+  const args = browserName === 'firefox' ? ['--host', '127.0.0.1', '--port', String(port)] : ['-p', String(port)];
+  let log = '';
+  const child = spawn(binary, args, { cwd: repoRoot, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  child.stdout.on('data', (chunk) => { log = `${log}${chunk}`.slice(-16_000); });
+  child.stderr.on('data', (chunk) => { log = `${log}${chunk}`.slice(-16_000); });
+  const url = `http://127.0.0.1:${port}`;
+  try {
+    await waitUrl(`${url}/status`, child, `${browserName} WebDriver`, 15_000);
+  } catch (error) {
+    try { await stopChild(child, `${browserName} WebDriver startup`); } catch { /* retain primary */ }
+    throw new Error(`${error.message}${log ? `\n${log}` : ''}`);
+  }
+  return { url, log: () => log, stop: () => stopChild(child, `${browserName} WebDriver`) };
+}
+
+async function webdriverRequest(origin, path, { method = 'GET', body = null, timeoutMs = 30_000 } = {}) {
+  const response = await fetch(`${origin}${path}`, {
+    method,
+    ...(body === null ? {} : { headers: { 'content-type': 'application/json; charset=utf-8' }, body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const payload = await response.json().catch(() => null);
+  const value = payload?.value;
+  if (!response.ok || value?.error) {
+    throw new Error(`WebDriver ${method} ${path} failed: ${value?.error ?? response.status} — ${value?.message ?? 'no diagnostic'}`);
+  }
+  return value;
+}
+
+async function connectBidi(url) {
+  const socket = new WebSocket(url);
+  const pending = new Map();
+  let nextId = 1;
+  const settle = (id) => {
+    const request = pending.get(id);
+    if (request) clearTimeout(request.timer);
+    pending.delete(id);
+    return request;
+  };
+  socket.addEventListener('message', async (event) => {
+    const message = JSON.parse(typeof event.data === 'string' ? event.data : await event.data.text());
+    if (!message.id || !pending.has(message.id)) return;
+    const request = settle(message.id);
+    if (message.type === 'error') request.reject(new Error(`WebDriver BiDi ${request.method} failed: ${message.error} — ${message.message}`));
+    else request.resolve(message.result ?? {});
+  });
+  await new Promise((resolveOpen, reject) => {
+    socket.addEventListener('open', resolveOpen, { once: true });
+    socket.addEventListener('error', () => reject(new Error('WebDriver BiDi connection failed')), { once: true });
+  });
+  return {
+    send(method, params = {}) {
+      return new Promise((resolveSend, reject) => {
+        const id = nextId++;
+        const timer = setTimeout(() => {
+          settle(id);
+          reject(new Error(`WebDriver BiDi timeout: ${method}`));
+        }, 30_000);
+        pending.set(id, { method, resolve: resolveSend, reject, timer });
+        try { socket.send(JSON.stringify({ id, method, params })); }
+        catch (error) { settle(id); reject(error); }
+      });
+    },
+    close() { socket.close(); },
+  };
 }

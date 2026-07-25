@@ -6,7 +6,7 @@ const palette = {
     surface: '#faf7f0',
     text: '#171512',
     muted: '#625b52',
-    accent: '#ff4d24',
+    accent: '#c43b2f',
     panel: '#dce3bf',
   },
   night: {

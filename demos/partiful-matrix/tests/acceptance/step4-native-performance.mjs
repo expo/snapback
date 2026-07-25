@@ -23,6 +23,11 @@ const invalidationPath = resolve(
   'acceptance/native-performance-invalidation-amendment.2026-07-22.json',
 );
 const invalidation = JSON.parse(readFileSync(invalidationPath, 'utf8'));
+const observerAmendmentPath = resolve(
+  demoRoot,
+  'acceptance/native-performance-observer-amendment.2026-07-23.json',
+);
+const observerAmendment = JSON.parse(readFileSync(observerAmendmentPath, 'utf8'));
 const option = (name) => {
   const at = process.argv.indexOf(`--${name}`);
   return at < 0 ? null : process.argv[at + 1];
@@ -47,6 +52,11 @@ if (!quick) {
     'ratified',
     'native lane invalidation amendment must be ratified before claim-eligible sampling',
   );
+  assert.equal(
+    observerAmendment.status,
+    'ratified',
+    'native performance observer amendment must be ratified before claim-eligible sampling',
+  );
 }
 
 const input = JSON.parse(readFileSync(inputPath, 'utf8'));
@@ -62,6 +72,20 @@ const reactRaw = loadReceipts(input.react.receipts, 'react-expo:ios:snapback');
 const exactRaw = loadReceipts(input.exact.receipts, 'exact-contract:ios:snapback');
 assert.equal(reactRaw.length, requiredReceipts, `React receipt count must be ${requiredReceipts}`);
 assert.equal(exactRaw.length, requiredReceipts, `Exact receipt count must be ${requiredReceipts}`);
+for (const { receipt } of reactRaw) {
+  assert.deepEqual(
+    receipt.environment,
+    input.hostIdentity,
+    'React receipt host identity differs from the declared paired host',
+  );
+}
+for (const { receipt } of exactRaw) {
+  assert.deepEqual(
+    receipt.environment,
+    input.hostIdentity,
+    'Exact receipt host identity differs from the declared paired host',
+  );
+}
 const reactSamples = reactRaw.map(extractReactSample).slice(warmups);
 const exactSamples = exactRaw.map(extractExactSample).slice(warmups);
 const cells = {
@@ -100,6 +124,7 @@ const report = {
   amendment: identity(amendmentPath),
   sampling: { warmups, samples: sampleCount, outlierPolicy: amendment.sampling.outlierPolicy },
   invalidation: identity(invalidationPath),
+  observerAmendment: identity(observerAmendmentPath),
   platform: 'ios',
   hostIdentity: input.hostIdentity,
   sourceReceipts,
@@ -126,15 +151,25 @@ function extractReactSample({ receipt, expectedCell }) {
   assert.equal(receipt.ok, true, `${expectedCell} raw receipt is not green`);
   const measured = receipt.performance?.sample;
   assert(measured, `${expectedCell} lacks performance.sample; rerun native-react-expo.mjs with --performance-only`);
-  validateLane(measured, expectedCell);
+  validateLane(measured, expectedCell, 'react');
   return finiteMetrics(measured, expectedCell);
 }
 
 function extractExactSample({ receipt, expectedCell }) {
   assert.equal(receipt.ok, true, `${expectedCell} raw receipt is not green`);
+  assert.equal(
+    receipt.observer?.id,
+    observerAmendment.observer.id,
+    `${expectedCell} raw receipt omitted the registered observer`,
+  );
+  assert.equal(
+    receipt.observer?.build?.featureBound,
+    true,
+    `${expectedCell} runtime archive stamp did not bind the observer feature`,
+  );
   const direct = receipt.performance?.sample;
   if (direct) {
-    validateLane(direct, expectedCell);
+    validateLane(direct, expectedCell, 'exact');
     return finiteMetrics(direct, expectedCell);
   }
   assert.equal(
@@ -156,7 +191,7 @@ function extractExactSample({ receipt, expectedCell }) {
   }, expectedCell);
 }
 
-function validateLane(sample, label) {
+function validateLane(sample, label, framework) {
   if (quick && sample.definitionVersion === 'partitime.native-launch-stage.v1') {
     return;
   }
@@ -171,6 +206,52 @@ function validateLane(sample, label) {
     firstFrameObserver: 'native-host',
     authoritativeDataObserver: 'structured-product-marker',
   }, `${label} did not attest the paired release lane`);
+  if (framework === 'react') {
+    assert.equal(
+      sample.candidateObserver,
+      undefined,
+      `${label} control unexpectedly claimed the Exact-only observer`,
+    );
+    return;
+  }
+  assert.equal(
+    sample.candidateObserver?.id,
+    observerAmendment.observer.id,
+    `${label} did not identify the registered observer`,
+  );
+  assert.equal(
+    sample.candidateObserver?.targetAdvertisementSubstituted,
+    true,
+    `${label} hid the target-advertisement substitution`,
+  );
+  assert.equal(
+    sample.candidateObserver?.rootLoopbackFetchSubstituted,
+    true,
+    `${label} hid the root loopback-fetch substitution`,
+  );
+  assert.equal(
+    sample.candidateObserver?.ordinaryAbiPreserved,
+    true,
+    `${label} used an unregistered construction ABI`,
+  );
+  assert.deepEqual(sample.candidateObserver?.runtimeMarkers, {
+    ibexAuthenticatedSubstitution: true,
+    ibexLoopbackFetchSubstituted: true,
+    ibexPostureVerified: true,
+    exactObserverEnabled: true,
+    exactObserverRuntimeCreated: true,
+    exactCarrierDispatchInstalled: true,
+  }, `${label} omitted an observer runtime marker`);
+  assert.equal(
+    sample.candidateObserver?.diagnosticRuntimeObserved,
+    false,
+    `${label} used the diagnostic runtime`,
+  );
+  assert.equal(
+    sample.candidateObserver?.agentObservedBeforeFirstFrame,
+    false,
+    `${label} loaded the agent before first frame`,
+  );
 }
 
 function finiteMetrics(value, label) {
@@ -215,6 +296,7 @@ function validateHoldout(revision, aggregateValues) {
   assert.equal(calibration.claimEligible, true);
   assert.deepEqual(calibration.amendment, identity(amendmentPath));
   assert.deepEqual(calibration.invalidation, identity(invalidationPath));
+  assert.deepEqual(calibration.observerAmendment, identity(observerAmendmentPath));
   assert.equal(calibration.methodId, invalidation.replacement.methodId);
   assert.equal(calibration.thresholdSetId, invalidation.replacement.thresholdSetId);
   assert.equal(calibration.laneId, invalidation.replacement.laneId);

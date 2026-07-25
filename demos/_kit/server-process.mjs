@@ -1035,6 +1035,19 @@ async function waitForLeaderClose(tracker, timeoutMs) {
   return result;
 }
 
+// A detached program may let a helper inherit the parent's stdout/stderr pipe
+// even after the owned process group and its leader are gone. In that case
+// Node deliberately withholds ChildProcess `close` until the inherited writer
+// disappears, conflating an unrelated descriptor lifetime with process-tree
+// lifetime. Release only the parent's read handles, and only after native
+// process-group attestation has proved the owned tree exited. The prior data
+// listeners have already drained every byte written by the owned tree.
+function releaseLeaderPipesAfterTreeExit(child) {
+  for (const stream of [child?.stdout, child?.stderr]) {
+    if (stream && !stream.destroyed) stream.destroy();
+  }
+}
+
 function cleanupFailure(child, { term, graceful = null, kill = null, leader = null }) {
   const failures = [];
   if (term && !term.ok) failures.push(`TERM cleanup: ${term.error ?? 'not attested'}`);
@@ -1107,10 +1120,9 @@ export async function stopChild(child, {
           timeoutMs: gracefulRemainingMs(),
           pollMs: processGroupPollMs,
         });
-    const [graceful, leader] = await Promise.all([
-      gracefulGroup,
-      waitForLeaderClose(closeTracker, gracefulRemainingMs()),
-    ]);
+    const graceful = await gracefulGroup;
+    if (graceful.ok) releaseLeaderPipesAfterTreeExit(child);
+    const leader = await waitForLeaderClose(closeTracker, gracefulRemainingMs());
     if (graceful.ok && leader.ok) {
       return;
     }
@@ -1120,6 +1132,7 @@ export async function stopChild(child, {
   // ignore TERM or outlive Cargo. SIGKILL is successful only after signal-0
   // observes ESRCH for the detached group, then the leader close is observed.
   const kill = await signalTree(child, 'SIGKILL', signalOptions);
+  if (kill.ok) releaseLeaderPipesAfterTreeExit(child);
   const leader = await waitForLeaderClose(closeTracker, leaderCloseTimeoutMs);
   if (kill.ok && leader.ok) return;
   throw cleanupFailure(child, { term, kill, leader });

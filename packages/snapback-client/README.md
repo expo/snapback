@@ -6,6 +6,8 @@ Exports:
 
 - `@snapback/client` — `SnapbackClient`, auth/custody helpers, and compatibility
   re-exports for the external store;
+- `@snapback/client/online` — the same `SnapbackClient` class through a narrow
+  browser entry that does not retain optional package exports;
 - `@snapback/client/agent-authority` — scoped agent-authority custody;
 - `@snapback/client/external-store` —
   `snapback.external-store.v1`, canonical query identity, provider-scoped

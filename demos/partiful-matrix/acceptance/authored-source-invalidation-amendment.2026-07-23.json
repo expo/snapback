@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "partitime.authored-source-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-authored-source-v2-2026-07-23",
+  "date": "2026-07-23",
+  "status": "superseded",
+  "supersededBy": "partitime-ws8-authored-source-v3-2026-07-23",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 remediation",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": null,
+  "ratificationStatement": null,
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "invalidates": {
+    "category": "authoredSourceLines",
+    "thresholdFormula": "floor(react_same_workload_source_lines * 1.10)",
+    "threshold": 348,
+    "thresholdArtifact": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "sha256": "4678e5e43884312e242b9f247c50e08c87077640396b24266b53f64a9fc68d9b"
+    },
+    "disposition": "Preserve the 348-line threshold and every receipt that evaluated it as historical v1 evidence. They may not validate the replacement source-volume claim."
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-authored-source-v2",
+    "workloadVersion": "partitime.web-product-authoring.v2",
+    "thresholdFormulaSetId": "partitime-ws8-authored-source-threshold-formulas-v2",
+    "metric": "authoredProductSourceBytes",
+    "thresholdFormula": "floor(react_same_workload_product_source_bytes * 1.10)",
+    "reactBaselineBytes": 27517,
+    "contractThresholdBytes": 30268,
+    "comparison": {
+      "react": [
+        "demos/partiful-matrix/surfaces/react/src/App.tsx",
+        "demos/partiful-matrix/surfaces/react/src/styles.css"
+      ],
+      "contract": [
+        "demos/partiful-matrix/surfaces/contract/feed.contract",
+        "demos/partiful-matrix/surfaces/contract/event.contract",
+        "demos/partiful-matrix/surfaces/contract/helpers.ts",
+        "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+        "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+        "demos/partiful-matrix/surfaces/contract/ui.ts",
+        "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts"
+      ]
+    },
+    "supportInventory": {
+      "gating": false,
+      "rule": "Report entry, provider, hydration, prerender, and other integration-support files separately with both bytes and physical lines. Do not silently charge a capability implemented by only one arm to the shared product-authoring row."
+    },
+    "snapbackBackendLines": {
+      "disposition": "unchanged",
+      "threshold": 152,
+      "thresholdFormula": "floor(partitime_snapback_backend_baseline_lines * 0.80)"
+    }
+  },
+  "cause": {
+    "class": "provably-incomplete-control-and-workload-drift",
+    "finding": "The v1 React inventory omitted styles.css (11,552 authored bytes) while Contract's inline styles and UI helpers were counted. The frozen 348-line threshold also predates the production hydration and prerender obligations later added to the Contract-only Step 7 workload, but the comparison protocol never rolled the source workload. Physical lines further reward the React stylesheet's packed multi-declaration formatting.",
+    "retainedEvidence": {
+      "frozenReactLines": 317,
+      "currentReactV1InventoryLines": 449,
+      "currentContractV1InventoryLines": 1140,
+      "omittedReactStylesBytes": 11552,
+      "replacementReactProductBytes": 27517,
+      "replacementContractProductBytes": 21618,
+      "replacementThresholdBytes": 30268
+    },
+    "notAProductOptimization": "The replacement does not remove Contract files or reformat either arm to win a line counter. It completes the React product inventory, uses byte volume to avoid physical-line packing, and separates asymmetric platform-support obligations from the shared product workload."
+  },
+  "requiredValidation": {
+    "preserveOriginalArtifacts": true,
+    "measureEveryListedFile": true,
+    "recordPathBytesLinesAndSha256": true,
+    "deriveThresholdOnlyFromReactReplacementInventory": true,
+    "retainSupportInventoryAsNonGatingEvidence": true,
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}

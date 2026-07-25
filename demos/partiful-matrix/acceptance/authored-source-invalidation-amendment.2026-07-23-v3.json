@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "partitime.authored-source-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-authored-source-v3-2026-07-23",
+  "date": "2026-07-23",
+  "status": "ratified",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 final product workload",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": "2026-07-24T11:37:04Z",
+  "ratificationStatement": "I ratify partitime-ws8-authored-source-v3-2026-07-23.",
+  "requiredRatificationStatement": "I ratify partitime-ws8-authored-source-v3-2026-07-23.",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "supersedes": {
+    "amendmentId": "partitime-ws8-authored-source-v2-2026-07-23",
+    "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23.json",
+    "disposition": "The unratified v2 proposal remains historical evidence for the earlier partial product UI. It authorized no calibration, threshold, or claim and cannot govern the completed Step 4 workload."
+  },
+  "invalidates": {
+    "category": "authoredSourceLines",
+    "thresholdFormula": "floor(react_same_workload_source_lines * 1.10)",
+    "threshold": 348,
+    "thresholdArtifact": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "sha256": "4678e5e43884312e242b9f247c50e08c87077640396b24266b53f64a9fc68d9b"
+    },
+    "disposition": "Preserve the 348-line threshold and every receipt that evaluated it as historical v1 evidence. They may not validate the replacement source-volume claim."
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-authored-source-v3",
+    "workloadVersion": "partitime.web-product-authoring.v3",
+    "thresholdFormulaSetId": "partitime-ws8-authored-source-threshold-formulas-v3",
+    "metric": "authoredProductSourceBytes",
+    "thresholdFormula": "floor(react_same_workload_product_source_bytes * 1.10)",
+    "reactBaselineBytes": 41447,
+    "contractThresholdBytes": 45591,
+    "contractCandidateBytes": 36212,
+    "comparison": {
+      "react": [
+        "demos/partiful-matrix/surfaces/react/src/App.tsx",
+        "demos/partiful-matrix/surfaces/react/src/styles.css"
+      ],
+      "contract": [
+        "demos/partiful-matrix/surfaces/contract/feed.contract",
+        "demos/partiful-matrix/surfaces/contract/event.contract",
+        "demos/partiful-matrix/surfaces/contract/helpers.ts",
+        "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+        "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+        "demos/partiful-matrix/surfaces/contract/ui.ts",
+        "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts"
+      ]
+    },
+    "frozenInventory": {
+      "react": [
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+          "bytes": 26361,
+          "lines": 411,
+          "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+          "bytes": 15086,
+          "lines": 63,
+          "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
+        }
+      ],
+      "contract": [
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+          "bytes": 12295,
+          "lines": 184,
+          "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+          "bytes": 15740,
+          "lines": 220,
+          "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+          "bytes": 4180,
+          "lines": 99,
+          "sha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+          "bytes": 866,
+          "lines": 12,
+          "sha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+          "bytes": 399,
+          "lines": 14,
+          "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+          "bytes": 1536,
+          "lines": 55,
+          "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+          "bytes": 1196,
+          "lines": 28,
+          "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+        }
+      ]
+    },
+    "supportInventory": {
+      "gating": false,
+      "rule": "Report entry, provider, hydration, prerender, and other integration-support files separately with both bytes and physical lines. Do not silently charge a capability implemented by only one arm to the shared product-authoring row."
+    },
+    "snapbackBackendLines": {
+      "disposition": "unchanged",
+      "threshold": 152,
+      "thresholdFormula": "floor(partitime_snapback_backend_baseline_lines * 0.80)"
+    }
+  },
+  "cause": {
+    "class": "unratified-candidate-workload-drift",
+    "finding": "The v2 proposal measured the earlier partial product surface. The completed Step 4 workload added the full create-event form and validation states, RSVP confirmation, wall composer states, menu and sheet variants, responsive behavior, and the styling needed for the frozen visual matrix to both arms. The fail-closed collector observed React at 41,447 bytes instead of v2's 27,517-byte candidate and refused to reuse the proposal.",
+    "retainedEvidence": {
+      "v2ReactProductBytes": 27517,
+      "v2ContractProductBytes": 21618,
+      "v3ReactProductBytes": 41447,
+      "v3ContractProductBytes": 36212,
+      "v3ThresholdBytes": 45591
+    },
+    "notAThresholdLoosening": "No v2 authority was ratified and no v2 threshold became claim-eligible. V3 freezes the completed same-workload inventories before ratification and derives the Contract threshold only from the final React control using the unchanged 1.10 multiplier."
+  },
+  "requiredValidation": {
+    "preserveOriginalArtifacts": true,
+    "measureEveryListedFile": true,
+    "recordPathBytesLinesAndSha256": true,
+    "deriveThresholdOnlyFromReactReplacementInventory": true,
+    "retainSupportInventoryAsNonGatingEvidence": true,
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}

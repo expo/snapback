@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "partitime.native-performance-observer-amendment.v1",
+  "amendmentId": "partitime-ws8-native-observer-v3-2026-07-23",
+  "date": "2026-07-23",
+  "status": "ratified",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 native carrier-cost instrument",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": "2026-07-24T11:37:04Z",
+  "ratificationStatement": "I ratify partitime-ws8-native-observer-v3-2026-07-23.",
+  "requiredRatificationStatement": "I ratify partitime-ws8-native-observer-v3-2026-07-23.",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "appliesToWorkloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "supplements": {
+    "amendmentId": "partitime-ws8-native-lane-invalidation-2026-07-22",
+    "methodId": "partitime.native-launch-stage.v2",
+    "thresholdSetId": "partitime-ws8-native-performance-thresholds-v2",
+    "preservedRules": [
+      "paired Exact and React Release/Simulator carriers",
+      "same host, OS, simulator runtime, device class, and cache protocol",
+      "production-bundled Hermes HBC",
+      "agent and debug overlay absent before first frame",
+      "native-host first-frame observer",
+      "carrier-owned structured first-authoritative-data marker",
+      "two warmups plus seven calibration samples",
+      "committed React-derived 1.10 thresholds before an independent Exact holdout"
+    ]
+  },
+  "finding": {
+    "class": "unavailable-report-derived-target-advertisement",
+    "summary": "The ratified v2 Exact carrier correctly authenticates its target-local snapshot, protected artifacts, root bindings, and loaded Hermes image, but Ibex advertises no Apple target because the CapSec execution report is intentionally incomplete. Ordinary production construction therefore refuses before project code.",
+    "imageAttestationProbe": {
+      "claimEligible": false,
+      "result": "After adding exact loaded-image attestation for universal iOS Simulator Hermes frameworks, the Release carrier advanced from image-identity refusal to the distinct report-advertisement refusal.",
+      "refusal": "engine target aarch64-apple-darwin with its exact features has no unique verified advertisement"
+    },
+    "conformanceInventory": {
+      "requiredRecipes": 22999,
+      "fullyExecutableRecipes": 4678,
+      "adapterExecutableRecipes": 11305,
+      "unresolvedRecipes": 18321,
+      "interpretation": "Completing the target advertisement is a separate security-conformance program, not a bounded prerequisite for measuring the current simulator carrier cost."
+    },
+    "notAProductOptimization": "The observer does not change Contract, Snapback, the Partitime HBC, the native view tree, or the timed app work. It makes one previously implicit method precondition explicit and measurable; it does not improve a sample, rebaseline a threshold, or advertise an Ibex target."
+  },
+  "observer": {
+    "id": "capsec-simulator-performance-observer-v1",
+    "exactCompileCondition": "EXACT_PARTITIME_NATIVE_PERFORMANCE_OBSERVER",
+    "ibexCargoFeature": "capsec-simulator-performance-observer",
+    "availability": "default-off; iOS Simulator only; Release only; compile fails for device, desktop, Debug, and Q10 rebuild postures",
+    "ordinaryAbiPreserved": true,
+    "substitutedGates": [
+      {
+        "id": "report-target-cells",
+        "description": "The report-derived target advertisement and its target-cell disposition lookup are replaced with Complete dispositions for the checked coverage-edge IDs."
+      },
+      {
+        "id": "root-loopback-fetch",
+        "description": "Because the native fetch adapter has not yet migrated to staged typed-fetch authorization, only authenticated-root network:fetch:127.0.0.1 is admitted through the legacy adapter for the measurement gateway and witness. Empty, unknown, non-root, or mixed package stacks, every other hostname, and every non-fetch capability remain denied."
+      }
+    ],
+    "checksStillRequiredBeforeSubstitution": [
+      "closed startup-environment rejection",
+      "strict immutable snapshot and expected-identity authentication",
+      "construction-fresh run nonce and snapshot digest",
+      "exact loaded Hermes image identity",
+      "protected package graph, policy, and Exact operation manifest artifacts",
+      "authenticated project-root bindings",
+      "enforce-mode typed decision context",
+      "typed Exact app ingress and endowment validation"
+    ],
+    "forbiddenClaims": [
+      "Ibex or Exact CapSec conformance",
+      "typed-fetch migration or network-authority conformance",
+      "Apple target advertisement or support",
+      "ordinary production readiness",
+      "physical-device performance",
+      "equivalence between substituted target cells and executed conformance fixtures"
+    ],
+    "artifactIsolation": "The observer uses a feature-scoped Cargo target directory. The linked archive build stamp binds the feature set, so a following ordinary build must replace the observer archive.",
+    "requiredRuntimeMarkers": [
+      "[Ibex] CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1: authenticated artifacts; report target cells substituted",
+      "[Ibex] CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 stage=loopback-fetch-substituted",
+      "[Ibex] CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 stage=posture-verified",
+      "[ExactRuntimeEngine] PARTITIME_CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 enabled",
+      "[ExactRuntimeEngine] PARTITIME_CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 runtime created",
+      "[ExactRuntimeEngine] PARTITIME_CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 carrier dispatch installed"
+    ]
+  },
+  "requiredValidation": {
+    "quickProbeBeforeRatification": "allowed only with claimEligible=false and no calibration/holdout promotion",
+    "claimSamplingBeforeRatification": "forbidden",
+    "rawExactReceiptsMustAttest": [
+      "Release iOS Simulator build",
+      "observer Cargo feature in the linked archive build stamp",
+      "observer Swift compile condition",
+      "all six runtime markers",
+      "diagnostic runtime absent",
+      "agent absent before first frame",
+      "production HBC identity and size",
+      "typed product marker"
+    ],
+    "rawReactReceiptsRemainV2Control": true,
+    "calibrationWarmups": 2,
+    "calibrationSamples": 7,
+    "holdoutWarmups": 2,
+    "holdoutSamples": 7,
+    "holdoutMustReadCommittedCalibration": true,
+    "securityConformanceEvidenceMayNotConsumeTheseReceipts": true
+  }
+}

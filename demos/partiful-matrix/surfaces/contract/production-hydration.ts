@@ -121,21 +121,28 @@ export function createHydrationSeededProvider(live: ContractDataProvider, value:
         },
       };
     },
-    mutate: (mutationName, args, correlation) => live.mutate(mutationName, args, correlation),
-    ...(live.getRowSyncState ? { getRowSyncState: (table: string, rowId: string) => live.getRowSyncState!(table, rowId) } : {}),
-    ...(live.forceQueryState ? { forceQueryState: live.forceQueryState.bind(live) } : {}),
-    ...(live.subscribeEphemeral ? { subscribeEphemeral: live.subscribeEphemeral.bind(live) } : {}),
-    ...(live.forceEphemeralState ? { forceEphemeralState: live.forceEphemeralState.bind(live) } : {}),
-    ...(live.onReceipt ? { onReceipt: live.onReceipt.bind(live) } : {}),
-    ...(live.receipts ? { receipts: live.receipts.bind(live) } : {}),
-  };
+  } as ContractDataProvider;
+  for (const name of [
+    'mutate',
+    'getRowSyncState',
+    'forceQueryState',
+    'subscribeEphemeral',
+    'forceEphemeralState',
+    'onReceipt',
+    'receipts',
+  ]) {
+    const method = (live as unknown as Record<string, unknown>)[name];
+    if (typeof method === 'function') {
+      (provider as unknown as Record<string, unknown>)[name] = method.bind(live);
+    }
+  }
 
   return {
     provider,
     release() {
       if (hydrationReleased) return;
       hydrationReleased = true;
-      for (const publish of [...pending]) publish();
+      for (const publish of pending) publish();
       pending.clear();
     },
     evidence: () => ({
