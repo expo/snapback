@@ -4,9 +4,14 @@
   "adapterProfile": "loopback-terminated-single-instance.v1",
   "capturedAt": "2026-07-25T15:15:00Z",
   "kind": "partial-pass",
-  "claim": "hostedAuthCapable is NOT claimed. This receipt records that `--auth-deployment hosted` now ADMITS on a real served public HTTPS origin under a real signed attestation — superseding the 2026-07-25 refusal witness (hosted-auth-refusal.v0.json) — and that two attested facts are not yet enforced by the origin, and that the LLP 0077 sender-auth matrix did not run. Every leg is recorded below with its exact status.",
+  "claim": "hostedAuthCapable is NOT claimed. This receipt records that `--auth-deployment hosted` now ADMITS on a real served public HTTPS origin under a real signed attestation \u2014 superseding the 2026-07-25 refusal witness (hosted-auth-refusal.v0.json) \u2014 and that two attested facts are not yet enforced by the origin, and that the LLP 0077 sender-auth matrix did not run. Every leg is recorded below with its exact status.",
   "supersedes": "demos/competitive-checkpoint/acceptance/results/hosted-auth-refusal.v0.json (the SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED leg only)",
-  "governingDocuments": ["LLP 0098", "LLP 0060", "LLP 0072", "LLP 0077"],
+  "governingDocuments": [
+    "LLP 0098",
+    "LLP 0060",
+    "LLP 0072",
+    "LLP 0077"
+  ],
   "provider": {
     "name": "fly.io",
     "app": "snapback-drill",
@@ -20,7 +25,7 @@
     "tlsTerminator": "Caddy, in the same network namespace",
     "flyEdgeMode": "raw TCP passthrough on public 443 (no `tls` handler), `http` handler on 80 for ACME only",
     "witness": "machine log line `snapback listening on http://127.0.0.1:4287` while https://snapback-drill.fly.dev/health returns 200",
-    "whyItMatters": "LLP 0060 D2's edge-to-origin clause is satisfied literally ('same-host loopback'), and the direct-origin bypass class is empty: no address outside the namespace routes to the origin socket. The LLP 0060 D1 plaintext fence is satisfied by its ordinary loopback rule — no fence was weakened and no sessions override exists."
+    "whyItMatters": "LLP 0060 D2's edge-to-origin clause is satisfied literally ('same-host loopback'), and the direct-origin bypass class is empty: no address outside the namespace routes to the origin socket. The LLP 0060 D1 plaintext fence is satisfied by its ordinary loopback rule \u2014 no fence was weakened and no sessions override exists."
   },
   "legs": [
     {
@@ -43,11 +48,12 @@
     },
     {
       "id": "operator-surface-disabled",
-      "status": "GAP",
+      "status": "GAP (fixed same day, not yet redeployed)",
       "what": "The admission asserts `operatorSurface: \"disabled\"`, which LLP 0060 C2 defines as a fixed 404 for every `/_snapback/*` page and API route on the public application origin.",
       "observed": "GET https://snapback-drill.fly.dev/_snapback/admin -> 503 with an 'Admin Console unavailable' HTML body.",
-      "assessment": "The origin does not enforce the disablement the attestation asserts; 503 is an incidental unavailability (the admin UI bundle is absent), not a deliberate fixed 404. This is an UNENFORCED ATTESTED FACT and is exactly the overclaim class LLP 0074 forbids. It is ledger row S4 of LLP 0098 §8 and it FAILS.",
-      "blocks": "hostedAuthCapable"
+      "assessment": "The origin does not enforce the disablement the attestation asserts; 503 is an incidental unavailability (the admin UI bundle is absent), not a deliberate fixed 404. This is an UNENFORCED ATTESTED FACT and is exactly the overclaim class LLP 0074 forbids. It is ledger row S4 of LLP 0098 \u00a78 and it FAILS. FIXED in-tree after this run; the served machine still runs the pre-fix image, so this receipt records the observed 503.",
+      "blocks": "hostedAuthCapable",
+      "fix": "A hosted deployment now serves a fixed body-free 404 on every SystemStatic/SystemApi route before any handler, regardless of admin token, while /inspect stays reachable. Regression test: hosted_admission_enforces_the_operator_surface_it_attests. Residual: a method-mismatched probe still returns 405 from the router method filter before the gate runs."
     },
     {
       "id": "plaintext-credential-refusal",

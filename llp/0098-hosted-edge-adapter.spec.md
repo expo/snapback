@@ -604,18 +604,29 @@ strict transport (`hstsPreloadedSuffix` — the `dev` TLD is preloaded with
 **Two attested facts are not enforced by the origin, and both block the
 claim.** These are the run's real product:
 
-- **S4 fails.** The admission asserts `operatorSurface: "disabled"`, which C2
-  defines as a *fixed 404* for every `/_snapback/*` route on the public
-  application origin. The served origin answers `/_snapback/admin` with **503**
-  and an "Admin Console unavailable" body — an incidental unavailability, not a
-  deliberate disablement. The origin currently *verifies that the snapshot says
-  disabled* without *enforcing disabled*.
+- **S4 failed, and is now fixed.** The admission asserts
+  `operatorSurface: "disabled"`, which C2 defines as a *fixed 404* for every
+  `/_snapback/*` route on the public application origin. The served origin
+  answered `/_snapback/admin` with **503** and an "Admin Console unavailable"
+  body — an incidental unavailability, not a deliberate disablement. The origin
+  *verified that the snapshot said disabled* without *enforcing disabled*.
+  Closed the same day: a hosted deployment now serves a fixed, body-free 404 on
+  every `SystemStatic`/`SystemApi` route before any handler, identically for
+  pages and API routes and regardless of a valid admin token, while `/inspect`
+  stays reachable so the deployment can still publish its own descriptor.
+  Regression: `hosted_admission_enforces_the_operator_surface_it_attests`.
+
+  **Residual, recorded rather than hidden:** a *method-mismatched* probe (a GET
+  to a POST-only operator route) is rejected by the router's method filter with
+  405 before this gate runs, so such a probe still distinguishes a present
+  operator route from an absent one. Closing it requires the disablement to move
+  ahead of method routing.
 - **A new row, D2-plaintext, fails.** D2 requires credential-bearing plaintext
   to be refused, never redirected. The terminator issues a blanket 308 on every
   plaintext path, so a credential-bearing plaintext request is redirected rather
   than refused.
 
-Both are the same defect class and it is the one this Spec exists to prevent:
+Both were the same defect class and it is the one this Spec exists to prevent:
 **an attested fact with no enforcing code behind it.** §3.2 already says
 verification does not make the control plane honest — but these two facts are
 ones the *origin itself* could enforce and currently does not, which is worse
