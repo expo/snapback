@@ -1143,7 +1143,7 @@
           "type": "array"
         },
         "publicInline": {
-          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\n@ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —\n  authored on the function definition, compiled by codegen, re-enforced\n  at manifest load; never route-manifest authored.",
+          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.",
           "type": "boolean"
         },
         "readSetSummary": {
@@ -1377,7 +1377,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "LLP 0080 §1 — the closed bounded-join profile. Callable and\n`live_replace`-capable only; targets that cannot execute it report a\nmachine-readable capability gap before invocation.",
+          "description": "The closed bounded-join profile. Callable and `live_replace`-capable\nonly; targets that cannot execute it report a machine-readable\ncapability gap before invocation.",
           "properties": {
             "RelationalQuery": {
               "$ref": "#/$defs/RelationalQueryPlan"
@@ -2207,7 +2207,7 @@
     },
     "RelationalQueryPlan": {
       "additionalProperties": false,
-      "description": "LLP 0080 §1 — the closed first relational profile: one root table, exactly\none unique-joined table, at most four equality pairs, explicit\nvisibility on both sources, index-served root access, deterministic\nroot ordering, and a bounded `take`. Evaluation follows the normative\n`root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor\nboundary → root order → take N roots → join + joined visibility →\nprojection. `take` bounds consumed authorized roots, not emitted rows.",
+      "description": "The closed first relational profile: one root table, exactly one\nunique-joined table, at most four equality pairs, explicit\nvisibility on both sources, index-served root access, deterministic\nroot ordering, and a bounded `take`. Evaluation follows the normative\n`root-window-v1` pipeline: visible root filter → cursor boundary → root\norder → take N roots → join + joined visibility → projection. `take`\nbounds consumed authorized roots, not emitted rows.",
       "properties": {
         "joinKind": {
           "$ref": "#/$defs/JoinKind"
