@@ -19112,6 +19112,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0056#declaring-a-membership-table — a duplicate write against
         //   the generated unique index is a conflict, not a bad request.
         | "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        // LLP 0080 slice 1: two joined rows sharing a unique key conflict
+        // with the index invariant; the executor refuses rather than picks.
+        | "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
         // @ref LLP 0055#principal-kinds — deactivation is refused when it would
         //   leave a protected LLP 0056 resource with no eligible holder; the
         //   operation conflicts with the last-eligible-holder invariant.
@@ -19474,6 +19477,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_BOUNDS"
         | "SNAPBACK_PLAN_INVALID"
         | "SNAPBACK_PLAN_SOURCE_INVALID"
+        // LLP 0080 slice 1: a malformed relational plan is author input.
+        | "SNAPBACK_RELATIONAL_PLAN_INVALID"
         | "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
@@ -31550,6 +31555,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PERMISSION_SCOPE_MISSING",
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
+        "SNAPBACK_RELATIONAL_PLAN_INVALID",
         "SNAPBACK_PLAN_SOURCE_INVALID",
         "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
@@ -31682,6 +31688,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_LIVE_STAGE_CONFLICT",
         "SNAPBACK_MUTATION_CONFLICT",
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
+        "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
         "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
     ];
 
