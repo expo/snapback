@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "snapback.package-publication.v1",
+  "mode": "dry-run",
+  "revision": "75c8c86e456b1cb121cdaf6dc85987a0f85e27bb",
+  "sourceDirty": false,
+  "version": "0.1.0-llp0063.1",
+  "tag": "llp0063",
+  "scopePreset": "ccheever",
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "name": "@ccheever/snapback-runtime-darwin-arm64",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.0-llp0063.1.tgz",
+      "sha256": "40681a75fb67d20f915672b5a0d91495dbc38df9282947a68c608027df735121",
+      "files": 4,
+      "unpackedSize": 56713470,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "name": "@ccheever/snapback-contract",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-contract-0.1.0-llp0063.1.tgz",
+      "sha256": "cfd9c774a40e3fcbfd8ee8e0689b845c7299d00699893be8a00d08e0b641f752",
+      "files": 20,
+      "unpackedSize": 684553,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "name": "@ccheever/snapback-client",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-client-0.1.0-llp0063.1.tgz",
+      "sha256": "06c8d93eb624f418d95b09a962fa3b719e2c0168ef6950f7263934a1d80346b6",
+      "files": 7,
+      "unpackedSize": 421754,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "name": "@ccheever/snapback-codegen",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-codegen-0.1.0-llp0063.1.tgz",
+      "sha256": "6b82b0cf8637dba530f9d325214c4a51c00df31f8e443cd888c403d5880949a7",
+      "files": 115,
+      "unpackedSize": 1262356,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "name": "@ccheever/snapback-react",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-react-0.1.0-llp0063.1.tgz",
+      "sha256": "7df383a6972b5ce2a6d22f39a50e4e1f80518a265d90493244f94e6c7ace4f13",
+      "files": 4,
+      "unpackedSize": 6373,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "name": "@ccheever/snapback-app-cli",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-app-cli-0.1.0-llp0063.1.tgz",
+      "sha256": "c052a301d05a8258a848aced603d3d677db1663d71ddb81e67d78ce43c52ddc0",
+      "files": 3,
+      "unpackedSize": 8313,
+      "status": "dry-run-ok"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "name": "@ccheever/snapback-cli",
+      "version": "0.1.0-llp0063.1",
+      "tarball": "ccheever-snapback-cli-0.1.0-llp0063.1.tgz",
+      "sha256": "29f3fc51ff52a35586231eb02dda505d7dda6dd6c5c60b163ca433c395d496ef",
+      "files": 8,
+      "unpackedSize": 21639,
+      "status": "dry-run-ok"
+    }
+  ]
+}
