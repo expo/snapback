@@ -5,7 +5,17 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-25 (protocol amendment v0.7 — first provisioning of the
+**Revised:** 2026-07-25 (protocol amendment v0.8 — the drill-target resource
+inventory grew by one item, authorized by LLP 0098 author decision D4
+(Charlie Cheever, 2026-07-25): persistent Fly volume `vol_r6815pkd59o1x614`,
+name `caddy_storage`, 1 GB, encrypted, sjc, mounted at `/data/caddy` for
+the TLS terminator's certificate storage only — the database and the
+delivered admission chain deliberately remain on the rootfs. Attaching the
+volume replaced the v0.7-pinned machine `819701c927ee68` (Fly platform
+behavior); the app's single machine is now `849764f2e7dd58`, same app,
+region, and size. The Fly-secret
+alternative was rejected as a silent key-custody change. Teardown inventory
+updated in the drill README.) 2026-07-25 (protocol amendment v0.7 — first provisioning of the
 v0.6-pinned drill target recorded, prospective, before any timed sample: Fly.io
 app `snapback-drill` (one machine `819701c927ee68`, sjc, shared-cpu-1x,
 auto-stop) with the Tigris bucket `snapback-drill-backups` is live; credential
@@ -432,7 +442,11 @@ instrument version remain unpinned-blocks-drill until first provisioning.
 2026-07-25: protocol amendment v0.7 records that first provisioning — app,
 machine, image, bucket, and public origin pinned; credentials provisioned;
 flyctl and the instruments pinned, the instruments by content digest — and
-retains the first drill receipts.)*
+retains the first drill receipts. Later the same day, protocol amendment v0.8
+adds the one D4-authorized resource: persistent volume `vol_r6815pkd59o1x614`
+(`caddy_storage`, 1 GB, sjc) mounted at `/data/caddy` for terminator
+certificate storage; the attach replaced the pinned machine with
+`849764f2e7dd58`.)*
 
 ## Required artifacts
 

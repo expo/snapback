@@ -17,9 +17,10 @@
 	# for the ACME HTTP-01 challenge).
 	http_port 8080
 	https_port 8443
-	# Certificate material persists on the machine rootfs so an ordinary
-	# stop/start does not re-issue and burn Let's Encrypt duplicate-certificate
-	# budget. An image update resets it and re-issues once.
+	# Certificate material persists on the D4 persistent volume mounted at
+	# /data/caddy (LLP 0098 author decision D4, 2026-07-25), so neither a
+	# stop/start cycle nor a redeploy re-issues against Let's Encrypt's
+	# duplicate-certificate budget.
 	storage file_system /data/caddy
 }
 
@@ -32,4 +33,17 @@ snapback-drill.fly.dev {
 		# wrote.
 		header_up X-Forwarded-For {http.request.remote.host}
 	}
+}
+
+# LLP 0060 D2 / LLP 0098 §8.1 (the D2-plaintext gap): plaintext REFUSES; it
+# never redirects. A 308 would invite a credential-bearing client to resend
+# its request — Authorization header, sender proof, and body — after having
+# already emitted it in cleartext once; a fixed body-free 403 gives the
+# cleartext caller nothing and teaches retrying clients nothing. Defining
+# this explicit http:// site replaces Caddy's automatic HTTP->HTTPS redirect
+# for the domain. ACME HTTP-01 challenge requests are intercepted by Caddy's
+# automatic-HTTPS layer before site routes run, so certificate issuance and
+# renewal still work over public 80.
+http://snapback-drill.fly.dev {
+	respond 403
 }

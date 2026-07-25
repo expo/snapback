@@ -171,8 +171,19 @@ waits on exactly one thing:
 2. **A served-origin rerun.** The 42/42 run was against a local hosted origin
    composed identically to the deployed one. The served rerun remains blocked
    by the Let's Encrypt duplicate-certificate limit after the no-volume cert
-   loss (LLP 0098 §8.1/§8.3); the cert-volume question is an open operator
-   decision, and this session deliberately did not touch the Fly deployment.
+   loss (LLP 0098 §8.1/§8.3). Update, later 2026-07-25: Charlie resolved the
+   cert-volume question (LLP 0098 author decision D4 — volume created,
+   `vol_r6815pkd59o1x614`, mounted at `/data/caddy`) and the deployment was
+   rebuilt from current main (D-1-fixed binary). The exact blocker, from the
+   machine's own ACME logs: HTTP 429 `urn:ietf:params:acme:error:rateLimited`,
+   "too many certificates (5) already issued for this exact set of identifiers
+   in the last 168h0m0s, **retry after 2026-07-27 01:06:44 UTC**"
+   (new-certificates-per-exact-set-of-identifiers). The volume prevents future
+   burn but cannot un-spend the window. Caddy's paced retries (30-minute
+   backoff) will self-heal issuance once the window clears, and the volume
+   then retains the certificate across redeploys — after which the served
+   rerun is a matrix invocation away (see LLP 0098 §8.4 for the exact
+   composition).
 
 Everything else the gate named is in place: the adapter attests and verifies,
 sessions runs under hosted admission, renewal composes with withdrawal, the
