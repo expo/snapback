@@ -4082,6 +4082,16 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub runtime_facts: Option<Value>,
+    /// Migration-executor facts (LLP 0081 §4): the executor profile and
+    /// the closed fence lane registry. Present exactly when the target has
+    /// a migration executor; absent targets refuse with
+    /// `SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`.
+    #[serde(
+        default,
+        rename = "migration",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub migration: Option<MigrationTargetFacts>,
     /// Relational-query facts (LLP 0080 §4): the live delivery class and
     /// the closed set of admitted retention classes. Present exactly when
     /// the target supports `relational_query_v1`; a target without the
@@ -4132,6 +4142,42 @@ impl StandardPatternFacts {
         Self {
             live_delivery: "conservative-resnapshot".to_owned(),
             auth_scope_disjointness_skip: "disabled".to_owned(),
+        }
+    }
+}
+
+/// The migration-executor posture and the closed lane registry the
+/// persisted migration fence covers (LLP 0081 §4): a lane the fence does
+/// not name cannot be admitted at all, so the registry is a capability
+/// fact, not prose.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrationTargetFacts {
+    /// The executor profile: `"local-exclusive-single-writer"` on the
+    /// local target (one IMMEDIATE transaction per durable transition).
+    pub executor: String,
+    /// The closed, enumerated lane registry the durable fence closes.
+    #[serde(rename = "fenceLanes")]
+    pub fence_lanes: Vec<String>,
+}
+
+impl MigrationTargetFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            executor: "local-exclusive-single-writer".to_owned(),
+            fence_lanes: [
+                "mutation",
+                "buffered-mutation",
+                "query",
+                "live-subscribe",
+                "live-resume",
+                "cron",
+                "action-stage",
+                "ephemeral-publish",
+            ]
+            .iter()
+            .map(|lane| (*lane).to_owned())
+            .collect(),
         }
     }
 }
@@ -4253,6 +4299,7 @@ impl CapabilityManifest {
             outbound_actions: false,
             cron: true,
             notifications: false,
+            migration: Some(MigrationTargetFacts::local_v1()),
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             supported_query_forms: vec![
@@ -4501,6 +4548,9 @@ impl CapabilityManifest {
         manifest.offline_retention = false;
         manifest.optimistic_replay = false;
         manifest.cron = false;
+        // No migration executor on this target: absence of the fact block
+        // is the machine-readable refusal (LLP 0081 §4).
+        manifest.migration = None;
         // No relational executor on this target: the `relational_query_v1`
         // capability gap is the machine-readable refusal, so the fact block
         // must not ride along from the local profile (LLP 0080 §2).

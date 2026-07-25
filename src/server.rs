@@ -19705,6 +19705,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
         | "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        | "SNAPBACK_MIGRATION_PLAN_STALE"
+        | "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE"
+        | "SNAPBACK_MIGRATION_EXECUTOR_STALE"
+        | "SNAPBACK_MIGRATION_CANCELLED"
+        | "SNAPBACK_MIGRATION_STEP_FAILED"
+        | "SNAPBACK_MIGRATION_VERIFICATION_FAILED"
+        | "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE"
         | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -19745,6 +19752,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0065: profile-class admission — an authenticated principal
         // that projects no user subject is refused after the auth gate.
         | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
+        // LLP 0081 §2: apply without a binding authenticated approval.
+        | "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -19868,6 +19877,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // page silently lied about.
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
+        // LLP 0081 §4: the persisted fence and barrier failures are
+        // transient serving refusals — the barrier clears at a terminal
+        // journal state.
+        | "SNAPBACK_MIGRATION_FENCE_CLOSED"
+        | "SNAPBACK_MIGRATION_BARRIER_FAILED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -20074,6 +20088,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // deferred retained-work posture are author input.
         | "SNAPBACK_MIGRATION_PLAN_INVALID"
         | "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED"
+        | "SNAPBACK_MIGRATION_TARGET_MISMATCH"
         // LLP 0080 §5: maintained-projection artifact and mutation
         // refusals — malformed plans, unprovable write budgets, output
         // fences, and maintenance invariants (null/moved output keys).
@@ -32406,6 +32421,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
         "SNAPBACK_MIGRATION_PLAN_INVALID",
         "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+        "SNAPBACK_MIGRATION_TARGET_MISMATCH",
         "SNAPBACK_PROJECTION_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
         "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
@@ -32474,6 +32490,7 @@ globalThis.__snapbackHandlers = {
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
         "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
+        "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
         // LLP 0092 §0D.1 bundle authorization/sender refusals.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH",
         "SNAPBACK_BUNDLE_NOT_PUBLIC",
@@ -32521,6 +32538,13 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
+        "SNAPBACK_MIGRATION_PLAN_STALE",
+        "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
+        "SNAPBACK_MIGRATION_EXECUTOR_STALE",
+        "SNAPBACK_MIGRATION_CANCELLED",
+        "SNAPBACK_MIGRATION_STEP_FAILED",
+        "SNAPBACK_MIGRATION_VERIFICATION_FAILED",
+        "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
         "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         // LLP 0092 §0D.3 idempotency replay-validity conflicts.
@@ -32618,6 +32642,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_MIGRATION_FENCE_CLOSED",
+        "SNAPBACK_MIGRATION_BARRIER_FAILED",
         "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
@@ -32693,6 +32719,8 @@ globalThis.__snapbackHandlers = {
         // from validated cursors, so a field/order mismatch reaching storage
         // is a server bug, never a client class.
         "SNAPBACK_QUERY_KEYSET_INVALID",
+        "SNAPBACK_MIGRATION_JOURNAL_CORRUPT",
+        "SNAPBACK_MIGRATION_PUBLICATION_AMBIGUOUS",
         // LLP 0080 §5: informational activation-rebuild diagnostic; never an
         // ApiError.
         "SNAPBACK_PROJECTION_REBUILT",

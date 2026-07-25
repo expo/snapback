@@ -33,3 +33,19 @@ admission (audience equality against the resolved target, expiry at
 barrier time, policy-digest enforcement, operationId+audience keying for
 journal/replay/cancel/receipts), the `snapback migrate` CLI, and the
 local-operator vs control-plane authentication split.
+
+**Progress (2026-07-25, Wave 2):** semantic enforcement + the CLI landed on
+the local profile: `snapback migrate preview|approve|apply|cancel|verify|
+rollback` with the hostOpsResult envelope; preview is read-only and builds
+the deterministic plan from explicit intents plus the separately digested
+observation; approve is the LOCAL authenticated operator record —
+authority is filesystem custody of the database plus the recorded local
+operator principal (`$USER` unless `--approver`), with
+generator-is-approver recorded; apply consumes the approved file by path
+(never regenerates), supports `--dry-run`, and enforces the §2 admission
+matrix (see the executor ticket); cancel requests the next admitted
+boundary; verify recomputes the receipt's journal projection; rollback
+refuses honestly (`SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE`). Remaining:
+the hosted/control-plane approval class (LLP 0072 operation), policy-digest
+semantics beyond the local constant, and the §5/§6 verify/rollback faces
+(Wave 3).

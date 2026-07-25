@@ -980,6 +980,14 @@ pub struct EphemeralError {
 }
 
 impl EphemeralError {
+    /// The migration-fence refusal for the ephemeral-publish lane
+    /// (LLP 0081 §4): mapped onto the lane's authority-pending class — the
+    /// durable authority is deliberately unavailable until the barrier
+    /// clears.
+    pub(crate) fn migration_fenced(message: impl Into<String>) -> Self {
+        Self::new(EphemeralErrorCode::AuthorityPending, message)
+    }
+
     fn new(code: EphemeralErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,

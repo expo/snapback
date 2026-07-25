@@ -210,9 +210,22 @@ impl AdmissionController {
     }
 
     pub fn from_mode_state(mode: &AuthModeStateRecord) -> SnapbackResult<Self> {
+        Self::from_mode_state_with_migration_fence(mode, false)
+    }
+
+    /// Construction with the durable migration fence consulted: a process
+    /// that opens over a database whose migration journal is non-terminal
+    /// starts with admission closed on every lane, exactly as if the
+    /// barrier had never been dropped (LLP 0081 §4 — a crash between
+    /// reopen and resume cannot readmit application traffic).
+    pub fn from_mode_state_with_migration_fence(
+        mode: &AuthModeStateRecord,
+        migration_fenced: bool,
+    ) -> SnapbackResult<Self> {
         mode.validate_shape()?;
         let accepting = mode.mode_state == AuthModeStatus::Settled
-            && mode.app_data_availability == AppDataAvailability::Available;
+            && mode.app_data_availability == AppDataAvailability::Available
+            && !migration_fenced;
         Self::new_for_mode(mode.transition_generation, mode.active, accepting)
     }
 

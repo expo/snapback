@@ -6990,6 +6990,9 @@ impl LocalSnapback {
         name: &str,
         input: LiveSubscribeInput,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        // The live-subscribe lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
         let authority = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveInitialQuery,
@@ -8418,6 +8421,9 @@ impl LocalSnapback {
         name: &str,
         input: LiveResumeInput,
     ) -> SnapbackResult<LiveResumeOutput> {
+        // The live-resume lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
         let authority = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveResume,
@@ -9260,6 +9266,26 @@ impl LocalSnapback {
         authority: PreparedAuthority,
     ) -> StagedAppAction {
         let started = Instant::now();
+        // The action lane (the only egress-capable class) consults the
+        // persisted migration fence at staging (LLP 0081 §4).
+        if let Err(error) = self.db.ensure_migration_lane_open() {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
+                ok: false,
+                function: name.to_owned(),
+                kind: None,
+                reads: Vec::new(),
+                writes: Vec::new(),
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
+                admin_bypass: false,
+                elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
+                diagnostic: Some(error.diagnostic),
+            }));
+        }
         let Some(definition) = self.functions.function(name).cloned() else {
             return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
@@ -10183,6 +10209,14 @@ impl LocalSnapback {
         request: PublishRequest,
         now_ms: u64,
     ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+        // The ephemeral-publish lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry); the typed storage refusal maps to
+        // the lane's own error vocabulary.
+        if let Err(error) = self.db.ensure_migration_lane_open() {
+            return Err(crate::ephemeral::EphemeralError::migration_fenced(
+                error.diagnostic.message,
+            ));
+        }
         self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.publish(request, now_ms)
     }
@@ -10358,6 +10392,9 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
+        // The cron lane consults the persisted migration fence per claim
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         // Admission precedes the scheduler mutation and its durable claim
         // write. If a close races while a multi-job batch is being assembled,
         // acquisition of any remaining per-claim root fails and the in-memory
@@ -10420,6 +10457,7 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<AdmittedCronClaim> {
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
         let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
@@ -10963,7 +11001,15 @@ impl LocalSnapback {
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
-        let admission = AdmissionController::from_mode_state(&auth_mode)?;
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   persisted migration fence outlives the process: opening over a
+        //   fenced database starts every lane closed until the operation's
+        //   journal reaches a terminal state (resume or explicit exit).
+        let migration_fenced = db.migration_fence()?.is_some();
+        let admission = AdmissionController::from_mode_state_with_migration_fence(
+            &auth_mode,
+            migration_fenced,
+        )?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
@@ -11055,6 +11101,71 @@ impl LocalSnapback {
     /// `None` for in-memory databases — callers fall back to the write lane).
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+    /// CLI accessors for the migrate surface (LLP 0081): the predecessor
+    /// schema, the current head, the app id, and the receipt verifier.
+    pub fn migrate_predecessor_schema(&self) -> SchemaManifest {
+        self.db.schema().clone()
+    }
+
+    pub fn migrate_head_version(&self) -> SnapbackResult<u64> {
+        self.db.current_version()
+    }
+
+    pub fn migrate_app_id(&self) -> String {
+        self.functions.app_id.clone()
+    }
+
+    pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {
+        self.db.migrate_request_cancel(operation_id)
+    }
+
+    pub fn migrate_verify_receipt(&self, operation_id: &str) -> SnapbackResult<Value> {
+        self.db.migration_verify_receipt(operation_id)
+    }
+
+    /// The resolved local audience an LLP 0081 approval must bind
+    /// (LLP 0072 identities as the local profile defines them).
+    pub fn migrate_resolved_audience(
+        &mut self,
+    ) -> SnapbackResult<crate::storage::migration_executor::ResolvedLocalAudience> {
+        Ok(crate::storage::migration_executor::ResolvedLocalAudience {
+            database_id: self.db.data_version_stream()?,
+            stream_incarnation: self
+                .db
+                .ensure_authorization_stream_incarnation()?
+                .as_str()
+                .to_owned(),
+            activation_generation: self.app_generation,
+            target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        })
+    }
+
+    /// Apply one approved migration artifact against this instance
+    /// (LLP 0081 §4). The durable fence closes every registered lane for
+    /// the barrier's duration; after release the serving state adopts the
+    /// successor schema.
+    pub fn migrate_apply_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        let audience = self.migrate_resolved_audience()?;
+        let receipt = self.db.migrate_apply(
+            crate::storage::migration_executor::MigrationApplyRequest {
+                artifact,
+                approval,
+                successor_schema,
+                audience: &audience,
+                now_ms: now_millis(),
+            },
+        )?;
+        // The successor is authoritative: refresh every schema projection
+        // the serving process holds.
+        self.refresh_read_manifests();
+        Ok(receipt)
+    }
+
     pub fn read_lane(&self) -> ReadLane {
         ReadLane {
             manifests: self.read_manifests.clone(),
@@ -24901,6 +25012,33 @@ globalThis.__snapbackHandlers = {
         assert_eq!(envelopes[0]["ops"].as_array().unwrap().len(), 3);
         assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 1);
         assert_eq!(snapback.live_delivery.resume.replay_ops, 3);
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a crash
+    //   between predecessor reopen and resume: the persisted fence closes
+    //   admission on every lane at process open, from durable state alone.
+    #[test]
+    fn migration_fence_survives_process_reopen() {
+        let dir =
+            std::env::temp_dir().join(format!("snapback-mig-fence-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("mig-fence.sqlite");
+        let _ = std::fs::remove_file(&path);
+        {
+            let mut snapback = LocalSnapback::open(&path).expect("open");
+            assert!(snapback.admission.snapshot().accepting, "unfenced open accepts");
+            snapback
+                .db
+                .install_migration_fence_for_test("operation-v1:reopen")
+                .expect("install fence");
+        }
+        // Fresh process state over the same database: still fenced.
+        let reopened = LocalSnapback::open(&path).expect("reopen");
+        assert!(
+            !reopened.admission.snapshot().accepting,
+            "a fenced database must reopen with admission closed on every lane"
+        );
+        assert!(reopened.db.migration_fence().expect("fence").is_some());
     }
 
     #[test]

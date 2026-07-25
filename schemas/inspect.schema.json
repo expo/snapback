@@ -426,6 +426,17 @@
         "localServerLifecycle": {
           "type": "boolean"
         },
+        "migration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MigrationTargetFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Migration-executor facts (LLP 0081 §4): the executor profile and\nthe closed fence lane registry. Present exactly when the target has\na migration executor; absent targets refuse with\n`SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`."
+        },
         "mutationIsolationMode": {
           "type": "string"
         },
@@ -2788,6 +2799,28 @@
         "op",
         "by",
         "target"
+      ],
+      "type": "object"
+    },
+    "MigrationTargetFacts": {
+      "additionalProperties": false,
+      "description": "The migration-executor posture and the closed lane registry the\npersisted migration fence covers (LLP 0081 §4): a lane the fence does\nnot name cannot be admitted at all, so the registry is a capability\nfact, not prose.",
+      "properties": {
+        "executor": {
+          "description": "The executor profile: `\"local-exclusive-single-writer\"` on the\nlocal target (one IMMEDIATE transaction per durable transition).",
+          "type": "string"
+        },
+        "fenceLanes": {
+          "description": "The closed, enumerated lane registry the durable fence closes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "executor",
+        "fenceLanes"
       ],
       "type": "object"
     },

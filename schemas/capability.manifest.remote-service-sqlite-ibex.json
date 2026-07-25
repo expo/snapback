@@ -38,6 +38,19 @@
   },
   "liveSubscriptions": true,
   "localServerLifecycle": false,
+  "migration": {
+    "executor": "local-exclusive-single-writer",
+    "fenceLanes": [
+      "mutation",
+      "buffered-mutation",
+      "query",
+      "live-subscribe",
+      "live-resume",
+      "cron",
+      "action-stage",
+      "ephemeral-publish"
+    ]
+  },
   "mutationIsolationMode": "handler-captured-read-set-validation",
   "notifications": false,
   "offlineRetention": true,
