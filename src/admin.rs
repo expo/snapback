@@ -958,6 +958,19 @@ impl AppState {
         self
     }
 
+    /// The capability tuple carried by a verified hosted admission, if one is
+    /// installed. `None` for every local deployment.
+    ///
+    /// @ref LLP 0098#41-composition — the published descriptor comes from the
+    /// verified attestation, never from a build constant.
+    pub(crate) fn hosted_serving_capabilities(
+        &self,
+    ) -> Option<crate::auth::deployment::HostedAuthCapabilities> {
+        self.hosted_serving
+            .as_ref()
+            .map(|authority| authority.capabilities())
+    }
+
     /// Install the target-authenticated hosted serving authority and create
     /// its replay/nonce tables before any request can observe hosted posture.
     #[allow(dead_code)] // First concrete adapter composition is the next LLP 0072 tranche.

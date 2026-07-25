@@ -14453,6 +14453,14 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
             serde_json::to_value(runtime.auth_program_readiness())
                 .expect("AuthProgramReadiness is infallibly serializable"),
         );
+    // @ref LLP 0098#41-composition — a hosted deployment publishes the tuple
+    // carried by its *verified* admission; a local target keeps the
+    // all-negative build default. The descriptor is therefore a property of a
+    // verified deployment, not of a binary anyone can download, so an ordinary
+    // `snapback dev` server can never advertise `externalTls: enforced`.
+    if let Some(capabilities) = runtime.hosted_serving_capabilities() {
+        inspect.capability_manifest.hosted_auth = capabilities;
+    }
 }
 
 /// The v0 admin aliases perform system writes, so they share the
@@ -19858,6 +19866,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_RESERVATION_STALE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE"
+        | "SNAPBACK_AUTH_SOURCE_UNTRUSTED"
         | "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE"
         | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
         | "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN"
@@ -32681,6 +32690,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_RESERVATION_STALE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
+        // LLP 0098 §6: forwarding metadata that is absent, malformed,
+        // over-long, or presented by an untrusted peer leaves the origin with
+        // no trustworthy source to throttle on, so the request fails closed
+        // rather than being answered under a collapsed bucket.
+        "SNAPBACK_AUTH_SOURCE_UNTRUSTED",
         "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
         "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
@@ -32752,6 +32766,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_FAILED",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_RECOVERED",
+        // LLP 0098 §3.1 hosted-edge adapter refusals. Like the backup/restore
+        // codes above these are control-plane/operator diagnostics raised
+        // before a listener serves, never request-path 4xx; the fail-safe HTTP
+        // projection remains 500 if one ever crosses ApiError.
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_FOREIGN",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_CONFIGURATION",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_SUPPORT",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED",
+        "SNAPBACK_AUTH_HOSTED_TOPOLOGY_INVALID",
         "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
         "SNAPBACK_AUTH_INVALIDATION_CORRUPT",

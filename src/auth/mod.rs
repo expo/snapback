@@ -9,6 +9,8 @@ pub(crate) mod coordinator;
 pub mod crypto;
 pub mod deployment;
 pub mod descriptor;
+#[allow(dead_code)] // Composed by the hosted-edge adapter request path (LLP 0098).
+pub mod effective_source;
 pub mod handshake;
 #[allow(dead_code)] // Composed by the hosted-edge adapter startup lane (LLP 0098).
 pub mod hosted_edge;

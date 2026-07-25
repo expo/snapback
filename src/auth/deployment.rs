@@ -680,6 +680,14 @@ impl HostedServingAuthority {
         Ok(())
     }
 
+    /// The capability tuple this verified admission attests.
+    pub(crate) fn capabilities(&self) -> HostedAuthCapabilities {
+        self.admission
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .hosted_auth
+    }
+
     pub(crate) fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
         let admission = self
             .admission
