@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "45882ed09f96520fbc7452ce32717ab7f1706679"
+    "commit": "8262b76fe97329d23dd5b4c5d58d37f47b0b96fc"
   },
   "nav": {
     ".": [
@@ -727,9 +727,9 @@
         "demos/competitive-checkpoint",
         "cloudflare/test/acceptance.egress.mjs"
       ],
-      "reviewed": "2026-07-24",
+      "reviewed": "2026-07-25",
       "reviewedCommit": "HEAD",
-      "sha256": "f4af32c4582781484b485e6d416537f3841365ee87937fde0443076de5cc519d",
+      "sha256": "afe1ec571402c91ff7ed7ec8dab5b271e5c05073780dbcaa2aee0c050a08c6b9",
       "snippets": [
         {
           "lang": "js",
@@ -771,7 +771,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "fd4e3d783c576586a0e50ab811dc5ae9405ca7c52f719ffa610070959a9ee5ea",
+      "sha256": "15d4dff19bf90b5db299f74ab21462df47dee3c8c0cbb972342b29c8f239ad43",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1748,5 +1748,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "aea55a3a0272c5f7d2633ff7ba9e4a5b8d9ed4f4c03b8bc966f4e50690ee9867"
+  "contentHash": "4c9668b26177cd934c0de721f5cc0d43eb37c5651aa8019363318a76bdaf036f"
 }

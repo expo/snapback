@@ -40,7 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
-| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineMaintainedProjection` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
@@ -2356,7 +2356,7 @@ examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-24
+reviewed: 2026-07-25
 reviewed-commit: HEAD
 ---
 
@@ -2374,18 +2374,20 @@ action-only *response-byte* reader, not a general streaming API: clients
 never see a stream object. They observe ordinary authoritative live-query
 commits that your nested mutations produce
 ([LLP 0076](repo:llp/0076-bounded-streamed-actions.rfc.md) is the semantic
-authority and is still **Draft**; its evidence ledger is the honest record).
+authority, **Accepted** 2026-07-25; its evidence ledger is the honest
+record).
 
 **What is witnessed where** (`maturity: partial` made concrete): the full
 surface on this page — reader, limits, attempt control plane, crash-safe
 settlement — is implemented and witnessed on the local target. The Workerd
 target passes a narrower Miniflare witness (pull/chunk/total/cancel/idle,
 progress-rate and cursor caps, secret placement) but has **no
-`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed —
-and the gate-bearing hosted receipt does not exist yet. Whether the
-capability carries an explicit experimental marker is an open author
-decision; admission is decided by the **served instance manifest**, never by
-this page.
+`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed.
+The gate-bearing hosted receipt exists (the 2026-07-25 Fly.io
+`single-instance-container-vm.v1` drill; protocol amendment v0.7), and the
+capability is **stable** in the LLP 0058 registry since LLP 0076's
+acceptance; admission is decided by the **served instance manifest**, never
+by this page.
 
 ## Require the capability and enable egress
 
@@ -2398,15 +2400,15 @@ function manifest; every loader then resolves it against the live `/inspect`
 manifest before any handler runs. An egress-disabled instance refuses the
 artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED` at load, not at first use.
 
-While LLP 0076 is Draft, the served manifest additionally marks the
-capability `experimental` in its `capabilityMaturity` map (LLP 0058
-§Capability maturity): the entry is not the plain compatibility assertion a
-stable capability makes, and admission also requires the artifact to list
-the id in `acknowledgedExperimentalCapabilities`. Codegen emits that
-acknowledgment automatically alongside the requirement, so generated
-backends need no extra authoring step — but a hand-authored manifest that
-requires the capability without acknowledging it is refused with the same
-`SNAPBACK_CAPABILITY_UNSUPPORTED` code naming the maturity.
+The capability is **stable** (LLP 0076 Accepted 2026-07-25), so positive
+presence in the served manifest is the plain compatibility assertion — no
+acknowledgment is needed. Artifacts generated while the id was
+`experimental` still carry it in `acknowledgedExperimentalCapabilities`;
+that entry is a harmless no-op (acknowledging a stable id never refuses), so
+pre-promotion artifacts keep admitting unchanged. The experimental-maturity
+admission rule itself (LLP 0058 §Capability maturity) still applies to ids
+that remain experimental, currently `relational_query_v1` and
+`migration_keyset_scan_v1`.
 
 ## Consume the body with one pull-driven reader
 
@@ -2527,6 +2529,13 @@ The rules this pattern encodes, which the host enforces or checks for you:
   transaction (`applyReplyProgress` returns `terminal: true` above). The
   host fences late commits too, but the authored check is part of the
   contract.
+- **Reconcile inner-mutation conflicts, never last-writer-wins.** A
+  concurrent committed writer (a durable client cancel racing a progress
+  commit) rejects the whole inner mutation with
+  `SNAPBACK_MUTATION_CONFLICT`. `runReconciled` above is the reference
+  reconcile: re-invoke boundedly so the mutation re-reads the row in a
+  fresh transaction and observes the cancel as `terminal` instead of
+  overwriting it.
 - **No retry after durable progress.** Once any progress commit landed,
   reopening the upstream under the same attempt is refused — transport
   re-segmentation could bind one sequence number to different bytes.

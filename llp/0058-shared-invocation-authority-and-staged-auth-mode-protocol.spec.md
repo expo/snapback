@@ -34,6 +34,9 @@ admission and its shared-throttle/proof cut complete first, then the
 forbidden-authority-field body check runs before ordinary `SessionAuth`
 projection; a served refresh test proves a valid proof plus forbidden body
 field is rejected without consuming the retained successor nonce).
+2026-07-25 update: LLP 0076 was Accepted and the id flipped to `stable`;
+`relational_query_v1`/`migration_keyset_scan_v1` are the current
+experimental set).
 2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
 on sender-constrained hosted browser routes, sender-proof admission runs
 before the request body is polled, so this Spec's forbidden-authority-field
@@ -422,10 +425,13 @@ On the deploy-time-compiled Cloudflare target the same rule runs at its
 loader seam — function resolution — against the served manifest's
 `capabilityMaturity` and the bundle's exported acknowledgment list.
 
-Current assignment: `bounded_response_stream_v1` is **experimental** until
-LLP 0076 reaches Accepted (flipping it to `stable` is part of the
-acceptance act and requires no artifact changes, because existing
-acknowledgments become no-ops). Every other registry id is `stable`.
+Current assignment (2026-07-25): `bounded_response_stream_v1` is **stable**
+— LLP 0076 was Accepted 2026-07-25 and the flip landed as the acceptance
+act, requiring no artifact changes because existing acknowledgments became
+no-ops exactly as this Spec promised. `relational_query_v1` and
+`migration_keyset_scan_v1` are **experimental** until their coupled suite
+passes and LLP 0080/0081 flip to Implemented. Every other registry id is
+`stable`.
 
 Only the schema and function artifact manifests — plus the generated
 contract-data manifest, which is bound to the exact paired schema/function

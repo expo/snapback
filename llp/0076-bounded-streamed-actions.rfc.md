@@ -1,11 +1,27 @@
 # LLP 0076: Bounded streamed actions
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (capability-maturity decision implemented — author
+**Revised:** 2026-07-25 (ACCEPTED — author ratification, Charlie Cheever,
+session-directed 2026-07-25, with the gate-2 evidence complete: the
+`single-instance-container-vm.v1` hosted receipt exists (protocol amendment
+v0.7 — Fly.io drill, remote instrument 7/7, durable-row scan PASS, Tigris
+backup byte-exact PASS, hosted-auth refusal witness), on top of the local
+arm's full witness set and the Workerd arm's narrower Miniflare witness. The
+acceptance act flips `bounded_response_stream_v1` to `stable` in the LLP
+0058 registry — positive presence is now the plain compatibility assertion;
+existing `acknowledgedExperimentalCapabilities` entries survive as no-ops
+and codegen stops emitting new ones. Honest residues stay recorded rather
+than erased: open questions 6 (secret-bearing provider streams on every
+claimed target through the opaque-placement seam — the hosted descriptor
+seam is landed, the per-target witness matrix is not) and 7 (byte-accounting
+measurement basis), plus the ledger's Workerd residues (no
+`ctx.streamAttempt` control plane there, structured-detail transport, the
+Begin/Initiated cut). Those are scoped refinements of a ratified contract,
+not contract instability). 2026-07-24 (capability-maturity decision implemented — author
 decision Charlie Cheever 2026-07-24: the LLP 0058 registry gains the
 code-owned `proposed`/`experimental`/`stable` maturity dimension;
 `bounded_response_stream_v1` is `experimental` until this RFC is Accepted.
@@ -830,6 +846,21 @@ by the server-issued authored attemptId, scopes the generated-reference-only
 rule to the client arm (nested host-side `ctx.runMutation`-by-name is the
 shipped server authoring surface), and authorizes the seven-check
 instrument.
+
+2026-07-25 (acceptance): the gate-2 hosted receipt landed (protocol
+amendment v0.7 — the Fly.io `single-instance-container-vm.v1` drill: remote
+instrument 7/7 against the served origin, durable-row secret scan PASS over
+on-machine dumps, Tigris backup byte-exact read-back, hosted-auth refusal
+witness; posture caveat recorded in every receipt), and Charlie Cheever
+ratified this RFC as **Accepted**. The registry flip to `stable` landed in
+the same change: `bounded_response_stream_v1` left the non-stable maturity
+table (src/manifest.rs), codegen's mirror set, the committed schemas
+variants, the served Workerd manifest, and every regenerated demo artifact;
+the former unacknowledged-refusal integration witness was converted to the
+promotion regression (an unacknowledging artifact now admits), and the
+still-experimental refusal path stays witnessed via `relational_query_v1`.
+Residues that remain open and recorded: OQ 6 and 7, and the Workerd arm's
+narrower witness (no `ctx.streamAttempt` control plane, fail-closed).
 
 ## Non-goals
 

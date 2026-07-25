@@ -1,7 +1,4 @@
 {
-  "acknowledgedExperimentalCapabilities": [
-    "bounded_response_stream_v1"
-  ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
   "bundleHash": "sha256:d9967789f92f9974",
@@ -1219,7 +1216,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "a3c5988f6d1564360f31213105ef2a43b820caafdc0634bc12c84ba1b6a6761b",
+  "inputsHash": "6ba9e21cd2a19636d69db989a77ea56fc474a1d5ba53b7004d7695710fc25362",
   "projections": [
     {
       "fanOutLimit": 64,

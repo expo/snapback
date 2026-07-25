@@ -1,6 +1,16 @@
 # DECISION: long-lived program owner and the first container/VM remote drill target
 
-**Status:** Open — narrowed 2026-07-24 to a one-line owner-confirmation
+**Status:** Resolved 2026-07-25 — Charlie Cheever confirmed the ownership
+recording in-session ("let's try to do this now", directed at exactly this
+residue): he is the long-lived competitive-program owner/operator and
+ratifier, as amendment v0.6 recorded. The second half completed at first
+provisioning as designed: protocol amendment v0.7 (2026-07-25) pins the
+provisioned identities (app `snapback-drill`, machine `819701c927ee68`, sjc,
+image, Tigris bucket `snapback-drill-backups`, flyctl and instrument
+digests) with credential health `provisioned` and a live drill target
+drilled 7/7. Both Resolved-when bullets are satisfied.
+
+**Pre-resolution status:** Open — narrowed 2026-07-24 to a one-line owner-confirmation
 residue. Both decision halves were made by Charlie Cheever on 2026-07-24
 and recorded in LLP 0075 protocol amendment v0.6 (plus dated notes in LLP
 0075 and LLP 0063): the drill tuple is fly.io / region sjc / Tigris
