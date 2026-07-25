@@ -59,6 +59,18 @@
       "status": "Enforced"
     },
     {
+      "name": "bounded_response_stream_read_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_open_cursors",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_wall_clock",
+      "status": "Enforced"
+    },
+    {
       "name": "bounded_response_stream_idle_timeout",
       "status": "Enforced"
     },
