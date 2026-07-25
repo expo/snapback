@@ -18,6 +18,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::deployment::{HostedAdmission, HostedServingAuthority};
+/// Re-exported so the off-machine control-plane signer can build the exact
+/// throttle configuration the deployment will validate.
+pub use super::throttle::{AuthenticationBucketPolicy, SharedAuthenticationThrottleConfig};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 /// The only adapter profile this build implements.
@@ -96,6 +99,104 @@ pub struct HostedAdmissionEnvelope {
     pub admission: HostedAdmission,
     /// Unpadded base64url Ed25519 signature over the canonical signing input.
     pub signature: String,
+}
+
+/// The adapter's local configuration.
+///
+/// **Nothing here carries authority.** Every member is an operator-supplied
+/// input that the signed envelope must independently agree with: the deployment
+/// identity is compared, the origin and first-contact mechanism are folded into
+/// `configurationSha256`, and the verification key is folded into that same
+/// digest so substituting it invalidates every snapshot signed against the
+/// original. The file's job is to tell the origin what to *check*, never what to
+/// believe.
+///
+/// @ref LLP 0098#23-what-the-control-plane-must-bind — the key is inside its own
+/// configuration digest, so key rotation is a configuration change.
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct HostedEdgeConfig {
+    pub format_version: u32,
+    pub deployment_id: String,
+    pub public_origin: String,
+    pub first_contact_transport: FirstContactTransport,
+    /// Unpadded base64url Ed25519 public key. Ships inside the release
+    /// artifact; the private half never enters the deployment.
+    pub admission_public_key: String,
+    /// Digest over the served support artifact set, including the browser
+    /// artifact whose direct-bearer seam exclusion the admission asserts.
+    pub support_sha256: String,
+}
+
+impl HostedEdgeConfig {
+    pub fn parse(bytes: &[u8]) -> SnapbackResult<Self> {
+        let config: Self = serde_json::from_slice(bytes).map_err(|_| {
+            refuse(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "hosted-edge adapter configuration is not a closed valid document",
+            )
+        })?;
+        if config.format_version != 1 {
+            return Err(refuse(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "hosted-edge adapter configuration has an unknown format version",
+            ));
+        }
+        if config.deployment_id.is_empty() {
+            return Err(refuse(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "hosted-edge adapter configuration has an empty deployment identity",
+            ));
+        }
+        Ok(config)
+    }
+
+    pub fn admission_public_key_bytes(&self) -> SnapbackResult<Vec<u8>> {
+        let key = URL_SAFE_NO_PAD
+            .decode(&self.admission_public_key)
+            .map_err(|_| {
+                refuse(
+                    "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                    "hosted-edge admission key is not canonical base64url",
+                )
+            })?;
+        if key.len() != 32 {
+            return Err(refuse(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "hosted-edge admission key is not a 32-byte Ed25519 public key",
+            ));
+        }
+        Ok(key)
+    }
+
+    /// Derive the facts the origin will compare against the envelope, from the
+    /// configuration plus the one thing only the origin knows: whether the
+    /// address it is about to bind is loopback.
+    ///
+    /// The digest is computed over the profile's *required* posture, not the
+    /// observed one. The observed posture rides in `listener_loopback` and is
+    /// judged by H1. Folding the observed value into the digest instead would
+    /// make a non-loopback bind fail as a stale configuration, hiding the real
+    /// topology violation behind a misleading diagnostic.
+    pub fn self_facts(&self, bind_is_loopback: bool) -> SnapbackResult<HostedEdgeSelfFacts> {
+        let key = self.admission_public_key_bytes()?;
+        Ok(HostedEdgeSelfFacts {
+            deployment_id: self.deployment_id.clone(),
+            configuration_sha256: configuration_digest(
+                HOSTED_EDGE_PROFILE,
+                &self.public_origin,
+                self.first_contact_transport,
+                true,
+                // The first hosted profile is `operatorSurface: disabled`; the
+                // adapter does not offer an exposed-operator configuration, so
+                // the digest is computed over the only admissible value.
+                true,
+                &key,
+            ),
+            support_sha256: self.support_sha256.clone(),
+            listener_loopback: Some(bind_is_loopback),
+        })
+    }
 }
 
 /// Facts the origin derives about itself and compares against the envelope.
@@ -333,21 +434,49 @@ fn advance_watermark(
     })
 }
 
-/// Run the LLP 0098 §3.1 conjunction and produce the serving authority.
+/// An envelope that passed every check not requiring durable state.
 ///
-/// The checks are ordered so that authentication precedes interpretation and
-/// every locally derivable fact is re-derived. No clause is skippable by
-/// configuration.
+/// Held between the pre-bind phase and installation so the durable
+/// monotonicity check is the only thing deferred to database availability.
+#[derive(Clone, Debug)]
+pub(crate) struct VerifiedHostedAdmission {
+    envelope: HostedAdmissionEnvelope,
+    throttle_key: [u8; 32],
+}
+
+impl VerifiedHostedAdmission {
+    pub(crate) fn public_origin(&self) -> &str {
+        &self.envelope.public_origin
+    }
+
+    pub(crate) fn first_contact_transport(&self) -> FirstContactTransport {
+        self.envelope.first_contact_transport
+    }
+
+    pub(crate) fn renewal(&self) -> AdmissionRenewal {
+        self.envelope.renewal
+    }
+
+    pub(crate) fn capabilities(&self) -> crate::auth::deployment::HostedAuthCapabilities {
+        self.envelope.admission.hosted_auth
+    }
+}
+
+/// Run every LLP 0098 §3.1 clause that does not require durable state.
+///
+/// This runs **before the database path is created**, preserving LLP 0060 D1's
+/// property that an unsupported hosted request leaves the target byte-for-byte
+/// unchanged. The checks are ordered so that authentication precedes
+/// interpretation and every locally derivable fact is re-derived.
 ///
 /// @ref LLP 0098#31-the-ordered-checks — each failure carries its own code so a
 /// refusal is reproducible from the code alone.
-pub(crate) fn verify_admission_envelope(
+pub(crate) fn verify_admission_envelope_prebind(
     envelope: &HostedAdmissionEnvelope,
     admission_public_key: &[u8],
     facts: &HostedEdgeSelfFacts,
     now_ms: u64,
-    connection: &mut Connection,
-) -> SnapbackResult<HostedServingAuthority> {
+) -> SnapbackResult<VerifiedHostedAdmission> {
     // 1. Envelope shape: a profile this build does not implement is refused
     //    before its contents mean anything.
     if envelope.profile != HOSTED_EDGE_PROFILE {
@@ -404,11 +533,40 @@ pub(crate) fn verify_admission_envelope(
         ));
     }
 
-    // 9. Monotonicity, durable across restart. Checked before install so a
-    //    replayed older snapshot inside its own validity window is refused.
+    // 8 + 10. Origin canonicality and currency are the shipped
+    // `from_authenticated_target` checks. Run them here so a non-canonical or
+    // dead envelope is refused pre-bind, and construct the real authority again
+    // at install so the two paths cannot drift.
+    HostedServingAuthority::from_authenticated_target(
+        envelope.public_origin.clone(),
+        envelope.admission.clone(),
+        now_ms,
+        [0u8; 32],
+    )?;
+
+    Ok(VerifiedHostedAdmission {
+        envelope: envelope.clone(),
+        throttle_key: derive_throttle_key(admission_public_key, &envelope.admission),
+    })
+}
+
+/// Install a pre-bind-verified admission, applying the one clause that needs
+/// durable state: monotonicity across restart.
+///
+/// @ref LLP 0098#31-the-ordered-checks — clause 9. A correctly signed,
+/// unexpired, replayed *older* snapshot is refused here, which is the only
+/// place it can be refused, because the high-water mark is durable.
+pub(crate) fn install_verified_admission(
+    verified: &VerifiedHostedAdmission,
+    now_ms: u64,
+    connection: &mut Connection,
+) -> SnapbackResult<HostedServingAuthority> {
+    initialize_hosted_admission_watermark(connection)?;
+    let admission = &verified.envelope.admission;
+
     if let Some((durable_epoch, durable_floor)) = read_watermark(connection)?
-        && (envelope.admission.admission_epoch < durable_epoch
-            || envelope.admission.sender_replay_epoch_floor < durable_floor)
+        && (admission.admission_epoch < durable_epoch
+            || admission.sender_replay_epoch_floor < durable_floor)
     {
         return Err(refuse(
             "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",
@@ -416,20 +574,17 @@ pub(crate) fn verify_admission_envelope(
         ));
     }
 
-    // 8 + 10. Origin canonicality and currency are the shipped
-    // `from_authenticated_target` checks; reuse them rather than restating
-    // them, so the two paths cannot drift.
     let authority = HostedServingAuthority::from_authenticated_target(
-        envelope.public_origin.clone(),
-        envelope.admission.clone(),
+        verified.envelope.public_origin.clone(),
+        admission.clone(),
         now_ms,
-        derive_throttle_key(admission_public_key, &envelope.admission),
+        verified.throttle_key,
     )?;
 
     advance_watermark(
         connection,
-        envelope.admission.admission_epoch,
-        envelope.admission.sender_replay_epoch_floor,
+        admission.admission_epoch,
+        admission.sender_replay_epoch_floor,
     )?;
 
     Ok(authority)
@@ -587,13 +742,13 @@ mod tests {
         facts: &HostedEdgeSelfFacts,
         connection: &mut Connection,
     ) -> SnapbackResult<HostedServingAuthority> {
-        verify_admission_envelope(
+        let verified = verify_admission_envelope_prebind(
             envelope,
             key.public_key().as_ref(),
             facts,
             NOW_MS + 1_000,
-            connection,
-        )
+        )?;
+        install_verified_admission(&verified, NOW_MS + 1_000, connection)
     }
 
     fn code(error: SnapbackError) -> String {
@@ -776,12 +931,12 @@ mod tests {
         let key = control_plane_key();
         let candidate = envelope(&key);
         let mut connection = connection();
-        let expired = verify_admission_envelope(
+        let _ = &mut connection;
+        let expired = verify_admission_envelope_prebind(
             &candidate,
             key.public_key().as_ref(),
             &self_facts(&key),
             candidate.admission.expires_at_ms + 1,
-            &mut connection,
         )
         .unwrap_err();
         assert_eq!(code(expired), "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID");

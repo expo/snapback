@@ -377,6 +377,11 @@ impl HostedServingAuthority {
         })
     }
 
+    /// The capability tuple this verified admission attests.
+    pub(crate) fn capabilities(&self) -> HostedAuthCapabilities {
+        self.admission.hosted_auth
+    }
+
     pub(crate) fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
         if now_ms < self.admission.issued_at_ms || now_ms > self.admission.expires_at_ms {
             return Err(SnapbackError::error(

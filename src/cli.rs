@@ -380,6 +380,78 @@ async fn compose_auth_mode_startup(
     }
 }
 
+/// Compose the hosted-edge adapter attestation, or refuse the hosted request.
+///
+/// Returns `None` for an ordinary local deployment. For a hosted request this
+/// runs the LLP 0098 §3.1 pre-bind conjunction and returns the verified
+/// admission; any failure is the coded refusal, and a hosted request with no
+/// adapter at all keeps the shipped `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`
+/// refusal with its exact closed blocker list.
+///
+/// @ref LLP 0098#41-composition — the capability tuple a hosted deployment
+/// publishes comes from the verified admission, never from a build constant, so
+/// an ordinary local server can never advertise `externalTls: enforced`.
+fn hosted_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn compose_hosted_edge_admission(
+    args: &Args,
+    bind_ip: IpAddr,
+) -> crate::diagnostic::SnapbackResult<Option<crate::auth::hosted_edge::VerifiedHostedAdmission>> {
+    use crate::auth::deployment::AuthDeploymentTarget;
+
+    if args.auth_deployment != AuthDeploymentTarget::Hosted {
+        return Ok(None);
+    }
+    let (Some(config_path), Some(envelope_path)) =
+        (args.hosted_edge.as_ref(), args.hosted_admission.as_ref())
+    else {
+        // No adapter supplied: the shipped refusal, unchanged.
+        return crate::auth::deployment::validate_auth_deployment(
+            args.auth_deployment,
+            crate::auth::deployment::HostedAuthCapabilities::local_target(),
+        )
+        .map(|()| None);
+    };
+
+    let read = |path: &std::path::Path| -> crate::diagnostic::SnapbackResult<Vec<u8>> {
+        std::fs::read(path).map_err(|_| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted-edge adapter input could not be read",
+            )
+        })
+    };
+
+    let config = crate::auth::hosted_edge::HostedEdgeConfig::parse(&read(config_path)?)?;
+    let envelope: crate::auth::hosted_edge::HostedAdmissionEnvelope =
+        serde_json::from_slice(&read(envelope_path)?).map_err(|_| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted admission envelope is not a closed valid document",
+            )
+        })?;
+
+    // The origin's own half of the conjunction: it decides for itself whether
+    // the address it is about to bind is loopback (LLP 0098 H1). A caller
+    // cannot assert this any more than it can assert sessions transport.
+    let facts = config.self_facts(bind_ip.is_loopback())?;
+    let now_ms = hosted_now_ms();
+    let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
+        &envelope,
+        &config.admission_public_key_bytes()?,
+        &facts,
+        now_ms,
+    )?;
+    Ok(Some(verified))
+}
+
 // @ref LLP 0060#d1-plaintext-listener-fence — sessions have no plaintext
 // non-loopback override; desired sessions are fenced before listener bind too.
 fn validate_auth_transport(
@@ -499,10 +571,24 @@ pub struct Args {
     pub cron_disabled: bool,
 
     /// Require the serving target to enforce the complete hosted-auth edge and
-    /// browser contract. The local target refuses this must-understand request;
-    /// loopback plus a reverse proxy is not an attestation.
+    /// browser contract. Without a verified hosted-edge adapter attestation the
+    /// target refuses this must-understand request; loopback plus a reverse
+    /// proxy is not an attestation.
     #[arg(long, value_enum, default_value = "local")]
     pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+
+    /// Hosted-edge adapter configuration (LLP 0098). Carries no authority: it
+    /// tells the origin which deployment identity, origin, first-contact
+    /// mechanism, verification key, and support digest to *check* against the
+    /// signed admission envelope.
+    #[arg(long, requires = "hosted_admission")]
+    pub hosted_edge: Option<PathBuf>,
+
+    /// The signed hosted admission envelope produced by the control plane. Its
+    /// authority is its Ed25519 signature against the release-bound key, never
+    /// its presence on disk.
+    #[arg(long, requires = "hosted_edge")]
+    pub hosted_admission: Option<PathBuf>,
 
     /// Unit-test-only injection at the two fallible construction receipts.
     #[cfg(test)]
@@ -519,6 +605,8 @@ impl Default for Args {
             memory: false,
             ready_file: None,
             restored_from_backup: None,
+            hosted_edge: None,
+            hosted_admission: None,
             startup_artifacts: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -1593,10 +1681,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
     // hosted request before opening target state; operator config is a request,
     // never authority for target-owned TLS/proxy/throttle/invalidation facts.
-    crate::auth::deployment::validate_auth_deployment(
-        args.auth_deployment,
-        crate::auth::deployment::HostedAuthCapabilities::local_target(),
-    )?;
+    //
+    // @ref LLP 0098#4-the-admission-seam — the one place hosted serving can be
+    // admitted. Every clause not needing durable state runs here, before the
+    // database path is created, so an unsupported hosted request still leaves
+    // the target byte-for-byte unchanged.
+    let verified_hosted_admission = compose_hosted_edge_admission(&args, bind_ip)?;
     let (prepared_database_path, mut startup_target_reservation) = if args.memory {
         (None, None)
     } else {
@@ -1973,6 +2063,25 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // the bind is 0.0.0.0 behind the platform TLS edge. Middleware still
     // ignores the bit under the production profile.
     let app_state = app_state.with_insecure_dev_auth_override(args.allow_insecure_dev_auth);
+    // @ref LLP 0098#43-ordering — install the verified attestation before any
+    // listener binds. Installation performs the durable monotonicity check that
+    // the pre-bind phase could not, then creates the replay/nonce and throttle
+    // tables and applies the LLP 0077 decision-1 sender-replay epoch floor.
+    let app_state = match verified_hosted_admission.as_ref() {
+        Some(verified) => {
+            let authority = {
+                let mut snapback = state.lock().await;
+                snapback
+                    .auth_database_mut()
+                    .install_hosted_admission(verified, hosted_now_ms())
+                    .map_err(anyhow::Error::new)?
+            };
+            app_state
+                .with_hosted_serving_authority(authority)
+                .map_err(anyhow::Error::new)?
+        }
+        None => app_state,
+    };
     let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
@@ -4651,6 +4760,8 @@ mod tests {
             port: Some(0),
             db: restored_database.clone(),
             memory: false,
+            hosted_edge: None,
+            hosted_admission: None,
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
@@ -4674,6 +4785,8 @@ mod tests {
             memory: false,
             ready_file: Some(ready.clone()),
             restored_from_backup: Some(declaration_id),
+            hosted_edge: None,
+            hosted_admission: None,
             startup_artifacts: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,

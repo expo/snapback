@@ -84,6 +84,9 @@ pub(crate) mod auth_sender;
 #[path = "storage/auth_throttle.rs"]
 pub(crate) mod auth_throttle;
 
+#[path = "storage/hosted_admission.rs"]
+pub(crate) mod hosted_admission;
+
 #[path = "storage/authorized_lease.rs"]
 pub(crate) mod authorized_lease;
 

@@ -47,6 +47,27 @@ why the sender-auth matrix cannot honestly run there (sessions refuse
 override, by design; the drill runs dev auth). The capability gate stays
 open, exactly as this index requires: no `hostedAuthCapable` claim exists.
 
+Update 2026-07-25 (hosted-edge adapter): the gate's first blocker is
+resolved in code. LLP 0098 pins the
+`loopback-terminated-single-instance.v1` adapter and lands its verification
+core, so `--auth-deployment hosted` now **admits** against a signed,
+deployment-bound attestation instead of refusing unconditionally. Witnessed
+end to end on a real server process: hosted serves on a loopback bind and
+publishes the attested five-positive tuple through `/inspect`, while a
+non-loopback bind refuses `SNAPBACK_AUTH_HOSTED_TOPOLOGY_INVALID`, a tampered
+envelope refuses `SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED`, a replayed
+older epoch refuses `SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK` across a
+restart, and a local target still publishes the all-negative tuple. No fence
+was weakened: the D1 sessions plaintext refusal is untouched, and the hosted
+profile requires loopback rather than exempting itself.
+
+This does **not** close the capability gate. `hostedAuthCapable` still
+requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
+against a **real served public origin** under that attestation, which needs
+the in-container TLS terminator the profile requires. Until then the honest
+status is: the adapter exists and its refusals are proven; the served-origin
+matrix has not run.
+
 Umbrella index for the work surfaced by the 9-round /llp-super-refine on LLP
 0077 (Fable READY at round 9; Codex NOT READY throughout — the spec is
 internally sound and honest, but its 13-item ledger records real code defects
