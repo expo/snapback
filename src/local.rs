@@ -20921,6 +20921,200 @@ globalThis.__snapbackHandlers = {
         ));
     }
 
+    // @ref LLP 0080#4-live-and-retained-capability — the obligation-fault
+    //   e2e: a shrinking replacement on an owner-visible relational
+    //   subscription is obligation-backed, so a lost delivery cannot leave
+    //   forbidden rows visible — the level-triggered obligation reprojects
+    //   until the exact ACK discharges it, and no live_delta ever escapes.
+    #[test]
+    fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
+        let (schema, mut functions) = relational_live_fixture_functions(10);
+        functions.functions.push(FunctionDefinition::new(
+            "deleteBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "books".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("memory shrink fixture");
+        snapback.apply_schema(schema).expect("apply shrink schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "shrink fixture must activate: {diagnostics:?}"
+        );
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "ada", "name": "Ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert author");
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "alpha", "slug": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert book");
+        let book_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read book id")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("book id")
+            .to_owned();
+
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = managed_session_admission();
+        let owner_input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        // An owner-visible plan needs a real Session authority under the
+        // session-mode admission (the anonymous test default would refuse
+        // with AUTH_USER_MISSING).
+        let session_authority = crate::auth::invocation::InvocationGate::prepare_authority(
+            crate::auth::invocation::InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            crate::admin::ServerProfile::Test,
+            1,
+            1,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Session {
+                user_id: "user-a".to_owned(),
+                session_id: "sess-shrink".to_owned(),
+                provider: "test".to_owned(),
+                generation: 1,
+                authority_instance_id: "authinst-shrink".to_owned(),
+                session_not_after_ms: u64::MAX / 2,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("prepare session authority");
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    input: owner_input,
+                    authorization_namespace: Some(test_authorization_namespace(7)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                session_authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("owner-visible relational auth-scoped subscription");
+        assert_eq!(
+            subscribed.snapshot.expect("initial snapshot").rows,
+            vec![json!({ "title": "alpha" })],
+        );
+        assert!(drain_live_stream_through_test_sink(&mut snapback, "rel-shrink").is_empty());
+
+        // The shrinking commit: the only visible root is deleted.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteBook",
+            HandlerInput {
+                args: json!({ "id": book_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("delete the visible book");
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed shrinking replacement frame");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["resolution"]["kind"], "snapshot");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "a relational shrink must never escape as best-effort live_delta"
+        );
+
+        // The fault: the replacement is treated as lost — no ACK arrives.
+        // Recovery is the obligation machinery, not best-effort delivery:
+        // reprojection re-emits the level-triggered obligation, the managed
+        // rerun re-delivers the atomic snapshot, and only the exact ACK
+        // discharges it.
+        snapback
+            .reproject_authorization_invalidations("rel-shrink", &admission)
+            .expect("reproject after lost delivery");
+        let hint = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink")
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("level-triggered obligation survives the lost delivery");
+        assert!(
+            hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
+            "a snapshot resolution is never projected without its atomic rows"
+        );
+        let rerun = snapback
+            .authorization_invalidation_frames("rel-shrink", &admission)
+            .expect("managed rerun");
+        let rerun = serde_json::from_slice::<Value>(
+            &rerun.first().expect("fresh snapshot frame").payload,
+        )
+        .expect("rerun frame JSON");
+        assert_eq!(rerun["snapshot"]["rows"], json!([]));
+        let ack_token = rerun["resolution"]["ackToken"]
+            .as_str()
+            .expect("ack token")
+            .to_owned();
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("exact ack");
+        assert_eq!(ack.outcome, "discharged");
+        assert!(
+            snapback
+                .authorization_invalidation_frames("rel-shrink", &admission)
+                .expect("post-ack frames")
+                .is_empty(),
+            "the exact ACK discharges the obligation"
+        );
+    }
+
     #[test]
     fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
         let mut snapback = live_limit_snapback();
