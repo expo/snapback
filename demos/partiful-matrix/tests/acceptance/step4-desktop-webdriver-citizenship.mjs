@@ -56,13 +56,14 @@ const command = (program, args, options = {}) => {
     return execFileSync(program, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
       ...options,
     }).trim();
   }
   catch { return null; }
 };
 const requiredCommand = (program, args, options = {}) =>
-  execFileSync(program, args, { encoding: 'utf8', ...options }).trim();
+  execFileSync(program, args, { encoding: 'utf8', timeout: 15_000, ...options }).trim();
 const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const identity = (path) => ({ path: relative(repoRoot, path), sha256: digest(path), bytes: readFileSync(path).length });
 const installedNodeModulesRoot = join(surfaceRoot, 'node_modules');
