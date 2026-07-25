@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-25T17:46:40.781Z",
+  "measuredAt": "2026-07-25T17:52:56.240Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M4",
@@ -14,7 +14,7 @@
     "bun": "1.3.10"
   },
   "inputs": {
-    "claimManifestSemanticSha256": "d34de60b114dd28e4461fb8cfc81c1eb35b89eff76a5f0e55b5e361de2052154",
+    "claimManifestSemanticSha256": "054765a4b6b87e144ee3ece4ddc29a28a244d692b8fe0f2ce056a09bd35008cb",
     "protocolSha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116",
     "webReceiptSha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72",
     "thresholdFreezeSource": {
