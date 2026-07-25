@@ -16,7 +16,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/client": "0.1.0"
+    "@snapback/client": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.0.0 <20.0.0"

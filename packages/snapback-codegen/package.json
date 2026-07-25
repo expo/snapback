@@ -8,6 +8,7 @@
     "data-tier-corpus.mjs",
     "define.d.ts",
     "define.mjs",
+    "effect-ceiling.mjs",
     "file-read-capability.mjs",
     "generate-worker.mjs",
     "index.mjs",
@@ -36,7 +37,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/contract": "0.1.0",
+    "@snapback/contract": "workspace:*",
     "acorn": "^8.17.0",
     "esbuild": "^0.28.1",
     "typescript": "5.9.3"

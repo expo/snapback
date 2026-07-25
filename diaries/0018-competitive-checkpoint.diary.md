@@ -579,3 +579,16 @@ the complete hosted drill and public package path are operational.
 - This closes the local reproduction defect only for the current uncommitted
   tree. It does not publish packages, qualify a remote adapter, ratify protocol
   v0.4, or authorize the timed comparison.
+
+## 2026-07-24 — Clean-checkout package and surface closure
+
+- The first draft-PR surface build exposed an important source-versus-release
+  distinction: repository manifests still need `workspace:*` so demos can
+  bundle package source in a clean checkout, while publication staging rewrites
+  those edges to exact release versions inside the immutable tarballs.
+- The cold-install proof then found that the upstream effect-ceiling module was
+  imported by codegen but absent from its explicit package file closure.
+  Adding it to `files` made the package match the production import graph.
+- This was a useful advantage over checking only an application already inside
+  the monorepo: the required-surface lane caught source resolution, and the
+  external tarball install independently caught release closure.

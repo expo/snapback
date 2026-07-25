@@ -24,7 +24,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/contract": "0.1.0"
+    "@snapback/contract": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

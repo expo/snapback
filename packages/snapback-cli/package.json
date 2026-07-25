@@ -21,12 +21,12 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/client": "0.1.0",
-    "@snapback/codegen": "0.1.0"
+    "@snapback/client": "workspace:*",
+    "@snapback/codegen": "workspace:*"
   },
   "optionalDependencies": {
-    "@snapback/runtime-darwin-arm64": "0.1.0",
-    "@snapback/runtime-linux-x64": "0.1.0"
+    "@snapback/runtime-darwin-arm64": "workspace:*",
+    "@snapback/runtime-linux-x64": "workspace:*"
   },
   "engines": {
     "node": ">=24.0.0"
