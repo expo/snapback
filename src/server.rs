@@ -19734,6 +19734,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
         | "SNAPBACK_MEMBERSHIP_READ_PRIVATE"
         | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
+        // LLP 0065: profile-class admission — an authenticated principal
+        // that projects no user subject is refused after the auth gate.
+        | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -32318,6 +32321,7 @@ globalThis.__snapbackHandlers = {
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
         // LLP 0092 §0D.1 bundle authorization/sender refusals.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH",
         "SNAPBACK_BUNDLE_NOT_PUBLIC",

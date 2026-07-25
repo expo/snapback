@@ -1,6 +1,6 @@
 # 0065: move the standard-patterns candidate to the accepted spec
 
-**Status:** Open
+**Status:** Resolved (2026-07-25)
 **Severity:** P2
 **Systems:** Codegen, Authorization, Generated operations
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -50,3 +50,17 @@ refuse byte-identically with `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`
 `SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE` (503). Witness:
 `standard_pattern_keyset_cursor_pages_and_refuses_end_to_end`; guide page
 updated. Remaining here: only the principal profile-class refusal.
+
+**Resolution (2026-07-25):** the principal profile-class refusal landed —
+`InvocationGate::prepare_function` runs profile-class admission last (after
+the target, grant-scope, and authentication gates) for any function
+carrying a `standardPattern` identity: a principal that projects no user
+subject (bare `servicePrincipal`, non-delegated autonomous agent) is
+refused with `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED` (403); a
+delegated agent resolves to the delegating user and is admitted; anonymous
+callers keep failing the authentication gate with `SNAPBACK_AUTH_REQUIRED`
+before profile admission. Witness:
+`standard_pattern_profile_class_admits_only_user_subjects`. With the
+opaque cursor landed above, every item in this ticket is at spec; the §6
+suite ticket (`20260724-step5-impl-0065-conformance-suite.md`) carries the
+remaining negatives matrix.
