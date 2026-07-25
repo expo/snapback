@@ -122,6 +122,7 @@ fn epoch(snapback: &mut LocalSnapback, connection: &str) -> u64 {
                 input: input_for(USER, json!({})),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("live subscription");

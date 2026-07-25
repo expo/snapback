@@ -31,6 +31,19 @@ fn exhausted() -> SnapbackError {
 }
 
 impl LocalDatabase {
+    /// The durable data version stream (LLP 0043/0053 `versionStreamId`):
+    /// ensured on first read, rotated only inside reset/import/restore
+    /// transactions. RQS token admission compares it by exact string
+    /// equality (LLP 0091 §0A.7 — no new stream identity).
+    pub(crate) fn data_version_stream(&mut self) -> SnapbackResult<String> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let stream = ensure_data_version_stream_in(&tx)?;
+        tx.commit()?;
+        Ok(stream)
+    }
+
     /// Reserve one never-reused boot sequence in the same transaction that
     /// reads the authorization incarnation it names. A crash consumes the
     /// reservation; rollback makes it available because no issuer escaped.

@@ -44,6 +44,7 @@ export {
   ExternalQueryScope,
   SNAPBACK_EXTERNAL_STORE_PROTOCOL,
 } from './external-store.mjs';
+import { rowsMatchDigest } from './rqs.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -156,6 +157,10 @@ export const LIVE_DURABLE_KINDS = Object.freeze({
   LIVE_DELTA: 'live_delta',
   RESYNC_REQUIRED: 'resync_required',
   AUTHORIZATION_INVALIDATION: 'authorization_invalidation',
+  // Rung-1 answer to a resumeFromToken subscribe (LLP 0090 D1.3 / LLP 0091
+  // §0B.2): advances version + token without touching rows. Only ever sent
+  // to a subscriber that presented resumeFromToken.
+  CURRENT_AS_OF: 'current_as_of',
 });
 export const LIVE_SOCKET_KINDS = Object.freeze({
   AUTH_ERROR: 'auth_error',
@@ -3495,12 +3500,17 @@ export class SnapbackClient {
     supersedes = null,
     authorizationNamespace = null,
     authorityCapture = null,
+    resumeFromToken = null,
   } = {}) {
     const name = functionName(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
     const response = await this.#withGrant(connectionId, (grant) => {
       const body = { connection_id: grant.id, input };
+      // RQS token resume (LLP 0091 §0B.4): the token seeds this ordinary
+      // subscribe; a refused token is answered with a fresh snapshot by the
+      // server, never retried client-side.
+      if (resumeFromToken) body.resumeFromToken = resumeFromToken;
       const namespace = typeof authorizationNamespace === 'function'
         ? authorizationNamespace(grant)
         : authorizationNamespace;
@@ -4117,6 +4127,11 @@ export class SnapbackClient {
       subscriptionId: null,
       version: 0,
       rows: [],
+      // Latest RQS resume object ({ token, meta }) for this subscription —
+      // in-memory only in rollout step 1 (persistence is step 5). Adopted
+      // from subscribe outputs and refreshed envelopes per the LLP 0091
+      // §0B.3 transition table; cleared on digest mismatch.
+      resume: null,
       authorizationDisposition: 'retain',
       get connection() {
         return connection;
@@ -4703,6 +4718,9 @@ export class SnapbackClient {
         } else {
           handle.rows = update.rows;
           handle.version = update.version;
+          // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
+          // replacement rows it was minted from.
+          if (update.resume) handle.resume = update.resume;
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
               version: handle.version,
@@ -4710,6 +4728,24 @@ export class SnapbackClient {
             });
           }, updateCapture);
         }
+        return;
+      }
+      if (update.kind === LIVE_DURABLE_KINDS.CURRENT_AS_OF) {
+        // LLP 0091 §0B.3 T3-T5: "your held rows are current as of N" —
+        // advance version and adopt the mandatory fresh token without
+        // touching rows; never regress on a lower version (T5); duplicate
+        // delivery of the same frame is an idempotent no-op (T4).
+        if (update.subscription_id !== handle.subscriptionId) return;
+        if (typeof update.version === 'number' && update.version < handle.version) return;
+        if (authorizationFaulted) return;
+        handle.version = update.version;
+        if (update.resume) handle.resume = update.resume;
+        deliverAuthorityObservation(() => {
+          onUpdate?.(handle.rows, {
+            version: handle.version,
+            kind: LIVE_DURABLE_KINDS.CURRENT_AS_OF,
+          });
+        }, updateCapture);
         return;
       }
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_DELTA) {
@@ -4744,6 +4780,20 @@ export class SnapbackClient {
         } else {
           handle.rows = nextRows;
           handle.version = update.version;
+          // T7 (LLP 0091 §0B.3): verify the post-apply digest against the
+          // refreshed token's meta before adopting it. A mismatch means the
+          // held base has diverged from the server's accumulator — discard
+          // the token and take the client-side rung 3 (fresh subscribe).
+          if (update.resume) {
+            const digest = update.resume.meta?.contentDigest;
+            if (digest && rowsMatchDigest(handle.rows, digest)) {
+              handle.resume = update.resume;
+            } else {
+              handle.resume = null;
+              void resubscribe('rqs_digest_mismatch');
+              return;
+            }
+          }
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
               version: handle.version,
@@ -4776,6 +4826,13 @@ export class SnapbackClient {
         const epochAtStart = socketLossEpoch;
         const demandEpochAtStart = resubscribeDemandEpoch;
         try {
+          // RQS dispatch rule 2 (LLP 0091 §0B.4): a fresh subscribe holding
+          // verified rows + a resume token seeds the request with it —
+          // reconnect still ALWAYS re-enters through this fresh subscribe
+          // (the LLP 0034 §2.4 amendment: maybe-CurrentAsOf-with-subscribe).
+          // In-memory only in rollout step 1; auth-scoped handles never hold
+          // a token (the server never mints one for them).
+          const heldResume = handle.resume;
           const sub = await client.subscribeLive(name, {
             connectionId,
             args,
@@ -4784,6 +4841,7 @@ export class SnapbackClient {
             supersedes,
             authorizationNamespace: queryNamespace,
             authorityCapture: expectedAuthorityCapture,
+            resumeFromToken: heldResume ? { resume: heldResume } : null,
           });
           try {
             assertSubscribeLifecycle(lifecycle);
@@ -4832,8 +4890,13 @@ export class SnapbackClient {
           handle.subscriptionId = sub.subscription_id;
           handleAuthorityCapture = responseCapture;
           if (!sub.authorizationScope) {
-            handle.version = sub.snapshot.version;
-            handle.rows = sub.snapshot.rows;
+            if (sub.snapshot) {
+              handle.version = sub.snapshot.version;
+              handle.rows = sub.snapshot.rows;
+            }
+            // else: the rung-1 CurrentAsOf answer — held rows are current;
+            // the current_as_of durable envelope advances version + token.
+            if (sub.resume) handle.resume = sub.resume;
             markAuthorityCapture(handle.rows, handleAuthorityCapture);
           }
           return true;

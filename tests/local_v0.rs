@@ -34,10 +34,11 @@ fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows, Vec::<Value>::new());
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows, Vec::<Value>::new());
 
     let mutation = snapback
         .invoke_mutation(
@@ -84,10 +85,11 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows, Vec::<Value>::new());
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows, Vec::<Value>::new());
 
     let mutation = snapback
         .invoke_mutation(
@@ -129,10 +131,11 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
                 input: input(json!({}), "cron"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("ada subscribe");
-    assert_eq!(ada.snapshot.rows.len(), 0);
+    assert_eq!(ada.snapshot.as_ref().unwrap().rows.len(), 0);
 
     let grace = snapback
         .subscribe_live(
@@ -142,10 +145,11 @@ fn live_matcher_skips_user_scoped_disjoint_mutations() {
                 input: input(json!({}), "user_2"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("grace subscribe");
-    assert_eq!(grace.snapshot.rows.len(), 0);
+    assert_eq!(grace.snapshot.as_ref().unwrap().rows.len(), 0);
 
     snapback
         .invoke_mutation(
@@ -186,6 +190,7 @@ fn live_matcher_skips_hidden_row_patches_and_deletes() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("ada subscribe");
@@ -233,6 +238,7 @@ fn zero_change_mutation_does_not_fan_out_or_count_delivery_attempts() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe");
@@ -270,6 +276,7 @@ fn live_matcher_keeps_unmarked_ibex_queries_conservative() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("ada subscribe");
@@ -309,6 +316,7 @@ fn live_matcher_uses_captured_equality_predicates_beyond_auth_scope() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe completed todos");
@@ -404,6 +412,7 @@ fn live_matcher_wakes_ibex_point_read_dependency() {
                 input: input(json!({ "pinnedId": pinned_id }), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe pinned todos");
@@ -453,6 +462,7 @@ fn live_matcher_uses_captured_in_predicates() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe completed todos");
@@ -513,6 +523,7 @@ fn live_matcher_uses_captured_range_predicates() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe ranked todos");
@@ -590,12 +601,15 @@ fn live_matcher_uses_limited_order_boundaries() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe limited ranked todos");
     assert_eq!(
         subscription
             .snapshot
+            .as_ref()
+            .unwrap()
             .rows
             .iter()
             .map(|row| row["rank"].as_i64().unwrap())
@@ -698,10 +712,11 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows.len(), 1);
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 1);
     let other_subscription = snapback
         .subscribe_live(
             "listTodos",
@@ -710,10 +725,11 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
                 input: input(json!({}), "user_2"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe other user");
-    assert_eq!(other_subscription.snapshot.rows.len(), 0);
+    assert_eq!(other_subscription.snapshot.as_ref().unwrap().rows.len(), 0);
 
     snapback
         .invoke_mutation(
@@ -795,10 +811,11 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows.len(), 0);
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 0);
 
     let unauthenticated = HandlerInput {
         args: json!({ "title": "No auth user" }),
@@ -884,11 +901,12 @@ fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
     assert_eq!(
-        subscription.snapshot.rows[0]["title"],
+        subscription.snapshot.as_ref().unwrap().rows[0]["title"],
         "Visible before permission change"
     );
     assert_eq!(subscription.permission_epochs.get("user:user_1"), Some(&0));
@@ -959,6 +977,7 @@ fn live_resume_retains_subscription_when_recorded_permission_epoch_is_current() 
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
@@ -1127,10 +1146,11 @@ fn cron_tick_runs_host_action_through_mutation_and_live_delivery() {
                 input: input(json!({}), "cron"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows.len(), 0);
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 0);
 
     let runs = snapback.tick_cron(0).expect("tick cron at epoch");
     assert_eq!(runs.len(), 1);
@@ -1192,6 +1212,7 @@ fn cron_demand_gating_and_default_jitter_are_visible_in_inspect() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe activates demand-gated cron");
@@ -1230,6 +1251,7 @@ fn l5_cron_activity_flag_tracks_arming() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe arms the demand-gated cron");
@@ -1678,6 +1700,7 @@ fn rejected_reset_seed_preserves_database_generation_and_subscriptions() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .unwrap();
@@ -1736,10 +1759,11 @@ fn reset_signals_dropped_live_subscriptions() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.rows.len(), 1);
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 1);
     // Discard anything already queued so the assertions see only what the
     // reset itself enqueues.
     snapback.drain_outbox("client_a");
@@ -3064,6 +3088,7 @@ fn s2_subscription_ids_are_unguessable() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("first subscription");
@@ -3075,6 +3100,7 @@ fn s2_subscription_ids_are_unguessable() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("second subscription");
@@ -3101,6 +3127,7 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe live query");
@@ -3231,6 +3258,7 @@ fn s5_d11_recording_tick_runs_cron_without_error() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe activates demand-gated cron");
@@ -3434,6 +3462,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("healthy subscribe");
@@ -3445,6 +3474,7 @@ fn s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("exploding subscribe (empty snapshot is fine)");
@@ -4527,6 +4557,7 @@ fn l2_abandoned_connection_is_reaped_with_counters() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe");
@@ -4654,6 +4685,7 @@ fn eng_23427_reap_under_open_registration_signals_resync() {
                     input: input(json!({}), "user_1"),
                     authorization_namespace: None,
                     supersedes: None,
+                    resume_from_token: None,
                 },
             )
             .expect("subscribe live");
@@ -5653,6 +5685,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("first subscribe");
@@ -5664,6 +5697,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("second subscribe");
@@ -5696,6 +5730,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: Some(first.subscription_id.clone()),
+                resume_from_token: None,
             },
         )
         .expect("superseding subscribe");
@@ -5748,6 +5783,7 @@ fn d2_explicit_supersession_disposes_only_the_named_subscription() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: Some("sub_gone".to_owned()),
+                resume_from_token: None,
             },
         )
         .expect("unknown supersedes is not an error");
@@ -5863,6 +5899,7 @@ fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe");
@@ -6010,6 +6047,7 @@ fn d2_disconnect_receipts_disposal_and_drops_the_connection_ring() {
                 input: input(json!({}), "user_1"),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .expect("subscribe");

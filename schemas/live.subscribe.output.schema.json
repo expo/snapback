@@ -211,6 +211,62 @@
       ],
       "type": "object"
     },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
+    },
     "ResyncObligation": {
       "additionalProperties": false,
       "properties": {
@@ -410,6 +466,24 @@
     "receipt": {
       "description": "Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478)."
     },
+    "resume": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResumeWire"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Fresh resume token for `rqsEligible` subscriptions answered with rows\n(the \"initial `LiveReplace`\" mint of LLP 0091 §0A.5 on this arm)."
+    },
+    "resumeRefusal": {
+      "description": "Per-cause `SNAPBACK_RESUME_*` code when a presented token was refused\n(LLP 0091 §0B.6) — an observability fact; the subscribe itself\nsucceeded with rung 3.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "scopeRetirements": {
       "items": {
         "$ref": "#/$defs/ScopeRetirement"
@@ -417,15 +491,22 @@
       "type": "array"
     },
     "snapshot": {
-      "$ref": "#/$defs/QueryOutput"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QueryOutput"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Absent exactly when the subscribe was answered with rung-1\n`CurrentAsOf` (LLP 0090 D1.3): the caller presented `resumeFromToken`\nand its held rows are current, so no rows ride the answer — the\n`current_as_of` durable envelope (with the fresh token) does. Only a\nresume-capable caller can receive the absent form."
     },
     "subscription_id": {
       "type": "string"
     }
   },
   "required": [
-    "subscription_id",
-    "snapshot"
+    "subscription_id"
   ],
   "title": "LiveSubscribeOutput",
   "type": "object"

@@ -7,7 +7,7 @@
   },
   "dataCapabilityManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/remote-data-capability.manifest.json",
-    "sha256": "sha256:52dfe20616496f93e4e069275d870dbd729c49638343fd2e13f51200d6a301a4"
+    "sha256": "sha256:bdb4626ed8e885e8633fab332a95478c0aa92977d484b49188e3da2e4c5a33f6"
   },
   "dataTier": {
     "caseCount": 37,

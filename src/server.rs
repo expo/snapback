@@ -20173,6 +20173,7 @@ mod tests {
                             query_instance_id: 500 + query_instance_id,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -22051,6 +22052,7 @@ globalThis.__snapbackHandlers = {
                             query_instance_id: 9_002,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     authority,
                     LiveInvalidationAdmission {
@@ -31342,6 +31344,94 @@ globalThis.__snapbackHandlers = {
             "environment variable selecting the server profile",
         ),
         (
+            "SNAPBACK_RESUME_",
+            "diagnostic-code family prefix appearing in RQS refusal-registry docs (LLP 0091 §0B.6)",
+        ),
+        (
+            "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+            "internal RQS generation-mint impediment; swallowed into a token-mint absence or a wire refusal code, never an HTTP diagnostic",
+        ),
+        // The SNAPBACK_RESUME_* registry (LLP 0091 §0B.6): wire refusal
+        // codes carried inside a SUCCESSFUL subscribe answer (`resumeRefusal`
+        // + observability counters). Every refusal answers with rung 3 —
+        // a coded refusal is an observability fact, never an HTTP error.
+        (
+            "SNAPBACK_RESUME_TOKEN_MALFORMED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_TOKEN_OVERSIZE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_MAC_INVALID",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_KEY_UNKNOWN",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_KEY_RETIRED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_TOKEN_EXPIRED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_APP_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_GENERATION_STALE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_STREAM_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_QUERY_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_NOT_ELIGIBLE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_DIGEST_KIND_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_VERSION_IMPLAUSIBLE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_JOURNAL_FLOOR",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_INVALID",
+            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_OVERSIZE",
+            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_BUDGET_EXCEEDED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_RATE_LIMITED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_POLICY_REPLACED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
             "SNAPBACK_RUN__",
             "suffix of the __SNAPBACK_RUN__ embedded-runtime placeholder",
         ),
@@ -35562,6 +35652,7 @@ globalThis.__snapbackHandlers = {
                             query_instance_id: 9_001,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     authority,
                     LiveInvalidationAdmission {
@@ -35762,6 +35853,7 @@ globalThis.__snapbackHandlers = {
                     query_instance_id: 9_002,
                 }),
                 supersedes: None,
+                resume_from_token: None,
             })),
         )
         .await

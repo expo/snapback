@@ -440,6 +440,7 @@ fn seeded_snapback() -> LocalSnapback {
                 },
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )
         .unwrap();
