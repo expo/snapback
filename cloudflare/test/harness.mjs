@@ -169,7 +169,15 @@ async function bundle(entry, appBundle, { seedOverride } = {}) {
 // app's seed export. It lets structural-validation tests exercise the real
 // compiled-seed preparation path with intentionally invalid fixtures; caller
 // bytes still never become production seed authority.
-export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride } = {}) {
+// `assetsDirectory` attaches a Workers Assets directory to the gateway
+// Worker (binding ASSETS, SPA fallback, worker-first routing) — the
+// Miniflare projection of the wrangler `assets` stanza the All Aboard deploy
+// uses, so the RQS Channel A gateway seam (LLP 0090 rollout step 4) is
+// testable locally.
+// `persistRoot` persists Durable Object storage under a directory so a
+// dispose + restart pair simulates a real DO restart (the RQS keyring
+// custody proof); default remains in-memory.
+export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride, assetsDirectory = null, persistRoot = null } = {}) {
   // @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — fail closed on
   // an unsupported Node major before standing up Miniflare, rather than letting
   // the first real-loopback action reset (`read ECONNRESET`) under Node 25.
@@ -194,6 +202,16 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
       // The admin-token gate on /reset and /evict (ENG-23587); the client
       // below presents it, and the acceptance suite asserts its absence 403s.
       bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
+      ...(assetsDirectory
+        ? {
+            assets: {
+              directory: assetsDirectory,
+              binding: 'ASSETS',
+              routerConfig: { has_user_worker: true, invoke_user_worker_ahead_of_assets: true },
+              assetConfig: { html_handling: 'auto-trailing-slash', not_found_handling: 'single-page-application' },
+            },
+          }
+        : {}),
     },
     {
       name: selected.handlerWorker,
@@ -213,6 +231,7 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
   const runtimeDiagnostics = diagnosticRecorder(bindings);
   const mf = new Miniflare({
     ...(port === null ? {} : { host: '127.0.0.1', port }),
+    ...(persistRoot === null ? {} : { durableObjectsPersist: persistRoot }),
     log: new CapturingLog(runtimeDiagnostics.record),
     handleStructuredLogs({ level, message }) {
       if (level === 'error' || level === 'warn') {

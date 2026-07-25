@@ -6,10 +6,13 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
 **Revised:** 2026-07-24 (§0D.6 witness-bytes reservation replaced by the
-caps LLP 0091's rung-2 amendment pinned, ENG-25457; plus the dated
+caps LLP 0091's rung-2 amendment pinned, ENG-25457; the dated
 step-2/step-3 amendment: the six reported step-2 divergences folded in and
 the step-3 0C/0E landing notes — see "Dated amendment: step-2/step-3
-implementation reconciliation", ENG-25454)
+implementation reconciliation", ENG-25454; and the dated step-4 amendment:
+the Cloudflare arm — compiled routes manifest, HostPlan-subset eligibility,
+read-mode-only bundle endpoint, gateway Channel A — see "Dated amendment:
+step-4 Cloudflare arm", ENG-25455)
 **Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091
 
 ## Summary
@@ -792,6 +795,80 @@ ENG-25454):**
   step-1 reconciliation item 3 remains the standing rule (the swap is now
   expected with the step-4 Cloudflare arm, where deploy-time artifact
   identity exists anyway).
+
+## Dated amendment: step-4 Cloudflare arm (2026-07-24, ENG-25455)
+
+LLP 0090 rollout step 4 landed the Cloudflare arm (coordinator resume
+admission + bundle endpoint, gateway Channel A; `cloudflare/src/rqs-host.mjs`,
+`cloudflare/src/coordinator.js`, `cloudflare/src/gateway.js`; acceptance
+`cloudflare/test/acceptance.rqs.mjs`). Per LLP 0004 the implemented behavior
+is normative; the sections above read as amended for this arm:
+
+1. **§0C.1 — the routes manifest is compiled into the Worker.** The app
+   bundle exports `routesManifest` (the same artifact schema), deploy-time
+   compiled like schema/functions on this arm. There is no ensure lane, so
+   admission runs at first use: an invalid compiled manifest is **treated as
+   absent, fail-closed** (bundle requests refuse
+   `SNAPBACK_BUNDLE_ROUTE_UNKNOWN`, Channel A serves the plain shell, and a
+   warning diagnostic is logged) — the deploy-time analog of the local
+   `SNAPBACK_ROUTES_MANIFEST_INVALID` ensure refusal. Its canonical hash is
+   the `routeManifestHash` component of `generation` (LLP 0091 §0A.6).
+2. **§0C.2/§0C.3 — eligibility derives from compiled HostPlan facts.** The
+   Cloudflare deploy pipeline has no codegen lane; the app bundle's function
+   entries carry the codegen-shaped facts (`authRequirement`,
+   `authorityIndependent`, `publicInline`, `readSetSummary`,
+   `runtime.HostPlan.Query`), and the coordinator **derives** `rqsEligible`
+   with the same conjunction as `src/manifest.rs` — declared
+   `authorityIndependent` on a public LiveQuery with no uses/auth-scope,
+   plus the closed-inputs proof (HostPlan query, complete `singleTable`
+   summary). The closed-inputs fact is honest because eligible queries are
+   **evaluated natively by the coordinator** over a validated HostPlan
+   subset (single table, `Eq` filters over Arg/Literal, field order clauses,
+   optional limit) — no opaque JS runs for them; opaque-JS handlers can
+   never be eligible, exactly as on the local arm. One sharpening:
+   `publicInline` is honored on this arm **only when the query is also
+   `rqsEligible`** (stricter than §0C.3's authorityIndependent-only
+   requirement — fail-closed, never wider; v1 has no consumer of a
+   public-inline non-eligible query on this arm).
+3. **§0D — read mode landed; register mode deferred.** `POST /app/bundle`
+   is forwarded by the gateway and evaluated under the coordinator's
+   invocation mutex; eligible entries evaluate natively with no awaits, so
+   the single-commit cut holds by construction (§0D.5's DO clause). This arm
+   has **no credentialed bundle-caller class yet** (no LLP 0077 sender-key
+   thumbprint/replay-epoch custody on the connection grant), so **every**
+   register-mode request refuses
+   `SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL` and the pending-
+   registration owner is not built here — explicitly deferred to the
+   credential story for this arm, never half-landed. The anonymous rate
+   limit is the step-2 interim single shared bucket (OQ-A unchanged); the
+   query-count cap is enforced at manifest validation, rows/bytes/time at
+   evaluation.
+4. **§0E — the gateway is the second Channel A assembler.** The seam
+   composes per-request: route match against the compiled manifest (shared
+   `packages/snapback-vite/channel-a-core.mjs`, split from the Vite plugin
+   so both arms run one matcher/gate/embedder — reuse, not a fork), compiled
+   `publicInline` zero-cost skip, one coordinator bundle subrequest under
+   the 500 ms budget (raced, not aborted — a late bundle is unused and the
+   shell serves), the byte-pinned serializer
+   (`packages/snapback-vite/rqs-serializer.mjs`, bundled into the Worker;
+   the §0E.2 Cloudflare conformance home is
+   `cloudflare/test/acceptance.rqs.mjs` over the same fixture files), embed,
+   and §0E.4 response mechanics — `no-store`, static-shell validators
+   dropped, `Content-Length` recomputed over the final identity bytes with
+   compression left to the runtime after transformation, CSP headers carried
+   through untouched. The anonymous per-client-address 60/min budget keys on
+   `cf-connecting-ip` and is **per gateway isolate** (in-memory, degrade
+   over the cap) — a best-effort seam budget; the coordinator holds the
+   authoritative limits.
+5. **What the local harness proved** (Miniflare regression surface only):
+   inline/degrade/response mechanics, byte-exact serializer fixtures,
+   rung-1/rung-3 admission with per-cause refusals over genuinely MAC'd
+   tokens, token refresh on the live path, DO-storage keyring surviving both
+   the /evict in-memory clear and a real dispose/recreate DO restart under
+   persisted storage, and versionStream rotation across /reset refusing
+   outstanding tokens. Not provable locally: real deploys (generation
+   rotation across deploys is exercised via a testing-gated mint override),
+   edge caching/compression, and real platform eviction economics.
 
 ## Open questions
 

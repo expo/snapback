@@ -15,6 +15,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-live-and-diagnostics-hardening',
   'acceptance-protocol-hardening',
   'acceptance-reset-atomic',
+  'acceptance-rqs',
   'acceptance-secrets',
   'acceptance-security-hardening',
   'acceptance-storage-layout',
@@ -27,7 +28,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'proof-runtime-preflight',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 21;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 22;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -86,6 +87,11 @@ export const LOCAL_SUITES = Object.freeze([
     id: 'acceptance-reset-atomic',
     file: 'cloudflare/test/acceptance.reset-atomic.mjs',
     evidence: ['cloudflare reset-atomic acceptance: SQL faults roll back'],
+  },
+  {
+    id: 'acceptance-rqs',
+    file: 'cloudflare/test/acceptance.rqs.mjs',
+    evidence: ['cloudflare rqs acceptance: 37/37 checks passed'],
   },
   {
     id: 'acceptance-secrets',
@@ -152,6 +158,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.remote.all-aboard.mjs', 'remote-credentialed'],
   ['acceptance.remote.mjs', 'remote-credentialed'],
   ['acceptance.reset-atomic.mjs', 'gate'],
+  ['acceptance.rqs.mjs', 'gate'],
   ['acceptance.secrets.mjs', 'gate'],
   ['acceptance.security-hardening.mjs', 'gate'],
   ['acceptance.storage-layout.mjs', 'gate'],

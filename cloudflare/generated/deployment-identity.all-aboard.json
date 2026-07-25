@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "all-aboard",
-  "schemaHash": "sha256:4c20aac7f26827d1a5b2c79a6c94e7105a757bd84b0be327b028e17ab1016c90",
-  "bundleHash": "sha256:4fc48d79379efed8f97cbea41ad991d1ff225296718fa88df621d6ea6eb9110f",
-  "inputsHash": "sha256:cf15b3c2819b9daaeb438beb17f190b0eea2be878b04b28d1eb7b497536e686a",
+  "schemaHash": "sha256:3a019cad9e56ad57bf5fa3d4748c312384671e6c011e233c9a6dd46b62cb1b02",
+  "bundleHash": "sha256:a9ed8ecd697a670fe50c1700057a58f1e651daf1213accd8cd17b7f23f8184ae",
+  "inputsHash": "sha256:639aefc387b6e704b55ebfe42f2ae3402248461ff6d4b798fbb0672e16ac6f82",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
@@ -14,6 +14,7 @@
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
     "cloudflare/src/platform-errors.js",
+    "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
     "demos/all-aboard/snapback/generated/functions.manifest.json",
     "demos/all-aboard/snapback/generated/schema.manifest.json",
@@ -22,12 +23,15 @@
     "normalized:cloudflare/wrangler.all-aboard.handler.jsonc",
     "normalized:cloudflare/wrangler.all-aboard.jsonc",
     "normalized:packages/snapback-harness/compat.json",
+    "packages/snapback-client/rqs.mjs",
     "packages/snapback-harness/allowlist-install.js",
     "packages/snapback-harness/allowlist.json",
     "packages/snapback-harness/ctx-bootstrap.js",
     "packages/snapback-harness/envelope.mjs",
     "packages/snapback-harness/workerd/allowlist.mjs",
     "packages/snapback-harness/workerd/handler-server.mjs",
-    "packages/snapback-harness/workerd/strip.mjs"
+    "packages/snapback-harness/workerd/strip.mjs",
+    "packages/snapback-vite/channel-a-core.mjs",
+    "packages/snapback-vite/rqs-serializer.mjs"
   ]
 }

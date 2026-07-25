@@ -45,6 +45,32 @@ import {
   valueTooLargeFailure,
 } from './platform-errors.js';
 import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.mjs';
+// RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
+// digest algebra is the shared packages/snapback-client/rqs.mjs module,
+// re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
+// eligibility derivation, HostPlan-subset evaluation, params-v1, routes
+// validation, DO-storage keyring, and token verification.
+import {
+  RESUME_TOKEN_MAX_AGE_MS,
+  activeResumeKey,
+  argsHash as rqsArgsHash,
+  decodeAndVerifyToken,
+  digestOfRows,
+  ensureResumeKeyTable,
+  evaluateHostPlanQuery,
+  functionRouteArgTypes,
+  generationDigest,
+  hostPlanQuery,
+  mintTokenWire,
+  publicInlineFact,
+  queryArtifactHash,
+  refusal as rqsRefusal,
+  resumeConfigIdentity,
+  rqsEligibleDigestKind,
+  sha256Identity,
+  substituteParamsV1,
+  validateRoutesManifest,
+} from './rqs-host.mjs';
 // The deploy-time app selector (LLP 0049 Phase 0): 'snapback-app' is an
 // aliased module specifier — wrangler config `alias` (and the Miniflare
 // harness's esbuild alias) resolve it to exactly one checked-in app bundle
@@ -62,6 +88,10 @@ import {
   cron as appCron,
   deploymentIdentity,
   acknowledgedExperimentalCapabilities,
+  // The route→query manifest compiled into the Worker (LLP 0092 §0C.1's 0C
+  // artifact, this arm's deploy-time analog of the local ensure admission).
+  // `null` on bundles that declare no routes.
+  routesManifest as appRoutesManifest,
 } from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
@@ -131,6 +161,12 @@ const PUBLIC_CRON_ERROR_CODES = new Set([
   'SNAPBACK_ACTION_UNKNOWN',
   'SNAPBACK_FUNCTION_KIND_MISMATCH',
 ]);
+// LLP 0092 §0D.2 pinned bundle limits (server policy knobs) and §0D.2's
+// step-2 interim anonymous rate posture (one shared anonymous bucket).
+const BUNDLE_LIMIT_ROWS = 5000;
+const BUNDLE_LIMIT_BYTES = 4 * 1024 * 1024;
+const BUNDLE_LIMIT_TIME_MS = 2000;
+const BUNDLE_RATE_PER_MINUTE = 60;
 const FAN_OUT_FAILURE_CODES = Object.freeze([
   'SNAPBACK_LIVE_FANOUT_QUERY_FAILED',
   'SNAPBACK_LIVE_FANOUT_SERIALIZATION_FAILED',
@@ -173,6 +209,21 @@ export class Coordinator {
     );
     this.testFanOutSendFailuresRemaining = configuredTestFailureCount(env.SNAPBACK_TEST_FANOUT_SEND_FAILURES, env);
     this.fanOutFailureCounters = Object.fromEntries(FAN_OUT_FAILURE_CODES.map((code) => [code, 0]));
+    // RQS observability (LLP 0090 §Scalability: attempted/admitted/refused by
+    // coded cause, rung taken, tokens minted). In-memory per instance — the
+    // counters are diagnostics, never admission state.
+    this.rqsStats = {
+      attempted: 0,
+      currentAsOfAnswers: 0,
+      freshReplaceAnswers: 0,
+      tokensMinted: 0,
+      mintRefusals: 0,
+      refused: {},
+    };
+    this.rqsGenerationCache = null;
+    this.rqsRoutesCache = undefined;
+    this.rqsFactsCache = new Map();
+    this.rqsBundleRateWindow = [];
     this.testSocketLimitOverrides = null;
     this.initializeSchema();
     // Hibernated sockets survive Worker deployments. Reconcile pre-cap state
@@ -399,6 +450,13 @@ export class Coordinator {
          PRIMARY KEY (action_idempotency_key, sequence)
        )`
     );
+    // The RQS resume keyring (LLP 0091 §0A.1 custody: coordinator DO
+    // storage, transactional with the data it protects; rotation never
+    // requires a deploy). Deliberately NOT dropped by destructive reset —
+    // like _snapback_config_cursors it is deployment security state, not app
+    // data; reset invalidates outstanding tokens through the versionStream
+    // rotation instead. Key loss is availability-only.
+    ensureResumeKeyTable(this.sql);
     for (const table of schema.tables) {
       this.sql.exec(
         `CREATE TABLE IF NOT EXISTS ${this.physicalTable(table.name)} (id TEXT PRIMARY KEY, row_json TEXT NOT NULL)`
@@ -876,6 +934,346 @@ export class Coordinator {
     return fn;
   }
 
+  // --- RQS: generation, versionStream, eligibility, tokens ----------------
+  // (LLP 0090 rollout step 4; contracts LLP 0091 0A/0B + LLP 0092 0C/0D.)
+
+  /// The data version stream identity on this arm (LLP 0091 §0A.7): a
+  /// coordinator-minted UUID in _snapback_meta, rotated by destructive
+  /// /reset (reset drops _snapback_meta, so the next read mints a fresh
+  /// stream and every outstanding token refuses SNAPBACK_RESUME_STREAM_MISMATCH).
+  rqsVersionStream() {
+    const stored = this.readMeta('rqs_version_stream');
+    if (stored) return stored;
+    const minted = crypto.randomUUID();
+    this.writeMeta('rqs_version_stream', minted);
+    return minted;
+  }
+
+  /// The LLP 0091 §0A.6 generation digest for this served instance. Every
+  /// component is deploy-time compiled, so the digest is instance-constant:
+  /// deploymentIdentity = the generated artifact's inputsHash, schemaIdentity
+  /// = its schemaHash, functions/capability identities = the served arrays'
+  /// canonical hashes, plus the resume-relevant config identity (journal
+  /// prune policy, auth mode, route-manifest hash, digest-contract version).
+  rqsGeneration() {
+    if (this.rqsGenerationCache !== null) return this.rqsGenerationCache;
+    try {
+      const routes = this.rqsRoutes();
+      const config = resumeConfigIdentity(
+        `retain-versions:${CHANGE_JOURNAL_RETAIN_VERSIONS}`,
+        'cloudflare-connection-grant-v1',
+        routes ? sha256Identity(routes) : 'none'
+      );
+      this.rqsGenerationCache = generationDigest(
+        deploymentIdentity.inputsHash,
+        deploymentIdentity.schemaHash,
+        sha256Identity(functions),
+        sha256Identity(capabilityManifest),
+        config
+      );
+    } catch (_) {
+      // A non-canonicalizable served manifest disables minting/admission
+      // (availability-only; every resume takes rung 3).
+      this.rqsGenerationCache = undefined;
+    }
+    return this.rqsGenerationCache;
+  }
+
+  /// The compiled routes manifest, validated once (fail closed): an invalid
+  /// compiled manifest is treated as absent — bundle requests refuse
+  /// SNAPBACK_BUNDLE_ROUTE_UNKNOWN and Channel A serves the plain shell —
+  /// the deploy-time analog of the local arm's ensure-time refusal.
+  rqsRoutes() {
+    if (this.rqsRoutesCache !== undefined) return this.rqsRoutesCache;
+    if (!appRoutesManifest) {
+      this.rqsRoutesCache = null;
+      return null;
+    }
+    const error = validateRoutesManifest(
+      appRoutesManifest,
+      (name) => functions.find((fn) => fn.name === name) || null,
+      APP_SCHEMA_TABLES
+    );
+    if (error) {
+      try { console.warn('snapback rqs routes manifest invalid (treated as absent):', error); } catch (_) {}
+      this.rqsRoutesCache = null;
+      this.rqsRoutesError = error;
+      return null;
+    }
+    this.rqsRoutesCache = appRoutesManifest;
+    return this.rqsRoutesCache;
+  }
+
+  /// Per-function derived RQS facts (cached): the rqsEligible digest kind,
+  /// the publicInline disclosure fact, and the interim content-derived
+  /// queryArtifact identity (LLP 0091 step-1 amendment item 3, standing).
+  rqsFunctionFacts(fn) {
+    const cached = this.rqsFactsCache.get(fn.name);
+    if (cached) return cached;
+    let queryArtifact = null;
+    try {
+      queryArtifact = queryArtifactHash(fn);
+    } catch (_) {
+      queryArtifact = null;
+    }
+    const facts = {
+      digestKind: rqsEligibleDigestKind(fn, APP_SCHEMA_TABLES),
+      publicInline: publicInlineFact(fn, APP_SCHEMA_TABLES),
+      queryArtifact,
+    };
+    this.rqsFactsCache.set(fn.name, facts);
+    return facts;
+  }
+
+  rqsCountRefusal(code) {
+    this.rqsStats.refused[code] = (this.rqsStats.refused[code] || 0) + 1;
+    return code;
+  }
+
+  /// Mint one shared resume token at (queryArtifact, argsHash, version,
+  /// contentDigest) — LLP 0091 §0A.5. Returns null on any mint impediment
+  /// (best-effort; absence only costs a future resume).
+  rqsMintResume(facts, args, version, rows) {
+    if (!facts.digestKind || !facts.queryArtifact) return null;
+    const generation = this.rqsGeneration();
+    if (!generation) return null;
+    try {
+      const contentDigest = digestOfRows(facts.digestKind, rows);
+      const hashedArgs = rqsArgsHash(args ?? {});
+      const now = Date.now();
+      const key = activeResumeKey(this.sql, now);
+      const body = {
+        app: appMeta.name,
+        generation,
+        versionStream: this.rqsVersionStream(),
+        version,
+        queryArtifact: facts.queryArtifact,
+        argsHash: hashedArgs,
+        digestKind: facts.digestKind,
+        contentDigest,
+        issuedAt: now,
+      };
+      const token = mintTokenWire(key.secret, key.keyId, body);
+      if (token.length > 1024) return null; // never mint what admission would refuse
+      this.rqsStats.tokensMinted += 1;
+      return {
+        token,
+        meta: {
+          app: body.app,
+          version,
+          contentDigest,
+          generation,
+          versionStream: body.versionStream,
+          queryArtifact: body.queryArtifact,
+          argsHash: hashedArgs,
+        },
+      };
+    } catch (_) {
+      // Mint-time canonicalization refusal (LLP 0091 §0A.2): no token, never
+      // a wrong digest.
+      this.rqsStats.mintRefusals += 1;
+      return null;
+    }
+  }
+
+  /// LLP 0090 D1.1 admission for a presented token: cryptographic
+  /// verification, then every identity axis against the served instance and
+  /// the subscription being opened, in the local arm's order. Any error
+  /// answers with rung 3 under its per-cause code — never a subscribe
+  /// failure.
+  rqsAdmitResume(presented, fn, facts, args) {
+    const tokenWire = presented?.resume?.token;
+    const decoded = decodeAndVerifyToken(this.sql, tokenWire, Date.now(), RESUME_TOKEN_MAX_AGE_MS);
+    if (decoded.error) return { error: decoded.error };
+    const body = decoded.body;
+    if (body.app !== appMeta.name) return { error: rqsRefusal.APP_MISMATCH };
+    const generation = this.rqsGeneration();
+    if (!generation || body.generation !== generation) return { error: rqsRefusal.GENERATION_STALE };
+    if (body.versionStream !== this.rqsVersionStream()) return { error: rqsRefusal.STREAM_MISMATCH };
+    if (!facts.queryArtifact || body.queryArtifact !== facts.queryArtifact) {
+      return { error: rqsRefusal.QUERY_MISMATCH };
+    }
+    let hashedArgs = null;
+    try {
+      hashedArgs = rqsArgsHash(args ?? {});
+    } catch (_) {
+      return { error: rqsRefusal.QUERY_MISMATCH };
+    }
+    if (body.argsHash !== hashedArgs) return { error: rqsRefusal.QUERY_MISMATCH };
+    if (!facts.digestKind) return { error: rqsRefusal.NOT_ELIGIBLE };
+    if (
+      body.digestKind !== facts.digestKind
+      || !body.contentDigest.startsWith(`${facts.digestKind}:`)
+    ) {
+      return { error: rqsRefusal.DIGEST_KIND_MISMATCH };
+    }
+    if (body.version > this.currentVersion()) return { error: rqsRefusal.VERSION_IMPLAUSIBLE };
+    return { body };
+  }
+
+  /// The admission-ladder decision for one subscribe (LLP 0090 D1.3, rungs
+  /// 1 & 3 on this arm): fresh token mint, then — for an admitted token —
+  /// the rung-1 global no-commit proof (same version AND same content
+  /// digest at head). Everything runs under the invocation mutex between
+  /// snapshot and registration, so no commit can fall between proof,
+  /// registration, and the answer (the atomicity rule).
+  ///
+  /// Rung-1 table-set proofs (certified dependency summaries) and rung-2
+  /// witness delta replay are deliberately deferred on this arm: the
+  /// Cloudflare live wire is replace-only (fan-out re-queries and pushes
+  /// live_replace; there is no live_delta lane to answer a replay on), so a
+  /// version behind head always answers rung 3.
+  /// TODO(rqs-rung2-cloudflare): revisit when this arm grows a delta lane —
+  /// the witness algebra is already shared via rqs.mjs (LLP 0090 D1.3).
+  rqsResumeDecision(fn, args, rows, version, presented) {
+    const facts = this.rqsFunctionFacts(fn);
+    const resume = this.rqsMintResume(facts, args, version, rows);
+    if (!presented) return { resume, currentAsOf: false, refusalCode: null };
+    this.rqsStats.attempted += 1;
+    const admitted = this.rqsAdmitResume(presented, fn, facts, args);
+    if (admitted.error) {
+      this.rqsStats.freshReplaceAnswers += 1;
+      return { resume, currentAsOf: false, refusalCode: this.rqsCountRefusal(admitted.error) };
+    }
+    const body = admitted.body;
+    if (
+      resume !== null
+      && body.version === version
+      && body.contentDigest === resume.meta.contentDigest
+    ) {
+      this.rqsStats.currentAsOfAnswers += 1;
+      return { resume, currentAsOf: true, refusalCode: null };
+    }
+    // Same version but a different digest would mean the result is not a
+    // pure function of (state, args); it and every behind-head token take
+    // rung 3 (fresh replace) on this arm.
+    this.rqsStats.freshReplaceAnswers += 1;
+    return { resume, currentAsOf: false, refusalCode: null };
+  }
+
+  /// POST /app/bundle — read mode (LLP 0092 §0D.1/§0D.5). The coordinator
+  /// DO's single-threaded execution under the invocation mutex is the
+  /// serialization cut; eligible entries evaluate natively (HostPlan subset,
+  /// no awaits), so every snapshot and every minted token share one commit
+  /// version by construction.
+  ///
+  /// Register mode is deferred on this arm: the pending-registration owner
+  /// of the LLP 0031 amendment needs a credentialed caller class
+  /// (sender-key thumbprint + replay epoch) that the Cloudflare connection
+  /// grant machinery does not carry yet, so EVERY register request — this
+  /// arm has no credentialed bundle callers at all — refuses
+  /// SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL and the client retries in
+  /// read mode (never a silent mode substitution).
+  /// TODO(rqs-register-cloudflare): land with the LLP 0077-class credential
+  /// story for this arm (LLP 0092 §0D.3).
+  appBundle(payload) {
+    const failure = (status, code, message) =>
+      json(status, { ok: false, diagnostic: { code, severity: 'error', subsystem: 'realtime', message } });
+    const mode = payload.mode === undefined ? 'read' : payload.mode;
+    if (mode !== 'read' && mode !== 'register') {
+      return failure(400, 'SNAPBACK_BUNDLE_MODE_INVALID', 'mode must be "read" or "register"');
+    }
+    if (mode === 'read' && payload.idempotencyKey !== undefined) {
+      return failure(400, 'SNAPBACK_BUNDLE_MODE_INVALID', 'idempotencyKey is register-mode only');
+    }
+    if (mode === 'register') {
+      return failure(
+        403,
+        'SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL',
+        'register mode requires a credentialed caller; this arm serves read mode only — retry in read mode'
+      );
+    }
+    // Step-2 interim anonymous rate posture: one shared anonymous bucket
+    // (per-client-address keying is OQ-A; the gateway Channel A seam applies
+    // its own address-keyed degrade budget).
+    const nowMs = Date.now();
+    while (this.rqsBundleRateWindow.length > 0 && nowMs - this.rqsBundleRateWindow[0] >= 60_000) {
+      this.rqsBundleRateWindow.shift();
+    }
+    if (this.rqsBundleRateWindow.length >= BUNDLE_RATE_PER_MINUTE) {
+      return failure(429, 'SNAPBACK_BUNDLE_RATE_LIMITED', 'anonymous bundle request rate exceeded');
+    }
+    this.rqsBundleRateWindow.push(nowMs);
+    const manifest = this.rqsRoutes();
+    const entry = manifest?.routes.find((candidate) => candidate.route === payload.route) || null;
+    if (!entry) {
+      return failure(404, 'SNAPBACK_BUNDLE_ROUTE_UNKNOWN', 'route pattern is absent from the served route manifest');
+    }
+    // Anonymous read admission re-checks the compiled publicInline facts,
+    // never the route-manifest author's word (LLP 0090 Authorization scope).
+    const specs = entry.queries.map((spec) => ({
+      spec,
+      fn: this.functionByName(spec.function),
+    }));
+    if (specs.some(({ fn }) => !fn || !this.rqsFunctionFacts(fn).publicInline)) {
+      return failure(403, 'SNAPBACK_BUNDLE_NOT_PUBLIC', 'route names a non-publicInline query');
+    }
+    const params = payload.params;
+    if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params)
+      || Object.values(params).some((value) => typeof value !== 'string'))) {
+      return failure(400, 'SNAPBACK_BUNDLE_PARAMS_INVALID', 'params must be an object of strings');
+    }
+    if (this.env.SNAPBACK_TESTING === '1' && this.env.SNAPBACK_TEST_BUNDLE_FAIL === '1') {
+      return failure(500, 'SNAPBACK_BUNDLE_QUERY_FAILED', 'injected bundle evaluation failure');
+    }
+    const started = Date.now();
+    const commitVersion = this.currentVersion();
+    const generation = this.rqsGeneration();
+    const versionStream = this.rqsVersionStream();
+    const entries = [];
+    let totalRows = 0;
+    let totalBytes = 0;
+    for (const { spec, fn } of specs) {
+      const substituted = substituteParamsV1(
+        spec.args || {},
+        params || {},
+        functionRouteArgTypes(fn, APP_SCHEMA_TABLES)
+      );
+      if (substituted.error) {
+        return failure(400, 'SNAPBACK_BUNDLE_PARAMS_INVALID', substituted.error);
+      }
+      const plan = hostPlanQuery(fn);
+      if (!plan) {
+        // publicInline entails the HostPlan subset on this arm, so this is
+        // unreachable; fail atomically if it ever is not.
+        return failure(500, 'SNAPBACK_BUNDLE_QUERY_FAILED', `${fn.name} is not natively evaluable`);
+      }
+      let rows;
+      try {
+        const stored = [...this.sql.exec(`SELECT row_json FROM ${this.physicalTable(plan.table)}`)]
+          .map((record) => JSON.parse(record.row_json));
+        rows = evaluateHostPlanQuery(plan, substituted.args, stored);
+      } catch (_) {
+        return failure(500, 'SNAPBACK_BUNDLE_QUERY_FAILED', `evaluating ${fn.name} failed`);
+      }
+      totalRows += rows.length;
+      if (totalRows > BUNDLE_LIMIT_ROWS) {
+        return failure(413, 'SNAPBACK_BUNDLE_LIMIT_ROWS', `bundles are limited to ${BUNDLE_LIMIT_ROWS} rows`);
+      }
+      try {
+        totalBytes += UTF8_ENCODER.encode(JSON.stringify(rows)).byteLength;
+      } catch (_) {
+        return failure(500, 'SNAPBACK_BUNDLE_QUERY_FAILED', `serializing ${fn.name} rows failed`);
+      }
+      if (totalBytes > BUNDLE_LIMIT_BYTES) {
+        return failure(413, 'SNAPBACK_BUNDLE_LIMIT_BYTES', `bundles are limited to ${BUNDLE_LIMIT_BYTES} serialized row bytes`);
+      }
+      const facts = this.rqsFunctionFacts(fn);
+      entries.push({
+        function: fn.name,
+        args: substituted.args,
+        rows,
+        // Present iff rqsEligible; null otherwise, both modes (§0D.1's
+        // closed per-entry union).
+        resume: this.rqsMintResume(facts, substituted.args, commitVersion, rows),
+      });
+    }
+    if (Date.now() - started > BUNDLE_LIMIT_TIME_MS) {
+      return failure(413, 'SNAPBACK_BUNDLE_LIMIT_TIME', `bundle evaluation exceeded ${BUNDLE_LIMIT_TIME_MS} ms`);
+    }
+    return json(200, { commitVersion, generation, versionStream, entries });
+  }
+
   // --- HTTP + WebSocket routing ------------------------------------------
 
   async fetch(request) {
@@ -1224,6 +1622,73 @@ export class Coordinator {
         const secretsJson = mode === 'action' ? this.buildActionGrantsJson(fn, { advance: false }) : null;
         return json(200, { name: fn.name, mode, secretsJson });
       }));
+    }
+    // RQS testing surfaces (rollout step 4 acceptance): mint a genuinely
+    // MAC'd token with overridden identity fields (negative admission
+    // fixtures — stale generation, rotated stream, expired issuedAt), and a
+    // bounded stats/facts projection.
+    if (path === '/__test/rqs-mint') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.runExclusive(async () => {
+        const fn = this.functionByName(String(payload.function || ''));
+        if (!fn) return json(404, { error: `no function ${payload.function}` });
+        const args = (payload && payload.args) || {};
+        const result = await this.invokeHandler(fn.name, 'query', args);
+        if (!result.ok) return json(400, { error: result.code || 'query failed' });
+        const facts = this.rqsFunctionFacts(fn);
+        const version = result.observedVersion ?? this.currentVersion();
+        const overrides = (payload && payload.overrides) || {};
+        const now = Date.now();
+        let contentDigest;
+        let digestKind = overrides.digestKind || facts.digestKind || 'mset1';
+        try {
+          contentDigest = overrides.contentDigest || digestOfRows(digestKind, result.value);
+        } catch (_) {
+          return json(400, { error: 'rows are not digestable' });
+        }
+        let hashedArgs;
+        try {
+          hashedArgs = overrides.argsHash || rqsArgsHash(args);
+        } catch (_) {
+          return json(400, { error: 'args are not canonicalizable' });
+        }
+        const body = {
+          app: overrides.app || appMeta.name,
+          generation: overrides.generation || this.rqsGeneration() || 'gen1:unavailable',
+          versionStream: overrides.versionStream || this.rqsVersionStream(),
+          version: Number.isSafeInteger(overrides.version) ? overrides.version : version,
+          queryArtifact: overrides.queryArtifact || facts.queryArtifact || 'sha256:unavailable',
+          argsHash: hashedArgs,
+          digestKind,
+          contentDigest,
+          issuedAt: Number.isSafeInteger(overrides.issuedAt) ? overrides.issuedAt : now,
+        };
+        const key = activeResumeKey(this.sql, now);
+        return json(200, { token: mintTokenWire(key.secret, key.keyId, body), body });
+      })));
+    }
+    if (path === '/__test/rqs-stats') {
+      return this.testingGated(request, () => {
+        this.rqsRoutes();
+        let keyCount = 0;
+        try {
+          for (const record of this.sql.exec(`SELECT COUNT(*) AS count FROM _snapback_rqs_keys`)) {
+            keyCount = Number(record.count);
+          }
+        } catch (_) {}
+        return json(200, {
+          stats: this.rqsStats,
+          generation: this.rqsGeneration() || null,
+          versionStream: this.rqsVersionStream(),
+          keyCount,
+          routesError: this.rqsRoutesError || null,
+        });
+      });
+    }
+    // The RQS bundle endpoint (LLP 0092 §0D.1; forwarded by the gateway
+    // like the other app-data JSON routes). Read mode only on this arm —
+    // see appBundle for the register-mode deferral.
+    if (path === '/app/bundle') {
+      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.appBundle(payload)));
     }
     if (path === '/query') {
       return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleQuery(payload)));
@@ -3007,6 +3472,28 @@ export class Coordinator {
         details: { function: fnName, declaredKind: fn.kind, requestedMode: mode },
       };
     }
+    // HostPlan queries evaluate natively on the coordinator (LLP 0090 step
+    // 4): the plan is declarative — no handler isolate, no awaits — which is
+    // both what makes the rqsEligible closed-inputs fact honest on this arm
+    // (no opaque JavaScript ran) and what gives bundle evaluation its
+    // single-commit cut for free.
+    if (mode === 'query') {
+      const plan = hostPlanQuery(fn);
+      if (plan) {
+        try {
+          const stored = [...this.sql.exec(`SELECT row_json FROM ${this.physicalTable(plan.table)}`)]
+            .map((record) => JSON.parse(record.row_json));
+          const rows = evaluateHostPlanQuery(plan, args || {}, stored);
+          return { ok: true, value: rows, observedVersion: this.currentVersion() };
+        } catch (error) {
+          return {
+            ok: false,
+            code: 'SNAPBACK_HOST_PLAN_EVALUATION_FAILED',
+            message: `evaluating the ${fnName} host plan failed: ${String((error && error.message) || error)}`,
+          };
+        }
+      }
+    }
     // Grants are action-only (LLP 0036): queries and mutations receive
     // secretsJson null and therefore no ctx.secrets at all.
     const grants = mode === 'action' ? this.buildActionGrants(fn) : { secretsJson: null, capabilities: new Map() };
@@ -3936,6 +4423,11 @@ export class Coordinator {
       );
     }
     const version = result.observedVersion ?? this.currentVersion();
+    // RQS token resume rides the subscribe input (LLP 0091 §0B.4 — not a new
+    // route; the gateway's KIT_ROUTE already forwards this path, which is
+    // the §0B.5 "forwarded from day one, by construction" obligation).
+    const presented = (payload.input && (payload.input.resumeFromToken || payload.input.resume_from_token)) || null;
+    const decision = this.rqsResumeDecision(fn, args, result.value, version, presented);
     const persisted = this.persistSubscription({
       connectionId,
       functionName: name,
@@ -3948,10 +4440,39 @@ export class Coordinator {
     }
     // Subscribe arms the demand-gated warm poll (LLP 0049 Phase 3).
     await this.reconcileCronActivation();
+    if (decision.currentAsOf) {
+      // Rung 1: no rows re-sent; the durable current_as_of frame rides the
+      // connection's live socket (this arm's durable lane) and the subscribe
+      // output carries no snapshot (LLP 0091 rung-2 amendment W4 step 5's
+      // rows-free answer shape, applied to rung 1).
+      const frame = {
+        kind: 'current_as_of',
+        subscription_id: persisted.subscriptionId,
+        function: name,
+        version,
+        resume: decision.resume,
+      };
+      for (const socket of this.ctx.getWebSockets(connectionId)) {
+        try {
+          if (this.socketProtocolFor(socket) === 'kit'
+            && this.socketSessionFor(socket) === socketSessionId) {
+            socket.send(JSON.stringify(frame));
+          }
+        } catch (_) {}
+      }
+      return json(200, {
+        subscription_id: persisted.subscriptionId,
+        snapshot: null,
+        current_as_of: { version, resume: decision.resume },
+        permission_epochs: {},
+      });
+    }
     return json(200, {
       subscription_id: persisted.subscriptionId,
       snapshot: { version, rows: result.value },
       permission_epochs: {},
+      ...(decision.resume ? { resume: decision.resume } : {}),
+      ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
     });
   }
 
@@ -4255,6 +4776,16 @@ export class Coordinator {
     }
     if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
     const version = result.observedVersion ?? this.currentVersion();
+    // RQS: fresh token + the D1.3 admission ladder (rungs 1 & 3), decided
+    // under the same mutex hold as snapshot and registration (LLP 0090's
+    // atomic answer-and-register rule).
+    const decision = this.rqsResumeDecision(
+      fn,
+      parsed.args || {},
+      result.value,
+      version,
+      parsed.resumeFromToken || null
+    );
     const persisted = this.persistSubscription({
       connectionId,
       functionName: parsed.name,
@@ -4271,6 +4802,31 @@ export class Coordinator {
       }));
       return;
     }
+    const isKit = this.socketProtocolFor(ws) === 'kit';
+    if (decision.currentAsOf) {
+      // Rung 1: the caller's held rows are current as of `version` — advance
+      // the token without re-sending rows (LLP 0091 §0B.2). Only ever sent
+      // to a subscriber that presented resumeFromToken, so decode ability is
+      // implied by the request.
+      ws.send(JSON.stringify(
+        isKit
+          ? {
+              kind: 'current_as_of',
+              subscription_id: persisted.subscriptionId,
+              function: parsed.name,
+              version,
+              resume: decision.resume,
+            }
+          : {
+              type: 'current_as_of',
+              subscriptionId: persisted.subscriptionId,
+              function: parsed.name,
+              version,
+              resume: decision.resume,
+            }
+      ));
+      return;
+    }
     ws.send(
       JSON.stringify({
         type: 'snapshot',
@@ -4279,6 +4835,8 @@ export class Coordinator {
         version,
         rows: result.value,
         connectionKey: connectionId,
+        ...(decision.resume ? { resume: decision.resume } : {}),
+        ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
       })
     );
   }
@@ -4378,6 +4936,22 @@ export class Coordinator {
     }
 
     const version = result.observedVersion ?? this.currentVersion();
+    // RQS token refresh on the live path (LLP 0091 §0A.5): one mint per
+    // result-change, shared across the entire fan-out group — the group IS
+    // the (queryArtifact, argsHash) identity, so a single ResumeWire rides
+    // every member's live_replace frame. Non-eligible groups mint nothing.
+    let groupResume = null;
+    try {
+      const fn = this.functionByName(group.functionName);
+      if (fn) {
+        const facts = this.rqsFunctionFacts(fn);
+        if (facts.digestKind) {
+          groupResume = this.rqsMintResume(facts, JSON.parse(group.argsJson), version, result.value);
+        }
+      }
+    } catch (_) {
+      groupResume = null; // refresh is best-effort; delivery never depends on it
+    }
     let encodedMembers;
     try {
       if (this.testFanOutSerializationFailuresRemaining > 0) {
@@ -4395,6 +4969,7 @@ export class Coordinator {
               function: group.functionName,
               version,
               rows: result.value,
+              ...(groupResume ? { resume: groupResume } : {}),
             }
           : {
               type: 'live_replace',
@@ -4402,6 +4977,7 @@ export class Coordinator {
               function: group.functionName,
               version,
               rows: result.value,
+              ...(groupResume ? { resume: groupResume } : {}),
             };
         return { member, encoded: JSON.stringify(frame) };
       });
@@ -4741,13 +5317,18 @@ function validateLiveSocketFrame(value) {
   };
   if (value.type === 'subscribe') {
     if (
-      !hasClosedKeys(['type', 'name', 'args'], ['supersedes']) ||
+      !hasClosedKeys(['type', 'name', 'args'], ['supersedes', 'resumeFromToken']) ||
       typeof value.name !== 'string' ||
       value.name.length === 0 ||
       !value.args ||
       typeof value.args !== 'object' ||
       Array.isArray(value.args) ||
-      (Object.hasOwn(value, 'supersedes') && (typeof value.supersedes !== 'string' || value.supersedes.length === 0))
+      (Object.hasOwn(value, 'supersedes') && (typeof value.supersedes !== 'string' || value.supersedes.length === 0)) ||
+      // RQS token resume rides the subscribe frame (LLP 0091 §0B.4). The
+      // optional membershipWitness key is accepted for wire compatibility
+      // but never upgrades the answer on this arm (rung 2 deferred; see
+      // rqsResumeDecision).
+      (Object.hasOwn(value, 'resumeFromToken') && !isValidResumeFromToken(value.resumeFromToken))
     ) {
       return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
     }
@@ -4773,6 +5354,16 @@ function validateLiveSocketFrame(value) {
     return { ok: true, value };
   }
   return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+}
+
+function isValidResumeFromToken(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  if (!keys.every((key) => key === 'resume' || key === 'membershipWitness')) return false;
+  const resume = value.resume;
+  if (!resume || typeof resume !== 'object' || Array.isArray(resume)) return false;
+  if (typeof resume.token !== 'string' || resume.token.length === 0 || resume.token.length > 1024) return false;
+  return true;
 }
 
 function closeSocketWithDiagnostic(ws, closeCode, diagnosticCode) {

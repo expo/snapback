@@ -10,9 +10,12 @@ reconciliation — `sbrq_` key-id prefix, the symmetric integral-double
 refusal band, the interim content-derived `queryArtifact`; the rung-2
 membership witness — wire format, caps, reconciliation rule, replay
 algorithm, and two new refusal codes, closing OQ1 / LLP 0090 Q7 for rollout
-steps 5a+6, ENG-25457; and the step-5/step-3 reconciliation — the
+steps 5a+6, ENG-25457; the step-5/step-3 reconciliation — the
 eviction-ordering pin, the `versionStream`-as-identity arbitration pin, and
-the standing interim `queryArtifact` note, ENG-25454)
+the standing interim `queryArtifact` note, ENG-25454; and the step-4
+Cloudflare-arm reconciliation — DO-storage keyring table, Cloudflare
+`generation`/`versionStream` minting, the still-standing interim
+`queryArtifact`, and this arm's rung-1/3-only ladder, ENG-25455)
 **Related:** LLP 0008, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0077, LLP 0090
 
 ## Summary
@@ -788,6 +791,58 @@ behavior is normative:
    generated-artifact hash, so item 3 of the step-1 amendment above remains
    the standing rule; the swap is now expected with the step-4 Cloudflare
    arm (see LLP 0092's dated amendment).
+
+## Dated amendment: step-4 Cloudflare-arm reconciliation (2026-07-24, ENG-25455)
+
+LLP 0090 rollout step 4 landed RQS on the Cloudflare arm
+(`cloudflare/src/rqs-host.mjs` + coordinator/gateway integration), sharing —
+never forking — the `packages/snapback-client/rqs.mjs` algebra by relative
+import, the same mechanism the coordinator already uses for
+`packages/snapback-harness/envelope.mjs` (esbuild and Wrangler both bundle
+it into the deployed Worker). Per LLP 0004 the implemented behavior is
+normative; the sections above read as amended:
+
+1. **§0A.1 custody, implemented shape.** The Cloudflare resume keyring is
+   the `_snapback_rqs_keys` table in coordinator DO SQLite — storage-resident
+   with **no in-memory copy**, so hibernation, eviction, and DO restart
+   preserve it by construction. Rotation/overlap parameters are §0A.1's.
+   Like `_snapback_config_cursors`, the table deliberately **survives
+   destructive `/reset`** (it is deployment security state, not app data);
+   reset invalidates outstanding tokens through the `versionStream` rotation
+   below. Key loss remains availability-only.
+2. **§0A.6 Cloudflare components, pinned values.** `functionsIdentity` and
+   `capabilityIdentity` are the canonical (`sha256:` over JCS) identities of
+   the served `functions` array and capability manifest; `journalPrunePolicy`
+   is `"retain-versions:1000"` (the coordinator's journal retention) and
+   `authMode` is `"cloudflare-connection-grant-v1"`; `routeManifestHash` is
+   the canonical identity of the compiled routes manifest, or `"none"`.
+3. **§0A.7 `versionStream` on the Cloudflare arm.** The coordinator mints a
+   UUID into `_snapback_meta` (`rqs_version_stream`) on first use and
+   destructive `/reset` rotates it (reset drops `_snapback_meta`; the next
+   read mints a fresh stream, refusing every outstanding token with
+   `SNAPBACK_RESUME_STREAM_MISMATCH`). This is the crosswalk row's owner on
+   this arm — the local `_snapback_meta` UUIDv7 machinery does not exist
+   here, and no new comparable identity was introduced.
+4. **The interim content-derived `queryArtifact` stands after step 4.** The
+   step-5/step-3 amendment expected the manifest-carried per-function
+   artifact-hash swap with this step; step 4 kept the content derivation
+   (both arms, one rule — the compiled Cloudflare function entries carry no
+   per-function generated-artifact hash either, and the content derivation
+   already has the admission property). The swap remains future 0C work and
+   is still a `generation` rotation when it lands.
+5. **This arm's ladder is rungs 1 & 3 only.** The Cloudflare live wire is
+   replace-only (fan-out re-queries and pushes `live_replace`; no
+   `live_delta` lane exists), so rung-2 witness replay and the rung-1
+   table-set proof are deferred — the witness/`JOURNAL_FLOOR` refusal codes
+   never fire on this arm, and a behind-head token always answers rung 3.
+   `resumeFromToken` is accepted on both subscribe entry points (the kit
+   HTTP subscribe and the live-socket subscribe frame); a rung-1 answer is
+   the `current_as_of` frame on the socket, with the kit HTTP subscribe
+   output carrying `snapshot: null` plus `current_as_of: {version, resume}`.
+   §0B.5's acceptance obligation is discharged in
+   `cloudflare/test/acceptance.rqs.mjs`: a subscribe carrying
+   `resumeFromToken` reaches coordinator admission through the gateway's
+   existing forwarding, and a reattach POST keeps failing exactly as today.
 
 ## Open questions
 

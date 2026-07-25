@@ -119,3 +119,7 @@ export const functions = [
   // The storage-dump helper every case run uses after the fact.
   { name: 'dumpItems', kind: 'Query', export: 'dumpItems', tables: ['items'] },
 ];
+
+// No route→query manifest: the twin corpus exercises the conformance
+// protocol, not Channel A (LLP 0090 rollout step 4).
+export const routesManifest = null;
