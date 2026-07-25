@@ -292,6 +292,16 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   cursorField: 'pageKey',
   visibility: { kind: 'owner', field: 'ownerId' },
 });
+
+// Handwritten equivalent of the generated get, for the posture-parity witness.
+import { defineLiveQuery, eq, arg, authUserId, v } from '${defineUrl}';
+export const getTodoByHand = defineLiveQuery({
+  table: 'todos',
+  args: { id: v.id('todos') },
+  filter: [eq('ownerId', authUserId()), eq('_id', arg('id'))],
+  auth: 'authenticated',
+  authScopeField: 'ownerId',
+});
 `);
 
   const result = await generate(dir);
@@ -299,9 +309,28 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
   assert.deepEqual([...byName.keys()].sort(), [
-    'createTodo', 'deleteTodo', 'firstTodoPage', 'getTodo', 'listTodos',
-    'nextTodoPage', 'todoBySlug', 'updateTodo',
+    'createTodo', 'deleteTodo', 'firstTodoPage', 'getTodo', 'getTodoByHand',
+    'listTodos', 'nextTodoPage', 'todoBySlug', 'updateTodo',
   ]);
+
+  // @ref LLP 0065#6-acceptance — posture parity: a generated operation and a
+  //   handwritten equivalent carry identical auth requirements, read
+  //   summaries, effect ceilings, and plan shape; generation confers no
+  //   special authority and skips no gate.
+  {
+    const generated = byName.get('getTodo');
+    const handwritten = byName.get('getTodoByHand');
+    assert.equal(generated.authRequirement, handwritten.authRequirement);
+    assert.deepEqual(generated.readSetSummary, handwritten.readSetSummary);
+    assert.deepEqual(generated.writeSetSummary, handwritten.writeSetSummary);
+    assert.deepEqual(generated.effectCeiling, handwritten.effectCeiling);
+    assert.deepEqual(generated.authorizationDependence, handwritten.authorizationDependence);
+    assert.deepEqual(
+      generated.runtime.HostPlan.Query.filters,
+      handwritten.runtime.HostPlan.Query.filters,
+      'the generated owner filter and id filter match the handwritten plan',
+    );
+  }
 
   for (const name of ['listTodos', 'getTodo', 'todoBySlug', 'firstTodoPage', 'nextTodoPage']) {
     const fn = byName.get(name);
