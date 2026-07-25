@@ -72,6 +72,20 @@ const reactRaw = loadReceipts(input.react.receipts, 'react-expo:ios:snapback');
 const exactRaw = loadReceipts(input.exact.receipts, 'exact-contract:ios:snapback');
 assert.equal(reactRaw.length, requiredReceipts, `React receipt count must be ${requiredReceipts}`);
 assert.equal(exactRaw.length, requiredReceipts, `Exact receipt count must be ${requiredReceipts}`);
+for (const { receipt } of reactRaw) {
+  assert.deepEqual(
+    receipt.environment,
+    input.hostIdentity,
+    'React receipt host identity differs from the declared paired host',
+  );
+}
+for (const { receipt } of exactRaw) {
+  assert.deepEqual(
+    receipt.environment,
+    input.hostIdentity,
+    'Exact receipt host identity differs from the declared paired host',
+  );
+}
 const reactSamples = reactRaw.map(extractReactSample).slice(warmups);
 const exactSamples = exactRaw.map(extractExactSample).slice(warmups);
 const cells = {

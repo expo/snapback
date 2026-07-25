@@ -42,10 +42,12 @@ function writeFixture(root, reactSample, exactSample) {
     ok: true,
     profileId: 'react-expo/ios',
     repository: { sourceDirty: false },
+    environment: hostIdentity,
     performance: { sample: reactSample },
   })}\n`);
   writeFileSync(resolve(root, 'exact.json'), `${JSON.stringify({
     ok: true,
+    environment: hostIdentity,
     source: { snapback: { dirty: false }, exact: { dirty: false } },
     observer: {
       id: candidateObserver.id,
