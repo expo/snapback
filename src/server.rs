@@ -20069,6 +20069,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0065 §1: a HostPlan whose observed operations exceed its
         // admitted EffectCeilingV1 is a doctored/under-declared artifact.
         | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+        // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
+        // deferred retained-work posture are author input.
+        | "SNAPBACK_MIGRATION_PLAN_INVALID"
+        | "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED"
         // LLP 0080 §5: maintained-projection artifact and mutation
         // refusals — malformed plans, unprovable write budgets, output
         // fences, and maintenance invariants (null/moved output keys).
@@ -32397,6 +32401,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
         "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
         "SNAPBACK_PROJECTION_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
         "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
