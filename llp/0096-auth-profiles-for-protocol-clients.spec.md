@@ -5,7 +5,8 @@
 **Systems:** Auth, Wire Protocol, Client SDK, Native Clients, Realtime, Live Queries, HTTP surface
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial draft)
+**Revised:** 2026-07-25 (initial draft; §7 hosted floor decided —
+LLP 0093 OQ5 ratified as recommended)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
 LLP 0094, LLP 0095
@@ -38,9 +39,8 @@ It pins, as normative contract:
 - **§6** — the **integration index** of provider auth lifecycle routes a
   client touches, each with a pointer to its owning LLP — referenced,
   never re-specified (0093 P-3's rule).
-- **§7** — the **hosted-production mandatory-profile floor**, carried as
-  an explicit open author decision (LLP 0093 OQ5) with a recommendation
-  and its trade-offs.
+- **§7** — the **hosted-production mandatory-profile floor** (LLP 0093
+  OQ5), decided 2026-07-25: the recommended floor is ratified.
 - **§8** — verification findings from the code pass, including two
   divergences between doctrine and shipped code, filed as tickets.
 
@@ -509,14 +509,26 @@ throttle (LLP 0060 D3), sender admission ordering (LLP 0077 §HTTP
 binding), and the body-auth rejection family (LLP 0031). All are
 local-arm; none of these routes exists on the Cloudflare arm (§2.6).
 
-## 7. Open author decision: the hosted-production mandatory-profile floor (LLP 0093 OQ5)
+## 7. Decided: the hosted-production mandatory-profile floor (LLP 0093 OQ5)
 
-**The decision (not made here):** which profiles, if any, a
+**Decision (Charlie, 2026-07-25):** the recommendation below is accepted
+as written. The floor is **`auth/rr` always; `auth/live` for any client
+that subscribes to auth-scoped live functions; `auth/sender` for
+browser-class clients on sender-constrained deployments**; `auth/replay`
+and `auth/lease` remain optional. Per the honest form stated in the
+trade-offs, this ratifies the shipped refusals as the floor — the
+`auth/rr` and `auth/live` halves are current behavior, so no code binds
+today; enforcement-at-open beyond the shipped gates rides the LLP 0094
+§0B negotiation program (B4 end state), and the mandatory-`auth/sender`
+question stays with §5's definition work. The paragraphs below are
+preserved as the decision record.
+
+**The decision (as it was posed):** which profiles, if any, a
 production client on a hosted deployment (LLP 0060 posture) **must**
 offer — i.e., whether hosted production refuses clients that negotiate
 less, the way LLP 0094 §0B.5's B4 end state refuses offerless opens.
 
-**Recommendation (author's to accept, modify, or reject):** floor =
+**Recommendation (accepted 2026-07-25):** floor =
 **`auth/rr` always; plus `auth/live` for any client that subscribes to
 auth-scoped live functions; plus `auth/sender` for browser-class
 clients on sender-constrained deployments**. Leave `auth/replay` and
@@ -629,7 +641,8 @@ need the same `steps` shape as cancelled-drain fixtures).
 
 1. §8.1's coupling: deliberate contract or defect (author decision on
    the ticket).
-2. The hosted-production floor (§7) — LLP 0093 OQ5, carried open.
+2. ~~The hosted-production floor (§7)~~ — decided 2026-07-25; the
+   recommended floor is ratified (see §7).
 3. Whether profile claims should be *echoed* machine-readably at open
    (a bound-profile witness beside LLP 0094's OQ2 `wireVersion` echo),
    so a conformance harness can read the negotiated profile set off the

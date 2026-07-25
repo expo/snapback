@@ -17395,6 +17395,224 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    // @ref LLP 0065#1-fact-classes — the runtime checks observed
+    //   operations are a subset of the admitted EffectCeilingV1 and fails
+    //   closed on mismatch: a doctored artifact that under-declares its
+    //   ceiling refuses activation, and the exact generated ceiling passes.
+    #[test]
+    fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
+        use crate::manifest::{EffectCeiling, EffectCeilingRead, EffectCeilingWrite};
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut add_book = functions.functions[1].clone();
+        assert_eq!(add_book.name, "addBook");
+
+        // The exact ceiling the walker would emit for addBook: one insert
+        // into books, no reads, no host ops, no authorization inputs.
+        add_book.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: Vec::new(),
+            writes: vec![EffectCeilingWrite {
+                table: "books".to_owned(),
+                operations: vec!["insert".to_owned()],
+            }],
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory ceiling fixture");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply ceiling schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![add_book.clone()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "the exact ceiling must activate: {diagnostics:?}"
+        );
+
+        // Fault: the same plan with an under-declared ceiling (writes a
+        // table the ceiling does not admit) refuses activation.
+        let mut doctored = add_book;
+        doctored.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: Vec::new(),
+            writes: vec![EffectCeilingWrite {
+                table: "authors".to_owned(),
+                operations: vec!["insert".to_owned()],
+            }],
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory fault fixture");
+        snapback.apply_schema(schema.clone()).expect("apply fault schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![doctored],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                    || d.message
+                        .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+            }),
+            "an out-of-ceiling write must refuse activation: {diagnostics:?}"
+        );
+
+        // The same subset rule covers authorization inputs: an owner-filtered
+        // relational read observing AuthUserId refuses under a ceiling that
+        // omits it.
+        let mut relational = functions.functions[0].clone();
+        relational.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: vec![
+                EffectCeilingRead {
+                    table: "books".to_owned(),
+                    access: "query".to_owned(),
+                    index: Some("by_owner_title".to_owned()),
+                },
+                EffectCeilingRead {
+                    table: "authors".to_owned(),
+                    access: "query".to_owned(),
+                    index: Some("by_slug".to_owned()),
+                },
+            ],
+            writes: Vec::new(),
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory auth-input fixture");
+        snapback.apply_schema(schema).expect("apply auth-input schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![relational],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                    || d.message
+                        .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+            }),
+            "an undeclared authorization input must refuse activation: {diagnostics:?}"
+        );
+    }
+
+    // The Rust subset check and codegen's EffectCeilingV1 walker must stay
+    //   mirror images: every committed generated manifest activates without
+    //   a ceiling-exceeded refusal. A divergence in either direction fails
+    //   here before it ships.
+    #[test]
+    fn generated_demo_manifests_pass_the_effect_ceiling_subset_check() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for demo in [
+            "demos/competitive-checkpoint/snapback/generated",
+            "demos/todo-v2/snapback/generated",
+            "demos/todo/snapback/generated",
+        ] {
+            let read = |file: &str| {
+                std::fs::read_to_string(root.join(demo).join(file))
+                    .unwrap_or_else(|error| panic!("read {demo}/{file}: {error}"))
+            };
+            let schema: SchemaManifest = serde_json::from_str(&read("schema.manifest.json"))
+                .unwrap_or_else(|error| panic!("parse {demo} schema: {error}"));
+            let functions: FunctionManifest =
+                serde_json::from_str(&read("functions.manifest.json"))
+                    .unwrap_or_else(|error| panic!("parse {demo} functions: {error}"));
+            let mut snapback = LocalSnapback::memory().expect("memory demo fixture");
+            let _ = snapback.apply_schema(schema);
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics.iter().all(|d| {
+                    d.code != "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                        && !d
+                            .message
+                            .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+                }),
+                "{demo}: generated ceilings must satisfy the runtime subset \
+                 check: {diagnostics:?}"
+            );
+        }
+    }
+
+    // @ref LLP 0065#3-common-pattern-contracts — the same-subject two-app
+    //   domain negative: cursors are bound to the application authority
+    //   domain, so a continuation minted by one app instance is refused by
+    //   another even for the same subject, plan shape, and function name.
+    #[test]
+    fn standard_pattern_cursor_never_crosses_the_app_domain() {
+        let build = |app_id: &str| {
+            let (schema, functions) = relational_live_fixture_functions(1);
+            let mut manifest = FunctionManifest {
+                functions: functions.functions,
+                ..FunctionManifest::default()
+            };
+            manifest.app_id = app_id.to_owned();
+            let mut snapback = LocalSnapback::memory().expect("memory app fixture");
+            snapback.apply_schema(schema).expect("apply app schema");
+            let diagnostics = snapback.load_functions(manifest);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "app fixture must activate: {diagnostics:?}"
+            );
+            let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+            snapback
+                .seed(crate::manifest::SeedData {
+                    tables: BTreeMap::from([
+                        (
+                            "books".to_owned(),
+                            vec![
+                                row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                                row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            ],
+                        ),
+                        (
+                            "authors".to_owned(),
+                            vec![row(
+                                json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                            )],
+                        ),
+                    ]),
+                })
+                .expect("seed app rows");
+            snapback
+        };
+        let input = |args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let app_a = build("app-a");
+        let app_b = build("app-b");
+        let page = app_a
+            .invoke_query("booksWithAuthors", input(json!({})))
+            .expect("app-a first page");
+        let cursor = page.cursor.expect("app-a continuation");
+        // Same subject, same function name, same plan shape — different
+        // application authority domain: refused, never repositioned.
+        let error = app_b
+            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor.clone() })))
+            .expect_err("cross-app cursor must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+        // And the home app still accepts it.
+        let resumed = app_a
+            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor })))
+            .expect("home app resumes");
+        assert_eq!(resumed.rows, vec![json!({ "title": "beta" })]);
+    }
+
     // @ref LLP 0080#4-live-and-retained-capability — the load-time
     //   narrowings: an all-public relational plan stays
     //   authority-partition-scoped (never authorityIndependent), and

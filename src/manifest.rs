@@ -928,6 +928,7 @@ impl FunctionManifest {
             validate_authority_independent(function)?;
             validate_public_inline(function)?;
             validate_retainable_query(function)?;
+            validate_effect_ceiling(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -1361,6 +1362,226 @@ fn validate_protected_query_profile(function: &FunctionDefinition) -> SnapbackRe
         // recursion for symmetry (a resource-ref cannot smuggle a clock).
         for predicate in &plan.membership_filters {
             let _ = predicate;
+        }
+    }
+    Ok(())
+}
+
+/// Observed effects of a closed HostPlan, in exactly the vocabulary of
+/// codegen's `EffectCeilingV1` walker (`packages/snapback-codegen/
+/// effect-ceiling.mjs`). The two must stay mirror images: deriving *more*
+/// here would falsely refuse legitimately generated artifacts, deriving
+/// *less* would let a doctored artifact under-declare.
+#[derive(Debug, Default)]
+struct ObservedEffects {
+    reads: BTreeSet<(String, String, Option<String>)>,
+    writes: BTreeSet<(String, String)>,
+    host_operations: BTreeSet<&'static str>,
+    authorization_inputs: BTreeSet<&'static str>,
+}
+
+impl ObservedEffects {
+    fn read(&mut self, table: &str, access: &str, index: Option<&str>) {
+        self.reads.insert((
+            table.to_owned(),
+            access.to_owned(),
+            index.map(str::to_owned),
+        ));
+    }
+
+    fn write(&mut self, table: &str, operation: &str) {
+        self.writes
+            .insert((table.to_owned(), operation.to_owned()));
+    }
+
+    fn expr(&mut self, expr: &ValueExpr) {
+        match expr {
+            ValueExpr::AuthUserId => {
+                self.authorization_inputs.insert("authUserId");
+            }
+            ValueExpr::AuthKind => {
+                self.authorization_inputs.insert("authKind");
+            }
+            ValueExpr::AuthActorKind => {
+                self.authorization_inputs.insert("authActorKind");
+            }
+            ValueExpr::AuthIsDelegated => {
+                self.authorization_inputs.insert("authIsDelegated");
+            }
+            ValueExpr::RuntimeId => {
+                self.host_operations.insert("runtimeId");
+            }
+            ValueExpr::RuntimeNow => {
+                self.host_operations.insert("runtimeNow");
+            }
+            ValueExpr::MembershipExists(_) => {
+                self.authorization_inputs.insert("membershipPredicate");
+            }
+            ValueExpr::Arg(_)
+            | ValueExpr::Args
+            | ValueExpr::Binding(_)
+            | ValueExpr::Literal(_) => {}
+            ValueExpr::Field { base, .. } => self.expr(base),
+            ValueExpr::Binary { left, right, .. } => {
+                self.expr(left);
+                self.expr(right);
+            }
+            ValueExpr::Unary { expr, .. } => self.expr(expr),
+            ValueExpr::If { cond, then, r#else } => {
+                self.expr(cond);
+                self.expr(then);
+                self.expr(r#else);
+            }
+            ValueExpr::Concat(parts) => parts.iter().for_each(|part| self.expr(part)),
+            ValueExpr::Call { args, .. } => args.iter().for_each(|arg| self.expr(arg)),
+            ValueExpr::Record { fields } => fields.values().for_each(|value| self.expr(value)),
+        }
+    }
+
+    fn filters(&mut self, filters: &[FilterExpr]) {
+        for filter in filters {
+            self.expr(&filter.value);
+        }
+    }
+
+    fn handler_plan(&mut self, plan: &HandlerPlan) {
+        match plan {
+            HandlerPlan::Query(plan) => {
+                self.read(&plan.table, "query", plan.indexed_by.as_deref());
+                self.filters(&plan.filters);
+                if !plan.membership_filters.is_empty() {
+                    self.authorization_inputs.insert("membershipPredicate");
+                }
+            }
+            HandlerPlan::RelationalQuery(plan) => {
+                self.read(&plan.root, "query", Some(&plan.root_index));
+                self.read(&plan.joined, "query", Some(&plan.joined_index));
+                self.filters(&plan.root_filters);
+                self.filters(&plan.root_visibility);
+                self.filters(&plan.joined_visibility);
+            }
+            HandlerPlan::Mutation(plan) => {
+                for step in &plan.steps {
+                    match step {
+                        MutationStep::Insert { table, values, .. } => {
+                            self.write(table, "insert");
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                        MutationStep::Patch { table, id, values } => {
+                            self.write(table, "patch");
+                            self.read(table, "point", None);
+                            self.expr(id);
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                        MutationStep::Delete { table, id } => {
+                            self.write(table, "delete");
+                            self.read(table, "point", None);
+                            self.expr(id);
+                        }
+                        MutationStep::Get { table, id, .. } => {
+                            self.read(table, "point", None);
+                            self.expr(id);
+                        }
+                        MutationStep::Guard { cond, .. } => self.expr(cond),
+                        MutationStep::Let { expr, .. } => self.expr(expr),
+                        MutationStep::DeleteWhere { table, filter } => {
+                            self.write(table, "deleteWhere");
+                            self.read(table, "query", None);
+                            self.filters(filter);
+                        }
+                        MutationStep::InsertEach {
+                            table,
+                            source,
+                            values,
+                            ..
+                        } => {
+                            self.write(table, "insertEach");
+                            self.expr(source);
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                    }
+                }
+            }
+            HandlerPlan::Action(plan) => {
+                for step in &plan.steps {
+                    let ActionStep::RunMutation { args, .. } = step;
+                    args.values().for_each(|value| self.expr(value));
+                    self.host_operations.insert("runMutation");
+                }
+            }
+        }
+    }
+}
+
+/// LLP 0065 §1: the runtime checks observed operations are a subset of the
+/// admitted `EffectCeilingV1` and fails closed on mismatch. For a closed
+/// HostPlan the plan *is* the totality of what executes, so the load-time
+/// subset check over the typed IR is exactly the observed-operations check —
+/// a doctored artifact that under-declares its ceiling refuses activation
+/// instead of running past its admission.
+fn validate_effect_ceiling(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(ceiling) = &function.effect_ceiling else {
+        return Ok(());
+    };
+    let FunctionRuntime::HostPlan(plan) = &function.runtime else {
+        // Opaque handlers restate author declarations (`basis: "declared"`);
+        // their runtime enforcement is the declared-reads path.
+        return Ok(());
+    };
+    let mut observed = ObservedEffects::default();
+    observed.handler_plan(plan);
+
+    let exceeded = |axis: &str, detail: String| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
+            "runtime",
+            format!(
+                "function {} performs a {axis} outside its admitted effect ceiling: {detail}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "axis": axis,
+            "detail": detail,
+        }))
+    };
+    for (table, access, index) in &observed.reads {
+        let admitted = ceiling.reads.iter().any(|read| {
+            read.table == *table && read.access == *access && read.index == *index
+        });
+        if !admitted {
+            return Err(exceeded(
+                "read",
+                format!("{table} ({access}, index {index:?})"),
+            ));
+        }
+    }
+    for (table, operation) in &observed.writes {
+        let admitted = ceiling
+            .writes
+            .iter()
+            .any(|write| write.table == *table && write.operations.contains(operation));
+        if !admitted {
+            return Err(exceeded("write", format!("{table} ({operation})")));
+        }
+    }
+    for host_operation in &observed.host_operations {
+        if !ceiling
+            .host_operations
+            .iter()
+            .any(|admitted| admitted == host_operation)
+        {
+            return Err(exceeded("host operation", (*host_operation).to_owned()));
+        }
+    }
+    for input in &observed.authorization_inputs {
+        if !ceiling
+            .authorization_inputs
+            .iter()
+            .any(|admitted| admitted == input)
+        {
+            return Err(exceeded("authorization input", (*input).to_owned()));
         }
     }
     Ok(())

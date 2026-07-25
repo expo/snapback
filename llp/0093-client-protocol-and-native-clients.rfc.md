@@ -5,7 +5,8 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-25 (v0.10 — see Revision history)
+**Revised:** 2026-07-25 (v0.10 — see Revision history; OQ5 hosted floor
+decided, see Open questions)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
 
 > Not to be confused with LLP 0075, "Convex checkpoint protocol," which is a
@@ -701,9 +702,13 @@ version carrier (bound at `/connection/open`; see D1).
    documentation — and whatever is chosen must appear in both the protocol
    document and the billing-facing guide page, or the discoverability
    defect recurs.
-5. **Mandatory profiles for hosted production**: which auth profiles, if
-   any, a hosted-arm production client must offer (P-3 owns the contract;
-   the floor is a product decision).
+5. ~~Mandatory profiles for hosted production~~ — **DECIDED (author,
+   2026-07-25): LLP 0096 §7's recommended floor is ratified** —
+   `auth/rr` always; `auth/live` for clients subscribing to auth-scoped
+   live functions; `auth/sender` for browser-class clients on
+   sender-constrained deployments; `auth/replay`/`auth/lease` stay
+   optional. Recorded in LLP 0096 §7; enforcement beyond the shipped
+   gates rides LLP 0094 §0B's negotiation end state.
 6. ~~Hosted root system surface vs LLP 0031~~ — **DECIDED (author,
    2026-07-25): migrate.** The hosted arm's root-level system operations
    (`/cron/run`, `/cron/status`, `cloudflare/src/gateway.js:128-135`;
