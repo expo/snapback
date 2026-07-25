@@ -1455,6 +1455,19 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
         return Err(undeclarable_retention(function, "retainableNonQuery"));
     }
 
+    // @ref LLP 0080#4-live-and-retained-capability — retention is a closed
+    //   default-deny plan capability for relational queries: v1 authoring
+    //   admits only `none`, so a retainable relational declaration refuses
+    //   with its own honest reason. `opaque-authorized-snapshot-v1` (the
+    //   authenticated lease class) is the specified successor; anonymous
+    //   results have no admissible v1 retention at all.
+    if matches!(
+        &function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_))
+    ) {
+        return Err(undeclarable_retention(function, "relationalRetentionNone"));
+    }
+
     // The shipped DK-4 reset does not reset module lexical/imported singleton
     // state, and JavaScript declarations cannot prove they read only userId.
     // Retaining an Ibex result would therefore turn a trusted string into a
@@ -3744,6 +3757,43 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub runtime_facts: Option<Value>,
+    /// Relational-query facts (LLP 0080 §4): the live delivery class and
+    /// the closed set of admitted retention classes. Present exactly when
+    /// the target supports `relational_query_v1`; a target without the
+    /// executor reports the capability gap instead.
+    #[serde(
+        default,
+        rename = "relationalQueries",
+        alias = "relational_queries",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub relational_queries: Option<RelationalQueryFacts>,
+}
+
+/// The declared relational live/retention posture (LLP 0080 §4).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RelationalQueryFacts {
+    /// Always `"live_replace"` in v1: relational subscriptions inherit
+    /// LLP 0053 with table-granular invalidation and no proved-disjoint
+    /// skip, and no incremental delta matcher is admitted.
+    #[serde(rename = "liveDelivery", alias = "live_delivery")]
+    pub live_delivery: String,
+    /// Closed, default-deny retention classes the target admits for
+    /// relational plans. V1 is exactly `["none"]`;
+    /// `opaque-authorized-snapshot-v1` (the authenticated lease class) is
+    /// specified but not yet admitted by authoring, and anonymous results
+    /// have no admissible retention.
+    pub retention: Vec<String>,
+}
+
+impl RelationalQueryFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            live_delivery: "live_replace".to_owned(),
+            retention: vec!["none".to_owned()],
+        }
+    }
 }
 
 pub(crate) fn vm_lifecycle_fresh() -> String {
@@ -3837,6 +3887,7 @@ impl CapabilityManifest {
             outbound_actions: false,
             cron: true,
             notifications: false,
+            relational_queries: Some(RelationalQueryFacts::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -4083,6 +4134,10 @@ impl CapabilityManifest {
         manifest.offline_retention = false;
         manifest.optimistic_replay = false;
         manifest.cron = false;
+        // No relational executor on this target: the `relational_query_v1`
+        // capability gap is the machine-readable refusal, so the fact block
+        // must not ride along from the local profile (LLP 0080 §2).
+        manifest.relational_queries = None;
         // The proof's supported query subset is single-table only (LLP 0040
         // §Measurements: evidence for the supported query subset only).
         manifest.supported_query_forms = vec![

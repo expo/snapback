@@ -667,6 +667,12 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   lifecycle routes a client touches (`/auth/session`, request-code,
   exchange, refresh, logout); the lifecycle itself stays owned by LLP
   0059/0060/0077 and is referenced, not re-specified.
+  *Status (2026-07-25): landed as LLP 0096 (Draft) — five profiles
+  mapped one-to-one onto LLP 0059's axes plus the sender-custody
+  plane, 0012 Online/Parity projection, off-browser sender-constraint
+  scoped as undefined, lifecycle integration index; OQ5 floor carried
+  open with a recommendation; two code-vs-doctrine findings ticketed
+  (`issues/20260725-0093-p3-*`).*
 
 ## Open questions
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8ed7816338b20e0f09b31c952c30bb5c0a4078c5"
+    "commit": "41be95c8012017828adfb7826af10e5403997285"
   },
   "nav": {
     ".": [
@@ -642,7 +642,7 @@
       ],
       "reviewed": "2026-07-25",
       "reviewedCommit": "e1edbbc1a706d0406de24646d2731b7e9fe93bd8",
-      "sha256": "6af2627c12a7ab01ad2f06b14e1afe821e513db520b5b13444586dce41befe19",
+      "sha256": "02ff4ae4e0f18f8f9c10fa62d7aeaa58eba55650a196e2e217600d971cfcbef1",
       "snippets": [
         {
           "lang": "js",
@@ -766,7 +766,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "36ce5daf5ae5eace07f3443ac7f0aab1c3efd193af2e0aa1cb929772e57e5edf",
+      "sha256": "f7486ab5b6176530f9c642528743d0798fcf6625aeaacd7a999a3f11cfc0d8cd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1654,11 +1654,12 @@
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
-        "demos/card-game/tests/acceptance/authority-scope.mjs"
+        "demos/card-game/tests/acceptance/authority-scope.mjs",
+        "demos/all-aboard/tests/acceptance/headless.mjs"
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "fa21cbd25f33913583904f38ad5319770f92f21910b618acdcca5562e99a3745",
+      "sha256": "daf8e439531a57518478d100b618d038dce42976a747490a0e29fdc408a88fc4",
       "snippets": [
         {
           "lang": "js",
@@ -1673,6 +1674,11 @@
         {
           "lang": "js",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/headless.mjs"
         }
       ]
     }
@@ -1735,5 +1741,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "ba8d6ea5d1207029224722417f740e5ab7d2d95ef2c07e0ea630421d60ea0c0a"
+  "contentHash": "2d897dcc6a9561ca2bdedfe9bd1521406e970a5853cd39ae0c584beee2c95587"
 }

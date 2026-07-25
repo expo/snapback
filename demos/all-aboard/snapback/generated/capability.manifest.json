@@ -44,6 +44,12 @@
   "outboundActions": true,
   "permissionDiagnostics": false,
   "portabilityOptOuts": [],
+  "relationalQueries": {
+    "liveDelivery": "live_replace",
+    "retention": [
+      "none"
+    ]
+  },
   "replaceOnlyQueries": true,
   "resourceLimits": [
     {

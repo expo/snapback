@@ -17155,6 +17155,295 @@ globalThis.__snapbackHandlers = {
         assert_eq!(via_write.rows[0]["title"], json!("beta"));
     }
 
+    fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, FunctionManifest) {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![FilterExpr {
+                field: "ownerId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::AuthUserId,
+            }],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: plan_take,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+        let insert = |name: &str, table: &str, fields: &[(&str, ValueExpr)]| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: table.to_owned(),
+                        values: fields
+                            .iter()
+                            .map(|(field, value)| ((*field).to_owned(), value.clone()))
+                            .collect(),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                })),
+            )
+        };
+        let functions = FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "booksWithAuthors",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                ),
+                insert(
+                    "addBook",
+                    "books",
+                    &[
+                        ("title", ValueExpr::Arg("title".to_owned())),
+                        ("authorSlug", ValueExpr::Arg("slug".to_owned())),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                insert(
+                    "addAuthor",
+                    "authors",
+                    &[
+                        ("slug", ValueExpr::Arg("slug".to_owned())),
+                        ("name", ValueExpr::Arg("name".to_owned())),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+            ],
+            ..FunctionManifest::default()
+        };
+        (schema, functions)
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — live inheritance is
+    //   deliberately conservative: a commit touching either declared source
+    //   table (including the absent-unique-lookup direction — a joined row
+    //   appearing for a previously missing key) causes an authoritative
+    //   resnapshot delivered as live_replace, and no live_delta is ever
+    //   claimed for a relational subscription.
+    #[test]
+    fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut snapback = LocalSnapback::memory().expect("memory live fixture");
+        snapback.apply_schema(schema).expect("apply live schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "live fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![row(
+                            json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed live rows");
+
+        let subscribed = snapback
+            .subscribe_live(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "conn-rel".to_owned(),
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe relational");
+        let snapshot = subscribed.snapshot.expect("initial snapshot");
+        assert_eq!(snapshot.rows, vec![json!({ "title": "alpha" })]);
+
+        let titles = |envelope: &Value| {
+            envelope["rows"]
+                .as_array()
+                .expect("rows")
+                .iter()
+                .map(|row| row["title"].clone())
+                .collect::<Vec<_>>()
+        };
+
+        // Root-table commit: replacement fires even though the new root is
+        // omitted by the inner join (no author row yet).
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "beta", "slug": "grace" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert root row");
+        let after_root = rqs_drained_envelopes(&mut snapback, "conn-rel");
+        assert!(!after_root.is_empty(), "root commit must replace");
+        for envelope in &after_root {
+            assert_eq!(
+                envelope["kind"], "live_replace",
+                "relational subscriptions never claim live_delta: {envelope}"
+            );
+        }
+        assert_eq!(
+            titles(after_root.last().expect("replacement")),
+            vec![json!("alpha")],
+        );
+
+        // Joined-table commit — the absent unique lookup gains a row, and
+        // the previously omitted root appears in the replacement.
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "grace", "name": "Grace" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert joined row");
+        let after_joined = rqs_drained_envelopes(&mut snapback, "conn-rel");
+        assert!(!after_joined.is_empty(), "joined commit must replace");
+        for envelope in &after_joined {
+            assert_eq!(envelope["kind"], "live_replace");
+        }
+        assert_eq!(
+            titles(after_joined.last().expect("replacement")),
+            vec![json!("alpha"), json!("beta")],
+        );
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — the load-time
+    //   narrowings: an all-public relational plan stays
+    //   authority-partition-scoped (never authorityIndependent), and
+    //   retention is the closed default-deny capability — v1 authoring
+    //   admits only `none`, with its own honest refusal reason.
+    #[test]
+    fn relational_live_narrowings_hold_at_load() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let relational = functions.functions[0].clone();
+
+        let mut independent = relational.clone();
+        independent.authority_independent = true;
+        independent.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        let mut snapback = LocalSnapback::memory().expect("memory narrowing fixture");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply narrowing schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![independent],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
+                    || d.message.contains("SNAPBACK_AUTHORITY_INDEPENDENT_INVALID")
+            }),
+            "a relational plan must not claim authorityIndependent: {diagnostics:?}"
+        );
+
+        let mut retainable = relational;
+        retainable.retainable = true;
+        let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
+        snapback
+            .apply_schema(schema)
+            .expect("apply retention schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![retainable],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+                    || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
+                    && d.message.contains("relationalRetentionNone")
+            }),
+            "relational retention is default-deny with an honest reason: {diagnostics:?}"
+        );
+    }
+
     // @ref LLP 0065#3-common-pattern-contracts — defineOwnedKeysetPages'
     //   continuation is an opaque versioned cursor bound to the app, the
     //   pair plan identity, and the caller's authority partition: first
