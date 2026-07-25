@@ -202,6 +202,14 @@ run bun run --cwd packages/snapback-react test
 run bun run --cwd packages/snapback-app-cli test
 run bun run --cwd packages/snapback-contract test
 run bun run --cwd packages/snapback-codegen test
+# LLP 0093 P-2: the clean-room Swift client's fixture-conformance tests run
+# wherever a Swift toolchain exists (macOS dev machines). Absent toolchain is
+# a skip, not a failure — hosts without Swift keep their existing surface.
+if command -v swift >/dev/null 2>&1 && swift --version >/dev/null 2>&1; then
+    run swift test --package-path clients/swift/SnapbackClient
+else
+    printf '\n[snapback-verify] skipping Swift client conformance tests (no Swift toolchain)\n'
+fi
 # LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare
 # regression. The runner pins suite IDs, the expected check count, completion
 # evidence, and a classification for every file so coverage cannot disappear
