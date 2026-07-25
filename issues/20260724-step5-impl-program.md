@@ -119,6 +119,18 @@ dependency of both the 0065 and 0080 lanes.
   biggest unlock: it closes 0080's last item, one of 0081's last items,
   and delivers the LLP 0063 Step 5 receipt — and Step 0's refreshed
   ledger closed on 2026-07-25, so the claim path is open.
+  **Receipt landed (2026-07-25):** `STEP5.DECLARATION_REDUCTION` is
+  `passing` (136 ≤ 152 under the frozen method; dated LLP 0063 amendment;
+  claim manifest + lock + bundles regenerated together). Honest residue:
+  the reduction claim is delivered, but LLP 0080's acceptance clause
+  "Partitime or the admitted Step 5 fixture demonstrates both generated
+  helpers" remains open — Partitime's shared-visibility workload fits
+  neither the owner-only 0065 floor nor an in-cell join within the frozen
+  threshold headroom (review C7 materialized), and admitting
+  competitive-checkpoint (where both families run in production shape) as
+  the Step 5 fixture is an author decision. The 0080/0081 Implemented
+  flips therefore still wait on that admission (or a ratified 0080
+  amendment) plus the 0081 fixtures in flight.
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 

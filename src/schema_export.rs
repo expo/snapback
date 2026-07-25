@@ -56,7 +56,7 @@ use crate::manifest::{
 };
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
-    MigrationPreviewObservationV1,
+    MigrationPreviewObservationV1, MigrationRehearsalPlanV1,
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
@@ -123,6 +123,11 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "migration.admission.schema.json",
             schemars::schema_for!(MigrationAdmissionV1),
+        ),
+        // LLP 0081 §7: the restore-derived rehearsal plan.
+        finish(
+            "migration.rehearsal.schema.json",
+            schemars::schema_for!(MigrationRehearsalPlanV1),
         ),
         finish(
             "migration.receipt.schema.json",

@@ -121,6 +121,7 @@ fn plan() -> MigrationPlanArtifactV1 {
         backup: MigrationBackupRequirement {
             required: false,
             checkpoint_label: None,
+            rehearsal_required: false,
         },
         expected_output: MigrationExpectedOutput {
             schema_hash: identity(&successor),

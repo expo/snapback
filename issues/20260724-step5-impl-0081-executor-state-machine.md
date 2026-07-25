@@ -115,3 +115,16 @@ terminal + garbage inventory; a kill before the closing terminal resumes
 from the durable pending row), and `verify`'s receipt≡journal projection
 cuts at the first terminal row since the tail extends it. Witness:
 `cleanup_tail_drops_parked_generations_and_resumes_after_crash`.
+
+**Flip-closure fixtures (2026-07-25, ordering slice):** the §6 ordering
+postures are now proven, never inferred:
+`compatibility_posture_ordering_is_proven_not_declared` witnesses that a
+dual-compatible or predeploy-compatible plan publishes only when the
+installed predecessor artifact provably binds against the successor
+schema (the generated-facts check), that the old artifact keeps serving
+across the publication, and that an actually incompatible predecessor
+refuses the declared ordering BY NAME with no DDL, publication, or
+transition event. The attest witness gains the admitted-ordering leg: a
+dual-compatible publication ADMITS the predecessor attest during the
+window (unmatched, never upgrade-required), while successor-only keeps
+refusing it — both orderings and both rejections covered.

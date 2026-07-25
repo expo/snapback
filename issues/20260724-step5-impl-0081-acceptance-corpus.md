@@ -69,3 +69,19 @@ and posture-aware client handshake conformance (Wave 3a's ticket);
 retained-work posture proofs; hosted/DO arms (deferred ticket);
 generated-functions-against-successor execution check; fault injection
 into the LANE fence interiors beyond reopen (Wave 2 covered reopen).
+
+**Flip-closure fixtures (2026-07-25):** three §Acceptance items closed —
+quarantined-offline-mutation settlement (refuse → resync → settle exactly
+once; the floor gate fixed to refuse exactly the un-rebasable case),
+proven ordering postures (dual-compatible and predeploy-compatible
+publish only with the generated-facts binding proof; incompatible
+predecessors refuse by name with no publication; dual-compatible admits
+the predecessor attest during the window), and the restore-derived
+rehearsal (executes only through its binding, cannot target production,
+receipt consumed without substituting). Witnesses:
+`quarantined_offline_mutation_settles_through_resync_before_replay`,
+`compatibility_posture_ordering_is_proven_not_declared`,
+`restore_derived_rehearsal_gates_production_apply`. Remaining 0081 flip
+blockers after this slice: the Step 5 application witness (shared with
+0080), the JS client quarantine UX residual, hosted/DO items (deferred
+profiles), and the `transformed` retained-work posture (spec-deferred).

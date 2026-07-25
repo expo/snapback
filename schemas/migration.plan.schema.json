@@ -153,6 +153,10 @@
             "null"
           ]
         },
+        "rehearsalRequired": {
+          "description": "LLP 0081 §7: the target profile names when a restore-derived\nrehearsal must precede production apply. Stamped by preview from\nprofile policy into the canonical body, so the approver reviewed\nthe requirement. Skip-if-false keeps pre-rehearsal plan digests\nbyte-identical.",
+          "type": "boolean"
+        },
         "required": {
           "type": "boolean"
         }

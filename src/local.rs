@@ -11183,6 +11183,85 @@ impl LocalSnapback {
         approval: &crate::migration::MigrationApprovalV1,
         successor_schema: &SchemaManifest,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        self.migrate_apply_artifact_with_rehearsal_receipt(
+            artifact,
+            approval,
+            successor_schema,
+            None,
+        )
+    }
+
+    /// §7's rehearsal gate on production apply: a plan whose reviewed body
+    /// requires a rehearsal refuses without a consumed, fresh, complete
+    /// rehearsal receipt for the same plan digest. Receipt custody is
+    /// structural on the local profile (an operator-provided file);
+    /// control-plane receipt authentication is LLP 0072's.
+    pub fn migrate_apply_artifact_with_rehearsal_receipt(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal_receipt: Option<&crate::storage::migration_executor::MigrationReceiptV1>,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        if artifact.body.backup.rehearsal_required {
+            let Some(receipt) = rehearsal_receipt else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED",
+                    "storage",
+                    "this plan's target profile requires a restore-derived rehearsal; \
+                     execute it and present its receipt to production apply",
+                ));
+            };
+            let invalid = |detail: &str| {
+                SnapbackError::error(
+                    "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                    "storage",
+                    format!("the presented rehearsal receipt does not satisfy §7: {detail}"),
+                )
+            };
+            if !receipt.rehearsal {
+                return Err(invalid("the receipt is not marked rehearsal"));
+            }
+            if receipt.plan_digest != artifact.plan_digest {
+                return Err(invalid("the receipt binds a different plan digest"));
+            }
+            if receipt.state.kind() != "released" || receipt.error_code.is_some() {
+                return Err(invalid("the rehearsal did not complete released and clean"));
+            }
+            let age = now_millis().saturating_sub(receipt.completed_at_ms);
+            if receipt.completed_at_ms == 0
+                || age > crate::storage::migration_executor::MIGRATION_REHEARSAL_MAX_AGE_MS
+            {
+                return Err(invalid(
+                    "the rehearsal receipt is older than the profile's recoverability \
+                     preflight max age",
+                ));
+            }
+        }
+        self.migrate_apply_artifact_inner(artifact, approval, successor_schema, None)
+    }
+
+    /// Execute the production plan AS a rehearsal against this
+    /// restore-derived instance (LLP 0081 §7): the binding — not the
+    /// production approval audience — names the one database this may run
+    /// on, and the journal and receipt come back marked rehearsal.
+    pub fn migrate_rehearse_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal: &crate::migration::MigrationRehearsalPlanV1,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        self.migrate_apply_artifact_inner(artifact, approval, successor_schema, Some(rehearsal))
+    }
+
+    fn migrate_apply_artifact_inner(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal: Option<&crate::migration::MigrationRehearsalPlanV1>,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   publication fires LLP 0053's activation obligations for
         //   auth-scoped state: every auth-scoped subscription gets a durable
@@ -11217,14 +11296,35 @@ impl LocalSnapback {
             && let Err(error) =
                 validate_function_schema_references(&self.functions, successor_schema)
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
-                "storage",
-                format!(
+            // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+            //   posture is proven from generated function/schema facts,
+            //   never inferred: a dual-compatible or predeploy-compatible
+            //   declaration claims the installed predecessor artifact
+            //   remains valid against the successor schema, so a failed
+            //   binding proof refuses the declared ordering by name.
+            let message = match artifact.body.compatibility_posture {
+                crate::migration::CompatibilityPosture::SuccessorOnly => format!(
                     "the staged function set does not bind against the successor schema; \
                      stage a successor-compatible pair before publishing ({})",
                     error.diagnostic.message
                 ),
+                crate::migration::CompatibilityPosture::DualCompatible => format!(
+                    "the declared dual-compatible ordering is unproven: the installed \
+                     predecessor artifact does not remain valid against the successor \
+                     schema ({})",
+                    error.diagnostic.message
+                ),
+                crate::migration::CompatibilityPosture::PredeployCompatible => format!(
+                    "the declared predeploy-compatible ordering is unproven: the \
+                     predecessor artifact's reads and writes do not remain valid against \
+                     the successor schema ({})",
+                    error.diagnostic.message
+                ),
+            };
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                "storage",
+                message,
             ));
         }
         let audience = self.migrate_resolved_audience()?;
@@ -11235,6 +11335,7 @@ impl LocalSnapback {
                 successor_schema,
                 audience: &audience,
                 now_ms: now_millis(),
+                rehearsal,
             },
         )?;
         // The successor is authoritative: refresh every schema projection
@@ -16639,6 +16740,7 @@ mod tests {
             backup: MigrationBackupRequirement {
                 required: false,
                 checkpoint_label: None,
+                rehearsal_required: false,
             },
             expected_output: MigrationExpectedOutput {
                 schema_hash: identity(&successor),
@@ -16721,6 +16823,423 @@ mod tests {
             .migrate_apply_artifact(&artifact, &fresh, &successor)
             .expect("a binding pair publishes");
         assert_eq!(receipt.state.kind(), "released");
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+    //   ordering postures are proven, never inferred: a dual-compatible or
+    //   predeploy-compatible plan publishes only when the installed
+    //   predecessor artifact provably binds against the successor schema
+    //   (the generated-facts compatibility check), the old artifact keeps
+    //   serving across a predeploy publication, and an actually
+    //   incompatible predecessor refuses the declared ordering by name
+    //   with no DDL, publication, or transition event.
+    #[test]
+    fn compatibility_posture_ordering_is_proven_not_declared() {
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput,
+            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            RetainedWorkPosture, MIGRATION_APPROVAL_SCHEMA_VERSION,
+            MIGRATION_PLAN_SCHEMA_VERSION, derive_intents, derive_plan_steps,
+            new_operation_id,
+        };
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+        let list_function = |name: &str, filter_extra: bool| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: filter_extra
+                        .then(|| FilterExpr {
+                            field: "extra".to_owned(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(json!("x")),
+                        })
+                        .into_iter()
+                        .collect(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )
+        };
+        let sealed = |snapback: &LocalSnapback, posture: CompatibilityPosture| {
+            let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+            let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+            MigrationPlanArtifactV1::seal(MigrationPlanBody {
+                schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: snapback.migrate_app_id(),
+                instance: "memory".to_owned(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash: identity(&predecessor),
+                successor_schema_hash: identity(&successor),
+                predecessor_generation: 1,
+                steps,
+                execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+                proof: MigrationProof {
+                    method: MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: MigrationCeilings {
+                    max_affected_rows: 100,
+                    max_bytes: 1024 * 1024,
+                    max_writes: 100,
+                    max_barrier_downtime_ms: 60_000,
+                },
+                compatibility_posture: posture,
+                retained_work_posture: RetainedWorkPosture::Empty,
+                backup: MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                    rehearsal_required: false,
+                },
+                expected_output: MigrationExpectedOutput {
+                    schema_hash: identity(&successor),
+                    projection_generations: BTreeMap::new(),
+                },
+                constants: MigrationConstants {
+                    publication_timestamp_ms: 2_000_000_000_000,
+                    rollback_timestamp_ms: None,
+                    values: BTreeMap::new(),
+                },
+                boundaries: Default::default(),
+            })
+            .expect("seal plan")
+        };
+        let approve = |snapback: &mut LocalSnapback, artifact: &MigrationPlanArtifactV1| {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: now_millis(),
+                expires_at_ms: now_millis() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        };
+        let build = |compatible_functions: bool| {
+            let mut snapback = LocalSnapback::memory().expect("memory posture fixture");
+            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                functions: vec![list_function("listNotes", !compatible_functions)],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            snapback
+        };
+
+        for posture in [
+            CompatibilityPosture::DualCompatible,
+            CompatibilityPosture::PredeployCompatible,
+        ] {
+            // Proven: the installed predecessor artifact never references
+            // the retired field, so the declared ordering publishes and the
+            // OLD artifact keeps serving against successor storage.
+            let mut snapback = build(true);
+            let artifact = sealed(&snapback, posture);
+            let approval = approve(&mut snapback, &artifact);
+            let receipt = snapback
+                .migrate_apply_artifact(&artifact, &approval, &successor)
+                .unwrap_or_else(|error| panic!("{posture:?} proven ordering publishes: {error:?}"));
+            assert_eq!(receipt.state.kind(), "released");
+            let transition = snapback
+                .db
+                .latest_schema_transition()
+                .expect("read transition")
+                .expect("transition recorded");
+            assert_eq!(transition.body.compatibility_posture, posture);
+            snapback
+                .invoke_query("listNotes", HandlerInput::default())
+                .unwrap_or_else(|error| {
+                    panic!("{posture:?}: the predecessor artifact keeps serving: {error:?}")
+                });
+
+            // Unproven: the installed artifact reads the retired field —
+            // the declared ordering refuses by name, with no publication.
+            let mut snapback = build(false);
+            let artifact = sealed(&snapback, posture);
+            let approval = approve(&mut snapback, &artifact);
+            let error = snapback
+                .migrate_apply_artifact(&artifact, &approval, &successor)
+                .expect_err("an unproven ordering must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PRECONDITION_FAILED");
+            let expected_fragment = match posture {
+                CompatibilityPosture::DualCompatible => "dual-compatible ordering is unproven",
+                CompatibilityPosture::PredeployCompatible => {
+                    "predeploy-compatible ordering is unproven"
+                }
+                CompatibilityPosture::SuccessorOnly => unreachable!(),
+            };
+            assert!(
+                error.diagnostic.message.contains(expected_fragment),
+                "{}",
+                error.diagnostic.message
+            );
+            assert!(
+                snapback
+                    .db
+                    .latest_schema_transition()
+                    .expect("read transition")
+                    .is_none(),
+                "a refused ordering publishes nothing",
+            );
+            assert!(
+                snapback.db.schema().table("notes").expect("table").field("extra").is_some(),
+                "a refused ordering issues no DDL",
+            );
+        }
+    }
+
+    // @ref LLP 0081#7-target-safety-backup-and-secrets — the
+    //   restore-derived rehearsal: a plan requiring one refuses production
+    //   apply without a consumed fresh rehearsal receipt; the rehearsal
+    //   executes only against the isolated target its binding names (never
+    //   production); its journal/receipt are marked rehearsal; and the
+    //   production admission consumes the receipt while still executing
+    //   the original plan against production — the rehearsal receipt never
+    //   substitutes for the production apply receipt.
+    #[test]
+    fn restore_derived_rehearsal_gates_production_apply() {
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput,
+            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            MigrationRehearsalBindingV1, MigrationRehearsalPlanV1, RetainedWorkPosture,
+            MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_intents,
+            derive_plan_steps, new_operation_id,
+        };
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+        let instance = || {
+            let mut snapback = LocalSnapback::memory().expect("memory rehearsal fixture");
+            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            snapback
+        };
+        let sealed = |snapback: &LocalSnapback| {
+            let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+            let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+            MigrationPlanArtifactV1::seal(MigrationPlanBody {
+                schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: snapback.migrate_app_id(),
+                instance: "memory".to_owned(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash: identity(&predecessor),
+                successor_schema_hash: identity(&successor),
+                predecessor_generation: 1,
+                steps,
+                execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+                proof: MigrationProof {
+                    method: MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: MigrationCeilings {
+                    max_affected_rows: 100,
+                    max_bytes: 1024 * 1024,
+                    max_writes: 100,
+                    max_barrier_downtime_ms: 60_000,
+                },
+                compatibility_posture: CompatibilityPosture::SuccessorOnly,
+                retained_work_posture: RetainedWorkPosture::Empty,
+                backup: MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                    rehearsal_required: true,
+                },
+                expected_output: MigrationExpectedOutput {
+                    schema_hash: identity(&successor),
+                    projection_generations: BTreeMap::new(),
+                },
+                constants: MigrationConstants {
+                    publication_timestamp_ms: 2_000_000_000_000,
+                    rollback_timestamp_ms: None,
+                    values: BTreeMap::new(),
+                },
+                boundaries: Default::default(),
+            })
+            .expect("seal plan")
+        };
+        let approve = |snapback: &mut LocalSnapback, artifact: &MigrationPlanArtifactV1| {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: now_millis(),
+                expires_at_ms: now_millis() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        };
+
+        let mut production = instance();
+        let artifact = sealed(&production);
+        let approval = approve(&mut production, &artifact);
+
+        // (a) Production apply without a rehearsal receipt refuses.
+        let error = production
+            .migrate_apply_artifact(&artifact, &approval, &successor)
+            .expect_err("a rehearsal-required plan gates production apply");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED");
+
+        // The restore-derived isolated instance (the local profile's
+        // byte-copy restore stands in for LLP 0072's backup manifest).
+        let mut isolated = instance();
+        let isolated_id = isolated
+            .migrate_resolved_audience()
+            .expect("isolated audience")
+            .database_id;
+        let rehearsal = MigrationRehearsalPlanV1::seal(
+            artifact.plan_digest.clone(),
+            MigrationRehearsalBindingV1 {
+                source_backup_identity: "backup-witness-1".to_owned(),
+                isolated_database_id: isolated_id,
+                restore_epoch_ms: 1_000,
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            },
+        )
+        .expect("seal rehearsal");
+
+        // (b) The rehearsal cannot target production: executing it on any
+        // database but the bound isolated target refuses.
+        let production_approval = approve(&mut production, &artifact);
+        let error = production
+            .migrate_rehearse_artifact(&artifact, &production_approval, &successor, &rehearsal)
+            .expect_err("a rehearsal must not execute against production");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (c) Against the bound restore-derived target it executes, marked.
+        let isolated_approval = approve(&mut isolated, &artifact);
+        let rehearsal_receipt = isolated
+            .migrate_rehearse_artifact(&artifact, &isolated_approval, &successor, &rehearsal)
+            .expect("rehearsal executes against its restore-derived target");
+        assert!(rehearsal_receipt.rehearsal, "the receipt is marked rehearsal");
+        assert_eq!(rehearsal_receipt.state.kind(), "released");
+        assert!(rehearsal_receipt.completed_at_ms > 0);
+
+        // (e) A rehearsal receipt for a different plan refuses production.
+        let mut doctored = rehearsal_receipt.clone();
+        doctored.plan_digest = "0".repeat(64);
+        let error = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &approval,
+                &successor,
+                Some(&doctored),
+            )
+            .expect_err("a cross-plan rehearsal receipt refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (f) A stale rehearsal receipt refuses under the freshness policy.
+        let mut stale = rehearsal_receipt.clone();
+        stale.completed_at_ms = 1;
+        let error = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &approval,
+                &successor,
+                Some(&stale),
+            )
+            .expect_err("an over-age rehearsal receipt refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (d) Consuming the fresh receipt, production apply still executes
+        // the ORIGINAL plan against production, and its receipt is its
+        // own — unmarked, a different operation — never the rehearsal's.
+        let fresh_approval = approve(&mut production, &artifact);
+        let production_receipt = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &fresh_approval,
+                &successor,
+                Some(&rehearsal_receipt),
+            )
+            .expect("production apply consumes the rehearsal receipt");
+        assert!(!production_receipt.rehearsal);
+        assert_eq!(production_receipt.state.kind(), "released");
+        assert_ne!(
+            production_receipt.operation_id, rehearsal_receipt.operation_id,
+            "the rehearsal receipt never substitutes for the production apply receipt",
+        );
     }
 
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — publication
@@ -16865,6 +17384,54 @@ mod tests {
             .attest_app(EnsureAppMode::Sessions, pair(&predecessor_hash))
             .expect_err("predecessor artifacts must refuse after successor-only publication");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+
+        // The admitted ordering under dual-compatible: the same predecessor
+        // attest is ADMITTED during the window — old and new artifacts are
+        // both valid, so the answer is an unmatched attest, not the
+        // upgrade-required refusal (LLP 0081 §6).
+        {
+            let (schema, functions) = sessions_activation_pair('b', false);
+            let mut dual = settled_sessions_activation_snapback(schema, functions);
+            let active = dual
+                .db
+                .auth_mode_snapshot()
+                .expect("snapshot")
+                .state
+                .active_deployment
+                .expect("active deployment");
+            let dual_pair = |schema_hash: &str| super::EnsureAppPairIdentity {
+                schema: super::EnsureAppSchemaIdentity {
+                    artifact_kind: "schemaManifest".to_owned(),
+                    schema_version: active.schema_version.clone(),
+                    app_id: active.app_id.clone(),
+                    schema_hash: schema_hash.to_owned(),
+                    inputs_hash: active.inputs_hash.clone(),
+                },
+                functions: super::EnsureAppFunctionIdentity {
+                    artifact_kind: "functionManifest".to_owned(),
+                    schema_version: active.schema_version.clone(),
+                    app_id: active.app_id.clone(),
+                    bundle_hash: active.bundle_hash.clone(),
+                    inputs_hash: active.inputs_hash.clone(),
+                },
+            };
+            let dual_predecessor_hash = {
+                let mut hash = active.schema_hash.clone();
+                let flipped = if hash.ends_with('0') { "1" } else { "0" };
+                hash.truncate(hash.len() - 1);
+                hash.push_str(flipped);
+                hash
+            };
+            crate::storage::publish_schema_transition_for_test(
+                &mut dual.db,
+                crate::migration::CompatibilityPosture::DualCompatible,
+                &dual_predecessor_hash,
+            );
+            let outcome = dual
+                .attest_app(EnsureAppMode::Sessions, dual_pair(&dual_predecessor_hash))
+                .expect("dual-compatible admits the predecessor attest during the window");
+            assert!(!outcome.matched, "the predecessor pair is admitted, not active");
+        }
 
         // The successor (active) pair still attests, matched.
         let outcome = snapback
