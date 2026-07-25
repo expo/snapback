@@ -3,16 +3,16 @@
   "kind": "p0a-preregistration",
   "protocol": {
     "id": "partitime-method-rubric-v2",
-    "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4",
+    "sha256": "e61be362acfbb9c0050982ab39f31576aa757d7a3e600df4818993600706f22b",
     "schemaSha256": "ff33f7a8086b14701cb875ee276eacaddf09560f98ab4ee3763c12153d4b352c",
-    "receiptSchemaSha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708",
+    "receiptSchemaSha256": "fbc2a345c66b11afa2e67ff4720c3bd282a879a2e72eeaf3003b5af4ba73a80c",
     "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v2",
     "thresholdFormulaSetId": "partitime-threshold-formulas-v2",
     "collectorId": "partitime-chrome-cdp-memory-and-dom-v2"
   },
   "source": {
-    "snapbackRevision": "37aec9f805f4eac175671159028d4eb6f80768f1",
-    "exactRevision": "de9ad834c6dd768918317ccb1b4900de51e56cab",
+    "snapbackRevision": "6840be9a5e1a061fd8b3e00b6a93ea5af8b7d61d",
+    "exactRevision": "b80635f11403971d951157e7e8afcda307cfcb3c",
     "snapbackDirty": false,
     "exactDirty": false,
     "packageLockSha256": "4b64ab1d1c2d5991196a91ba3a0cb68e71186395f91b81b80f0492f348cece86"
@@ -36,7 +36,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
-      "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4"
+      "sha256": "e61be362acfbb9c0050982ab39f31576aa757d7a3e600df4818993600706f22b"
     },
     {
       "kind": "protocol-constant",
@@ -46,7 +46,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
-      "sha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708"
+      "sha256": "fbc2a345c66b11afa2e67ff4720c3bd282a879a2e72eeaf3003b5af4ba73a80c"
     },
     {
       "kind": "authority-amendment",
@@ -61,12 +61,12 @@
     {
       "kind": "authority-amendment",
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "49f5ea83f3664fe768ce1953dc30d46c11bee8b5c6cf0142fedfa0a583839237"
+      "sha256": "b11907ef79417a07617c428b9375840fcc3ad7f26cab64121002a5d48e1044e6"
     },
     {
       "kind": "collector",
       "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-      "sha256": "aca32de1a02e74ea7379afddaf0b6250b7fc77d964319547a013e1fe91317aa8"
+      "sha256": "63f9f6f23023db5da3c5797e8326820232197e31206a73e136be2fb93911da50"
     },
     {
       "kind": "collector",
@@ -115,16 +115,16 @@
     }
   ],
   "p0a": {
-    "protocolFrozenAtRevision": "a6a26909466522e9b7a2e1f95a0e378e5d8bc63b",
+    "protocolFrozenAtRevision": "882270427d91b88ba9334b6d28f9a85cc54ef2cc",
     "protocolFrozenBeforeCollector": true,
     "governedSamplesCollected": false,
     "authorityBindingsVerified": 3,
     "fixtureTreesVerified": 3,
-    "collectorSha256": "1023cb21542cbffa897e5364d4752ab67c3e0774f06e810f06ec76be1974769f",
+    "collectorSha256": "c9da6f4d18278ea57a9dd34d6c3b79b97e1032f9a777dfea34139d0ec5ddd2e9",
     "collectorManifest": [
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-        "sha256": "aca32de1a02e74ea7379afddaf0b6250b7fc77d964319547a013e1fe91317aa8"
+        "sha256": "63f9f6f23023db5da3c5797e8326820232197e31206a73e136be2fb93911da50"
       },
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-math.mjs",
@@ -164,17 +164,19 @@
           32,
           4
         ],
+        "teardownActiveSubscriptions": 0,
         "apiMethods": [
           "reset",
           "awaitStable",
           "snapshotCounters",
           "applyCanonicalUpdate"
         ],
-        "beforeGraceStatus": "going",
-        "afterGraceStatus": "maybe",
+        "beforeGraceStatus": "maybe",
+        "afterGraceStatus": "going",
         "authoritativeDeliveries": 8,
         "domPatchRecords": 16,
-        "heapReadAttempted": false
+        "heapReadAttempted": false,
+        "contextsVerified": 2
       },
       {
         "arm": "contract:snapback",
@@ -188,17 +190,19 @@
           32,
           4
         ],
+        "teardownActiveSubscriptions": 0,
         "apiMethods": [
           "reset",
           "awaitStable",
           "snapshotCounters",
           "applyCanonicalUpdate"
         ],
-        "beforeGraceStatus": "going",
-        "afterGraceStatus": "maybe",
+        "beforeGraceStatus": "maybe",
+        "afterGraceStatus": "going",
         "authoritativeDeliveries": 8,
         "domPatchRecords": 16,
-        "heapReadAttempted": false
+        "heapReadAttempted": false,
+        "contextsVerified": 2
       }
     ],
     "p0aComplete": true,
