@@ -253,12 +253,38 @@ const previousToken = process.env.SNAPBACK_ADMIN_TOKEN;
 delete process.env.SNAPBACK_ADMIN_TOKEN;
 const running = [];
 
+function captureConsoleError() {
+  const original = console.error;
+  const lines = [];
+  console.error = (...args) => {
+    lines.push(args.join(' '));
+    original(...args);
+  };
+  return { lines, restore: () => { console.error = original; } };
+}
+
 try {
-  const first = await __startServerForTests({ port: 4399, cwd: scratch, startupTimeoutMs: 2_000 }, deps);
+  // Pin the deliberate port default: a requested port stays a verified-reuse
+  // probe, the spawn lands on an OS-assigned isolated port, and that
+  // reassignment is loud — never silent (kit port-binding ticket, 2026-07-24).
+  const firstCapture = captureConsoleError();
+  let first;
+  try {
+    first = await __startServerForTests({ port: 4399, cwd: scratch, startupTimeoutMs: 2_000 }, deps);
+  } finally {
+    firstCapture.restore();
+  }
   running.push(first);
   assert.equal(first.reused, false);
   assert.match(first.baseUrl, /^http:\/\/127\.0\.0\.1:\d+$/);
   assert.notEqual(Number(new URL(first.baseUrl).port), 4399, 'new child owns an OS-assigned port');
+  assert(
+    firstCapture.lines.some((line) =>
+      line.includes('PORT REASSIGNED: requested :4399')
+      && line.includes(`:${new URL(first.baseUrl).port}`)),
+    `landing on a different port is announced loudly, got:\n${firstCapture.lines.join('\n')}`,
+  );
+  assert.equal(first.exit, null, 'live handle reports no child exit');
   assert.match(first.startupNonce, /^[0-9a-f-]+$/i);
   assert.equal(first.credentials.adminToken, first.adminToken);
   assert.equal(first.clientOptions.adminToken, first.adminToken);
@@ -297,8 +323,17 @@ try {
   assert.equal(capabilityServer.impersonationCapability, 'sbic_fixture_capability.1234abcd');
 
   const restartPort = Number(new URL(first.baseUrl).port);
+  let firstUnexpectedExit = null;
+  first.onUnexpectedExit((exit) => { firstUnexpectedExit = exit; });
   await first.stop();
   running.splice(running.indexOf(first), 1);
+  assert.equal(first.exit?.expected, true, 'owned stop records an expected child exit');
+  assert.equal(firstUnexpectedExit, null, 'owned stop never fires the unexpected-death callback');
+  assert.throws(
+    () => first.assertAlive(),
+    (error) => error.code === 'SNAPBACK_SERVER_CHILD_DIED',
+    'a cleanly stopped handle still refuses further use with the typed diagnostic',
+  );
   const exactRestart = await __startServerForTests({
     port: restartPort,
     bindPortExactly: true,
@@ -339,13 +374,27 @@ try {
     res.end('not snapback');
   });
   const squatterPort = squatter.address().port;
-  const isolated = await __startServerForTests({
-    port: squatterPort,
-    cwd: scratch,
-    startupTimeoutMs: 2_000,
-  }, deps);
+  const squatterCapture = captureConsoleError();
+  let isolated;
+  try {
+    isolated = await __startServerForTests({
+      port: squatterPort,
+      cwd: scratch,
+      startupTimeoutMs: 2_000,
+    }, deps);
+  } finally {
+    squatterCapture.restore();
+  }
   running.push(isolated);
   assert.notEqual(Number(new URL(isolated.baseUrl).port), squatterPort, 'unhealthy occupant is never adopted');
+  assert(
+    squatterCapture.lines.some((line) => line.includes('PORT OCCUPIED')),
+    'refusing an occupied requested port is announced loudly',
+  );
+  assert(
+    squatterCapture.lines.some((line) => line.includes(`PORT REASSIGNED: requested :${squatterPort}`)),
+    'the OS-assigned replacement port is announced loudly',
+  );
   await assert.rejects(
     __startServerForTests({
       port: squatterPort,
@@ -408,6 +457,63 @@ try {
   assert.equal(new Set(parallel.map((server) => server.baseUrl)).size, parallel.length);
 
   if (process.platform !== 'win32') {
+    // Post-readiness watchdog: a child killed after readiness is detected, the
+    // handle fails fast with a typed diagnostic, and stop() reports the death
+    // honestly instead of attesting a clean teardown (kit watchdog ticket,
+    // 2026-07-24; All Aboard external review issues/0007).
+    const optionExits = [];
+    const victimCapture = captureConsoleError();
+    let victim;
+    let victimExit;
+    try {
+      victim = await __startServerForTests({
+        port: 0,
+        cwd: scratch,
+        startupTimeoutMs: 2_000,
+        onUnexpectedExit: (exit) => optionExits.push(exit),
+      }, deps);
+      assert.equal(victim.exit, null);
+      victim.assertAlive();
+      const victimHealth = await fetch(`${victim.baseUrl}/health`).then((response) => response.json());
+      const seen = new Promise((resolveExit) => victim.onUnexpectedExit(resolveExit));
+      process.kill(victimHealth.pid, 'SIGKILL');
+      victimExit = await seen;
+    } finally {
+      victimCapture.restore();
+    }
+    assert.equal(victimExit.signal, 'SIGKILL');
+    assert.equal(victimExit.expected, false);
+    assert.deepEqual(victim.exit, victimExit, 'death is exposed as handle state');
+    assert.deepEqual(optionExits, [victimExit], 'the startServer onUnexpectedExit option fired once');
+    assert(
+      victimCapture.lines.some((line) => line.includes('SNAPBACK SERVER DIED')
+        && line.includes(victim.baseUrl)),
+      `post-readiness death is announced loudly, got:\n${victimCapture.lines.join('\n')}`,
+    );
+    assert.throws(
+      () => victim.assertAlive(),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_SERVER_CHILD_DIED');
+        assert.equal(error.exit.signal, 'SIGKILL');
+        return true;
+      },
+      'further use fails fast with the typed diagnostic',
+    );
+    const lateExit = await new Promise((resolveExit) => victim.onUnexpectedExit(resolveExit));
+    assert.deepEqual(lateExit, victimExit, 'late subscribers still observe the recorded death');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await assert.rejects(
+        victim.stop(),
+        (error) => {
+          assert.equal(error.code, 'SNAPBACK_SERVER_CHILD_DIED');
+          assert.match(error.message, /before stop\(\) was requested/);
+          assert.match(error.message, /cannot attest a clean shutdown/);
+          return true;
+        },
+        'stop() on an already-dead child reports the death instead of attesting a clean teardown',
+      );
+    }
+
     const resistant = await __startServerForTests(
       { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
       {

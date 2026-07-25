@@ -72,6 +72,12 @@ export async function startServer({
   // value is read only from the mechanical ready-file sibling after the
   // ready nonce has been verified against the live child.
   captureImpersonationCapability = false,
+  // Post-readiness death notification: called once with { code, signal,
+  // expected: false } if the spawned child exits before stop() is requested.
+  // Restart-on-death stays caller policy; the kit only detects and reports
+  // (issues/closed/20260724-kit-post-readiness-child-watchdog.md). Never fires
+  // for a reused server (there is no owned child to watch).
+  onUnexpectedExit = null,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}) {
   return startServerWithDeps({
@@ -84,6 +90,7 @@ export async function startServer({
     bindPortExactly,
     startupArtifacts,
     captureImpersonationCapability,
+    onUnexpectedExit,
     startupTimeoutMs,
   }, {});
 }
@@ -106,10 +113,14 @@ async function startServerWithDeps({
   bindPortExactly = false,
   startupArtifacts = null,
   captureImpersonationCapability = false,
+  onUnexpectedExit = null,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}, deps = {}) {
   if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
     throw new TypeError('bindPortExactly requires an explicit TCP port from 1 through 65535');
+  }
+  if (onUnexpectedExit !== null && typeof onUnexpectedExit !== 'function') {
+    throw new TypeError('onUnexpectedExit must be a function when provided');
   }
   let resolvedStartupArtifacts = null;
   if (startupArtifacts !== null) {
@@ -224,7 +235,12 @@ async function startServerWithDeps({
   child.once('error', (error) => { spawnError = error; });
 
   const cleanup = () => rmSync(readyDir, { recursive: true, force: true });
+  // Death seen at close time is classified against this flag: an exit that
+  // lands after any owned teardown began (explicit stop() or the parent-signal
+  // owner) is expected; anything earlier is an unexpected post-readiness death.
+  const watchState = { exit: null, stopRequested: false, listeners: new Set() };
   const ownership = ownProcessTree(child, async () => {
+    watchState.stopRequested = true;
     try {
       await stopChild(child, deps.stopOptions);
     } finally {
@@ -262,9 +278,21 @@ async function startServerWithDeps({
         });
         if (verified.ok) {
           const baseUrl = ready.serverUrl.replace(/\/$/, '');
+          if (!bindPortExactly && port !== 0 && ready.port !== port) {
+            // The requested port is a verified-reuse probe, never a bind
+            // guarantee; the deliberate fallback to an OS-assigned isolated
+            // port must be loud, not silent
+            // (issues/closed/20260724-kit-bind-port-exactly-default-and-docs.md).
+            console.error(
+              `PORT REASSIGNED: requested :${port} but the isolated child bound :${ready.port}. ` +
+                'Callers must read the returned baseUrl; pass bindPortExactly to bind-or-fail instead ' +
+                '(demos/_kit/README.md "Port semantics").',
+            );
+          }
           const impersonationCapability = captureImpersonationCapability
             ? readSpawnedImpersonationCapability(ready, readyFile)
             : null;
+          armChildWatchdog(watchState, { closeTracker, baseUrl, onUnexpectedExit, logTail: () => log });
           let stopPromise = null;
           return serverHandle({
             baseUrl,
@@ -272,9 +300,17 @@ async function startServerWithDeps({
             reused: false,
             startupNonce: ready.startupNonce,
             impersonationCapability,
+            watch: watchState,
             stop: () => {
               if (!stopPromise) {
-                stopPromise = ownership.stop();
+                stopPromise = ownership.stop().then(() => {
+                  // Teardown of the (possibly already-dead) tree and the ready
+                  // dir still runs, but a stop() issued only after the child
+                  // died on its own must not attest a clean shutdown.
+                  if (watchState.exit && !watchState.exit.expected) {
+                    throw childDiedError({ baseUrl, exit: watchState.exit, phase: 'stop' });
+                  }
+                });
               }
               return stopPromise;
             },
@@ -308,6 +344,7 @@ function serverHandle({
   stop,
   startupNonce = null,
   impersonationCapability = null,
+  watch = null,
 }) {
   const credentials = Object.freeze({ adminToken });
   return {
@@ -318,8 +355,87 @@ function serverHandle({
     reused,
     startupNonce,
     impersonationCapability,
+    // Post-readiness watchdog surface. `exit` is null while the owned child is
+    // alive (and always null for a reused server, which has no owned child);
+    // after the child closes it is { code, signal, expected }. `expected` is
+    // true only when an owned teardown (stop() or the parent-signal owner)
+    // began before the exit.
+    get exit() {
+      return watch?.exit ?? null;
+    },
+    // Fail fast with a typed diagnostic instead of letting a dead backend
+    // surface as raw connection errors mid-suite.
+    assertAlive() {
+      if (watch?.exit) throw childDiedError({ baseUrl, exit: watch.exit, phase: 'use' });
+    },
+    // Subscribe to unexpected death; fires immediately (async) when the child
+    // is already dead. Returns an unsubscribe function.
+    onUnexpectedExit(listener) {
+      if (typeof listener !== 'function') {
+        throw new TypeError('onUnexpectedExit listener must be a function');
+      }
+      if (!watch) return () => {};
+      if (watch.exit) {
+        if (!watch.exit.expected) queueMicrotask(() => listener(watch.exit));
+        return () => {};
+      }
+      watch.listeners.add(listener);
+      return () => watch.listeners.delete(listener);
+    },
     stop,
   };
+}
+
+// A child that dies after readiness must never masquerade as a live backend:
+// the handle records the death, tells the caller, and every later use carries
+// one typed diagnostic instead of raw ECONNREFUSED noise
+// (issues/closed/20260724-kit-post-readiness-child-watchdog.md; the All Aboard
+// external review watched an arm answer 500s from a dead child). The watchdog
+// arms only after verified readiness — pre-readiness exits stay the startup
+// loop's "exited before verified readiness" diagnostic.
+function armChildWatchdog(watchState, { closeTracker, baseUrl, onUnexpectedExit, logTail }) {
+  if (typeof onUnexpectedExit === 'function') watchState.listeners.add(onUnexpectedExit);
+  void closeTracker.promise.then((detail) => {
+    watchState.exit = Object.freeze({
+      code: detail?.code ?? null,
+      signal: detail?.signal ?? null,
+      expected: watchState.stopRequested,
+    });
+    const listeners = [...watchState.listeners];
+    watchState.listeners.clear();
+    if (watchState.exit.expected) return;
+    const tail = String(logTail?.() ?? '').slice(-4_096);
+    console.error(
+      `SNAPBACK SERVER DIED: the child for ${baseUrl} exited (${describeChildExit(watchState.exit)}) ` +
+        'after verified readiness. Further handle use fails fast with SNAPBACK_SERVER_CHILD_DIED ' +
+        `and stop() will not attest a clean teardown.${tail ? `\nRecent server output:\n${tail}` : ''}`,
+    );
+    for (const listener of listeners) {
+      try {
+        listener(watchState.exit);
+      } catch (error) {
+        console.error(`snapback onUnexpectedExit listener failed: ${error.message}`);
+      }
+    }
+  });
+}
+
+function describeChildExit(exit) {
+  return exit.signal !== null ? `signal ${exit.signal}` : `code ${exit.code ?? 'unknown'}`;
+}
+
+function childDiedError({ baseUrl, exit, phase }) {
+  const detail = describeChildExit(exit);
+  const error = new Error(
+    phase === 'stop'
+      ? `snapback server child for ${baseUrl} had already died (${detail}) before stop() was requested; ` +
+        'the tree was cleaned up, but this stop cannot attest a clean shutdown'
+      : `snapback server child for ${baseUrl} is no longer running (${detail}` +
+        `${exit.expected ? ', stopped by this process' : ''})`,
+  );
+  error.code = 'SNAPBACK_SERVER_CHILD_DIED';
+  error.exit = exit;
+  return error;
 }
 
 function readSpawnedImpersonationCapability(ready, readyFile) {
