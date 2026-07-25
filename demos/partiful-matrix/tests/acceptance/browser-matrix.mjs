@@ -276,6 +276,7 @@ await runAcceptance(suite, async () => {
   const gateway = await startGateway(snapbackUrl);
   const gatewayUrl = gateway.url;
   reportIdentity.backendHealth = gateway.preflight;
+  let productSnapbackCellsStarted = 0;
   let cdp;
   if (selectedBrowser === 'chrome') {
     const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partiful-matrix-' });
@@ -303,7 +304,14 @@ await runAcceptance(suite, async () => {
       skipRemoteCell(cell, health);
       continue;
     }
-    const vite = await startVite(cell, snapbackUrl, gatewayUrl);
+    // Phase-4 product checks mutate their fixture (create, RSVP, wall post).
+    // Give each authoring arm an independent in-memory authority so the next
+    // arm's canonical responsive/a11y observations cannot inherit those
+    // writes. The ordinary matrix intentionally retains its shared authority.
+    const cellSnapbackUrl = productUi && cell.backend === 'snapback' && productSnapbackCellsStarted++ > 0
+      ? await startSnapback()
+      : snapbackUrl;
+    const vite = await startVite(cell, cellSnapbackUrl, gatewayUrl);
     const page = await cdp.newPage();
     try {
       await page.navigate(`${vite.url}/?user=eve`);
@@ -794,6 +802,8 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     });
 
     const rsvp = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.pollText('rsvp-going', 'Going', 5_000);
       await taskPage.focus('rsvp-going');
       await taskPage.key('Space');
       const outcome = await taskPage.pollText('guest-user_eve', 'Going', 5_000);
@@ -802,6 +812,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     });
 
     const guest = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
       await taskPage.focus('guest-list-trigger');
       await taskPage.key('Enter');
       await taskPage.pollText('guest-list-sheet', 'Guest list', 5_000);
@@ -824,6 +835,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     });
 
     const wall = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
       await taskPage.focus('wall-message');
       await taskPage.insertText('Keyboard picnic');
       await taskPage.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
@@ -883,10 +895,12 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await page.key('Escape');
       await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); await page.click('rsvp-confirm');
       const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
-      await page.focus('wall-message'); await page.insertText('Reduced motion status'); await page.key('Enter');
-      const pending = await page.pollText('wall-pending-status', 'Sending', 1_500);
-      if (!rsvp?.includes('Going') || !pending?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
-      return { claimId: 'STEP4.UI.REDUCED-MOTION', cell: cellId, overlayMotion, semanticEndState: { rsvp: 'Going', pending: 'Sending…' } };
+      await page.focus('wall-message'); await page.insertText('Reduced motion status');
+      await page.eval(`(()=>{const witness={seen:false,text:null,firstSeenAt:null,removedAt:null};let present=false;const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');const now=performance.now();if(node){witness.seen=true;witness.text=node.textContent;witness.firstSeenAt??=now;present=true}else if(present&&witness.removedAt===null){witness.removedAt=now;present=false}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4ReducedPendingWitness={witness,observer,inspect};return true})()`);
+      await page.key('Enter');
+      const pending = await page.eval(`(async()=>{const d=performance.now()+1500;while(performance.now()<d){window.__phase4ReducedPendingWitness?.inspect();const w=window.__phase4ReducedPendingWitness?.witness;if(w?.seen&&w.removedAt!==null)break;await new Promise(r=>setTimeout(r,20))}const state=window.__phase4ReducedPendingWitness;state?.inspect();state?.observer.disconnect();const witness=state?.witness??null;delete window.__phase4ReducedPendingWitness;return witness?{...witness,visibleMs:witness.firstSeenAt===null?null:(witness.removedAt??performance.now())-witness.firstSeenAt}:null})()`);
+      if (!rsvp?.includes('Going') || !pending?.seen || !pending.text?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
+      return { claimId: 'STEP4.UI.REDUCED-MOTION', cell: cellId, overlayMotion, semanticEndState: { rsvp: 'Going', pending: 'Sending…', pendingVisibleMs: pending.visibleMs } };
     } finally {
       await page.emulateReducedMotion(false);
     }
@@ -1031,10 +1045,12 @@ async function prepareVisualState({ page, cell, baseUrl, state, theme = 'light' 
   if (state === 'create-event-form-default') return loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
   if (state === 'create-event-form-validation-error') {
     await loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
+    await page.pollText('create-panel', 'plan', 5_000);
     await page.click('create-event-submit');
     return;
   }
   await event();
+  await page.pollText('event-page', 'Sunset Supper Club', 15_000);
   if (state === 'event-detail-going') { await page.click('rsvp-going'); await page.pollText('guest-user_eve', 'Going', 5_000); return; }
   if (state === 'event-detail-maybe') { await page.click('rsvp-maybe'); await page.pollText('guest-user_eve', 'Maybe', 5_000); return; }
   if (state === 'guest-list-sheet-open') { await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000); return; }

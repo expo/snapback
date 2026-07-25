@@ -395,12 +395,23 @@ async function disposeActive() {
   reset();
 }
 
-function mountCurrentRoute() {
+function mountCurrentRoute(focusTestId?: string) {
   routeTransition = routeTransition.then(async () => {
     await disposeActive();
     return boot();
   });
-  const ready = routeTransition.catch((error) => {
+  const ready = routeTransition.then(async (result) => {
+    if (focusTestId) {
+      // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
+      // route remounts replace the overlay opener, so restore to the new
+      // semantic target only after the replacement tree has committed.
+      await new Promise<void>((resolveFocus) => requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focusTestId)}"]`)?.focus();
+        resolveFocus();
+      })));
+    }
+    return result;
+  }).catch((error) => {
     console.error('[partiful-matrix/contract] boot failed', error);
     status(`Boot failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     throw error;
@@ -409,7 +420,12 @@ function mountCurrentRoute() {
   return ready;
 }
 
-const onRouteChange = mountCurrentRoute;
+const onRouteChange = (event: Event) => {
+  const focusTestId = event instanceof CustomEvent && typeof event.detail?.focusTestId === 'string'
+    ? event.detail.focusTestId
+    : undefined;
+  mountCurrentRoute(focusTestId);
+};
 addEventListener('popstate', onRouteChange);
 addEventListener('partitime:navigate', onRouteChange);
 const ready = mountCurrentRoute();
