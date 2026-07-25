@@ -1,10 +1,8 @@
 import {
   createBoundaryContractDataProvider,
   createContractMockQueryBoundary,
-  createContractHydrationAdoptionCapture,
   createProviderQueryHandle,
   mount,
-  readContractHydrationManifestValue,
   readContractSizeClass,
   reset,
   type ContractDataProvider,
@@ -27,6 +25,7 @@ import {
   linksForProvider,
   type HydrationProviderEvidence,
 } from './production-hydration';
+import { readPartitimeHydrationManifest } from './hydration-manifest-reader';
 import { PERSONAS, type BackendMode } from '../../shared/model';
 
 declare const __MATRIX_BACKEND__: BackendMode;
@@ -50,6 +49,19 @@ const syncViewport = () => setThemeViewportWidth(innerWidth);
 const syncReducedMotion = () => setThemeReducedMotion(reducedMotionQuery.matches);
 addEventListener('resize', syncViewport);
 reducedMotionQuery.addEventListener('change', syncReducedMotion);
+
+// @ref LLP 0063#workstream-8--performance-and-packaging-budgets — adoption
+// needs the released-v1 identity sink, not the producer transcript. Keeping
+// this inert sink at the app boundary preserves the published Exact 0.1.5
+// consumer lane without retaining the producer-only capture implementation.
+const hydrationAdoptionCapture = Object.freeze({
+  recordHostState() {},
+  recordNode() {},
+  recordComponentState() {},
+  recordHandler() {},
+  noteDeferredMountTasks() {},
+  noteMountTasksReleasedBeforeAdoption() {},
+});
 
 function clearForcedQueryState(): void {
   forcedQueryState?.dispose();
@@ -133,7 +145,7 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   const script = document.getElementById('__partitime-hydration');
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
-    const manifest = readContractHydrationManifestValue(JSON.parse(script.textContent ?? 'null'));
+    const manifest = readPartitimeHydrationManifest(JSON.parse(script.textContent ?? 'null'));
     if (!manifest || manifest.routeId !== expectedRouteId) return null;
     // The parsed manifest owns the adoption turn from here. Leaving the
     // serialized copy in the live DOM retains the same node/path ledger twice.
@@ -252,7 +264,6 @@ async function boot() {
     ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
     : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
   if (hydrationManifest) {
-    const capture = createContractHydrationAdoptionCapture();
     let resolveHydrationReported!: () => void;
     const hydrationReported = new Promise<void>((resolve) => {
       resolveHydrationReported = resolve;
@@ -287,7 +298,11 @@ async function boot() {
     mounted = mount(component, {
       rootId: hydrationManifest.rootId,
       props,
-      hydration: { capabilities: hydrationManifest.capabilities, capture, deferMountTasks: true },
+      hydration: {
+        capabilities: hydrationManifest.capabilities,
+        capture: hydrationAdoptionCapture,
+        deferMountTasks: true,
+      },
     });
     // Seeded query delivery can settle after mount returns. Keep captured
     // capability inputs authoritative until the web host confirms that its

@@ -1,9 +1,15 @@
 import { exactContractWeb } from '@exact/devtools/contract-web';
+import * as exactContractRuntime from '@exact/contract/runtime';
 import { resolve } from 'node:path';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
 export default ({ mode, command }: { mode: string; command: 'serve' | 'build' }) => {
   const memoryEntry = process.env.PARTITIME_MEMORY_ENTRY === '1';
+  const hydrationReader = typeof (
+    exactContractRuntime as Record<string, unknown>
+  ).readContractHydrationManifestValue === 'function'
+    ? resolve(__dirname, 'hydration-manifest-reader-compact.ts')
+    : resolve(__dirname, 'hydration-manifest-reader.ts');
   const base = memoryEntry
     ? '/'
     : process.env.PARTITIME_BASE_PATH ?? (command === 'build' ? '/partitime/' : '/');
@@ -24,6 +30,16 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
       }),
       partitimeCostAttribution(),
     ],
+    resolve: {
+      // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+      // frozen 0.1.5 consumer uses its released validator; current Exact uses
+      // the ratified compact reader without making that unpublished API a
+      // requirement of the stable-package lane.
+      alias: [{
+        find: './hydration-manifest-reader',
+        replacement: hydrationReader,
+      }],
+    },
     define: {
       __MATRIX_BACKEND__: JSON.stringify(mode),
       __PARTITIME_BASE_PATH__: JSON.stringify(base),
