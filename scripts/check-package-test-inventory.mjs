@@ -81,6 +81,7 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'identifier-validation.test.mjs',
+      'maintained-projections.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
@@ -208,7 +209,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // (landed f779c35c, LLP 0080 slice 3) is registered here — the landing
 // commit added the file and its test script entry without updating this
 // canonical inventory.
-assert.equal(total, 82, 'reviewed package/admin test count changed');
+// 82 -> 83 (2026-07-25): @snapback/codegen's maintained-projections test
+// landed with its package script but was omitted from this reviewed list.
+assert.equal(total, 83, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

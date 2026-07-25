@@ -35,6 +35,10 @@ const PROTOCOL_HEADERS = {
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
+  // Match the Fetch Response surface consumed by sender-proof nonce
+  // validation. The production client added that response-header read on
+  // main, while this no-server sentinel retained its older partial mock.
+  headers: new Headers(),
   text: async () => JSON.stringify(body),
 });
 
