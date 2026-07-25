@@ -1,0 +1,45 @@
+# Build context filter for the single-instance-container-vm.v1 remote drill
+# image (demos/competitive-checkpoint/acceptance/drill/Dockerfile). Whitelist
+# style: exclude everything, then admit exactly what `cargo build --release
+# --bin snapback` and the drill image staging need.
+*
+
+# Rust crate inputs. build.rs embeds the checked guide corpus into every
+# binary, so guide/ is a build input.
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!build.rs
+!src/
+!guide/
+# The lib embeds harness/client/contract JS and brand assets via include_str.
+!packages/
+!brand/
+
+# Vendored ibex-runtime crate (path dependency). The heavy per-platform
+# runtime payloads are excluded; the Linux Hermes runtime arrives as the
+# checksum-pinned prebuilt bundle staged under the drill directory.
+!vendor/
+vendor/llp/
+vendor/ccheever-skills/
+vendor/ibex/ios/
+vendor/ibex/node_modules/
+vendor/ibex/target/
+vendor/ibex/dist/
+vendor/ibex/.git
+
+# Drill assets and the generated artifact pair shipped in-image.
+!demos/
+demos/*
+!demos/competitive-checkpoint/
+demos/competitive-checkpoint/*
+!demos/competitive-checkpoint/acceptance/
+demos/competitive-checkpoint/acceptance/*
+!demos/competitive-checkpoint/acceptance/drill/
+!demos/competitive-checkpoint/snapback/
+
+# Never ship credentials or scratch state.
+.agent-local-secrets.md
+**/.snapback/
+**/target/
+**/node_modules/

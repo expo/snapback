@@ -130,6 +130,25 @@ waits on exactly: the `single-instance-container-vm.v1` hosted receipt
 (provider pinned, credentials not yet provisioned) and LLP 0076 acceptance
 itself.
 
+Update 2026-07-25 (hosted receipt pass): the
+`single-instance-container-vm.v1` hosted receipt EXISTS. The Fly.io drill
+target pinned by amendment v0.6 was provisioned and drilled (protocol
+amendment v0.7 pins app `snapback-drill`, machine `819701c927ee68`, sjc,
+image, Tigris bucket, flyctl and instrument digests): remote instrument 7/7
+against the served origin, durable-row secret scan PASS over post-run
+on-machine dumps, Tigris backup byte-exact read-back PASS, and the
+hosted-auth refusal witness (`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` — a
+refusal, not a capability; the LLP 0077 gate stays open). Receipts under
+`demos/competitive-checkpoint/acceptance/results/`; every receipt records
+the `SNAPBACK_PROFILE=test` + `--allow-insecure-dev-auth` posture behind
+Fly's TLS edge. The drill exposed and the landing fixed: the serve path
+never installing `--allow-insecure-dev-auth` into request-path state
+(src/cli.rs + regression test), and the fixture streamReply surfacing the
+durable-cancel-vs-progress `SNAPBACK_MUTATION_CONFLICT` race as `failed`
+(reconciled under amendment v0.7; local twin re-witnessed 7/7). Gate 2 now
+waits on exactly: LLP 0076 acceptance itself (plus the authority's own
+staged-work ledger items).
+
 ## Workerd arm re-land (2026-07-24)
 
 The stranded Workerd/Cloudflare streaming arm is re-landed on main. Method:

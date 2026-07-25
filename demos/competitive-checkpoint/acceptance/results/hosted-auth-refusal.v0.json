@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.hosted-auth-refusal.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "single-instance-container-vm.v1",
+  "capturedAt": "2026-07-25T13:38:00Z",
+  "kind": "refusal-witness",
+  "claim": "NONE. This receipt is a refusal witness, not a capability claim: no adapter owns the LLP 0060 hosted-edge attestation, hostedAuthCapable is NOT claimed, and the LLP 0077 program index stays open on that gate.",
+  "provider": {
+    "name": "fly.io",
+    "app": "snapback-drill",
+    "machineId": "819701c927ee68",
+    "region": "sjc",
+    "image": "snapback-drill:deployment-01KYCPZGTFWWQW18V77TYA1HS9"
+  },
+  "hostedDeploymentRefusal": {
+    "command": "fly ssh console -a snapback-drill -C \"sh -c 'SNAPBACK_PROFILE=test /app/bin/snapback --host 0.0.0.0 --port 8081 --db /tmp/hosted-refusal.sqlite3 --allow-insecure-dev-auth --auth-deployment hosted; echo EXIT=$?'\"",
+    "stderr": "Error: SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED: the selected target cannot enforce the complete hosted authentication contract",
+    "exitCode": 1,
+    "note": "Witnessed on the drill machine itself with the deployed binary: CLI composition refuses pre-bind (LLP 0060 d5 — hosted readiness is conjunctive; the local target cannot turn operator flags or platform-edge topology into a hosted-edge attestation)."
+  },
+  "senderAuthMatrix": {
+    "ran": false,
+    "reason": "The LLP 0077 sender-constrained matrices (grant matrix, issuance outcome matrix, carrier/anti-oracle composition) exist only under sessions auth. Sessions cannot compose on this target: the machine bind is plaintext non-loopback behind the platform TLS edge, and desired-or-active sessions on a plaintext non-loopback listener refuse SNAPBACK_AUTH_TRANSPORT_INSECURE with no override (src/admin.rs validate_plaintext_auth_transport; --allow-insecure-dev-auth deliberately extends only to dev auth, LLP 0060 d1). Running the matrix under the drill's dev-auth posture would witness dev-auth behavior, not the LLP 0077 contract, so it cannot run honestly here.",
+    "reproducibleBy": "stage any sessions deployment (--startup-artifacts) against a non-loopback plaintext bind: composition fails closed with SNAPBACK_AUTH_TRANSPORT_INSECURE before the listener binds",
+    "whereTheMatrixIsWitnessed": "in-process Rust suites on the local target (e.g. tests/sender_proof_cross_language.rs and the src/server.rs sender-admission tests), which stage sessions over loopback"
+  },
+  "authPosture": {
+    "mode": "dev (client-asserted, drill fixture identities)",
+    "serverProfile": "test",
+    "nonLoopbackDevAuthOverride": true,
+    "note": "plaintext non-loopback bind behind the platform TLS edge; --allow-insecure-dev-auth is the recorded drill posture, refused by the prod profile"
+  }
+}

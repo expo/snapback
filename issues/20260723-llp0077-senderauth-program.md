@@ -37,6 +37,16 @@ drill against a served origin. No ticket permits a
 positive capability claim until the whole matrix plus the LLP 0072
 hosted-auth drill receipt passes against a served origin.
 
+Update 2026-07-25: the first served-origin drill (the LLP 0075 Fly.io
+`single-instance-container-vm.v1` target) produced the hosted-auth
+REFUSAL witness, not a pass —
+`demos/competitive-checkpoint/acceptance/results/hosted-auth-refusal.v0.json`
+records `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` (exit 1, on-machine) and
+why the sender-auth matrix cannot honestly run there (sessions refuse
+`SNAPBACK_AUTH_TRANSPORT_INSECURE` on a plaintext non-loopback bind, no
+override, by design; the drill runs dev auth). The capability gate stays
+open, exactly as this index requires: no `hostedAuthCapable` claim exists.
+
 Umbrella index for the work surfaced by the 9-round /llp-super-refine on LLP
 0077 (Fable READY at round 9; Codex NOT READY throughout — the spec is
 internally sound and honest, but its 13-item ledger records real code defects

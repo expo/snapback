@@ -1,0 +1,40 @@
+# Fly.io app config for the single-instance-container-vm.v1 remote drill.
+# Provider tuple pinned by LLP 0075 protocol amendment v0.6: fly.io, region
+# sjc, one small Machine, Tigris S3-compatible backup store.
+#
+# Deploy from the repository root:
+#   fly deploy . \
+#     --config demos/competitive-checkpoint/acceptance/drill/fly.toml \
+#     --dockerfile demos/competitive-checkpoint/acceptance/drill/Dockerfile \
+#     --remote-only --ha=false
+#
+# Machine sizing: shared-cpu-1x with 512 MB first (amendment v0.6 posture:
+# smallest that works; scale to 1 GB only if the runtime needs it).
+
+app = "snapback-drill"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Required, not decorative: the bind is non-loopback, and an unset
+  # SNAPBACK_PROFILE fails CLOSED to `prod` on a real interface
+  # (src/admin.rs resolve_profile), which refuses dev auth even with
+  # --allow-insecure-dev-auth. The drill's recorded posture is profile
+  # `test` + explicit insecure-dev-auth override behind Fly's TLS edge.
+  SNAPBACK_PROFILE = "test"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Auto-stop keeps the drill machine parked between passes; rootfs (and the
+  # durable rows under /data) survive stop/start, and the instrument's first
+  # request wakes it.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

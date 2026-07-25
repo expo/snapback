@@ -573,6 +573,27 @@ now covers the surface (`guide/backend/streamed-actions.md`, capability row
 anchor `guide/backend/actions-and-fetch#stream-a-response` resolves
 (ENG-25423).
 
+2026-07-25 (first hosted receipt): the decision-7 gate-2 receipt now exists on
+`single-instance-container-vm.v1` — the LLP 0075 amendment-v0.6/v0.7 Fly.io
+drill target (app `snapback-drill`, one machine, sjc, Tigris backup bucket).
+The remote instrument (the seven-check twin of the local one) passed 7/7
+against the served origin, the durable-row secret scan over post-run
+on-machine SQLite dumps passed with zero findings, the Tigris backup
+read-back witnessed byte-exact, and the hosted-auth leg produced its refusal
+witness (`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` on-machine; no hosted-auth
+capability is claimed). Receipts:
+`demos/competitive-checkpoint/acceptance/results/{remote-streaming,durable-row-scan,tigris-backup,hosted-auth-refusal}.v0.json`.
+Posture caveat in every receipt: `SNAPBACK_PROFILE=test` with
+`--allow-insecure-dev-auth` behind the platform TLS edge — a drill posture the
+prod profile refuses. The drill surfaced and fixed two defects in the same
+landing: the serve path never installed `--allow-insecure-dev-auth` into
+request-path state (`src/cli.rs`, regression-tested), and the fixture's
+streamReply handler surfaced the durable-cancel-vs-progress-commit
+`SNAPBACK_MUTATION_CONFLICT` race as `failed` instead of reconciling (fixed
+under protocol amendment v0.7; the durable row was never wrong — the action
+envelope was). The receipt gap closes; gate 2 overall still waits on this
+authority's acceptance and the staged items below.
+
 Not yet mechanically witnessed, staged before gate 2 can close: slow-consumer
 buffering under the 64 KiB bound (including the exact accounting domain —
 host-retained unread bytes versus bridge copies — which must be defined);
