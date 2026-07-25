@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "partitime.performance-v2-receipt.v1",
+  "kind": "cycle",
+  "protocol": {
+    "id": "partitime-method-rubric-v2",
+    "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4",
+    "schemaSha256": "ff33f7a8086b14701cb875ee276eacaddf09560f98ab4ee3763c12153d4b352c",
+    "receiptSchemaSha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708",
+    "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v2",
+    "thresholdFormulaSetId": "partitime-threshold-formulas-v2",
+    "collectorId": "partitime-chrome-cdp-memory-and-dom-v2"
+  },
+  "source": {
+    "snapbackRevision": "59b1afc62ede770e81a89dc76056a2708bae3847",
+    "exactRevision": "b80635f11403971d951157e7e8afcda307cfcb3c",
+    "snapbackDirty": false,
+    "exactDirty": false,
+    "packageLockSha256": "4b64ab1d1c2d5991196a91ba3a0cb68e71186395f91b81b80f0492f348cece86"
+  },
+  "environment": {
+    "osProduct": "macOS",
+    "osVersion": "26.5.2",
+    "osBuild": "25F84",
+    "cpu": "Apple M5 Max",
+    "memoryBytes": 137438953472,
+    "browserName": "Google Chrome",
+    "browserVersion": "150.0.7871.186",
+    "bunVersion": "1.3.12",
+    "acPower": true,
+    "lowPowerMode": false,
+    "externalNetworkRequests": 0
+  },
+  "valid": true,
+  "invalidReasons": [],
+  "dependencies": [
+    {
+      "kind": "protocol-constant",
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
+      "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4"
+    },
+    {
+      "kind": "protocol-constant",
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v2.schema.json",
+      "sha256": "ff33f7a8086b14701cb875ee276eacaddf09560f98ab4ee3763c12153d4b352c"
+    },
+    {
+      "kind": "protocol-constant",
+      "path": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
+      "sha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708"
+    },
+    {
+      "kind": "authority-amendment",
+      "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
+      "sha256": "4eb474fa30dd03778ff8f42a5463c3a25e5f9ed53319b8092aad841045900048"
+    },
+    {
+      "kind": "authority-amendment",
+      "path": "llp/0204-contract-web-ship-and-ssr.plan.md",
+      "sha256": "5533e223ae463cebb563381822b4cf1a324ba59579962ced5cd95e18fdbcc5e3"
+    },
+    {
+      "kind": "authority-amendment",
+      "path": "llp/0063-partitime-platform-roadmap.plan.md",
+      "sha256": "49f5ea83f3664fe768ce1953dc30d46c11bee8b5c6cf0142fedfa0a583839237"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
+      "sha256": "aca32de1a02e74ea7379afddaf0b6250b7fc77d964319547a013e1fe91317aa8"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/tests/acceptance/performance-v2-math.mjs",
+      "sha256": "ed3b7b7742754e87a7e36724c0847d1d67b48b7c7ae87312ccfe22451948fda8"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/surfaces/react/performance-v2.html",
+      "sha256": "834d4007830d0d7fc84954afce6820493d3597d9adc0036bd2fdfdad758cf973"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
+      "sha256": "f581ffd096c0da3b28cd0265b391ce089be950d636ce993961f1a66b6a0ac5a4"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/surfaces/contract/performance-v2.html",
+      "sha256": "9a0dc2bce9c034bfdd51e3323a860f11efa16c298fa9c3e68bb8bd95440c4ef8"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/surfaces/contract/performance-v2-main.ts",
+      "sha256": "6dfe317fa4c8e3ab006b6b10a2fe2e69ec01cb24b6d5315fa7ace24dc77ac75a"
+    },
+    {
+      "kind": "collector",
+      "path": "demos/partiful-matrix/surfaces/contract/performance-v2.contract",
+      "sha256": "1c67ec7a4a5a049a5fac8276efc69ba0134661b6d4fce7fa9219127675ab9ba5"
+    },
+    {
+      "kind": "fixture",
+      "path": "demos/partiful-matrix/surfaces/react",
+      "sha256": "8a8b30bb648ad12ed25c25aeb8558bfe7775694eac88a28044b19a2367371d43"
+    },
+    {
+      "kind": "fixture",
+      "path": "demos/partiful-matrix/surfaces/contract",
+      "sha256": "543f194e4811863b06948a2318513afa413c4ea7b06af6e574ba34e1d4ef1c3c"
+    },
+    {
+      "kind": "fixture",
+      "path": "demos/partiful-matrix/snapback",
+      "sha256": "394a2dd7360b53224d5d0f3469b956a3376ce134e3994d5f4f5e3b9cf6b704b5"
+    }
+  ],
+  "cycle": {
+    "phase": "P0c-comparator",
+    "arm": "react:snapback",
+    "attempt": 1,
+    "warmup": false,
+    "cycleIndex": 0,
+    "schedule": [
+      1,
+      16,
+      4,
+      32,
+      0,
+      8,
+      2
+    ],
+    "observations": [
+      {
+        "activeSubscriptions": 1,
+        "usedSizeBytes": 1338992
+      },
+      {
+        "activeSubscriptions": 16,
+        "usedSizeBytes": 1823424
+      },
+      {
+        "activeSubscriptions": 4,
+        "usedSizeBytes": 1803612
+      },
+      {
+        "activeSubscriptions": 32,
+        "usedSizeBytes": 2075788
+      },
+      {
+        "activeSubscriptions": 0,
+        "usedSizeBytes": 1828736
+      },
+      {
+        "activeSubscriptions": 8,
+        "usedSizeBytes": 1907536,
+        "deliveryCallbacks": 8,
+        "domPatchRecords": 16
+      },
+      {
+        "activeSubscriptions": 2,
+        "usedSizeBytes": 1880960
+      }
+    ],
+    "regression": {
+      "selectedCandidate": "unconstrained",
+      "interceptBytes": 1704177.3533834587,
+      "slopeBytesPerSubscription": 11584.230576441103,
+      "sse": 200508173091.28824
+    },
+    "metrics": {
+      "totalWarmJsHeapBytesP95": 1907536,
+      "fixedWarmJsHeapBytesP95": 1704178,
+      "memoryPerActiveSubscriptionBytesP95": 11585,
+      "updateFanoutCountP95": 8,
+      "domPatchCountP95": 16
+    }
+  }
+}
