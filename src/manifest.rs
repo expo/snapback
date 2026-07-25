@@ -2321,12 +2321,12 @@ pub enum FunctionKind {
     Action,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-// This schema-governed authoring enum is constructed directly throughout the
-// public Rust surface and generated-proof fixtures. Boxing only HostPlan would
-// add an allocation and break that API solely to shrink a manifest-time value;
-// runtime staging already chooses its own allocation strategy.
+// `HandlerPlan` outgrew clippy's variant-size threshold as the relational
+// profile (LLP 0080) widened query plans. The externally-tagged shape is the
+// ratified v0 artifact pin and every construction site spells the variant
+// directly, so boxing here would be churn without a wire or safety win.
 #[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),
     IbexModule(IbexModule),

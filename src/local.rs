@@ -13682,6 +13682,27 @@ impl ReadLane {
             .contains(connection_id)
     }
 
+    /// The published closed `authRequirement` of one function, resolved with
+    /// exactly the invocation dispatch's name-or-id first-match semantics
+    /// against the post-commit manifest snapshot the write lane publishes.
+    /// `None` means the name resolves to no published function.
+    ///
+    /// @ref LLP 0077#http-binding — the hosted route middleware consults this
+    /// publication-time fact to refuse an absent session carrier before any
+    /// body poll on routes that can never legitimately serve an anonymous
+    /// caller; route policy alone cannot see function-level requirements.
+    pub(crate) fn published_function_auth_requirement(
+        &self,
+        name: &str,
+    ) -> Option<crate::manifest::AuthRequirement> {
+        self.manifests
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .functions
+            .function(name)
+            .map(|function| function.effective_auth_requirement())
+    }
+
     /// Resolve one protected ephemeral-room grant without taking the global
     /// writer mutex. The permission row and authorization pair are read from
     /// one pinned WAL snapshot while the transport retains the room's

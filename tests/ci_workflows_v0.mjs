@@ -145,6 +145,16 @@ assert.match(
   /CARGO_BUILD_JOBS:\s*"1"/,
   'canonical CI must serialize Cargo links within the hosted-runner resource budget',
 );
+assert.match(
+  localProof,
+  /CARGO_PROFILE_DEV_DEBUG:\s*"0"/,
+  'canonical CI must omit dev-profile debug symbols from native links',
+);
+assert.match(
+  localProof,
+  /CARGO_PROFILE_TEST_DEBUG:\s*"0"/,
+  'canonical CI must omit test-profile debug symbols from native links',
+);
 const [localProofCheckout] = checkoutStepBlocks(localProof);
 assert(localProofCheckout, 'canonical CI must contain an active checkout step');
 assert.match(

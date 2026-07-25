@@ -55,6 +55,12 @@ fn exempt(path: &str) -> bool {
         || path.starts_with(".capabilityManifest.capabilityMaturity.")
         // App-declared scope field names are data, not payload keys.
         || path.contains(".scope.")
+        // LLP 0058 capability registry ids (`relational_query_v1`, …) are
+        // pinned snake_case identifiers; the maturity dimension keys its map
+        // by id, so those keys are data, not payload field names. The map
+        // was empty between LLP 0076's acceptance (bounded_response_stream_v1
+        // went stable) and the LLP 0080/0081 experimental ids landing.
+        || path.contains(".capabilityMaturity.")
 }
 
 fn walk(value: &Value, path: &str, offenders: &mut Vec<String>) {

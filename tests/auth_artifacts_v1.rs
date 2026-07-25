@@ -237,7 +237,16 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             capability.as_str().parse::<TargetCapabilityId>(),
             Ok(capability)
         );
-        if capability.maturity() != CapabilityMaturity::Stable {
+        if capability == TargetCapabilityId::BoundedResponseStreamV1 {
+            assert_eq!(
+                local
+                    .require_capability(capability.as_str())
+                    .expect_err("the static local target keeps process-live egress disabled")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_CAPABILITY_UNSUPPORTED"
+            );
+        } else if capability.maturity() != CapabilityMaturity::Stable {
             assert_eq!(
                 local
                     .require_capability(capability.as_str())

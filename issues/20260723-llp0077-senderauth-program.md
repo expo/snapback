@@ -103,9 +103,29 @@ change across the codegen/route-policy seam and deserves its own reviewed
 change; it is not a safe in-place reorder, and it was deliberately NOT attempted
 as a rushed edit inside the adapter lane.
 
-Until then the exposure is bounded: an unauthenticated caller can reach the JSON
-parser (bounded by the body limit) on function-authenticated routes, and is then
-refused. No credential, sender state, or application data is reachable.
+**D-1 FIXED 2026-07-25 (the route-policy hoist above, landed).** The hosted
+middleware now derives the invocation route's credential requirement from the
+published function manifest before the absent-carrier bailout: on
+`/query/{name}`, `/query/{name}/authorized-lease`, `/mutation/{name}`, and
+`/action/{name}`, an absent Authorization refuses `SNAPBACK_AUTH_REQUIRED`
+before any body poll unless the named function is statically declared `public`
+or `optional-user` in the post-commit manifest snapshot the write lane
+publishes (`ReadLane::published_function_auth_requirement`, consumed by
+`admit_hosted_sender_request`). Two deliberate narrowings, both survey-backed:
+the signal is the closed `authRequirement` — NOT `authUserId` use, which
+optional-user functions (todo, graffiti, partiful-matrix) read legitimately and
+which would have broken their anonymous access; and the ambiguous case fails
+closed — an unknown function name, which no caller can ever invoke
+successfully, refuses identically to an `authenticated` one, so the pre-body
+refusal is not a function-existence oracle. Path canonicalization already
+rejects `%`-encoding/backslash/doubled-slash/dot segments ahead of the
+decision, closing the encoded-name bypass. The `/connection/open` special
+cases and the anonymous-route bailout are untouched:
+`hosted_anonymous_connection_open_consumes_shared_source_admission` still
+passes, and the new witness set (`hosted_absent_carrier_*`,
+`hosted_malformed_carrier_on_authenticated_function_challenges_before_body_poll`)
+proves the panic-on-poll poisoned body is never polled on refusals while
+`public`/`optional-user` functions keep admitting anonymous callers.
 
 **Original report (2026-07-25, D-1): sender admission is skipped for an
 absent carrier, so an unauthenticated caller reaches the JSON parser.** On a
@@ -133,25 +153,32 @@ The single red is defect D-1 above, left deliberately failing. Receipt:
 The run was against a local hosted origin; the served-origin rerun is blocked
 by the Let's Encrypt duplicate-certificate limit (no-volume cert loss on
 redeploy, LLP 0098 §8.1/§8.3) and cannot change the verdict, because D-1 is a
-real defect. `hostedAuthCapable` is NOT claimed.
+real defect. `hostedAuthCapable` is NOT claimed. *(Superseded later the same
+day: with D-1 fixed, the identical composition reruns at **42/42** — receipt
+`hosted-sender-matrix.v0.rerun-20260725.json`; the gate now waits only on the
+served-origin rerun.)*
 
-### Exact remaining distance to `hostedAuthCapable` (2026-07-25)
+### Exact remaining distance to `hostedAuthCapable` (2026-07-25, updated after the D-1 fix)
 
 Recorded so the remaining gap is legible rather than implied. The claim now
-waits on exactly two things:
+waits on exactly one thing:
 
-1. **Defect count zero.** Currently one: D-1 above (42-check matrix scores
-   41/42). Its fix is the route-policy hoist described above, not a reorder.
-2. **A served-origin rerun.** The 41/42 run was against a local hosted origin
-   composed identically to the deployed one. The served rerun is blocked by the
-   Let's Encrypt duplicate-certificate limit after the no-volume cert loss
-   (LLP 0098 §8.1/§8.3); still blocked as of this update.
+1. ~~**Defect count zero.**~~ **Reached 2026-07-25.** D-1 was the last open
+   code defect; its route-policy hoist landed with the witness set above, and
+   the full 42-check matrix rerun against the local hosted origin scores
+   **42/42** (receipt:
+   `demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.rerun-20260725.json`).
+2. **A served-origin rerun.** The 42/42 run was against a local hosted origin
+   composed identically to the deployed one. The served rerun remains blocked
+   by the Let's Encrypt duplicate-certificate limit after the no-volume cert
+   loss (LLP 0098 §8.1/§8.3); the cert-volume question is an open operator
+   decision, and this session deliberately did not touch the Fly deployment.
 
 Everything else the gate named is in place: the adapter attests and verifies,
 sessions runs under hosted admission, renewal composes with withdrawal, the
 operator surface is enforced, and effective source is enforced. **No one should
-claim `hostedAuthCapable` until both rows above are green**, and this program
-index does not claim it.
+claim `hostedAuthCapable` until the served-origin rerun is green**, and this
+program index does not claim it.
 
 This does **not** close the capability gate. `hostedAuthCapable` still
 requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass

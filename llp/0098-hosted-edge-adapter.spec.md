@@ -688,6 +688,23 @@ limit, so it is an ordering/attack-surface defect rather than an unbounded one,
 and it is recorded as an open LLP 0077 ledger defect rather than fixed in this
 lane — the admission ordering is delicate enough to deserve its own change.
 
+**D-1 fixed 2026-07-25 (its own change, as required above).** Not a reorder:
+the function-level closed `authRequirement` is hoisted into the route-policy
+decision. The hosted middleware consults the post-commit published function
+manifest (`ReadLane::published_function_auth_requirement`) before the
+absent-carrier bailout, so on the generated invocation routes an absent
+Authorization refuses `SNAPBACK_AUTH_REQUIRED` before any body poll unless the
+named function is statically `public` or `optional-user`; an unknown name
+fails closed, indistinguishable from `authenticated` (no function-existence
+oracle), and path canonicalization's `%`/backslash/doubled-slash/dot rejection
+already precedes the decision, closing the encoded-name bypass. Anonymous
+admission on genuinely anonymous-capable routes is unchanged — witnessed by
+`hosted_absent_carrier_on_anonymous_capable_functions_still_admits` and the
+untouched `/connection/open` throttle test — and the panic-on-poll witnesses
+prove refused requests never poll the body. The matrix's
+`refusal/absent-authorization-refuses-before-body-ingestion` check now passes;
+see LLP 0077 §HTTP binding for the normative statement of the hoist.
+
 ### 8.3 Served-origin rerun blocked by the recorded platform limit
 
 The matrix run in §8.2 was against a *local* hosted origin composed identically
