@@ -294,6 +294,26 @@ if (exactCheckout) {
         'Exact valid P0a mirror bytes differ from the Snapback authority',
       );
     }
+    const authorityDispositionPath = resolve(
+      acceptanceRoot,
+      'results/performance-v2-instrument-disposition.json',
+    );
+    if (existsSync(authorityDispositionPath)) {
+      const authorityDispositionBytes = readFileSync(authorityDispositionPath);
+      assert.equal(
+        mirrorSource.instrumentDispositionSha256,
+        sha256(authorityDispositionBytes),
+        'Exact mirror omitted or drifted the red instrument disposition',
+      );
+      assert.equal(
+        sha256(readFileSync(resolve(
+          mirrorRoot,
+          'performance-v2-instrument-disposition.json',
+        ))),
+        mirrorSource.instrumentDispositionSha256,
+        'Exact red instrument disposition bytes differ from Snapback authority',
+      );
+    }
     exactMirrorVerified = true;
   }
 }
