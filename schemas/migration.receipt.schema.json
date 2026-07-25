@@ -1,0 +1,330 @@
+{
+  "$defs": {
+    "CleanupTerminal": {
+      "enum": [
+        "released",
+        "rolled-back"
+      ],
+      "type": "string"
+    },
+    "MigrationAudienceV1": {
+      "additionalProperties": false,
+      "description": "The complete LLP 0072 target audience. Deployment-class-defined fields\nare optional at the type level; profile validation decides which are\nrequired. The local profile binds the resolved local target identity —\ndatabase, stream incarnation, activation generation, and profile.",
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "environmentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "databaseId",
+        "streamIncarnation",
+        "activationGeneration",
+        "targetProfileId"
+      ],
+      "type": "object"
+    },
+    "MigrationExecState": {
+      "description": "§4's closed durable state set, spelled exactly as the RFC names them.",
+      "oneOf": [
+        {
+          "properties": {
+            "state": {
+              "const": "admitted",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "barriered",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "batch": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "state": {
+              "const": "executing",
+              "type": "string"
+            },
+            "step": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "step",
+            "batch"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "verifying",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "published-held",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "released",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "rolling-back",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "rolled-back",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "cancel_requested",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "aborting",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "cancelled",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "abandoned",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "cleanup-pending",
+              "type": "string"
+            },
+            "terminal": {
+              "$ref": "#/$defs/CleanupTerminal"
+            }
+          },
+          "required": [
+            "state",
+            "terminal"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The wave-2 receipt: a digest-sealed projection of the durable journal.\nVerification/rollback postures gain their full §5/§6 faces in Wave 3;\nnothing here is assembled from process memory.",
+  "properties": {
+    "admissionDigest": {
+      "type": "string"
+    },
+    "approvalDigest": {
+      "type": "string"
+    },
+    "audience": {
+      "$ref": "#/$defs/MigrationAudienceV1"
+    },
+    "barrierDurationMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "errorCode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generatorIsApprover": {
+      "type": "boolean"
+    },
+    "inputVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "journalDigest": {
+      "description": "SHA-256 (bare hex) over the JCS bytes of the journal-entry array —\nthe receipt is the journal's projection, sealed.",
+      "type": "string"
+    },
+    "journalEntries": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "publicationVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "state": {
+      "$ref": "#/$defs/MigrationExecState"
+    },
+    "stepResults": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "operationId",
+    "planId",
+    "planDigest",
+    "approvalDigest",
+    "admissionDigest",
+    "audience",
+    "generatorIsApprover",
+    "state",
+    "inputVersion",
+    "journalEntries",
+    "journalDigest",
+    "barrierDurationMs"
+  ],
+  "title": "MigrationReceiptV1",
+  "type": "object"
+}

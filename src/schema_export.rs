@@ -124,6 +124,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "migration.admission.schema.json",
             schemars::schema_for!(MigrationAdmissionV1),
         ),
+        finish(
+            "migration.receipt.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationReceiptV1),
+        ),
+        finish(
+            "migration.journal-entry.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationJournalEntryV1),
+        ),
         // The migration scan's journal-persisted batch checkpoint
         // (LLP 0081 §3/§5) — the Wave-2 executor's durable contract.
         finish(
@@ -488,6 +496,13 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         // LLP 0081 §2/§3 golden vectors: plan digest/id, canonical step
         // IDs, observation/approval/admission digests, and the synthesized
         // UUIDv7 conformance vectors — generated through the
+        // The closed migration state machine and transition relation
+        // (LLP 0081 §4), generated through the executor module so the
+        // committed enumeration cannot drift from the append-time refusal.
+        SchemaArtifact {
+            file: "migration.journal-machine.v1.json",
+            schema: sorted_keys(crate::storage::migration_executor::migration_journal_artifact()),
+        },
         // implementation, byte-pinned in migration::tests.
         SchemaArtifact {
             file: "migration.vectors-v1.json",

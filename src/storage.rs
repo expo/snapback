@@ -34,6 +34,7 @@ use uuid::Uuid;
 #[allow(dead_code)]
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
+pub(crate) mod migration_executor;
 
 // @ref LLP 0055#principal-kinds — agent-principal ownership and durable
 //   deactivation live in their own module beneath the auth catalog. Grant/token
@@ -2574,6 +2575,11 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   persisted migration fence closes the mutation lane durably: it
+        //   is re-read inside every commit transaction, so a crash between
+        //   reopen and resume cannot readmit application writes.
+        migration_executor::ensure_migration_fence_open(&tx)?;
         let current_version = current_version_on(&tx)?;
         #[cfg(test)]
         notify_commit_version_sampled(&tx);
@@ -3370,6 +3376,7 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        migration_executor::ensure_migration_fence_open(&tx)?;
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;
 
@@ -5908,6 +5915,9 @@ fn query_on_with_storage_limit_visibility_keyset(
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
+        // The query lane consults the persisted migration fence in its own
+        // snapshot (LLP 0081 §4's lane registry, enforced per admission).
+        migration_executor::ensure_migration_fence_open(conn)?;
         let snapshot_version = current_version_on(conn)?;
         let table = schema_table(schema, &plan.table)?;
         validate_query_plan_shape(plan)?;
