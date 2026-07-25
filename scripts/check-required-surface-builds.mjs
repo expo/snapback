@@ -486,6 +486,30 @@ async function main() {
   }
   if (LIST_ONLY) return;
 
+  // The required surfaces import the Snapback data tier from WORKSPACE source
+  // (`packages/snapback-*`), not the registry — only the Exact side is
+  // registry-pinned. Those workspace packages resolve their own `workspace:*`
+  // dependencies (e.g. `@snapback/client` -> `@snapback/contract`) through the
+  // root install's node_modules linking, so a fresh checkout must link the
+  // workspace once before any surface build. Without it, the bare
+  // `@snapback/contract/*` specifiers inside `packages/snapback-client` fail to
+  // resolve and every surface build breaks (this is a workspace link, not an
+  // Exact-registry dependency, so it does not weaken the registry isolation the
+  // per-surface frozen install attests below).
+  log('$ bun install --frozen-lockfile (root workspace link)');
+  const workspaceInstall = await runBoundedProcess(
+    'bun',
+    ['install', '--frozen-lockfile'],
+    { cwd: ROOT, timeoutMs: INSTALL_TIMEOUT_MS },
+  );
+  if (!workspaceInstall.ok) {
+    const diagnostics = workspaceInstall.output?.trim();
+    fail(
+      `root workspace install failed: ${workspaceInstall.reason}` +
+        (diagnostics ? `\noutput tail:\n${diagnostics}` : ''),
+    );
+  }
+
   let built = 0;
   for (const surface of surfaces) {
     const id = `${surface.demoId}/${surface.surfaceName}`;
