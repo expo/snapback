@@ -5,8 +5,8 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-17 (clarified that kit connection labels and granted wire ids coincide only when an initial suggestion is adopted; collision or mint-only containment makes them diverge, and connection-owned entry keys use the granted id). 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25102: extended the public system-static lane beyond console assets to the build-embedded `/_snapback/guide` projections; the three read-only routes carry `PublicProjection`, no instance authority, and the same registry enforcement). 2026-07-14 (auth-program route reconciliation: extend the normative matrix through the bootstrap handshake, provider/session endpoints, authorized-lease query, and explicit invalidation ACK/manual-retry routes now installed by items 3–8). 2026-07-13 (ENG-24596 final audit: registered the console-credential and secret-read-mint routes, the `SecretReadMintProof` effect, and rescue's dev/test-only profile); 2026-07-13 (ENG-24596: registered provider challenge/family-alarm credential cases, the public no-store response class, and the installed provider/mailbox/auth host-operation rows); 2026-07-13 (ENG-24594: made the route registry the enforceable router source; added independent path, credential-resolution, invocation-authority, legacy-body, effect, response-sensitivity, and session-overlay axes; re-scoped `AppAuth` to dev-mode client assertion; and pinned the complete existing-route × auth-mode matrix and metadata-driven acceptance sweep); 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
-**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061
+**Revised:** 2026-07-24 (LLP 0090 cluster-0F amendment: added the dated LLP 0090 resumable-snapshot-lanes section — a commissioned `DeclaredPublicApplicationData` response-sensitivity class for the Channel A inlined-HTML lane and read-mode public bundles, with server-side re-check of the codegen-compiled `publicInline` facts, body-logging exclusion with identity/refusal-code loggability, v1 `no-store`, and the bounded anonymous rate/budget posture; plus the bounded pending-registration owner that makes register mode buildable — atomic grant mint, atomic handoff on socket attach, attach-grace reaping, idempotency replay-validity scoped by LLP 0077's exact wire identities (RFC 7638 JWK thumbprint + issuance `sender_replay_epoch`), register mode refused to read mode for anonymous callers, and an acceptance obligation that socketless-HTTP-cannot-arm-demand still holds outside that one closed operation; enters the enforced registry with 0090 clusters 0D/0E). 2026-07-17 (clarified that kit connection labels and granted wire ids coincide only when an initial suggestion is adopted; collision or mint-only containment makes them diverge, and connection-owned entry keys use the granted id). 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25102: extended the public system-static lane beyond console assets to the build-embedded `/_snapback/guide` projections; the three read-only routes carry `PublicProjection`, no instance authority, and the same registry enforcement). 2026-07-14 (auth-program route reconciliation: extend the normative matrix through the bootstrap handshake, provider/session endpoints, authorized-lease query, and explicit invalidation ACK/manual-retry routes now installed by items 3–8). 2026-07-13 (ENG-24596 final audit: registered the console-credential and secret-read-mint routes, the `SecretReadMintProof` effect, and rescue's dev/test-only profile); 2026-07-13 (ENG-24596: registered provider challenge/family-alarm credential cases, the public no-store response class, and the installed provider/mailbox/auth host-operation rows); 2026-07-13 (ENG-24594: made the route registry the enforceable router source; added independent path, credential-resolution, invocation-authority, legacy-body, effect, response-sensitivity, and session-overlay axes; re-scoped `AppAuth` to dev-mode client assertion; and pinned the complete existing-route × auth-mode matrix and metadata-driven acceptance sweep); 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
+**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0077, LLP 0090
 
 ENG-24594's implementation hardening makes the sessions overlay executable
 through the real router and socket dispatcher in embedded acceptance state,
@@ -888,6 +888,126 @@ aliases, provisioning, recovery, and lifecycle routes retain their existing
 admin/session/process authorities and reject scoped tokens before body
 dispatch. `AgentDestroyCapability` is a distinct non-browser class; the console
 credential never substitutes for it.
+
+## Dated amendment: LLP 0090 resumable-snapshot lanes (2026-07-24)
+
+[LLP 0090](./0090-resumable-query-snapshots.rfc.md) (Accepted; this is its
+rollout-cluster-0F amendment) commissions two additions to this taxonomy.
+Both are normative contract as written here; they enter the enforced registry
+when 0090's clusters 0D/0E land, and neither is active in the shipped router
+today.
+
+### `DeclaredPublicApplicationData` response sensitivity
+
+The `ResponseSensitivity` axis gains a class for **declared-public
+application data**: arbitrary application query rows whose emission on a
+tokenless or anonymous response is authorized by the query's own
+codegen-compiled served-manifest facts — a `public` auth requirement,
+`authorityIndependent`, the closed-inputs proof, and the fail-closed
+`publicInline` disclosure declaration — **re-checked server-side at
+admission**, never taken from the route/manifest author's declaration alone
+(LLP 0090 §Authorization scope). No existing class fits: `StaticPublic` and
+`PublicProjection` cover build-owned bytes and fixed typed shapes,
+`PublicNoStore` covers fixed typed provider responses, and `ApplicationData`
+is caller-scoped — whereas these are unbounded app-derived rows deliberately
+served without a caller. The class governs exactly two lanes:
+
+- the **Channel A HTML lane** — the served `index.html` carrying an embedded
+  public-inline bundle (0090 D2); and
+- **read-mode public bundles** — `POST /app/bundle` in read mode for
+  `publicInline`-class manifest entries (0090 D1.2/D4), including the v1
+  socket-less Channel C surface.
+
+**Logging rules.** Although callers may read the rows, the operator-plane
+posture stays that of application data: response bodies (rows, embedded
+bundles) are excluded from body capture, access-log payloads, diagnostics,
+and receipts. Route, method, status, manifest-entry/query identities,
+`generation`, response sizes, timing, and coded refusal reasons
+(`SNAPBACK_BUNDLE_*`, `SNAPBACK_RESUME_*`) are loggable — the declaration
+widens disclosure to callers, not log retention. Embedded resume tokens are
+authority-neutral and never widen invocation authority (0090 D1.1), but they
+are still excluded from logs like the rows they accompany. Cache posture in
+v1 is `Cache-Control: no-store` on both lanes (0090 pins uncached shipping;
+its Q6 owns any future caching, which would revisit this class's cache
+axis, not its logging rules).
+
+**Anonymous-caller rate/budget posture.** Both lanes run anonymous
+evaluation under bounded budgets, because a tokenless request now costs a
+query evaluation rather than static bytes: Channel A pageload evaluation
+runs under 0090 D2's bounded anonymous evaluation budget and degrades to the
+unhydrated shell on over-budget, timeout, or failure — never a failed
+pageload and never partial data; read-mode bundle requests carry the 0090
+D1.2 hard limits (query count, rows, bytes, evaluation time) plus the
+per-authority resume/request rate of cluster 0D, refusing with coded errors.
+Anonymous callers get no weaker limit class than credentialed ones.
+
+### Bounded pending-registration owner (register mode)
+
+Active 0031 requires a current authenticated socket session before HTTP can
+arm subscription demand — "socketless HTTP cannot arm demand" (§Connection
+capability grants). 0090's bundle **register mode** (D1.2) needs to create
+live registrations in the same response that returns the snapshots, before
+any socket exists. This amendment defines the one sanctioned exception as a
+**closed operation** owning bounded pending state:
+
+- **Pending-registration owner.** A successful register-mode bundle creates
+  a **pending-registration owner** — a bounded server-side owner of the
+  registration set that is *distinct from a socket session*: it holds
+  subscription demand without a socket, cannot receive fan-out, and exists
+  only inside its attach-grace window. It is the only construct through
+  which socketless HTTP may arm demand.
+- **Atomic grant mint.** The register-mode response atomically mints the
+  connection identity and connection grant under the existing
+  §Connection-capability custody rules (server-minted secret, prod ids
+  never caller-chosen) together with the registration set and the
+  single-commit snapshot cut — one transaction; a failed bundle mints
+  nothing and strands no server state.
+- **Atomic handoff on attach.** The client's subsequent socket attach
+  presents that grant and takes **atomic handoff** of the pending
+  registrations: the pending owner's registrations become the socket
+  session's rows in one step, with no window in which both or neither own
+  them. Attach/close races, overlapping sockets (the hosted two-socket
+  handoff overlap), and partial attach resolve under the existing
+  one-current-socket-session rule; a socket that dies before attach leaves
+  the pending owner intact until its deadline.
+- **Attach grace and reaping.** Pending registrations live only until the
+  response's `attachDeadline`; if no attach arrives they are reaped —
+  demand disarmed, capacity released — on both arms (Cloudflare persistence
+  and reaping of pending owners is part of the cluster-0D contract, with
+  the same bounded-registry posture as hosted grants).
+- **Idempotency and retry.** The request carries an idempotency key minted
+  by the client **per boot attempt**. A key's *replay validity* is scoped by
+  the tuple (authority, sender-key identity, credential incarnation,
+  `generation`, manifest entry, canonical args); a retry after a lost
+  response returns the same registration set (or atomically supersedes it),
+  never a duplicate, while a different sender key presenting a known key is
+  refused. **The identity vocabulary is LLP 0077's exact wire identities,
+  not a parallel one:** "sender-key identity" is the session family's RFC
+  7638 JWK **thumbprint**, and "credential incarnation" is the issuance
+  **`sender_replay_epoch`** — the same (thumbprint, epoch) pair
+  `BoundGrantAuthorityV2` binds with exact-tuple equality. Retry semantics
+  ride 0077's sender-constrained model: the first execution and every retry
+  each consume a proof nonce, and a retry after a lost response returns the
+  registration set under a **freshly rotated connection-grant secret**
+  bound to the same connection identity (re-returning a possibly-exposed
+  secret verbatim is refused), with lost-response fixtures covering
+  credential rotation and authority transition mid-retry. Two concurrent
+  same-user boots hold distinct keys and produce distinct registration
+  sets.
+- **Credentialed callers only.** Register mode is scoped to credentialed
+  callers in v1 — the replay-validity tuple has no defined thumbprint or
+  replay epoch for an anonymous caller under 0077's custody model — and an
+  anonymous register-mode request is refused to read mode.
+
+**Acceptance obligation.** The register-mode acceptance suite MUST prove
+that the "socketless HTTP cannot arm demand" invariant still holds
+**outside this one closed operation**: no other HTTP route or operation can
+create or extend pending demand, a reaped pending owner leaves no armed
+demand, and the existing socket-session binding rules for subscribe,
+unsubscribe, frames, fan-out, and demand counting are unchanged everywhere
+else (0090 rollout step 2 carries the fixtures: lost-response retry,
+sender-key mismatch refusal, attach-deadline reaping, anonymous refusal to
+read mode, and no stranded server state on partial client installation).
 
 ## Status
 
