@@ -3843,13 +3843,21 @@ export class SnapbackClient {
   // envelopes of this drain, plus the structured diagnostics of any envelopes
   // that failed to decode.
   //
-  // GET /outbox/:id is a DESTRUCTIVE drain — the server has already dequeued
-  // this whole batch — so nothing per-envelope may abort the loop (ENG-23391):
-  // each consumer invocation is isolated (a throwing app callback must never
-  // discard the envelopes behind it, including a resync_required sentinel —
-  // the ENG-22478 fix-G principle applied to delivery), and a payload that
+  // GET /outbox/:id is a LEASED-BATCH drain with an ownership-transfer cut
+  // (LLP 0059): the server selects without removing, removes the batch only
+  // once ownership transfer is accepted, and a drain cancelled before the
+  // cut releases the batch for redelivery — so this client stays
+  // duplicate-tolerant across cancelled drains. Once this response body has
+  // arrived, the cut has happened and the batch will never be re-drained, so
+  // nothing per-envelope may abort the loop (ENG-23391): each consumer
+  // invocation is isolated (a throwing app callback must never discard the
+  // envelopes behind it, including a resync_required sentinel — the
+  // ENG-22478 fix-G principle applied to delivery), and a payload that
   // fails to decode is surfaced as a SNAPBACK_ENVELOPE_DECODE_FAILED
   // diagnostic in `decodeFailures` instead of an aborted batch.
+  //
+  // @ref LLP 0059#durable-and-ephemeral-outboxes — leased selection,
+  //   acknowledged removal at the ownership cut, redelivery on cancellation.
   async drainConnection(connectionId) {
     const envelopes = await this.drainEnvelopes(connectionId);
     const consumers = this.__laneConsumers.get(connectionId);
@@ -3880,9 +3888,9 @@ export class SnapbackClient {
         for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, env);
       });
       if (!committed.committed && this.authorityFence) {
-        // The destructive server drain has already completed, but stale
-        // predecessor data must not become visible. The authority barrier
-        // owns resubscription/recovery for the successor.
+        // The drain's ownership cut has already completed server-side, but
+        // stale predecessor data must not become visible. The authority
+        // barrier owns resubscription/recovery for the successor.
         continue;
       }
     }
@@ -4288,7 +4296,11 @@ export class SnapbackClient {
 
     // -----------------------------------------------------------------
     // Channel B persisted resume state (LLP 0090 D3, LLP 0091 §0A.5/§0B.3,
-    // rollout step 5 — web/IndexedDB arm; native/DK-9 is a later pass).
+    // rollout step 5). Store-agnostic: the web/IndexedDB arm injects
+    // rqs-store.mjs, the native/DK-9 arm rqs-store-file.mjs; cadence and
+    // budget are the same on both (LLP 0091 step-5 native amendment), with
+    // the pagehide/visibility flush below mapped on native to the host
+    // lifecycle calling handle.flushResumeState() on background/inactive.
     // -----------------------------------------------------------------
     const resumeStore = persistResume ? client.rqsStore : null;
     const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;
@@ -6306,22 +6318,7 @@ class LiveStreamManager {
         }
         return;
       }
-      if (frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
-        this.#closeForAuthError(ws, frame);
-        return;
-      }
-      try {
-        const committed = await this.client.commitAuthorityPublication(
-          this.authorityCapture,
-          () => {
-            markAuthorityCapture(frame, this.authorityCapture);
-            this.#dispatch(frame);
-          },
-        );
-        if (!committed.committed) this.#loseSocket(ws, staleAuthorityError());
-      } catch (error) {
-        this.#loseSocket(ws, error);
-      }
+      await this.#receiveFrame(ws, frame);
     });
     const onLoss = (event) => {
       clearTimeout(connectTimer);
@@ -6342,6 +6339,30 @@ class LiveStreamManager {
       // idempotent, so the usual later close event is harmless.
       this.#loseSocket(ws, new Error(`Snapback live stream errored: ${url}`));
     });
+  }
+
+  // The shared post-parse receive path: every decoded server frame (except
+  // the transport-internal sender_nonce, which needs the connect closure's
+  // flight state) enters #dispatch through here, inside the authority-fence
+  // commit gate. Shared by the live 'message' listener and debugInjectFrame,
+  // so the test seam exercises the REAL wiring rather than a replica of it.
+  async #receiveFrame(ws, frame) {
+    if (frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
+      this.#closeForAuthError(ws, frame);
+      return;
+    }
+    try {
+      const committed = await this.client.commitAuthorityPublication(
+        this.authorityCapture,
+        () => {
+          markAuthorityCapture(frame, this.authorityCapture);
+          this.#dispatch(frame);
+        },
+      );
+      if (!committed.committed) this.#loseSocket(ws, staleAuthorityError());
+    } catch (error) {
+      this.#loseSocket(ws, error);
+    }
   }
 
   // Idempotent loss transition shared by close events and synchronous send
@@ -6569,6 +6590,22 @@ class LiveStreamManager {
   #failPendingRequests(error) {
     for (const [, pending] of this.pendingRequests) pending.reject(error);
     this.pendingRequests.clear();
+  }
+
+  /// Test hook (issues/closed/20260725-durable-bytes-dispatch-test-seam.md,
+  /// mirroring debugCloseSocket): inject a decoded server frame through the
+  /// REAL receive path — #receiveFrame's authority-fence commit into
+  /// #dispatch — as if the current socket had delivered it. Exists so the
+  /// dispatch WIRING (not just the helpers below it) is regression-testable:
+  /// the original durable_bytes silent-staleness defect was precisely a
+  /// wiring gap that helper-level tests could not catch.
+  debugInjectFrame(frame) {
+    const ws = this.ws;
+    if (!ws || !this.open) {
+      return Promise.reject(new Error('Snapback live stream is not open'));
+    }
+    this.lastActivityMs = Date.now();
+    return this.#receiveFrame(ws, frame);
   }
 
   /// Test hook (conformance check 3): force-close the underlying socket

@@ -2174,3 +2174,63 @@ friction by requiring the effect to be declared in contract metadata; that
 made the native omission visible and testable instead of letting a web global
 quietly no-op. Snapback is neutral for this change—the demo diary and build
 gates live here, but URL opening remains an Exact host concern.
+
+## 2026-07-25 — seed-true resetFeed (the reset every external arm tripped on)
+
+The All Aboard external review (Kimi, 2026-07-24) reported that every single
+arm tripped on reset semantics: `resetFeed` stamped
+`feedRefreshState.lastSource: 'reset'` while the seed carries
+`lastSource: 'seed'`, so no app-reachable call could return the board to the
+honest seed-labeled boot state — the only seed-true path was the admin-token
+app reset, and the SB-SWIFTUI arm built an entire second-port `/reseed`
+control seam to work around it. This entry closes that finding
+(issues/20260724-all-aboard-seed-true-reset.md): `resetFeed` is now seed-true.
+
+The design read was the easy part. Grepping every consumer showed nobody
+depends on the `'reset'` label — the suites call `resetFeed` for exactly three
+effects (tick 0, all on-time, clear the ENG-23642 upstream-poll budget), and
+the badge helper treats `'reset'` and `'seed'` identically as DEMO DATA. So a
+second `reseedFeed` mutation would have preserved semantics nobody consumes at
+the cost of every future arm having to learn which reset is the honest one.
+`resetFeed` itself became seed-true.
+
+The interesting constraint was the seed-source mechanism. The obvious move —
+have `seed.gen.mjs` also emit a generated module constant the handler imports,
+one source of truth — is structurally impossible: Snapback handler files are
+closed single-file scripts, and codegen's `scanUnsupportedHandlerSource`
+rejects import/export by design. Passing the fixture as a mutation argument
+felt wrong too (any client could then "reseed" arbitrary rows). What worked is
+restore-by-construction: the mutation rewrites every handler-mutable field to
+its seed literal (`lastSource: 'seed'`, `tickIndex: 0`, `fetchedAt: 0`,
+`observedAt: 0`, empty `liveDepartures`, `lastUpstreamPollAt: null`), and the
+fields it does not touch (`staleAfterMs`, `tickCount`, the static schedule)
+are exactly the fields no mutation in the file ever writes — so they still
+hold seed values by construction. The headless suite now asserts the
+post-reset feed tables byte-equivalent to `seed.json`, which is what keeps
+that invariant from drifting: add a mutation that touches a seed-only field
+and forget the reset, and the byte comparison fails.
+
+Two runtime details were pleasantly honest. First, `null` on an optional field
+round-trips the way a reseed needs: patching `lastUpstreamPollAt: null` stores
+SQL NULL, and `claimFeedPoll`'s `Number(state.lastUpstreamPollAt) > 0` guard
+reads that as "no claim on record" — identical to the fresh-seed row. Second,
+the byte-equivalence check had to name its exclusions rather than fuzzily
+"mostly match": `_version`/`_updatedAt` are Snapback-managed system columns
+stamped on every commit, and a null column is storage's representation of an
+optional field the fixture omits. Everything else is compared byte-for-byte
+after canonical key ordering.
+
+The warm-poll trap from this diary's first entry did its job as documentation:
+the byte-equivalence assertion sits before the suite's single subscription is
+created, so the 180s cron cannot commit a tick between the reset and the
+snapshot reads. That discipline (one-shot queries until the last check) is
+still the load-bearing determinism trick of this suite.
+
+Compared with Convex or Supabase — whose seed-true resets four diaries praised
+as "the most honest test hook of any row" — Snapback needed one extra idea
+(the closed-handler constraint forces restore-by-construction instead of "read
+the fixture and write it"), but the result lands in the same place: one
+app-reachable mutation, byte-audited against the committed fixture. Remaining
+step: mirror the byte-identical `handlers.mjs` change into the
+`expo-jam-allaboard` copy (shared with live sessions, deliberately not touched
+here) so its second-port `/reseed` seam can be retired.

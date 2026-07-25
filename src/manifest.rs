@@ -2041,6 +2041,7 @@ pub struct PublicFunctionManifest {
     #[serde(rename = "unsupportedDependencyDiagnostics")]
     pub unsupported_dependency_diagnostics: Vec<PublicDiagnostic>,
     #[serde(
+        default,
         rename = "acknowledgedExperimentalCapabilities",
         skip_serializing_if = "Vec::is_empty"
     )]

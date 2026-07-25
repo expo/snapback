@@ -88,11 +88,38 @@ What it guarantees:
   reused only when its loaded bundle identity matches the declared
   `provenance` (or `binaryProvenance`); any mismatch — or no declared
   identity — refuses reuse and spawns a fresh isolated server instead.
+- **Launch by the LLP 0030 resolver ladder.** A fresh spawn resolves its
+  command in order: a caller-configured binary (`serverBinary` option or
+  `SNAPBACK_SERVER_BINARY`), then an existing `target/debug/snapback` whose
+  `/health` build stamp verifies against the pinned checkout, then
+  `cargo run` as the source-tree fallback. The handle reports which rung won
+  (`server.launch.rung`) and an honest build-identity verdict
+  (`server.identity.verdict`); see `demos/_kit/README.md` for the verdicts.
 - **Owned teardown.** The returned handle's `.stop()` tears down the whole
   process tree the harness itself started (SIGTERM then SIGKILL, attested
   group exit). Nothing else is ever killed.
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
+
+### Keep cron out of your suite
+
+If the app declares cron jobs, a live scheduler can commit runs mid-suite —
+and the first one can land surprisingly early: an `everyMs` job's nominal
+grid anchors at Unix epoch 0, so its first tick can fire up to one full
+interval after boot **regardless of when demand arrived** ([LLP 0028
+§Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). Start
+the server with the scheduler inert and drive ticks yourself:
+
+```js fragment reason="illustrative option on the startServer call above"
+const server = await startServer({ db: ':memory:', cwd: repoRoot, cronDisabled: true });
+```
+
+`cronDisabled: true` sets `SNAPBACK_CRON_DISABLED=1` on the child (the CLI
+form is `--cron-disabled`) and refuses to reuse an already-running server,
+whose scheduler may be live. Definitions still load and inspect; the
+admin `cronTick()` seam keeps working, so scheduled behavior stays testable
+deterministically — see [backend/cron](../backend/cron.md).
 
 If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
 it must pass a fresh `--ready-file <path>`. The process-bound impersonation

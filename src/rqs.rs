@@ -281,6 +281,250 @@ pub fn jcs(value: &Value) -> Result<String, MintRefusal> {
 }
 
 // ---------------------------------------------------------------------------
+// Standard-pattern keyset cursor (LLP 0065 §3)
+// ---------------------------------------------------------------------------
+
+/// Standard-pattern cursor wire prefix (LLP 0065: opaque and versioned).
+pub const STANDARD_PATTERN_CURSOR_WIRE_PREFIX: &str = "sbpc1";
+const STANDARD_PATTERN_CURSOR_MAC_DOMAIN: &str = "snapback.standard-pattern-cursor.v1";
+
+/// The opaque `defineOwnedKeysetPages` continuation body. `binding` folds
+/// the app, the plan identity (function id, helper, profile, direction,
+/// cursor field, serialized plan), and the caller's authority partition;
+/// the per-instance resume keyring MAC supplies the deployment/database
+/// binding — a cursor minted by one instance cannot verify on another.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StandardPatternCursorBody {
+    pub app: String,
+    pub binding: String,
+    /// The exact unique boundary value — the last returned row's cursor
+    /// field. Unique inside one owner partition by the declared compound
+    /// index, so no `_id` tie-break is needed (LLP 0065).
+    pub boundary: Value,
+    pub issued_at: u64,
+}
+
+fn standard_pattern_cursor_mac(
+    key: &[u8],
+    key_id: &str,
+    body: &StandardPatternCursorBody,
+) -> HmacSha256 {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    put_string(&mut mac, STANDARD_PATTERN_CURSOR_MAC_DOMAIN);
+    put_string(&mut mac, key_id);
+    put_string(&mut mac, &body.app);
+    put_string(&mut mac, &body.binding);
+    // A non-canonicalizable boundary was refused at mint; on verify the
+    // empty frame simply fails the MAC — uniformly refused either way.
+    put_string(&mut mac, &jcs(&body.boundary).unwrap_or_default());
+    put_u64(&mut mac, body.issued_at);
+    mac
+}
+
+/// Mint the wire cursor; `None` when the boundary cannot canonicalize or
+/// the wire form would exceed the size cap — callers fail closed rather
+/// than serving a full page without its continuation.
+pub fn mint_standard_pattern_cursor(
+    key: &[u8],
+    key_id: &str,
+    body: &StandardPatternCursorBody,
+) -> Option<String> {
+    jcs(&body.boundary).ok()?;
+    let body_value = serde_json::to_value(body).ok()?;
+    let body_json = jcs(&body_value).ok()?;
+    let mac = standard_pattern_cursor_mac(key, key_id, body)
+        .finalize()
+        .into_bytes();
+    let wire = format!(
+        "{STANDARD_PATTERN_CURSOR_WIRE_PREFIX}.{key_id}.{}.{}",
+        URL_SAFE_NO_PAD.encode(body_json.as_bytes()),
+        URL_SAFE_NO_PAD.encode(mac)
+    );
+    (wire.len() <= RELATIONAL_CURSOR_MAX_WIRE_BYTES).then_some(wire)
+}
+
+/// Decode and cryptographically verify a presented standard-pattern
+/// cursor. Cause-free like the relational family: every refusal class
+/// answers with one byte-identical `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`.
+pub fn decode_and_verify_standard_pattern_cursor(
+    token_wire: &str,
+    keyring: &ResumeKeyring,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<StandardPatternCursorBody, RelationalCursorRefusal> {
+    const REFUSED: RelationalCursorRefusal = RelationalCursorRefusal;
+    if token_wire.len() > RELATIONAL_CURSOR_MAX_WIRE_BYTES {
+        return Err(REFUSED);
+    }
+    let mut parts = token_wire.split('.');
+    let (Some(prefix), Some(key_id), Some(body_part), Some(mac_part), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Err(REFUSED);
+    };
+    if prefix != STANDARD_PATTERN_CURSOR_WIRE_PREFIX || ResumeKeyId::parse(key_id).is_err() {
+        return Err(REFUSED);
+    }
+    let body_bytes = URL_SAFE_NO_PAD.decode(body_part).map_err(|_| REFUSED)?;
+    let mac_bytes = URL_SAFE_NO_PAD.decode(mac_part).map_err(|_| REFUSED)?;
+    if mac_bytes.len() != 32 {
+        return Err(REFUSED);
+    }
+    let body: StandardPatternCursorBody =
+        serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
+    let key = keyring
+        .verification_key(key_id, now_ms)
+        .map_err(|_| REFUSED)?;
+    standard_pattern_cursor_mac(key.secret.as_ref(), key_id, &body)
+        .verify_slice(&mac_bytes)
+        .map_err(|_| REFUSED)?;
+    if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
+        return Err(REFUSED);
+    }
+    Ok(body)
+}
+
+// ---------------------------------------------------------------------------
+// RelationalResultEncodingV1 (LLP 0080 §2)
+// ---------------------------------------------------------------------------
+
+/// Version identifier for the pinned relational result-byte encoding.
+pub const RELATIONAL_RESULT_ENCODING_VERSION: &str = "relational-result-encoding-v1";
+
+/// Why a row set cannot be encoded under `RelationalResultEncodingV1`.
+/// Both arms are server invariants — the executor only emits projected
+/// scalar members — so a refusal here is a bug, never a client class.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RelationalEncodingRefusal {
+    /// A row was not an object, or carried a member outside the projection
+    /// declaration. Encoding must be total over the declared shape;
+    /// dropping unknown members silently would un-pin the bytes.
+    RowShapeInvalid,
+    /// A member value failed canonicalization (non-finite number or an
+    /// integer outside the safe band) — the same values `jcs` refuses.
+    NonCanonicalValue,
+}
+
+/// Encode result rows as the pinned `RelationalResultEncodingV1` bytes
+/// (LLP 0080 §2): UTF-8 JSON with no insignificant whitespace, RFC 8785
+/// number spelling and string escaping over LLP 0051's canonical value
+/// mapping, object members in the projection declaration's order — an
+/// explicit, named divergence from JCS key sorting — absent expressed by
+/// omission and null by the literal. V1 projects only scalar leaves, so no
+/// nested-object ordering question arises (nested values still encode
+/// canonically if they ever appear).
+pub fn relational_result_encoding_v1(
+    field_order: &[String],
+    rows: &[Value],
+) -> Result<String, RelationalEncodingRefusal> {
+    let mut out = String::from("[");
+    for (row_index, row) in rows.iter().enumerate() {
+        if row_index > 0 {
+            out.push(',');
+        }
+        let Value::Object(members) = row else {
+            return Err(RelationalEncodingRefusal::RowShapeInvalid);
+        };
+        if members
+            .keys()
+            .any(|member| !field_order.iter().any(|field| field == member))
+        {
+            return Err(RelationalEncodingRefusal::RowShapeInvalid);
+        }
+        out.push('{');
+        let mut first = true;
+        for field in field_order {
+            let Some(value) = members.get(field) else {
+                // Absent is expressed by omission (null stays the literal).
+                continue;
+            };
+            if !first {
+                out.push(',');
+            }
+            first = false;
+            jcs_escape_into(&mut out, field);
+            out.push(':');
+            jcs_into(&mut out, value).map_err(|_| RelationalEncodingRefusal::NonCanonicalValue)?;
+        }
+        out.push('}');
+    }
+    out.push(']');
+    Ok(out)
+}
+
+/// The committed `schemas/relational.result-encoding-v1.json` artifact:
+/// the encoding rules plus executable golden vectors, generated through the
+/// encoder itself so the committed file cannot drift from the
+/// implementation (the drift gate re-runs this; the unit tests pin the
+/// exact bytes so the encoder cannot drift either).
+pub fn relational_result_encoding_artifact() -> Value {
+    let vector = |name: &str, field_order: &[&str], rows: Value| {
+        let fields: Vec<String> = field_order.iter().map(|s| (*s).to_owned()).collect();
+        let rows_vec = rows.as_array().cloned().expect("vector rows are an array");
+        let bytes =
+            relational_result_encoding_v1(&fields, &rows_vec).expect("golden vectors encode");
+        serde_json::json!({
+            "name": name,
+            "fieldOrder": fields,
+            "rows": rows_vec,
+            "bytes": bytes,
+        })
+    };
+    serde_json::json!({
+        "version": RELATIONAL_RESULT_ENCODING_VERSION,
+        "authority": "llp/0080-portable-relational-queries-and-projections.rfc.md#2-portable-evaluation-semantics",
+        "rules": [
+            "UTF-8 JSON with no insignificant whitespace",
+            "RFC 8785 number spelling and string escaping over LLP 0051's canonical value mapping",
+            "object members in the projection declaration's order (a named divergence from JCS key sorting)",
+            "absent expressed by omission; null by the literal",
+        ],
+        "vectors": [
+            vector(
+                "declaration-order-not-sorted",
+                &["title", "authorName", "shelf"],
+                serde_json::json!([
+                    { "title": "alpha", "authorName": "Ada", "shelf": "fiction" },
+                ]),
+            ),
+            vector(
+                "absent-omitted-null-literal",
+                &["title", "authorName", "shelf"],
+                serde_json::json!([
+                    { "title": "beta", "authorName": null },
+                    {},
+                ]),
+            ),
+            vector(
+                "number-spelling",
+                &["int", "half", "big", "tiny", "negzero"],
+                serde_json::json!([
+                    { "int": 42, "half": 0.5, "big": 1e21, "tiny": 1e-7, "negzero": -0.0 },
+                ]),
+            ),
+            vector(
+                "string-escaping-and-unicode",
+                &["control", "quote", "nfc", "nfd"],
+                serde_json::json!([
+                    {
+                        "control": "a\u{8}b\tc\u{1f}",
+                        "quote": "say \"hi\" \\ done",
+                        "nfc": "caf\u{e9}",
+                        "nfd": "cafe\u{301}",
+                    },
+                ]),
+            ),
+            vector("empty-result", &["title"], serde_json::json!([])),
+        ],
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Row hash, leaf, digests
 // ---------------------------------------------------------------------------
 
@@ -1137,6 +1381,61 @@ pub fn decode_and_verify(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the result bytes are
+    //   pinned as a versioned RelationalResultEncodingV1 with golden vectors
+    //   in the committed schema; these are the exact bytes.
+    #[test]
+    fn relational_result_encoding_v1_pins_golden_bytes() {
+        let artifact = relational_result_encoding_artifact();
+        let vectors: std::collections::BTreeMap<&str, &str> = artifact["vectors"]
+            .as_array()
+            .expect("vectors array")
+            .iter()
+            .map(|vector| {
+                (
+                    vector["name"].as_str().expect("vector name"),
+                    vector["bytes"].as_str().expect("vector bytes"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            vectors["declaration-order-not-sorted"],
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+            "members follow the projection declaration, not JCS sorting",
+        );
+        assert_eq!(
+            vectors["absent-omitted-null-literal"],
+            r#"[{"title":"beta","authorName":null},{}]"#,
+        );
+        assert_eq!(
+            vectors["number-spelling"],
+            r#"[{"int":42,"half":0.5,"big":1e+21,"tiny":1e-7,"negzero":0}]"#,
+        );
+        assert_eq!(
+            vectors["string-escaping-and-unicode"],
+            "[{\"control\":\"a\\bb\\tc\\u001f\",\"quote\":\"say \\\"hi\\\" \\\\ done\",\
+             \"nfc\":\"caf\u{e9}\",\"nfd\":\"cafe\u{301}\"}]",
+            "JCS short escapes, \\u for other controls, and no unicode normalization",
+        );
+        assert_eq!(vectors["empty-result"], "[]");
+
+        // Refusals are server invariants: rows must be objects over the
+        // declared members, and values must canonicalize.
+        let field = vec!["a".to_owned()];
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!(3)]),
+            Err(RelationalEncodingRefusal::RowShapeInvalid),
+        );
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!({ "b": 1 })]),
+            Err(RelationalEncodingRefusal::RowShapeInvalid),
+        );
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!({ "a": 9_007_199_254_740_993_i64 })]),
+            Err(RelationalEncodingRefusal::NonCanonicalValue),
+        );
+    }
 
     #[test]
     fn jcs_number_serialization_matches_ecmascript() {

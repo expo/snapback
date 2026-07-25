@@ -443,13 +443,31 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// committed beside the schemas so a pinned git checkout is sufficient for a
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
-    vec![SchemaArtifact {
-        file: "data-tier.profile.json",
-        schema: sorted_keys(
-            serde_json::to_value(DataTierProfile::current())
-                .expect("data-tier profile serializes to JSON"),
-        ),
-    }]
+    vec![
+        SchemaArtifact {
+            file: "data-tier.profile.json",
+            schema: sorted_keys(
+                serde_json::to_value(DataTierProfile::current())
+                    .expect("data-tier profile serializes to JSON"),
+            ),
+        },
+        // RelationalResultEncodingV1 golden vectors (LLP 0080 §2): the
+        // committed vectors are generated through the encoder itself, so
+        // this file, the drift gate, and the runtime cannot diverge.
+        SchemaArtifact {
+            file: "relational.result-encoding-v1.json",
+            schema: sorted_keys(crate::rqs::relational_result_encoding_artifact()),
+        },
+        // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
+        // canonical frames + expected state-machine transitions, generated
+        // through the live-wire serde types so fixtures cannot drift from
+        // the wire. tests/wire_fixtures_v1.rs proves each fixture's
+        // schemaValid claim against the committed family schema.
+        SchemaArtifact {
+            file: crate::wire_fixtures::WIRE_FIXTURES_FILE,
+            schema: sorted_keys(crate::wire_fixtures::wire_fixture_corpus()),
+        },
+    ]
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

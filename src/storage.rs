@@ -4067,6 +4067,29 @@ pub(crate) fn validate_relational_boundary(
     })
 }
 
+/// Validate a decoded standard-pattern cursor boundary against the declared
+/// cursor field (LLP 0065): the value must be non-null (the field is
+/// required by generation) and satisfy the field's declared type. Failures
+/// collapse into the caller's uniform
+/// `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`.
+pub(crate) fn validate_standard_pattern_boundary(
+    schema: &SchemaManifest,
+    table: &str,
+    cursor_field: &str,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let table = schema_table(schema, table)?;
+    if value.is_null() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "standard-pattern cursor boundary cannot be null",
+        ));
+    }
+    ensure_orderable_field(table, cursor_field)?;
+    validate_query_filter_value(table, cursor_field, value)
+}
+
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
 //   0..=1024. Structural/type validation beyond this is generation's job;
@@ -11932,6 +11955,138 @@ mod guarded_commit_tests {
             .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("unpaged window");
         assert_eq!(all.rows.len(), 3);
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — executor rows encode
+    //   byte-deterministically under RelationalResultEncodingV1: members in
+    //   projection declaration order, left-join nulls as the literal, and
+    //   the same bytes on every evaluation.
+    #[test]
+    fn relational_rows_encode_under_result_encoding_v1() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let field_order: Vec<String> = ["title", "authorName", "shelf"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        let (inner, _) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .expect("inner query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
+                .expect("inner rows encode"),
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+        );
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("left query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
+                .expect("left rows encode"),
+            concat!(
+                r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"},"#,
+                r#"{"title":"beta","authorName":null,"shelf":"fiction"},"#,
+                r#"{"title":"gamma","authorName":null,"shelf":"fiction"}]"#,
+            ),
+            "left-join nulls stay literal; members follow the declaration order",
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — pagination is not
+    //   snapshot-consistent across pages, and the claim is exactly the
+    //   stated bound: no skipped and no duplicated root among roots whose
+    //   order keys and visibility are untouched by concurrent mutations; a
+    //   mutated root may move relative to the boundary, and a root
+    //   inserted before the boundary is not revisited.
+    #[test]
+    fn relational_keyset_bound_survives_concurrent_mutations() {
+        use crate::manifest::JoinKind;
+        let input = relational_input("user-a");
+        let plan = relational_plan(JoinKind::Left, 2);
+        let book = |id: &str, title: &str| {
+            json!({ "_id": id, "title": title, "authorSlug": "ada", "ownerId": "user-a" })
+                .as_object()
+                .cloned()
+                .expect("seed row")
+        };
+        let author = json!({ "_id": "a1", "slug": "ada", "name": "Ada", "ownerId": "user-a" })
+            .as_object()
+            .cloned()
+            .expect("seed row");
+        let seed = |books: Vec<Map<String, Value>>| {
+            let mut db = LocalDatabase::memory().expect("memory database");
+            db.apply_schema(relational_schema()).expect("apply schema");
+            db.seed(SeedData {
+                tables: BTreeMap::from([
+                    ("books".to_owned(), books),
+                    ("authors".to_owned(), vec![author.clone()]),
+                ]),
+            })
+            .expect("seed");
+            db
+        };
+
+        let before = seed(vec![
+            book("b1", "alpha"),
+            book("b2", "beta"),
+            book("b3", "gamma"),
+            book("b4", "delta"),
+        ]);
+        let (page1, cursor) = before
+            .query_relational(&plan, &input, None)
+            .expect("first page");
+        assert_eq!(
+            page1
+                .rows
+                .iter()
+                .map(|r| r["title"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("alpha"), json!("beta")],
+        );
+        let cursor = cursor.expect("full window continues");
+
+        // "Concurrent" mutations between pages: alpha deleted, a new root
+        // inserted before the boundary, and gamma's order key moved past
+        // delta. Only delta is untouched, and it must appear exactly once.
+        let after = seed(vec![
+            book("b0", "aardvark"),
+            book("b2", "beta"),
+            book("b3", "zeta"),
+            book("b4", "delta"),
+        ]);
+        let (page2, _) = after
+            .query_relational(&plan, &input, Some(&cursor))
+            .expect("second page");
+        assert_eq!(
+            page2
+                .rows
+                .iter()
+                .map(|r| r["title"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("delta"), json!("zeta")],
+            "the untouched root is neither skipped nor duplicated; the moved \
+             root reappears at its new position; the pre-boundary insert is \
+             not revisited",
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the buffered
+    //   read-your-writes overlay executes only single-table `QueryPlan`s:
+    //   `ctx.db` host calls deserialize their plan strictly as `QueryPlan`
+    //   (whose `table` member is required), so the relational shape fails
+    //   admission before any overlay code runs. Relational plans exist
+    //   only as function runtimes, and the buffered arm of §2 is satisfied
+    //   by construction rather than by a second evaluator.
+    #[test]
+    fn relational_plans_cannot_enter_the_buffered_overlay() {
+        use crate::manifest::JoinKind;
+        let relational =
+            serde_json::to_value(relational_plan(JoinKind::Inner, 10)).expect("plan serializes");
+        assert!(
+            serde_json::from_value::<QueryPlan>(relational).is_err(),
+            "a relational plan must not deserialize as a single-table QueryPlan",
+        );
     }
 
     // The keyset lowering matches Snapback's total order exactly: NULLS

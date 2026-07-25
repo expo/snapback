@@ -1,0 +1,90 @@
+{
+  "authority": "llp/0080-portable-relational-queries-and-projections.rfc.md#2-portable-evaluation-semantics",
+  "rules": [
+    "UTF-8 JSON with no insignificant whitespace",
+    "RFC 8785 number spelling and string escaping over LLP 0051's canonical value mapping",
+    "object members in the projection declaration's order (a named divergence from JCS key sorting)",
+    "absent expressed by omission; null by the literal"
+  ],
+  "vectors": [
+    {
+      "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\",\"shelf\":\"fiction\"}]",
+      "fieldOrder": [
+        "title",
+        "authorName",
+        "shelf"
+      ],
+      "name": "declaration-order-not-sorted",
+      "rows": [
+        {
+          "authorName": "Ada",
+          "shelf": "fiction",
+          "title": "alpha"
+        }
+      ]
+    },
+    {
+      "bytes": "[{\"title\":\"beta\",\"authorName\":null},{}]",
+      "fieldOrder": [
+        "title",
+        "authorName",
+        "shelf"
+      ],
+      "name": "absent-omitted-null-literal",
+      "rows": [
+        {
+          "authorName": null,
+          "title": "beta"
+        },
+        {}
+      ]
+    },
+    {
+      "bytes": "[{\"int\":42,\"half\":0.5,\"big\":1e+21,\"tiny\":1e-7,\"negzero\":0}]",
+      "fieldOrder": [
+        "int",
+        "half",
+        "big",
+        "tiny",
+        "negzero"
+      ],
+      "name": "number-spelling",
+      "rows": [
+        {
+          "big": 1e+21,
+          "half": 0.5,
+          "int": 42,
+          "negzero": -0.0,
+          "tiny": 1e-7
+        }
+      ]
+    },
+    {
+      "bytes": "[{\"control\":\"a\\bb\\tc\\u001f\",\"quote\":\"say \\\"hi\\\" \\\\ done\",\"nfc\":\"café\",\"nfd\":\"café\"}]",
+      "fieldOrder": [
+        "control",
+        "quote",
+        "nfc",
+        "nfd"
+      ],
+      "name": "string-escaping-and-unicode",
+      "rows": [
+        {
+          "control": "a\bb\tc\u001f",
+          "nfc": "café",
+          "nfd": "café",
+          "quote": "say \"hi\" \\ done"
+        }
+      ]
+    },
+    {
+      "bytes": "[]",
+      "fieldOrder": [
+        "title"
+      ],
+      "name": "empty-result",
+      "rows": []
+    }
+  ],
+  "version": "relational-result-encoding-v1"
+}

@@ -171,6 +171,17 @@ fn configured_cron_dispatch_concurrency(raw: Option<&str>) -> usize {
         .unwrap_or(CRON_DISPATCH_CONCURRENCY_DEFAULT)
 }
 
+/// Parse the `SNAPBACK_CRON_DISABLED` switch: `1` or `true` (any ASCII case,
+/// surrounding whitespace ignored) disable autonomous cron claiming; every
+/// other value — including empty and typos — leaves the scheduler on, so a
+/// malformed variable can never silently disarm production crons.
+pub(crate) fn cron_autonomy_disabled(raw: Option<&str>) -> bool {
+    raw.is_some_and(|value| {
+        let value = value.trim();
+        value == "1" || value.eq_ignore_ascii_case("true")
+    })
+}
+
 fn detached_action_limiter() -> &'static DetachedActionLimiter {
     DETACHED_ACTION_LIMITER.get_or_init(|| {
         let limit = configured_action_worker_limit(
@@ -14261,8 +14272,18 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
     })
 }
 
-pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
+pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> JoinHandle<()> {
     tokio::spawn(async move {
+        // @ref LLP 0028#scheduler-state-and-run-ledger — SNAPBACK_CRON_DISABLED
+        // / --cron-disabled gates only autonomous claiming, and it gates here
+        // at the loop rather than by dropping definitions: jobs still load,
+        // validate, and inspect, and the admin manual tick still claims and
+        // executes due runs. Returning before the ticker starts keeps the
+        // idle-cost contract trivially (zero periodic work, not merely
+        // zero-lock ticks).
+        if autonomy_disabled {
+            return;
+        }
         // Clone the activity flag once, then poll it lock-free. When no cron
         // jobs are loaded the tick takes the global lock zero times — idle
         // means idle.
@@ -19011,10 +19032,18 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 }
 
 /// Outbox drain reaches the room authority directly — no global mutex (L9).
-/// The drain is destructive (a bearerless drain was the ENG-23442 data-theft
-/// vector), so it demands the connection token like every connection-scoped
-/// operation; polling clients may pass it as `?connection_token=` when headers
-/// are inconvenient.
+/// The drain is a leased batch with an ownership-transfer cut (LLP 0059):
+/// entries are selected without removal, removed only once ownership transfer
+/// is accepted, and released — possibly redelivered — when a drain is
+/// cancelled before the cut. Because an accepted drain hands the batch over
+/// permanently (a bearerless drain was the ENG-23442 data-theft vector), it
+/// demands the connection token like every connection-scoped operation.
+/// Decision (LLP 0095 §4, the LLP 0093 P-1 pin): the `?connection_token=`
+/// query carrier is RETAINED as a constrained dev-arm affordance — rejected
+/// under sessions mode, header/subprotocol carriage is the conformant path.
+///
+/// @ref LLP 0059#durable-and-ephemeral-outboxes — leased selection,
+///   acknowledged removal at the ownership cut, redelivery on cancellation.
 async fn drain_outbox(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -19829,6 +19858,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // unmintable cursor is a transient serving failure, not a terminal
         // page silently lied about.
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -20040,6 +20070,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // malformed, cross-plan, cross-argument-set, cross-authority,
         // stale-authority, order-schema-invalid — never repositioned.
         | "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        // LLP 0065: the standard-pattern keyset cursor's collapsed refusal —
+        // malformed, cross-plan, and cross-owner are byte-indistinguishable.
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
@@ -31838,6 +31871,10 @@ globalThis.__snapbackHandlers = {
             "compile-time environment variable carrying build provenance",
         ),
         (
+            "SNAPBACK_CRON_DISABLED",
+            "environment variable disabling autonomous cron claiming; manual admin ticks still run",
+        ),
+        (
             "SNAPBACK_CRON_DISPATCH_CONCURRENCY",
             "environment variable configuring bounded cron dispatch",
         ),
@@ -32232,6 +32269,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
         "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
         "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
@@ -32423,6 +32461,7 @@ globalThis.__snapbackHandlers = {
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
@@ -32869,6 +32908,22 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn cron_autonomy_disabled_accepts_only_explicit_switch_values() {
+        assert!(super::cron_autonomy_disabled(Some("1")));
+        assert!(super::cron_autonomy_disabled(Some("true")));
+        assert!(super::cron_autonomy_disabled(Some("TRUE")));
+        assert!(super::cron_autonomy_disabled(Some(" true ")));
+        // Anything else — including empty, zero, and typos — keeps the
+        // scheduler on; a malformed value must not silently disarm crons.
+        assert!(!super::cron_autonomy_disabled(None));
+        assert!(!super::cron_autonomy_disabled(Some("")));
+        assert!(!super::cron_autonomy_disabled(Some("0")));
+        assert!(!super::cron_autonomy_disabled(Some("false")));
+        assert!(!super::cron_autonomy_disabled(Some("yes")));
+        assert!(!super::cron_autonomy_disabled(Some("disabled")));
+    }
+
+    #[test]
     fn detached_action_admission_rejects_at_capacity_and_recovers() {
         let limiter = Arc::new(Semaphore::new(1));
         let permit = reserve_detached_action_worker(limiter.clone(), 1).expect("first worker");
@@ -33156,6 +33211,138 @@ globalThis.__snapbackHandlers = {
                 })
         }));
         wait_for_dispatcher_permits(&dispatcher, 4).await;
+    }
+
+    /// An always-armed `everyMs` job whose epoch-0 interval anchor makes it
+    /// past-due the moment it loads, backed by a host-plan action so the run
+    /// executes without an Ibex VM.
+    fn armed_due_cron_state() -> SharedSnapback {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "inertAction",
+                FunctionKind::Action,
+                FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                })),
+            )],
+            cron_jobs: vec![CronJobDefinition {
+                name: "inert".to_owned(),
+                schedule: CronSchedule {
+                    every_ms: Some(60_000),
+                    cron: None,
+                },
+                action: "inertAction".to_owned(),
+                enabled: true,
+                activation: CronActivationPolicy::default(),
+                jitter_policy: CronJitterPolicy {
+                    enabled: false,
+                    max_offset_ms: 0,
+                },
+                overlap_policy: CronOverlapPolicy::NoOverlap,
+                retry_policy: CronRetryPolicy {
+                    mode: CronRetryMode::NextTick,
+                },
+                required_capabilities: Vec::new(),
+                target_wakeup: None,
+                source_span: None,
+            }],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("cron disable test state");
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "armed due cron manifest must install: {diagnostics:?}"
+        );
+        Arc::new(Mutex::new(snapback))
+    }
+
+    /// How long the disabled scheduler is observed for. The control test below
+    /// proves an enabled scheduler commits the armed due run well inside the
+    /// same window, so an empty ledger here is meaningful evidence.
+    const CRON_DISABLE_OBSERVATION_MS: u64 = 2_500;
+
+    // @ref LLP 0028#scheduler-state-and-run-ledger — the disable switch keeps
+    // definitions loaded/armed/inspectable and manual ticks working while the
+    // autonomous scheduler never claims.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn disabled_scheduler_claims_nothing_while_manual_ticks_still_run() {
+        let state = armed_due_cron_state();
+        // The job is armed and already due (epoch-0 interval anchor): an
+        // enabled scheduler's first 1 s tick would claim it.
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        let job = inspect
+            .cron
+            .jobs
+            .iter()
+            .find(|job| job.name == "inert")
+            .expect("definitions still load and inspect under the disable switch");
+        assert_eq!(
+            job.activation_state,
+            crate::cron::CronActivationState::Armed
+        );
+        assert!(
+            job.next_due_at_ms
+                .is_some_and(|due| due <= super::now_millis()),
+            "fixture job must be past due: {:?}",
+            job.next_due_at_ms
+        );
+
+        let scheduler = super::spawn_cron_scheduler(state.clone(), true);
+        tokio::time::sleep(Duration::from_millis(CRON_DISABLE_OBSERVATION_MS)).await;
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        assert!(
+            inspect.cron.recent_runs.is_empty(),
+            "no autonomous run may commit under the disable switch: {:?}",
+            inspect.cron.recent_runs
+        );
+        let job = inspect
+            .cron
+            .jobs
+            .iter()
+            .find(|job| job.name == "inert")
+            .expect("job stays inspectable");
+        assert_eq!(job.last_run_at_ms, None);
+        assert_eq!(job.in_flight_run_id, None);
+
+        // The admin manual tick keeps working: it claims and executes the due
+        // run deterministically.
+        let runs = super::cron_tick_detached(&state, super::now_millis())
+            .await
+            .unwrap();
+        assert_eq!(runs.len(), 1, "manual tick must claim the due job");
+        assert_eq!(runs[0].outcome, CronRunOutcome::Succeeded);
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        assert_eq!(inspect.cron.recent_runs.len(), 1);
+        scheduler.abort();
+    }
+
+    /// Control for the disabled test above: an enabled scheduler commits the
+    /// same fixture's armed due run inside the observation window, so the
+    /// disabled test's empty ledger cannot pass vacuously.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn enabled_scheduler_fires_the_armed_due_job_within_the_disable_window() {
+        let state = armed_due_cron_state();
+        let scheduler = super::spawn_cron_scheduler(state.clone(), false);
+        tokio::time::timeout(
+            Duration::from_millis(CRON_DISABLE_OBSERVATION_MS),
+            async {
+                loop {
+                    let inspect = super::inspect_snapback(&state).await.unwrap();
+                    if !inspect.cron.recent_runs.is_empty() {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+            },
+        )
+        .await
+        .expect("an enabled scheduler must fire the armed due job within the window the disabled test holds open");
+        scheduler.abort();
     }
 
     fn generation_test_manifest() -> FunctionManifest {

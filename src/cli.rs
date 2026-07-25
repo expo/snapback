@@ -531,6 +531,14 @@ pub struct Args {
     #[arg(long)]
     pub allow_insecure_dev_auth: bool,
 
+    /// Run with the cron scheduler inert: definitions still load, validate,
+    /// and inspect, but no run is ever claimed autonomously. The admin manual
+    /// tick (`POST …/cron/tick`) keeps working, so suites drive ticks
+    /// deterministically. `SNAPBACK_CRON_DISABLED=1` (or `true`) is the
+    /// environment form of the same switch.
+    #[arg(long)]
+    pub cron_disabled: bool,
+
     /// Require the serving target to enforce the complete hosted-auth edge and
     /// browser contract. Hosted mode additionally requires the provider-
     /// authenticated admission envelope and secret-manager key files.
@@ -566,6 +574,7 @@ impl Default for Args {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             hosted_admission: None,
             hosted_admission_key: None,
@@ -2163,9 +2172,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // startup publication (operator sidecars, ready descriptor, and console
     // handoff) has succeeded. From this point the only ordinary exit is server
     // shutdown, where all three handles are aborted below.
+    let cron_autonomy_disabled = args.cron_disabled
+        || server::cron_autonomy_disabled(std::env::var("SNAPBACK_CRON_DISABLED").ok().as_deref());
+    if cron_autonomy_disabled {
+        // The switch is meant for suites/dev loops; say so at boot rather
+        // than letting an inert scheduler present as a mystery.
+        println!(
+            "cron: autonomous scheduling disabled (SNAPBACK_CRON_DISABLED / --cron-disabled); \
+             definitions still load and POST /_snapback/api/cron/tick runs due jobs"
+        );
+    }
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
-        .then(|| server::spawn_cron_scheduler(state.clone()));
+        .then(|| server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled));
     let hosted_admission_refresh = hosted_serving_authority
         .clone()
         .zip(args.hosted_admission.clone())
@@ -3902,6 +3921,12 @@ mod tests {
         assert_eq!(args.port, None);
         assert_eq!(args.db, PathBuf::from(".snapback/dev.sqlite3"));
         assert!(!args.memory);
+        assert!(!args.cron_disabled);
+    }
+
+    #[test]
+    fn cron_disabled_flag_parses() {
+        assert!(Args::parse_from(["snapback", "--cron-disabled"]).cron_disabled);
     }
 
     #[test]
@@ -3914,7 +3939,7 @@ mod tests {
             .find("target\n            .write_atomic_protected")
             .expect("ready descriptor publication remains explicit");
         let cron = source
-            .find("server::spawn_cron_scheduler(state.clone())")
+            .find("server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled)")
             .expect("cron scheduler spawn remains explicit");
         let maintenance = source
             .find("server::spawn_maintenance_worker(app_state)")
@@ -4604,6 +4629,7 @@ mod tests {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             hosted_admission: None,
             hosted_admission_key: None,
@@ -4626,6 +4652,7 @@ mod tests {
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             hosted_admission: None,
             hosted_admission_key: None,

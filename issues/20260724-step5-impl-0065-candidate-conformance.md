@@ -34,3 +34,19 @@ needing runtime support beyond codegen: the opaque versioned cursor binding
 `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`) and the principal profile-class
 refusal (`SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED` for bare
 servicePrincipal / non-delegated autonomous agents reaching admission).
+
+**Progress (2026-07-25):** the opaque versioned cursor landed. `sbpc1` wire
+family MAC'd with the per-instance resume keyring (the deployment/database
+binding rides the key custody); binding digest over {app, first/next *pair*
+plan identity — table, index, order/direction, limit, shared visibility
+filters, helper, profile — and the caller's authority partition (auth
+fingerprint + permission-scope epoch)}; the runtime substitutes the
+verified boundary for the cursor argument before the strict comparison and
+mints the next continuation on a full page (`QueryOutput.cursor`); the
+next-page argument is now a plain string token in codegen; malformed,
+raw-value, cross-pair, cross-owner, and stale-authority presentations
+refuse byte-identically with `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`
+(400) and mint failure fails closed with
+`SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE` (503). Witness:
+`standard_pattern_keyset_cursor_pages_and_refuses_end_to_end`; guide page
+updated. Remaining here: only the principal profile-class refusal.

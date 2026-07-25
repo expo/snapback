@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1623f7596f8868302c9d1c3ce607692e5c33f0a1"
+    "commit": "8ed7816338b20e0f09b31c952c30bb5c0a4078c5"
   },
   "nav": {
     ".": [
@@ -497,14 +497,15 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "demos/all-aboard/snapback/functions.mjs",
-        "demos/all-aboard/tests/acceptance/cron.mjs"
+        "demos/all-aboard/tests/acceptance/cron.mjs",
+        "demos/_kit/server-process.mjs"
       ],
       "examples": [
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a9804beeecb5c03a389de7937ff1b1f3804e098e28cbeace81a83c545efc43dc",
+      "sha256": "c20c2f27b0f69c430d450c088f052a1dcec3e57ebdc7ad59e2e9978c65a2d16c",
       "snippets": [
         {
           "lang": "js",
@@ -670,9 +671,9 @@
       "examples": [
         "packages/snapback-codegen/standard-patterns.test.mjs"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "27e3689a239c52a01a01ddf51f52ec4221ea7a86",
-      "sha256": "76663ec27712c04d7b26cc538e69c0e1734385809d2b20945b776a134d15cbd4",
+      "reviewed": "2026-07-25",
+      "reviewedCommit": "6fe11376af0429eb2154627c253586224be063bb",
+      "sha256": "ac547433d5abe88da94b5f07a6886bd3290536d2fc3b818ca5a39f9f9a74b9aa",
       "snippets": [
         {
           "lang": "js",
@@ -1657,7 +1658,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "85a8f2e43bd82668106eec916f2fc68f60e886bd165041c7dc412f07927bf4a0",
+      "sha256": "fa21cbd25f33913583904f38ad5319770f92f21910b618acdcca5562e99a3745",
       "snippets": [
         {
           "lang": "js",
@@ -1668,6 +1669,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         }
       ]
     }
@@ -1730,5 +1735,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "a9d3d0c2219bbe4a6448fef6995737261cc62a0b20b27fcb72ae1a91f32d1933"
+  "contentHash": "ba8d6ea5d1207029224722417f740e5ab7d2d95ef2c07e0ea630421d60ea0c0a"
 }

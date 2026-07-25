@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (v0.9 — see Revision history)
+**Revised:** 2026-07-25 (v0.10 — see Revision history)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
 
 > Not to be confused with LLP 0075, "Convex checkpoint protocol," which is a
@@ -375,7 +375,16 @@ which is distinct from and does not contradict the wire identity
 **Publication.** The spec content lands as follow-on Spec LLPs (see Rollout);
 a rendered implementer page joins the guide (`guide/protocol/`), with
 `guide/capabilities.md` rows pointing at it. Snippets in the guide page are
-CI-verified per guide conventions.
+CI-verified per guide conventions. The guide surface also carries a
+**minimal-client recipe** beside the implementer page: the app-data route
+set, the three `LiveEnvelope` kinds a poll client must handle, and the
+`x-snapback-connection-token` carriage, sized so a new client stack reaches
+first data without reading the normative spec — the All Aboard external
+review (2026-07-24) measured four client stacks independently re-deriving
+exactly this from source at roughly an hour each. The **dev-mode posture** —
+precisely what a dev-mode server accepts without an auth handshake — becomes
+a named section of the P-0 protocol document (and is restated on the recipe),
+not folklore distributed across route handlers.
 
 ### D2 — Client conformance classes
 
@@ -640,6 +649,10 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   destructive-drain comments the 0059 change left behind
   (`packages/snapback-client/index.mjs:3846`,
   `src/server.rs:19004`).
+  *Status (2026-07-25): landed as LLP 0095 (Draft) — state machine, corpus
+  contract + seeded generator (`src/wire_fixtures.rs`), dispatch seam,
+  comment retirement; remaining coverage tracked by
+  `issues/20260725-0093-p1-*`.*
 - **P-2 — Swift client** (`poll/local` → `live/local` → `live/hosted`),
   with its own plan/diary and the
   spec-defect ledger from D4's discipline.
@@ -770,6 +783,13 @@ version carrier (bound at `/connection/open`; see D1).
   escape hatches" narrowed; wire-shape test naming corrected; grant-loss
   recovery fixtures and the all-consumers absent-offer gate added to
   P-0/P-1; 0091/0092 Draft status recorded; citation precision fixes.
+
+- **v0.8 (2026-07-24) — UNREVIEWED.** Additive deliverables from the All
+  Aboard matrix external review (Kimi): D1's publication surface gains a
+  minimal-client recipe on the guide page, and the dev-mode no-auth
+  posture becomes a named section of the P-0 protocol document. No
+  normative wire semantics changed. Rollout execution is now tracked by
+  `issues/20260724-llp-0093-rollout-execution.md`.
 
 - **v0.9 (2026-07-24)** — the `durable_bytes` recovery transition is now
   implemented (kit fix + regression test landed with this revision;

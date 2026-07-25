@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (dated amendments: step-1 implementation
+**Revised:** 2026-07-25 (dated amendment: step-5 native persistence knobs —
+native cadence/budget pinned to the web §0A.5 values, the flush trigger
+mapped to the host lifecycle seam, and constrained processes pinned as
+never-writers, closing OQ2, ENG-25456); 2026-07-24 (dated amendments: step-1 implementation
 reconciliation — `sbrq_` key-id prefix, the symmetric integral-double
 refusal band, the interim content-derived `queryArtifact`; the rung-2
 membership witness — wire format, caps, reconciliation rule, replay
@@ -306,8 +309,9 @@ writer, LLP 0008/0053 discipline):
   takes fresh subscribe (§0B.3 row P).
 
 Native arms ride the DK-9 store-agnostic interface (LLP 0008) with the same
-atomicity and in-progress rules; cadence/budget numbers for constrained
-native surfaces are Open question OQ2.
+atomicity and in-progress rules; the native cadence/budget numbers are
+pinned by the step-5 native amendment below (same values as web, host-
+lifecycle flush trigger; formerly Open question OQ2).
 
 **Store budget and eviction** (0090 D3): per-app RQS store budget of
 **32 MiB or 256 entries, whichever binds first**, accounted as serialized
@@ -844,15 +848,66 @@ normative; the sections above read as amended:
    `resumeFromToken` reaches coordinator admission through the gateway's
    existing forwarding, and a reattach POST keeps failing exactly as today.
 
+## Dated amendment: step-5 native persistence knobs (2026-07-25, ENG-25456)
+
+Rollout step 5's native arm (the DK-9 file-backed store,
+`packages/snapback-client/rqs-store-file.mjs`) pins the native
+cadence/budget values §0A.5 left to OQ2; per LLP 0004 the implemented
+behavior is normative:
+
+1. **Cadence: the web numbers, unchanged.** Trailing debounce of **1 s**
+   after the last result-changing envelope with the **10 s**
+   continuous-change cap, plus flush on client `pause()`/`dispose()`. The
+   envelope rate that drives persistence is transport-bound, not
+   platform-bound, and the client cadence machinery is store-agnostic — a
+   divergent native number would buy nothing and split the fixture.
+2. **Flush trigger: mapped to the host lifecycle seam.** Web's
+   `pagehide`/visibility-hidden flush has no native event; the native
+   analogue is the embedding shell calling `handle.flushResumeState()` on
+   its app-backgrounded / scene-resigns-active transition (the handle
+   method exists for exactly this; the web listeners are registered only
+   where `addEventListener` exists). An embedding that never wires the
+   lifecycle call still persists on the debounce cadence and flushes on
+   pause/dispose — the lifecycle flush narrows the loss window, it does not
+   carry correctness.
+3. **Budget: the web numbers, unchanged.** **32 MiB or 256 entries,
+   whichever binds first**, accounted as serialized `{rows, meta, token}`
+   bytes via the shared `rqsEntryRecordBytes`, with the same
+   least-recently-resumed eviction (`rqsEvictionOrder`) — device app
+   containers are not tighter than browser origin storage here, and one
+   number keeps the budget fixture cross-arm.
+4. **Constrained processes never persist.** Widget/extension-class
+   processes are read-mode Channel C consumers in v1 (0090 D4's
+   public-bundle limit); they never construct a persisted-store writer, so
+   OQ2's "constrained-surface knobs" collapse to *no writer, no knobs*. If
+   the v2 authenticated-extension door opens, per-surface knobs are decided
+   with it.
+5. **Single-writer discipline without Web Locks.** The DK-9 native store
+   replaces the Web-Lock role with an exclusively created on-disk lock file
+   plus a same-process registry, serialized behind one in-process mutex
+   (DK-9's single-connection discipline). Staleness is a **liveness**
+   verdict (dead pid, own-pid-without-registration, unreadable lock) —
+   never a timing lease — matching LLP 0008's rejection of lease-based
+   ownership; a live foreign holder demotes the instance to a reader that
+   adopts persisted tokens and skips writes, and ownership is re-attempted
+   on every operation so takeover follows the holder's close or death.
+6. **Corrupt-store posture (DK-9, inherited).** An unparseable or
+   unknown-format blob is preserved byte-for-byte; reads raise
+   `SNAPBACK_RQS_STORE_CORRUPT`, writes refuse, and `wipe()` — the
+   user-switch/reset surface — is the caller-authorized reset. Entry-level
+   corruption stays under `verifyPersistedResumeEntry` fail-closed
+   verification, identical to web.
+
 ## Open questions
 
 - **OQ1 — rung-2 witness wire format.** ~~Owned by 0090 rollout step 5a
   (Q7).~~ **Closed** by the dated rung-2 membership-witness amendment
   above (2026-07-24, ENG-25457).
-- **OQ2 — native persistence knobs.** Web cadence/budget values are pinned
+- **OQ2 — native persistence knobs.** ~~Web cadence/budget values are pinned
   (§0A.5); whether the same numbers suit constrained native surfaces
   (widget/extension processes, DK-9 stores) is decided when rollout step 5
-  reaches native, not here.
+  reaches native, not here.~~ **Closed** by the dated step-5 native
+  persistence-knobs amendment above (2026-07-25, ENG-25456).
 - **OQ3 — resume-keyring rotation knob exposure.** The defaults are pinned
   (§0A.1); whether operators get a config surface to change rotation age /
   overlap per app (as auth-mode config does) is a cluster-0D/route-taxonomy
