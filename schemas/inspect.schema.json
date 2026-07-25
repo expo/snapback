@@ -2032,6 +2032,19 @@
             "Action"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "LLP 0080 §1 — the closed bounded-join profile. Callable and\n`live_replace`-capable only; targets that cannot execute it report a\nmachine-readable capability gap before invocation.",
+          "properties": {
+            "RelationalQuery": {
+              "$ref": "#/$defs/RelationalQueryPlan"
+            }
+          },
+          "required": [
+            "RelationalQuery"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -2140,6 +2153,29 @@
         "fields"
       ],
       "type": "object"
+    },
+    "JoinEquality": {
+      "additionalProperties": false,
+      "properties": {
+        "joinedField": {
+          "type": "string"
+        },
+        "rootField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootField",
+        "joinedField"
+      ],
+      "type": "object"
+    },
+    "JoinKind": {
+      "enum": [
+        "Inner",
+        "Left"
+      ],
+      "type": "string"
     },
     "KeyMode": {
       "enum": [
@@ -2934,6 +2970,60 @@
         }
       ]
     },
+    "ProjectionLeaf": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ProjectionSource"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "ProjectionSource": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "RootField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "JoinedField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "JoinedField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "QueryPlan": {
       "properties": {
         "filters": {
@@ -2977,6 +3067,100 @@
       },
       "required": [
         "table"
+      ],
+      "type": "object"
+    },
+    "RelationalQueryPlan": {
+      "additionalProperties": false,
+      "description": "LLP 0080 §1 — the closed first relational profile: one root table, exactly\none unique-joined table, at most four equality pairs, explicit\nvisibility on both sources, index-served root access, deterministic\nroot ordering, and a bounded `take`. Evaluation follows the normative\n`root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor\nboundary → root order → take N roots → join + joined visibility →\nprojection. `take` bounds consumed authorized roots, not emitted rows.",
+      "properties": {
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "description": "1..=4 equality pairs; declaration order preserved. A null in any\njoin-key position never matches (LLP 0080 §2).",
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedIndex": {
+          "description": "The declared unique joined index whose complete ordered key is\nexactly the joined-field sequence — the cardinality proof.",
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "default": [],
+          "description": "The joined-source visibility predicate, executed per joined row\nbefore projection: an invisible joined row behaves as absent.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "order": {
+          "default": [],
+          "description": "Root scalar order fields; the storage layer's `_id` tie-break\ntotalizes it exactly as for single-table queries.",
+          "items": {
+            "$ref": "#/$defs/OrderExpr"
+          },
+          "type": "array"
+        },
+        "projection": {
+          "description": "Explicit projection whose leaves are literals or qualified source\nfields; declaration order is the result field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "Non-security root filters from the portable vocabulary, index-served.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootIndex": {
+          "description": "The declared root access index proving bounded, index-served access.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "default": [],
+          "description": "The root visibility predicate, composed before ordering and `take`\nso an invisible root cannot occupy a bounded-result slot. Empty for\nan explicitly declared `public-read` root.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "take": {
+          "description": "Consumed-authorized-roots bound, `0..=1024`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "projection",
+        "take",
+        "rootIndex",
+        "joinedIndex"
       ],
       "type": "object"
     },

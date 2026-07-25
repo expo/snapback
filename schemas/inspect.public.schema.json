@@ -1743,7 +1743,8 @@
       "enum": [
         "Query",
         "Mutation",
-        "Action"
+        "Action",
+        "RelationalQuery"
       ],
       "type": "string"
     },

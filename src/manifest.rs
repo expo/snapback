@@ -901,6 +901,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
                 ) => validate_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                ) => validate_relational_query_plan_shape(plan)?,
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -1426,6 +1430,58 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
         return Ok(());
     }
     Err(undeclarable_retention(function, "notUserIdOnly"))
+}
+
+/// Structural admission of the closed relational plan (LLP 0080 §1); schema
+/// binding (tables, fields, indexes, the cardinality proof) is validated at
+/// artifact load, and the load-bearing bounds are re-checked at execution.
+pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_RELATIONAL_PLAN_INVALID", "runtime", message)
+    };
+    if plan.root.is_empty() || plan.joined.is_empty() || plan.root == plan.joined {
+        return Err(invalid(
+            "relational plan requires two distinct named source tables".to_owned(),
+        ));
+    }
+    if plan.root_alias.is_empty()
+        || plan.joined_alias.is_empty()
+        || plan.root_alias == plan.joined_alias
+    {
+        return Err(invalid(
+            "relational plan requires distinct non-empty source aliases".to_owned(),
+        ));
+    }
+    if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+        return Err(invalid(format!(
+            "relational plan requires 1..=4 join equality pairs, got {}",
+            plan.join_on.len()
+        )));
+    }
+    if plan.take > 1024 {
+        return Err(invalid(format!(
+            "relational take must be 0..=1024, got {}",
+            plan.take
+        )));
+    }
+    if plan.projection.is_empty() {
+        return Err(invalid("relational projection must be non-empty".to_owned()));
+    }
+    let mut names = std::collections::BTreeSet::new();
+    for leaf in &plan.projection {
+        if leaf.name.is_empty() || !names.insert(&leaf.name) {
+            return Err(invalid(format!(
+                "relational projection field {:?} must be non-empty and unique",
+                leaf.name
+            )));
+        }
+    }
+    if plan.root_index.is_empty() || plan.joined_index.is_empty() {
+        return Err(invalid(
+            "relational plan requires named root and joined indexes".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
@@ -1976,6 +2032,7 @@ pub enum PublicHostPlanKind {
     Query,
     Mutation,
     Action,
+    RelationalQuery,
 }
 
 /// Public projection of [`IbexModule`]: the export name, never the source.
@@ -2133,6 +2190,9 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
+                // Plan-level kind only: per-row facts stay off the ordinary
+                // inspection surface (LLP 0080 §7).
+                HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
             }),
             // `source: _` is the redaction this projection exists for.
             FunctionRuntime::IbexModule(IbexModule { source: _, export }) => {
@@ -2147,6 +2207,10 @@ pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
+    /// LLP 0080 §1 — the closed bounded-join profile. Callable and
+    /// `live_replace`-capable only; targets that cannot execute it report a
+    /// machine-readable capability gap before invocation.
+    RelationalQuery(RelationalQueryPlan),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

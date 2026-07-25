@@ -13168,6 +13168,80 @@ fn validate_function_schema_references(
     for function in &manifest.functions {
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            // @ref LLP 0080#1-closed-relational-plan — activation validates
+            //   the root window exactly like a single-table plan (fields,
+            //   membership privacy, Json-order refusal, named root index)
+            //   and proves the joined side: fields exist, the membership
+            //   privacy rule holds, and the named joined index is unique
+            //   with its complete ordered key exactly the joined-field
+            //   sequence — the cardinality proof, checked from declarations,
+            //   never assumed.
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                let mut root_filters = plan.root_visibility.clone();
+                root_filters.extend(plan.root_filters.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.root.clone(),
+                    filters: root_filters,
+                    order: plan.order.clone(),
+                    limit: Some(plan.take as usize),
+                    membership_filters: Vec::new(),
+                    indexed_by: Some(plan.root_index.clone()),
+                })?;
+                for pair in &plan.join_on {
+                    field(&plan.root, &pair.root_field)?;
+                }
+                let mut joined_filters: Vec<crate::manifest::FilterExpr> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| crate::manifest::FilterExpr {
+                        field: pair.joined_field.clone(),
+                        op: crate::manifest::FilterOp::Eq,
+                        value: ValueExpr::Literal(Value::Null),
+                    })
+                    .collect();
+                joined_filters.extend(plan.joined_visibility.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.joined.clone(),
+                    filters: joined_filters,
+                    order: Vec::new(),
+                    limit: Some(1),
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })?;
+                let joined_table = table(&plan.joined)?;
+                let key: Vec<&str> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| pair.joined_field.as_str())
+                    .collect();
+                let proven = joined_table.indexes.iter().any(|candidate| {
+                    candidate.name == plan.joined_index
+                        && candidate.unique
+                        && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == key
+                });
+                if !proven {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                        "runtime",
+                        format!(
+                            "relational plan for {} requires unique index {}.{} whose complete \
+                             ordered key is exactly the joined-field sequence",
+                            function.name, plan.joined, plan.joined_index
+                        ),
+                    ));
+                }
+                for leaf in &plan.projection {
+                    match &leaf.source {
+                        crate::manifest::ProjectionSource::RootField(name) => {
+                            field(&plan.root, name)?;
+                        }
+                        crate::manifest::ProjectionSource::JoinedField(name) => {
+                            field(&plan.joined, name)?;
+                        }
+                        crate::manifest::ProjectionSource::Literal(_) => {}
+                    }
+                }
+            }
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
                 for step in &plan.steps {
                     match step {
@@ -13288,6 +13362,39 @@ fn execute_query_invocation(
         ) => {
             let output = db.query(plan, &input)?;
             let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+        ) => {
+            // @ref LLP 0080#4-live-and-retained-capability — relational reads
+            //   deliberately capture no Query-kind dependency: the matcher
+            //   then falls through to the table-granular runtime arm, so any
+            //   commit touching either declared source resnapshots and no
+            //   proved-disjoint skip is claimed.
+            let output = crate::storage::query_relational_on(&db, plan, &input)?;
+            let mut read_dependencies = Vec::new();
+            if let Some(user_id) = input.auth.user_id.as_deref() {
+                read_dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Auth,
+                    table: None,
+                    id: None,
+                    version: None,
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: Some("userId".to_owned()),
+                    value: Some(Value::String(user_id.to_owned())),
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+            }
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
                 output,
@@ -13532,6 +13639,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
             (vec![plan.table.clone()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+            (vec![plan.root.clone(), plan.joined.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
             let mut reads = BTreeSet::new();
@@ -15455,6 +15565,219 @@ globalThis.__snapbackHandlers = {
             "result handoff fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    // @ref LLP 0080#1-closed-relational-plan — end-to-end: activation
+    //   validation admits a proven plan and refuses an unproven cardinality
+    //   claim; invocation routes through the root-window executor with the
+    //   caller's authority.
+    #[test]
+    fn relational_query_validates_and_invokes_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: vec![owner_filter("ownerId")],
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+            ],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 10,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory relational fixture");
+        snapback.apply_schema(schema).expect("apply relational schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "proven relational plan must activate: {diagnostics:?}"
+        );
+
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                            row(json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed relational rows");
+
+        let output = snapback
+            .invoke_query(
+                "booksWithAuthors",
+                HandlerInput {
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("relational invocation");
+        assert_eq!(
+            output.rows,
+            vec![json!({ "authorName": "Ada", "title": "alpha" })],
+            "inner join omits the invisible author's book without refill",
+        );
+
+        // An unproven cardinality claim (non-unique joined index) is refused
+        // at activation, before any invocation exists.
+        let mut unproven_schema_snapback =
+            LocalSnapback::memory().expect("memory unproven fixture");
+        let mut unproven_schema = SchemaManifest {
+            tables: Vec::new(),
+            ..SchemaManifest::default()
+        };
+        // Same schema but the joined index loses uniqueness.
+        unproven_schema.tables = vec![
+            TableManifest {
+                name: "books".to_owned(),
+                fields: vec![
+                    string("title", false),
+                    string("authorSlug", true),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_owner_title".to_owned(),
+                    fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+            TableManifest {
+                name: "authors".to_owned(),
+                fields: vec![
+                    string("slug", false),
+                    string("name", false),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_slug".to_owned(),
+                    fields: vec!["slug".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+        ];
+        unproven_schema_snapback
+            .apply_schema(unproven_schema)
+            .expect("apply unproven schema");
+        let diagnostics = unproven_schema_snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| d
+                .message
+                .contains("SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN")
+                || d.code == "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"),
+            "non-unique joined index must refuse activation: {diagnostics:?}"
+        );
     }
 
     #[test]

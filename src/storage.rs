@@ -3939,7 +3939,7 @@ fn validate_relational_plan_shape(
     Ok(())
 }
 
-fn query_relational_on(
+pub(crate) fn query_relational_on(
     db: &DbRead<'_>,
     plan: &crate::manifest::RelationalQueryPlan,
     input: &HandlerInput,
