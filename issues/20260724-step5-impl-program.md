@@ -59,6 +59,31 @@ dependency of both the 0065 and 0080 lanes.
   0081 lane. 0081 is safety machinery and should land essentially whole —
   do not trim it; defer it. The hosted DO executor stays deferred behind an
   LLP 0072 target selection.
+  **Status (2026-07-25): executed on the local profile.** Three waves:
+  (1) `MigrationPlanArtifactV1` + observation/approval/admission types
+  with frozen golden vectors, the deterministic planner order/step-ID
+  grammar, and the UUIDv7 synthesis namespace (`d10c80aa`);
+  `MigrationKeysetScanV1` + `ContentDigestV1` with resumable accumulators
+  (`73023273`). (2) The durable executor (`907214a2`): the closed
+  13-state journal machine with its transition relation committed as
+  schema, the persisted migration fence over the enumerated 8-lane
+  registry surviving process reopen, semantic approval/admission
+  enforcement, batch atomicity, the enforced downtime ceiling, and the
+  `snapback migrate` CLI. (3) Schema-transition events as first-class
+  LLP 0007 journal grammar with floor-gated replay, the stable
+  upgrade-required refusal, retained-work proof, and live retirement
+  (`85fa2375`, `5116c269`); the §5 independent data proof, §6 fast
+  rollback from published-held, staged generations, and the kill-point
+  matrix (`17f0741c` — which found and fixed two Wave-2 executor bugs).
+  0081 acceptance corpus green; coupled-suite map updated. Deferred by
+  design: the hosted DO executor (LLP 0072 selection); sessions-profile
+  residuals (durable auth-scoped dispositions at publication, client
+  quarantine UX, mutation-wire artifact identity — LLP 0093 adjacency)
+  are named in the tickets. `Implemented` flips for 0065/0080/0081 and
+  capability-maturity promotions remain author decisions; three small
+  0081 spec frictions are recorded for the next amendment
+  (cancel_requested naming, an explicit `release` verb, the
+  admission-timing profile note).
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 
