@@ -529,6 +529,227 @@ pub fn overlay_writes(conn: &Connection) -> SnapbackResult<Vec<(u64, OverlayWrit
     Ok(out)
 }
 
+// ---------------------------------------------------------------------------
+// Effect isolation — capture-don't-fire (LLP 0097 P1).
+//
+// When a handler runs in an ephemeral branch, host-mediated egress must NOT
+// fire. Instead each egress attempt is classified against a CLOSED set of
+// host-mediated classes and appended to a captured-effect ledger sharing the
+// branch's child version-stream (so data writes and effects share one total
+// order for promotion replay). The closed enum is the fail-closed contract: an
+// egress path that cannot be classified cannot be captured and must be refused
+// — it may never silently fire from within a branch.
+//
+// @ref LLP 0097#scope — HostMediated vs EndToEnd; v1 capability is HostMediated.
+// @ref LLP 0070 — the CaptureOnly idiom this generalizes.
+// ---------------------------------------------------------------------------
+
+/// Whether an execution fires host egress or captures it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BranchExecutionMode {
+    /// Execution against canonical — effects fire for real.
+    Canonical,
+    /// Ephemeral-branch execution — host egress is captured, never fired.
+    Branch,
+}
+
+/// What to do with a host-egress attempt under a given execution mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EgressDisposition {
+    Fire,
+    Capture,
+}
+
+impl BranchExecutionMode {
+    /// The egress routing decision for this mode.
+    pub fn egress_disposition(self) -> EgressDisposition {
+        match self {
+            BranchExecutionMode::Canonical => EgressDisposition::Fire,
+            BranchExecutionMode::Branch => EgressDisposition::Capture,
+        }
+    }
+}
+
+/// The closed set of host-mediated egress classes (LLP 0097 OQ3 exhaustiveness).
+/// Closed by construction: an egress path that does not map to one of these
+/// cannot be represented, so it fails closed at classification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EffectClass {
+    Fetch,
+    Notification,
+    Payment,
+    Cron,
+    Outbox,
+    Uses,
+}
+
+impl EffectClass {
+    fn as_str(self) -> &'static str {
+        match self {
+            EffectClass::Fetch => "fetch",
+            EffectClass::Notification => "notification",
+            EffectClass::Payment => "payment",
+            EffectClass::Cron => "cron",
+            EffectClass::Outbox => "outbox",
+            EffectClass::Uses => "uses",
+        }
+    }
+
+    /// Classify a raw egress kind. Fails closed on anything unrecognized — an
+    /// unclassifiable egress path may never fire nor be silently captured.
+    pub fn classify(kind: &str) -> SnapbackResult<Self> {
+        match kind {
+            "fetch" => Ok(EffectClass::Fetch),
+            "notification" => Ok(EffectClass::Notification),
+            "payment" => Ok(EffectClass::Payment),
+            "cron" => Ok(EffectClass::Cron),
+            "outbox" => Ok(EffectClass::Outbox),
+            "uses" => Ok(EffectClass::Uses),
+            other => Err(invalid(format!(
+                "unclassifiable host egress {other:?} — refused in branch execution (fail-closed)"
+            ))),
+        }
+    }
+}
+
+/// Capture scope. v1 admits `HostMediated` only; `EndToEnd` is refused until the
+/// end-to-end capture story lands.
+///
+/// @ref LLP 0097#scope
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EffectScope {
+    HostMediated,
+    EndToEnd,
+}
+
+impl EffectScope {
+    fn as_str(self) -> &'static str {
+        match self {
+            EffectScope::HostMediated => "host_mediated",
+            EffectScope::EndToEnd => "end_to_end",
+        }
+    }
+}
+
+/// An egress attempt to capture instead of fire.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapturedEffectInput {
+    pub class: EffectClass,
+    pub scope: EffectScope,
+    /// Logical destination (url, topic, payment target, `uses` id, …).
+    pub target: String,
+    pub payload: Option<String>,
+    /// The declared deterministic outcome handed back to the handler in place
+    /// of the real effect's result (simulation adapter). `None` = no return.
+    pub simulated_outcome: Option<String>,
+}
+
+/// A captured effect as recorded in the ledger, keyed by its position in the
+/// branch's child version-stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapturedEffect {
+    pub child_version: u64,
+    pub class: EffectClass,
+    pub scope: EffectScope,
+    pub target: String,
+    pub payload: Option<String>,
+    pub simulated_outcome: Option<String>,
+}
+
+/// Create the captured-effect ledger in a branch database (idempotent).
+pub fn ensure_captured_effects(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_captured_effects (
+            child_version     INTEGER PRIMARY KEY,
+            branch_id         TEXT NOT NULL,
+            class             TEXT NOT NULL,
+            scope             TEXT NOT NULL,
+            target            TEXT NOT NULL,
+            payload           TEXT,
+            simulated_outcome TEXT,
+            recorded_at_ms    INTEGER NOT NULL
+         );",
+    )?;
+    Ok(())
+}
+
+/// Capture a host-egress attempt into the ledger instead of firing it. Allocates
+/// the next child-stream version atomically with the ledger append, so effects
+/// and data writes share one total order. Fails closed if the scope is not
+/// `HostMediated` (v1 capability), or if the branch has no child stream.
+pub fn capture_effect(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    effect: &CapturedEffectInput,
+    now_ms: i64,
+) -> SnapbackResult<u64> {
+    if effect.scope != EffectScope::HostMediated {
+        return Err(invalid(
+            "only HostMediated effects can be captured in v1 (fail-closed)",
+        ));
+    }
+    ensure_captured_effects(conn)?;
+    let tx = conn.transaction()?;
+    let version = allocate_child_version(&tx, branch_id)?;
+    tx.execute(
+        "INSERT INTO _snapback_captured_effects
+           (child_version, branch_id, class, scope, target, payload, simulated_outcome, recorded_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            version as i64,
+            branch_id.0,
+            effect.class.as_str(),
+            effect.scope.as_str(),
+            effect.target,
+            effect.payload,
+            effect.simulated_outcome,
+            now_ms,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(version)
+}
+
+/// Enumerate captured effects in child-version order — the effect-replay list
+/// for promotion (P3), interleaved with overlay writes by shared version.
+pub fn captured_effects(conn: &Connection) -> SnapbackResult<Vec<CapturedEffect>> {
+    ensure_captured_effects(conn)?;
+    let mut stmt = conn.prepare(
+        "SELECT child_version, class, scope, target, payload, simulated_outcome
+           FROM _snapback_captured_effects
+          ORDER BY child_version ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (version, class, scope, target, payload, simulated_outcome) = row?;
+        let class = EffectClass::classify(&class)?;
+        let scope = match scope.as_str() {
+            "host_mediated" => EffectScope::HostMediated,
+            "end_to_end" => EffectScope::EndToEnd,
+            other => return Err(invalid(format!("unknown effect scope {other:?}"))),
+        };
+        out.push(CapturedEffect {
+            child_version: version.max(0) as u64,
+            class,
+            scope,
+            target,
+            payload,
+            simulated_outcome,
+        });
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -867,5 +1088,117 @@ mod tests {
             vec![1, 2, 3]
         );
         assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(3));
+    }
+
+    #[test]
+    fn execution_mode_routes_egress() {
+        assert_eq!(
+            BranchExecutionMode::Canonical.egress_disposition(),
+            EgressDisposition::Fire
+        );
+        assert_eq!(
+            BranchExecutionMode::Branch.egress_disposition(),
+            EgressDisposition::Capture
+        );
+    }
+
+    #[test]
+    fn effect_classification_is_closed_and_fail_closed() {
+        for kind in ["fetch", "notification", "payment", "cron", "outbox", "uses"] {
+            assert_eq!(EffectClass::classify(kind).expect("known").as_str(), kind);
+        }
+        // Anything not in the closed set is refused — never silently fired.
+        assert!(EffectClass::classify("websocket").is_err());
+        assert!(EffectClass::classify("").is_err());
+        assert!(EffectClass::classify("FETCH").is_err());
+    }
+
+    #[test]
+    fn captured_effects_share_the_child_stream_and_order() {
+        let source = source_with_head(9);
+        let (bid, cs) = ids("fx");
+        create_branch(&source, &bid, &cs, "canonical", 9, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&source, None).expect("base");
+
+        // A data write, then two effects — all share one total order.
+        let w = record_overlay_write(
+            &mut base.conn,
+            &bid,
+            &OverlayWrite {
+                table_name: "widgets".into(),
+                row_id: "1".into(),
+                op: OverlayOp::Upsert,
+                payload: Some("x".into()),
+            },
+            10,
+        )
+        .expect("write");
+        assert_eq!(w, 1);
+
+        let e1 = capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Fetch,
+                scope: EffectScope::HostMediated,
+                target: "https://api.example.com/charge".into(),
+                payload: Some("{\"amt\":100}".into()),
+                simulated_outcome: Some("{\"ok\":true}".into()),
+            },
+            20,
+        )
+        .expect("effect 1");
+        let e2 = capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Notification,
+                scope: EffectScope::HostMediated,
+                target: "topic:orders".into(),
+                payload: None,
+                simulated_outcome: None,
+            },
+            30,
+        )
+        .expect("effect 2");
+        assert_eq!((e1, e2), (2, 3), "effects continue the shared child stream");
+
+        let effects = captured_effects(&base.conn).expect("effects");
+        assert_eq!(effects.len(), 2);
+        assert_eq!(effects[0].child_version, 2);
+        assert_eq!(effects[0].class, EffectClass::Fetch);
+        assert_eq!(
+            effects[0].simulated_outcome.as_deref(),
+            Some("{\"ok\":true}")
+        );
+        assert_eq!(effects[1].child_version, 3);
+        assert_eq!(effects[1].class, EffectClass::Notification);
+        assert_eq!(effects[1].payload, None);
+        // The whole branch log is one gap-free ordered stream.
+        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(3));
+    }
+
+    #[test]
+    fn end_to_end_scope_is_refused_in_v1() {
+        let source = source_with_head(1);
+        let (bid, cs) = ids("e2e");
+        create_branch(&source, &bid, &cs, "canonical", 1, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&source, None).expect("base");
+        let err = capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Fetch,
+                scope: EffectScope::EndToEnd,
+                target: "https://example.com".into(),
+                payload: None,
+                simulated_outcome: None,
+            },
+            5,
+        );
+        assert!(err.is_err(), "EndToEnd capture must fail closed in v1");
+        // Nothing was recorded and no version was consumed.
+        assert!(captured_effects(&base.conn).expect("effects").is_empty());
+        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(0));
     }
 }
