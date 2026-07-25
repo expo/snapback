@@ -149,6 +149,7 @@ await runAcceptance(suite, async () => {
   const gatewayUrl = await startGateway(snapbackUrl);
   const vite = await startVite(snapbackUrl, gatewayUrl);
   cleanups.push(() => vite.stop());
+  if (browser === 'safari') await stopSafariApp('before WebDriver');
   const driver = await startDriver();
   cleanups.push(() => driver.stop());
   const session = await driver.newSession(browserConfig.capabilities);
@@ -160,14 +161,31 @@ await runAcceptance(suite, async () => {
   await suite.check(`contract × snapback traps and restores focus in desktop ${browser}`, async () => {
     if (browser === 'safari') {
       // Safari intentionally does not focus buttons on mouse click. Give the
-      // opener explicit focus before WebDriver's native click so focusRestore
-      // is tested against a real focused element rather than body.
+      // opener explicit focus, then activate it with WebDriver's native Enter
+      // action. The citizenship claim is keyboard focus containment/restore;
+      // using the same keyboard path also avoids Safari returning success for
+      // a pointer click that it does not dispatch from a non-frontmost
+      // automation window.
       await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
-      await session.click('[data-testid="new-event"]');
+      await session.keys([press('\uE007')]);
     } else {
       await session.click('[data-testid="new-event"]');
     }
-    await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
+    try {
+      await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
+    } catch (error) {
+      const state = await session.execute(`
+        return {
+          ready: Boolean(window.partifulMatrixReady),
+          pathname: location.pathname,
+          activeTestId: document.activeElement?.dataset?.testid ?? null,
+          overlayPresent: Boolean(document.querySelector('[data-testid="create-overlay"]')),
+          openerPresent: Boolean(document.querySelector('[data-testid="new-event"]')),
+          bodyHasFeed: document.body?.textContent?.includes('Sunset Supper Club') ?? false,
+        };
+      `);
+      throw new Error(`${error.message}; post-activation state: ${JSON.stringify(state)}`);
+    }
     const initial = await session.execute(`return document.activeElement?.dataset?.testid ?? null`);
     await session.keys([keyDown('\uE008'), press('\uE004'), keyUp('\uE008')]);
     const reverseWrapped = await session.execute(`return document.activeElement?.dataset?.testid ?? null`);
@@ -189,8 +207,7 @@ await runAcceptance(suite, async () => {
     // real menu and Accessibility surface.
     await session.close();
     await driver.stop();
-    requiredCommand('/usr/bin/osascript', ['-e', 'tell application "Safari" to quit']);
-    await sleep(500);
+    await stopSafariApp('between WebDriver and native Find');
   }
 
   await suite.check(`contract × snapback exposes visible content to desktop ${browser} find-on-page`, async () => {
@@ -331,6 +348,20 @@ async function waitSafariCondition(source, failure, timeout = 15_000) {
     await sleep(100);
   }
   throw new Error(failure);
+}
+
+async function stopSafariApp(stage, timeout = 10_000) {
+  const running = () => command('/usr/bin/osascript', [
+    '-l', 'JavaScript', '-e', 'Application("Safari").running()',
+  ]) === 'true';
+  if (!running()) return;
+  requiredCommand('/usr/bin/osascript', ['-e', 'tell application "Safari" to quit']);
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (!running()) return;
+    await sleep(100);
+  }
+  throw new Error(`Safari did not terminate ${stage}`);
 }
 
 async function startSnapback() {
