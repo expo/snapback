@@ -1917,9 +1917,10 @@ pub struct FunctionDefinition {
     /// response. Grants no invocation authority; accepted only beside a valid
     /// `authorityIndependent` declaration.
     ///
-    /// @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
-    ///   authored on the function definition, compiled by codegen, re-enforced
-    ///   at manifest load; never route-manifest authored.
+    /// Governed by LLP 0092 §0C.3: authored on the function definition,
+    /// compiled by codegen, re-enforced at manifest load, and never
+    /// route-manifest authored.
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact
     #[serde(
         default,
         rename = "publicInline",

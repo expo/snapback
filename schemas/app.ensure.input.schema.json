@@ -1143,7 +1143,7 @@
           "type": "array"
         },
         "publicInline": {
-          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\n@ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —\n  authored on the function definition, compiled by codegen, re-enforced\n  at manifest load; never route-manifest authored.",
+          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\nGoverned by LLP 0092 §0C.3: authored on the function definition,\ncompiled by codegen, re-enforced at manifest load, and never\nroute-manifest authored.",
           "type": "boolean"
         },
         "readSetSummary": {

@@ -1,15 +1,15 @@
 {
   "schemaVersion": "partitime.step5-declaration-reduction-candidate.v1",
   "claimId": "STEP5.DECLARATION_REDUCTION",
-  "ok": false,
-  "disposition": "candidate-pass-authority-pending",
-  "claimStatus": "pending",
+  "ok": true,
+  "disposition": "pass",
+  "claimStatus": "passing",
   "implementationCandidatePass": true,
   "authority": {
     "path": "llp/0065-generated-data-pattern-soundness.rfc.md",
-    "sha256": "f87490cebbd212aacda86f497c6f336500182fd0c46798d039b6c995455632f6",
-    "status": "Draft",
-    "acceptedForGate": false,
+    "sha256": "9ee1e85c8d7ee87998f74c683c5f3008030932e951df171ea1d9ea98bee7f3db",
+    "status": "Accepted",
+    "acceptedForGate": true,
     "rule": "LLP 0065 must be Accepted or Implemented before this candidate may promote the cumulative claim."
   },
   "sourceVolume": {
@@ -86,30 +86,30 @@
     "inputs": [
       {
         "path": "packages/snapback-codegen/standard-patterns.mjs",
-        "sha256": "875b0c321c62558c3ddfea6ca3ebced5581de4f6088f8f4ea31c688413c9872f"
+        "sha256": "03cc6ef41ae81a4e253eb83b7eb966abb1b848068eef0ec63d08cd3566a4dad3"
       },
       {
         "path": "packages/snapback-codegen/standard-patterns.d.ts",
-        "sha256": "38f024b1bdeff0d89b7c38f9ad7ed47f44c66e37a9fbebc22157e992ceb3dcad"
+        "sha256": "b1068e6d270e90bcf5702b510bf709b2508456827ab11cfffa31df68ee711f2d"
       },
       {
         "path": "packages/snapback-codegen/standard-patterns.test.mjs",
-        "sha256": "93764efcc3b25a2d82a83766bc0d634d256d04453592c80ecf44df2377e7c4df"
+        "sha256": "47bffd3b4954244d067ed9c1545b6dcf39eabe7e7b9339d337f1f8dea88d34f8"
       },
       {
         "path": "packages/snapback-codegen/standard-patterns-types.fixture.ts",
-        "sha256": "58f724a9111b9df823b072ce79ef435aac6ce77cf4b2784e6ed46cea28adcbd0"
+        "sha256": "7d94c9519a4a28b302bebfde9c5c7cd61b5f89b646d4ba0c7527d9715015b02b"
       },
       {
         "path": "tests/acceptance/standard-patterns-v1.mjs",
-        "sha256": "c66f1289028b936e4dc9872c32c14bf3fe088dc5137fb843a1094e453fb8be94"
+        "sha256": "ff85c73bac4c5cd5c6a69a6c32f3bb22abaf8502c5d36280161e7afbe6146d85"
       }
     ]
   },
   "frozenInputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
     },
     "baseline": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
