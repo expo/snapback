@@ -225,10 +225,18 @@ pub const HOSTED_ADMISSION_VERSION: u64 = 1;
 pub const HOSTED_ADMISSION_MAX_LIFETIME_MS: u64 = 5 * 60 * 1_000;
 /// Largest integer every JavaScript implementation can represent exactly.
 pub const HOSTED_ADMISSION_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+// Retained as the Rust schema/test authority for LLP 0072's provider-neutral
+// HMAC projection protocol. LLP 0098's concrete runtime seam uses the stronger
+// release-bound Ed25519 path, so these are intentionally test-only for now.
+#[cfg_attr(not(test), allow(dead_code))]
 const HOSTED_ADMISSION_ENVELOPE_MAX_BYTES: usize = 64 * 1024;
+#[cfg_attr(not(test), allow(dead_code))]
 const HOSTED_ADMISSION_KEY_MAX_BYTES: usize = 4 * 1024;
+#[cfg_attr(not(test), allow(dead_code))]
 const HOSTED_ADMISSION_ENVELOPE_VERSION: &str = "snapback.hosted-admission-envelope.v1";
+#[cfg_attr(not(test), allow(dead_code))]
 const HOSTED_ADMISSION_KEY_VERSION: &str = "snapback.hosted-admission-key.v1";
+#[cfg_attr(not(test), allow(dead_code))]
 const HOSTED_ADMISSION_MAC_DOMAIN: &[u8] = b"snapback-hosted-admission-envelope-v1\0";
 
 /// Closed, deployment-bound facts required before a future hosted target can
@@ -326,6 +334,7 @@ pub(crate) struct HostedAdmissionEnvelope {
     mac: String,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct HostedAdmissionKeyFile {
@@ -344,6 +353,7 @@ fn hosted_admission_invalid(message: &'static str) -> SnapbackError {
     )
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn write_canonical_json(
     output: &mut Vec<u8>,
     value: &serde_json::Value,
@@ -386,6 +396,7 @@ fn write_canonical_json(
     Ok(())
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn hosted_admission_mac_input(envelope: &HostedAdmissionEnvelope) -> SnapbackResult<Vec<u8>> {
     let content = serde_json::json!({
         "schemaVersion": envelope.schema_version,
@@ -402,12 +413,14 @@ fn hosted_admission_mac_input(envelope: &HostedAdmissionEnvelope) -> SnapbackRes
     Ok(input)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn parse_hosted_admission_envelope(bytes: &[u8]) -> SnapbackResult<HostedAdmissionEnvelope> {
     serde_json::from_slice(bytes).map_err(|_| {
         hosted_admission_invalid("hosted admission envelope is not the closed version-1 shape")
     })
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn verify_hosted_admission_envelope(
     envelope: HostedAdmissionEnvelope,
     expected_key_id: &str,
@@ -435,6 +448,7 @@ fn verify_hosted_admission_envelope(
     Ok(envelope)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn read_hosted_admission_envelope(path: &Path) -> SnapbackResult<HostedAdmissionEnvelope> {
     let bytes =
         crate::secure_file::read_strict_owner_only(path, HOSTED_ADMISSION_ENVELOPE_MAX_BYTES)
@@ -451,6 +465,7 @@ fn read_hosted_admission_envelope(path: &Path) -> SnapbackResult<HostedAdmission
 /// The public origin is target configuration, never a request forwarding
 /// header. Construction is crate-private so an HTTP embedder cannot turn an
 /// arbitrary `Host`/`Forwarded` value into proof-verification authority.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
 pub(crate) struct HostedServingAuthority {
     admission: Arc<RwLock<HostedAdmission>>,
@@ -546,6 +561,7 @@ impl HostedServingAuthority {
     /// @ref LLP 0077#author-decisions--2026-07-23 — the serving process
     /// consumes the external monotone floor only through authenticated
     /// control-plane authority outside the application backup set.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn from_authenticated_envelope_files(
         envelope_path: &Path,
         key_path: &Path,
@@ -629,6 +645,7 @@ impl HostedServingAuthority {
     /// incarnation or its external replay floor. A next boot must allocate a
     /// strictly newer floor; a live refresh may only extend authenticated
     /// serving health for the already-reconciled boot.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn refresh_from_authenticated_envelope_file(
         &self,
         envelope_path: &Path,
@@ -800,6 +817,7 @@ fn is_sha256_hex(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn is_portable_identifier(value: &str) -> bool {
     (1..=128).contains(&value.len())
         && value.bytes().enumerate().all(|(index, byte)| match byte {
