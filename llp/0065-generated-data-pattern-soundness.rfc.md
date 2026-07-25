@@ -1,11 +1,22 @@
 # LLP 0065 — Generated data-pattern soundness and declaration floor
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+**Revised:** 2026-07-25 (Implemented — author-delegated flip: the §6
+implementation-conformance suite is assembled and green with an
+item-by-item witness map in
+`issues/20260724-step5-impl-0065-conformance-suite.md`; every claimed
+adapter is covered (local is the only claimed adapter in v1); the
+runtime pieces beyond codegen — the opaque versioned keyset cursor,
+principal profile-class admission, and the `EffectCeilingV1` runtime
+subset check — are landed and witnessed, including the Sessions-mode
+negatives with real session identities. This status claims 0065's own
+semantics only: the `STEP5.DECLARATION_REDUCTION` receipt remains an
+LLP 0063 deliverable and Step 0 remains the conjunctive prerequisite
+for claiming any Step 5 gate); 2026-07-24 (Accepted by the author after the dual-family
 LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
 semantic per §6 and lands with the same-landing LLP 0004/0007 amendments;
 the implementation-conformance suite still gates `Implemented` and
