@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -227,15 +236,24 @@ function spawnMac(binary, origin, token) {
   return { child, log: () => log };
 }
 
-async function launchIos(simulator, app, bundleId, origin, token) {
+async function launchIos(simulator, app, bundleId, origin, token, backend) {
   const preLaunchTermination = await run(
     'xcrun',
     ['simctl', 'terminate', simulator.udid, bundleId],
     { timeoutMs: 30_000 },
   );
+  const carrierLogRoot = join(derivedRoot, 'carrier-logs');
+  mkdirSync(carrierLogRoot, { recursive: true });
+  const carrierStdoutPath = join(carrierLogRoot, `${backend}-ios.stdout.log`);
+  const carrierStderrPath = join(carrierLogRoot, `${backend}-ios.stderr.log`);
+  rmSync(carrierStdoutPath, { force: true });
+  rmSync(carrierStderrPath, { force: true });
   const requestedAtMs = Date.now();
   const launch = await run('xcrun', [
-    'simctl', 'launch', '--terminate-running-process',
+    'simctl', 'launch',
+    `--stdout=${carrierStdoutPath}`,
+    `--stderr=${carrierStderrPath}`,
+    '--terminate-running-process',
     simulator.udid, bundleId,
   ], {
     timeoutMs: 30_000,
@@ -251,6 +269,10 @@ async function launchIos(simulator, app, bundleId, origin, token) {
   });
   return {
     ...launch,
+    carrierLog: () => [
+      existsSync(carrierStdoutPath) ? readFileSync(carrierStdoutPath, 'utf8') : '',
+      existsSync(carrierStderrPath) ? readFileSync(carrierStderrPath, 'utf8') : '',
+    ].filter(Boolean).join('\n'),
     requestedAtMs,
     commandCompletedAtMs: Date.now(),
     preLaunchTermination: {
@@ -522,17 +544,30 @@ try {
       if (platforms.includes('ios')) {
         let iosLaunch;
         let iosActo;
+        let iosCell;
         try {
-          iosLaunch = await launchIos(simulator, iosApp, bundleId, dev.origin, token);
+          iosLaunch = await launchIos(
+            simulator,
+            iosApp,
+            bundleId,
+            dev.origin,
+            token,
+            backend,
+          );
           iosActo = await runActo('ios', backend, dev.origin, token);
-          report.cells.push({
+          iosCell = {
             cell: `exact-contract:ios:${backend}`,
             ok: iosLaunch.status === 0 && iosActo.status === 0 && iosActo.receipt?.ok === true,
-            launch: { ...iosLaunch, stdout: undefined, stderr: undefined },
+            launch: {
+              ...iosLaunch,
+              stdout: undefined,
+              stderr: undefined,
+              carrierLog: undefined,
+            },
             acto: { ...iosActo, stdout: undefined, stderr: undefined },
             devServerLogSha256: sha256(dev.log()),
             devServerLogTail: dev.log().trim().split('\n').filter(Boolean).slice(-20),
-          });
+          };
         } finally {
           const termination = await run(
             'xcrun',
@@ -554,6 +589,12 @@ try {
             const message = `could not terminate iOS Exact carrier for ${backend}: ${termination.stderrTail.join('\n')}`;
             report.cleanupErrors.push(message);
             throw new Error(message);
+          }
+          if (iosCell) {
+            const carrierLog = iosLaunch.carrierLog();
+            iosCell.carrierLogSha256 = sha256(carrierLog);
+            iosCell.carrierLogTail = carrierLog.trim().split('\n').filter(Boolean).slice(-40);
+            report.cells.push(iosCell);
           }
         }
       }
