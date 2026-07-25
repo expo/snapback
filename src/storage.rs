@@ -11428,7 +11428,8 @@ mod guarded_commit_tests {
 
     fn relational_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(relational_schema()).expect("apply relational schema");
+        db.apply_schema(relational_schema())
+            .expect("apply relational schema");
         let row = |id: &str, fields: Value| {
             let mut object = fields.as_object().cloned().expect("row object");
             object.insert("_id".to_owned(), json!(id));
@@ -11439,17 +11440,35 @@ mod guarded_commit_tests {
                 (
                     "books".to_owned(),
                     vec![
-                        row("b1", json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row("b2", json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
-                        row("b3", json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" })),
-                        row("b4", json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" })),
+                        row(
+                            "b1",
+                            json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b2",
+                            json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b3",
+                            json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b4",
+                            json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" }),
+                        ),
                     ],
                 ),
                 (
                     "authors".to_owned(),
                     vec![
-                        row("a1", json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
-                        row("a2", json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                        row(
+                            "a1",
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "a2",
+                            json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" }),
+                        ),
                     ],
                 ),
             ]),
@@ -11558,7 +11577,10 @@ mod guarded_commit_tests {
         let error = corrupted
             .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
             .expect_err("duplicate unique key must refuse");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
+        );
 
         // Closed-shape refusals.
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
