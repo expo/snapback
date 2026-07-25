@@ -150,7 +150,7 @@ function CreateEventDialog({ open, busy, draft, setDraft, onClose, onSubmit }: {
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    requestAnimationFrame(() => titleInput.current?.focus());
+    queueMicrotask(() => titleInput.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab' || !panel.current) return;
