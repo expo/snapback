@@ -82,10 +82,34 @@ than document it (e.g. refuse to install an admission when the platform reports
 more than one running instance), or whether a documented handoff with bounded
 downtime is sufficient. LLP 0098 open question 3.
 
+## D4. A persistent volume for certificate storage (new Fly resource)
+
+The hosted-edge machine has no volume, so every redeploy wipes Caddy's
+certificate storage and forces a fresh Let's Encrypt issuance. That limit has
+now been hit: the public TLS leg is down until the duplicate-certificate window
+clears, which blocks served-origin reruns (LLP 0098 §8.3).
+
+**Conservative default in force:** no new Fly resource was created. The drill
+runs `auto_stop_machines = "off"` with one always-on machine, which avoids
+stop/start cert loss but not redeploy cert loss.
+
+**The decision:** whether to create a small persistent Fly volume for
+`/data/caddy` (the durable fix). It is a **new Fly resource**, which this lane
+was scoped not to create, so it is Charlie's call. The alternative — keeping
+cert material in a Fly secret — trades the rate limit for holding a private key
+in platform secret storage, which is a custody change and should not be adopted
+silently.
+
 ## Not an author decision — tracked as work
 
 - Plaintext credential-bearing paths currently 308-redirect rather than refuse
-  (LLP 0060 D2). This is a defect with a known fix, not a judgement call.
+  (LLP 0060 D2). This is a defect with a known fix, not a judgement call. It is
+  **not** the same seam as D-1: the redirect is issued by the Caddy terminator
+  before the origin sees the request, so it is a terminator-configuration fix,
+  not a request-ordering one. It gets its own change.
+- D-1 (unauthenticated caller reaches the JSON parser) needs the function-level
+  authentication requirement hoisted into route policy — a codegen/route-policy
+  design change, not the reorder it first looked like. See the 0077 index.
 - The LLP 0077 matrix has not run on the served origin because the deployment's
   active auth mode is `dev`; staging a sessions carrier is implementation work.
 - A method-mismatched probe of a disabled operator route returns 405 before the
