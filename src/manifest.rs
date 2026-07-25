@@ -1825,6 +1825,11 @@ pub enum FunctionKind {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+// This schema-governed authoring enum is constructed directly throughout the
+// public Rust surface and generated-proof fixtures. Boxing only HostPlan would
+// add an allocation and break that API solely to shrink a manifest-time value;
+// runtime staging already chooses its own allocation strategy.
+#[allow(clippy::large_enum_variant)]
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),
     IbexModule(IbexModule),
