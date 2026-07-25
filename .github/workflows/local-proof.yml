@@ -114,5 +114,10 @@ jobs:
 
       - name: Verify Snapback local proof
         env:
+          # Two consecutive ubuntu-latest runs crashed rust-lld with SIGBUS
+          # while Cargo linked different integration-test binaries in
+          # parallel. Bound the fresh runner to one Cargo unit at a time so
+          # native test links cannot multiply their mmap/memory/disk peak.
+          CARGO_BUILD_JOBS: "1"
           SNAPBACK_VERIFY_EXACT: "1"
         run: scripts/verify-local-proof

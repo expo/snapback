@@ -140,6 +140,11 @@ assert.equal(actionCount, 23, 'the reviewed workflow action inventory changed; r
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /CARGO_BUILD_JOBS:\s*"1"/,
+  'canonical CI must serialize Cargo links within the hosted-runner resource budget',
+);
 const [localProofCheckout] = checkoutStepBlocks(localProof);
 assert(localProofCheckout, 'canonical CI must contain an active checkout step');
 assert.match(
