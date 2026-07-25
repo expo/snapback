@@ -73,14 +73,8 @@ const exactValidation = JSON.parse(run(
   ['scripts/check-snapback-partitime-manifest.mjs', '--json'],
   exactRoot,
 ));
-const exactAggregateValidation = JSON.parse(run(
-  'bun',
-  ['scripts/check-snapback-partitime-step0-aggregate.mjs', '--json'],
-  exactRoot,
-));
 assert.equal(snapbackValidation.validationOk, true);
 assert.equal(exactValidation.ok, true);
-assert.equal(exactAggregateValidation.ok, true);
 assertCleanExact();
 
 const result = {
@@ -124,7 +118,12 @@ const result = {
       command: 'bun scripts/check-snapback-partitime-step0-aggregate.mjs --json',
       registeredCheckId: 'snapback-partitime-step0-aggregate',
       registeredCommand: exactAggregateCheck.command,
-      resultSchemaVersion: exactAggregateValidation.schemaVersion,
+      // @ref LLP 0063#sequence — the shared contract identifies the registered
+      // aggregate consumer before STEP0.COMPLETE is regenerated. The final
+      // cross-repository validator executes it after the aggregate mirror
+      // lands; executing it here would create a shared-receipt/aggregate
+      // bootstrap cycle during any later protocol amendment.
+      resultSchemaVersion: 'partitime.exact-step0-aggregate-validation.v1',
     },
   },
   siblingPlans: {
