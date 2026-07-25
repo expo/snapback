@@ -73,15 +73,16 @@
     },
     {
       "id": "admission-renewal",
-      "status": "BOUNDED",
+      "status": "BOUNDED \u2014 corrected 2026-07-25T15:25Z",
       "what": "An admission snapshot lives at most five minutes (LLP 0060 D5), so serving withdraws when the current snapshot lapses.",
-      "posture": "renewal = presignedWindow: a 48-snapshot chain covering four hours was pre-signed once and delivered as a platform secret; the origin selects the member covering its boot instant. There is no hot-swap renewal loop, so serving withdraws at the end of the window and the control plane cannot withdraw inside it.",
-      "assessment": "Honest cost of pre-signing, recorded rather than hidden. An `online` renewal mechanism is LLP 0098 open question 1."
+      "posture": "renewal = presignedWindow. A 48-snapshot chain covering four hours was pre-signed and delivered as a platform secret, but the chain only supplies the snapshot covering the BOOT instant: the origin installs exactly one authority at startup and does not advance through the chain at runtime. The actual serving window is therefore ONE snapshot lifetime (5 minutes) from boot, NOT the four-hour chain window.",
+      "assessment": "An earlier draft of this receipt said serving withdraws at the end of the four-hour window. That OVERSTATED the window and is corrected here: without a renewal loop the deployment serves for ~5 minutes per boot. A hot-swap renewal mechanism is required for any drill longer than one snapshot lifetime, and is LLP 0098 open question 1 / author decision D2.",
+      "observedWithdrawal": "Confirmed in production at 15:25Z: the machine booted 15:14:56Z and the origin now answers SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED (\"hosted serving admission is not current\"). Withdrawal works, and it is broader than LLP 0060 D5 requires \u2014 /health withdrew too, where D5 allows diagnostics to remain reachable."
     }
   ],
   "platformFindings": [
     "This machine has no persistent volume: an auto-stop/start cycle wipes the rootfs, destroying both the delivered admission chain and Caddy's certificate storage, which forces a fresh Let's Encrypt issuance against the 5-per-week duplicate-certificate limit. The profile therefore runs with auto_stop_machines = off and min_machines_running = 1. A volume is the production answer.",
     "Fly raw TCP passthrough on public 443 for a `<app>.fly.dev` hostname works over both the dedicated IPv6 and the shared IPv4 (SNI-routed). Let's Encrypt issued successfully via TLS-ALPN-01 and later HTTP-01 through the passthrough."
   ],
-  "claimBoundary": "This receipt proves that a hosted-edge attestation now exists, is verified, and admits serving on a real public origin. It does NOT prove the LLP 0077 sender-auth contract on that origin, and it records two attested-but-unenforced facts. hostedAuthCapable remains unclaimed and the LLP 0077 program-index capability gate stays open."
+  "claimBoundary": "This receipt proves that a hosted-edge attestation now exists, is verified, and admits serving on a real public origin. It does NOT prove the LLP 0077 sender-auth contract on that origin, and it records two attested-but-unenforced facts. hostedAuthCapable remains unclaimed and the LLP 0077 program-index capability gate stays open. Serving is additionally time-bounded: without renewal the deployment serves ~5 minutes per boot, so the LLP 0077 matrix would also need renewal (or to complete inside one snapshot lifetime) even once sessions are staged."
 }

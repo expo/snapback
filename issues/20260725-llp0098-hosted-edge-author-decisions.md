@@ -49,6 +49,16 @@ four-hour chain, the mode is recorded in the receipt, and the deployment is
 never described as having control-plane withdrawal. There is no hot-swap
 renewal loop, so serving withdraws when the window ends.
 
+**Correction (observed in production 2026-07-25T15:25Z):** the chain supplies
+only the snapshot covering the *boot* instant — the origin installs one
+authority at startup and never advances through the chain. The real serving
+window is **one snapshot lifetime (5 minutes) from boot**, not the chain span.
+The deployment duly withdrew with `SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED`.
+
+That promotes this from a preference to a **blocking implementation item**: a
+hot-swap renewal loop is required before the LLP 0077 matrix can run against the
+served origin at all, unless the whole matrix completes inside five minutes.
+
 **The decision:** whether production requires `online` (which forces the
 deployment to make outbound control-plane connections, or the control plane to
 reach a loopback admission socket), and what the maximum acceptable

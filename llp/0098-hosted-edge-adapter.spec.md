@@ -647,9 +647,24 @@ deployment does not yet stage. `POST /auth/request-code` refuses
 `SNAPBACK_AUTH_MODE_DEV`. This is a deployment-composition gap, not a protocol
 finding.
 
-**Bounded.** Renewal is `presignedWindow` over a four-hour chain; serving
-withdraws when the window ends and the control plane cannot withdraw inside it
-(§2.4).
+**Bounded, and narrower than §2.4 first implied.** Renewal is
+`presignedWindow`. The chain supplies only the snapshot covering the **boot**
+instant: the origin installs exactly one authority at startup and does not
+advance through the chain at runtime, so the real serving window is **one
+snapshot lifetime (5 minutes) from boot**, not the chain's span. Confirmed in
+production — a machine that booted at 15:14:56Z answered
+`SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED` by 15:25Z.
+
+Two consequences, both recorded rather than smoothed over:
+
+- **A renewal loop is not optional polish; it is required for any drill longer
+  than five minutes.** The LLP 0077 matrix will need it (or must complete inside
+  one snapshot lifetime) even after sessions are staged. This makes open
+  question 1 a blocking implementation item, not a design preference.
+- **Observed withdrawal is broader than D5 requires.** `/health` withdrew along
+  with everything else, where LLP 0060 D5 permits diagnostics to remain
+  reachable. Failing closed in the safe direction, but it should be deliberate
+  rather than incidental.
 
 ## 9. Non-goals
 
