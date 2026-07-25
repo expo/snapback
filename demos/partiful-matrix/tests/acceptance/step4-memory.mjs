@@ -22,6 +22,10 @@ import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { writeMachineReport } from '../../../_kit/harness.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import {
+  closeTargetReliably,
+  freshBrowserCommand,
+} from './cdp-target-cleanup.mjs';
+import {
   validateMemoryConstructAmendment,
   validateMemoryConstructRegistration,
 } from './step4-memory-authority.mjs';
@@ -802,13 +806,20 @@ async function connectCdp(url) {
           throw new Error(`navigation timed out: ${pageUrl}`);
         },
         close: async () => {
-          try {
-            const result = await send('Target.closeTarget', { targetId }, null, 5_000);
-            assert.notEqual(result.success, false, `Chrome refused to close target ${targetId}`);
-          } catch {
-            const { targetInfos = [] } = await send('Target.getTargets', {}, null, 5_000);
-            assert(!targetInfos.some((target) => target.targetId === targetId));
-          }
+          await closeTargetReliably({
+            targetId,
+            closeTarget: () =>
+              send('Target.closeTarget', { targetId }, null, 15_000),
+            listTargetsFresh: async () => {
+              const { targetInfos = [] } = await freshBrowserCommand(
+                url,
+                'Target.getTargets',
+              );
+              return targetInfos;
+            },
+            closeTargetFresh: () =>
+              freshBrowserCommand(url, 'Target.closeTarget', { targetId }),
+          });
         },
         setCacheDisabled: (cacheDisabled) =>
           send('Network.setCacheDisabled', { cacheDisabled }, sessionId),

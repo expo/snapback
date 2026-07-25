@@ -2302,3 +2302,45 @@ ratifies it, and every claim-eligible collector rejects a status-only edit or
 an approximate approval. That was a small but useful reminder that a
 fail-closed benchmark needs to protect not only numbers and source hashes, but
 also the transition that gives them authority.
+
+The native observer then got its first honest end-to-end exercise. A clean,
+cached Release build installed on the iOS 26.3 simulator and reached the real
+Partitime first-authoritative-data marker with every Ibex and Exact observer
+marker present, no diagnostic runtime, no early agent, and clean teardown. The
+quick sample looked plausible—19 ms Hermes evaluation and a 2.18 MB HBC—but it
+is deliberately recorded as a non-claim probe. The useful result is not the
+number; it is that the proposed measurement lane actually reaches and observes
+the product without weakening the ordinary carrier by default.
+
+The proposed web-v3 lane received the same pre-ratification treatment. Its
+quick path reached all 12 UI/backend cells and all 12 build cells from clean
+Snapback and Exact revisions, including the real remote Supabase and Convex
+fixtures. Every backend preflight found the expected three rows, teardown was
+clean, and the receipt binds the preregistered invalidation content. This was a
+useful plumbing proof after the earlier source and observer changes: the whole
+matrix is runnable without silently dropping a remote arm. It is not
+performance evidence. Zero warmups, one sample, and a 200 ms idle window make
+the recorded values diagnostic only, and the receipt remains
+`claimEligible=false` until the owner ratifies the instrument and the full
+calibration and independent holdout cohorts run.
+
+Charlie then supplied all four exact July 23 Step 4 ratification statements.
+The memory-v2 construct, web-v3 instrument, completed authored-source-v3
+inventory, and native-observer-v3 lane are now authoritative. Recording that
+transition is intentionally separate from running them: ratification permits
+calibration and holdout collection but does not turn the earlier quick probes
+or their diagnostic numbers into evidence.
+
+The first claim-grade web-v3 calibration found a long-run harness defect after
+eight cells: Chrome had already destroyed a measurement target, but the
+attached CDP connection lost the `Target.closeTarget` response and then also
+timed out trying to list targets. Treating that silence as successful cleanup
+would weaken custody; failing the whole cohort after many minutes made the
+instrument unnecessarily brittle. The shared web/memory cleanup path now
+rechecks target absence over a fresh browser connection and, if the original
+connection really is stalled while the target remains, closes it through that
+fresh connection and proves absence again. The timed interval and application
+bytes are unchanged. Focused tests cover ordinary closure, lost-response
+recovery, stalled-connection recovery, and the still-present failure case.
+This was benchmark-infrastructure friction rather than Snapback, Exact, or
+Contract authoring friction, and it did not expose a guide gap.

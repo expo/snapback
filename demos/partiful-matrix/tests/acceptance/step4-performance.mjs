@@ -17,6 +17,10 @@ import { pathToFileURL } from 'node:url';
 import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import { writeMachineReport } from '../../../_kit/harness.mjs';
+import {
+  closeTargetReliably,
+  freshBrowserCommand,
+} from './cdp-target-cleanup.mjs';
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — one
 // external instrument measures all twelve production web cells without
@@ -694,16 +698,20 @@ async function connectCdp(url) {
           throw new Error(`navigation timed out: ${pageUrl}`);
         },
         close: async () => {
-          try {
-            const result = await send('Target.closeTarget', { targetId }, null, 5_000);
-            assert.notEqual(result.success, false, `Chrome refused to close target ${targetId}`);
-          } catch (error) {
-            // Chrome can destroy an attached target before delivering the
-            // closeTarget response. Verify absence rather than turning that
-            // successful cleanup race into a failed performance sample.
-            const { targetInfos = [] } = await send('Target.getTargets', {}, null, 5_000);
-            if (targetInfos.some((target) => target.targetId === targetId)) throw error;
-          }
+          await closeTargetReliably({
+            targetId,
+            closeTarget: () =>
+              send('Target.closeTarget', { targetId }, null, 15_000),
+            listTargetsFresh: async () => {
+              const { targetInfos = [] } = await freshBrowserCommand(
+                url,
+                'Target.getTargets',
+              );
+              return targetInfos;
+            },
+            closeTargetFresh: () =>
+              freshBrowserCommand(url, 'Target.closeTarget', { targetId }),
+          });
         },
         setCacheDisabled: (cacheDisabled) => send('Network.setCacheDisabled', { cacheDisabled }, sessionId),
         clearBrowserCache: () => send('Network.clearBrowserCache', {}, sessionId),
