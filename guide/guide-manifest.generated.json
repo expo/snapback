@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "14c3ce1a7e942b3189597318af543afb48900f0b"
+    "commit": "f3e461a6cb6acf2154f15085b0010de7ce1f105d"
   },
   "nav": {
     ".": [
@@ -1578,8 +1578,10 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
         "demos/_kit/harness.mjs",
-        "demos/_kit/server-process.mjs"
+        "demos/_kit/server-process.mjs",
+        "schemas/host-ready.schema.json"
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
@@ -1588,7 +1590,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "daf8e439531a57518478d100b618d038dce42976a747490a0e29fdc408a88fc4",
+      "sha256": "ed3ed95ae6f418db84d30cc29ceb0a9f6a7b6ad1a5373e877342df1c0540e9f2",
       "snippets": [
         {
           "lang": "js",
@@ -1666,5 +1668,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "0ca07c10350eb91338efa25f85bd125ba719c01dbb8e5cbadc451e7223de0d1d"
+  "contentHash": "34e17db3a887be83bfae0c040206fcb9fb11655bf6b0db202eec17919ccdc20d"
 }

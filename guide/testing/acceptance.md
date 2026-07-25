@@ -4,7 +4,7 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs]
 status: current
 targets: [local]
@@ -178,6 +178,70 @@ Then load and drive the app exactly as production clients do — see
 `loadSchema`/`loadFunctions`/`reset`/`seed` and the query/mutation calls,
 and [realtime/live-queries](../realtime/live-queries.md) for asserting on
 live updates.
+
+## Bootstrap a backend without the JS kit
+
+A non-JS harness (Swift, Kotlin, plain curl) can load an app into a bare
+server from documents alone — no `ensureApp(...)`, no kit. The model
+consumer is the Swift clean-room harness
+([snapback-prove](repo:clients/swift/SnapbackClient/Sources/snapback-prove/main.swift)).
+
+**1. Start the server and discover it through the ready file.** A process
+without a controlling terminal must pass a fresh `--ready-file <path>`;
+once the listener binds, Snapback writes a JSON readiness descriptor there
+(schema: [host-ready](repo:schemas/host-ready.schema.json)) with
+`serverUrl`, `port`, `ready`, and — when a token was auto-minted —
+`adminTokenFile`:
+
+```sh
+snapback --memory --ready-file /tmp/sb-ready.json &
+# ...wait for the file, then:
+BASE_URL=$(jq -r .serverUrl /tmp/sb-ready.json)
+```
+
+**2. Get the admin token.** If you exported `SNAPBACK_ADMIN_TOKEN`, that
+exact token is active and no file is written. Otherwise the server mints
+one and persists it 0600 in the sidecar named by the descriptor's
+`adminTokenFile` — mechanically `<ready-file>.admin-token` (the same
+sibling convention as the instance lock). Tooling that can read that
+owner-only file is already local admin; send it as the
+`x-snapback-admin-token` header on every call below:
+
+```sh
+ADMIN_TOKEN=$(cat "$(jq -r .adminTokenFile /tmp/sb-ready.json)")
+```
+
+**3. Load the generated manifests and seed.** The three admin routes take
+these exact body shapes — the load routes take the **raw generated
+manifest JSON as the whole body** (no wrapper object), and reset wraps the
+seed:
+
+- `POST /_snapback/api/schema/load` — body is the contents of
+  `demos/<app>/snapback/generated/schema.manifest.json`, unmodified.
+- `POST /_snapback/api/functions/load` — body is the contents of
+  `generated/functions.manifest.json`, unmodified.
+- `POST /_snapback/api/app/reset` — body is optional; to reset **and**
+  seed deterministically, send `{"seed": <contents of seed.json>}`.
+
+```sh
+G=demos/todo/snapback/generated
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/schema.manifest.json" "$BASE_URL/_snapback/api/schema/load"
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/functions.manifest.json" "$BASE_URL/_snapback/api/functions/load"
+jq '{seed: .}' demos/todo/snapback/seed.json | curl -sf -X POST \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  --data-binary @- "$BASE_URL/_snapback/api/app/reset"
+```
+
+The reset response reports `{"seeded": ...}` when a seed was applied. From
+here the harness drives the app through the ordinary client surface
+(`/query/{name}`, `/mutation/{name}`, `/connection/open`, live routes) —
+the wire contract is [LLP 0094](repo:llp/0094-wire-envelope-contract.spec.md)
+and the lifecycle obligations are
+[LLP 0095](repo:llp/0095-client-lifecycle-and-conformance.spec.md).
 
 ## What a good suite asserts
 

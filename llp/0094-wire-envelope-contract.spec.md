@@ -6,7 +6,9 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
 **Revised:** 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
-route migration implemented with this draft)
+route migration implemented with this draft); 2026-07-25 (§0A.5 drain
+response contract and §0E live-ownership code scope, from the P-2 Swift
+clean-room defect ledger)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -77,7 +79,7 @@ the transport carriers of LLP 0031 §Connection capability grants).
 | `/live/{name}/unsubscribe` | POST | Conn | served | served (`kitUnsubscribe`) |
 | `/live/{name}/resume` (reattach) | POST | Conn | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:64`) |
 | `/live/{connection_id}/stream` | GET (WS upgrade) | Conn (header or `snapback.connection-token.<token>` subprotocol; never URL) | served (`stream_live`) | served (`acceptKitSocket`) |
-| `/outbox/{connection_id}` | GET | Conn | leased-batch drain (LLP 0059 ownership cut) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
+| `/outbox/{connection_id}` | GET | Conn | leased-batch drain (LLP 0059 ownership cut; response shape §0A.5) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
@@ -142,6 +144,43 @@ A new client-visible route joins this matrix in the same change that
 lands it, with an explicit per-arm entry (served / not served / different
 shape); the LLP 0031 registry enforces the local arm's placement, and the
 Cloudflare acceptance suites are the hosted arm's enforcement seam.
+
+### 0A.5 The drain response shape (Lane P)
+
+Added 2026-07-25 from the P-2 clean-room defect ledger
+(`issues/20260725-0093-p2-spec-defect-drain-response-shape.md`): the
+documents named the drain's *semantics* (LLP 0095 T-DRAIN) but never its
+*wire shape*, forcing a clean-room implementer to guess. Normative, audited
+against `drain_outbox` (`src/server.rs`):
+
+- **The response body is a bare JSON array of `RealtimeEnvelope`** —
+  `drain_outbox` ends in `Json(drained)` with
+  `drained: Vec<RealtimeEnvelope>`. Not NDJSON, not an object wrapper
+  (`{"batch": …}` does not exist). The array may be empty. Each element is
+  governed by `realtime.envelope.schema.json`; the array wrapper itself is
+  pinned here and by the P-1 fixture corpus's `batchContext` mechanics —
+  a committed `live.outbox-drain.output.schema.json` does not exist yet
+  (the defect ticket stays open for that machine-governance residual).
+- **Unknown or reaped connections answer in-band, not with an HTTP
+  error.** When the connection grant still admits the request but the
+  outbox registry no longer holds an active connection (the
+  `admitted.is_none()` arm of `drain_outbox`), the drain synthesizes a
+  **single-element batch**: one `Durable`-wrapped
+  `LiveEnvelope::ResyncRequired` with `reason: "unknown_or_reaped"`, no
+  `subscription_id`, and `clear_retained: true`. A client treats it as the
+  connection-wide clear-retained resync class (LLP 0095 T-OVERFLOW). This
+  is load-bearing for poll-lane recovery: a reaped connection whose grant
+  has *also* been invalidated refuses with
+  `SNAPBACK_CONNECTION_TOKEN_INVALID` (LLP 0095 T-GRANT-LOSS), but a
+  connection the registry has dropped while the token still admits is
+  reported through this synthesized batch, not an error.
+- **There is no client acknowledgement step.** The LLP 0059
+  ownership-transfer cut rides the response handoff itself
+  (`retain_realtime_handoff_in`): leases are accepted as part of
+  successfully sending the body, and released — possibly redelivered — if
+  the drain is cancelled before the cut. The client's only verb is GET;
+  no ack route exists, and inventing one client-side is non-conformant
+  guessing.
 
 ## 0B — Wire-version negotiation
 
@@ -430,6 +469,22 @@ Existing codes this spec touches but does not change:
 (grant gate), `SNAPBACK_CONNECTION_SOCKET_REQUIRED` (hosted
 socket-session gate). The migrated hosted system routes keep their
 existing codes unchanged (`SNAPBACK_ADMIN_*`, `SNAPBACK_CRON_*`, etc.).
+
+**Scope clarification (2026-07-25, P-2 defect ledger):**
+`SNAPBACK_LIVE_RESUME_OWNERSHIP` (HTTP 403) is, despite its name, the
+**shared live-ownership refusal** for every retained-live-owner check, not
+a resume/reattach-only concern: explicit unsubscribe
+(`unsubscribe_live_prepared`), the `supersedes` replacement check on
+subscribe (known foreign owners fail closed), resume/reattach, and
+authorization-invalidation manual retry all mint it through
+`live_owner_mismatch` / the same ownership predicate (`src/local.rs`;
+predicate `LiveSubscription::is_owned_by` →
+`RetainedLiveAuthority::matches`, `src/auth/invocation.rs` — resolved
+authority identity plus exact connection grant). The name is historical
+(first minted for resume, LLP 0032 S2); sharing one code across the
+live-ownership checks is intentional. The client-side consequence is LLP
+0095's: T-UNSUB and T-RECONNECT require presenting the subscription's
+establishing identity.
 
 ## 0F — Remaining hand-mirrored frames (LLP 0051 §D4)
 

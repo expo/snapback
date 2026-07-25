@@ -30,3 +30,27 @@ drain response as `[RealtimeEnvelope]`, the synthesized
 `unknown_or_reaped` batch, and the absence of a client ack step; ideally a
 `live.outbox-drain.output.schema.json` joins the committed schema set so
 the array shape is machine-governed like every other family.
+
+## Partial resolution (2026-07-25)
+
+The spec part is done: LLP 0094 gained **§0A.5 "The drain response shape
+(Lane P)"**, verified against `drain_outbox` (`src/server.rs`) —
+
+- the response body is a bare JSON array of `RealtimeEnvelope`
+  (`Json(drained)`, `drained: Vec<RealtimeEnvelope>`); not NDJSON, no
+  object wrapper; may be empty;
+- an admitted-but-unknown/reaped connection answers in-band with the
+  synthesized single-element `resync_required { reason:
+  "unknown_or_reaped", clear_retained: true }` batch (the
+  `admitted.is_none()` arm), distinguished from the
+  `SNAPBACK_CONNECTION_TOKEN_INVALID` grant-refusal path;
+- there is no client acknowledgement step — the LLP 0059 ownership cut
+  rides the response handoff (`retain_realtime_handoff_in`).
+
+The §0A.1 drain matrix row now points at §0A.5.
+
+**Remaining (why this stays open):** the "ideally" deliverable — a
+committed `live.outbox-drain.output.schema.json` emitted through
+`schema_export::artifact_instances()` so the array shape joins the schema
+drift gates. That is a Rust change (schema export + schemagen regeneration
++ gate updates), out of scope for this doc pass.
