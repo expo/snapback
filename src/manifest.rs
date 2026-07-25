@@ -1686,6 +1686,87 @@ pub struct StandardPatternIdentity {
     pub profile: String,
 }
 
+/// LLP 0080 §1 — the closed first relational profile: one root table, exactly
+/// one unique-joined table, at most four equality pairs, explicit
+/// visibility on both sources, index-served root access, deterministic
+/// root ordering, and a bounded `take`. Evaluation follows the normative
+/// `root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor
+/// boundary → root order → take N roots → join + joined visibility →
+/// projection. `take` bounds consumed authorized roots, not emitted rows.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RelationalQueryPlan {
+    pub root: String,
+    #[serde(rename = "rootAlias", alias = "root_alias")]
+    pub root_alias: String,
+    pub joined: String,
+    #[serde(rename = "joinedAlias", alias = "joined_alias")]
+    pub joined_alias: String,
+    #[serde(rename = "joinKind", alias = "join_kind")]
+    pub join_kind: JoinKind,
+    /// 1..=4 equality pairs; declaration order preserved. A null in any
+    /// join-key position never matches (LLP 0080 §2).
+    #[serde(rename = "joinOn", alias = "join_on")]
+    pub join_on: Vec<JoinEquality>,
+    /// Non-security root filters from the portable vocabulary, index-served.
+    #[serde(default, rename = "rootFilters", alias = "root_filters")]
+    pub root_filters: Vec<FilterExpr>,
+    /// The root visibility predicate, composed before ordering and `take`
+    /// so an invisible root cannot occupy a bounded-result slot. Empty for
+    /// an explicitly declared `public-read` root.
+    #[serde(default, rename = "rootVisibility", alias = "root_visibility")]
+    pub root_visibility: Vec<FilterExpr>,
+    /// The joined-source visibility predicate, executed per joined row
+    /// before projection: an invisible joined row behaves as absent.
+    #[serde(default, rename = "joinedVisibility", alias = "joined_visibility")]
+    pub joined_visibility: Vec<FilterExpr>,
+    /// Explicit projection whose leaves are literals or qualified source
+    /// fields; declaration order is the result field order.
+    pub projection: Vec<ProjectionLeaf>,
+    /// Root scalar order fields; the storage layer's `_id` tie-break
+    /// totalizes it exactly as for single-table queries.
+    #[serde(default)]
+    pub order: Vec<OrderExpr>,
+    /// Consumed-authorized-roots bound, `0..=1024`.
+    pub take: u32,
+    /// The declared root access index proving bounded, index-served access.
+    #[serde(rename = "rootIndex", alias = "root_index")]
+    pub root_index: String,
+    /// The declared unique joined index whose complete ordered key is
+    /// exactly the joined-field sequence — the cardinality proof.
+    #[serde(rename = "joinedIndex", alias = "joined_index")]
+    pub joined_index: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum JoinKind {
+    Inner,
+    Left,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct JoinEquality {
+    #[serde(rename = "rootField", alias = "root_field")]
+    pub root_field: String,
+    #[serde(rename = "joinedField", alias = "joined_field")]
+    pub joined_field: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectionLeaf {
+    pub name: String,
+    pub source: ProjectionSource,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionSource {
+    RootField(String),
+    JoinedField(String),
+    Literal(Value),
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct DependencySummary {
     #[serde(default, rename = "primaryTable", alias = "primary_table")]
