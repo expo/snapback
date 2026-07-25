@@ -16772,7 +16772,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // treats its nonce as consumed-unknown and resynchronizes through the
     // bounded challenge.
     if let Some(nonce) = &sender_successor_nonce {
-        let frame = serde_json::json!({ "kind": "sender_nonce", "nonce": nonce }).to_string();
+        let frame = serde_json::to_string(&crate::live_wire::LiveSocketServerFrame::SenderNonce {
+            nonce: nonce.clone(),
+        })
+        .expect("sender-nonce frame serializes");
         if SinkExt::send(&mut sender, Message::Text(frame.into()))
             .await
             .is_err()

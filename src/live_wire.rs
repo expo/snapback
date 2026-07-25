@@ -234,6 +234,13 @@ pub enum LiveSocketServerFrame {
         operation: String,
         diagnostic: Diagnostic,
     },
+    /// Decision-5 in-band successor-nonce release (LLP 0077): the next
+    /// sender-constrained nonce crosses as the first server frame on the
+    /// authenticated socket, before any application-visible frame. Typed
+    /// here so the frame rides the schema-governed wire like every other
+    /// socket frame (its first landing emitted raw JSON, stranding the kit
+    /// drift gate against the client's declared kind).
+    SenderNonce { nonce: String },
     /// An ephemeral-lane room message (presence/cursors), wrapped so the
     /// socket dispatch stays on `kind`.
     Ephemeral { message: EphemeralMessage },
