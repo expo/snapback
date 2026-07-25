@@ -1,0 +1,1543 @@
+//! Target-neutral release artifacts for the trusted single-tenant control
+//! plane.  The package CLI produces this shape before any adapter is allowed
+//! to upload, activate, roll back, or restore a deployment.
+//!
+//! @ref LLP 0072#release-artifact — a release binds source, toolchain,
+//! compatibility, target requirements, immutable component digests, scans,
+//! and explicit GAPs.
+//! @ref LLP 0037#decision-ratified-2026-07-02 — Rust serde types own the
+//! shared artifact shape; committed JSON Schema is generated from this file.
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ReleaseArtifactKind {
+    #[serde(rename = "releaseManifest")]
+    ReleaseManifest,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ReleaseManifestVersion {
+    #[serde(rename = "snapback.release-manifest.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseSource {
+    pub repository_name: String,
+    pub revision: String,
+    pub source_date_epoch: u64,
+    pub dirty: bool,
+    pub dirty_paths_sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseToolchain {
+    pub snapback_cli_version: String,
+    pub node_version: String,
+    pub package_manager: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseCompatibility {
+    pub schema_version: String,
+    pub auth_mode: String,
+    pub schema_sha256: String,
+    pub functions_sha256: String,
+    pub capability_sha256: String,
+    pub inputs_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseComponent {
+    pub path: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub media_type: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseGap {
+    pub id: String,
+    pub reason: String,
+    pub blocking: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseScan {
+    pub secret_scan: String,
+    pub source_maps: String,
+    pub symlinks: String,
+    pub scanned_files: u64,
+    pub scanned_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseManifest {
+    pub artifact_kind: ReleaseArtifactKind,
+    pub schema_version: ReleaseManifestVersion,
+    pub release_id: String,
+    pub project_id: String,
+    pub target_profile_id: String,
+    pub activation_eligible: bool,
+    pub source: ReleaseSource,
+    pub toolchain: ReleaseToolchain,
+    pub compatibility: ReleaseCompatibility,
+    pub required_capabilities: Vec<String>,
+    pub components: Vec<ReleaseComponent>,
+    pub scan: ReleaseScan,
+    pub gaps: Vec<ReleaseGap>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum VmAdapterKind {
+    #[serde(rename = "singleInstanceContainerVm")]
+    SingleInstanceContainerVm,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum TargetDescriptorVersion {
+    #[serde(rename = "snapback.target-descriptor.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum TargetProductionClass {
+    Preview,
+    Production,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct VmAdapterDescriptor {
+    pub kind: VmAdapterKind,
+    pub version: String,
+    pub driver_path: String,
+    pub driver_sha256: String,
+    pub provider: String,
+    pub account_fingerprint: String,
+    pub region: String,
+    pub public_origin: String,
+    pub credential_ref: String,
+    pub state_store_ref: String,
+}
+
+/// Owner-only local registration of one never-reused hosted target.
+/// Credential values are deliberately absent; `credential_ref` identifies an
+/// OS/provider secret-store handle resolved by the adapter process.
+///
+/// @ref LLP 0072#identities-and-objects — every operation binds exact target,
+/// environment, deployment, database, stream, profile, and adapter identity.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TargetDescriptor {
+    pub schema_version: TargetDescriptorVersion,
+    pub target_id: String,
+    pub project_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub adapter: VmAdapterDescriptor,
+    pub created_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum RemoteDrillPlanVersion {
+    #[serde(rename = "snapback.remote-drill-plan.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoteDrillSupervisorKind {
+    ProviderSupervisor,
+    Systemd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoteDrillProvisioningAuthority {
+    ConfirmationRequired,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoteDrillCostComponent {
+    Compute,
+    PersistentVolume,
+    ObjectStorage,
+    Logs,
+    Dns,
+    Tls,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RemoteDrillNonclaim {
+    HighAvailability,
+    Autoscaling,
+    MultiRegion,
+    ZeroDowntime,
+    UntrustedMultiTenancy,
+    ManagedServiceSla,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillStorage {
+    pub compute_class: String,
+    pub persistent_volume_class: String,
+    pub persistent_volume_encrypted: bool,
+    pub artifact_store_ref: String,
+    pub artifact_storage_class: String,
+    pub backup_store_ref: String,
+    pub backup_storage_class: String,
+    pub backup_permission_boundary: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillTls {
+    pub issuer: String,
+    pub automated_renewal: bool,
+    pub independently_attested_origin: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillSupervisor {
+    pub kind: RemoteDrillSupervisorKind,
+    pub restart_evidence_required: bool,
+    pub interruption_resume_required: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillLogs {
+    pub sink_ref: String,
+    pub retention_class: String,
+    pub redaction_profile: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillCredentials {
+    pub control_credential_ref: String,
+    pub control_state_store_ref: String,
+    pub admission_key_ref: String,
+    pub replay_floor_store_ref: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillCostBoundary {
+    pub currency: String,
+    pub estimated_monthly_minor_units: u64,
+    pub maximum_monthly_minor_units: u64,
+    pub estimate_basis_sha256: String,
+    pub included_components: Vec<RemoteDrillCostComponent>,
+}
+
+/// Content-addressed, confirmation-fenced selection of every provider-specific
+/// input LLP 0072 requires before the first remote drill may provision
+/// anything. It carries handles and cost bounds, never credential values.
+///
+/// @ref LLP 0072#adapter-contract-and-first-profile — provider, account,
+/// region, stores, TLS, supervisor, logs, credentials, cost, and nonclaims are
+/// execution facts with no portable or ambient defaults.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDrillPlan {
+    pub schema_version: RemoteDrillPlanVersion,
+    pub plan_id: String,
+    pub reason: String,
+    pub target_id: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub target_descriptor_sha256: String,
+    pub adapter_kind: VmAdapterKind,
+    pub adapter_version: String,
+    pub driver_sha256: String,
+    pub provider: String,
+    pub account_fingerprint: String,
+    pub region: String,
+    pub public_origin: String,
+    pub storage: RemoteDrillStorage,
+    pub tls: RemoteDrillTls,
+    pub supervisor: RemoteDrillSupervisor,
+    pub logs: RemoteDrillLogs,
+    pub credentials: RemoteDrillCredentials,
+    pub cost: RemoteDrillCostBoundary,
+    pub nonclaims: Vec<RemoteDrillNonclaim>,
+    pub provisioning_authority: RemoteDrillProvisioningAuthority,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum DeploymentState {
+    Registered,
+    Provisioning,
+    Inactive,
+    Staging,
+    Ready,
+    Active,
+    Degraded,
+    Draining,
+    Failed,
+    Restoring,
+    Retired,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum CredentialStatus {
+    Ready,
+    Missing,
+    Invalid,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterOperation {
+    #[serde(rename = "doctor")]
+    Doctor,
+    #[serde(rename = "inspect")]
+    Inspect,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterRequestVersion {
+    #[serde(rename = "snapback.vm-adapter-request.v1")]
+    V1,
+}
+
+/// Secret-free request sent to the adapter over stdin. Nothing credential
+/// bearing is placed in argv or the environment by the control-plane CLI.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterRequest {
+    pub schema_version: AdapterRequestVersion,
+    pub operation: AdapterOperation,
+    pub operation_id: String,
+    pub target: TargetDescriptor,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterSafeDiagnostic {
+    pub code: String,
+    pub severity: String,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TargetObservation {
+    pub target_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub provider: String,
+    pub account_fingerprint: String,
+    pub region: String,
+    pub public_origin: String,
+    pub resource_id: String,
+    pub state: DeploymentState,
+    pub activation_generation: u64,
+    pub active_release_id: Option<String>,
+    pub application_sentinel_sha256: Option<String>,
+    pub credential_status: CredentialStatus,
+    pub provider_facts_sha256: String,
+    pub observed_at_ms: u64,
+    pub capability_gaps: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterResponseVersion {
+    #[serde(rename = "snapback.vm-adapter-response.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterResponse {
+    pub schema_version: AdapterResponseVersion,
+    pub operation: AdapterOperation,
+    pub operation_id: String,
+    pub ok: bool,
+    pub observation: Option<TargetObservation>,
+    pub diagnostics: Vec<AdapterSafeDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AdapterLifecycleOperation {
+    AcquireLease,
+    UploadImmutableRelease,
+    ProvisionInactive,
+    CompatibilityPreflight,
+    CreateVerifiedBackup,
+    StageRelease,
+    ActivateGeneration,
+    VerifyServedPath,
+    Rollback,
+    FenceExternalEffects,
+    RestoreBackupInactive,
+    VerifyRestoredComponents,
+    VerifyRestoredApplication,
+    ActivateRestoredGeneration,
+    ReleaseLease,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterLifecycleRequestVersion {
+    #[serde(rename = "snapback.vm-adapter-lifecycle-request.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterLifecycleResponseVersion {
+    #[serde(rename = "snapback.vm-adapter-lifecycle-response.v1")]
+    V1,
+}
+
+/// Provider-enforced lease over one deployment mutation train. The lease id is
+/// an opaque fence, not a credential; provider credentials remain behind the
+/// descriptor's external secret-store handle.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeploymentLease {
+    pub lease_id: String,
+    pub target_id: String,
+    pub operation_id: String,
+    pub expected_activation_generation: u64,
+    pub acquired_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterEvidenceRef {
+    pub kind: String,
+    pub uri: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub verified: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BackupComponent {
+    pub kind: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub objects: u64,
+    pub verified: bool,
+}
+
+/// Secret-free, read-back-verified backup identity. Required secret names and
+/// generations may be recorded by a later prepared-release artifact, but
+/// credential values and control-plane handles never enter this manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BackupManifest {
+    pub schema_version: String,
+    pub backup_id: String,
+    pub operation_id: String,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub release_id: Option<String>,
+    pub schema_identity_sha256: String,
+    pub encryption_class: String,
+    pub storage_class: String,
+    pub retention_policy: String,
+    pub components: Vec<BackupComponent>,
+    pub excluded_secret_classes: Vec<String>,
+    pub created_at_ms: u64,
+    pub verified_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum BackupPlanStep {
+    VerifyIdentity,
+    AcquireLease,
+    CreateVerifiedBackup,
+    ReleaseLease,
+}
+
+/// Exact proposal for creating and read-back-verifying one immutable backup.
+///
+/// @ref LLP 0072#backup-and-restore — backup identity, consistency, component
+/// verification, secret exclusion, and retention are explicit control facts.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BackupPlan {
+    pub schema_version: String,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub reason: String,
+    pub target_id: String,
+    pub project_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub target_descriptor_sha256: String,
+    pub target_observation_sha256: String,
+    pub observed_activation_generation: u64,
+    pub observed_active_release_id: String,
+    pub observed_schema_generation: u64,
+    pub retention_policy: String,
+    pub steps: Vec<BackupPlanStep>,
+    pub blockers: Vec<ReleaseGap>,
+    pub apply_eligible: bool,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RollbackPlanStep {
+    VerifyIdentity,
+    AcquireLease,
+    VerifyCompatibility,
+    Rollback,
+    VerifyServedPath,
+    ReleaseLease,
+}
+
+/// Exact, content-addressed proposal for switching code and traffic to a
+/// previously prepared compatible release without rewinding application data.
+///
+/// @ref LLP 0072#migrations-and-rollback — code-only rollback is distinct
+/// from destructive data restore and must retain its compatibility proof.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RollbackPlan {
+    pub schema_version: String,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub reason: String,
+    pub target_id: String,
+    pub project_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub target_descriptor_sha256: String,
+    pub target_observation_sha256: String,
+    pub observed_activation_generation: u64,
+    pub observed_active_release_id: String,
+    pub destination_release_id: String,
+    pub destination_prepared_release_id: String,
+    pub compatibility_sha256: String,
+    pub steps: Vec<RollbackPlanStep>,
+    pub blockers: Vec<ReleaseGap>,
+    pub apply_eligible: bool,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RestorePlanStep {
+    VerifyIdentity,
+    AcquireLease,
+    FenceExternalEffects,
+    RestoreBackupInactive,
+    VerifyRestoredComponents,
+    VerifyRestoredApplication,
+    ReleaseLease,
+}
+
+/// Destructive restore proposal. Restore and activation are deliberately
+/// separate artifacts: a successful apply leaves the destination inactive and
+/// all external effects fenced until an explicit activation consumes its
+/// receipt.
+///
+/// @ref LLP 0072#backup-and-restore — source backup, exact destination,
+/// replacement sentinel, effect fence, verification, and later activation are
+/// independent must-understand facts.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RestorePlan {
+    pub schema_version: String,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub reason: String,
+    pub source_target_id: String,
+    pub backup_id: String,
+    pub backup_manifest_sha256: String,
+    pub destination_target_id: String,
+    pub project_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub target_descriptor_sha256: String,
+    pub target_observation_sha256: String,
+    pub observed_activation_generation: u64,
+    pub observed_active_release_id: Option<String>,
+    pub replacement_release_id: Option<String>,
+    pub destination_sentinel_sha256: Option<String>,
+    pub steps: Vec<RestorePlanStep>,
+    pub blockers: Vec<ReleaseGap>,
+    pub apply_eligible: bool,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RestoreActivationPlanStep {
+    VerifyIdentity,
+    VerifyPausedRestore,
+    AcquireLease,
+    ActivateRestoredGeneration,
+    VerifyServedPath,
+    ReleaseLease,
+}
+
+/// Explicit second-stage activation of one verified, effects-fenced restore.
+/// It binds the paused restore receipt and a fresh destination observation,
+/// giving activation its own operation id, lease, expiry, and confirmation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RestoreActivationPlan {
+    pub schema_version: String,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub reason: String,
+    pub restore_receipt_id: String,
+    pub backup_id: String,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_descriptor_sha256: String,
+    pub target_observation_sha256: String,
+    pub observed_activation_generation: u64,
+    pub restored_release_id: Option<String>,
+    pub prepared_release_id: String,
+    pub prepared_release_manifest_sha256: String,
+    pub adapter_qualification_id: String,
+    pub adapter_qualification_sha256: String,
+    pub application_sentinel_sha256: String,
+    pub steps: Vec<RestoreActivationPlanStep>,
+    pub blockers: Vec<ReleaseGap>,
+    pub apply_eligible: bool,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum AdapterOperationPlan {
+    Deploy(DeployPlan),
+    Backup(BackupPlan),
+    Rollback(RollbackPlan),
+    Restore(RestorePlan),
+    RestoreActivation(RestoreActivationPlan),
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ControlAuditAuthorityClass {
+    LocalOperator,
+    AutomationGrant,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ControlAuditOutcome {
+    Began,
+    Succeeded,
+    Failed,
+    Read,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ControlAuditField {
+    pub name: String,
+    pub value: String,
+}
+
+/// Secret-free append-only control-operation fact. The local ledger detects
+/// loss or modification; it deliberately does not claim independence from the
+/// operator who owns the control store.
+///
+/// @ref LLP 0071#audit-ledger — privileged control actions carry exact actor,
+/// target, request, redacted payload, retention, and hash-chain identities.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ControlAuditEvent {
+    pub schema_version: String,
+    pub event_id: String,
+    pub sequence: u64,
+    pub event_type: String,
+    pub event_version: u32,
+    pub outcome: ControlAuditOutcome,
+    pub actor_authority: ControlAuditAuthorityClass,
+    pub actor_id: String,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub operation_id: String,
+    pub plan_id: Option<String>,
+    pub receipt_id: Option<String>,
+    pub reason_code: String,
+    pub payload: Vec<ControlAuditField>,
+    pub retention_class: String,
+    pub recorded_at_ms: u64,
+    pub previous_event_id: Option<String>,
+}
+
+/// One closed, secret-free mutating adapter call. The control CLI supplies the
+/// complete retained plan on stdin; no target selector, release id, or
+/// credential is inferred from argv or ambient variables.
+///
+/// @ref LLP 0072#deployment-state-machine — every step is idempotent under the
+/// operation id, lease-fenced, generation-compared, and digest-recorded.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterLifecycleRequest {
+    pub schema_version: AdapterLifecycleRequestVersion,
+    pub operation: AdapterLifecycleOperation,
+    pub operation_id: String,
+    pub attempt: u32,
+    pub target: TargetDescriptor,
+    pub plan: AdapterOperationPlan,
+    pub release_directory: String,
+    pub lease: Option<DeploymentLease>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterLifecycleResponse {
+    pub schema_version: AdapterLifecycleResponseVersion,
+    pub operation: AdapterLifecycleOperation,
+    pub operation_id: String,
+    pub ok: bool,
+    pub idempotent_replay: bool,
+    pub remote_evidence: bool,
+    pub input_sha256: String,
+    pub output_sha256: String,
+    pub lease: Option<DeploymentLease>,
+    pub observation: Option<TargetObservation>,
+    pub evidence: Vec<AdapterEvidenceRef>,
+    pub backup: Option<BackupManifest>,
+    pub restore: Option<RestoreResult>,
+    pub diagnostics: Vec<AdapterSafeDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum DeployStepState {
+    Completed,
+    RolledBack,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeployStepReceipt {
+    pub sequence: u32,
+    pub operation: AdapterLifecycleOperation,
+    pub state: DeployStepState,
+    pub input_sha256: String,
+    pub output_sha256: String,
+    pub evidence: Vec<AdapterEvidenceRef>,
+    pub started_at_ms: u64,
+    pub finished_at_ms: u64,
+    pub idempotent_replay: bool,
+    pub previous_fact_sha256: Option<String>,
+    pub fact_sha256: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum DeployReceiptOutcome {
+    Activated,
+    RolledBack,
+    Failed,
+}
+
+/// Final bounded control-plane receipt. `remote_evidence` is an explicit claim
+/// bit: deterministic/local harnesses must leave it false, so their success
+/// cannot be confused with LLP 0072 hosted-profile evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeployReceipt {
+    pub schema_version: String,
+    pub receipt_id: String,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub release_id: String,
+    pub previous_release_id: Option<String>,
+    pub activation_generation_before: u64,
+    pub activation_generation_after: u64,
+    pub outcome: DeployReceiptOutcome,
+    pub remote_evidence: bool,
+    pub adapter_kind: VmAdapterKind,
+    pub adapter_version: String,
+    pub provider_facts_sha256: String,
+    pub backup: Option<BackupManifest>,
+    pub steps: Vec<DeployStepReceipt>,
+    pub gaps: Vec<ReleaseGap>,
+    pub started_at_ms: u64,
+    pub finished_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RestoreResult {
+    pub backup_id: String,
+    pub source_target_id: String,
+    pub source_deployment_id: String,
+    pub source_database_id: String,
+    pub source_stream_incarnation: String,
+    pub destination_target_id: String,
+    pub destination_deployment_id: String,
+    pub destination_database_id: String,
+    pub destination_stream_incarnation: String,
+    pub restore_epoch: u64,
+    pub effects_fenced: bool,
+    pub components_verified: bool,
+    pub application_sentinel_sha256: String,
+    pub acceptance_sha256: String,
+    pub external_effects_disabled: bool,
+    pub activated: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MaintenanceReceiptKind {
+    CodeOnlyRollback,
+    Restore,
+    RestoreActivation,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MaintenanceReceiptOutcome {
+    RolledBack,
+    RestoredPaused,
+    RestoreActivated,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MaintenanceReceipt {
+    pub schema_version: String,
+    pub receipt_id: String,
+    pub kind: MaintenanceReceiptKind,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub activation_generation_before: u64,
+    pub activation_generation_after: u64,
+    pub release_id_before: Option<String>,
+    pub release_id_after: Option<String>,
+    pub backup_id: Option<String>,
+    pub restore: Option<RestoreResult>,
+    pub outcome: MaintenanceReceiptOutcome,
+    pub remote_evidence: bool,
+    pub steps: Vec<DeployStepReceipt>,
+    pub gaps: Vec<ReleaseGap>,
+    pub started_at_ms: u64,
+    pub finished_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AdapterQueryOperation {
+    Logs,
+    InspectAdmin,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterQueryRequestVersion {
+    #[serde(rename = "snapback.vm-adapter-query-request.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterQuery {
+    pub since_ms: u64,
+    pub until_ms: u64,
+    pub limit: u32,
+    pub cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterQueryRequest {
+    pub schema_version: AdapterQueryRequestVersion,
+    pub operation: AdapterQueryOperation,
+    pub operation_id: String,
+    pub target: TargetDescriptor,
+    pub query: AdapterQuery,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RedactedLogField {
+    pub name: String,
+    pub value: String,
+}
+
+/// Bounded structured application/control-plane event. Payload fields are
+/// scalar and redacted; arbitrary JSON, request bodies, and query results are
+/// structurally unavailable in this protocol.
+///
+/// @ref LLP 0072#logs-metrics-and-inspection — default logs bind deployment
+/// identity and correlation while rejecting private or credential payloads.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ControlLogEntry {
+    pub timestamp_ms: u64,
+    pub severity: String,
+    pub deployment_id: String,
+    pub release_id: Option<String>,
+    pub activation_generation: u64,
+    pub stream_incarnation: String,
+    pub correlation_id: String,
+    pub event_code: String,
+    pub event_version: u32,
+    pub payload: Vec<RedactedLogField>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ControlLogPage {
+    pub entries: Vec<ControlLogEntry>,
+    pub next_cursor: Option<String>,
+    pub retention_class: String,
+    pub indexing_class: String,
+    pub delivery_latency_ms: u64,
+    pub dropped_events: u64,
+    pub backpressure: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectionFact {
+    pub name: String,
+    pub status: String,
+    pub value_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ControlOperationSummary {
+    pub operation_id: String,
+    pub kind: String,
+    pub outcome: String,
+    pub finished_at_ms: u64,
+    pub receipt_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthenticatedInspection {
+    pub target_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub active_release_id: Option<String>,
+    pub inactive_release_ids: Vec<String>,
+    pub activation_generation: u64,
+    pub schema_generation: u64,
+    pub config_generation: u64,
+    pub auth_generation: u64,
+    pub worker_generation: u64,
+    pub capability_manifest_sha256: String,
+    pub capability_gaps: Vec<String>,
+    pub health: Vec<InspectionFact>,
+    pub dependencies: Vec<InspectionFact>,
+    pub migration: Vec<InspectionFact>,
+    pub backups: Vec<InspectionFact>,
+    pub queues: Vec<InspectionFact>,
+    pub connections: Vec<InspectionFact>,
+    pub resources: Vec<InspectionFact>,
+    pub operations: Vec<ControlOperationSummary>,
+    pub diagnostics: Vec<AdapterSafeDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterQueryResponseVersion {
+    #[serde(rename = "snapback.vm-adapter-query-response.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterQueryResponse {
+    pub schema_version: AdapterQueryResponseVersion,
+    pub operation: AdapterQueryOperation,
+    pub operation_id: String,
+    pub ok: bool,
+    pub remote_evidence: bool,
+    pub input_sha256: String,
+    pub output_sha256: String,
+    pub observation: Option<TargetObservation>,
+    pub logs: Option<ControlLogPage>,
+    pub inspection: Option<AuthenticatedInspection>,
+    pub evidence: Vec<AdapterEvidenceRef>,
+    pub diagnostics: Vec<AdapterSafeDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AdapterQualificationClaim {
+    IdentityFencing,
+    ImmutableUploadReadBack,
+    TlsOrigin,
+    HostedAuth,
+    HealthAcceptance,
+    LogsInspection,
+    CompatibilityRollback,
+    BackupRestore,
+    InterruptionResume,
+    SecretScan,
+    CostCapacity,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterQualificationEvidence {
+    pub claim: AdapterQualificationClaim,
+    pub evidence: Vec<AdapterEvidenceRef>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAuthLiveHealth {
+    pub admission_epoch: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub sender_replay_epoch_floor: u64,
+    pub sender_replay_epoch_floor_current: bool,
+    pub limiter_reachable: bool,
+    pub invalidation_current: bool,
+    pub serialized_authority_current: bool,
+    pub handler_compatible: bool,
+    pub serving_admitted: bool,
+    pub observed_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ExternalReplayFloorAdvanceVersion {
+    #[serde(rename = "snapback.external-replay-floor-advance.v1")]
+    V1,
+}
+
+/// Content-addressed result of the concrete adapter's atomic advancement of
+/// the rollback-external sender replay floor. The receipt identifies the
+/// external store operation; adapter qualification separately proves that the
+/// store is remote and outside the application backup set.
+///
+/// @ref LLP 0077#author-decisions--2026-07-23 — a dedicated monotone
+/// control-plane counter supplies the anti-rollback floor.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalReplayFloorAdvanceReceipt {
+    pub schema_version: ExternalReplayFloorAdvanceVersion,
+    pub operation_id: String,
+    pub deployment_id: String,
+    pub store_identity_sha256: String,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub previous_floor: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub sender_replay_epoch_floor: u64,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub advanced_at_ms: u64,
+    pub receipt_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum HostedAdmissionProjectionVersion {
+    #[serde(rename = "snapback.hosted-admission-projection.v1")]
+    V1,
+}
+
+/// Non-secret result of projecting one fresh hosted boot authority. The key
+/// bytes and file paths are intentionally absent; the exact authenticated
+/// envelope and external-floor receipt remain content-addressed.
+///
+/// @ref LLP 0072#implemented-target-and-plan-slice — the adapter advances the
+/// external floor before writing strict owner-only boot projections.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAdmissionProjectionReceipt {
+    pub schema_version: HostedAdmissionProjectionVersion,
+    pub operation_id: String,
+    pub deployment_id: String,
+    pub public_origin: String,
+    pub key_id: String,
+    pub browser_artifact_sha256: String,
+    pub configuration_sha256: String,
+    pub support_sha256: String,
+    pub handler_protocol_version: u64,
+    pub handler_incarnation: String,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub sender_replay_epoch_floor: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub admission_epoch: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub limiter_epoch: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub invalidation_epoch: u64,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub issued_at_ms: u64,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub expires_at_ms: u64,
+    pub external_floor_store_identity_sha256: String,
+    pub external_floor_advance_receipt_id: String,
+    pub envelope_sha256: String,
+    pub key_projection_created: bool,
+    pub remote_evidence: bool,
+    pub projection_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum HostedAdmissionRefreshVersion {
+    #[serde(rename = "snapback.hosted-admission-refresh.v1")]
+    V1,
+}
+
+/// Non-secret result of atomically refreshing the authenticated envelope for
+/// one already-reconciled boot. Deployment, handler, support, configuration,
+/// and external floor remain immutable across this transition.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAdmissionRefreshReceipt {
+    pub schema_version: HostedAdmissionRefreshVersion,
+    pub deployment_id: String,
+    pub public_origin: String,
+    pub key_id: String,
+    pub configuration_sha256: String,
+    pub support_sha256: String,
+    pub handler_protocol_version: u64,
+    pub handler_incarnation: String,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub sender_replay_epoch_floor: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub admission_epoch: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub limiter_epoch: u64,
+    #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
+    pub invalidation_epoch: u64,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub issued_at_ms: u64,
+    #[schemars(range(min = 0_i64, max = 9007199254740991_i64))]
+    pub expires_at_ms: u64,
+    pub envelope_sha256: String,
+    pub remote_evidence: bool,
+    pub refresh_id: String,
+}
+
+/// Executed hosted-auth drill bound to one target and one short-lived
+/// deployment admission. This proves qualification-time behavior only; an
+/// activation must still obtain a fresh admission and live-health snapshot.
+///
+/// @ref LLP 0060#d5-hosted-readiness-is-conjunctive — static support,
+/// deployment attestation, live health, browser-seam exclusion, handler
+/// compatibility, and operator isolation are independent positive facts.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAuthDrillReceipt {
+    pub schema_version: String,
+    pub receipt_id: String,
+    pub target_id: String,
+    pub target_profile_id: String,
+    pub deployment_id: String,
+    pub provider: String,
+    pub account_fingerprint: String,
+    pub region: String,
+    pub public_origin: String,
+    pub browser_artifact_sha256: String,
+    pub admission: crate::auth::deployment::HostedAdmission,
+    pub live_health: HostedAuthLiveHealth,
+    pub evidence: Vec<AdapterEvidenceRef>,
+    pub gaps: Vec<ReleaseGap>,
+    pub started_at_ms: u64,
+    pub finished_at_ms: u64,
+}
+
+/// Target-specific result of the complete remote adapter drill. This cannot be
+/// minted by release build: it binds provider/account/region/origin, driver
+/// bytes, remote evidence for every qualification claim, and every remaining
+/// GAP.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterQualificationManifest {
+    pub schema_version: String,
+    pub qualification_id: String,
+    pub target_id: String,
+    pub target_profile_id: String,
+    pub adapter_kind: VmAdapterKind,
+    pub adapter_version: String,
+    pub driver_sha256: String,
+    pub provider: String,
+    pub account_fingerprint: String,
+    pub region: String,
+    pub public_origin: String,
+    pub remote_evidence: bool,
+    pub hosted_auth_drill: HostedAuthDrillReceipt,
+    pub claims: Vec<AdapterQualificationEvidence>,
+    pub gaps: Vec<ReleaseGap>,
+    pub qualified_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum PreparedReleaseEvidenceKind {
+    RuntimeArtifact,
+    ServerArtifact,
+    ArtifactSignature,
+    LicenseSbom,
+    BuildProvenance,
+    CompatibilityGenerations,
+    MigrationPlan,
+    HealthProbes,
+    AcceptanceProbes,
+    ConfigRequirements,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreparedReleaseEvidence {
+    pub kind: PreparedReleaseEvidenceKind,
+    pub evidence: Vec<AdapterEvidenceRef>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RollbackMode {
+    CodeOnly,
+    ForwardFix,
+    RestoreRequired,
+    Blocked,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseCompatibilityEnvelope {
+    pub minimum_readable_schema_generation: u64,
+    pub maximum_readable_schema_generation: u64,
+    pub write_schema_generation: u64,
+    pub minimum_retained_client_generation: u64,
+    pub minimum_job_generation: u64,
+    pub minimum_config_generation: u64,
+    pub migration_sha256: String,
+    pub migration_transactional: bool,
+    pub irreversible_boundary: Option<String>,
+    pub rollback_mode: RollbackMode,
+}
+
+/// Target-bound augmentation of one immutable base release. Production apply
+/// consumes this artifact, never a caller-supplied boolean, to decide whether
+/// all release-specific and previously drilled adapter obligations are met.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreparedReleaseManifest {
+    pub schema_version: String,
+    pub prepared_release_id: String,
+    pub base_release_id: String,
+    pub base_release_manifest_sha256: String,
+    pub project_id: String,
+    pub target_id: String,
+    pub target_profile_id: String,
+    pub adapter_qualification_id: String,
+    pub adapter_qualification_sha256: String,
+    pub compatibility: ReleaseCompatibilityEnvelope,
+    pub evidence: Vec<PreparedReleaseEvidence>,
+    pub gaps: Vec<ReleaseGap>,
+    pub activation_eligible: bool,
+    pub prepared_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum DeployPlanArtifactKind {
+    #[serde(rename = "deployPlan")]
+    DeployPlan,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum DeployPlanVersion {
+    #[serde(rename = "snapback.deploy-plan.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum DeployPlanStep {
+    VerifyIdentity,
+    AcquireLease,
+    UploadImmutableRelease,
+    ProvisionInactive,
+    CompatibilityPreflight,
+    CreateVerifiedBackup,
+    StageRelease,
+    ActivateGeneration,
+    VerifyServedPath,
+    ReleaseLease,
+    RollbackOnFailure,
+}
+
+/// Content-addressed, non-mutating deployment proposal. `apply_eligible` is a
+/// derived fact; a plan retaining any blocker cannot be applied.
+///
+/// @ref LLP 0072#cli-and-automation-contract — production and destructive
+/// operations consume an immutable plan digest and exact confirmation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeployPlan {
+    pub artifact_kind: DeployPlanArtifactKind,
+    pub schema_version: DeployPlanVersion,
+    pub plan_id: String,
+    pub operation_id: String,
+    pub reason: String,
+    pub target_id: String,
+    pub project_id: String,
+    pub environment_id: String,
+    pub deployment_id: String,
+    pub database_id: String,
+    pub stream_incarnation: String,
+    pub target_profile_id: String,
+    pub production_class: TargetProductionClass,
+    pub target_descriptor_sha256: String,
+    pub target_observation_sha256: String,
+    pub observed_activation_generation: u64,
+    pub observed_active_release_id: Option<String>,
+    pub release_id: String,
+    pub release_manifest_sha256: String,
+    pub prepared_release_id: Option<String>,
+    pub prepared_release_manifest_sha256: Option<String>,
+    pub steps: Vec<DeployPlanStep>,
+    pub blockers: Vec<ReleaseGap>,
+    pub apply_eligible: bool,
+    pub confirmation: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> ReleaseManifest {
+        ReleaseManifest {
+            artifact_kind: ReleaseArtifactKind::ReleaseManifest,
+            schema_version: ReleaseManifestVersion::V1,
+            release_id: format!("sha256:{}", "a".repeat(64)),
+            project_id: "checkpoint".to_owned(),
+            target_profile_id: "cloudflare-do-sqlite-v8".to_owned(),
+            activation_eligible: false,
+            source: ReleaseSource {
+                repository_name: "checkpoint".to_owned(),
+                revision: "b".repeat(40),
+                source_date_epoch: 1,
+                dirty: false,
+                dirty_paths_sha256: None,
+            },
+            toolchain: ReleaseToolchain {
+                snapback_cli_version: "0.1.0".to_owned(),
+                node_version: "v24.0.0".to_owned(),
+                package_manager: Some("bun@1.3.12".to_owned()),
+            },
+            compatibility: ReleaseCompatibility {
+                schema_version: "snapback.v0".to_owned(),
+                auth_mode: "dev".to_owned(),
+                schema_sha256: format!("sha256:{}", "c".repeat(64)),
+                functions_sha256: format!("sha256:{}", "d".repeat(64)),
+                capability_sha256: format!("sha256:{}", "e".repeat(64)),
+                inputs_sha256: format!("sha256:{}", "f".repeat(64)),
+            },
+            required_capabilities: vec!["live_subscriptions".to_owned()],
+            components: vec![ReleaseComponent {
+                path: "app/schema.manifest.json".to_owned(),
+                sha256: format!("sha256:{}", "1".repeat(64)),
+                bytes: 10,
+                media_type: "application/json".to_owned(),
+            }],
+            scan: ReleaseScan {
+                secret_scan: "passed".to_owned(),
+                source_maps: "refused".to_owned(),
+                symlinks: "refused".to_owned(),
+                scanned_files: 1,
+                scanned_bytes: 10,
+            },
+            gaps: vec![ReleaseGap {
+                id: "control-plane.adapter".to_owned(),
+                reason: "no hosted adapter has completed the profile".to_owned(),
+                blocking: true,
+            }],
+        }
+    }
+
+    fn target_fixture() -> TargetDescriptor {
+        TargetDescriptor {
+            schema_version: TargetDescriptorVersion::V1,
+            target_id: "target-preview-1".to_owned(),
+            project_id: "checkpoint".to_owned(),
+            environment_id: "preview-1".to_owned(),
+            deployment_id: "deployment-1".to_owned(),
+            database_id: "database-1".to_owned(),
+            stream_incarnation: "stream-1".to_owned(),
+            target_profile_id: "trusted-single-tenant-app-complete.v1".to_owned(),
+            production_class: TargetProductionClass::Preview,
+            adapter: VmAdapterDescriptor {
+                kind: VmAdapterKind::SingleInstanceContainerVm,
+                version: "1.0.0".to_owned(),
+                driver_path: "/opt/snapback/vm-adapter".to_owned(),
+                driver_sha256: format!("sha256:{}", "2".repeat(64)),
+                provider: "fixture-provider".to_owned(),
+                account_fingerprint: "account-1".to_owned(),
+                region: "test-1".to_owned(),
+                public_origin: "https://preview.example.invalid".to_owned(),
+                credential_ref: "secret-store://snapback/preview-1".to_owned(),
+                state_store_ref: "object://snapback-control/preview-1".to_owned(),
+            },
+            created_at_ms: 1,
+        }
+    }
+
+    #[test]
+    fn release_manifest_is_closed_and_round_trips() {
+        let fixture = fixture();
+        let mut value = serde_json::to_value(&fixture).expect("serialize release manifest");
+        assert_eq!(value["artifactKind"], "releaseManifest");
+        assert_eq!(value["schemaVersion"], "snapback.release-manifest.v1");
+        assert_eq!(
+            serde_json::from_value::<ReleaseManifest>(value.clone())
+                .expect("parse release manifest"),
+            fixture
+        );
+        value["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<ReleaseManifest>(value).is_err());
+    }
+
+    #[test]
+    fn target_adapter_and_plan_artifacts_are_closed() {
+        let target = target_fixture();
+        let observation = TargetObservation {
+            target_id: target.target_id.clone(),
+            environment_id: target.environment_id.clone(),
+            deployment_id: target.deployment_id.clone(),
+            database_id: target.database_id.clone(),
+            stream_incarnation: target.stream_incarnation.clone(),
+            target_profile_id: target.target_profile_id.clone(),
+            provider: target.adapter.provider.clone(),
+            account_fingerprint: target.adapter.account_fingerprint.clone(),
+            region: target.adapter.region.clone(),
+            public_origin: target.adapter.public_origin.clone(),
+            resource_id: "vm-1".to_owned(),
+            state: DeploymentState::Registered,
+            activation_generation: 0,
+            active_release_id: None,
+            application_sentinel_sha256: None,
+            credential_status: CredentialStatus::Ready,
+            provider_facts_sha256: format!("sha256:{}", "3".repeat(64)),
+            observed_at_ms: 2,
+            capability_gaps: vec!["hosted-auth".to_owned()],
+        };
+        let response = AdapterResponse {
+            schema_version: AdapterResponseVersion::V1,
+            operation: AdapterOperation::Inspect,
+            operation_id: "operation-1".to_owned(),
+            ok: true,
+            observation: Some(observation),
+            diagnostics: vec![],
+        };
+        let mut response_value = serde_json::to_value(&response).expect("serialize response");
+        assert_eq!(
+            serde_json::from_value::<AdapterResponse>(response_value.clone())
+                .expect("parse response"),
+            response
+        );
+        response_value["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<AdapterResponse>(response_value).is_err());
+
+        let plan = DeployPlan {
+            artifact_kind: DeployPlanArtifactKind::DeployPlan,
+            schema_version: DeployPlanVersion::V1,
+            plan_id: format!("sha256:{}", "4".repeat(64)),
+            operation_id: "operation-1".to_owned(),
+            reason: "checkpoint preview".to_owned(),
+            target_id: target.target_id.clone(),
+            project_id: target.project_id.clone(),
+            environment_id: target.environment_id.clone(),
+            deployment_id: target.deployment_id.clone(),
+            database_id: target.database_id.clone(),
+            stream_incarnation: target.stream_incarnation.clone(),
+            target_profile_id: target.target_profile_id.clone(),
+            production_class: target.production_class,
+            target_descriptor_sha256: format!("sha256:{}", "5".repeat(64)),
+            target_observation_sha256: format!("sha256:{}", "6".repeat(64)),
+            observed_activation_generation: 0,
+            observed_active_release_id: None,
+            release_id: format!("sha256:{}", "7".repeat(64)),
+            release_manifest_sha256: format!("sha256:{}", "8".repeat(64)),
+            prepared_release_id: None,
+            prepared_release_manifest_sha256: None,
+            steps: vec![DeployPlanStep::VerifyIdentity],
+            blockers: vec![ReleaseGap {
+                id: "control-plane.hosted-auth".to_owned(),
+                reason: "hosted auth is not ready".to_owned(),
+                blocking: true,
+            }],
+            apply_eligible: false,
+            confirmation: format!("confirm:sha256:{}", "4".repeat(64)),
+            created_at_ms: 3,
+            expires_at_ms: 303,
+        };
+        let mut plan_value = serde_json::to_value(&plan).expect("serialize plan");
+        assert_eq!(
+            serde_json::from_value::<DeployPlan>(plan_value.clone()).expect("parse plan"),
+            plan
+        );
+        plan_value["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<DeployPlan>(plan_value).is_err());
+    }
+}

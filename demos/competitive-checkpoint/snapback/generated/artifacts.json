@@ -63,7 +63,7 @@
     "contract/updateConversation.mutation.ts",
     "contract/updateConversation.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:6fabe423be1c88af",
+  "bundleHash": "sha256:381a6a1c28dff030",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -155,7 +155,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "979599bdca39f911a8eb90acbd7a65ce7e8fe7b019df521c482348e0a10b6c19",
+  "inputsHash": "ec952ff4b7060f742cc9c72d7c9e92b55f45ddc095057f3ce1af57466d9ec0eb",
   "schemaHash": "sha256:04453498e78b891b",
   "schemaVersion": "snapback.v0",
   "tables": [

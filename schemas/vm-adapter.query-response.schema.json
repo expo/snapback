@@ -1,0 +1,580 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "AdapterQueryOperation": {
+      "enum": [
+        "logs",
+        "inspectAdmin"
+      ],
+      "type": "string"
+    },
+    "AdapterQueryResponseVersion": {
+      "enum": [
+        "snapback.vm-adapter-query-response.v1"
+      ],
+      "type": "string"
+    },
+    "AdapterSafeDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    },
+    "AuthenticatedInspection": {
+      "additionalProperties": false,
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "activeReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "backups": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "capabilityGaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilityManifestSha256": {
+          "type": "string"
+        },
+        "configGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "connections": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "dependencies": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/AdapterSafeDiagnostic"
+          },
+          "type": "array"
+        },
+        "health": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "inactiveReleaseIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "migration": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/ControlOperationSummary"
+          },
+          "type": "array"
+        },
+        "queues": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "resources": {
+          "items": {
+            "$ref": "#/$defs/InspectionFact"
+          },
+          "type": "array"
+        },
+        "schemaGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "workerGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "targetId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "inactiveReleaseIds",
+        "activationGeneration",
+        "schemaGeneration",
+        "configGeneration",
+        "authGeneration",
+        "workerGeneration",
+        "capabilityManifestSha256",
+        "capabilityGaps",
+        "health",
+        "dependencies",
+        "migration",
+        "backups",
+        "queues",
+        "connections",
+        "resources",
+        "operations",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
+    "ControlLogEntry": {
+      "additionalProperties": false,
+      "description": "Bounded structured application/control-plane event. Payload fields are\nscalar and redacted; arbitrary JSON, request bodies, and query results are\nstructurally unavailable in this protocol.\n\n@ref LLP 0072#logs-metrics-and-inspection — default logs bind deployment\nidentity and correlation while rejecting private or credential payloads.",
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "correlationId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "eventCode": {
+          "type": "string"
+        },
+        "eventVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "payload": {
+          "items": {
+            "$ref": "#/$defs/RedactedLogField"
+          },
+          "type": "array"
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "severity": {
+          "type": "string"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "timestampMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timestampMs",
+        "severity",
+        "deploymentId",
+        "activationGeneration",
+        "streamIncarnation",
+        "correlationId",
+        "eventCode",
+        "eventVersion",
+        "payload"
+      ],
+      "type": "object"
+    },
+    "ControlLogPage": {
+      "additionalProperties": false,
+      "properties": {
+        "backpressure": {
+          "type": "boolean"
+        },
+        "deliveryLatencyMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "droppedEvents": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/ControlLogEntry"
+          },
+          "type": "array"
+        },
+        "indexingClass": {
+          "type": "string"
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retentionClass": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries",
+        "retentionClass",
+        "indexingClass",
+        "deliveryLatencyMs",
+        "droppedEvents",
+        "backpressure"
+      ],
+      "type": "object"
+    },
+    "ControlOperationSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "finishedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "receiptId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "operationId",
+        "kind",
+        "outcome",
+        "finishedAtMs",
+        "receiptId"
+      ],
+      "type": "object"
+    },
+    "CredentialStatus": {
+      "enum": [
+        "ready",
+        "missing",
+        "invalid",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "DeploymentState": {
+      "enum": [
+        "registered",
+        "provisioning",
+        "inactive",
+        "staging",
+        "ready",
+        "active",
+        "degraded",
+        "draining",
+        "failed",
+        "restoring",
+        "retired"
+      ],
+      "type": "string"
+    },
+    "InspectionFact": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "valueSha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "valueSha256"
+      ],
+      "type": "object"
+    },
+    "RedactedLogField": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "TargetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "activeReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicationSentinelSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capabilityGaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "credentialStatus": {
+          "$ref": "#/$defs/CredentialStatus"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "observedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "providerFactsSha256": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/DeploymentState"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "targetId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "resourceId",
+        "state",
+        "activationGeneration",
+        "credentialStatus",
+        "providerFactsSha256",
+        "observedAtMs",
+        "capabilityGaps"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.query-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/AdapterSafeDiagnostic"
+      },
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/AdapterEvidenceRef"
+      },
+      "type": "array"
+    },
+    "inputSha256": {
+      "type": "string"
+    },
+    "inspection": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthenticatedInspection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "logs": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ControlLogPage"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetObservation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "operation": {
+      "$ref": "#/$defs/AdapterQueryOperation"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "outputSha256": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterQueryResponseVersion"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "ok",
+    "remoteEvidence",
+    "inputSha256",
+    "outputSha256",
+    "evidence",
+    "diagnostics"
+  ],
+  "title": "AdapterQueryResponse",
+  "type": "object"
+}

@@ -47,6 +47,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
+| backend.action-streams | Pull-driven bounded response streams with durable progress and precise settlement | stream, ReadableStream, tokens, progress | local | shipped | `ctx.fetchStream` in packages/snapback-harness/ctx-bootstrap.js | llp/0076 | backend/actions-and-fetch.md |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
@@ -58,6 +59,7 @@ with the Snapback label and `guide-gap` in the title.
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
+| auth.sender-constrained-browser | Hosted-only non-extractable browser custody, HTTP/WebSocket sender proofs, nonce rotation, and replay refusal; no current adapter has positive admission | DPoP, browser key, credential theft, hosted sessions | single-instance-container-vm | partial | `HostedBrowserSnapbackClient` in packages/snapback-client/hosted-browser.mjs | llp/0077, llp/0060 | auth/targets.md |
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
 | auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
@@ -68,7 +70,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | First-class React external-store hook over generated functions | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063 | clients/react.md |
+| clients.react | First-class React external-store hook over generated function references | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063, llp/0074 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI | install, new app, dev, watch, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041 | getting-started/the-authoring-loop.md |
@@ -76,10 +78,12 @@ with the Snapback label and `guide-gap` in the title.
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
-| operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | operating/diagnostics.md |
+| operating.diagnostics | Stable SNAPBACK_* codes; repository diagnosis and an installed disposable vertical-slice doctor | diagnostics, errors, doctor | all | shipped | `doctor` in packages/snapback-cli/index.mjs | llp/0010, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness | tests, acceptance, harness | local | shipped | `createSuite` in demos/_kit/harness.mjs | llp/0010, llp/0012 | testing/acceptance.md |
+| deploy.release-build | Target-neutral immutable release build, scan, content identity, and read-back verification | deploy build, release artifact, dirty preview, release digest | all | partial | `buildRelease` in packages/snapback-cli/index.mjs | llp/0072 | deploying/releases.md |
+| deploy.target-control | Descriptor-first no-follow/single-link authority I/O; owner-only target registration; a content-addressed provider/storage/TLS/supervisor/log/credential/cost drill plan before provisioning; digest-pinned inspection; content-addressed deploy/backup/code-only-rollback/destructive-restore planning; lease/generation-fenced apply; paused restore plus explicit activation; bounded redacted logs; authenticated inspection; read-back-verified backups; receipts; fail-closed hash-chained control audit; positive hosted-auth/qualification/prepared-release artifact producers; and a MAC-authenticated hosted-startup admission consumer/sealer/producer contract. The concrete provider choices, external store, provider secret retrieval, supervised refresh operation, and remote provider evidence remain GAPs | target add, target doctor, remote drill plan, deploy plan, deploy apply, deploy rollback, deploy status, backup create, backup list, backup verify, restore plan, restore apply, restore verify, restore activate, hosted admission, qualification, prepared release, logs, inspect, audit verify | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072 | deploying/releases.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | deploying/cloudflare.md |
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
@@ -315,6 +319,9 @@ you never build around a feature because you didn't know it existed.
   debug through the privileged Contract system app.
 
 ### Deploying
+- [Immutable releases and deploy plans](./deploying/releases.md) — build the
+  target-neutral release, register an exact VM/container target, inspect its
+  provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 
@@ -1223,14 +1230,14 @@ title: Targets — what each one claims
 id: auth.targets
 order: 3
 audience: agent-first
-capabilities: [auth.target-honesty]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, README.md]
-examples: []
+capabilities: [auth.target-honesty, auth.sender-constrained-browser]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, packages/snapback-client/hosted-browser.mjs, README.md]
+examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
-maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+maturity: partial
+reviewed: 2026-07-24
+reviewed-commit: HEAD
 ---
 
 # Targets — what each one claims
@@ -1267,6 +1274,37 @@ without `cloudflare` in its `targets:` as unverified there, and treat
 hosted auth as absent until LLP 0060's contract is implemented and
 witnessed. Deployment, secret, egress, hibernation, and non-claim details are
 in [deploying the Cloudflare proof](../deploying/cloudflare.md).
+
+## Single-instance container/VM — selected, not yet available
+
+LLP 0072 selects `single-instance-container-vm.v1` as the first target that
+must satisfy the complete trusted single-tenant profile. The target-neutral
+release, plan, lifecycle, backup, rollback, restore, log, inspection, and audit
+contracts exist and pass a deterministic non-remote driver. No provider,
+account, region, public origin, remote storage, or external audit sink has yet
+passed the qualification drill. Therefore the profile is **partial** and no
+server may report `trusted-single-tenant-app-complete.v1`.
+
+The package contains a future hosted app-browser entrypoint:
+`HostedBrowserSnapbackClient` from
+`@snapback/client/hosted-browser`. Its constructor requires coordinator-owned
+custody, accepts only HTTPS, and exposes no bearer, admin-token, or
+agent-authority option. The implementation generates a non-extractable P-256
+key, binds issuance and refresh to it, signs protected HTTP and WebSocket
+requests, rotates server nonces, and rejects replay. Sender sessions and grants
+use legacy-rejecting v2 syntax; unknown carriers receive keyed stateless cover
+nonces; a bounded key-bound tombstone recovers a committed logout whose
+response was lost; and the socket queue releases only after the first
+in-band successor-nonce frame. Cross-language, pre-body, custody-recovery,
+challenge-retry, refresh, grant-route-matrix, and real WebSocket tests exercise
+those facts.
+
+This is implementation evidence, not an authoring technique on a live target.
+Do not use the generic `SnapbackClient` direct-bearer constructor as a
+production-browser substitute. A concrete adapter must first authenticate the
+public origin and admission producer, pass the complete negative/pressure
+matrix, produce the monotone replay-epoch floor outside the application backup
+set, and execute the remote LLP 0072/0077 drill.
 
 ## How to check instead of trusting prose
 
@@ -1659,9 +1697,9 @@ title: Actions and outbound fetch
 id: backend.actions-and-fetch
 order: 3
 audience: agent-first
-capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard]
+capabilities: [backend.actions, backend.action-streams]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
@@ -1803,6 +1841,8 @@ is the repair.
   source compilation is denied even for egress-enabled actions.
 - **Do not launch unobserved Promise chains.** Await or return them so their
   failure remains part of the handler's explicit result.
+- **Do not split a buffered body after receipt and call it streaming.** The
+  witness must observe multiple durable commits before upstream completion.
 
 ---
 
@@ -3005,6 +3045,11 @@ development/operations methods. In sessions mode, pass an
 bypass coordinator custody. `clientStoreId` binds authorization and retained
 query namespaces to one durable client store.
 
+`senderConstrained` is an internal composition option for the dedicated
+`@snapback/client/hosted-browser` entrypoint. Local applications should not set
+it directly, and no current hosted target has positive admission; see
+[target honesty](../auth/targets.md).
+
 CLI and daemon agents use `AgentAuthorityFence`, not the browser
 `AuthCoordinator`. Construct it from the scoped-token mint response plus its
 actor id, then pass it as `agentAuthority` with
@@ -3338,13 +3383,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
-examples: [demos/partiful-matrix/surfaces/react, packages/snapback-react/package.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0074-convex-competitive-strategy.rfc.md, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+examples: [demos/partiful-matrix/surfaces/react, demos/competitive-checkpoint/surfaces/react-expo, packages/snapback-react/package.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed: 2026-07-22
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -3369,20 +3414,17 @@ isolated.
 
 ## Bind a generated query
 
-Provide the generated operation name/arguments and the current user/authority.
-Partitime's entire compatibility hook is now this projection:
+Provide the generated operation reference, arguments, and current
+user/authority. The competitive checkpoint uses the same reference in React
+web and Expo:
 
-```tsx source=demos/partiful-matrix/surfaces/react/src/App.tsx
-function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<string, unknown>, persona: Persona) {
-  const snapshot = useSnapbackQuery<Row>({
-    provider,
-    name,
-    args,
-    userId: persona.userId,
-    authority: persona.userId,
+```tsx source=demos/competitive-checkpoint/surfaces/react-expo/App.tsx
+  const conversations = useSnapbackQuery<Conversation>({
+    provider: checkpointProvider,
+    query: api.listConversations,
+    userId: USER_ID,
+    authority: USER_ID,
   });
-  return { rows: snapshot.rows, connection: snapshot.connection as Connection };
-}
 ```
 
 The provider declares `externalStoreProtocol: "snapback.external-store.v1"`
@@ -3401,7 +3443,7 @@ authoritative snapshot or retire an optimistic layer.
 - `connection`: the headless connection axis;
 - `error`: a serialized structured error or `null`;
 - `mutation`: `idle | pending | confirmed | rejected` plus id/result/error;
-- `mutate(name, args, { optimisticRows, id })`;
+- `mutate(api.someMutation, args, { optimisticRows, id })`;
 - `store`, for inspection or advanced composition.
 
 ## Let identity replace subscriptions
@@ -3453,6 +3495,9 @@ the same connection axis described by [live queries](../realtime/live-queries.md
   privacy cut must create a distinct store identity.
 - **Do not call Online local-first or Parity.** Those classes require the
   retained execution/replay proofs in LLP 0012 and LLP 0064.
+- **Do not pass string names from application components.** Pass generated
+  query and mutation references; name-only input remains a provider-compatibility
+  bridge, not the paved application surface.
 
 ---
 
@@ -3463,13 +3508,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0074-convex-competitive-strategy.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
+examples: [demos/partiful-matrix/native/react-expo, demos/competitive-checkpoint/surfaces/react-expo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7914210856
+reviewed: 2026-07-22
+reviewed-commit: HEAD
 ---
 
 # React Expo Online clients
@@ -3496,13 +3541,18 @@ not as a physical-device or production-support declaration.
 The carrier imports project-generated refs and binds them through the ordinary
 React hook:
 
-```js source=demos/partiful-matrix/native/react-expo/App.js
-  const query = useSnapbackQuery({ provider, name: 'listEvents', args: {}, userId, authority: userId });
+```tsx source=demos/competitive-checkpoint/surfaces/react-expo/App.tsx
+  const conversations = useSnapbackQuery<Conversation>({
+    provider: checkpointProvider,
+    query: api.listConversations,
+    userId: USER_ID,
+    authority: USER_ID,
+  });
 ```
 
-The provider calls `SnapbackClient.liveQuery(api[name], ...)` and
-`SnapbackClient.mutate(api[name], ...)`; there is no direct table-write API or
-second native cache. It declares the exact
+The package compatibility layer resolves that immutable reference for the
+provider; application code never supplies a string function name. There is no
+direct table-write API or second native cache. The provider declares the exact
 `snapback.external-store.v1` compatibility token. A different token refuses
 before application data is published.
 
@@ -3564,11 +3614,534 @@ Exact Native Parity.
 
 ---
 
+<!-- snapback-guide-source: guide/deploying/releases.md -->
+---
+title: Build and plan an immutable release
+id: deploying.releases
+order: 1
+audience: agent-first
+capabilities: [deploy.release-build, deploy.target-control]
+authorities: [llp/0072-trusted-single-tenant-control-plane.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, src/auth/deployment.rs, schemas/release.manifest.schema.json, schemas/target.descriptor.schema.json, schemas/remote-drill.plan.schema.json, schemas/deploy.plan.schema.json, schemas/vm-adapter.lifecycle-request.schema.json, schemas/vm-adapter.lifecycle-response.schema.json, schemas/backup.manifest.schema.json, schemas/backup.plan.schema.json, schemas/control.audit-event.schema.json, schemas/deploy.receipt.schema.json, schemas/adapter.qualification.schema.json, schemas/hosted-auth.drill-receipt.schema.json, schemas/auth.hosted-admission-envelope.schema.json, schemas/auth.hosted-admission-key.schema.json, schemas/prepared-release.manifest.schema.json, schemas/rollback.plan.schema.json, schemas/restore.plan.schema.json, schemas/restore.activation-plan.schema.json, schemas/maintenance.receipt.schema.json, schemas/vm-adapter.query-request.schema.json, schemas/vm-adapter.query-response.schema.json]
+examples: [demos/competitive-checkpoint]
+status: current
+targets: [all]
+maturity: partial
+reviewed: 2026-07-22
+reviewed-commit: HEAD
+---
+
+# Build an immutable release
+
+`snapback deploy build` closes and retains the target-neutral input to a
+deployment adapter. It does not upload, provision, activate, or claim a hosted
+application. The resulting manifest is deliberately activation-ineligible and
+lists every missing hosted or supply-chain proof as a blocking GAP.
+
+## Build and verify the release closure
+
+Run generation and release construction from the application root:
+
+```sh
+snapback deploy build snapback \
+  --target-profile local-dev-sqlite-ibex \
+  --web-dist dist-web \
+  --json
+```
+
+The default store is `.snapback/releases/<release digest>/`. Pass `--output`
+to retain the closure elsewhere. A successful result has
+`schemaVersion: snapback.deploy-build.v1` and reports the release id, manifest
+digest, component count, byte count, source posture, and blocking GAPs.
+
+The command regenerates the app, verifies that its schema, function, and
+capability manifests agree with the selected target profile, and collects the
+generated artifacts, package manifest, dependency lock, and optional web
+distribution. It then:
+
+- rejects symlinks, path overlap/escape, source maps, local databases, dotenv
+  files, npm credentials, private keys, and known credential patterns;
+- enforces the v1 file and byte budgets;
+- records the Git revision, commit timestamp, tool versions, dirty-state fact,
+  compatibility digests, capabilities, scans, and every component digest;
+- derives `releaseId` from canonical manifest content;
+- copies through a private staging directory and verifies every copied byte;
+  and
+- reopens the completed closure and refuses undeclared, missing, or changed
+  files.
+
+Building the same clean inputs reuses the same verified release. The output
+store is excluded from the source-dirty calculation, so a retained default
+release does not poison the next build.
+
+## Handle dirty preview input explicitly
+
+A dirty tree fails with `SNAPBACK_DEPLOY_DIRTY_SOURCE`. For a non-production
+preview only, opt in:
+
+```sh
+snapback deploy build snapback --allow-dirty --json
+```
+
+The manifest retains `source.dirty: true` and a digest of the dirty path facts
+without disclosing the path list. Dirty input never becomes activation
+eligible in this target-neutral command.
+
+## Read GAPs before choosing an adapter
+
+Every v1 release has `activationEligible: false`. It names missing adapter,
+runtime, signing, provenance, SBOM, migration, probe, logs, inspection,
+rollback, backup/restore, and TLS evidence, plus target capability gaps. A
+future adapter may add artifacts and receipts only under the LLP 0072
+identity/plan/apply contract; it may not reinterpret this result as deployment
+success.
+
+The existing [Cloudflare proof](./cloudflare.md) remains a separate, narrow
+repository workflow. It is not wired to `snapback deploy build`, and neither
+surface currently satisfies the complete hosted profile.
+
+## Register one exact container/VM target
+
+Create a descriptor conforming to
+`schemas/target.descriptor.schema.json`, then register it outside the source
+tree:
+
+```sh
+snapback target add \
+  --descriptor ~/.config/snapback/preview-target.json \
+  --control-root ~/.local/state/snapback/control \
+  --json
+```
+
+The descriptor binds the project, target, environment, deployment, database,
+stream incarnation, target profile, production class, provider account, region,
+HTTPS origin, and `singleInstanceContainerVm` adapter version. `driverPath` is
+absolute and `driverSha256` pins the executable bytes. `credentialRef` names an
+OS or provider secret-store handle; a credential value is not a valid field.
+Credential and state references reject URI userinfo, query, and fragment
+components so an apparently opaque handle cannot smuggle inline authority.
+
+The control root, target registry, and retained plans must be owner-only.
+Registration is idempotent for identical canonical bytes and refuses to reuse a
+`targetId` for any different descriptor. Every later read rechecks the adapter
+digest, so replacing the executable invalidates the registration rather than
+silently changing its authority.
+
+Inspect the registration and require fresh provider read-back:
+
+```sh
+snapback target show target-preview-1 --json
+snapback target doctor target-preview-1 --json
+snapback deploy status --target target-preview-1 --json
+```
+
+The adapter receives one closed JSON request on stdin with no argv arguments and
+an allowlisted environment. Snapback rejects a different provider account,
+region, origin, deployment, database, stream, or target profile even when the
+adapter exits successfully.
+
+## Pin the remote drill before provisioning
+
+An adapter integration calls `createRemoteDrillPlan` and
+`verifyRemoteDrillPlan` from
+`@snapback/cli/deployment-control` before it exposes any provisioning action.
+The resulting `snapback.remote-drill-plan.v1` artifact binds the registered
+provider/account/region/origin and exact driver bytes to:
+
+- compute and encrypted persistent-volume classes;
+- distinct immutable artifact and separately permissioned backup stores;
+- TLS issuer, automated renewal, supervisor, restart, and interruption rules;
+- bounded redacted log sink and retention;
+- external control, admission-key, state, and replay-floor handles; and
+- a currency, estimate, maximum monthly cost, estimate-provenance digest, and
+  the six included cost components.
+
+The plan explicitly retains that the profile does not claim HA, autoscaling,
+multi-region operation, zero downtime, untrusted multi-tenancy, or a managed
+service SLA. It is owner-only, content-addressed, expires after one hour, and
+contains an exact confirmation token. Verification rechecks the retained
+content identity, current target/driver binding, confirmation, expiry,
+infrastructure separation, cost ceiling, and nonclaims. There is intentionally
+no provisioning apply path yet: constructing or verifying this plan records
+choices but does not authorize spend or create resources.
+
+## Retain a content-addressed deploy plan
+
+Planning re-verifies the release, calls the adapter's read-only inspection, and
+binds both observations into a 15-minute immutable plan:
+
+```sh
+snapback deploy plan .snapback/releases/<release-digest> \
+  --target target-preview-1 \
+  --reason "preview acceptance" \
+  --json
+```
+
+The plan records exact identities, the observed activation generation and
+active release, release and manifest digests, ordered lifecycle steps, every
+blocking GAP, and an exact confirmation token. Repeating the same operation id,
+reason, time, release, target, and provider facts produces the same plan id.
+
+Apply consumes the exact retained plan and release:
+
+```sh
+snapback deploy apply <plan-id> \
+  --target <id> \
+  --release <release-dir> \
+  --confirm <token>
+```
+
+It verifies the content identity, target, confirmation, expiry, GAP set, exact
+release bytes, and fresh activation generation before any adapter mutation. At
+this checkpoint every ordinary release remains activation-ineligible, so
+normal apply fails with `SNAPBACK_DEPLOY_PLAN_BLOCKED`.
+
+Behind that fence, the common apply engine is implemented. It acquires a
+provider lease and invokes digest-bound, idempotent adapter steps for immutable
+upload, inactive provisioning, compatibility preflight, verified backup,
+staging, activation, served-path verification, and lease release. Each step is
+retained immediately in an owner-only journal and a hash-chained final receipt.
+An interruption resumes the same `operationId`; an adapter failure invokes
+rollback and lease release. A production call rejects a step without a verified
+`remoteProviderAttestation` as `SNAPBACK_DEPLOY_REMOTE_EVIDENCE_REQUIRED` and
+rolls it back.
+
+The deterministic lifecycle harness exercises this entire protocol, including
+interruption/retry and failure/rollback, but every resulting receipt has
+`remoteEvidence: false` plus a blocking GAP. It cannot satisfy the hosted
+profile. No ordinary release verifier returns `activationEligible: true`, and
+no remote provider driver or hosted receipt has been witnessed.
+
+Retained control authority is read through a descriptor opened with
+`O_NOFOLLOW`, not by trusting a pathname checked earlier. Owner-only artifacts
+must remain single-link and unchanged across the bounded read. Qualification
+and prepared-release inputs use the same descriptor-first, single-link rule.
+Control writes fsync both the new bytes and containing directory before the
+result is treated as retained authority.
+
+## Qualify an adapter and prepare a release
+
+Production planning has two additional, closed artifact gates. An adapter
+qualification binds the exact target, complete profile, driver digest,
+provider account, region, and origin to remote evidence for all of:
+
+- identity fencing and immutable upload read-back;
+- TLS/origin and hosted-auth behavior;
+- public health/acceptance, logs, and authenticated inspection;
+- compatibility plus code-only rollback;
+- isolated backup/restore and interruption resume;
+- secret/private-data scans; and
+- the concrete cost and capacity boundary.
+
+The `hostedAuth` claim cannot be satisfied by that label and a generic
+attestation alone. The qualification embeds a content-addressed executed drill
+receipt binding the exact target and browser artifact to all five positive
+static support axes, a maximum-five-minute deployment admission, disabled
+operator surface, excluded direct-bearer seam, compatible handler, and live
+limiter/invalidation/serialized-authority health under the same admission
+epoch. It requires zero GAPs and remote-provider evidence. The receipt proves
+the qualification-time drill; serving activation still needs a fresh admission
+and live health.
+
+A prepared release then binds that qualification to one base release plus
+runtime/server artifacts, signature, SBOM, provenance, compatibility
+generations, migration/rollback envelope, health and acceptance probes, and
+configuration requirements. Both artifacts are content-addressed, require a
+closed evidence inventory, and must retain zero GAPs before they can produce an
+eligible plan.
+
+`@snapback/cli` exports `createHostedAuthDrillReceipt`,
+`createAdapterQualificationManifest`, and `createPreparedReleaseManifest` for
+adapter implementations. The producers derive target, provider, account,
+region, origin, driver, qualification, and base-release bindings instead of
+accepting those identities from the caller. They also require every one of the
+eleven qualification claims and ten prepared-release evidence classes exactly
+once, then derive the content identities consumed by the verifier.
+
+```sh
+snapback deploy plan <release-dir> \
+  --target <id> \
+  --reason "qualified preview" \
+  --adapter-qualification <qualification.json> \
+  --prepared-release <prepared-release.json>
+```
+
+The verifier requires the exact
+`trusted-single-tenant-app-complete.v1` profile in the target, base release,
+qualification, and prepared release. The producers do not run provider
+operations or manufacture remote attestations: their evidence inputs must come
+from the concrete adapter's retained drill. There is still no codegen
+capability manifest or concrete remote drill for that profile, so the producer
+and verifier contracts do not make current releases eligible. A
+caller-supplied boolean or an evidence-looking provider name cannot replace
+the artifacts.
+
+## Start a hosted handler through the authenticated gate
+
+The native server has the target-neutral consumer for a real adapter's hosted
+startup authority, and `@snapback/cli/hosted-admission-producer` supplies the
+provider-neutral producer contract. Before each handler boot,
+`prepareHostedAdmissionBoot` awaits the adapter's atomic advancement of
+`senderReplayEpochFloor` in a monotone store outside the application backup
+set and verifies its content-addressed receipt. Only then does it create
+previously unused exact-0600 admission and key projections. The 32-byte MAC key
+comes from the target's provider secret manager and conforms to
+`schemas/auth.hosted-admission-key.schema.json`; it is never an application
+config value or release, backup, log, or receipt component.
+
+The adapter starts the runtime with both strict owner-only files:
+
+```sh
+snapback start \
+  --host 0.0.0.0 \
+  --db /var/lib/snapback/app.sqlite3 \
+  --auth-deployment hosted \
+  --hosted-admission /run/snapback/hosted-admission.json \
+  --hosted-admission-key /run/secrets/snapback-hosted-admission-key.json
+```
+
+Before it opens the database or binds a listener, the runtime verifies the
+closed envelope shape, key identity, canonical MAC, canonical HTTPS origin,
+five-minute admission lifetime, exact finite throttle policy, and positive
+hosted facts. It then reconciles the external replay floor into SQLite before
+publishing hosted posture. Every 15 seconds it re-authenticates the envelope;
+a live refresh may advance admission, limiter, and invalidation epochs, but
+cannot change deployment, handler incarnation, or the boot's replay floor. A
+bad or missing refresh never extends authority: new work fails closed when the
+last authenticated admission expires.
+
+`refreshHostedAdmissionProjection` authenticates the current envelope with the
+provider key before replacing it atomically. It constructs the next admission
+from the authenticated boot facts, so deployment, configuration, support,
+throttle policy, handler incarnation, and replay floor cannot be substituted
+by the refresher. Its non-secret external-floor, boot-projection, and refresh
+receipts have Rust-owned closed schemas and explicitly retain
+`remoteEvidence: false`.
+
+This is the producer protocol, not the concrete provider implementation. No
+provider currently supplies and remotely attests the rollback-external
+counter, secret-manager retrieval, supervised refresh operation, or complete
+drill, so hosted capability and gate 1 remain open.
+
+## Inspect retained backups
+
+A backup can be planned and applied independently of a deployment. The plan
+binds a fresh target observation, active release, activation and schema
+generations, requested retention policy, operation id, expiry, and exact
+confirmation:
+
+```sh
+snapback backup create plan \
+  --target target-preview-1 \
+  --reason "scheduled recovery point" \
+  --retention-policy thirty-days
+
+snapback backup create apply <backup-plan-id> \
+  --target target-preview-1 \
+  --confirm <create-backup-token>
+```
+
+Apply rechecks the same generations, acquires the deployment lease, requires
+the adapter to return a content-addressed manifest only after component
+read-back, verifies that the adapter honored the planned retention policy, and
+proves that backup creation did not change the active release or activation
+generation. A successful deploy lifecycle also retains its pre-deploy backup
+manifest independently of the deploy receipt:
+
+```sh
+snapback backup list --target target-preview-1 --json
+snapback backup verify <backup-id> --target target-preview-1 --json
+```
+
+The manifest binds deployment, database, stream, pre-deploy release, schema,
+encryption/storage/retention classes, component byte/object/hash facts, and
+verification times. It must explicitly exclude `application-secrets` and
+`control-plane-credentials`. `backup verify` rechecks the owner-only manifest
+content identity and the adapter's component read-back attestations; it does
+not refetch a remote object and therefore is not a substitute for the remote
+restore drill.
+
+## Verify the control audit chain
+
+Every deploy, backup, code-only rollback, destructive restore, and restore
+activation apply writes a mandatory `began` fact before its first provider
+mutation and a terminal outcome afterward. Log/admin inspection, backup
+list/verify, and restore verification also append bounded privileged-read
+facts. The owner-only ledger rejects secret-shaped field classes and chains
+each Rust-schema-owned event to its predecessor:
+
+```sh
+snapback audit verify --control-root <control-dir>
+```
+
+Use `--audit-actor <portable-id>` on control commands to name the local
+operator explicitly. If omitted, the CLI records the portable local OS user
+when available. A busy, corrupt, unsafe, or unwritable audit intake fails
+closed before a privileged action proceeds. The local chain detects accidental
+loss or modification; it is not described as tamper-proof because the same
+operator controls the store.
+
+## Plan and apply a code-only rollback
+
+Rollback is a separate content-addressed mutation; it never rewinds data. Its
+planner consumes the destination release, prepared-release manifest, and
+adapter qualification, then uses authenticated live inspection to prove that
+the destination can read the current schema generation and declares
+`rollbackMode: codeOnly`:
+
+```sh
+snapback deploy rollback plan \
+  --target <id> \
+  --release <destination-release-dir> \
+  --prepared-release <prepared-release.json> \
+  --adapter-qualification <qualification.json> \
+  --reason "return to prior compatible release"
+
+snapback deploy rollback apply <rollback-plan-id> \
+  --target <id> \
+  --release <destination-release-dir> \
+  --prepared-release <prepared-release.json> \
+  --adapter-qualification <qualification.json> \
+  --confirm <token>
+```
+
+Apply re-verifies every artifact and the live active release, activation
+generation, and schema generation before acquiring a lease. It runs
+compatibility preflight, switches to the destination under a new generation,
+verifies the served path, and retains a hash-chained maintenance receipt.
+`forwardFix`, `restoreRequired`, and `blocked` are not silently treated as
+code-only rollback.
+
+## Restore into an isolated destination, then activate explicitly
+
+Restore consumes a retained verified backup and initially leaves the
+destination inactive with external effects fenced:
+
+```sh
+snapback restore plan <backup-id> \
+  --source-target <source-id> \
+  --target <destination-id> \
+  --reason "isolated recovery drill"
+
+snapback restore apply <restore-plan-id> \
+  --target <destination-id> \
+  --confirm <destroy-and-restore-token>
+
+snapback restore verify <paused-receipt-id> \
+  --target <destination-id>
+```
+
+V1 refuses production destinations. An empty preview destination must be in an
+isolated state. A nonempty destination additionally requires both its exact
+active release and fresh application sentinel via `--replace-release` and
+`--destination-sentinel`; neither fact is inferred from an alias.
+
+Apply fences traffic and external workers, restores the backup into the
+inactive destination, verifies component hashes and an application sentinel
+with external effects disabled, and retains a `restoredPaused` receipt. That
+receipt is not serving authority. Activation requires another fresh plan and
+confirmation:
+
+```sh
+snapback restore activate plan <paused-receipt-id> \
+  --target <destination-id> \
+  --release <restored-release-dir> \
+  --prepared-release <prepared-release.json> \
+  --adapter-qualification <qualification.json> \
+  --reason "activate verified recovery"
+
+snapback restore activate apply <activation-plan-id> \
+  --target <destination-id> \
+  --release <restored-release-dir> \
+  --prepared-release <prepared-release.json> \
+  --adapter-qualification <qualification.json> \
+  --confirm <activate-restore-token>
+```
+
+The activation plan rechecks the inactive state, restore generation, sentinel,
+log sink, paused receipt, restored release bytes, prepared-release manifest,
+and target-specific adapter qualification. Apply re-verifies them, acquires a
+new lease, re-enables serving under a new activation generation, verifies the
+public path, and retains a separate `restoreActivated` receipt.
+
+## Query bounded logs and authenticated inspection
+
+The adapter query protocol is separate from public health and ordinary target
+identity inspection:
+
+```sh
+snapback logs --target <id> --since-ms <ms> --until-ms <ms> --limit 100
+snapback inspect --target <id>
+```
+
+Responses are digest-bound to the request and exact target. Logs are limited to
+500 structured entries per page and 32 bounded scalar payload fields per
+entry. Credential-, request-body-, payment-, private-content-, query-argument-,
+and result-shaped field names are rejected, as are known credential patterns.
+An active target reporting dropped or backpressured logs fails log health.
+
+Authenticated inspection returns only bounded digest facts for health,
+dependencies, migration, backups, queues, connections, resources, generations,
+capabilities, and recent control operations. Production commands require a
+verified remote-provider attestation. The deterministic driver is accessible
+only through the package test harness and remains `remoteEvidence: false`.
+
+## Repair a refused build
+
+- `SNAPBACK_DEPLOY_SOURCE_UNVERSIONED`: initialize and commit the application
+  repository so the release has an immutable source identity.
+- `SNAPBACK_DEPLOY_DIRTY_SOURCE`: commit the intended source, or use
+  `--allow-dirty` only for a visibly dirty preview.
+- `SNAPBACK_DEPLOY_CAPABILITY_MISMATCH`: select a profile that supports every
+  generated requirement; do not delete the requirement to make the build
+  green.
+- `SNAPBACK_RELEASE_FORBIDDEN_FILE`,
+  `SNAPBACK_RELEASE_SECRET_SCAN_FAILED`, or
+  `SNAPBACK_RELEASE_SOURCE_MAP_REFUSED`: remove the forbidden bytes from the
+  release input and rotate any credential that entered a build tree.
+- `SNAPBACK_RELEASE_ARTIFACT_TAMPERED`: discard the damaged retained directory
+  and rebuild from reviewed source. Never patch a content-addressed closure in
+  place.
+- `SNAPBACK_ADAPTER_DRIVER_TAMPERED`: restore the reviewed adapter bytes or
+  register a new never-reused target descriptor after reviewing the new digest.
+- `SNAPBACK_TARGET_IDENTITY_MISMATCH`: stop and reconcile the descriptor with
+  the provider account and origin; never override provider read-back.
+- `SNAPBACK_DEPLOY_PLAN_BLOCKED` or `SNAPBACK_DEPLOY_PLAN_EXPIRED`: inspect the
+  GAPs or create a fresh plan. A confirmation token does not waive either
+  fence.
+- `SNAPBACK_DEPLOY_REMOTE_EVIDENCE_REQUIRED`: the driver returned a local or
+  unattested lifecycle result. The CLI rolls back; install a qualified remote
+  adapter rather than relabeling the evidence.
+- `SNAPBACK_MAINTENANCE_CONFIRMATION_REQUIRED`: use the exact token retained in
+  the rollback, restore, or restore-activation plan; TTY presence is not
+  confirmation.
+- `SNAPBACK_RESTORE_STALE_PLAN` or
+  `SNAPBACK_RESTORE_ACTIVATION_STALE_PLAN`: destination generation, release, or
+  sentinel changed; discard the plan and inspect again.
+- `SNAPBACK_ADAPTER_LOG_REDACTION_INVALID`: the adapter emitted a forbidden or
+  unbounded log payload field. Fix the adapter schema/redactor; do not weaken
+  the reader.
+- `SNAPBACK_CONTROL_AUDIT_UNAVAILABLE`: the mandatory append lane is locked or
+  unwritable. Stop the privileged operation, preserve the store, and run
+  `snapback audit verify`; do not bypass or delete audit history.
+
+## Anti-patterns
+
+- **Do not call `deploy build` a deployment.** It grants no provider or traffic
+  authority.
+- **Do not suppress a blocking GAP.** Supply the named artifact or executed
+  receipt through an accepted adapter contract.
+- **Do not put secrets in a web bundle or generated directory.** Secret scans
+  are a last refusal boundary, not a configuration mechanism.
+- **Do not edit a retained release.** Its content address and read-back check
+  are the authority.
+
+---
+
 <!-- snapback-guide-source: guide/deploying/cloudflare.md -->
 ---
 title: Deploying the Cloudflare proof
 id: deploying.cloudflare
-order: 1
+order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
 authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js]
@@ -4036,10 +4609,18 @@ bun install
 snapback dev snapback
 ```
 
-`@snapback/cli` supplies the `snapback` command. On Apple-silicon macOS its
-optional `@snapback/runtime-darwin-arm64` package carries the prebuilt server
-and Hermes framework; `doctor` launches that relocated binary with ambient
-dynamic-loader overrides removed. Other host tuples currently report
+The source package `@snapback/cli` supplies the `snapback` command. The first
+public registry alias is `@ccheever/snapback-cli`; its staged manifest preserves
+the same bin and maps internal `@snapback/*` dependencies to the corresponding
+`@ccheever/snapback-*` artifacts. On Apple-silicon macOS the mapped runtime
+package carries the prebuilt server and Hermes framework. `doctor` first
+launches that relocated binary with
+ambient dynamic-loader overrides removed, then creates a disposable app and
+database, generates and loads its bundle, invokes a query, commits a mutation,
+opens and closes a live subscription, stops the owned server through its ready
+descriptor, and removes the temporary state. Its `snapback.cli-doctor.v2`
+result reports one stable code per completed boundary; a launch-only result is
+test instrumentation and never the installed-product claim. Other host tuples currently report
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks disguised
 as installs. Public registry publication is still pending. The `@snapback/cli`
 npm identity belongs to an unrelated product, so release probes use labeled
@@ -4458,6 +5039,21 @@ The doctor additionally distinguishes uninitialized/conflicting/drifted
 submodules, a missing vendored CLI, missing Node/Bun/Cargo, and dynamic-loader
 configuration. Follow the emitted next checks; do not collapse those states
 into “build failed.”
+
+For an installed application runtime, run the packaged vertical-slice doctor:
+
+```sh
+snapback doctor --json
+```
+
+It emits `snapback.cli-doctor.v2` and succeeds only after
+`SNAPBACK_RUNTIME_LAUNCH_OK`, `SNAPBACK_DOCTOR_BUNDLE_LOAD_OK`,
+`SNAPBACK_DOCTOR_QUERY_OK`, `SNAPBACK_DOCTOR_MUTATION_OK`,
+`SNAPBACK_DOCTOR_LIVE_OK`, and `SNAPBACK_DOCTOR_SHUTDOWN_OK`. The probe uses a
+fresh temporary database and an owned ready descriptor. A path mismatch,
+failed load, malformed query result, non-committing mutation, missing live row,
+shutdown failure, or cleanup failure remains the first structured error and
+cannot be converted into a green file-presence check.
 
 ## Preserve the first useful failure
 

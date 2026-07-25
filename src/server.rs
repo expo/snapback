@@ -9156,7 +9156,7 @@ fn sender_admission_response(
     response
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // Keep every throttle dimension explicit at the fail-closed charge boundary.
 async fn charge_hosted_sender_attempt(
     runtime: &AppState,
     throttle: crate::auth::deployment::HostedAuthenticationThrottle,
@@ -9274,7 +9274,7 @@ async fn charge_hosted_body_auth_attempt(
 /// @ref LLP 0077#http-binding — canonical target authority comes only from
 /// the provider-authenticated hosted target, and the SQLite replay/nonce cut
 /// completes before any body poll.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // Admission inputs stay explicit until verification has produced a binding.
 async fn admit_hosted_sender_request(
     spec: RouteSpec,
     effective: EffectiveRoutePolicy,
@@ -34023,7 +34023,8 @@ globalThis.__snapbackHandlers = {
             crate::cron::CronActivationState::Armed
         );
         assert!(
-            job.next_due_at_ms.is_some_and(|due| due <= super::now_millis()),
+            job.next_due_at_ms
+                .is_some_and(|due| due <= super::now_millis()),
             "fixture job must be past due: {:?}",
             job.next_due_at_ms
         );
@@ -35325,8 +35326,10 @@ globalThis.__snapbackHandlers = {
                     source: r#"globalThis.__snapbackHandlers = {
   async hungAttempt(ctx, args) {
     const started = await ctx.streamAttempt.start(args.clientKey);
-    const begun = Date.now();
-    while (Date.now() - begun < 2000) {}
+    if (!started.terminal) {
+      const begun = Date.now();
+      while (Date.now() - begun < 30000) {}
+    }
     return { started: started };
   }
 };"#
@@ -35368,7 +35371,7 @@ globalThis.__snapbackHandlers = {
             Arc::new(Semaphore::new(1)),
             1,
             counters,
-            150,
+            5_000,
         )
         .await
         .expect_err("the watchdog abandons the hung action");

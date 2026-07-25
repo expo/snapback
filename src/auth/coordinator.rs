@@ -985,7 +985,7 @@ impl AuthCoordinator {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<PreparedBearerAuthority> {
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let digest = TokenDigest::from_token_hash(&bearer.token_hash());
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {
@@ -1030,7 +1030,7 @@ impl AuthCoordinator {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<PreparedBearerAuthority> {
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let digest = TokenDigest::from_token_hash(&bearer.token_hash());
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-statistics.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "implementation": {
+    "path": "demos/competitive-checkpoint/acceptance/instruments/statistics.v0.mjs",
+    "sha256": "df6e97551d38afc4f1a200c7f23b88e597eb29469c9acee2440ed723c0c6f673"
+  },
+  "sampleEstimator": {
+    "median": "sort ascending; odd n selects middle; even n averages the two middle values",
+    "p95": "nearest-rank: sorted[ceil(0.95*n)-1]",
+    "decisionStatistic": "sample median only; p95 and all confidence intervals are informational"
+  },
+  "bootstrap": {
+    "target": [
+      "each arm's sample median",
+      "snapback median minus convex median",
+      "snapback median divided by convex median for strictly-positive ratio metrics"
+    ],
+    "armSampling": "independent resampling with replacement within each arm; alternating execution does not imply pairing",
+    "resamples": 10000,
+    "seedUnsigned32": 7667715,
+    "prng": "xorshift32 with unsigned 32-bit state; rejection sampling maps draws to sample indexes without modulo bias",
+    "drawOrder": "for every replicate draw n Convex observations, then n Snapback observations",
+    "interval": "95% percentile interval using type-7 linear quantiles at 0.025 and 0.975"
+  },
+  "invalidSamples": {
+    "rule": "retain every invalid observation; only a preregistered instrument failure with a named documenter and non-empty rationale invalidates",
+    "replacement": "repeat the same arm at the same sequence slot until seven valid samples exist; never discard or repeat an already-valid opposite-arm observation",
+    "minimumValidSamplesPerArm": 7,
+    "maximumInvalidReplacements": "none; any inability to obtain seven valid samples is a required skip and blocks the checkpoint"
+  }
+}

@@ -11,7 +11,10 @@
 // production-builds EVERY required web surface on every Exact pin bump, so this
 // class cannot recur silently. Every surface now pins Exact through its own
 // committed bun.lock; this gate runs on every push/PR, which covers every
-// package-version bump.
+// package-version bump. These surfaces also bundle Snapback source through
+// demos/_kit, so the gate first performs one frozen root-workspace install;
+// that makes package-to-package `workspace:*` edges available in a clean
+// checkout without weakening each surface's independent Exact registry lock.
 //
 // Surface set is DERIVED from the demo manifests (demos/*/demo.snapback.json),
 // not from whichever package.json files happen to survive in the checkout: a
@@ -461,6 +464,25 @@ export async function ensureRegistryInstall(surface, {
   return verifyInstalledExactContract(surface.surfaceDir);
 }
 
+export async function ensureWorkspaceInstall({
+  runInstall = () => runBoundedProcess(
+    'bun',
+    ['install', '--frozen-lockfile', '--cwd', ROOT],
+    { cwd: ROOT, timeoutMs: INSTALL_TIMEOUT_MS },
+  ),
+} = {}) {
+  log('$ bun install --frozen-lockfile --cwd .');
+  const result = await runInstall();
+  if (result.ok) return result;
+  const diagnostics = result.output?.trim();
+  return {
+    ...result,
+    reason:
+      `root workspace frozen install failed: ${result.reason}`
+      + (diagnostics ? `\noutput tail:\n${diagnostics}` : ''),
+  };
+}
+
 async function main() {
   const surfaces = collectRequiredWebSurfaces().map(classifyRequiredWebSurface);
   if (surfaces.length === 0) {
@@ -486,29 +508,8 @@ async function main() {
   }
   if (LIST_ONLY) return;
 
-  // The required surfaces import the Snapback data tier from WORKSPACE source
-  // (`packages/snapback-*`), not the registry — only the Exact side is
-  // registry-pinned. Those workspace packages resolve their own `workspace:*`
-  // dependencies (e.g. `@snapback/client` -> `@snapback/contract`) through the
-  // root install's node_modules linking, so a fresh checkout must link the
-  // workspace once before any surface build. Without it, the bare
-  // `@snapback/contract/*` specifiers inside `packages/snapback-client` fail to
-  // resolve and every surface build breaks (this is a workspace link, not an
-  // Exact-registry dependency, so it does not weaken the registry isolation the
-  // per-surface frozen install attests below).
-  log('$ bun install --frozen-lockfile (root workspace link)');
-  const workspaceInstall = await runBoundedProcess(
-    'bun',
-    ['install', '--frozen-lockfile'],
-    { cwd: ROOT, timeoutMs: INSTALL_TIMEOUT_MS },
-  );
-  if (!workspaceInstall.ok) {
-    const diagnostics = workspaceInstall.output?.trim();
-    fail(
-      `root workspace install failed: ${workspaceInstall.reason}` +
-        (diagnostics ? `\noutput tail:\n${diagnostics}` : ''),
-    );
-  }
+  const workspaceInstall = await ensureWorkspaceInstall();
+  if (!workspaceInstall.ok) fail(workspaceInstall.reason);
 
   let built = 0;
   for (const surface of surfaces) {

@@ -5,7 +5,24 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (self-terminal logout response ownership: live
+**Revised:** 2026-07-24 (D5 hosted-startup implementation reconciliation:
+the target-neutral server consumes a strict owner-only, MAC-authenticated
+admission envelope and secret-manager key before target state or listener
+authority, reconciles the external LLP 0077 replay floor, and refreshes the
+short admission without changing the handler incarnation or boot floor.
+Generated schemas and a cross-language MAC vector bind the Rust and Node
+implementations. A concrete provider producer and remote drill remain absent,
+so this does not change hosted capability status). 2026-07-24 (D3 trusted-single-instance implementation
+reconciliation: target-attested hosted admission now publishes the exact
+finite bucket policy and limiter epoch and installs a private HMAC key; the
+served listener supplies the effective peer source; one durable SQLite
+transaction advances all applicable global/source/subject/source-by-subject/
+family GCRA buckets even on denial and refuses unavailable authority. Served
+tests cover challenge request/exchange, refresh and malformed proof,
+connection-open, cross-source subject convergence, body non-polling, and
+failure closure. This satisfies D3 only for LLP 0072's serialized
+single-instance topology and does not authorize a multi-replica claim).
+2026-07-17 (self-terminal logout response ownership: live
 revocation may blank predecessor surfaces but cannot abort the exact logout
 response before captured-authority settlement; the ownership-backed
 confirmation preserves fatal custody diagnostics and follows custody/barrier
@@ -80,7 +97,7 @@ as defect obligations; C2 hardens the operator-origin rule for hosted exposure;
 C3 renames the v2 claim to off-device replay constraint — "XSS-resistant" is
 permanently forbidden for DPoP alone — and requires nonce for the
 pre-generated-proof claim.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0060-hosted-auth-security.codex.md` and applied its editorial corrections — D1 posture-matrix accuracy and the return-value sentinel scope; material findings remain for author triage). 2026-07-14 (ENG-24986: numeric response positions in kit/admin/setup projections compare known secrets in canonical string form, and the console-credential projection rejects the submitted master anywhere in the serialized record, including `expiresAtMs`). 2026-07-14 (hosted-future reconciliation: distinguish ENG-24607's implemented local refusal, capability-honesty, CSP, and credential-sentinel boundary from the still-unbuilt hosted edge facts and sender-constrained browser v2; retain Draft/unratified status). 2026-07-13 (ENG-24607 final review hardening: master-substring console-mint refusal and post-2xx logout body-read failure barrier); 2026-07-13 (ENG-24607 second review hardening: nonempty semantic-secret and property-name handling, request-and-successor credential exclusions, and exact empty-204 logout projection); 2026-07-13 (ENG-24607 review hardening: desired/active transport ordering, closed client success projections, operator-client/setup credential redaction, real-Chromium CSP/Trusted Types boot proof, and frozen-0039 restoration); 2026-07-13 (ENG-24607 enforcement: target-owned capability schema, must-understand hosted composition refusal, CSP/security headers, and client-secret sentinel); 2026-07-13 (initial contract for ENG-24607)
-**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059
+**Related:** LLP 0000, LLP 0009, LLP 0011, LLP 0012, LLP 0030, LLP 0031, LLP 0039, LLP 0040, LLP 0047, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0077
 
 ## Summary
 
@@ -308,8 +325,9 @@ The target MUST derive one canonical effective source for security decisions:
    audit correlation, and abuse diagnostics without publishing raw private
    addresses on public surfaces.
 
-The local target currently derives `ctx.loopback` once from the bind address and
-does not install peer-address extraction on requests. It therefore reports no
+The serving listener now installs the actual peer socket address on requests,
+but the local target still derives only `ctx.loopback` as a capability fact and
+has no provider-authenticated proxy-chain contract. It therefore reports no
 effective-source capability and MUST NOT claim per-source hosted throttling.
 
 ### D3. Shared authentication throttling
@@ -372,6 +390,18 @@ attestation; changing any value rotates that epoch. The limiter rejects a
 configuration without finite positive bounds, evicts only fully refilled idle
 buckets under the target-published retention rule, and never evicts an
 exhausted bucket early. Retry deadlines are monotone within an epoch.
+
+**Implementation checkpoint (2026-07-24).** For LLP 0072's
+trusted-single-instance container/VM profile, the SQLite auth database is the
+one serialized limiter authority. Hosted preflight initializes its table only
+after target authentication. A target-private HMAC key derives opaque bucket
+keys; the attested policy supplies finite rates, bursts, retention, capacity,
+and limiter epoch. A `BEGIN IMMEDIATE` transaction prunes only fully refilled
+idle rows, advances every applicable GCRA bucket even on refusal, caps denial
+debt, and fails closed on invalid configuration, capacity, or storage loss.
+The served middleware charges before proof parsing, proof verification, and
+body polling. This checkpoint does not satisfy the same contract for
+multi-replica adapters; those need an equivalent shared serialized authority.
 
 ### D4. Multi-replica session and authorization invalidation
 
@@ -530,8 +560,10 @@ target, such as the dev-only Cloudflare proof, that advertises no auth protocol.
 
 The v1 `HostedAdmission` snapshot is a closed control-plane object with:
 `version: 1`; canonical `deploymentId`; `configurationSha256` and
-`supportSha256`; monotone `admissionEpoch`; `issuedAtMs` and `expiresAtMs` with
-a maximum five-minute lifetime; exact limiter and invalidation epochs; D6
+`supportSha256`; monotone `admissionEpoch`; the distinct external
+`senderReplayEpochFloor`; `issuedAtMs` and `expiresAtMs` with
+a maximum five-minute lifetime; exact limiter and invalidation epochs plus the
+closed finite `authenticationThrottleConfig`; D6
 protocol version and handler incarnation; `operatorSurface: "disabled"`; and
 `browserDirectBearerSeam: "excluded"`, with that attested fact included in the
 `supportSha256` binding to the exact support/browser artifact; and
@@ -542,7 +574,14 @@ cannot round an epoch or timestamp into another admitted value. The Rust-owned c
 generated `auth.hosted-admission.schema.json` make absence, unknown values, and
 unknown fields fail closed. The target verifies it through a
 provider-authenticated binding, rejects rollback of any epoch, and pins one
-snapshot to every request and socket. Live health names that same admission
+snapshot to every request and socket. The concrete target must advance the
+sender replay floor outside the application backup set before each handler
+boot. The runtime accepts it only through
+`auth.hosted-admission-envelope.schema.json`, authenticated with the strict
+secret-manager projection described by
+`auth.hosted-admission-key.schema.json`; a live refresh may extend the
+five-minute admission but cannot change the boot floor or handler incarnation.
+Live health names that same admission
 epoch and reports limiter reachability plus serialized-authority currency.
 Expiry, replacement, or either health loss refuses new work and drains existing
 sockets before they can publish another payload. No operator-supplied JSON,

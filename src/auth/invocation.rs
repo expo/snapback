@@ -2012,9 +2012,8 @@ mod tests {
         // A bare service principal / autonomous agent is authenticated but
         // projects no user subject: refused by profile-class admission,
         // after the scope and authentication gates.
-        let refused =
-            InvocationGate::prepare_function(prepare(service(None, &pattern)), &pattern)
-                .unwrap_err();
+        let refused = InvocationGate::prepare_function(prepare(service(None, &pattern)), &pattern)
+            .unwrap_err();
         assert_eq!(
             refused.diagnostic.code,
             "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"

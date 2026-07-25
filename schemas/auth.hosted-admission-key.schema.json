@@ -1,0 +1,25 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-admission-key.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "keyId": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "type": "string"
+    },
+    "material": {
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "keyId",
+    "material"
+  ],
+  "title": "HostedAdmissionKeyFile",
+  "type": "object"
+}

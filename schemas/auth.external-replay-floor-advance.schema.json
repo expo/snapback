@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "ExternalReplayFloorAdvanceVersion": {
+      "enum": [
+        "snapback.external-replay-floor-advance.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.external-replay-floor-advance.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed result of the concrete adapter's atomic advancement of\nthe rollback-external sender replay floor. The receipt identifies the\nexternal store operation; adapter qualification separately proves that the\nstore is remote and outside the application backup set.\n\n@ref LLP 0077#author-decisions--2026-07-23 — a dedicated monotone\ncontrol-plane counter supplies the anti-rollback floor.",
+  "properties": {
+    "advancedAtMs": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "previousFloor": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "receiptId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/ExternalReplayFloorAdvanceVersion"
+    },
+    "senderReplayEpochFloor": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "storeIdentitySha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "deploymentId",
+    "storeIdentitySha256",
+    "previousFloor",
+    "senderReplayEpochFloor",
+    "advancedAtMs",
+    "receiptId"
+  ],
+  "title": "ExternalReplayFloorAdvanceReceipt",
+  "type": "object"
+}

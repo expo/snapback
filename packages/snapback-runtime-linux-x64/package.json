@@ -1,0 +1,26 @@
+{
+  "name": "@snapback/runtime-linux-x64",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Prebuilt Snapback server and Hermes runtime for x86-64 Linux.",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "node prepare-runtime.mjs",
+    "test": "node package.test.mjs"
+  }
+}

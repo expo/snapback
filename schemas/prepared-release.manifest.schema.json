@@ -1,0 +1,233 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "PreparedReleaseEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/AdapterEvidenceRef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/PreparedReleaseEvidenceKind"
+        }
+      },
+      "required": [
+        "kind",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "PreparedReleaseEvidenceKind": {
+      "enum": [
+        "runtimeArtifact",
+        "serverArtifact",
+        "artifactSignature",
+        "licenseSbom",
+        "buildProvenance",
+        "compatibilityGenerations",
+        "migrationPlan",
+        "healthProbes",
+        "acceptanceProbes",
+        "configRequirements"
+      ],
+      "type": "string"
+    },
+    "ReleaseCompatibilityEnvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "irreversibleBoundary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "maximumReadableSchemaGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "migrationSha256": {
+          "type": "string"
+        },
+        "migrationTransactional": {
+          "type": "boolean"
+        },
+        "minimumConfigGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minimumJobGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minimumReadableSchemaGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minimumRetainedClientGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rollbackMode": {
+          "$ref": "#/$defs/RollbackMode"
+        },
+        "writeSchemaGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minimumReadableSchemaGeneration",
+        "maximumReadableSchemaGeneration",
+        "writeSchemaGeneration",
+        "minimumRetainedClientGeneration",
+        "minimumJobGeneration",
+        "minimumConfigGeneration",
+        "migrationSha256",
+        "migrationTransactional",
+        "rollbackMode"
+      ],
+      "type": "object"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "RollbackMode": {
+      "enum": [
+        "codeOnly",
+        "forwardFix",
+        "restoreRequired",
+        "blocked"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/prepared-release.manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Target-bound augmentation of one immutable base release. Production apply\nconsumes this artifact, never a caller-supplied boolean, to decide whether\nall release-specific and previously drilled adapter obligations are met.",
+  "properties": {
+    "activationEligible": {
+      "type": "boolean"
+    },
+    "adapterQualificationId": {
+      "type": "string"
+    },
+    "adapterQualificationSha256": {
+      "type": "string"
+    },
+    "baseReleaseId": {
+      "type": "string"
+    },
+    "baseReleaseManifestSha256": {
+      "type": "string"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/ReleaseCompatibilityEnvelope"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/PreparedReleaseEvidence"
+      },
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "preparedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "preparedReleaseId": {
+      "type": "string"
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "preparedReleaseId",
+    "baseReleaseId",
+    "baseReleaseManifestSha256",
+    "projectId",
+    "targetId",
+    "targetProfileId",
+    "adapterQualificationId",
+    "adapterQualificationSha256",
+    "compatibility",
+    "evidence",
+    "gaps",
+    "activationEligible",
+    "preparedAtMs"
+  ],
+  "title": "PreparedReleaseManifest",
+  "type": "object"
+}

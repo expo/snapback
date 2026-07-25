@@ -86,7 +86,10 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
                 // An unknown-kind negative must really be unknown to BOTH
                 // live-wire families (the known-kind/unknown-kind distinction
                 // fact 2b turns on).
-                for family in ["live.envelope.schema.json", "live.socket-server.schema.json"] {
+                for family in [
+                    "live.envelope.schema.json",
+                    "live.socket-server.schema.json",
+                ] {
                     let schema = committed(family);
                     let validator = jsonschema::validator_for(&schema)
                         .unwrap_or_else(|error| panic!("compile {family}: {error}"));
@@ -119,7 +122,10 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         "poll.wrapped_durable.unwrap",
         "poll.acknowledged_batch.malformed_item_forces_resync",
     ] {
-        assert!(names.contains(&required), "corpus lost seed class {required}");
+        assert!(
+            names.contains(&required),
+            "corpus lost seed class {required}"
+        );
     }
 
     let valid_tuples = ["poll/local", "live/local", "live/hosted"];

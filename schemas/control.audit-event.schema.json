@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "ControlAuditAuthorityClass": {
+      "enum": [
+        "localOperator",
+        "automationGrant"
+      ],
+      "type": "string"
+    },
+    "ControlAuditField": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "ControlAuditOutcome": {
+      "enum": [
+        "began",
+        "succeeded",
+        "failed",
+        "read"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/control.audit-event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Secret-free append-only control-operation fact. The local ledger detects\nloss or modification; it deliberately does not claim independence from the\noperator who owns the control store.\n\n@ref LLP 0071#audit-ledger — privileged control actions carry exact actor,\ntarget, request, redacted payload, retention, and hash-chain identities.",
+  "properties": {
+    "actorAuthority": {
+      "$ref": "#/$defs/ControlAuditAuthorityClass"
+    },
+    "actorId": {
+      "type": "string"
+    },
+    "databaseId": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "eventId": {
+      "type": "string"
+    },
+    "eventType": {
+      "type": "string"
+    },
+    "eventVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/ControlAuditOutcome"
+    },
+    "payload": {
+      "items": {
+        "$ref": "#/$defs/ControlAuditField"
+      },
+      "type": "array"
+    },
+    "planId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "previousEventId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reasonCode": {
+      "type": "string"
+    },
+    "receiptId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recordedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "retentionClass": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "sequence": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "streamIncarnation": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "sequence",
+    "eventType",
+    "eventVersion",
+    "outcome",
+    "actorAuthority",
+    "actorId",
+    "targetId",
+    "deploymentId",
+    "databaseId",
+    "streamIncarnation",
+    "operationId",
+    "reasonCode",
+    "payload",
+    "retentionClass",
+    "recordedAtMs"
+  ],
+  "title": "ControlAuditEvent",
+  "type": "object"
+}

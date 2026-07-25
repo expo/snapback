@@ -20,11 +20,23 @@ const inventories = [
     expectedFiles: ['package.test.mjs'],
   },
   {
+    id: '@snapback/runtime-linux-x64',
+    packageDir: 'packages/snapback-runtime-linux-x64',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@snapback/cli',
     packageDir: 'packages/snapback-cli',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['dev-loop.test.mjs', 'mcp-control.test.mjs', 'package.test.mjs'],
+    expectedFiles: [
+      'dev-loop.test.mjs',
+      'hosted-admission-producer.test.mjs',
+      'mcp-control.test.mjs',
+      'package.test.mjs',
+    ],
   },
   {
     id: '@snapback/vite',
@@ -213,7 +225,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // maintained-projections.test.mjs (landed 21bb68ff, LLP 0080 §5 authoring
 // surface) — the landing added the file and its test-script entry without
 // updating this canonical inventory; caught by the cumulative-gate rerun.
-assert.equal(total, 83, 'reviewed package/admin test count changed');
+// 83 -> 85 (LLP 0074 integration): retain the Linux runtime package proof
+// and the CLI hosted-admission producer suite alongside current main.
+assert.equal(total, 85, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

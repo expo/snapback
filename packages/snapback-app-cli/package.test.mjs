@@ -150,13 +150,18 @@ try {
   // exchanges the bearer for a scoped connection grant; the subscription
   // request must not keep transmitting the broader bearer.
   const liveCall = calls.find(({ path }) => path === '/live/listTodos/subscribe');
-  assert.equal(liveCall.authorization, null);
+  assert.equal(
+    liveCall.authorization,
+    null,
+    'connection-token live requests must not duplicate the bearer',
+  );
   assert.equal(
     calls
       .slice(2)
       .filter(({ path }) => path !== '/live/listTodos/subscribe')
       .every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'),
     true,
+    'ordinary agent requests retain the scoped bearer',
   );
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
 } finally {

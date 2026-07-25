@@ -11,6 +11,7 @@ const workflowNames = readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(
 assert.deepEqual(workflowNames, [
   'all-aboard-cold-clone.yml',
   'deployment-identity.yml',
+  'linux-runtime-package.yml',
   'local-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
@@ -134,11 +135,26 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 4, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 17, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 5, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 23, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /CARGO_BUILD_JOBS:\s*"1"/,
+  'canonical CI must serialize Cargo links within the hosted-runner resource budget',
+);
+assert.match(
+  localProof,
+  /CARGO_PROFILE_DEV_DEBUG:\s*"0"/,
+  'canonical CI must omit dev-profile debug symbols from native links',
+);
+assert.match(
+  localProof,
+  /CARGO_PROFILE_TEST_DEBUG:\s*"0"/,
+  'canonical CI must omit test-profile debug symbols from native links',
+);
 const [localProofCheckout] = checkoutStepBlocks(localProof);
 assert(localProofCheckout, 'canonical CI must contain an active checkout step');
 assert.match(
@@ -225,6 +241,18 @@ function assertExactHermesCache(workflow, workflowName) {
 assertExactHermesCache(localProof, 'local-proof');
 const coldClone = readFileSync(join(workflowDir, 'all-aboard-cold-clone.yml'), 'utf8');
 assertExactHermesCache(coldClone, 'all-aboard-cold-clone');
+const linuxRuntimePackage = readFileSync(join(workflowDir, 'linux-runtime-package.yml'), 'utf8');
+assertExactHermesCache(linuxRuntimePackage, 'linux-runtime-package');
+assert.match(
+  linuxRuntimePackage,
+  /snapback-package-cold-install\.mjs/,
+  'Linux runtime workflow must exercise the external package cold-install proof',
+);
+assert.match(
+  linuxRuntimePackage,
+  /actions\/upload-artifact@[0-9a-f]{40}/,
+  'Linux runtime workflow must retain its package and cold-install evidence',
+);
 const prepareHermesStart = localProof.indexOf('      - name: Prepare exact Hermes runtime');
 const verifyProofStart = localProof.indexOf('      - name: Verify Snapback local proof');
 assert(
@@ -239,6 +267,11 @@ assert.match(
   'canonical CI must use the repository bootstrap to materialize and launch-test Hermes',
 );
 const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
+assert(
+  localProofScript.indexOf('check-required-surface-builds.mjs')
+    < localProofScript.indexOf('headsign-typecheck.test.ts'),
+  'Exact-dependent surface type tests must run after the frozen surface install/build gate',
+);
 assert.match(
   localProofScript,
   /admin-ui[^\n]*audit:production|audit:production/,

@@ -1853,6 +1853,43 @@ try {
     return { ready: readyError.message, read: readError.message };
   });
 
+  await suite.check('RQS token state does not collide with the public resume lifecycle method', async () => {
+    const db = new SnapbackClient('http://stub');
+    const resumeInputs = [];
+    const resume = {
+      token: 'sbrt1.test-token',
+      meta: {
+        contentDigest: 'sha256:test-digest',
+      },
+    };
+    db.subscribeLive = async (_name, options) => {
+      resumeInputs.push(options.resumeFromToken);
+      return {
+        subscription_id: `sub_rqs_${resumeInputs.length}`,
+        snapshot: { version: resumeInputs.length, rows: [] },
+        resume,
+      };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'conn_rqs_resume_method',
+      transport: 'poll',
+    });
+    assertEqual(typeof handle.resume, 'function', 'the public lifecycle method remains callable');
+    assertEqual(resumeInputs[0], null, 'the initial subscribe carries no held token');
+
+    handle.pause();
+    await handle.resume();
+    assertEqual(
+      JSON.stringify(resumeInputs[1]),
+      JSON.stringify({ resume }),
+      'lifecycle resume carries the held RQS token instead of serializing the method as an empty object',
+    );
+    handle.dispose();
+    return { attempts: resumeInputs.length };
+  });
+
   await suite.check('socket/session subscribe refusals retry only after generation-scoped readiness', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_session_ready');

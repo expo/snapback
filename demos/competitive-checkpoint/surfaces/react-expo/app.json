@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Snapback Competitive Checkpoint",
+    "slug": "snapback-competitive-checkpoint",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snapback.competitivecheckpoint"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

@@ -2655,7 +2655,11 @@ fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKi
 }
 
 fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message.into())
+    SnapbackError::error(
+        "SNAPBACK_ROUTES_MANIFEST_INVALID",
+        "runtime",
+        message.into(),
+    )
 }
 
 /// Collect the arg names a plan value expression reads (the AST-derived
@@ -6365,8 +6369,7 @@ impl LocalSnapback {
         &self,
         manifest: &crate::bundle::RoutesManifest,
     ) -> SnapbackResult<()> {
-        crate::bundle::validate_routes_manifest_shape(manifest)
-            .map_err(routes_manifest_error)?;
+        crate::bundle::validate_routes_manifest_shape(manifest).map_err(routes_manifest_error)?;
         if manifest.app != self.functions.app_id {
             return Err(routes_manifest_error(format!(
                 "routes manifest app {:?} does not match the served functions manifest app {:?}",
@@ -6393,7 +6396,9 @@ impl LocalSnapback {
                 let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
                 if let Value::Object(map) = &spec.args {
                     for (key, value) in map {
-                        let Value::Object(inner) = value else { continue };
+                        let Value::Object(inner) = value else {
+                            continue;
+                        };
                         if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
@@ -6414,7 +6419,8 @@ impl LocalSnapback {
                         collect_value_expr_arg_names(&filter.value, &mut required);
                     }
                     for name in required {
-                        let covered = matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
+                        let covered =
+                            matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
                         if !covered {
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} does not cover required arg {:?}",
@@ -14247,7 +14253,12 @@ fn validate_function_schema_references(
                 let proven = joined_table.indexes.iter().any(|candidate| {
                     candidate.name == plan.joined_index
                         && candidate.unique
-                        && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == key
+                        && candidate
+                            .fields
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                            == key
                 });
                 if !proven {
                     return Err(SnapbackError::error(
@@ -14887,8 +14898,13 @@ fn standard_pattern_keyset_facts<'a>(
     for filter in &plan.filters {
         let strict = matches!(
             (&filter.op, &order.direction),
-            (crate::manifest::FilterOp::Gt, crate::manifest::OrderDirection::Asc)
-                | (crate::manifest::FilterOp::Lt, crate::manifest::OrderDirection::Desc)
+            (
+                crate::manifest::FilterOp::Gt,
+                crate::manifest::OrderDirection::Asc
+            ) | (
+                crate::manifest::FilterOp::Lt,
+                crate::manifest::OrderDirection::Desc
+            )
         );
         if filter.field == order.field
             && strict
@@ -14978,9 +14994,7 @@ fn relational_cursor_binding(
         .map(|order| {
             let declared = root_table
                 .and_then(|table| table.field(&order.field))
-                .map(|field| {
-                    serde_json::to_value(&field.field_type).unwrap_or(Value::Null)
-                })
+                .map(|field| serde_json::to_value(&field.field_type).unwrap_or(Value::Null))
                 .unwrap_or_else(|| Value::String("system".to_owned()));
             json!({
                 "field": order.field,
@@ -15218,8 +15232,7 @@ fn execute_query_invocation(
                 // A full page must carry its continuation: silently omitting
                 // it would misreport the page as terminal, so mint failure
                 // fails the request rather than the pagination contract.
-                let authority =
-                    cursor_authority.ok_or_else(relational_cursor_mint_unavailable)?;
+                let authority = cursor_authority.ok_or_else(relational_cursor_mint_unavailable)?;
                 let binding = relational_cursor_binding(
                     authority.app_id,
                     plan,
@@ -15237,7 +15250,11 @@ fn execute_query_invocation(
                 let body = crate::rqs::RelationalCursorBody {
                     app: authority.app_id.to_owned(),
                     binding,
-                    boundary: boundary.entries.into_iter().map(|(_, value)| value).collect(),
+                    boundary: boundary
+                        .entries
+                        .into_iter()
+                        .map(|(_, value)| value)
+                        .collect(),
                     id: boundary.id,
                     issued_at: now_millis(),
                 };
@@ -18724,7 +18741,9 @@ globalThis.__snapbackHandlers = {
         };
 
         let mut snapback = LocalSnapback::memory().expect("memory relational fixture");
-        snapback.apply_schema(schema).expect("apply relational schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply relational schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![FunctionDefinition::new(
                 "booksWithAuthors",
@@ -18939,9 +18958,7 @@ globalThis.__snapbackHandlers = {
                 FunctionDefinition::new(
                     "pagedBooks",
                     FunctionKind::LiveQuery,
-                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(
-                        JoinKind::Inner,
-                    ))),
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Inner))),
                 ),
                 FunctionDefinition::new(
                     "pagedBooksLeft",
@@ -19025,7 +19042,11 @@ globalThis.__snapbackHandlers = {
         assert!(page4.cursor.is_none(), "a short page is terminal");
 
         // Refusal classes, each byte-identical to the others.
-        let refusal = |snapback: &LocalSnapback, args: Value, user: &str, session: &str, function: &str| {
+        let refusal = |snapback: &LocalSnapback,
+                       args: Value,
+                       user: &str,
+                       session: &str,
+                       function: &str| {
             match snapback.invoke_query(function, input(user, session, args.clone())) {
                 Err(error) => error,
                 Ok(output) => panic!(
@@ -19033,9 +19054,24 @@ globalThis.__snapbackHandlers = {
                 ),
             }
         };
-        let malformed = refusal(&snapback, json!({ "cursor": "sbrc1.garbage" }), "user-a", "s1", "pagedBooks");
-        assert_eq!(malformed.diagnostic.code, "SNAPBACK_RELATIONAL_CURSOR_INVALID");
-        let non_string = refusal(&snapback, json!({ "cursor": 7 }), "user-a", "s1", "pagedBooks");
+        let malformed = refusal(
+            &snapback,
+            json!({ "cursor": "sbrc1.garbage" }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        assert_eq!(
+            malformed.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+        let non_string = refusal(
+            &snapback,
+            json!({ "cursor": 7 }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
         // Tampered body: flip the boundary bytes, keep the MAC.
         let mut parts: Vec<String> = cursor3.split('.').map(str::to_owned).collect();
         parts[2] = {
@@ -19074,8 +19110,13 @@ globalThis.__snapbackHandlers = {
         snapback
             .permission_epochs
             .insert(super::user_permission_scope("user-a"), 7);
-        let stale_authority =
-            refusal(&snapback, json!({ "cursor": cursor3 }), "user-a", "s1", "pagedBooks");
+        let stale_authority = refusal(
+            &snapback,
+            json!({ "cursor": cursor3 }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
         for refused in [
             &non_string,
             &tampered,
@@ -19084,7 +19125,10 @@ globalThis.__snapbackHandlers = {
             &stale_authority,
         ] {
             assert_eq!(
-                (refused.diagnostic.code.as_str(), refused.diagnostic.message.as_str()),
+                (
+                    refused.diagnostic.code.as_str(),
+                    refused.diagnostic.message.as_str()
+                ),
                 (
                     malformed.diagnostic.code.as_str(),
                     malformed.diagnostic.message.as_str()
@@ -19107,8 +19151,7 @@ globalThis.__snapbackHandlers = {
             FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
             ProjectionSource, RelationalQueryPlan, TableManifest,
         };
-        let dir =
-            std::env::temp_dir().join(format!("snapback-rel-lanes-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("snapback-rel-lanes-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("create test dir");
         let path = dir.join("rel-lanes.sqlite");
         let _ = std::fs::remove_file(&path);
@@ -19147,7 +19190,7 @@ globalThis.__snapbackHandlers = {
                     ],
                     indexes: vec![IndexManifest {
                         name: "by_slug".to_owned(),
-                        fields: vec!["slug".to_owned(), ],
+                        fields: vec!["slug".to_owned()],
                         unique: true,
                     }],
                     syncable: true,
@@ -19270,9 +19313,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(via_write.rows[0]["title"], json!("beta"));
     }
 
-    fn relational_live_fixture_functions(
-        plan_take: u32,
-    ) -> (SchemaManifest, FunctionManifest) {
+    fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, FunctionManifest) {
         use crate::manifest::{
             FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
             ProjectionSource, RelationalQueryPlan, TableManifest,
@@ -19566,7 +19607,9 @@ globalThis.__snapbackHandlers = {
             authorization_inputs: Vec::new(),
         });
         let mut snapback = LocalSnapback::memory().expect("memory fault fixture");
-        snapback.apply_schema(schema.clone()).expect("apply fault schema");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply fault schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![doctored],
             ..FunctionManifest::default()
@@ -19604,7 +19647,9 @@ globalThis.__snapbackHandlers = {
             authorization_inputs: Vec::new(),
         });
         let mut snapback = LocalSnapback::memory().expect("memory auth-input fixture");
-        snapback.apply_schema(schema).expect("apply auth-input schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply auth-input schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![relational],
             ..FunctionManifest::default()
@@ -19717,12 +19762,12 @@ globalThis.__snapbackHandlers = {
         // Same subject, same function name, same plan shape — different
         // application authority domain: refused, never repositioned.
         let error = app_b
-            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor.clone() })))
+            .invoke_query(
+                "booksWithAuthors",
+                input(json!({ "cursor": cursor.clone() })),
+            )
             .expect_err("cross-app cursor must refuse");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_CURSOR_INVALID");
         // And the home app still accepts it.
         let resumed = app_a
             .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor })))
@@ -20471,7 +20516,9 @@ globalThis.__snapbackHandlers = {
         let mut retainable = relational;
         retainable.retainable = true;
         let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
-        snapback.apply_schema(schema).expect("apply retention schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply retention schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![retainable],
             ..FunctionManifest::default()
@@ -21001,7 +21048,10 @@ globalThis.__snapbackHandlers = {
             "cursor is versioned wire opaque: {cursor1}"
         );
         let page2 = snapback
-            .invoke_query("nextPages", input("user-a", json!({ "after": cursor1.clone() })))
+            .invoke_query(
+                "nextPages",
+                input("user-a", json!({ "after": cursor1.clone() })),
+            )
             .expect("second page");
         assert_eq!(keys(&page2), vec![3, 4]);
         let cursor2 = page2.cursor.expect("full next page mints a continuation");
@@ -21012,14 +21062,15 @@ globalThis.__snapbackHandlers = {
         assert!(page3.cursor.is_none(), "a short page is terminal");
 
         // Refusal classes, byte-identical to one another.
-        let refusal = |snapback: &LocalSnapback, user: &str, args: Value, function: &str| {
-            match snapback.invoke_query(function, input(user, args.clone())) {
+        let refusal =
+            |snapback: &LocalSnapback, user: &str, args: Value, function: &str| match snapback
+                .invoke_query(function, input(user, args.clone()))
+            {
                 Err(error) => error,
                 Ok(output) => panic!(
                     "cursor presentation must refuse: {function} {user} {args} -> {output:?}"
                 ),
-            }
-        };
+            };
         let malformed = refusal(
             &snapback,
             "user-a",
@@ -21051,7 +21102,12 @@ globalThis.__snapbackHandlers = {
         snapback
             .permission_epochs
             .insert(super::user_permission_scope("user-a"), 3);
-        let stale = refusal(&snapback, "user-a", json!({ "after": cursor1 }), "nextPages");
+        let stale = refusal(
+            &snapback,
+            "user-a",
+            json!({ "after": cursor1 }),
+            "nextPages",
+        );
         for refused in [&raw_value, &cross_pair, &cross_owner, &stale] {
             assert_eq!(
                 (
@@ -25868,7 +25924,10 @@ globalThis.__snapbackHandlers = {
                 steps: vec![MutationStep::Patch {
                     table: "todos".to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
-                    values: BTreeMap::from([("rank".to_owned(), ValueExpr::Arg("rank".to_owned()))]),
+                    values: BTreeMap::from([(
+                        "rank".to_owned(),
+                        ValueExpr::Arg("rank".to_owned()),
+                    )]),
                 }],
                 return_value: None,
             })),
@@ -25955,7 +26014,9 @@ globalThis.__snapbackHandlers = {
         let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
             .iter()
             .map(|row| crate::live_wire::MembershipWitnessEntry {
-                id: crate::rqs::row_wire_id(row).expect("wire row id").to_owned(),
+                id: crate::rqs::row_wire_id(row)
+                    .expect("wire row id")
+                    .to_owned(),
                 old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
             })
             .collect();
@@ -26556,10 +26617,7 @@ globalThis.__snapbackHandlers = {
         assert!(exit_op.get("row").is_none(), "removals carry no row");
         assert_eq!(op_for(&id_change)["op"], "update");
         assert_eq!(op_for(&id_change)["row"]["title"], "changed");
-        let enter_op = ops
-            .iter()
-            .find(|op| op["op"] == "add")
-            .expect("enter op");
+        let enter_op = ops.iter().find(|op| op["op"] == "add").expect("enter op");
         assert_eq!(enter_op["row"]["title"], "entered");
 
         // The fresh token was minted from the updated accumulator and
@@ -26667,8 +26725,7 @@ globalThis.__snapbackHandlers = {
         let outside = snapback
             .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-x", None))
             .expect("lookup");
-        let id_outside =
-            rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
+        let id_outside = rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
         snapback
             .invoke_mutation(
                 "setRank",
@@ -26831,21 +26888,21 @@ globalThis.__snapbackHandlers = {
         // Omitted: the removed row's entry is missing (a witness that never
         // admits having held it).
         let mut omitted = honest.clone();
-        omitted
-            .entries
-            .retain(|entry| entry.id != id_removed);
+        omitted.entries.retain(|entry| entry.id != id_removed);
         omitted.count = omitted.entries.len() as u32;
         cases.push(("omitted", omitted));
         // Extra: a fabricated held row.
         let mut extra = honest.clone();
-        extra.entries.push(crate::live_wire::MembershipWitnessEntry {
-            id: "zzz-fabricated".to_owned(),
-            old_row_hash: {
-                use base64::Engine as _;
-                base64::engine::general_purpose::URL_SAFE_NO_PAD
-                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
-            },
-        });
+        extra
+            .entries
+            .push(crate::live_wire::MembershipWitnessEntry {
+                id: "zzz-fabricated".to_owned(),
+                old_row_hash: {
+                    use base64::Engine as _;
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD
+                        .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+                },
+            });
         extra.count = extra.entries.len() as u32;
         cases.push(("extra", extra));
         // Substituted: one entry's hash replaced with a hash of different
@@ -26858,8 +26915,9 @@ globalThis.__snapbackHandlers = {
             .unwrap();
         target.old_row_hash = {
             use base64::Engine as _;
-            base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+                crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap(),
+            )
         };
         cases.push(("correct-id-wrong-hash", substituted));
         // Hash permutation: two valid hashes swapped between valid ids — the
@@ -26887,7 +26945,8 @@ globalThis.__snapbackHandlers = {
             );
             let rows = &refused.snapshot.as_ref().expect("rung 3 rows").rows;
             assert!(
-                rows.iter().all(|row| row["_id"] != json!(id_removed.as_str())),
+                rows.iter()
+                    .all(|row| row["_id"] != json!(id_removed.as_str())),
                 "{label}: the removal is delivered by replacement, never suppressed"
             );
         }

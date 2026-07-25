@@ -1,0 +1,179 @@
+{
+  "$defs": {
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "RestorePlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "acquireLease",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "TargetProductionClass": {
+      "enum": [
+        "preview",
+        "production"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/restore.plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Destructive restore proposal. Restore and activation are deliberately\nseparate artifacts: a successful apply leaves the destination inactive and\nall external effects fenced until an explicit activation consumes its\nreceipt.\n\n@ref LLP 0072#backup-and-restore — source backup, exact destination,\nreplacement sentinel, effect fence, verification, and later activation are\nindependent must-understand facts.",
+  "properties": {
+    "applyEligible": {
+      "type": "boolean"
+    },
+    "backupId": {
+      "type": "string"
+    },
+    "backupManifestSha256": {
+      "type": "string"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "confirmation": {
+      "type": "string"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "databaseId": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "destinationSentinelSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "destinationTargetId": {
+      "type": "string"
+    },
+    "environmentId": {
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "observedActivationGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "observedActiveReleaseId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "productionClass": {
+      "$ref": "#/$defs/TargetProductionClass"
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "replacementReleaseId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "sourceTargetId": {
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/RestorePlanStep"
+      },
+      "type": "array"
+    },
+    "streamIncarnation": {
+      "type": "string"
+    },
+    "targetDescriptorSha256": {
+      "type": "string"
+    },
+    "targetObservationSha256": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planId",
+    "operationId",
+    "reason",
+    "sourceTargetId",
+    "backupId",
+    "backupManifestSha256",
+    "destinationTargetId",
+    "projectId",
+    "environmentId",
+    "deploymentId",
+    "databaseId",
+    "streamIncarnation",
+    "targetProfileId",
+    "productionClass",
+    "targetDescriptorSha256",
+    "targetObservationSha256",
+    "observedActivationGeneration",
+    "steps",
+    "blockers",
+    "applyEligible",
+    "confirmation",
+    "createdAtMs",
+    "expiresAtMs"
+  ],
+  "title": "RestorePlan",
+  "type": "object"
+}

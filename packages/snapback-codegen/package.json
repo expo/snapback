@@ -8,6 +8,7 @@
     "data-tier-corpus.mjs",
     "define.d.ts",
     "define.mjs",
+    "effect-ceiling.mjs",
     "file-read-capability.mjs",
     "generate-worker.mjs",
     "index.mjs",

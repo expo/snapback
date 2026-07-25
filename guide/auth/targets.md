@@ -3,14 +3,14 @@ title: Targets — what each one claims
 id: auth.targets
 order: 3
 audience: agent-first
-capabilities: [auth.target-honesty]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, README.md]
-examples: []
+capabilities: [auth.target-honesty, auth.sender-constrained-browser]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, packages/snapback-client/hosted-browser.mjs, README.md]
+examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
-maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+maturity: partial
+reviewed: 2026-07-24
+reviewed-commit: HEAD
 ---
 
 # Targets — what each one claims
@@ -47,6 +47,37 @@ without `cloudflare` in its `targets:` as unverified there, and treat
 hosted auth as absent until LLP 0060's contract is implemented and
 witnessed. Deployment, secret, egress, hibernation, and non-claim details are
 in [deploying the Cloudflare proof](../deploying/cloudflare.md).
+
+## Single-instance container/VM — selected, not yet available
+
+LLP 0072 selects `single-instance-container-vm.v1` as the first target that
+must satisfy the complete trusted single-tenant profile. The target-neutral
+release, plan, lifecycle, backup, rollback, restore, log, inspection, and audit
+contracts exist and pass a deterministic non-remote driver. No provider,
+account, region, public origin, remote storage, or external audit sink has yet
+passed the qualification drill. Therefore the profile is **partial** and no
+server may report `trusted-single-tenant-app-complete.v1`.
+
+The package contains a future hosted app-browser entrypoint:
+`HostedBrowserSnapbackClient` from
+`@snapback/client/hosted-browser`. Its constructor requires coordinator-owned
+custody, accepts only HTTPS, and exposes no bearer, admin-token, or
+agent-authority option. The implementation generates a non-extractable P-256
+key, binds issuance and refresh to it, signs protected HTTP and WebSocket
+requests, rotates server nonces, and rejects replay. Sender sessions and grants
+use legacy-rejecting v2 syntax; unknown carriers receive keyed stateless cover
+nonces; a bounded key-bound tombstone recovers a committed logout whose
+response was lost; and the socket queue releases only after the first
+in-band successor-nonce frame. Cross-language, pre-body, custody-recovery,
+challenge-retry, refresh, grant-route-matrix, and real WebSocket tests exercise
+those facts.
+
+This is implementation evidence, not an authoring technique on a live target.
+Do not use the generic `SnapbackClient` direct-bearer constructor as a
+production-browser substitute. A concrete adapter must first authenticate the
+public origin and admission producer, pass the complete negative/pressure
+matrix, produce the monotone replay-epoch floor outside the application backup
+set, and execute the remote LLP 0072/0077 drill.
 
 ## How to check instead of trusting prose
 

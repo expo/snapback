@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "HostedAdmissionRefreshVersion": {
+      "enum": [
+        "snapback.hosted-admission-refresh.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-admission-refresh.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Non-secret result of atomically refreshing the authenticated envelope for\none already-reconciled boot. Deployment, handler, support, configuration,\nand external floor remain immutable across this transition.",
+  "properties": {
+    "admissionEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "configurationSha256": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "envelopeSha256": {
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "handlerIncarnation": {
+      "type": "string"
+    },
+    "handlerProtocolVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "invalidationEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "issuedAtMs": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "keyId": {
+      "type": "string"
+    },
+    "limiterEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "publicOrigin": {
+      "type": "string"
+    },
+    "refreshId": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/HostedAdmissionRefreshVersion"
+    },
+    "senderReplayEpochFloor": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "supportSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "deploymentId",
+    "publicOrigin",
+    "keyId",
+    "configurationSha256",
+    "supportSha256",
+    "handlerProtocolVersion",
+    "handlerIncarnation",
+    "senderReplayEpochFloor",
+    "admissionEpoch",
+    "limiterEpoch",
+    "invalidationEpoch",
+    "issuedAtMs",
+    "expiresAtMs",
+    "envelopeSha256",
+    "remoteEvidence",
+    "refreshId"
+  ],
+  "title": "HostedAdmissionRefreshReceipt",
+  "type": "object"
+}
