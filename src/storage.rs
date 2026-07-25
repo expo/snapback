@@ -2293,6 +2293,14 @@ impl LocalDatabase {
         })
     }
 
+    /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
+    /// §4: a crash after release reopens only the successor and resumes
+    /// cleanup). Inventory-driven — no artifact required.
+    pub(crate) fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        let schema = self.schema.clone();
+        migration_executor::resume_pending_cleanup(&mut self.conn, &schema)
+    }
+
     /// Install the active maintained-projection set (LLP 0080 §5). Called by
     /// function-manifest activation after validation; every mutation path on
     /// this database maintains these outputs in its own commit.
@@ -8949,33 +8957,45 @@ fn validate_read_set(
 ) -> SnapbackResult<()> {
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
     //   pre-publication baseline replays through the raised retention
-    //   floor: under a successor-only publication, an offline mutation
-    //   whose isolation baseline predates the floor receives the stable
-    //   resync-before-replay refusal (its payload is client-custodied and
-    //   quarantined by the client; the server neither silently replays nor
-    //   drops it). Compatible postures keep the ordinary conflict rules.
-    if let Some(stalest) = read_set.iter().map(|dependency| dependency.version).min() {
-        let floor = retention_floor_at_most(tx, current_version_on(tx)?)?;
-        if stalest < floor
-            && let Some(transition) = schema_transition_events_on(tx, 0)?.into_iter().last()
-            && matches!(
-                transition.body.compatibility_posture,
-                crate::migration::CompatibilityPosture::SuccessorOnly
-            )
-            && stalest < transition.body.retention_floor
+    //   floor. The load-bearing case is a baseline that is BOTH pre-floor
+    //   AND no longer current: the change journal below the floor is gone,
+    //   so the client cannot rebase incrementally and must resync whole. A
+    //   baseline that still equals the row's current version passes under
+    //   every posture — an unchanged row's pre-publication capture is
+    //   byte-identical to (and exactly as safe as) a fresh post-resync
+    //   capture, and refusing it would also refuse every compatible
+    //   client's post-resnapshot replay of untouched rows, forever.
+    //   Compatible postures keep the ordinary conflict rules throughout.
+    for dependency in read_set {
+        let table = schema_table(schema, &dependency.table)?;
+        let current = get_row_version(tx, table, &dependency.id, maximum)?;
+        if current == Some(dependency.version) {
+            continue;
+        }
+        // First mismatch decides the outcome (both arms below return), so
+        // the transition lookup runs at most once per validation.
+        let successor_only_floor = schema_transition_events_on(tx, 0)?
+            .into_iter()
+            .last()
+            .filter(|transition| {
+                matches!(
+                    transition.body.compatibility_posture,
+                    crate::migration::CompatibilityPosture::SuccessorOnly
+                )
+            })
+            .map(|transition| transition.body.retention_floor);
+        if let Some(floor) = successor_only_floor
+            && dependency.version < floor
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
                 "storage",
-                "this mutation's read baseline predates a successor-only schema publication; \
-                 resync before replaying client-custodied offline work",
+                "this mutation's read baseline predates a successor-only schema publication \
+                 and its row has since changed; resync before replaying client-custodied \
+                 offline work",
             ));
         }
-    }
-    for dependency in read_set {
-        let table = schema_table(schema, &dependency.table)?;
-        let current = get_row_version(tx, table, &dependency.id, maximum)?;
-        if current != Some(dependency.version) {
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_MUTATION_CONFLICT",
                 "storage",

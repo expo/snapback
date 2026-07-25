@@ -873,6 +873,163 @@ fn default_step_record(ordinal: usize, step: MigrationStep) -> MigrationStepReco
 }
 
 /// The deterministic planner (LLP 0081 §2): walk successor-schema tables in
+/// Derive the closed `MigrationIntent` set from a predecessor/successor
+/// `SchemaManifest` pair (LLP 0081 §2 preview). The derivation is total
+/// over unambiguous, semantics-free diffs and **refuses** everything else
+/// with `SNAPBACK_MIGRATION_PLAN_INVALID`, naming the explicit intent the
+/// operator must declare — a diff cannot invent a backfill expression,
+/// distinguish a rename from an unrelated retire-plus-add, or pick a
+/// conversion, so those stay declared intents by construction:
+///
+/// - new table → `CreateTable` (publication applies the whole successor
+///   declaration, indexes included);
+/// - new index on an existing table → `CreateIndex`;
+/// - new optional field → `AddOptionalField`;
+/// - existing optional field required in the successor →
+///   `TightenRequired` (validate before tighten rides the intent chain);
+/// - removed field → `RetireField`; removed table → `RetireTable`;
+/// - refused: a new **required** field (declare `AddRequiredField` with
+///   its backfill), a field type change (declare `ConvertField`), a
+///   required→optional loosening (outside the closed vocabulary), a
+///   removed or altered index (outside the closed vocabulary), and any
+///   table whose diff both removes and adds fields (a rename signal —
+///   declare `RenameField`, or explicit retire/add intents).
+///
+/// Deterministic emission order: successor declaration order for
+/// creates/adds/tightens (fields before indexes within one table), then
+/// predecessor declaration order for retires (fields, then tables), so two
+/// clean runs derive identical intents and therefore identical plan bytes.
+pub fn derive_intents(
+    predecessor: &SchemaManifest,
+    successor: &SchemaManifest,
+) -> SnapbackResult<Vec<MigrationIntent>> {
+    let refuse = |message: String| {
+        SnapbackError::error("SNAPBACK_MIGRATION_PLAN_INVALID", "storage", message)
+    };
+    let mut intents = Vec::new();
+    for table in &successor.tables {
+        let Some(previous) = predecessor.table(&table.name) else {
+            intents.push(MigrationIntent::CreateTable {
+                table: table.name.clone(),
+            });
+            continue;
+        };
+        let added: Vec<_> = table
+            .fields
+            .iter()
+            .filter(|field| previous.field(&field.name).is_none())
+            .collect();
+        let removed_any = previous
+            .fields
+            .iter()
+            .any(|field| table.field(&field.name).is_none());
+        if !added.is_empty() && removed_any {
+            return Err(refuse(format!(
+                "table {} both adds and removes fields; a schema diff cannot distinguish a \
+                 rename from an unrelated retire-plus-add — declare RenameField (or explicit \
+                 RetireField/AddOptionalField intents)",
+                table.name
+            )));
+        }
+        for field in &table.fields {
+            match previous.field(&field.name) {
+                None => {
+                    if !field.optional {
+                        return Err(refuse(format!(
+                            "new field {}.{} is required; a schema diff cannot derive its \
+                             backfill — declare AddRequiredField",
+                            table.name, field.name
+                        )));
+                    }
+                    intents.push(MigrationIntent::AddOptionalField {
+                        table: table.name.clone(),
+                        field: field.name.clone(),
+                        field_type: field.field_type.clone(),
+                    });
+                }
+                Some(existing) => {
+                    if existing.field_type != field.field_type {
+                        return Err(refuse(format!(
+                            "field {}.{} changes type; declare ConvertField with a total \
+                             conversion expression",
+                            table.name, field.name
+                        )));
+                    }
+                    match (existing.optional, field.optional) {
+                        (true, false) => intents.push(MigrationIntent::TightenRequired {
+                            table: table.name.clone(),
+                            field: field.name.clone(),
+                        }),
+                        (false, true) => {
+                            return Err(refuse(format!(
+                                "field {}.{} loosens required to optional; that transition is \
+                                 outside the closed v1 intent vocabulary",
+                                table.name, field.name
+                            )));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        for index in &table.indexes {
+            match previous
+                .indexes
+                .iter()
+                .find(|candidate| candidate.name == index.name)
+            {
+                None => intents.push(MigrationIntent::CreateIndex {
+                    table: table.name.clone(),
+                    index: index.name.clone(),
+                    fields: index.fields.clone(),
+                    unique: index.unique,
+                }),
+                Some(existing) => {
+                    if existing.fields != index.fields || existing.unique != index.unique {
+                        return Err(refuse(format!(
+                            "index {}.{} changes shape; index alteration is outside the \
+                             closed v1 intent vocabulary (retire under a new name via \
+                             explicit intents)",
+                            table.name, index.name
+                        )));
+                    }
+                }
+            }
+        }
+        for index in &previous.indexes {
+            if !table
+                .indexes
+                .iter()
+                .any(|candidate| candidate.name == index.name)
+            {
+                return Err(refuse(format!(
+                    "index {}.{} is removed; index retirement is outside the closed v1 \
+                     intent vocabulary",
+                    table.name, index.name
+                )));
+            }
+        }
+    }
+    for table in &predecessor.tables {
+        match successor.table(&table.name) {
+            None => intents.push(MigrationIntent::RetireTable {
+                table: table.name.clone(),
+            }),
+            Some(next) => {
+                for field in &table.fields {
+                    if next.field(&field.name).is_none() {
+                        intents.push(MigrationIntent::RetireField {
+                            table: table.name.clone(),
+                            field: field.name.clone(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    Ok(intents)
+}
+
 /// **declaration order**; within one table, expand intents in **declared
 /// order**, each intent's dependency chain kept in its required sequence;
 /// intents anchored to no schema table (projections) follow, in declared
@@ -1596,6 +1753,159 @@ pub fn migration_vectors_artifact() -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // @ref LLP 0081#2-canonical-plan-and-approval — preview's schema-diff
+    //   derivation covers exactly the unambiguous, semantics-free changes,
+    //   deterministically; everything needing a declared backfill, rename,
+    //   or conversion refuses with the intent it demands.
+    #[test]
+    fn schema_diff_derivation_is_deterministic_and_closed() {
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let table = |name: &str,
+                     fields: Vec<crate::manifest::FieldManifest>,
+                     indexes: Vec<crate::manifest::IndexManifest>| {
+            crate::manifest::TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }
+        };
+        let predecessor = crate::manifest::SchemaManifest {
+            tables: vec![
+                table("notes", vec![field("body", false), field("draft", true)], Vec::new()),
+                table("legacy", vec![field("value", false)], Vec::new()),
+            ],
+            ..Default::default()
+        };
+        let successor = crate::manifest::SchemaManifest {
+            tables: vec![
+                table(
+                    "notes",
+                    vec![field("body", false), field("draft", false), field("tag", true)],
+                    vec![crate::manifest::IndexManifest {
+                        name: "by_tag".to_owned(),
+                        fields: vec!["tag".to_owned()],
+                        unique: false,
+                    }],
+                ),
+                table("attachments", vec![field("noteId", false)], Vec::new()),
+            ],
+            ..Default::default()
+        };
+        let intents = derive_intents(&predecessor, &successor).expect("derive");
+        assert_eq!(
+            intents,
+            vec![
+                MigrationIntent::TightenRequired {
+                    table: "notes".to_owned(),
+                    field: "draft".to_owned(),
+                },
+                MigrationIntent::AddOptionalField {
+                    table: "notes".to_owned(),
+                    field: "tag".to_owned(),
+                    field_type: crate::manifest::FieldType::String,
+                },
+                MigrationIntent::CreateIndex {
+                    table: "notes".to_owned(),
+                    index: "by_tag".to_owned(),
+                    fields: vec!["tag".to_owned()],
+                    unique: false,
+                },
+                MigrationIntent::CreateTable {
+                    table: "attachments".to_owned(),
+                },
+                MigrationIntent::RetireTable {
+                    table: "legacy".to_owned(),
+                },
+            ],
+        );
+        // Determinism through to plan bytes: two clean derivations produce
+        // identical steps and therefore identical canonical plan bytes.
+        let steps_a = derive_plan_steps(&successor, &intents).expect("steps a");
+        let steps_b = derive_plan_steps(
+            &successor,
+            &derive_intents(&predecessor, &successor).expect("derive again"),
+        )
+        .expect("steps b");
+        assert_eq!(
+            serde_json::to_value(&steps_a).unwrap(),
+            serde_json::to_value(&steps_b).unwrap(),
+        );
+
+        // Refusal classes name the explicit intent they demand.
+        let refusal = |predecessor: &crate::manifest::SchemaManifest,
+                       successor: &crate::manifest::SchemaManifest,
+                       needle: &str| {
+            let error = derive_intents(predecessor, successor)
+                .expect_err("ambiguous diff must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+            assert!(
+                error.diagnostic.message.contains(needle),
+                "{needle} missing from: {}",
+                error.diagnostic.message
+            );
+        };
+        let base = crate::manifest::SchemaManifest {
+            tables: vec![table("notes", vec![field("body", false)], Vec::new())],
+            ..Default::default()
+        };
+        // Required add needs a declared backfill.
+        refusal(
+            &base,
+            &crate::manifest::SchemaManifest {
+                tables: vec![table(
+                    "notes",
+                    vec![field("body", false), field("region", false)],
+                    Vec::new(),
+                )],
+                ..Default::default()
+            },
+            "AddRequiredField",
+        );
+        // Removed + added in one table is a rename signal.
+        refusal(
+            &base,
+            &crate::manifest::SchemaManifest {
+                tables: vec![table("notes", vec![field("content", true)], Vec::new())],
+                ..Default::default()
+            },
+            "RenameField",
+        );
+        // Type change demands ConvertField.
+        refusal(
+            &base,
+            &crate::manifest::SchemaManifest {
+                tables: vec![table(
+                    "notes",
+                    vec![crate::manifest::FieldManifest {
+                        name: "body".to_owned(),
+                        field_type: crate::manifest::FieldType::Integer,
+                        optional: false,
+                    }],
+                    Vec::new(),
+                )],
+                ..Default::default()
+            },
+            "ConvertField",
+        );
+        // Loosening required→optional is outside the vocabulary.
+        refusal(
+            &base,
+            &crate::manifest::SchemaManifest {
+                tables: vec![table("notes", vec![field("body", true)], Vec::new())],
+                ..Default::default()
+            },
+            "outside the closed v1 intent vocabulary",
+        );
+    }
 
     fn fixture() -> (
         MigrationPlanArtifactV1,

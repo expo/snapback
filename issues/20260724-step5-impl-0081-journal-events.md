@@ -58,3 +58,36 @@ obligation machinery); the JS client-side quarantine UX; blind
 identity on the mutation wire (LLP 0093 adjacency); the auth-scoped
 precheck ordering is covered by inspection pending the 0081 corpus, which
 builds full artifacts and should add that case.
+
+**Phase D closure (2026-07-25):** the sessions-profile publication tail
+landed. Publication now fires LLP 0053's machinery for auth-scoped state
+instead of the fail-closed refusal: every auth-scoped subscription gets a
+durable `Delete` obligation raised with the publication witness, a
+`terminalDelete` resolution with acknowledgement semantics (ackToken on
+the projected frame), the obligation frame delivered durably, and an
+authenticated scope retirement (`prepare/commit_scope_retirement`) — a
+generic resync is never substituted. The only remaining refusal is the
+inconsistent auth-scoped-subscriptions-without-invalidation-state case.
+Witness: `publication_fires_durable_dispositions_for_auth_scoped_subscriptions`
+(Sessions authorities via the activation fixture). Still fail-closed with
+recorded reasons: blind read-set-free predecessor writes (needs
+mutation-wire artifact identity — LLP 0093 adjacency) and the JS
+client-side quarantine UX.
+
+**Flip-closure fixtures (2026-07-25, settlement slice):** the quarantined
+offline mutation now provably SETTLES through resync-before-replay
+(`quarantined_offline_mutation_settles_through_resync_before_replay`):
+the stale replay refuses recording nothing (the clientMutationId stays
+fresh), the resynced replay of the same id settles exactly once, a
+duplicate of the settled form returns the recorded result, and the
+discarded stale form refuses as a reused id after settlement. Landing it
+exposed and fixed a real defect in the floor gate: it refused any
+pre-floor ROW version — including untouched rows, whose pre-publication
+capture is byte-identical to a fresh post-resync capture — which would
+have refused every compatible client's post-resnapshot replay forever.
+The gate now refuses exactly the un-rebasable case (baseline pre-floor
+AND row changed — the erased-journal case) and untouched-row baselines
+pass under every posture, witnessed both ways in
+`successor_only_publication_gates_stale_replay_baselines`. JS
+client-side quarantine UX remains the recorded residual (server protocol
+is complete).

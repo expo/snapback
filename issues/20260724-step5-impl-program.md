@@ -95,6 +95,30 @@ dependency of both the 0065 and 0080 lanes.
   registries' own recorded gate ("until the coupled suite passes and
   both RFCs flip to Implemented") — promoting it is the same act as
   flipping 0080/0081, not a separate lever.
+  **Flip audit (2026-07-25, post-flip-closure):** the flip-closure
+  package landed both halves (retention lease class end to end,
+  obligation-fault recovery, examined-entries instrumentation;
+  publication dispositions under Sessions, schema-diff→intents
+  derivation, staged-pair successor check, physical cleanup). The
+  item-by-item §Acceptance audit still withholds both flips, and the
+  remaining blockers converge:
+  - **0080**: every item is witnessed on the claimed adapters EXCEPT the
+    final one — "Partitime or the admitted Step 5 fixture demonstrates
+    both generated helpers, records source/glue reduction, and reruns
+    the cumulative gates." The Step 5 application witness is 0080's last
+    open acceptance item (hosted arms stay vacuous — no hosted target
+    claims the capability).
+  - **0081**: the same Step 5 application witness item, plus the
+    quarantined-offline-mutation settlement e2e (client half; the
+    server refusal and floor are landed), the restore-derived rehearsal
+    fixture (§7), and the genuinely-dual-compatible ordering fixture.
+    DO-target items are explicitly deferred to hosted profiles by the
+    RFC's own closing paragraph.
+  The Step 5 application witness (the `STEP5.DECLARATION_REDUCTION`
+  run on Partitime or the admitted fixture) is therefore the single
+  biggest unlock: it closes 0080's last item, one of 0081's last items,
+  and delivers the LLP 0063 Step 5 receipt — and Step 0's refreshed
+  ledger closed on 2026-07-25, so the claim path is open.
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 
