@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
-    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+    "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+    "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -12,10 +12,10 @@
     "os": "darwin-25.5.0-arm64",
     "browser": "chrome",
     "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "browserVersion": "Google Chrome 150.0.7871.130",
+    "browserVersion": "Google Chrome 150.0.7871.186",
     "iosSimulator": null,
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.130",
+    "chromeVersion": "Google Chrome 150.0.7871.186",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -154,7 +154,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
+      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -169,10 +169,10 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
-    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+    "inputsHash": "6cff844d8c8ca2c0cddefa9a485ecd4fca3a6aa914eb6e0af644b3d4381e709c",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "8874cdd671c193e9c5c3be1a3315c45470226f85a65ea94991e331b6c01e5b15",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -185,15 +185,15 @@
     },
     {
       "path": "demos/_kit/server-process.mjs",
-      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+      "sha256": "a670a61f8e0f0eaca3d8045e30ce547f3e38e81fd564c0f88e59e4a5f1d3fe85"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
-      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+      "sha256": "b5179aee88d2586f5d90d4197742bf7018ab39a054c116f1e495622ab335cfe9"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
@@ -201,7 +201,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
+      "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -209,11 +209,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
+      "sha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -221,7 +221,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
+      "sha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -236,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
+  "testInventorySha256": "85d9fddce7d992b4f7630a6cf76b812efc22780d3e411d77322b060436664b7c",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -259,14 +259,16 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       },
       "convex": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       }
     }
   },
@@ -465,7 +467,7 @@
                 "x": 0,
                 "y": 0,
                 "width": 390,
-                "height": 1295.90625,
+                "height": 1389,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -474,7 +476,7 @@
                 "id": "rsvp-going",
                 "missing": false,
                 "x": 71,
-                "y": 986.90625,
+                "y": 1080,
                 "width": 48.359375,
                 "height": 32,
                 "display": "flex",
@@ -485,7 +487,7 @@
                 "id": "guest-list",
                 "missing": false,
                 "x": 39,
-                "y": 875.90625,
+                "y": 969,
                 "width": 312,
                 "height": 381,
                 "display": "flex",
@@ -496,9 +498,9 @@
                 "id": "wall",
                 "missing": false,
                 "x": 39,
-                "y": 534.90625,
+                "y": 627,
                 "width": 312,
-                "height": 341,
+                "height": 342,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -515,8 +517,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/event-detail-going.png",
-              "sha256": "3f35a7a4e1307df126688755ff18ab6cb1e5aa9c64555bcacab418481c2393d7",
-              "bytes": 51193,
+              "sha256": "5e153812dba5c1b140b300ad4f6cdcc7a3da2d47c6acd211f16ab77e4e91693d",
+              "bytes": 59883,
               "approval": "pending-human-review"
             }
           },
@@ -532,7 +534,7 @@
                 "x": 0,
                 "y": 0,
                 "width": 390,
-                "height": 1295.90625,
+                "height": 1389,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -541,7 +543,7 @@
                 "id": "rsvp-maybe",
                 "missing": false,
                 "x": 124.359375,
-                "y": 986.90625,
+                "y": 1080,
                 "width": 51.9375,
                 "height": 32,
                 "display": "flex",
@@ -552,7 +554,7 @@
                 "id": "guest-list",
                 "missing": false,
                 "x": 39,
-                "y": 875.90625,
+                "y": 969,
                 "width": 312,
                 "height": 381,
                 "display": "flex",
@@ -563,9 +565,9 @@
                 "id": "wall",
                 "missing": false,
                 "x": 39,
-                "y": 534.90625,
+                "y": 627,
                 "width": 312,
-                "height": 341,
+                "height": 342,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -582,8 +584,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/event-detail-maybe.png",
-              "sha256": "6dc9cdfd7a43acc7ab5fd1d9a51a0653e95ee2c41f6b631c240c1d50ed90b8e4",
-              "bytes": 51106,
+              "sha256": "7b8ad3fc2876153612ce749f1a3f6ce75f772561b3e7c6350b6f6aab599031e6",
+              "bytes": 59792,
               "approval": "pending-human-review"
             }
           },
@@ -599,7 +601,7 @@
                 "x": 0,
                 "y": 0,
                 "width": 390,
-                "height": 1516.90625,
+                "height": 1610,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -638,8 +640,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/event-detail-error.png",
-              "sha256": "5688886449151e6f3f828bf87f058c6bab90320d25ed5f3b7a550c3a7ed4838a",
-              "bytes": 62526,
+              "sha256": "75802eed9853f47bfd8bc396b9cbad8b0b766f6dd9fd14c8c432327c9b03749b",
+              "bytes": 71387,
               "approval": "pending-human-review"
             }
           },
@@ -653,7 +655,7 @@
                 "id": "guest-list-trigger",
                 "missing": false,
                 "x": 71,
-                "y": 942.90625,
+                "y": 1036,
                 "width": 248,
                 "height": 32,
                 "display": "flex",
@@ -663,10 +665,10 @@
               {
                 "id": "guest-list-sheet",
                 "missing": false,
-                "x": 0,
-                "y": 0,
-                "width": 390,
-                "height": 261,
+                "x": 109.203125,
+                "y": 293.5,
+                "width": 280.796875,
+                "height": 257,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -675,7 +677,7 @@
                 "id": "guest-list",
                 "missing": false,
                 "x": 39,
-                "y": 875.90625,
+                "y": 969,
                 "width": 312,
                 "height": 381,
                 "display": "flex",
@@ -694,12 +696,12 @@
                 {
                   "id": "guest-list-sheet",
                   "rect": {
-                    "left": 0,
-                    "top": 0,
+                    "left": 109.203125,
+                    "top": 293.5,
                     "right": 390,
-                    "bottom": 261,
-                    "width": 390,
-                    "height": 261
+                    "bottom": 550.5,
+                    "width": 280.796875,
+                    "height": 257
                   },
                   "inside": true
                 }
@@ -707,8 +709,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/guest-list-sheet-open.png",
-              "sha256": "67facaf98f2e624a75df2a767aef53f5714f5214e61906ee9155fb93f62185d8",
-              "bytes": 33047,
+              "sha256": "b160dc2070e9ddace60aae389dec93e341119c66b02a3e2c687661c68ccf42b6",
+              "bytes": 35074,
               "approval": "pending-human-review"
             }
           },
@@ -722,9 +724,9 @@
                 "id": "wall-composer",
                 "missing": false,
                 "x": 72,
-                "y": 751.90625,
+                "y": 372,
                 "width": 246,
-                "height": 91,
+                "height": 92,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -733,8 +735,8 @@
                 "id": "wall-message",
                 "missing": false,
                 "x": 72,
-                "y": 751.90625,
-                "width": 246,
+                "y": 400,
+                "width": 201,
                 "height": 44,
                 "display": "block",
                 "visibility": "visible",
@@ -743,9 +745,9 @@
               {
                 "id": "wall-submit",
                 "missing": false,
-                "x": 72,
-                "y": 803.90625,
-                "width": 246,
+                "x": 281,
+                "y": 402.5,
+                "width": 77.421875,
                 "height": 39,
                 "display": "flex",
                 "visibility": "visible",
@@ -763,8 +765,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/wall-composer-active.png",
-              "sha256": "e0047d5a48d0d6c5b64992e6f33f35bf2ab80919c05be142932f9f60abddbe38",
-              "bytes": 51426,
+              "sha256": "5e9d4e575961425d901837330ff9ee432c28603d392b0394b16261d0513e6fa4",
+              "bytes": 60106,
               "approval": "pending-human-review"
             }
           },
@@ -778,9 +780,9 @@
                 "id": "wall",
                 "missing": false,
                 "x": 39,
-                "y": 534.90625,
+                "y": 627,
                 "width": 312,
-                "height": 435,
+                "height": 436,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -789,7 +791,7 @@
                 "id": "wall-pending-row",
                 "missing": false,
                 "x": 72,
-                "y": 751.90625,
+                "y": 844,
                 "width": 246,
                 "height": 78,
                 "display": "flex",
@@ -800,7 +802,7 @@
                 "id": "wall-pending-status",
                 "missing": false,
                 "x": 269.546875,
-                "y": 766.90625,
+                "y": 859,
                 "width": 47.453125,
                 "height": 48,
                 "display": "block",
@@ -819,8 +821,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/wall-optimistic-pending.png",
-              "sha256": "391a668f249f820d4bb2f18da507940f65c9256ea424c9ff7fd0d968e8c34451",
-              "bytes": 55434,
+              "sha256": "1dca5ea53de43d821d245686e9026f52d127229c0922e70b0ce8746b991baa14",
+              "bytes": 64245,
               "approval": "pending-human-review"
             }
           },
@@ -908,7 +910,7 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/create-event-form-default.png",
-              "sha256": "16d93005334009afdd8243843d141c5cd0a45eb2ef4bf3babb80e1631199e767",
+              "sha256": "f87f74b04451fd1267b7ba70cb3aaba672348002dbb06d3ef7199987bdc80e09",
               "bytes": 32280,
               "approval": "pending-human-review"
             }
@@ -975,8 +977,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/create-event-form-validation-error.png",
-              "sha256": "293514c96d05a001618c3cc0caeb8e4b49e5b9f037e89132497771fe601aa2bc",
-              "bytes": 38064,
+              "sha256": "6d238c8575ca4db574c4e042d4680e05466ac3e4f9bf21f1c65c83cb7a9ac2c1",
+              "bytes": 38066,
               "approval": "pending-human-review"
             }
           },
@@ -1047,8 +1049,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/options-menu-open.png",
-              "sha256": "ada08394a325a88e526042b2acac258794c01816b2d677876a744cc6be9e5296",
-              "bytes": 44558,
+              "sha256": "81b2c86c74e056fadc7c092f49442c3740556afbe164127a4be3c873dd185a56",
+              "bytes": 45956,
               "approval": "pending-human-review"
             }
           },
@@ -1062,7 +1064,7 @@
                 "id": "rsvp-trigger",
                 "missing": false,
                 "x": 71,
-                "y": 1030.90625,
+                "y": 1124,
                 "width": 248,
                 "height": 32,
                 "display": "flex",
@@ -1073,7 +1075,7 @@
                 "id": "rsvp-confirm-dialog",
                 "missing": false,
                 "x": 0,
-                "y": 0,
+                "y": 330,
                 "width": 390,
                 "height": 184,
                 "display": "flex",
@@ -1084,7 +1086,7 @@
                 "id": "rsvp-confirm",
                 "missing": false,
                 "x": 292.875,
-                "y": 115,
+                "y": 445,
                 "width": 67.125,
                 "height": 39,
                 "display": "flex",
@@ -1095,7 +1097,7 @@
                 "id": "rsvp-cancel",
                 "missing": false,
                 "x": 220.046875,
-                "y": 115,
+                "y": 445,
                 "width": 62.828125,
                 "height": 39,
                 "display": "flex",
@@ -1115,9 +1117,9 @@
                   "id": "rsvp-confirm-dialog",
                   "rect": {
                     "left": 0,
-                    "top": 0,
+                    "top": 330,
                     "right": 390,
-                    "bottom": 184,
+                    "bottom": 514,
                     "width": 390,
                     "height": 184
                   },
@@ -1127,8 +1129,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/compact/rsvp-confirm-dialog-open.png",
-              "sha256": "d34aea970ec7fa21905729f399cb4b9ef3af6d7e7ede11d15a831d4e8b6aa331",
-              "bytes": 37169,
+              "sha256": "aa9914addd6ab26347caa31568f5c62c634d978df1bb6ae9138dbc039e1ac1ee",
+              "bytes": 35586,
               "approval": "pending-human-review"
             }
           }

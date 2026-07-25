@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
-    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+    "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+    "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -12,10 +12,10 @@
     "os": "darwin-25.5.0-arm64",
     "browser": "chrome",
     "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "browserVersion": "Google Chrome 150.0.7871.130",
+    "browserVersion": "Google Chrome 150.0.7871.186",
     "iosSimulator": null,
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.130",
+    "chromeVersion": "Google Chrome 150.0.7871.186",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -154,7 +154,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
+      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -169,10 +169,10 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
-    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+    "inputsHash": "6cff844d8c8ca2c0cddefa9a485ecd4fca3a6aa914eb6e0af644b3d4381e709c",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "8874cdd671c193e9c5c3be1a3315c45470226f85a65ea94991e331b6c01e5b15",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -185,15 +185,15 @@
     },
     {
       "path": "demos/_kit/server-process.mjs",
-      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+      "sha256": "a670a61f8e0f0eaca3d8045e30ce547f3e38e81fd564c0f88e59e4a5f1d3fe85"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
-      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+      "sha256": "b5179aee88d2586f5d90d4197742bf7018ab39a054c116f1e495622ab335cfe9"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
@@ -201,7 +201,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
+      "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -209,11 +209,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
+      "sha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -221,7 +221,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
+      "sha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -236,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
+  "testInventorySha256": "85d9fddce7d992b4f7630a6cf76b812efc22780d3e411d77322b060436664b7c",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -259,14 +259,16 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       },
       "convex": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       }
     }
   },
@@ -515,8 +517,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/event-detail-going.png",
-              "sha256": "345acbbcc08cc93fe41e86d0db305f047c6b7eb3ff53ada8db0307b31734bc4b",
-              "bytes": 84422,
+              "sha256": "031010a0c3fee2d68f6ae291825f18b20bfa6c2574bf556c358fbd7601e305eb",
+              "bytes": 85086,
               "approval": "pending-human-review"
             }
           },
@@ -582,8 +584,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/event-detail-maybe.png",
-              "sha256": "7a19bcca4780d2f7cbe3cc29b16b232a2d11b6429079339ce4e53461c584f7df",
-              "bytes": 84263,
+              "sha256": "d20d28e7ba786e036adf58c251365faa949b554339cd384bd2fa2fedc8e9c209",
+              "bytes": 84927,
               "approval": "pending-human-review"
             }
           },
@@ -599,7 +601,7 @@
                 "x": 0,
                 "y": 78,
                 "width": 390,
-                "height": 439.4375,
+                "height": 453.4375,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
@@ -610,7 +612,7 @@
                 "x": 17.15625,
                 "y": 156,
                 "width": 355.6875,
-                "height": 271.4375,
+                "height": 285.4375,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
@@ -620,8 +622,8 @@
                 "missing": false,
                 "x": 54.15625,
                 "y": 362.4375,
-                "width": 82.546875,
-                "height": 28,
+                "width": 92.546875,
+                "height": 42,
                 "display": "inline-block",
                 "visibility": "visible",
                 "opacity": 1
@@ -638,8 +640,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/event-detail-error.png",
-              "sha256": "0f2511fa49d666ae100b9e3997eef8d0c08b3c0b9a6de18546dfdf90afe408e6",
-              "bytes": 19528,
+              "sha256": "958173a50d6d336b4a5dd9da2168693b8d0aed59a11ab35209679fc9c64ae2ba",
+              "bytes": 25182,
               "approval": "pending-human-review"
             }
           },
@@ -663,9 +665,9 @@
               {
                 "id": "guest-list-sheet",
                 "missing": false,
-                "x": 24,
+                "x": 119.765625,
                 "y": 24,
-                "width": 342,
+                "width": 246.234375,
                 "height": 796,
                 "display": "block",
                 "visibility": "visible",
@@ -694,11 +696,11 @@
                 {
                   "id": "guest-list-sheet",
                   "rect": {
-                    "left": 24,
+                    "left": 119.765625,
                     "top": 24,
                     "right": 366,
                     "bottom": 820,
-                    "width": 342,
+                    "width": 246.234375,
                     "height": 796
                   },
                   "inside": true
@@ -707,8 +709,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/guest-list-sheet-open.png",
-              "sha256": "8cf54d0edfe190febd988b3e4b40bb1040580e28b17d89d7ac91906c8f5b347c",
-              "bytes": 20664,
+              "sha256": "8667146a65bac5c6c8ce837f59b60bc61a5f01355678a464b072e4601b6b62c7",
+              "bytes": 40408,
               "approval": "pending-human-review"
             }
           },
@@ -763,8 +765,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/wall-composer-active.png",
-              "sha256": "3742f2e3b6417f79d052d8394ab941db3fe5359db722b638973faf008988f4c4",
-              "bytes": 82896,
+              "sha256": "2f98fae0770347d5b1676ab36744fad4d91c1f225b725f5e5feaae252c2de803",
+              "bytes": 83562,
               "approval": "pending-human-review"
             }
           },
@@ -819,8 +821,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/wall-optimistic-pending.png",
-              "sha256": "c85392458d50a04115228685a11f33947eb8d94174ac8a0a82c037b18938f427",
-              "bytes": 89169,
+              "sha256": "f6bb4a71e0e937d7106baacf0f3e9484d6fccb8429808313b4e05374afd08d27",
+              "bytes": 89835,
               "approval": "pending-human-review"
             }
           },
@@ -908,8 +910,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/create-event-form-default.png",
-              "sha256": "ec1caa6a1a214ca128fa049b647dbe3856faa8e8aefafd0d7cfee41f0394fced",
-              "bytes": 40645,
+              "sha256": "7601d4de5933549629072ffad881656632fa3ac168a48fa60574539f800c8ed3",
+              "bytes": 40636,
               "approval": "pending-human-review"
             }
           },
@@ -975,8 +977,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/create-event-form-validation-error.png",
-              "sha256": "9bc889e5fc6f2f587588a9848beb1f9c54580b74ad2f9c2070808e24ddfb5206",
-              "bytes": 45376,
+              "sha256": "6eeaf2e55875f612304bee7992605af6cde18bf3b8be84178bb9ab8e4b5970cf",
+              "bytes": 45383,
               "approval": "pending-human-review"
             }
           },
@@ -1047,8 +1049,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/options-menu-open.png",
-              "sha256": "c514f0b95ccc2b102c4c51231ceeeffb9fcf1850d8f6a853e5d2683343acc315",
-              "bytes": 56085,
+              "sha256": "2ba4782548f1d453f5c59892e682dbb2d64db830751d1617b1dbc844f7d3f316",
+              "bytes": 58213,
               "approval": "pending-human-review"
             }
           },
@@ -1073,9 +1075,9 @@
                 "id": "rsvp-confirm-dialog",
                 "missing": false,
                 "x": 24,
-                "y": 321.59375,
+                "y": 313.59375,
                 "width": 342,
-                "height": 200.8125,
+                "height": 216.8125,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
@@ -1083,10 +1085,10 @@
               {
                 "id": "rsvp-confirm",
                 "missing": false,
-                "x": 259.59375,
-                "y": 463.40625,
-                "width": 75.40625,
-                "height": 28,
+                "x": 247.59375,
+                "y": 455.40625,
+                "width": 87.40625,
+                "height": 44,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
@@ -1094,10 +1096,10 @@
               {
                 "id": "rsvp-cancel",
                 "missing": false,
-                "x": 184.09375,
-                "y": 463.40625,
-                "width": 67.5,
-                "height": 28,
+                "x": 160.09375,
+                "y": 455.40625,
+                "width": 79.5,
+                "height": 44,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
@@ -1115,11 +1117,11 @@
                   "id": "rsvp-confirm-dialog",
                   "rect": {
                     "left": 24,
-                    "top": 321.59375,
+                    "top": 313.59375,
                     "right": 366,
-                    "bottom": 522.40625,
+                    "bottom": 530.40625,
                     "width": 342,
-                    "height": 200.8125
+                    "height": 216.8125
                   },
                   "inside": true
                 }
@@ -1127,8 +1129,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/rsvp-confirm-dialog-open.png",
-              "sha256": "013927dccbe8529de96a6485a185872f9c1f0e0b53d3ae2c73c347ed621f08f8",
-              "bytes": 40287,
+              "sha256": "ced654692f7278adfcc57c1e5940e53dc6d6d4b425ec383559dc61bcb9130e0d",
+              "bytes": 41156,
               "approval": "pending-human-review"
             }
           }
