@@ -1,7 +1,7 @@
 {
   "appId": "rbac",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:e77928228cf735fe7e28b972af99acc18574cb8ac4ffb796dd3c5826121105d7",
+  "bundleHash": "snapback.v1:sessions:function:sha256:2f25fb9f4c4864ef417c3c82f7b124916cf6478941f8f9015905f71840dce5ef",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -387,7 +387,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:358128bb4f05034bfd98f56557e63d5486056302114cd7d1169c29fdad28cace",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:71a74da39d0e0551a96c20008a2f69d592567a28c78d2936db49c5960d4281d2",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

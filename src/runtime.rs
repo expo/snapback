@@ -486,6 +486,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         output: QueryOutput {
             rows,
             version: invocation.db().current_version()?,
+            cursor: None,
         },
         read_dependencies: invocation.reads,
     })
@@ -1155,6 +1156,7 @@ impl<'a> IbexHostContext<'a> {
                     }
                     QueryOutput {
                         version: storage_output.version,
+                        cursor: None,
                         rows: self.merge_buffered_into_query(
                             &plan,
                             storage_output.rows,

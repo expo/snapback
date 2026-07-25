@@ -5830,7 +5830,14 @@ pub struct AuthorizedLeaseQueryResponse {
 
 impl AuthorizedLeaseQueryResponse {
     fn from_parts(output: QueryOutput, authorized_lease: AuthorizedLease) -> Self {
-        let QueryOutput { version, rows } = output;
+        // A retained authorized snapshot is decode-only (LLP 0080 §4): a
+        // relational continuation cursor never rides the lease envelope, so
+        // it is deliberately dropped here rather than silently flattened in.
+        let QueryOutput {
+            version,
+            rows,
+            cursor: _,
+        } = output;
         Self {
             version,
             rows,
@@ -19816,6 +19823,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_STORAGE_VERSION_CORRUPT"
         | "SNAPBACK_STORAGE_VERSION_EXHAUSTED"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        // LLP 0080 §2: a full page must carry its continuation, so an
+        // unmintable cursor is a transient serving failure, not a terminal
+        // page silently lied about.
+        | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -20023,6 +20034,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_UNKNOWN_INDEX"
         | "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"
+        // LLP 0080 §2: one uniform cursor refusal for all six classes —
+        // malformed, cross-plan, cross-argument-set, cross-authority,
+        // stale-authority, order-schema-invalid — never repositioned.
+        | "SNAPBACK_RELATIONAL_CURSOR_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
@@ -32214,6 +32229,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
         "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+        "SNAPBACK_RELATIONAL_CURSOR_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
@@ -32404,6 +32420,7 @@ globalThis.__snapbackHandlers = {
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
@@ -32475,6 +32492,10 @@ globalThis.__snapbackHandlers = {
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
+        // from validated cursors, so a field/order mismatch reaching storage
+        // is a server bug, never a client class.
+        "SNAPBACK_QUERY_KEYSET_INVALID",
         // LLP 0092 §0D.2 atomic entry-evaluation failure.
         "SNAPBACK_BUNDLE_QUERY_FAILED",
         "SNAPBACK_ACTION_HOST_MISSING",

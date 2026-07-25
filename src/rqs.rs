@@ -52,6 +52,14 @@ pub const RESUME_WITNESS_MAX_WIRE_BYTES: usize = 1024 * 1024;
 pub const RESUME_KEYRING_FILE_NAME: &str = "resume-keyring.json";
 
 const MAC_DOMAIN: &str = "snapback.resume-token.v1";
+/// Relational-cursor wire prefix (LLP 0080 §2: opaque and versioned).
+pub const RELATIONAL_CURSOR_WIRE_PREFIX: &str = "sbrc1";
+/// Maximum accepted relational-cursor wire size in bytes.
+pub const RELATIONAL_CURSOR_MAX_WIRE_BYTES: usize = 1024;
+/// Staleness backstop for presented relational cursors (same window as
+/// resume tokens; an over-age cursor refuses like any other invalid cursor).
+pub const RELATIONAL_CURSOR_MAX_AGE_MS: u64 = RESUME_TOKEN_MAX_AGE_MS;
+const RELATIONAL_CURSOR_MAC_DOMAIN: &str = "snapback.relational-cursor.v1";
 const ROW_HASH_TAG: &[u8] = b"snapback-rqs-row-v1\0";
 const LEAF_TAG: &[u8] = b"snapback-rqs-leaf-v1\0";
 const XOF_TAG: &[u8] = b"snapback-rqs-xof-v1\0";
@@ -706,6 +714,128 @@ pub fn mint_token_wire(key: &[u8], key_id: &str, body: &ResumeTokenBody) -> Stri
 }
 
 // ---------------------------------------------------------------------------
+// Relational pagination cursor (LLP 0080 §2)
+// ---------------------------------------------------------------------------
+
+/// The opaque relational continuation body. The cursor binds the app, the
+/// plan, the normalized non-cursor arguments, the order schema, and the
+/// caller's authority partition — all folded into `binding` — and carries the
+/// last consumed root's order-key values (which may include fields the
+/// application projection does not expose; the MAC is what keeps them
+/// opaque). `deny_unknown_fields` is safe because only the minting server
+/// family decodes its own cursors; new fields require `sbrc2`.
+///
+/// @ref LLP 0080#2-portable-evaluation-semantics — the cursor is opaque and
+///   versioned; a malformed, cross-plan, cross-argument-set,
+///   authority-crossing, or order-schema-invalid cursor is refused with
+///   `SNAPBACK_RELATIONAL_CURSOR_INVALID`, never repositioned.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RelationalCursorBody {
+    pub app: String,
+    /// `sha256:` digest over the canonical binding object (app, plan,
+    /// normalized non-cursor args, order schema, authority partition).
+    pub binding: String,
+    /// Order-key values of the last consumed root, aligned 1:1 with the
+    /// plan's order fields; `null` marks a null/absent component.
+    pub boundary: Vec<Value>,
+    /// The `_id` tie-break of the last consumed root.
+    pub id: String,
+    pub issued_at: u64,
+}
+
+fn relational_cursor_mac(key: &[u8], key_id: &str, body: &RelationalCursorBody) -> HmacSha256 {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    put_string(&mut mac, RELATIONAL_CURSOR_MAC_DOMAIN);
+    put_string(&mut mac, key_id);
+    put_string(&mut mac, &body.app);
+    put_string(&mut mac, &body.binding);
+    put_u64(&mut mac, body.boundary.len() as u64);
+    for value in &body.boundary {
+        // Boundary values are canonical JSON scalars; a non-canonicalizable
+        // value was refused at mint time, so this frame is total here.
+        put_string(&mut mac, &jcs(value).unwrap_or_default());
+    }
+    put_string(&mut mac, &body.id);
+    put_u64(&mut mac, body.issued_at);
+    mac
+}
+
+/// Mint the wire cursor. Returns `None` when a boundary value cannot be
+/// canonicalized (non-finite or unsafe numbers) or the wire form would
+/// exceed the size cap — the caller must fail closed rather than serve a
+/// full page without its continuation.
+pub fn mint_relational_cursor(
+    key: &[u8],
+    key_id: &str,
+    body: &RelationalCursorBody,
+) -> Option<String> {
+    for value in &body.boundary {
+        if jcs(value).is_err() {
+            return None;
+        }
+    }
+    let body_value = serde_json::to_value(body).ok()?;
+    let body_json = jcs(&body_value).ok()?;
+    let mac = relational_cursor_mac(key, key_id, body).finalize().into_bytes();
+    let wire = format!(
+        "{RELATIONAL_CURSOR_WIRE_PREFIX}.{key_id}.{}.{}",
+        URL_SAFE_NO_PAD.encode(body_json.as_bytes()),
+        URL_SAFE_NO_PAD.encode(mac)
+    );
+    (wire.len() <= RELATIONAL_CURSOR_MAX_WIRE_BYTES).then_some(wire)
+}
+
+/// The one relational-cursor refusal. Deliberately cause-free: the six
+/// refusal classes of LLP 0080 §2 all answer with one byte-identical
+/// `SNAPBACK_RELATIONAL_CURSOR_INVALID`, so no layer may produce
+/// distinguishable causes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RelationalCursorRefusal;
+
+/// Decode and cryptographically verify a presented relational cursor.
+/// Semantic admission (binding digest, boundary-versus-order-schema
+/// validation) is the caller's.
+pub fn decode_and_verify_relational_cursor(
+    token_wire: &str,
+    keyring: &ResumeKeyring,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<RelationalCursorBody, RelationalCursorRefusal> {
+    const REFUSED: RelationalCursorRefusal = RelationalCursorRefusal;
+    if token_wire.len() > RELATIONAL_CURSOR_MAX_WIRE_BYTES {
+        return Err(REFUSED);
+    }
+    let mut parts = token_wire.split('.');
+    let (Some(prefix), Some(key_id), Some(body_part), Some(mac_part), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Err(REFUSED);
+    };
+    if prefix != RELATIONAL_CURSOR_WIRE_PREFIX || ResumeKeyId::parse(key_id).is_err() {
+        return Err(REFUSED);
+    }
+    let body_bytes = URL_SAFE_NO_PAD.decode(body_part).map_err(|_| REFUSED)?;
+    let mac_bytes = URL_SAFE_NO_PAD.decode(mac_part).map_err(|_| REFUSED)?;
+    if mac_bytes.len() != 32 {
+        return Err(REFUSED);
+    }
+    let body: RelationalCursorBody = serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
+    let key = keyring.verification_key(key_id, now_ms).map_err(|_| REFUSED)?;
+    relational_cursor_mac(key.secret.as_ref(), key_id, &body)
+        .verify_slice(&mac_bytes)
+        .map_err(|_| REFUSED)?;
+    if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
+        return Err(REFUSED);
+    }
+    Ok(body)
+}
+
+// ---------------------------------------------------------------------------
 // Resume keyring (separate ring and file from the auth keyring)
 // ---------------------------------------------------------------------------
 
@@ -862,6 +992,17 @@ impl ResumeKeyring {
     /// The active minting key.
     pub fn active(&mut self, now_ms: u64) -> Option<(String, Zeroizing<[u8; 32]>)> {
         self.rotate_if_due(now_ms);
+        let index = self.active_index()?;
+        let key = &self.keys[index];
+        Some((key.key_id.clone(), key.secret.clone()))
+    }
+
+    /// The active minting key without the rotation side effect — for mint
+    /// sites that hold only a shared reference (relational-cursor minting on
+    /// the read lanes). Rotation cadence is owned by the `&mut` resume-token
+    /// mint path; a slightly overdue key still verifies inside the retired
+    /// overlap window, so skipping rotation here is availability-neutral.
+    pub fn active_current(&self) -> Option<(String, Zeroizing<[u8; 32]>)> {
         let index = self.active_index()?;
         let key = &self.keys[index];
         Some((key.key_id.clone(), key.secret.clone()))

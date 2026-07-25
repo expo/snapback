@@ -3275,6 +3275,13 @@ pub struct QueryOutput {
     #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
+    /// Relational continuation cursor (LLP 0080 §2): present exactly when a
+    /// `root-window-v1` page consumed its full `take` of authorized roots.
+    /// Opaque and versioned; presenting it back as the `cursor` argument
+    /// resumes from the last consumed root. Absent for every non-relational
+    /// query and for terminal pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
