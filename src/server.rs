@@ -69,8 +69,8 @@ use crate::local::{
     live_stream_text,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AuthInput, AuthMode, CtxAnswerLedger, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
+    ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, CtxAnswerLedger,
+    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
 };
@@ -4823,10 +4823,10 @@ impl ConnectionRegistry {
         grant_id: &str,
     ) -> Option<BoundConnectionTerminalCapture> {
         let mut state = self.lock();
-        if !state
+        if state
             .grants
             .get(connection_id)
-            .is_some_and(|record| record.grant_id == grant_id)
+            .is_none_or(|record| record.grant_id != grant_id)
         {
             return None;
         }
@@ -9042,6 +9042,52 @@ fn sender_proof_subprotocol(headers: &HeaderMap) -> Result<Option<String>, Snapb
     Ok(proof)
 }
 
+/// The `{name}` segment of a generated function-invocation route, extracted
+/// from the raw request path. Hosted admission consults this only after
+/// `canonical_external_uri` has rejected `%`-encoding, backslashes, doubled
+/// slashes, and dot segments, so the raw segment cannot spell one function
+/// name for the middleware and a different one for the handler's decoded
+/// `Path` extractor.
+fn function_invocation_route_name(spec: RouteSpec, path: &str) -> Option<&str> {
+    let name = match spec.path {
+        "/query/{name}" => path.strip_prefix("/query/")?,
+        "/query/{name}/authorized-lease" => path
+            .strip_prefix("/query/")?
+            .strip_suffix("/authorized-lease")?,
+        "/mutation/{name}" => path.strip_prefix("/mutation/")?,
+        "/action/{name}" => path.strip_prefix("/action/")?,
+        _ => return None,
+    };
+    (!name.is_empty() && !name.contains('/')).then_some(name)
+}
+
+/// Whether the published function manifest proves this function-invocation
+/// request can never legitimately serve a caller with no session carrier at
+/// all, hoisting the function-level `authRequirement` into route policy for
+/// the hosted absent-carrier decision (LLP 0077 D-1).
+///
+/// Fails closed on ambiguity: only a name the published manifest statically
+/// declares `public` or `optional-user` may admit an absent carrier. An
+/// unknown name — which no caller, anonymous or authenticated, can ever
+/// invoke successfully — refuses identically to an `authenticated` one, so
+/// the pre-body refusal is not a function-existence oracle.
+///
+/// @ref LLP 0077#http-binding — an unproven sender must never cause body
+/// ingestion; the route-level policy alone cannot see function requirements.
+fn hosted_function_route_requires_session_carrier(
+    spec: RouteSpec,
+    path: &str,
+    runtime: &AppState,
+) -> bool {
+    let Some(name) = function_invocation_route_name(spec, path) else {
+        return false;
+    };
+    !matches!(
+        runtime.read.published_function_auth_requirement(name),
+        Some(AuthRequirement::Public | AuthRequirement::OptionalUser)
+    )
+}
+
 fn hosted_route_may_present_session(spec: RouteSpec, effective: EffectiveRoutePolicy) -> bool {
     spec.path != "/auth/family-alarm"
         && (matches!(
@@ -9110,6 +9156,7 @@ fn sender_admission_response(
     response
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn charge_hosted_sender_attempt(
     runtime: &AppState,
     throttle: crate::auth::deployment::HostedAuthenticationThrottle,
@@ -9227,6 +9274,7 @@ async fn charge_hosted_body_auth_attempt(
 /// @ref LLP 0077#http-binding — canonical target authority comes only from
 /// the provider-authenticated hosted target, and the SQLite replay/nonce cut
 /// completes before any body poll.
+#[allow(clippy::too_many_arguments)]
 async fn admit_hosted_sender_request(
     spec: RouteSpec,
     effective: EffectiveRoutePolicy,
@@ -9333,10 +9381,16 @@ async fn admit_hosted_sender_request(
         return Ok(None);
     }
     let presented = presented_session_bearer(&headers);
+    // @ref LLP 0077#http-binding — D-1: the function-level closed
+    // `authRequirement` is hoisted into the route-policy decision here, so an
+    // absent carrier on a route that can never legitimately serve an
+    // anonymous caller refuses before any body poll instead of deferring to
+    // the post-parse function-authority gate.
+    let requires_session_carrier = effective.credential_resolution
+        == CredentialResolution::RequiredSessionBearer
+        || hosted_function_route_requires_session_carrier(spec, request_uri.path(), runtime);
     let bearer = match presented {
-        PresentedSessionBearer::Absent
-            if effective.credential_resolution != CredentialResolution::RequiredSessionBearer =>
-        {
+        PresentedSessionBearer::Absent if !requires_session_carrier => {
             if spec.path == "/connection/open" {
                 charge_hosted_sender_attempt(
                     runtime,
@@ -20450,7 +20504,15 @@ mod tests {
     }
 
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
+        auth_runtime_fixture_with(mode, |_| {})
+    }
+
+    fn auth_runtime_fixture_with(
+        mode: PolicyAuthMode,
+        prepare: impl FnOnce(&mut LocalSnapback),
+    ) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
+        prepare(&mut snapback);
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
             snapback.auth_database_mut(),
@@ -26251,6 +26313,210 @@ globalThis.__snapbackHandlers = {
             response_json(denied).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_THROTTLED",
         );
+    }
+
+    /// Hosted sessions fixture with published functions across the closed
+    /// `authRequirement` range: `listNotes`/`appendNote` are `authenticated`
+    /// (the LLP 0077 D-1 probe shape), `listOptionalNotes` keeps the
+    /// `optional-user` default, and `listPublicNotes` is declared `public`.
+    fn hosted_function_route_state() -> AppState {
+        let (mut state, _) = auth_runtime_fixture_with(PolicyAuthMode::Sessions, |snapback| {
+            snapback
+                .apply_schema(SchemaManifest {
+                    tables: vec![TableManifest {
+                        name: "notes".to_owned(),
+                        fields: vec![FieldManifest {
+                            name: "text".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        }],
+                        indexes: Vec::new(),
+                        syncable: true,
+                        permission_backing: false,
+                        permission_fields: None,
+                        membership: None,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .expect("apply hosted function fixture schema");
+            let notes_query = || {
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                }))
+            };
+            let mut authenticated =
+                FunctionDefinition::new("listNotes", FunctionKind::Query, notes_query());
+            authenticated.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+            let mut append_values = BTreeMap::new();
+            append_values.insert("text".to_owned(), ValueExpr::Arg("text".to_owned()));
+            let mut authenticated_mutation = FunctionDefinition::new(
+                "appendNote",
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "notes".to_owned(),
+                        values: append_values,
+                        bind_id_as: None,
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                })),
+            );
+            authenticated_mutation.auth_requirement =
+                Some(crate::manifest::AuthRequirement::Authenticated);
+            let optional =
+                FunctionDefinition::new("listOptionalNotes", FunctionKind::Query, notes_query());
+            let mut public_query =
+                FunctionDefinition::new("listPublicNotes", FunctionKind::Query, notes_query());
+            public_query.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                bundle_hash: Some("hosted-function-route-fixture".to_owned()),
+                functions: vec![authenticated, authenticated_mutation, optional, public_query],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                !diagnostics.iter().any(|diagnostic| matches!(
+                    diagnostic.severity,
+                    crate::diagnostic::DiagnosticSeverity::Error
+                        | crate::diagnostic::DiagnosticSeverity::Fatal
+                )),
+                "hosted function fixture must load cleanly: {diagnostics:?}",
+            );
+        });
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let now_ms = state
+            .auth_provider
+            .as_ref()
+            .expect("hosted fixture provider")
+            .now_ms();
+        state
+            .with_hosted_serving_authority(hosted_serving_authority(now_ms))
+            .expect("install hosted sender authority")
+    }
+
+    /// LLP 0077 D-1 regression: on a hosted sender-gated origin, an absent
+    /// Authorization on a route whose auth requirement lives in the function
+    /// (`authRequirement: authenticated`, not route policy) must refuse with
+    /// `SNAPBACK_AUTH_REQUIRED` before any body poll. `PanicOnPollBody` is
+    /// the poisoned-body witness that the JSON parser is never reached.
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_authenticated_function_refuses_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        for path in [
+            "/query/listNotes",
+            "/query/listNotes/authorized-lease",
+            "/mutation/appendNote",
+        ] {
+            let refused = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(path)
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .body(Body::new(PanicOnPollBody))
+                        .expect("absent carrier function request"),
+                )
+                .await
+                .expect("absent carrier function response");
+            assert_eq!(refused.status(), StatusCode::UNAUTHORIZED, "{path}");
+            assert!(refused.headers().get(super::SENDER_NONCE_HEADER).is_none());
+            assert_eq!(
+                response_json(refused).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUIRED",
+                "{path}",
+            );
+        }
+    }
+
+    /// The fail-closed half of the D-1 hoist: a function name the published
+    /// manifest does not contain can never legitimately serve any caller, so
+    /// an absent carrier refuses identically to an `authenticated` function
+    /// — before the body poll, and indistinguishable from the authenticated
+    /// refusal (no function-existence oracle).
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        let refused = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/noSuchFunction")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::new(PanicOnPollBody))
+                    .expect("absent carrier unknown-function request"),
+            )
+            .await
+            .expect("absent carrier unknown-function response");
+        assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
+        assert!(refused.headers().get(super::SENDER_NONCE_HEADER).is_none());
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUIRED",
+        );
+    }
+
+    /// A malformed carrier on a function-authenticated hosted route keeps the
+    /// LLP 0077 anti-oracle shape — the keyed cover-nonce sender challenge —
+    /// and still refuses before any body poll.
+    #[tokio::test]
+    async fn hosted_malformed_carrier_on_authenticated_function_challenges_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        let challenged = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/listNotes")
+                    .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::new(PanicOnPollBody))
+                    .expect("malformed carrier function request"),
+            )
+            .await
+            .expect("malformed carrier function response");
+        assert_eq!(challenged.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            challenged
+                .headers()
+                .get(super::SENDER_NONCE_HEADER)
+                .and_then(|value| value.to_str().ok())
+                .map(str::len),
+            Some(43),
+        );
+        assert_eq!(
+            response_json(challenged).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        );
+    }
+
+    /// The load-bearing other half of the D-1 fix: functions the published
+    /// manifest statically declares `public` or `optional-user` must keep
+    /// admitting anonymous callers on the hosted origin — the hoist must not
+    /// flip genuinely anonymous-capable routes to required.
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_anonymous_capable_functions_still_admits() {
+        let router = app(hosted_function_route_state());
+        for name in ["listOptionalNotes", "listPublicNotes"] {
+            let admitted = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(format!("/query/{name}"))
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .body(Body::from(r#"{"args":{}}"#))
+                        .expect("anonymous function request"),
+                )
+                .await
+                .expect("anonymous function response");
+            assert_eq!(admitted.status(), StatusCode::OK, "{name}");
+        }
     }
 
     #[tokio::test]
