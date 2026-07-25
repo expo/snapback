@@ -1546,3 +1546,29 @@ sample may be reused.
 A3 changes no schedule, count, metric, formula, threshold, environment,
 aggregation, retry, stop, or holdout rule. A further three-attempt comparator
 stop remains red and requires a new explicit disposition.
+
+## Amendment A4 (2026-07-24) — P0c explicit context-teardown barrier
+
+The A3 replacement again completed both warmups and two samples before three
+invalid sample-three attempts. Readiness accounting was correct within every
+accepted context, but later fresh contexts could not establish their first
+subscription set. This repeatable four-context boundary identifies
+best-effort page/context closure as insufficient server-resource teardown for
+the measurement carrier. All A3 receipts are preserved and ineligible;
+Contract remains unopened and no threshold exists.
+
+A4 permits one final instrument recovery. After all observations for a cycle
+have been captured, the collector must reset the benchmark arm to zero,
+observe zero active subscriptions and zero rendered subscriber nodes, and only
+then close and dispose the browser context. Teardown happens after measurement
+and cannot alter a retained cycle value. The replacement P0a must prove the
+full churn schedule, canonical update, and zero-subscription teardown across
+two consecutive fresh contexts for both arms. It may not enable heap
+instrumentation or retain performance data.
+
+The replacement P0b receipt must bind the A4 P0a before P0c restarts at warmup
+one. No A2 or A3 warmup/sample may be reused. Schedules, metrics, formulas,
+thresholds, environment, aggregation, invalid-run policy, and holdout order
+remain unchanged. If A4 reaches the three-attempt comparator stop, the v2
+instrument is unavailable for this phase and the program records a red
+measurement disposition rather than authorizing another recovery amendment.
