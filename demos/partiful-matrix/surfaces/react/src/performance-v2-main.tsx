@@ -84,8 +84,6 @@ async function boot() {
         delivery?: ProviderDelivery,
       ) => void,
     ) {
-      activeSubscriptions += 1;
-      activityEpoch += 1;
       let disposed = false;
       const subscription = await provider.subscribe<Row>(
         name,
@@ -97,6 +95,11 @@ async function boot() {
           publish(rows, connection, delivery);
         },
       );
+      // "Active" means a retained provider handle exists. Counting the
+      // asynchronous attempt before it resolves lets a rapid reset advance
+      // while starts are still in flight, contaminating later teardown.
+      activeSubscriptions += 1;
+      activityEpoch += 1;
       return {
         rows: subscription.rows,
         dispose() {

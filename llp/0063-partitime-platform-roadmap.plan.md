@@ -1517,3 +1517,32 @@ two warmups, seven samples, count permutations, p95 method, 110% comparator
 formulas, five conjunctive metrics, invalid-run rules, environment pins, or
 holdout order. Any further comparator failure remains subject to the same
 three-attempt stop rule and requires a new preserved-artifact disposition.
+
+## Amendment A3 (2026-07-24) — P0c asynchronous-readiness recovery
+
+The A2 recovery proved both arms at eight subscriptions, then the governed
+React comparator completed both warmups and two samples before stopping on
+three invalid attempts in sample three. The retained receipts show no accepted
+sample-three observation: rapid count transitions timed out while settling
+from larger to smaller subscription sets. The two earlier sample receipts and
+both warmups are preserved but ineligible for any replacement aggregate.
+Contract remained unopened and no threshold was derived.
+
+The defect is again confined to benchmark accounting. The React adapter
+incremented `activeSubscriptions` before the asynchronous provider handle
+resolved. A cycle could therefore advance while starts were still in flight;
+later unmount and late-handle disposal then raced subsequent counts. A3 permits
+one prospective correction: increment the benchmark counter only after the
+provider handle resolves, preserving production adapter behavior and the
+underlying query, actor, backend, and product workload.
+
+Before P0c restarts, the replacement P0a must run both arms through a complete
+literal subscription-count transition schedule, including growth, shrinkage,
+zero, and the canonical eight-subscription update. It still may not enable the
+heap profiler or retain any performance observation. The replacement P0b
+receipt must bind that P0a. P0c then restarts from warmup one; no A2 warmup or
+sample may be reused.
+
+A3 changes no schedule, count, metric, formula, threshold, environment,
+aggregation, retry, stop, or holdout rule. A further three-attempt comparator
+stop remains red and requires a new explicit disposition.
