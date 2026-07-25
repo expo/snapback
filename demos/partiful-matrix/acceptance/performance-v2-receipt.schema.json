@@ -638,6 +638,8 @@
               "arm",
               "activeSubscriptions",
               "settledSchedule",
+              "contextsVerified",
+              "teardownActiveSubscriptions",
               "apiMethods",
               "beforeGraceStatus",
               "afterGraceStatus",
@@ -671,6 +673,12 @@
                     32
                   ]
                 }
+              },
+              "contextsVerified": {
+                "const": 2
+              },
+              "teardownActiveSubscriptions": {
+                "const": 0
               },
               "apiMethods": {
                 "type": "array",

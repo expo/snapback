@@ -30,9 +30,9 @@
       {
         "repository": "ccheever/snapback",
         "path": "llp/0063-partitime-platform-roadmap.plan.md",
-        "revision": "2e0b01e68cc37bed3e166f05ad8f1fbb5a6b8463",
-        "sha256": "49f5ea83f3664fe768ce1953dc30d46c11bee8b5c6cf0142fedfa0a583839237",
-        "amendment": "A3"
+        "revision": "0b652a542bccbbd50498fce45812e6c163bfba84",
+        "sha256": "b11907ef79417a07617c428b9375840fcc3ad7f26cab64121002a5d48e1044e6",
+        "amendment": "A4"
       }
     ],
     "preservedV1": {
@@ -272,7 +272,7 @@
   "phaseRules": {
     "P0a": {
       "entry": "the three authority amendments are content-bound and v1 remains unchanged",
-      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, immutable pre-fix correctness evidence, and the A3 prospective asynchronous-readiness recovery identity; the replacement P0a correctness witnesses must exercise both react:snapback and contract:snapback through a complete literal growth/shrinkage/zero subscription schedule and one canonical eight-subscription update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
+      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, immutable pre-fix correctness evidence, and the A4 final context-teardown recovery identity; the replacement P0a correctness witnesses must exercise both react:snapback and contract:snapback through two fresh contexts containing a complete literal growth/shrinkage/zero subscription schedule, one canonical eight-subscription update, and an observed zero-subscription teardown, but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
       "exit": "protocol/schema/collector digests and the P0a entry receipt are committed and mirrored before the P0b repair merge"
     },
     "P0b": {
