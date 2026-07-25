@@ -7,9 +7,9 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "2369f9fec69d8aefd8b4fe6814c0526d7031caa08194b53f9d3fea0a10065c34",
+  "inputsHash": "a7c5837ec329890b7c8ebaccaec29e85368d48118fed37a9bb36a9f297b9b462",
   "portabilityFlags": [],
-  "schemaHash": "sha256:5a9326b148af6a75",
+  "schemaHash": "sha256:dcf2cd16404ddae4",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -133,6 +133,11 @@
           "field_type": "String",
           "name": "pageKey",
           "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "effectMayHaveExecuted",
+          "optional": true
         }
       ],
       "indexes": [

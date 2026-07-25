@@ -5,7 +5,18 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (third model-family review round — Fable READY, Codex
+**Revised:** 2026-07-24 (protocol amendment v0.5 — the fixture-reconciliation
+slice only, prospective, before any timed sample: the authored reference
+pattern adopts LLP 0076's host-owned StreamAttemptV1 control plane (attempt
+token on fetchStream, host settle with the durable winner recorded
+verbatim), the messages schema gains the optional read-only
+`effectMayHaveExecuted` mirror (decision 2; `requiredSettlementKinds`
+unchanged), the instrument grows to seven checks with the certainty-mirror
+witness (7/7 PASS), the decision-5 idempotency downgrade is recorded, and
+the generated-CRUD cross-user write expectations track LLP 0065's Accepted
+anti-probing `SNAPBACK_ROW_NOT_FOUND` posture. The open author decisions
+elsewhere in this Spec — pins, comparator topology, program ownership —
+are deliberately untouched.) 2026-07-23 (third model-family review round — Fable READY, Codex
 NOT READY — produced protocol amendment v0.3: rubric anchors now block timed
 runs and evidence reveal, not just scoring; the warmup wording is per-arm in
 both artifacts; generic `reprioritize` returns the named gap to LLP 0063 for
@@ -49,8 +60,8 @@ checkpoint before implementation changes the surfaces it measures. It is the
 delegated protocol slice anticipated by LLP 0063, not a replacement for LLP
 0063's program-wide comparison protocol. The machine-readable authority is
 [`demos/competitive-checkpoint/acceptance/protocol.v0.json`](../demos/competitive-checkpoint/acceptance/protocol.v0.json)
-(amendment v0.4, sha256
-`0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4`; a change
+(amendment v0.5, sha256
+`c2a9c3f022a62bb51bd29417a3867ffd84a3f6fa53caf4e41656625a40e810de`; a change
 to that file requires a dated amendment entry there and a refreshed pin here).
 Current implementation evidence and nonclaims live in
 [`implementation-status.v0.json`](../demos/competitive-checkpoint/acceptance/implementation-status.v0.json);

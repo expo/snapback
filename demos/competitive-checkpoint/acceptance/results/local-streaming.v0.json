@@ -5,10 +5,10 @@
   "targetIdentitySource": "GET /inspect targetProfileId",
   "capabilityManifestSha256": "fb6dd8a37f278336115e50be14c4f85cfff47d7e9b3e62a01016e07ebf5a067c",
   "title": "competitive checkpoint / local streamed actions",
-  "passed": 6,
+  "passed": 7,
   "skipped": 0,
   "failed": 0,
-  "total": 6,
+  "total": 7,
   "ok": true,
   "results": [
     {
@@ -66,9 +66,18 @@
         "failed": "failed",
         "ambiguous": "ambiguous"
       }
+    },
+    {
+      "name": "terminal rows mirror the host-derived effect certainty",
+      "ok": true,
+      "details": {
+        "cancelled": true,
+        "timed_out": true,
+        "ambiguous": true
+      }
     }
   ],
-  "expectedChecks": 6,
+  "expectedChecks": 7,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }

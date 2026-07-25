@@ -45,7 +45,7 @@ const client = new SnapbackClient(server.baseUrl, server.clientOptions);
 // and the receipt pins the manifest digest it was derived from.
 const servedIdentity = await deriveServedTargetIdentity(server.baseUrl);
 const cleanups = [() => source.close(), () => server.stop()];
-const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 6 });
+const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 7 });
 let conversationId;
 
 await runAcceptance(suite, async () => {
@@ -101,7 +101,11 @@ await runAcceptance(suite, async () => {
         userId: GRACE,
         args: { id: conversationId, title: 'stolen', model: 'stolen' },
       }),
-      'SNAPBACK_ROW_NOT_VISIBLE',
+      // @ref LLP 0065#3-common-pattern-contracts — the Accepted
+      // anti-probing posture (protocol amendment v0.5): a cross-user write
+      // refuses with the same code and body as a missing row, so a caller
+      // probing another user's ids learns nothing.
+      'SNAPBACK_ROW_NOT_FOUND',
       'other actor update must fail closed',
     );
     // @ref LLP 0065#2-the-v1-visibility-floor — cross-user delete refusal is part of the
@@ -111,7 +115,7 @@ await runAcceptance(suite, async () => {
         userId: GRACE,
         args: { id: conversationId },
       }),
-      'SNAPBACK_ROW_NOT_VISIBLE',
+      'SNAPBACK_ROW_NOT_FOUND',
       'other actor delete must fail closed',
     );
     assertEqual(
@@ -263,6 +267,32 @@ await runAcceptance(suite, async () => {
     assertEqual(ambiguousResult.result.outcome, 'ambiguous', 'POST ambiguity settlement');
     assertEqual((await attemptRow(ambiguous.attemptId, ADA)).status, 'ambiguous', 'durable ambiguous status');
     return { failed: 'failed', ambiguous: 'ambiguous' };
+  });
+
+  // @ref LLP 0076#author-decisions--2026-07-23 — decisions 2 and 3, authorized
+  // for this fixture by protocol amendment v0.5: the authored row mirrors the
+  // HOST-derived effect certainty read-only. Every one of these attempts
+  // passed `initiation_possible` (the cancel and timeout legs observed
+  // response metadata; the ambiguous leg lost transport after initiation), so
+  // each terminal row must carry the effect-may-have-executed fact.
+  await suite.check('terminal rows mirror the host-derived effect certainty', async () => {
+    const facts = {};
+    for (const [label, key] of [
+      ['cancelled', 'cancel-1'],
+      ['timed_out', 'timeout-1'],
+      ['ambiguous', 'ambiguous-1'],
+    ]) {
+      const replayed = await startReply(key, 'reread');
+      const row = await attemptRow(replayed.attemptId, ADA);
+      assertEqual(row.status, label, `terminal status for ${key}`);
+      assertEqual(
+        row.effectMayHaveExecuted,
+        true,
+        `host certainty mirror for ${key} (initiation was host-provable)`
+      );
+      facts[label] = row.effectMayHaveExecuted;
+    }
+    return facts;
   });
 }, {
   cleanups,

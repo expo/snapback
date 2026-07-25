@@ -9,7 +9,7 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-18
+reviewed: 2026-07-24
 reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
 ---
 
@@ -119,6 +119,19 @@ keep a UI quiet.
 Await or return every asynchronous branch whose outcome matters. The runtime
 treats an unhandled detached rejection as a handler failure; it cannot be
 reclassified as successful settlement by replacing reachable Promise hooks.
+
+## Stream a response
+
+Consuming an upstream response incrementally — an AI token stream, a large
+export — is its own bounded surface with its own limits, attempt control
+plane, and diagnostic codes. See
+[streamed actions](./streamed-actions.md) for the whole pattern:
+`ctx.fetchStream`, the one-pull-per-cursor reader, the
+`ctx.streamAttempt` lease/settlement surface, the v1 limits (1 MiB total,
+16 KiB reads, 64 KiB buffering, 30 s wall, 5 s idle, 4 cursors, ten
+progress commits per second), and every `SNAPBACK_ACTION_STREAM_*` refusal.
+Stream diagnostics name this section as their repair anchor; the page above
+is the repair.
 
 ## Anti-patterns
 

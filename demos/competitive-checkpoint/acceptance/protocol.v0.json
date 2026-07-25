@@ -49,6 +49,20 @@
         "SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED is renamed to SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED. The rename lands together with the LLP 0076 streamed-action implementation (attempt control plane / host rate fence), which updates the frozen fixture's authored handler in the same change; until that lands, the fixture's existing authored code stands and no retained receipt names either code.",
         "Receipts and analysis MUST treat the two spellings as the same diagnostic across the rename boundary; a retained receipt is never rewritten for the rename alone."
       ]
+    },
+    {
+      "version": "v0.5",
+      "date": "2026-07-24",
+      "prospective": true,
+      "reason": "LLP 0076 landed its StreamAttemptV1 control plane, write-ahead initiationState, and author decisions 2/3/5 on main; LLP 0065 reached Accepted with the anti-probing standard-pattern posture. The fixture's authored pattern and instrument are reconciled with both BEFORE any timed sample has run; no baseline is rewritten and no retained receipt is touched. This amendment is deliberately scoped to fixture reconciliation only: the open author decisions elsewhere in LLP 0075 (pins, comparator topology, program ownership) are untouched.",
+      "changes": [
+        "The authored reference pattern adopts the host-owned StreamAttemptV1 control plane: streamReply obtains the host attempt via ctx.streamAttempt.start keyed by the server-issued authored attemptId, binds the upstream request with attemptToken (LLP 0076 decision 3), settles through ctx.streamAttempt.settle, and records the host's committed durable winner verbatim when it differs from local inference. The fence-critical identity, single-runner lease, and terminalizer live on the host record; the authored messages row remains the application-visible settlement surface.",
+        "requiredSettlementKinds is UNCHANGED (the five kinds): the host-derived effect certainty is retained evidence, not a sixth kind. The messages schema gains the optional read-only mirror column effectMayHaveExecuted (LLP 0076 decision 2); mutations may adopt the host-derived value exactly once onto an already-terminal row and never compute it themselves.",
+        "The instrument grows from six to seven checks: the new 'terminal rows mirror the host-derived effect certainty' check asserts the cancelled, timed_out, and ambiguous terminal rows each carry effectMayHaveExecuted=true (initiation was host-provable in all three legs). expectedChecks: 7.",
+        "Idempotency (LLP 0076 decision 5, recorded here as the rename was in v0.4): a bare authored upstreamIdempotent assertion no longer confers retry semantics — safe methods are idempotent by grammar and everything else downgrades to non-idempotent until a deployment-pinned provider declaration exists. The fixture is behaviorally unaffected: its GET leg is idempotent by method and its POST leg already asserts false.",
+        "Cross-user write refusals in the generated-CRUD check now expect SNAPBACK_ROW_NOT_FOUND, matching LLP 0065's Accepted anti-probing posture (a cross-user write refuses with the same code and body as a missing row). This tracks the shipped generated-pattern contract; the visibility floor itself is unchanged.",
+        "Scope note reconciling LLP 0076's ledger remark: the generated-reference-only rule governs the client arm's app-data calls; the authored handler's nested host-side ctx.runMutation-by-name is the shipped server authoring surface and is inside this protocol's fixture as-is."
+      ]
     }
   ],
   "strategy": "llp/0074-convex-competitive-strategy.rfc.md",
