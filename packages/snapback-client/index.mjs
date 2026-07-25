@@ -193,9 +193,12 @@ export const LIVE_SOCKET_KINDS = Object.freeze({
   EPHEMERAL_ACK: 'ephemeral_ack',
   EPHEMERAL_ERROR: 'ephemeral_error',
   EPHEMERAL: 'ephemeral',
-  // Server-side fallback for a non-UTF-8 durable payload; the kit has no
-  // recovery beyond the resync the next drain forces, so it is knowingly
-  // ignored (the schema gate lists it as acknowledged-unhandled).
+  // Server-side fallback for a non-UTF-8 durable payload. Its outbox lease
+  // was already released at socket handoff, so the update is unrecoverable
+  // in place and no drain will re-deliver it while the socket owns the
+  // outbox — dispatch synthesizes a connection-wide clear-retained resync
+  // instead of ignoring the frame (dispatchDurableBytesFrame;
+  // issues/closed/20260724-durable-bytes-silent-staleness.md).
   DURABLE_BYTES: 'durable_bytes',
   // LLP 0077 decision 5: the first server frame on a sender-proof-gated
   // upgrade delivers the successor nonce in band (a browser cannot read the
@@ -6488,6 +6491,10 @@ class LiveStreamManager {
     ) {
       return; // uncorrelated control frames only refresh lastActivityMs
     }
+    if (frame.kind === LIVE_SOCKET_KINDS.DURABLE_BYTES) {
+      dispatchDurableBytesFrame(this, frame);
+      return;
+    }
     // Every fan-out below is isolated per consumer (ENG-23391): #dispatch
     // runs inside an async 'message' listener, so an uncaught consumer throw
     // would both starve the remaining consumers of this frame and escape as
@@ -6655,6 +6662,38 @@ function routeDurableLaneFrame(consumers, frame) {
   // capture was attached before routing and must remain available to every
   // consumer's compare-and-commit gate.
   for (const consumer of [...(consumers?.ephemeral ?? [])]) deliverIsolated(consumer, frame);
+}
+
+// A durable payload that failed UTF-8 decoding server-side arrives as a
+// durable_bytes socket frame, and its outbox lease was already released at
+// the WebSocket handoff — the update is gone and cannot be re-drained, and
+// which subscription it belonged to is unrecoverable from the raw bytes.
+// Recovery is therefore connection-wide: synthesize the same clear-retained
+// resync shape the server emits for outbox poison, driving every durable
+// handle through fresh snapshot-with-subscribe and blanking every ephemeral
+// overlay via the cross-lane routing above
+// (issues/closed/20260724-durable-bytes-silent-staleness.md).
+//
+// @ref LLP 0093#d3--protocol-visible-lifecycle-facts — fact 2b: ignoring
+//   durable_bytes is non-conformant; the required transition is forced resync.
+// Conformance-relevant surface: the sentinel SHAPE and reason constant
+// (clients may observe the synthesized frame). dispatchDurableBytesFrame
+// is exported plumbing for the kit's own tests — do not bind to it.
+export const DURABLE_BYTES_RESYNC_REASON = 'durable_bytes_undecodable';
+export function durableBytesResyncSentinel() {
+  return {
+    kind: LIVE_DURABLE_KINDS.RESYNC_REQUIRED,
+    reason: DURABLE_BYTES_RESYNC_REASON,
+    clear_retained: true,
+  };
+}
+export function dispatchDurableBytesFrame(stream, frame) {
+  // Raw frame to external onDurable listeners (unchanged observability);
+  // the synthetic sentinel — carrying the stream's authority capture, like
+  // every frame the socket listener marks — to the lane registry.
+  for (const listener of [...stream.durableListeners]) deliverIsolated(listener, frame);
+  const sentinel = markAuthorityCapture(durableBytesResyncSentinel(), stream.authorityCapture);
+  routeDurableLaneFrame(stream.client.__laneConsumers?.get(stream.connectionId), sentinel);
 }
 
 function liveStreamReadinessError(code, message) {

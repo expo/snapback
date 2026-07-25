@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (v0.7 — see Revision history)
+**Revised:** 2026-07-24 (v0.9 — see Revision history)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
 
 > Not to be confused with LLP 0075, "Convex checkpoint protocol," which is a
@@ -21,7 +21,7 @@ drain wrapper in `src/ephemeral.rs`), exported to committed JSON Schemas
 drift gates on both
 the Rust side (`tests/artifact_schemas_v0.rs`) and the JS side
 (`demos/_kit/tests/live-wire-schema.mjs`), plus exact wire-shape tests
-(`src/live_wire.rs:394-616`; they pin names, casing, tags, and values via
+(`src/live_wire.rs:481-820`; they pin names, casing, tags, and values via
 `serde_json::Value`, not serialized byte order). What does not exist is the **external-implementer
 view**: no document a Swift or Kotlin author could build a client from, no
 conformance definition for what "a Snapback client" must do, and no statement
@@ -89,7 +89,7 @@ polling loops; every non-JS consumer reverse-engineered the wire format from
 - The "2-second polling" figure was a misreading of the autodemo *send*
   delay (`ChatStore.swift:35`, `main.dart:147`). The real polling cadences —
   700 ms gateway polls, the JS kit's own 1.5 s drain fallback
-  (`DEFAULT_POLL_CADENCE_MS`, `packages/snapback-client/index.mjs:86-92`) —
+  (`DEFAULT_POLL_CADENCE_MS`, `packages/snapback-client/index.mjs:113`) —
   are exactly the "declared polling semantics" no document declares.
 - LLP 0051 (Draft) already states the schema-side version of the gap: live
   wire kinds are hand-mirrored in JS
@@ -138,6 +138,10 @@ clients before the spec has survived one.
 ## What exists today (inventory the spec must cover)
 
 The follow-on Specs document this surface; the RFC pins its extent.
+(Line-number citations throughout are refreshed against origin/main
+`e1edbbc1`; where the fleet's landing cadence has moved them since,
+the named symbol is authoritative — follow-on Specs should cite
+file + symbol, with lines as courtesy.)
 
 **Routes** (all governed by LLP 0031's taxonomy): `POST /connection/open`;
 `POST /live/{name}/{subscribe,resume,unsubscribe}`;
@@ -152,7 +156,7 @@ and the `/ephemeral/*` family (LLP 0013). There is no SSE lane. The route surfac
 **not arm-uniform**: `POST /live/{name}/resume` is local-arm only (the
 Cloudflare gateway forwards `subscribe|unsubscribe`, per LLP 0090), the
 hosted `/outbox/{id}` verifies the grant and intentionally returns an empty
-batch (`cloudflare/src/coordinator.js:1269-1279`, declared in the hosted
+batch (`cloudflare/src/coordinator.js:1763`, declared in the hosted
 capability manifest), and the follow-on Specs must carry an explicit
 arm × route matrix, including the admin/testing seams (D3.1).
 
@@ -166,14 +170,14 @@ wrapper), defined in `src/ephemeral.rs:1406` with the wrapper asymmetry
 noted at `live_wire.rs:33-35`.
 
 **Versioning that already exists**: the `snapback.v1` stream subprotocol
-(`src/server.rs:5385`), four exact-match must-understand capability axes with
+(`src/server.rs:5456`), four exact-match must-understand capability axes with
 header-or-subprotocol carriers (`src/auth/handshake.rs:20-120` — auth-client,
 auth-invalidation, authority-descriptor, authorized-lease), the
 sender-constrained `snapback.sender-constrained.v2` strings (LLP 0077), and
 the doctrine LLP 0064 (Draft) pins: exact tokens, synchronous refusal on
 unknown versions, a new token for any incompatible change. One enforcement
 gap matters: the server *echoes* `snapback.v1` when offered
-(`src/server.rs:16419-16424`) but does not require the offer.
+(`src/server.rs:16938`) but does not require the offer.
 
 **The gotcha ledger** — load-bearing facts currently living only in code
 comments, all normative in the spec:
@@ -188,16 +192,16 @@ comments, all normative in the spec:
    entries are selected without removal, acknowledged/removed only once
    ownership transfer is accepted, and retained/released — possibly
    redelivered — on cancellation before the cut
-   (`llp/0059…:1415-1479`, `src/server.rs:18464-18590`). It is destructive
+   (`llp/0059…:1415-1479`, `src/server.rs:19009`). It is destructive
    from the client's perspective only *after* acknowledgement; clients must
    be duplicate-tolerant across cancelled drains.
 4. `resume_live` exists server-side but the JS kit never calls it; socket
    loss drops the connection's durable subscriptions and reconnect re-enters
    via fresh `subscribe_live` with `supersedes`
-   (`packages/snapback-client/index.mjs:78-84`).
+   (`packages/snapback-client/index.mjs:102`).
 5. `live_delta` is opt-in-by-analysis: ordered, limit-saturated, and
    membership/semi-join queries silently ride `live_replace`
-   (`src/live_matcher.rs:616-700`). Clients must treat delta-vs-replace as
+   (`src/live_matcher.rs:622-706`). Clients must treat delta-vs-replace as
    the server's choice, always.
 6. `resync_required.reason` is deliberately an open string, not an enum
    (`live_wire.rs:74-78`); the `request_id` alias is accepted only on the
@@ -268,12 +272,12 @@ is a Public, identity-free compatibility route (LLP 0031's matrix) that
 carries no grant to inherit a version from — it rides route stability
 like the finite routes. The finite routes (`/query`, `/mutation`,
 `/action`) carry no connection grant today
-(`packages/snapback-client/index.mjs:3347-3353`) and are governed by
+(`packages/snapback-client/index.mjs:3435-3443`) and are governed by
 route stability plus the additive-fields policy — not by the
 connection-bound version. Receipts are owned precisely, with one honest
 seam: the typed `Receipt` union today rides only `/mutation` responses;
 the subscribe/unsubscribe outputs carry `receipt` as untyped
-`Option<Value>` (`src/local.rs:642,744`), so the subscription receipt is
+`Option<Value>` (`src/local.rs:674,774`), so the subscription receipt is
 currently an **untyped compatibility seam**. P-0 types both fields as
 `Option<Receipt>` and regenerates the schemas — only then is the shared
 union a ratified claim, evolving under the stricter connection-scoped
@@ -290,12 +294,12 @@ Server→client: new *optional fields* on existing envelopes, and new
 for this purpose). Client→server the wire is **heterogeneous today**, and
 the policy states it honestly rather than assuming closure: the handshake
 and invalidation-ack DTOs are closed (`deny_unknown_fields` —
-`OpenConnectionRequest`, `src/server.rs:4071`;
-`AuthorizationInvalidationAckInput`, `src/local.rs:754`), sessions-mode
+`OpenConnectionRequest`, `src/server.rs:4072`;
+`AuthorizationInvalidationAckInput`, `src/local.rs:785`), sessions-mode
 socket requests decode a third, auth-mode-dependent closed family
-(`SessionLiveSocketClientMessage`, `src/server.rs:17658`), while the
+(`SessionLiveSocketClientMessage`, `src/server.rs:18204`), while the
 subscribe/resume/unsubscribe bodies, `HandlerInput`
-(`src/manifest.rs:2629`), and the generated dev-mode socket message are
+(`src/manifest.rs:2937`), and the generated dev-mode socket message are
 **open decoders** that silently ignore unknown client fields. The rule is the same
 either way — a new client-sent field is **never** an ungated addition; it
 requires a capability proof, a compatible fallback, or a new version — but
@@ -307,8 +311,8 @@ closure, fallback semantics — by route, transport, and auth mode) and
 decides which families stay open; closing an open DTO changes observable
 behavior and needs its own blast-radius evidence. The matrix covers
 **both directions**: several server→client families are closed today too
-(`AuthorizationInvalidationSnapshot`, `src/live_wire.rs:106-108`;
-`AuthorizationInvalidationAckOutput`, `src/local.rs:760-764` — their
+(`AuthorizationInvalidationSnapshot`, `src/live_wire.rs:128-136`;
+`AuthorizationInvalidationAckOutput`, `src/local.rs:792-796` — their
 schemas say `additionalProperties: false`), so the schemas describe what
 current servers *emit* while the fixture corpus and abstract state
 machine define what clients must *accept*; on unknown fields the
@@ -336,8 +340,9 @@ fields as defense-in-depth, and generated decoders (a Swift enum most
 obviously) must be written tolerant — the negative fixtures in D2 enforce
 this rather than trusting prose. Tolerance is not a license for known
 kinds: `durable_bytes` carries a **required recovery transition** (D3
-fact 2b) — the JS kit's current ignore-it posture (`index.mjs:154-170`)
-is a defect this spec corrects, not a precedent. Anything else — field removal,
+fact 2b) — the JS kit's historical ignore-it posture was exactly such a
+defect, fixed alongside this revision
+(`issues/closed/20260724-durable-bytes-silent-staleness.md`). Anything else — field removal,
 casing changes, tag changes, wrapper changes — mints `snapback.v2` and
 follows LLP 0064's migration doctrine. The committed schemas describe the
 current kind set (closed `oneOf` unions); tolerance is a client conformance
@@ -353,17 +358,17 @@ client family and `authorization_namespace` on the subscribe body,
 `src/local.rs:623-626`); the exact wire-shape tests are
 illustrative. Where prose disagrees with any of these, prose loses; where
 schema and served bytes disagree, that is a drift-gate defect, not a spec
-question. The existing exact wire-shape tests (`live_wire.rs:394-616`) are
+question. The existing exact wire-shape tests (`live_wire.rs:481-820`) are
 representative, not exhaustive; the fixture corpus (D2) becomes the
 committed conformance corpus — complete over the specified behavior
 classes, not exhaustive over all valid schema values — including a
 fixture for the `durable_bytes` recovery transition (a known kind with a
 required action, distinguished from a genuinely unknown future kind). Its seed is honest but thin:
-`artifact_instances()` (`src/schema_export.rs:419-426`) today emits only
+`artifact_instances()` (`src/schema_export.rs:337-344`) today emits only
 the data-tier profile artifact, so P-1 extends it (or adds a wire-fixture
 generator) — it does not presently provide live-wire instances. One
 namespace note for external implementers: the committed schema `$id`s use
-`snapback.v0`, the artifact-format namespace (`src/schema_export.rs:452`),
+`snapback.v0`, the artifact-format namespace (`src/schema_export.rs:370`),
 which is distinct from and does not contradict the wire identity
 `snapback.v1`.
 
@@ -408,8 +413,8 @@ cumulative tier would forbid:
   **Lane P is local-arm-only in v1.** The hosted arm deliberately binds
   demand to socket ownership: subscribe refuses without a current socket
   session (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`,
-  `cloudflare/src/coordinator.js:3887-3893`) and the drain returns a
-  declared-empty batch (`:1269-1279`), consistent with LLP 0090's
+  `cloudflare/src/coordinator.js:4400`) and the drain returns a
+  declared-empty batch (`:1763`), consistent with LLP 0090's
   socketless-HTTP-cannot-arm-demand posture. One sanctioned exception
   exists and is owned elsewhere: LLP 0090/0092's credentialed
   `POST /app/bundle` **register mode** atomically mints the connection
@@ -443,14 +448,14 @@ unsubscribe on normal shutdown and backgrounding; exactly one drain owner
 per connection with non-overlapping drains; and defined crash behavior per
 an **arm-specific lifecycle matrix**: on both arms socket close drops the
 connection's durable subscriptions (server-side:
-`disconnect_topology_for_transport`, `src/local.rs:8907-8966`, and the
+`disconnect_topology_for_transport`, `src/local.rs:10164`, and the
 hosted teardown below; the kit comment at
-`packages/snapback-client/index.mjs:78-84` restates it); on the local arm the 120 s idle TTL (`CONNECTION_IDLE_TTL_MS`,
-`src/server.rs:14013`) additionally reaps an abandoned socketless
+`packages/snapback-client/index.mjs:102` restates it); on the local arm the 120 s idle TTL (`CONNECTION_IDLE_TTL_MS`,
+`src/server.rs:14113`) additionally reaps an abandoned socketless
 connection and releases its demand; on the hosted arm demand is released
 by the socket close/error teardown
-(`cloudflare/src/coordinator.js:4470-4487`) — the 24 h default grant TTL
-(`:101`) is grant expiry, not demand release. A
+(`webSocketClose` teardown, `cloudflare/src/coordinator.js:5062`) — the 24 h default grant TTL
+(`:141`) is grant expiry, not demand release. A
 conformant client treats reaping as the crash backstop, never the normal
 release path.
 
@@ -507,9 +512,9 @@ The spec must state, as normative client-facing contract:
    join the arm × route matrix): on the local arm,
    `POST /_snapback/api/cron/tick` and the per-job
    `POST /_snapback/api/cron/{name}/run` the existing browser suites use
-   (`src/admin.rs:1962-1978`, AdminWrite); on the hosted arm, the
+   (`src/admin.rs:1953-1985`, AdminWrite); on the hosted arm, the
    admin-gated `POST /cron/run` with `{job}` forwarded to the coordinator
-   (`cloudflare/src/gateway.js:90-104`,
+   (`cloudflare/src/gateway.js:128-135`,
    `cloudflare/src/coordinator.js:912-924`) — there is no hosted tick
    route. Documenting only one arm's seam would recreate the folklore
    problem for the other arm's test authors. The hosted route is
@@ -527,7 +532,7 @@ The spec must state, as normative client-facing contract:
    client dispatch order between them, with reattach local-arm-only in v1.
    The spec documents that split as-is, with a non-normative note that no
    first-party client currently calls reattach (the JS kit always
-   re-subscribes, `index.mjs:78-84`, and the retention window reattach
+   re-subscribes, `index.mjs:102`, and the retention window reattach
    presupposes is future work). Retirement is **not** proposed; it would be
    an explicit LLP 0090 renegotiation under LLP 0051's deprecation rules.
    **(2a) The hosted fallback blackout.** On the hosted arm the drain
@@ -536,17 +541,26 @@ The spec must state, as normative client-facing contract:
    lane for `live/hosted`, and the spec states this as a lifecycle fact.
    **(2b) `durable_bytes` requires recovery.** The frame exists so an
    undecodable durable payload is never dropped silently
-   (`src/live_wire.rs:188-191`), and its outbox lease is already released
+   (`src/live_wire.rs:280-283`), and its outbox lease is already released
    at delivery — a client that ignores it can stay silently stale while
    reporting current. The normative transition is forced resync:
    close/reconnect with fresh subscribe (or an equivalent), encoded in
    P-1's abstract state machine and fixtures. Ignoring is
-   non-conformant.
+   non-conformant. The obligation is defined by its transitions — every
+   durable subscription re-enters fresh snapshot-with-subscribe and
+   retained ephemeral overlays clear; the kit's in-place poison sentinel
+   is the reference behavior and a socket bounce achieving the same
+   transitions is a permitted equivalent. The sentinel's reason string
+   (`durable_bytes_undecodable`) is client-synthesized, never
+   wire-emitted. (Implemented in the kit alongside this revision:
+   `dispatchDurableBytesFrame`; regression-durable-bytes-resync.mjs
+   covers both halves; the dispatch-wiring test seam is follow-up
+   `issues/20260725-durable-bytes-dispatch-test-seam.md`.)
 3. **Drain semantics are the 0059 leased-batch contract.** The
    ownership-transfer cut and duplicate-tolerance rule (inventory item 3),
    cadence, batch bounds (`MAX_OUTBOX_DRAIN_BATCH=64`), backlog/overflow
    behavior (`outbox_overflow` → connection-wide resync, `clear_retained`),
-   and the 64 MiB handoff/retention budgets (`src/ephemeral.rs:798-839`)
+   and the 64 MiB handoff/retention budgets (`src/ephemeral.rs:798`)
    are spec facts.
 4. **Delta is the server's choice.** Clients implement both paths and never
    infer query shape from which arrives.
@@ -608,7 +622,7 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   hand-mirrored frames LLP 0051 §D4 lists — landed through the schema
   drift gates. The socket-refusal change lands on **both arms** (the
   hosted coordinator independently echoes-only-when-offered,
-  `cloudflare/src/coordinator.js:4055`). Before enabling refusal, P-0
+  `cloudflare/src/coordinator.js` `acceptKitSocket` subprotocol echo). Before enabling refusal, P-0
   records the blast-radius check — starting from the enumerable
   population of the repo's own non-kit socket consumers (acceptance
   suites, demo gateways) — of whether any consumer today offers no wire
@@ -624,8 +638,8 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   grant expiry, pinning whether recovery refreshes only the grant or
   re-establishes every subscription); also retires the stale
   destructive-drain comments the 0059 change left behind
-  (`packages/snapback-client/index.mjs:3692-3697`,
-  `src/server.rs:18459-18463`).
+  (`packages/snapback-client/index.mjs:3846`,
+  `src/server.rs:19004`).
 - **P-2 — Swift client** (`poll/local` → `live/local` → `live/hosted`),
   with its own plan/diary and the
   spec-defect ledger from D4's discipline.
@@ -662,15 +676,14 @@ version carrier (bound at `/connection/open`; see D1).
 5. **Mandatory profiles for hosted production**: which auth profiles, if
    any, a hosted-arm production client must offer (P-3 owns the contract;
    the floor is a product decision).
-6. **Hosted root system surface vs LLP 0031**: the hosted arm serves
-   system operations at the root — `/cron/run` and `/cron/status`
-   (`cloudflare/src/gateway.js:90-105`), plus further system-flavored
-   root routes (`/config/status`, `/host-call`, `/reset`, `/evict`, the
-   `/__test/*` family); the enumeration is non-exhaustive and P-0's
-   audit is driven by the gateway's actual route set. Migrate the class
-   into the reserved `/_snapback/*` namespace, or amend LLP 0031 with a
-   justified provider-specific exception? (D3.1 records the conflict;
-   P-0 records the outcome for the whole class.)
+6. ~~Hosted root system surface vs LLP 0031~~ — **DECIDED (author,
+   2026-07-25): migrate.** The hosted arm's root-level system operations
+   (`/cron/run`, `/cron/status`, `cloudflare/src/gateway.js:128-135`;
+   plus `/config/status`, `/host-call`, `/reset`, `/evict`, the
+   `/__test/*` family — non-exhaustive, audit driven by the gateway's
+   actual route set) move under the reserved `/_snapback/*` namespace;
+   no LLP 0031 exception is minted. Execution is P-0 scope, tracked by
+   `issues/20260725-hosted-root-system-routes-migration.md`.
 
 ## Alternatives considered
 
@@ -747,9 +760,8 @@ version carrier (bound at `/connection/open`; see D1).
   made non-exhaustive over the hosted root system surface; citation and
   fixture-scope corrections.
 
-- **v0.7 (2026-07-24) — UNREVIEWED.** Round-6 fixes applied after the
-  author-extended budget closed; no review round has examined this
-  revision. Server→client closure authority reconciled (P-0 closure
+- **v0.7 (2026-07-24)** — Round-6 fixes applied after the
+  author-extended budget closed; first examined (and passed) in Round 7. Server→client closure authority reconciled (P-0 closure
   matrix made bidirectional; schemas describe emitted instances, the
   fixture corpus and state machine define the acceptance grammar;
   `authInvalidationProtocol`'s degrade-to-legacy asymmetry added to the
@@ -758,5 +770,28 @@ version carrier (bound at `/connection/open`; see D1).
   escape hatches" narrowed; wire-shape test naming corrected; grant-loss
   recovery fixtures and the all-consumers absent-offer gate added to
   P-0/P-1; 0091/0092 Draft status recorded; citation precision fixes.
+
+- **v0.9 (2026-07-24)** — the `durable_bytes` recovery transition is now
+  implemented (kit fix + regression test landed with this revision;
+  issues/closed/20260724-durable-bytes-silent-staleness.md), and the D1
+  sentence describing the kit's ignore posture updated to past tense.
+  Numbering note: **v0.8** is a concurrent additive amendment riding the
+  0074-tranche branch (`e969973b` — guide minimal-client recipe and
+  dev-mode-posture deliverables, labeled unreviewed there); this
+  main-side entry is numbered around it so the histories interleave
+  without collision when that branch lands.
+
+- **v0.10 (2026-07-25) — post-convergence.** Round 7 reached dual-READY
+  on v0.9; this entry applies the round's mechanical resolutions and one
+  author decision, none touching normative wire semantics: line-number
+  citations refreshed against `e1edbbc1` with a symbol-authoritative
+  convention noted; the v0.7 history label corrected (first examined in
+  Round 7); fact 2b's transition class pinned (in-place sentinel is
+  reference behavior, socket bounce a permitted equivalent;
+  client-synthesized reason string); former OQ6 decided by the author —
+  hosted root system routes migrate under `/_snapback/*`, tracked by
+  issues/20260725-hosted-root-system-routes-migration.md. When the
+  0074-tranche branch lands its v0.8, the tranche lander owns the
+  history interleave (this side is numbered around it).
 
 Review artifacts: `llp/reviews/0093-client-protocol-and-native-clients.{fable,codex}.md`.

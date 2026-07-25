@@ -556,3 +556,72 @@ The direction is strong, but server→client closure authority and `durable_byte
 **Convergence claim, scoped:** pre-existing (pre-loop) text was never the subject of a MATERIAL concern by either family in any of the five delta rounds; the one loop-internal PRE-EXISTING Moderate was resolved and re-verified. All remaining NOT READY substance was introduced-and-fixed churn within the loop's own revisions, with v0.7 the unreviewed fix of the final two Moderates.
 
 **Proposed next step (author applies):** stay in **Review**. Options remain: accept the asymmetry record as-is; commission a single further delta round on v0.7 to clear its unreviewed label (the v0.7 delta is small: 12 targeted edits); or revert to Draft. Growth disclosure: 302 lines at loop entry → 762 at v0.7 (~2.5×), driven throughout by Major/Moderate resolutions demanding real contract decisions.
+
+## Round 7 — 2026-07-25 (cleanup delta round; author-authorized)
+
+**Round record (persisted before launch):** the author authorized one cleanup round to clear v0.7's unreviewed label; it also covers the v0.9 working-tree amendment (durable_bytes kit fix cross-references) and the companion kit change itself. Target: worktree of origin/main at `e1edbbc1` plus working-tree changes; document sha256 `6f38b858157ef08c46d4b669fa6897b6a6bbb492d0d5ad60a622add197ccc249` (v0.9). Concurrent v0.8 amendment on the 0074-tranche branch (`e969973b`) is explicitly out of scope. Topology unchanged (Fable fresh subagent / Codex `gpt-5.6-sol` high effort, mutually blind, instruction-based blindness self-attested; both confined to the review worktree); instruction file sha256 prefix `3bba07f50c2b26ab`; reviser: orchestrator.
+
+**Revision under review:** sha256 `6f38b858157ef08c46d4b669fa6897b6a6bbb492d0d5ad60a622add197ccc249` (MATCH per reviewer's own check; worktree HEAD `e1edbbc1`)
+**Verdict:** READY — 1 Minor [IN-DELTA] (citation refresh vs moved HEAD); companion kit fix verified including an in-process probe of the #dispatch interception
+
+### Review body (verbatim)
+
+## 1. Revision check
+
+**MATCH** — SHA-256: `6f38b858157ef08c46d4b669fa6897b6a6bbb492d0d5ad60a622add197ccc249`
+
+Worktree HEAD: `e1edbbc1`
+
+## 2. Overall assessment
+
+LLP 0093 is a coherent direction RFC with a well-bounded follow-on Spec strategy. Its versioning, arm-specific conformance, lifecycle, and authority decisions align with LLPs 0031, 0034, 0043, 0049, 0051, 0053, 0059, 0064, and 0090–0092.
+
+The companion `durable_bytes` fix implements D3 fact 2b correctly. The managed socket message listener marks the received frame with its authority capture before reaching `#dispatch` (`packages/snapback-client/index.mjs:6313-6320`); the interception is reachable and precedes generic durable fan-out (`:6479-6521`). `dispatchDurableBytesFrame` preserves the raw frame for external durable listeners, creates a connection-wide `resync_required` sentinel with `reason: durable_bytes_undecodable` and `clear_retained: true`, propagates the stream authority capture, and routes it through the production lane registry (`:6667-6694`). `routeDurableLaneFrame` delivers that same sentinel to durable consumers and, because it is connection-wide and clear-retained, to ephemeral consumers (`:6651-6665`).
+
+The regression imports the package implementation through the kit’s re-export rather than copying its logic (`demos/_kit/tests/regression-durable-bytes-resync.mjs:40-47`), directly exercises the production dispatch helper (`:70-101`), and drives a real live handle’s production registry/resubscribe path (`:103-140`). An additional in-process managed-WebSocket probe exercised the actual message-listener → private `#dispatch` interception successfully. Syntax checks and the isolated production helper check passed. The complete server-backed regression could not run in this read-only review environment because its server harness requires `mkdtemp`, which failed with `EPERM`.
+
+## 3. Strengths
+
+1. The RFC separates wire-shape authority from behavioral acceptance cleanly. Serde remains ground truth, schemas describe emitted shapes, fixtures and the abstract state machine define tolerant client acceptance, and prose loses on conflict (`llp/0093-client-protocol-and-native-clients.rfc.md:217-225`, `:286-369`). This resolves the server-emission/client-acceptance asymmetry without weakening capability gating.
+
+2. Version negotiation is directional and migration-aware. Known, unknown, absent, legacy-server, and open-versus-closed DTO behavior are distinguished rather than flattened into a generic “additive fields are safe” rule (`:227-347`). The bidirectional closure audit and explicit `authInvalidationProtocol` asymmetry are particularly valuable (`:305-330`).
+
+3. Conformance is modeled as core plus sibling lanes and orthogonal auth profiles, with machine-readable arm × lane tuples instead of misleading global claims (`:376-490`). The local-only poll lane and unclaimable `poll/hosted` gap match the current hosted ownership contract.
+
+4. The lifecycle section captures operationally important protocol facts rather than only message shapes: subscriptions arm billable demand, socket loss destroys durable subscriptions, hosted delivery has no drain fallback, and leased-drain ownership is duplicate-tolerant before the transfer cut (`:496-555`). D3 fact 2b correctly recognizes that silently ignoring `durable_bytes` permits permanent false-current state (`:538-547`).
+
+5. The companion implementation composes with LLP 0059’s authority and cross-lane recovery rules. It uses the existing authority-capture mechanism and the same connection-wide clear-retained routing shape already required by LLP 0059, rather than creating a parallel recovery channel.
+
+6. Rollout staging is appropriately scoped for a direction RFC. P-0 owns wire/version mechanics, P-1 owns the abstract state machine and fixtures, P-2 proves the document with Swift, and P-3 handles auth profiles (`:603-641`). The fixture inventory includes arm mismatches, grant loss, malformed batches, unknown fields/kinds, and the known-kind `durable_bytes` recovery distinction (`:478-490`, `:621-631`).
+
+## 4. Concerns
+
+1. **(Minor) [IN-DELTA] Several delta-touched source citations no longer resolve to the named definitions in the reviewed HEAD.** The evolution-policy citations at lines 293–320 point to old locations: `AuthorizationInvalidationAckInput` is now at `src/local.rs:783-788`, `HandlerInput` at `src/manifest.rs:2936-2958`, `SessionLiveSocketClientMessage` at `src/server.rs:18199-18229`, `AuthorizationInvalidationSnapshot` at `src/live_wire.rs:128-136`, and `AuthorizationInvalidationAckOutput` at `src/local.rs:790-794`. The new D3 citation at RFC line 539 points to `src/live_wire.rs:188-191`, while `DurableBytes` is at `:280-283`. The companion ticket likewise cites obsolete locations for emission and handoff; its `src/server.rs:17569-17580` range now covers liveness handling rather than the outbox ownership cut.
+
+   **Resolution:** Refresh the delta-touched citations against HEAD `e1edbbc1`. For the handoff claim, cite the `outbox_lease.try_commit` ownership transfer in `src/server.rs:17155-17173` together with the live-drain call site at `:18114-18131`; update the emission citation to `src/local.rs:14215-14223`. Prefer symbol-qualified references alongside line numbers where practical so subsequent additive type growth is less misleading.
+
+## 5. Suggestions (non-blocking)
+
+1. Add a package-level fake-WebSocket regression that feeds `durable_bytes` through the managed stream’s actual message listener. The present test correctly exercises production helpers and the real recovery registry, but removing the `#dispatch` interception itself would not make that test fail.
+
+2. Extend the unit assertion to prove authority-capture propagation, ideally by exercising a fenced consumer or exposing a test-only observation seam for the non-enumerable capture.
+
+3. Clarify lines 415–423 that register mode is the one contractually sanctioned socketless-demand exception, but the current hosted arm still refuses register mode per LLP 0092’s step-4 amendment; only the local-arm implementation presently realizes that exception.
+
+## 6. Open questions for the author
+
+None material.
+
+## 7. Verdict
+
+**READY**
+
+No unresolved material correctness, coherence, feasibility, safety, or decision-quality concern remains; the citation refresh and suggested test hardening are non-blocking.
+
+## Loop close-out (Round 7) — 2026-07-25
+
+**CONVERGED: dual-READY on one revision.** Round 7 — the author-authorized cleanup round — returned READY from both families on v0.9, sha256 `6f38b858157ef08c46d4b669fa6897b6a6bbb492d0d5ad60a622add197ccc249` (worktree of origin/main `e1edbbc1` plus the companion durable_bytes kit fix). This is the loop's primary stopping condition, reached after 7 rounds and 10 revisions; it also clears v0.7's unreviewed label (Fable R7 examined the v0.6→v0.7 delta in full) and reviews the v0.9 kit-fix amendment and its companion code. Both reviewers verified the fix independently — Codex with an in-process probe of the `#dispatch` interception, Fable by executing the regression suite (3/3) in the review worktree.
+
+**Post-convergence revision v0.10** (sha256 `b30d12f63cd4cb63397826f6634436baf8927db7b6b8b29a1fed41053cf7494c`) applies the round's resolutions, all in the directions the reviewers themselves prescribed, plus one author decision: mechanical citation refresh against `e1edbbc1` with a symbol-authoritative convention (Codex C1 / Fable C2-C3); v0.7 history label corrected (Fable C4); fact 2b's transition equivalence class pinned with the kit sentinel as reference behavior and the reason string marked client-synthesized (Fable suggestions 1 and 3); the dispatch-wiring test seam filed as `issues/20260725-durable-bytes-dispatch-test-seam.md` (Fable C1's own resolution); and former OQ6 decided by the author on 2026-07-25 — hosted root system routes migrate under `/_snapback/*`, tracked by `issues/20260725-hosted-root-system-routes-migration.md`. No normative wire semantics changed post-convergence; v0.10 is unreviewed in the formal sense but consists of enumerated reviewer resolutions and a recorded author decision.
+
+**Final status:** LLP 0093 remains **Review** with a dual-READY record on v0.9; acceptance is the author's call (this loop never sets it). The concurrent v0.8 amendment on the 0074-tranche branch (`e969973b`) remains out of scope; its lander owns the history interleave.
