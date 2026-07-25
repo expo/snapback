@@ -255,12 +255,37 @@ async function main() {
         : `fell back: ${feedRow.lastError}`
   );
   const liveDepartures = await client.query('liveDepartures', {});
+  // Outside Caltrain service hours (nights, early weekend mornings) the real
+  // upstream legitimately reports ZERO monitored visits, so an honest live
+  // commit writes zero departure rows — that is the timetable, not a failure
+  // of the live path the previous check just proved. Soft-pass that window,
+  // and only that window. The zero-service determination is deliberately
+  // narrow and fails closed: the refresh must have gone through the live path
+  // (liveWorked pins lastSource to '511-siri-stop-monitoring', so fallbacks
+  // and fetch failures never reach it), the board must hold zero rows, and
+  // either the committed refresh's own mechanical note reports 0 visits
+  // ("mapped 0 departures from 0 511 visits" — refresh.result carries no
+  // structured count today, and the deployed app predates any such field, so
+  // parse the note and treat a non-matching note as NOT zero-service) or, for
+  // a budget-guarded reuse of another poll's commit (which has no note), the
+  // committed row carries no mapping error — the handler records an explicit
+  // lastError exactly when visits > 0 mapped to zero departures. Whenever
+  // visits > 0, the future-departure assertion below stays fully enforced.
+  const noteVisits = refreshCommitted
+    ? Number((String(refresh.result.note || '').match(/^mapped \d+ departures from (\d+) 511 visits$/) || [])[1])
+    : NaN;
+  const zeroServiceWindow =
+    liveWorked &&
+    liveDepartures.rows.length === 0 &&
+    (refreshCommitted ? noteVisits === 0 : refreshBudgeted && (feedRow.lastError ?? '') === '');
   check(
     'live 511 refresh writes real future departure rows',
     liveWorked &&
-      liveDepartures.rows.length > 0 &&
-      liveDepartures.rows.some((row) => row.predictedDepartureMs > Date.now()),
-    `${liveDepartures.rows.length} liveDepartures rows`
+      (zeroServiceWindow ||
+        (liveDepartures.rows.length > 0 && liveDepartures.rows.some((row) => row.predictedDepartureMs > Date.now()))),
+    zeroServiceWindow
+      ? 'skipped-no-service: 0 monitored 511 visits (outside service hours), live path proven by the refresh commit check'
+      : `${liveDepartures.rows.length} liveDepartures rows`
   );
   check(
     'surfaced diagnostics stay key-redacted',
@@ -292,12 +317,18 @@ async function main() {
     route = await client.action('routeEstimate', {
       args: { fromLat: 37.7764, fromLng: -122.3947, toLat: 37.4443, toLng: -122.1637, mode: 'walk' },
     });
-    if (route.ok === true && route.result.source === 'openrouteservice') break;
+    if (route.ok === true && route.result?.source === 'openrouteservice') break;
   }
+  // An action-timeout envelope is ok:false with a diagnostic and NO result
+  // (observed live during an ORS outage, 2026-07-25): the detail must not
+  // dereference result unconditionally or the suite crashes with a TypeError
+  // instead of failing this check cleanly. The condition itself is unchanged.
   check(
     'directions key usage returns a live route estimate',
-    route.ok === true && route.result.source === 'openrouteservice' && route.result.minutes > 0,
-    `${route.result.source}, ${route.result.minutes}min`
+    route.ok === true && route.result?.source === 'openrouteservice' && route.result.minutes > 0,
+    route.result
+      ? `${route.result.source}, ${route.result.minutes}min${route.result.error ? ` — ${route.result.error}` : ''}`
+      : `no result: ${route.diagnostic?.code || JSON.stringify(route)}`
   );
 
   // --- eviction surrogate + rehydration ------------------------------------
