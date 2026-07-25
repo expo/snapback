@@ -259,6 +259,13 @@
       "minimum": 0,
       "type": "integer"
     },
+    "completedAtMs": {
+      "default": 0,
+      "description": "Wall time of the final journal entry — the freshness anchor the\nproduction admission checks against the profile's rehearsal max age.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
     "errorCode": {
       "type": [
         "string",
@@ -298,6 +305,10 @@
         "integer",
         "null"
       ]
+    },
+    "rehearsal": {
+      "description": "§7: a rehearsal execution's journal and receipt are marked; a\nrehearsal receipt can never satisfy or replay as production apply.",
+      "type": "boolean"
     },
     "state": {
       "$ref": "#/$defs/MigrationExecState"

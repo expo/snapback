@@ -787,6 +787,9 @@ pub enum MigrateCommand {
         db: PathBuf,
         #[arg(long)]
         dry_run: bool,
+        /// §7: the consumed rehearsal receipt when the plan requires one.
+        #[arg(long)]
+        rehearsal_receipt: Option<PathBuf>,
     },
     /// migrate.cancel — request cancellation at the next admitted
     /// pre-publication boundary.
@@ -6469,6 +6472,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                 backup: crate::migration::MigrationBackupRequirement {
                     required: false,
                     checkpoint_label: None,
+                    rehearsal_required: false,
                 },
                 expected_output: crate::migration::MigrationExpectedOutput {
                     schema_hash: crate::storage::migration_executor::schema_identity(&successor)?,
@@ -6559,6 +6563,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             schema,
             db,
             dry_run,
+            rehearsal_receipt,
         } => migrate_emit("migrate.apply", (|| {
             let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
             let successor: crate::manifest::SchemaManifest =
@@ -6579,10 +6584,16 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     "wouldApply": true,
                 }));
             }
-            let receipt = snapback.migrate_apply_artifact(
+            let rehearsal: Option<crate::storage::migration_executor::MigrationReceiptV1> =
+                match &rehearsal_receipt {
+                    Some(path) => Some(migrate_read_json(path, "rehearsal receipt")?),
+                    None => None,
+                };
+            let receipt = snapback.migrate_apply_artifact_with_rehearsal_receipt(
                 &approved.artifact,
                 &approved.approval,
                 &successor,
+                rehearsal.as_ref(),
             )?;
             Ok(serde_json::to_value(&receipt)?)
         })()),

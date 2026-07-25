@@ -239,9 +239,20 @@ pub struct MigrationReceiptV1 {
     pub step_results: BTreeMap<String, Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
+    /// §7: a rehearsal execution's journal and receipt are marked; a
+    /// rehearsal receipt can never satisfy or replay as production apply.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub rehearsal: bool,
+    /// Wall time of the final journal entry — the freshness anchor the
+    /// production admission checks against the profile's rehearsal max age.
+    #[serde(default)]
+    pub completed_at_ms: u64,
 }
 
 pub const MIGRATION_RECEIPT_SCHEMA_VERSION: &str = "migration-receipt-v1";
+
+/// §7's default recoverability-preflight max age: seven days.
+pub const MIGRATION_REHEARSAL_MAX_AGE_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
 
 /// The digest-sealed record of one §6 fast rollback (`generationRepublish`):
 /// the republished predecessor generation, the new application version `R`,
@@ -470,6 +481,16 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
     // idempotent, tolerated as already-present.
     match tx.execute(
         "ALTER TABLE _snapback_migration_ops ADD COLUMN rollback_receipt_json TEXT",
+        [],
+    ) {
+        Ok(_) => {}
+        Err(error) if error.to_string().contains("duplicate column name") => {}
+        Err(error) => return Err(error.into()),
+    }
+    // §7 rehearsal marking: same additive-idempotent posture as every
+    // ops-table extension.
+    match tx.execute(
+        "ALTER TABLE _snapback_migration_ops ADD COLUMN rehearsal INTEGER NOT NULL DEFAULT 0",
         [],
     ) {
         Ok(_) => {}
@@ -731,6 +752,15 @@ fn seal_receipt(
     let last = entries
         .last()
         .ok_or_else(|| journal_corrupt("an operation without journal entries".to_owned()))?;
+    let rehearsal: bool = conn
+        .query_row(
+            "SELECT rehearsal FROM _snapback_migration_ops WHERE operation_id = ?1",
+            params![operation_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .unwrap_or(0)
+        != 0;
     let entries_value = serde_json::to_value(&entries)
         .map_err(|_| journal_corrupt("journal entries do not serialize".to_owned()))?;
     let journal_jcs = crate::rqs::jcs(&entries_value)
@@ -770,6 +800,8 @@ fn seal_receipt(
             .unwrap_or(0),
         step_results,
         error_code,
+        rehearsal,
+        completed_at_ms: last.at_ms,
     })
 }
 
@@ -811,6 +843,11 @@ pub struct MigrationApplyRequest<'a> {
     pub successor_schema: &'a SchemaManifest,
     pub audience: &'a ResolvedLocalAudience,
     pub now_ms: u64,
+    /// §7 rehearsal mode: `Some` executes the production plan against the
+    /// restore-derived target the binding names — and only that target —
+    /// with the journal and receipt marked rehearsal. `None` is production
+    /// apply.
+    pub rehearsal: Option<&'a crate::migration::MigrationRehearsalPlanV1>,
 }
 
 /// The pinned schema-identity rule for audience/staleness comparison: the
@@ -845,6 +882,7 @@ impl LocalDatabase {
             successor_schema,
             audience,
             now_ms,
+            rehearsal,
         } = request;
         let predecessor_schema = self.schema.clone();
 
@@ -858,7 +896,41 @@ impl LocalDatabase {
                 "the approval binds a different plan digest; apply never regenerates a plan",
             ));
         }
-        validate_local_audience(&approval.audience, audience)?;
+        match rehearsal {
+            None => validate_local_audience(&approval.audience, audience)?,
+            Some(rehearsal_plan) => {
+                // @ref LLP 0081#7-target-safety-backup-and-secrets — the
+                //   rehearsal is not the production plan with its target
+                //   silently changed: the binding names the one
+                //   restore-derived target it may execute against, the
+                //   production approval still authorizes the plan bytes,
+                //   and the production audience deliberately does NOT bind
+                //   this instance — the binding does.
+                rehearsal_plan.validate()?;
+                if rehearsal_plan.production_plan_digest != artifact.plan_digest {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                        "storage",
+                        "the rehearsal binds a different production plan digest",
+                    ));
+                }
+                if rehearsal_plan.binding.target_profile_id != audience.target_profile_id {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                        "storage",
+                        "the rehearsal binding names a different target profile",
+                    ));
+                }
+                if rehearsal_plan.binding.isolated_database_id != audience.database_id {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                        "storage",
+                        "a rehearsal executes only against its restore-derived target; \
+                         this database is not the bound isolated target",
+                    ));
+                }
+            }
+        }
         // Replay is keyed by operationId + audience and answers BEFORE any
         // staleness comparison: a completed operation returns its prior
         // receipt even though the target now holds the successor schema
@@ -1007,8 +1079,8 @@ impl LocalDatabase {
             if !resuming {
                 tx.execute(
                     "INSERT INTO _snapback_migration_ops(operation_id, audience_json, \
-                     plan_digest, state_json, lease_epoch, cancel_requested) \
-                     VALUES(?1, ?2, ?3, ?4, ?5, 0)",
+                     plan_digest, state_json, lease_epoch, cancel_requested, rehearsal) \
+                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6)",
                     params![
                         approval.operation_id,
                         audience_json,
@@ -1016,6 +1088,7 @@ impl LocalDatabase {
                         serde_json::to_string(&MigrationExecState::Admitted)
                             .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
                         lease_epoch as i64,
+                        i64::from(rehearsal.is_some()),
                     ],
                 )?;
             } else {
@@ -3922,6 +3995,7 @@ mod tests {
             backup: MigrationBackupRequirement {
                 required: false,
                 checkpoint_label: None,
+                rehearsal_required: false,
             },
             expected_output: MigrationExpectedOutput {
                 schema_hash: schema_identity(successor).expect("successor id"),
@@ -4012,6 +4086,7 @@ mod tests {
             successor_schema: &successor,
             audience: &resolved,
             now_ms: now_millis(),
+            rehearsal: None,
         })
     }
 
@@ -4329,6 +4404,7 @@ mod tests {
                 successor_schema: &successor,
                 audience: &resolved,
                 now_ms: now_millis(),
+                rehearsal: None,
             })
             .expect_err("stale predecessor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_STALE");
@@ -4569,6 +4645,7 @@ mod tests {
                 successor_schema: &wider,
                 audience: &resolved,
                 now_ms: now_millis(),
+                rehearsal: None,
             })
             .expect("release");
         assert_eq!(released.state.kind(), "released");
@@ -4641,6 +4718,7 @@ mod tests {
             backup: MigrationBackupRequirement {
                 required: false,
                 checkpoint_label: None,
+                rehearsal_required: false,
             },
             expected_output: MigrationExpectedOutput {
                 schema_hash: schema_identity(&successor).expect("successor id"),
@@ -4669,6 +4747,7 @@ mod tests {
             successor_schema: &successor,
             audience: &resolved,
             now_ms: now_millis(),
+            rehearsal: None,
         })
     }
 

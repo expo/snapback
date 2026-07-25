@@ -38,3 +38,23 @@ publication is now a durable `Delete` disposition + authenticated scope
 retirement (see the journal-events ticket closure); unscoped retained
 state keeps the clear-retained resync. The `transformed` posture remains
 spec-deferred to its owning subsystems.
+
+**Flip-closure fixtures (2026-07-25, rehearsal slice):** the §7
+restore-derived rehearsal landed on the local profile:
+`MigrationRehearsalPlanV1` (digest binds the UNCHANGED production plan
+digest plus the binding — source backup identity, isolated database id,
+restore epoch, target profile — under
+`snapback:migration-rehearsal:v1`), `rehearsalRequired` as a canonical
+reviewed body field (skip-if-false; frozen plan vectors unchanged),
+rehearsal execution admitted ONLY against the bound restore-derived
+database (production refused `SNAPBACK_MIGRATION_REHEARSAL_INVALID`),
+journal/receipt marked rehearsal with a freshness anchor, and the
+production gate (`SNAPBACK_MIGRATION_REHEARSAL_REQUIRED` without a
+consumed fresh receipt; cross-plan/stale/unmarked receipts refuse;
+production apply still executes the original plan and its receipt never
+substitutes). CLI: `migrate apply --rehearsal-receipt`. Witness:
+`restore_derived_rehearsal_gates_production_apply`. Recorded honestly:
+receipt custody is structural on the local profile (operator file);
+control-plane receipt authentication, the LLP 0072 backup manifest
+binding, and a dedicated `migrate rehearse` CLI verb (the §2 list has no
+rehearse verb — same friction class as `release`) are 0072-lane work.

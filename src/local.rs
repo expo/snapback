@@ -11177,6 +11177,85 @@ impl LocalSnapback {
         approval: &crate::migration::MigrationApprovalV1,
         successor_schema: &SchemaManifest,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        self.migrate_apply_artifact_with_rehearsal_receipt(
+            artifact,
+            approval,
+            successor_schema,
+            None,
+        )
+    }
+
+    /// §7's rehearsal gate on production apply: a plan whose reviewed body
+    /// requires a rehearsal refuses without a consumed, fresh, complete
+    /// rehearsal receipt for the same plan digest. Receipt custody is
+    /// structural on the local profile (an operator-provided file);
+    /// control-plane receipt authentication is LLP 0072's.
+    pub fn migrate_apply_artifact_with_rehearsal_receipt(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal_receipt: Option<&crate::storage::migration_executor::MigrationReceiptV1>,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        if artifact.body.backup.rehearsal_required {
+            let Some(receipt) = rehearsal_receipt else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED",
+                    "storage",
+                    "this plan's target profile requires a restore-derived rehearsal; \
+                     execute it and present its receipt to production apply",
+                ));
+            };
+            let invalid = |detail: &str| {
+                SnapbackError::error(
+                    "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                    "storage",
+                    format!("the presented rehearsal receipt does not satisfy §7: {detail}"),
+                )
+            };
+            if !receipt.rehearsal {
+                return Err(invalid("the receipt is not marked rehearsal"));
+            }
+            if receipt.plan_digest != artifact.plan_digest {
+                return Err(invalid("the receipt binds a different plan digest"));
+            }
+            if receipt.state.kind() != "released" || receipt.error_code.is_some() {
+                return Err(invalid("the rehearsal did not complete released and clean"));
+            }
+            let age = now_millis().saturating_sub(receipt.completed_at_ms);
+            if receipt.completed_at_ms == 0
+                || age > crate::storage::migration_executor::MIGRATION_REHEARSAL_MAX_AGE_MS
+            {
+                return Err(invalid(
+                    "the rehearsal receipt is older than the profile's recoverability \
+                     preflight max age",
+                ));
+            }
+        }
+        self.migrate_apply_artifact_inner(artifact, approval, successor_schema, None)
+    }
+
+    /// Execute the production plan AS a rehearsal against this
+    /// restore-derived instance (LLP 0081 §7): the binding — not the
+    /// production approval audience — names the one database this may run
+    /// on, and the journal and receipt come back marked rehearsal.
+    pub fn migrate_rehearse_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal: &crate::migration::MigrationRehearsalPlanV1,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        self.migrate_apply_artifact_inner(artifact, approval, successor_schema, Some(rehearsal))
+    }
+
+    fn migrate_apply_artifact_inner(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+        rehearsal: Option<&crate::migration::MigrationRehearsalPlanV1>,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   publication fires LLP 0053's activation obligations for
         //   auth-scoped state: every auth-scoped subscription gets a durable
@@ -11250,6 +11329,7 @@ impl LocalSnapback {
                 successor_schema,
                 audience: &audience,
                 now_ms: now_millis(),
+                rehearsal,
             },
         )?;
         // The successor is authoritative: refresh every schema projection
@@ -16643,6 +16723,7 @@ mod tests {
             backup: MigrationBackupRequirement {
                 required: false,
                 checkpoint_label: None,
+                rehearsal_required: false,
             },
             expected_output: MigrationExpectedOutput {
                 schema_hash: identity(&successor),
@@ -16818,6 +16899,7 @@ mod tests {
                 backup: MigrationBackupRequirement {
                     required: false,
                     checkpoint_label: None,
+                    rehearsal_required: false,
                 },
                 expected_output: MigrationExpectedOutput {
                     schema_hash: identity(&successor),
@@ -16933,6 +17015,214 @@ mod tests {
                 "a refused ordering issues no DDL",
             );
         }
+    }
+
+    // @ref LLP 0081#7-target-safety-backup-and-secrets — the
+    //   restore-derived rehearsal: a plan requiring one refuses production
+    //   apply without a consumed fresh rehearsal receipt; the rehearsal
+    //   executes only against the isolated target its binding names (never
+    //   production); its journal/receipt are marked rehearsal; and the
+    //   production admission consumes the receipt while still executing
+    //   the original plan against production — the rehearsal receipt never
+    //   substitutes for the production apply receipt.
+    #[test]
+    fn restore_derived_rehearsal_gates_production_apply() {
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput,
+            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            MigrationRehearsalBindingV1, MigrationRehearsalPlanV1, RetainedWorkPosture,
+            MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_intents,
+            derive_plan_steps, new_operation_id,
+        };
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+        let instance = || {
+            let mut snapback = LocalSnapback::memory().expect("memory rehearsal fixture");
+            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            snapback
+        };
+        let sealed = |snapback: &LocalSnapback| {
+            let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+            let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+            MigrationPlanArtifactV1::seal(MigrationPlanBody {
+                schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: snapback.migrate_app_id(),
+                instance: "memory".to_owned(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash: identity(&predecessor),
+                successor_schema_hash: identity(&successor),
+                predecessor_generation: 1,
+                steps,
+                execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+                proof: MigrationProof {
+                    method: MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: MigrationCeilings {
+                    max_affected_rows: 100,
+                    max_bytes: 1024 * 1024,
+                    max_writes: 100,
+                    max_barrier_downtime_ms: 60_000,
+                },
+                compatibility_posture: CompatibilityPosture::SuccessorOnly,
+                retained_work_posture: RetainedWorkPosture::Empty,
+                backup: MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                    rehearsal_required: true,
+                },
+                expected_output: MigrationExpectedOutput {
+                    schema_hash: identity(&successor),
+                    projection_generations: BTreeMap::new(),
+                },
+                constants: MigrationConstants {
+                    publication_timestamp_ms: 2_000_000_000_000,
+                    rollback_timestamp_ms: None,
+                    values: BTreeMap::new(),
+                },
+                boundaries: Default::default(),
+            })
+            .expect("seal plan")
+        };
+        let approve = |snapback: &mut LocalSnapback, artifact: &MigrationPlanArtifactV1| {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: now_millis(),
+                expires_at_ms: now_millis() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        };
+
+        let mut production = instance();
+        let artifact = sealed(&production);
+        let approval = approve(&mut production, &artifact);
+
+        // (a) Production apply without a rehearsal receipt refuses.
+        let error = production
+            .migrate_apply_artifact(&artifact, &approval, &successor)
+            .expect_err("a rehearsal-required plan gates production apply");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED");
+
+        // The restore-derived isolated instance (the local profile's
+        // byte-copy restore stands in for LLP 0072's backup manifest).
+        let mut isolated = instance();
+        let isolated_id = isolated
+            .migrate_resolved_audience()
+            .expect("isolated audience")
+            .database_id;
+        let rehearsal = MigrationRehearsalPlanV1::seal(
+            artifact.plan_digest.clone(),
+            MigrationRehearsalBindingV1 {
+                source_backup_identity: "backup-witness-1".to_owned(),
+                isolated_database_id: isolated_id,
+                restore_epoch_ms: 1_000,
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            },
+        )
+        .expect("seal rehearsal");
+
+        // (b) The rehearsal cannot target production: executing it on any
+        // database but the bound isolated target refuses.
+        let production_approval = approve(&mut production, &artifact);
+        let error = production
+            .migrate_rehearse_artifact(&artifact, &production_approval, &successor, &rehearsal)
+            .expect_err("a rehearsal must not execute against production");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (c) Against the bound restore-derived target it executes, marked.
+        let isolated_approval = approve(&mut isolated, &artifact);
+        let rehearsal_receipt = isolated
+            .migrate_rehearse_artifact(&artifact, &isolated_approval, &successor, &rehearsal)
+            .expect("rehearsal executes against its restore-derived target");
+        assert!(rehearsal_receipt.rehearsal, "the receipt is marked rehearsal");
+        assert_eq!(rehearsal_receipt.state.kind(), "released");
+        assert!(rehearsal_receipt.completed_at_ms > 0);
+
+        // (e) A rehearsal receipt for a different plan refuses production.
+        let mut doctored = rehearsal_receipt.clone();
+        doctored.plan_digest = "0".repeat(64);
+        let error = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &approval,
+                &successor,
+                Some(&doctored),
+            )
+            .expect_err("a cross-plan rehearsal receipt refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (f) A stale rehearsal receipt refuses under the freshness policy.
+        let mut stale = rehearsal_receipt.clone();
+        stale.completed_at_ms = 1;
+        let error = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &approval,
+                &successor,
+                Some(&stale),
+            )
+            .expect_err("an over-age rehearsal receipt refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+
+        // (d) Consuming the fresh receipt, production apply still executes
+        // the ORIGINAL plan against production, and its receipt is its
+        // own — unmarked, a different operation — never the rehearsal's.
+        let fresh_approval = approve(&mut production, &artifact);
+        let production_receipt = production
+            .migrate_apply_artifact_with_rehearsal_receipt(
+                &artifact,
+                &fresh_approval,
+                &successor,
+                Some(&rehearsal_receipt),
+            )
+            .expect("production apply consumes the rehearsal receipt");
+        assert!(!production_receipt.rehearsal);
+        assert_eq!(production_receipt.state.kind(), "released");
+        assert_ne!(
+            production_receipt.operation_id, rehearsal_receipt.operation_id,
+            "the rehearsal receipt never substitutes for the production apply receipt",
+        );
     }
 
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — publication

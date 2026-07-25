@@ -394,6 +394,17 @@ pub struct MigrationBackupRequirement {
         skip_serializing_if = "Option::is_none"
     )]
     pub checkpoint_label: Option<String>,
+    /// LLP 0081 §7: the target profile names when a restore-derived
+    /// rehearsal must precede production apply. Stamped by preview from
+    /// profile policy into the canonical body, so the approver reviewed
+    /// the requirement. Skip-if-false keeps pre-rehearsal plan digests
+    /// byte-identical.
+    #[serde(
+        default,
+        rename = "rehearsalRequired",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub rehearsal_required: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1243,6 +1254,121 @@ pub const MIGRATION_OPERATION_ID_PREFIX: &str = "operation-v1:";
 /// Mint a fresh operation id. One plan may execute as different operations
 /// only through separate approvals; the id is never derived from the plan
 /// digest.
+/// The control-plane-authorized rehearsal binding (LLP 0081 §7): the
+/// source backup identity, the isolated restore-derived target, the
+/// restore epoch, and the matching target profile. On the local profile
+/// the binding is an operator record; hosted custody belongs to LLP 0072.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationRehearsalBindingV1 {
+    pub source_backup_identity: String,
+    /// The restore-derived database identity the rehearsal may execute
+    /// against — and the only one.
+    pub isolated_database_id: String,
+    pub restore_epoch_ms: u64,
+    pub target_profile_id: String,
+}
+
+/// `MigrationRehearsalPlanV1` (LLP 0081 §7): not the production plan with
+/// its target silently changed — the digest binds the UNCHANGED production
+/// plan digest plus the rehearsal binding, the rehearsal executes only
+/// against the restore-derived target, its journal and receipt are marked
+/// rehearsal, and it can never satisfy or replay as production apply.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationRehearsalPlanV1 {
+    pub schema_version: String,
+    pub production_plan_digest: String,
+    pub binding: MigrationRehearsalBindingV1,
+    /// SHA-256 (bare hex) over `snapback:migration-rehearsal:v1`, one
+    /// newline, and the JCS bytes of {schemaVersion, productionPlanDigest,
+    /// binding} — the same domain-separated preimage rule as the plan.
+    pub rehearsal_digest: String,
+}
+
+pub const MIGRATION_REHEARSAL_SCHEMA_VERSION: &str = "migration-rehearsal-v1";
+const MIGRATION_REHEARSAL_DIGEST_DOMAIN: &str = "snapback:migration-rehearsal:v1";
+
+impl MigrationRehearsalPlanV1 {
+    fn digest_of(
+        schema_version: &str,
+        production_plan_digest: &str,
+        binding: &MigrationRehearsalBindingV1,
+    ) -> SnapbackResult<String> {
+        let body = serde_json::json!({
+            "schemaVersion": schema_version,
+            "productionPlanDigest": production_plan_digest,
+            "binding": serde_json::to_value(binding).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PLAN_INVALID",
+                    "migration",
+                    "rehearsal binding does not serialize",
+                )
+            })?,
+        });
+        let jcs = crate::rqs::jcs(&body).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_MIGRATION_PLAN_INVALID",
+                "migration",
+                "rehearsal body is not canonicalizable",
+            )
+        })?;
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(MIGRATION_REHEARSAL_DIGEST_DOMAIN.as_bytes());
+        hash.update(b"\n");
+        hash.update(jcs.as_bytes());
+        Ok(hash
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect())
+    }
+
+    pub fn seal(
+        production_plan_digest: String,
+        binding: MigrationRehearsalBindingV1,
+    ) -> SnapbackResult<Self> {
+        let rehearsal_digest = Self::digest_of(
+            MIGRATION_REHEARSAL_SCHEMA_VERSION,
+            &production_plan_digest,
+            &binding,
+        )?;
+        Ok(Self {
+            schema_version: MIGRATION_REHEARSAL_SCHEMA_VERSION.to_owned(),
+            production_plan_digest,
+            binding,
+            rehearsal_digest,
+        })
+    }
+
+    /// Recompute-and-compare validation; every failure is the uniform
+    /// rehearsal refusal shape the executor maps to
+    /// `SNAPBACK_MIGRATION_REHEARSAL_INVALID`.
+    pub fn validate(&self) -> SnapbackResult<()> {
+        if self.schema_version != MIGRATION_REHEARSAL_SCHEMA_VERSION {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                "migration",
+                format!("unknown rehearsal schema version {:?}", self.schema_version),
+            ));
+        }
+        let expected = Self::digest_of(
+            &self.schema_version,
+            &self.production_plan_digest,
+            &self.binding,
+        )?;
+        if expected != self.rehearsal_digest {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
+                "migration",
+                "rehearsal digest does not match its body",
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub fn new_operation_id() -> String {
     format!(
         "{MIGRATION_OPERATION_ID_PREFIX}{}",
@@ -1632,6 +1758,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
         backup: MigrationBackupRequirement {
             required: true,
             checkpoint_label: Some("pre-vector".to_owned()),
+            rehearsal_required: false,
         },
         expected_output: MigrationExpectedOutput {
             schema_hash: "sha256:1111111111111111".to_owned(),
