@@ -4238,7 +4238,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID"),
+                .contains("SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED"),
             "{error:#}"
         );
         assert!(

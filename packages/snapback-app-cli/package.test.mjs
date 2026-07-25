@@ -146,8 +146,15 @@ try {
     '/auth/session',
     '/query/listTodosOnce',
   ]);
-  const liveSubscribe = calls.find(({ path }) => path === '/live/listTodos/subscribe');
-  assert.equal(liveSubscribe.authorization, null, 'connection-token live requests must not duplicate the bearer');
+  // @ref LLP 0059#connection-bound-authority — opening a live connection
+  // exchanges the bearer for a scoped connection grant; the subscription
+  // request must not keep transmitting the broader bearer.
+  const liveCall = calls.find(({ path }) => path === '/live/listTodos/subscribe');
+  assert.equal(
+    liveCall.authorization,
+    null,
+    'connection-token live requests must not duplicate the bearer',
+  );
   assert.equal(
     calls
       .slice(2)

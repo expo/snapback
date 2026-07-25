@@ -7,7 +7,7 @@
     {
       "name": "swiftui",
       "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-      "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be",
+      "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661",
       "schemaVersion": "partitime.native-swiftui-receipt.v1",
       "buildMode": "fresh-xcode-build",
       "buildResults": [
@@ -16,74 +16,64 @@
           "status": 0,
           "signal": null,
           "timedOut": false,
-          "stdoutSha256": "6062744083df204e269b4b0edb47bb043caba1e6a7aa912a2de33a9becca0595",
-          "stderrSha256": "6c567a6da3a2ddefeebbc17bfae21e9234c1eef8cd8b4500898e91217c1473a5",
+          "stdoutSha256": "ebf1a56af27a706d1c705a41293df8fe5bcab564c3679f6536574aba70f6ee15",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "stdoutTail": [
-            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/PartitimeSwiftUI.xcodeproj",
-            "    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+            "    /usr/bin/touch -c /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app",
             "",
-            "ProcessInfoPlistFile /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist (in target 'PartitimeSwiftUI-macOS' from project 'PartitimeSwiftUI')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
-            "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/PkgInfo -expandbuildsettings -platform macosx -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist",
+            "RegisterWithLaunchServices /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-macOS' from project 'PartitimeSwiftUI')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+            "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app",
             "",
             "** BUILD SUCCEEDED **"
           ],
-          "stderrTail": [
-            "2026-07-20 03:24:23.420 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:23.463 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
-          ]
+          "stderrTail": []
         },
         {
           "platform": "ios",
           "status": 0,
           "signal": null,
           "timedOut": false,
-          "stdoutSha256": "4d7e50e94a40c25555add49c28789e59ad74b8171440eadd31ab6203b4ab9a73",
-          "stderrSha256": "55a2d34ef0c7df61faa89871a1eae7228347438356d1b136000adc5170cf7752",
+          "stdoutSha256": "498239f1222da3572d71958f88e9bcde86c0685d50bb6f48cf23c65798add323",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "stdoutTail": [
-            "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-iOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Info.plist",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+            "    builtin-validationUtility /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app -shallow-bundle -infoplist-subpath Info.plist",
             "",
-            "CopySwiftLibs /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-iOS' from project 'PartitimeSwiftUI')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
-            "    builtin-swiftStdLibTool --copy --verbose --scan-executable /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PartitimeSwiftUI.debug.dylib --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PlugIns --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/SystemExtensions --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Intermediates.noindex/PartitimeSwiftUI.build/Debug-iphonesimulator/PartitimeSwiftUI-iOS.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os",
-            "Ignoring --strip-bitcode because --sign was not passed",
+            "Touch /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-iOS' from project 'PartitimeSwiftUI')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+            "    /usr/bin/touch -c /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app",
             "",
             "** BUILD SUCCEEDED **"
           ],
-          "stderrTail": [
-            "2026-07-20 03:24:24.317 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:24.352 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
-          ]
+          "stderrTail": []
         }
       ],
       "source": {
-        "snapbackRevision": "d6886d742c532fcba014e372ba0d4998260cfb28",
-        "exactRevision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+        "snapbackRevision": "4ce14d0ed63608422bd6f20eace7d934a5825fa6",
+        "exactRevision": "917c2a65801381969ee705132e2e96998ced856a",
         "project": {
           "files": 13,
-          "sha256": "b823f4ad421369996657504c07cd4c0f7133e6f6ea0ed9dfb5938dfe248f60c0"
+          "sha256": "a0c7390d68010cf29870fd2d06cfc35934797762309a95e518ccf4f5d57343f3"
         },
         "collectorSha256": "2c4723ae4ad5a3afb4ec93c34d56d96ab4c438373483fc6f78b69eb44984943a",
-        "gatewaySha256": "8f3bf3106f78bbcc72b6e88772f3d2e192621ea4d22d0e05ab66f32319ec0334"
+        "gatewaySha256": "7d5c95e24ec6bb45023eae9429ebe20843861bcffa9b744b4bce1952812f9f1d"
       },
       "packages": {
-        "rootLockSha256": "49e572ef633d8a3c27325af931b4bdaa101c3127e9e776ac6df9bc5330d27202"
+        "rootLockSha256": "001db06f64b13d86eb7e710b20eb1b83f4094744506827550c23b386ab6a0a7d"
       },
       "environment": {
         "os": "darwin-25.5.0-arm64",
-        "cpu": "Apple M4 Pro",
-        "logicalCpus": 12,
-        "totalMemoryBytes": 25769803776,
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "totalMemoryBytes": 137438953472,
         "xcode": [
-          "Xcode 26.3",
-          "Build version 17C529"
+          "Xcode 26.6",
+          "Build version 17F113"
         ],
-        "bun": "1.3.14",
-        "node": "v26.0.0"
+        "bun": "1.3.12",
+        "node": "v25.9.0"
       },
       "backendHealth": {
         "ok": true,
@@ -99,16 +89,14 @@
             "fixtureRows": 3
           },
           "supabase": {
-            "ok": false,
-            "skipClass": "remote-dependency",
-            "stage": "initialization",
-            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+            "ok": true,
+            "remote": true,
+            "fixtureRows": 3
           },
           "convex": {
-            "ok": false,
-            "skipClass": "remote-dependency",
-            "stage": "initialization",
-            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+            "ok": true,
+            "remote": true,
+            "fixtureRows": 3
           }
         }
       },
@@ -127,18 +115,18 @@
         }
       ],
       "binaries": {
-        "macosSha256": "b3d4f8bbc3bfd80ae44318ae5a1be3d5be7e78993e498a163b3e594fc9df5c69",
-        "iosSha256": "60cf16a6e8b07bc1a34ee9ca9bf7c154151149b68fbb2d0235cb39ff61a61399"
+        "macosSha256": "55d25ef91f84735969c5a857ea6d52a682176ea4aac46d18b8d4183e15749164",
+        "iosSha256": "8a37bc27eca1fe4cfa9b49e9a9b7279b319a5f8ca559483398fc26f87b7a201d"
       },
       "simulator": {
-        "name": "iPhone 17 Pro",
-        "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A"
+        "name": "Codex-Partitime-iOS-Safari-26.4",
+        "udid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306"
       }
     },
     {
       "name": "exact-contract",
       "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-      "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9",
+      "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66",
       "schemaVersion": "partitime.native-exact-receipt.v1",
       "buildMode": "fresh-xcode-build",
       "buildResults": [
@@ -147,27 +135,35 @@
           "status": 0,
           "signal": null,
           "timedOut": false,
-          "stdoutSha256": "706bf56bc0d945b2a0b422af0294fa9f1250542ecfdde6abad851298e87f41e4",
-          "stderrSha256": "c04169803bfdf575b910468f690840bfa4419f9f535fd27684912f2ecc809a27",
+          "stdoutSha256": "3547e21d01288856e3d47502304995345d73d7b55df5979914996d0baff4927e",
+          "stderrSha256": "8a2960c293c6c61d92725291c66d47a7cba2e060b17ab22682d906427f361b78",
           "stdoutTail": [
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app -no-validate-extension -infoplist-subpath Contents/Info.plist",
-            "RegisterWithLaunchServices /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
-            "Touch /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    builtin-validationUtility /tmp/llp0063-native-exact-final9-20260725/step0-macos/Build/Products/Debug/ExactAppMac.app -no-validate-extension -infoplist-subpath Contents/Info.plist",
+            "Touch /tmp/llp0063-native-exact-final9-20260725/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    /usr/bin/touch -c /tmp/llp0063-native-exact-final9-20260725/step0-macos/Build/Products/Debug/ExactAppMac.app",
+            "RegisterWithLaunchServices /tmp/llp0063-native-exact-final9-20260725/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/llp0063-native-exact-final9-20260725/step0-macos/Build/Products/Debug/ExactAppMac.app",
             "note: Disabling hardened runtime with ad-hoc codesigning. (in target 'ExactAppMac' from project 'ExactApp')",
             "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
             "note: Run script build phase 'Verify Embedded Evidence Link' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
             "** BUILD SUCCEEDED **"
           ],
           "stderrTail": [
-            "2026-07-20 03:22:03.608 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:03.664 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Agent\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/AppRuntime\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Debugging\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Engine\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Hermes\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/iOS\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Kernel\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/macOS\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Modules\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Platform\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Renderer\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:24:52.189 xcodebuild[52096:63617503] warning:  The file reference for \"ExactApp/Support\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path."
           ]
         },
         {
@@ -175,39 +171,47 @@
           "status": 0,
           "signal": null,
           "timedOut": false,
-          "stdoutSha256": "6f95df409c353f149ab0daa341074d4eb4f488a0f1b26922f347ad8b75974bbf",
-          "stderrSha256": "839a195a31ba461b5d0f3ee3bbf6736e02dbe2547692cd4f445063e7031abdcd",
+          "stdoutSha256": "b6fa7e3d4263ebe9a5025e2d4eac0488c270c34ac90a6f1b38ce235a1aeb1473",
+          "stderrSha256": "fad22db4710c7270d8e28a2de2246713c61d04e742b62df57d853b4b8f91726b",
           "stdoutTail": [
-            "RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    builtin-RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
-            "Validate /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app -shallow-bundle -infoplist-subpath Info.plist",
-            "Touch /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
-            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
-            "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+            "RegisterExecutionPolicyException /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    builtin-RegisterExecutionPolicyException /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+            "Validate /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    builtin-validationUtility /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app -shallow-bundle -infoplist-subpath Info.plist",
+            "Touch /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/exact/ios/ExactApp",
+            "    /usr/bin/touch -c /tmp/llp0063-native-exact-final9-20260725/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
             "note: Run script build phase 'Verify Motion Navigation Bench Router' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
             "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
             "** BUILD SUCCEEDED **"
           ],
           "stderrTail": [
-            "2026-07-20 03:22:27.542 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:27.596 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-            "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Agent\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/AppRuntime\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Debugging\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Engine\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Hermes\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/iOS\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Kernel\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/macOS\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Modules\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Platform\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Renderer\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.",
+            "2026-07-25 10:25:19.206 xcodebuild[52929:63620992] warning:  The file reference for \"ExactApp/Support\" is a member of multiple groups (\"ExactApp\" and \"\"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path."
           ]
         }
       ],
       "source": {
         "snapback": {
-          "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
-          "dirty": true,
-          "overlayEntries": 64,
-          "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+          "revision": "fbc06e422e97524e51f83cdc42083df97b36b9e2",
+          "dirty": false,
+          "overlayEntries": 0,
+          "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
         },
         "exact": {
-          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "revision": "917c2a65801381969ee705132e2e96998ced856a",
           "dirty": false,
           "overlayEntries": 0,
           "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -215,11 +219,11 @@
         "carrierProject": {
           "kind": "exact-working-tree",
           "patchId": null,
-          "files": 311,
-          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+          "files": 318,
+          "sha256": "b29307634cd3d622702e2657850a7d1d107145c58376ccf035e610171de23e43"
         },
         "exactAfterBuild": {
-          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "revision": "917c2a65801381969ee705132e2e96998ced856a",
           "dirty": false,
           "overlayEntries": 0,
           "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -227,17 +231,17 @@
         "carrierProjectAfterBuild": {
           "kind": "exact-working-tree",
           "patchId": null,
-          "files": 311,
-          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+          "files": 318,
+          "sha256": "b29307634cd3d622702e2657850a7d1d107145c58376ccf035e610171de23e43"
         },
         "snapbackAfterRun": {
-          "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
-          "dirty": true,
-          "overlayEntries": 64,
-          "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+          "revision": "fbc06e422e97524e51f83cdc42083df97b36b9e2",
+          "dirty": false,
+          "overlayEntries": 0,
+          "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
         },
         "exactAfterRun": {
-          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "revision": "917c2a65801381969ee705132e2e96998ced856a",
           "dirty": false,
           "overlayEntries": 0,
           "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -245,8 +249,8 @@
         "carrierProjectAfterRun": {
           "kind": "exact-working-tree",
           "patchId": null,
-          "files": 311,
-          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+          "files": 318,
+          "sha256": "b29307634cd3d622702e2657850a7d1d107145c58376ccf035e610171de23e43"
         }
       },
       "packages": {
@@ -262,7 +266,7 @@
           {
             "name": "@exact/contract",
             "version": "0.1.0",
-            "manifestSha256": "9875b0786ff5195a93bfdc5bf26485b4aceeb2a41529d7fb07fb4df91df0c7fe"
+            "manifestSha256": "cd9df7c79324094eff9df934213ad9931705ea9502826376e0ce2136f0d83cc4"
           },
           {
             "name": "@exact/core",
@@ -272,7 +276,7 @@
           {
             "name": "@exact/devtools",
             "version": "0.1.0",
-            "manifestSha256": "0aabfc951875f602dcfd3850f360c9476f93b5d7cb4868b20a0d1004c05cd51d"
+            "manifestSha256": "33fa1bc9e7c13c6d580d7117b51f36831f83b64e85242f514bba87822ff5357e"
           },
           {
             "name": "@exact/guide",
@@ -287,17 +291,17 @@
           {
             "name": "@exact/renderer",
             "version": "0.1.0",
-            "manifestSha256": "896c9209bc0842179ed126c15a63ef12a794aca382a507a4cabf27fdedb8e458"
+            "manifestSha256": "98556af0ded7ef1956ac9c5cc4702e7ac03fd54e6fdd1a53b0da5d820d6bbe83"
           },
           {
             "name": "@exact/router",
             "version": "0.1.0",
-            "manifestSha256": "5b07d72ef20c19a397d9f6375f957bebf852d6b0bef8f3b5a85c83adb2db20e8"
+            "manifestSha256": "eac4fa145739aea9251e1750c90dc8ddcafdc9aa8e9ed89a6747a485ddbbf59b"
           },
           {
             "name": "@exact/runtime",
             "version": "0.1.0",
-            "manifestSha256": "64563743ada9fe5f4f132b17b162ecb07a7a3e1a9834c7a46123122f97fa13b7"
+            "manifestSha256": "fb0c66fa5e4ee6d7589784f8c1a51541ea2f9642162fead7248b5d8a36bd02be"
           },
           {
             "name": "@exact/server",
@@ -308,13 +312,13 @@
       },
       "environment": {
         "hardware": "arm64",
-        "os": "26.5.1",
+        "os": "26.5.2",
         "xcode": [
-          "Xcode 26.3",
-          "Build version 17C529"
+          "Xcode 26.6",
+          "Build version 17F113"
         ],
-        "bun": "1.3.14",
-        "node": "v26.0.0"
+        "bun": "1.3.12",
+        "node": "v25.9.0"
       },
       "backendHealth": {
         "ok": true,
@@ -330,27 +334,25 @@
             "fixtureRows": 3
           },
           "supabase": {
-            "ok": false,
-            "skipClass": "remote-dependency",
-            "stage": "initialization",
-            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+            "ok": true,
+            "remote": true,
+            "fixtureRows": 3
           },
           "convex": {
-            "ok": false,
-            "skipClass": "remote-dependency",
-            "stage": "initialization",
-            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+            "ok": true,
+            "remote": true,
+            "fixtureRows": 3
           }
         }
       },
       "testInventory": [
         {
           "path": "demos/partiful-matrix/tests/acceptance/native-exact.mjs",
-          "sha256": "ce06cb4d6baf6c466f6c64f55efd67262fe6c5a722ff6d042db8c4b1cb632027"
+          "sha256": "e20844526a3dc3acdfd99583f16ca4dbd52ee7c9c43d7e79a91c8801d28e16ab"
         },
         {
           "path": "demos/partiful-matrix/tests/acceptance/native-exact-acto.mjs",
-          "sha256": "499b1c65765dbbe6170f00f6e98440c8aa436c48298a83e6d7bc54118483dcf3"
+          "sha256": "77b22b32dca50e7c25ea341e3af0a01a94080e81b3e49304d728743c83586e58"
         },
         {
           "path": "demos/partiful-matrix/native/exact-contract/src/app/routes.ts",
@@ -362,13 +364,13 @@
         }
       ],
       "binaries": {
-        "macosSha256": "e8af3c516edbc59f1fde18bfb94b7371b5bee8c4ef0c15c16a6d3d9c7bd0d052",
-        "iosSha256": "48ed24e0129d6dfd7df777f8196e98442ea86225e11d2493e0c6813a4fb5e4e6",
+        "macosSha256": "9abac5bfa75ef131fd1b10dae97cbc812d927a67dbadb7f3bc40306c04432197",
+        "iosSha256": "77ca50f35b22490281717bf50a996fb26d3b5ea6f948f8f42ac5567e7a714d5c",
         "iosBundleId": "com.exact.ExactApp"
       },
       "simulator": {
-        "name": "iPhone 17 Pro",
-        "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A",
+        "name": "iPhone 17 Pro Max",
+        "udid": "804B258D-8ECF-4D27-B94E-626F67F17AE5",
         "installationCleanup": "uninstall-on-final-cleanup"
       }
     }
@@ -380,15 +382,11 @@
     },
     {
       "cell": "swiftui:macos:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "swiftui:macos:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "swiftui:macos:sqlite",
@@ -400,15 +398,11 @@
     },
     {
       "cell": "swiftui:ios:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "swiftui:ios:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "swiftui:ios:sqlite",
@@ -424,27 +418,19 @@
     },
     {
       "cell": "exact-contract:macos:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "exact-contract:ios:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "exact-contract:macos:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "exact-contract:ios:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency"
+      "ok": true
     },
     {
       "cell": "exact-contract:macos:sqlite",

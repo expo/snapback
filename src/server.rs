@@ -33275,8 +33275,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_BACKUP_INVALID",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-        "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_FAILED",
-        "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_RECOVERED",
         // LLP 0098 §3.1 hosted-edge adapter refusals. Like the backup/restore
         // codes above these are control-plane/operator diagnostics raised
         // before a listener serves, never request-path 4xx; the fail-safe HTTP

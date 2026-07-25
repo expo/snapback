@@ -5,7 +5,7 @@
 **Systems:** CI, Build, Native runtime, Acceptance testing
 **Author:** Codex (GPT-5), directed by Charlie Cheever
 **Date:** 2026-07-25
-**Related:** LLP 0010 §CI and Review Gates; GitHub Actions runs 30164619469, 30166104010, and 30166978366
+**Related:** LLP 0010 §CI and Review Gates; GitHub Actions runs 30164619469, 30166104010, 30166978366, and 30168090088
 **Marker:** ci, linker, github-actions, linux, local-proof
 
 Three canonical `ubuntu-latest` local-proof runs reached Rust linking after the
@@ -14,7 +14,13 @@ same preceding proof gates passed, then crashed `rust-lld` with signal 7
 occurred while linking `egress_ambient_v0`. Serializing Cargo delayed but did
 not eliminate a third failure while linking the normal `snapback` binary. The
 changing target and repeated linker stack establish a hosted-runner
-link-resource defect, not a deterministic test assertion or one corrupt binary.
+link-resource defect, not one corrupt binary.
+
+Run 30168090088 applied both resource bounds, completed every Rust link, and
+executed all 1,306 library tests. Its two assertion failures were independently
+corrected on `main`; the absence of another linker crash verifies that the
+resource mitigation reaches the intended failure mode. The ticket remains open
+until the integrated PR head completes the full canonical proof.
 
 The workflow already reclaims unused hosted-image toolchains and requires 20
 GiB of initial disk headroom. Cargo can nevertheless link multiple large
