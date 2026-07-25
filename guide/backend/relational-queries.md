@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-25
-reviewed-commit: e1edbbc1a706d0406de24646d2731b7e9fe93bd8
+reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
 ---
 
 # Relational queries (bounded joins)
@@ -112,6 +112,63 @@ versioned continuation cursor next to `rows`; pass it back as
   concurrent mutations; a concurrently mutated root may move relative to
   the boundary.
 
-Maintained projections (`defineMaintainedProjection`) and author-supplied
-root filters are specified by LLP 0080 but not yet implemented — see the
-Step 5 implementation program under `issues/`.
+## Maintained projections
+
+`defineMaintainedProjection` turns the same closed join into a durable
+output table the runtime maintains inside **every source mutation's own
+commit** — source and projection either commit together or not at all,
+with no background repair and no separately visible projection version.
+
+```js source=demos/competitive-checkpoint/snapback/functions.mjs
+export const conversationCardsProjection = defineMaintainedProjection({
+  id: 'conversation-cards',
+  root: schema.tables.conversations,
+  joined: schema.tables.models,
+  output: schema.tables.conversationCards,
+  join: [{ root: 'model', joined: 'slug' }],
+  // Left: a conversation whose model is not registered still projects a
+  // card with a null modelName; the owner evidence rides the root.
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: { kind: 'owner', field: 'ownerId' },
+  },
+  projection: {
+    ownerId: { root: 'ownerId' },
+    title: { root: 'title' },
+    modelName: { joined: 'displayName' },
+  },
+  rootReverseIndex: 'by_model',
+  fanOutLimit: 64,
+  sharedFanOutDisclosure: true,
+});
+```
+
+The contract, all enforced at generation and re-proved at activation:
+
+- **The output table is maintenance-only.** Any function that writes it is
+  refused; a closed HostPlan may read an owner-visible output only with
+  its visibility predicate composed (`eq(ownerField, authUserId())`), and
+  opaque JS handlers may not touch it at all. Chains and diamonds —
+  projections sourcing another projection's output — are refused.
+- **Row identity is key-stable.** `outputKey` is the root `_id` (default)
+  or `{ index }` naming a declared unique root index whose fields become
+  immutable: a mutation that moves a key field is refused, and the same
+  output key owns the same row `_id` across delete/re-insert and rebuilds.
+- **Fan-out is bounded and declared.** `rootReverseIndex` must lead with
+  the root join fields; `fanOutLimit` (1–1023) counts *every*
+  reverse-index entry for a joined key. A write that would exceed it — or
+  push a mutation past the 1,024-write bound including projection writes —
+  refuses whole with `SNAPBACK_PROJECTION_FANOUT_EXCEEDED`.
+- **Shared-source coupling is explicit.** A public joined source feeding
+  an owner output couples callers through the shared `fanOutLimit`;
+  declare `sharedFanOutDisclosure: true` or generation refuses with
+  `SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED`.
+- **Unchanged bytes cost nothing.** An affected output row whose
+  recomputed logical bytes are unchanged issues no write; repeated writes
+  to one source row coalesce to one evaluation against the final snapshot.
+
+Author-supplied root filters beyond visibility remain specified by
+LLP 0080 but not yet implemented — see the Step 5 implementation program
+under `issues/`.

@@ -124,7 +124,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "9eec52503295298037198a6e39b85476198ffec70009984153966327dffcc04a",
+    "inputsHash": "01741dee58c13f8b551e6ca047986d20fcf67207d9b2bf3e0e4a5db9d667fa1b",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

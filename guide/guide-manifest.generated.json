@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "f3e461a6cb6acf2154f15085b0010de7ce1f105d"
+    "commit": "92e6d7a7c3e9aa62895a782a9af5a1c3b6c9b51d"
   },
   "nav": {
     ".": [
@@ -622,13 +622,18 @@
         "packages/snapback-codegen/relational-authoring.test.mjs"
       ],
       "reviewed": "2026-07-25",
-      "reviewedCommit": "e1edbbc1a706d0406de24646d2731b7e9fe93bd8",
-      "sha256": "02ff4ae4e0f18f8f9c10fa62d7aeaa58eba55650a196e2e217600d971cfcbef1",
+      "reviewedCommit": "681a98701db0b986d230e4be456f1a4694d6e50d",
+      "sha256": "0cc48c2c2f50d00f6f1c53bded7fd24787c69d32ee4415accb1fb55774b3293f",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/relational-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/functions.mjs"
         }
       ]
     },
@@ -1668,5 +1673,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "34e17db3a887be83bfae0c040206fcb9fb11655bf6b0db202eec17919ccdc20d"
+  "contentHash": "2734a53e22e6e7cfd25ac1259db9af8da0cfd4a520022e99bac4a0e7c3af650f"
 }

@@ -50,9 +50,17 @@ barrier with the per-source non-key-moving bound. L-sized.
   admission rollback, key immutability) and
   `maintained_projection_activation_refusals`.
 
-**Remaining:** the existing-data activation proof (reverse-index counts
-over pre-existing rows when a plan activates, under the 0081 barrier —
-scheduled with the minimal 0081 slice); `defineMaintainedProjection`
-authoring surface + demo/guide; concurrent-admission race and
-1,023/1,024-boundary fixtures for the coupled suite; capability-artifact
-facts for projections.
+**Remaining:** concurrent-admission race and 1,023/1,024-boundary
+fixtures for the coupled suite; capability-artifact facts for
+projections.
+
+**Authoring surface (2026-07-25, landed):** `defineMaintainedProjection`
+in packages/snapback-codegen (generation mirrors activation: chains,
+disclosure, left-owner, reverse-index, output-key, budget, and output
+read/write fences all refuse at generation;
+`maintained-projections.test.mjs`); the manifest emits the top-level
+`projections` array; competitive-checkpoint carries a live projection
+(`conversation-cards`: conversations ⟕ models → conversationCards) with
+an acceptance check proving root-commit materialization, joined-side
+reverse-index fan-out, and owner scoping end to end; guide page +
+capability index updated.
