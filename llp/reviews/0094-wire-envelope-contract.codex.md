@@ -125,3 +125,112 @@ The negotiation design also leaves connection re-open/rebinding and socket-offer
 ## 8. Blindness self-attestation
 
 I did not read any `llp/reviews/` content, unrelated session scratchpads, `.agent-local-secrets.md`, or credential material, and I made no worktree modifications.
+
+## Round 2 — 2026-07-25 (delta round)
+
+**Round record (persisted before launch):** target revision v0.2 sha256 `35e10c02602b1a0325a21dad705aa39ca20463a3d83adb10231958a8d767ff6d` at worktree HEAD `bc02ec85`; delta round — instructions enumerate the v0.1→v0.2 delta (15 items) and require [IN-DELTA] vs [PRE-EXISTING] classification on every concern; topology unchanged (Fable fresh subagent / Codex CLI `gpt-5.6-sol` high effort, mutually blind, instruction-based blindness self-attested, confined to the review worktree); shared instruction file sha256 prefix `ae563a61bf0901cf`; reviser: orchestrator. Growth-budget note: v0.2 is 751 lines vs 543 entering the loop (+38%; overage driven by Round-1 Major resolutions and the LLP 0093-mandated dev-mode section — disclosed in the revision commit).
+
+**Revision under review:** sha256 `35e10c02602b1a0325a21dad705aa39ca20463a3d83adb10231958a8d767ff6d` (MATCH per reviewer's own check; HEAD `bc02ec85` MATCH)
+**Runtime:** ~460 s (04:04:31–04:12:11 local)
+**Verdict:** NOT READY — 4 Major + 1 Moderate, all [IN-DELTA]
+
+### Review body (verbatim)
+
+# Review: LLP 0094 — Wire envelope contract (Round 2, delta)
+
+## 1. Revision check
+
+- Document SHA-256: **MATCH** — `35e10c02602b1a0325a21dad705aa39ca20463a3d83adb10231958a8d767ff6d`
+- Worktree HEAD: **MATCH** — `bc02ec85`
+
+## 2. Overall assessment
+
+Revision v0.2 materially improves the route-domain definition, dev-mode posture, staged negotiation, blast-radius record, and treatment of known response divergences. However, four Major contract inconsistencies remain in delta-touched sections. Most importantly, the re-open/echo rules do not define one coherent state machine, the DTO matrix misclassifies `/app/ensure`, and the hosted wire inventories remain incomplete or inaccurate. The known unimplemented B1–B4 stages and pending redeploy do not drive this assessment.
+
+## 3. Strengths (delta-focused)
+
+- §0A.0 now bounds the route matrix clearly and prevents omission from being confused with incorporation by reference. The proof routes in §0A.1 match `cloudflare/src/gateway.js` and `coordinator.js`.
+- §0A.6 accurately distinguishes dev body-auth assertions from connection capability authentication, consistent with LLP 0031’s route matrix and `src/server.rs`.
+- §0B.5–§0B.7 substantially improve rollout safety: present-offer versus absent-offer enforcement is staged separately, non-kit early offering is acknowledged, and the Swift population is included in the B4 re-audit.
+- §0B.6’s exact local decode-class signal correctly identifies `SNAPBACK_REQUEST_JSON_INVALID` from `parse_optional_json` / `ApiError::request_json_invalid`, and appropriately tickets the Swift client’s broader heuristic.
+- §0C.6 adopts the right high-level posture: served/schema disagreements are defects, not evolution precedents, and temporary tolerance is narrowly scoped.
+- §0D’s receipt typing is supported by `LiveSubscribeOutput` and `LiveUnsubscribeOutput` in `src/local.rs` and their regenerated schemas.
+
+## 4. Concerns
+
+1. **(Major) [IN-DELTA] The re-open, response-echo, legacy-eligibility, and B4 rules do not form a deterministic state machine.**
+
+   Evidence: `llp/0094-wire-envelope-contract.spec.md` §0B.3 says a fresh absent offer creates a legacy lineage with no echo; an absent re-open preserves the existing binding; and a present `snapback.v1` on a legacy lineage confirms but never upgrades it. Yet the same offer table says a known offer receives a `wireVersion` echo, while §0B.6 defines echo present as bound and echo absent as legacy. Therefore:
+
+   - an explicitly bound lineage re-opened without an offer has no defined echo behavior;
+   - a legacy lineage re-opened with `snapback.v1` either receives an echo that falsely suggests non-legacy eligibility, or violates the known-offer echo rule;
+   - §0B.4/B4 says an absent open refuses, while §0B.3 says an absent re-open preserves the lineage, without stating whether B4 exempts authenticated re-opens;
+   - an unknown token on re-open is both “unknown” (`UNSUPPORTED`) and a “changed offer” (`MISMATCH`), with no precedence rule.
+
+   The current implementations make this distinction load-bearing because `ConnectionRegistry::open_prepared` in `src/server.rs` and `kitOpenConnection` in `cloudflare/src/coordinator.js` return the same live grant on a valid `previousToken`.
+
+   **Resolution:** Add a normative re-open matrix crossing lineage state (explicitly offered versus legacy), request offer (known-equal, known-different, unknown, absent), and stage (B1 versus B4). Specify persisted lineage state, echo presence, open-time-gated eligibility, refusal-code precedence, and whether B4 permits absent authenticated re-opens.
+
+2. **(Major) [IN-DELTA] The expanded DTO matrix incorrectly classifies `/app/ensure` requests and responses as open.**
+
+   Evidence: §0C.1 labels the `/app/ensure` intent body open, but the local family is deliberately closed: `EnsureAppInput` and every `EnsureAppExplicitInput` variant use `deny_unknown_fields`, and `EnsureAppRequest` is documented as a closed family in `src/local.rs`. `schemas/app.ensure.input.schema.json` likewise describes a closed family.
+
+   §0C.2 groups `/app/ensure` outputs with `/app/bundle` as open additive-optional objects. In fact, `EnsureAppAttestOutcome`, `EnsureAppProvisionOutcome`, and legacy `EnsureAppOutcome` all use `deny_unknown_fields`; their definitions in `schemas/app.ensure.output.schema.json` set `additionalProperties: false`. Hosted `kitEnsureApp` is open, but §0C.1 explicitly presents its decoder column as the local-arm fact.
+
+   This is not editorial: it incorrectly sanctions ungated additive evolution for a closed family.
+
+   **Resolution:** Split `/app/ensure` from `/app/bundle` in both directions. Record local ensure request and emission families as closed, hosted ensure decoding as open under §0C.3, and apply the closed-family gating/version rule to ensure-output additions.
+
+3. **(Major) [IN-DELTA] §0C.6’s “every audited place” error-envelope ledger is incomplete, making its tolerate-only-these-shapes rule false.**
+
+   Evidence: item 3 names only `kitError` and `kitFailure`. Other in-domain hosted paths emit additional non-schema shapes:
+
+   - `parseJsonObjectRequest` is used for all kit JSON routes and returns `requestDiagnostic`; that function emits top-level `ok`, `code`, and `message` alongside an under-filled `diagnostic`, violating both `ErrorResponse`’s closed outer object and required inner fields.
+   - `cloudflare/src/gateway.js` method refusals for kit routes emit an under-filled diagnostic.
+   - the kit-stream non-upgrade branch emits `{error: "expected websocket upgrade"}`.
+   - `platformFailureResponse` emits another under-filled diagnostic family on kit routes.
+
+   These bytes are reachable on §0A.1 routes, but §0C.6 instructs clients to tolerate only its enumerated deviations.
+
+   **Resolution:** Audit every gateway, coordinator parsing, platform-failure, and route-handler error emitter reachable within §0A’s domain. Either converge them with the existing ticket or enumerate each precise temporary exception. Add schema assertions for malformed body, wrong method, missing upgrade, platform failure, handler failure, and ordinary coded refusal.
+
+4. **(Major) [IN-DELTA] The revised hosted kit-socket reply grammar is still inaccurate.**
+
+   Evidence: §0F item 2 and the amended marker-envelope ticket characterize kit replies as `kind`-tagged. Actual `Coordinator.subscribe` behavior is mixed:
+
+   - resume success uses `kind: "current_as_of"` for kit sockets;
+   - ping uses `kind: "pong"`;
+   - an ordinary successful in-band subscribe still emits `type: "snapshot"`;
+   - subscribe failures emit `type: "error"`;
+   - in-band unsubscribe performs a session-scoped delete but emits no acknowledgement.
+
+   Thus `validateLiveSocketFrame` does serve both request populations, but the response grammar is neither uniformly `kind`-tagged nor fully inventoried by operation/outcome. Schema work following §0F as written would encode the wrong protocol.
+
+   **Resolution:** Add a request × outcome × socket-population table for `subscribe`, `unsubscribe`, and `ping`, including fresh snapshot, `current_as_of`, every error, and no-response behavior. Decide explicitly whether to contract the mixed as-built grammar or converge it first, then make the ticket and schema gates match that decision.
+
+5. **(Moderate) [IN-DELTA] The socket-token classifier gives contradictory definitions for malformed version tokens.**
+
+   Evidence: §0B.4 defines a wire-version-shaped token as matching `snapback.v<digits>`, but immediately says a present malformed `snapback.v*` token classifies as unknown rather than absent. Values such as `snapback.vx` or `snapback.v1.0` do not match the stated shape, so implementations can legitimately choose either `WIRE_VERSION_REQUIRED` or `WIRE_VERSION_UNSUPPORTED`.
+
+   **Resolution:** Define one executable predicate and precedence algorithm—for example, reserve every valid WebSocket token beginning `snapback.v` as a version candidate, recognize exact supported tokens within that namespace, and classify all other candidates as unknown. Add boundary fixtures for malformed suffixes, unrelated subprotocols, bearer tokens, duplicates, and mixed known/unknown sets.
+
+## 5. Suggestions (non-blocking)
+
+- Move struck-through OQ2 into a short decision log so “Open questions” contains only unresolved choices.
+- Generate or validate the DTO closure table mechanically against the serde/schema inventory; the `/app/ensure` error is exactly the drift such a check should catch.
+- Give each §0C.6 exception an explicit removal condition and acceptance-test name, making the temporary conformance qualification easy to retire.
+- Include negative remote probes for the retired hosted root routes, as proposed in OQ4.
+
+## 6. Open questions for the author
+
+1. Is `wireVersion` echo intended to witness the lineage’s original explicit offer, the current request’s offer, or merely the bound token? Those meanings differ on re-open.
+2. Should the mixed hosted in-band socket replies be preserved as wire v1, or should the coordinator converge them to one dialect before schema commitment?
+3. Is `error.response.schema.json` intended to govern every pre-upgrade and HTTP failure on kit routes, including gateway and JSON-parser refusals? The current prose implies yes, while the ledger audits only a subset.
+
+## 7. Verdict
+
+**NOT READY** — v0.2 closes many round-1 gaps, but the re-open negotiation contract remains internally underdetermined, the expanded closure matrix makes a materially wrong evolution decision for `/app/ensure`, and the hosted response and socket inventories are not complete enough to serve as a clean-room P-0 contract. These are unresolved Major correctness and coherence issues introduced or touched by the delta; the deliberately unimplemented stages and pending deployment are not reasons for this verdict.
+
+## 8. Blindness self-attestation
+
+I did not read anything under `llp/reviews/`, other scratchpad files, secrets, API-key material, or credential files, and I made no filesystem modifications.
