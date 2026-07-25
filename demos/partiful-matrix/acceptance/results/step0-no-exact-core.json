@@ -74,11 +74,11 @@
     },
     {
       "path": "packages/snapback-client/package.json",
-      "sha256": "ce102b9f8fbc4f7d8bf592a70c9a5543b0339a772073dba00fb3caee61639cae"
+      "sha256": "7d2a7cd71e455061b0279d7e2251d5e288b7b9a9ffba7f48df130a63a7b86908"
     },
     {
       "path": "packages/snapback-codegen/package.json",
-      "sha256": "64fc5314ce9fffd406de0579b3d1436ca8e9b86eb18a55d7c6b5b9ec5f7f1d9e"
+      "sha256": "657e2aa8a9cb65d74f85a166544a3138edfe0c5cec405524291eb47634497afe"
     },
     {
       "path": "packages/snapback-app-cli/package.json",
@@ -94,7 +94,7 @@
     },
     {
       "path": "packages/snapback-codegen/authoring-validation.test.mjs",
-      "sha256": "2d5bd64866edeaa38a1c441d5f282b92b91bd736e755de721ee642a54cd098ad"
+      "sha256": "d1b18e09d0f075b09c8bc1126733d07817bcdea81ffd34f3c6a0f8048aa83087"
     },
     {
       "path": "packages/snapback-codegen/dependency-graph.test.mjs",
@@ -106,7 +106,7 @@
     },
     {
       "path": "packages/snapback-app-cli/package.test.mjs",
-      "sha256": "2299c09aa9d6d5a11fac82bb1b245bbaa62370def73341e2f7ea615cdb323a75"
+      "sha256": "e3165793ab86de69085f12afaa89f36f39881799bca32c57a7f6e6ee9cdcf6dc"
     },
     {
       "path": "demos/_kit/harness.mjs",

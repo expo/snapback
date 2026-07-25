@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "924aa678625d37c13d36f0f90025dfe712ff2a03",
+    "snapback": "6142938e2487e83f0193c7f4e66070087bab0771",
     "exact": null
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -150,7 +150,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "24ac6116f04740e816ec3ae8804c5f6dc255cdfbed408bcc8166b7f94869f9cc",
+      "lockSha256": "001db06f64b13d86eb7e710b20eb1b83f4094744506827550c23b386ab6a0a7d",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -165,9 +165,9 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "0dfc8100c48b323561b381fde67fec331b99575c19d59454dd5b8a70942851bf",
+    "inputsHash": "ffbc919046a2c2886a8d3b56a301aae838b20007605dcaea8f17b10db92d9947",
+    "bundleHash": "sha256:6e8be90857e97698",
+    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
     "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
@@ -181,7 +181,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "42dbcb63bdc8fc0e27bf0ab326f7dc43dd133a1328057a87bbc3ed4c6837cfe3"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -193,11 +193,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+      "sha256": "65fbeb41026a2f4d508a588757903133f6ec2346b4d7de80c47990ef7968599e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -220,7 +220,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "df8ca05e3413fb48dfd73e2e028f0c4f0bbc1a53baec9a8f07ae55411e814fdd",
+  "testInventorySha256": "af4ef1e26381413e917b48c4c1787e7d3ce7c25b183d50b081ef04750fab1c0c",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -246,7 +246,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-9747"
+      "/private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-69540"
     ],
     "exitStatus": 1,
     "signal": null
@@ -258,7 +258,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "42dbcb63bdc8fc0e27bf0ab326f7dc43dd133a1328057a87bbc3ed4c6837cfe3"
     },
     {
       "path": "demos/_kit/harness.mjs",

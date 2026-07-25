@@ -16,15 +16,15 @@
     {
       "id": "todo-headless",
       "command": [
-        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "/opt/homebrew/Cellar/node/25.9.0_3/bin/node",
         "demos/todo/tests/acceptance/headless.mjs",
         "--receipt",
-        "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-v0-todo.json"
+        "/private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/acceptance/results/step0-v0-todo.json"
       ],
       "status": 0,
       "signal": null,
-      "stdoutSha256": "da33570ab92cac6f1d9709ba6819cbeb55b04bfe43cb04449f149829d1a008a1",
-      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSha256": "b4766fbe871471edd189698e83173720b13c243a1058d26fe3c1b6ee9d5842e0",
+      "stderrSha256": "f85e2f0b4bbf1983099d10f9cb38ed8b19efe7cf5a66987158160ff003580c00",
       "stdoutTail": [
         "  ✓ diagnostic: handler ambient capability denial is structured",
         "  ✓ diagnostic: handler throw is structured",
@@ -33,9 +33,11 @@
         "PASS todo / headless — 24/24",
         "",
         "--- machine-readable report ---",
-        "{\"schemaVersion\":\"snapback.todo-v0-receipt.v1\",\"title\":\"todo / headless\",\"passed\":24,\"skipped\":0,\"failed\":0,\"total\":24,\"ok\":true,\"results\":[{\"name\":\"health reports local ibex+sqlite target\",\"ok\":true,\"details\":{\"ok\":true,\"target\":\"local-dev-sqlite-ibex\",\"sqlite_version\":0,\"ibex_available\":true,\"authProvider\":\"dormant\",\"binary\":{\"crateVersion\":\"0.1.0\",\"gitCommit\":\"508956134f3517169735078272a846e5ac86ba5c\",\"gitDirty\":true,\"buildProfile\":\"debug\",\"startupNonce\":\"019f807e-b3cb-7a30-861d-ab09959ad767\"}}},{\"name\":\"schema load (no error diagnostics)\",\"ok\":true,\"details\":{\"diagnostics\":[]}},{\"name\":\"generated function references load + are inspectable\",\"ok\":true,\"details\":{\"functions\":[\"createTodo\",\"deleteTodo\",\"editTitle\",\"listTodos\",\"listTodosOnce\",\"setCompleted\"],\"capabilityGaps\":[\"postgres\",\"cloudflare\",\"hosted_untrusted_code\",\"external_auth\",\"assets\",\"outbound_actions\",\"notifications\",\"ephemeral_hosted_adapter\",\"ephemeral_multi_instance_sticky_routing\"],\"bridge\":\"Available\",\"generatedRef\":{\"appId\":\"todo\",\"artifactKind\":\"functionReference\",\"id\":\"todo:createTodo\",\"kind\":\"Mutation\",\"name\":\"createTodo\",\"schemaVersion\":\"snapback.v0\"}}},{\"name\":\"deterministic reset + declarative seed\",\"ok\":true,\"details\":{\"rows\":3}},{\"name\":\"user-scoped query (auth filter) isolates users\",\"ok\":true,\"details\":null},{\"name\":\"mutation: createTodo returns id; ctx.db write + system fields\",\"ok\":true,\"details\":{\"id\":\"019f807e-b45e-7353-89b6-0093f0084170\",\"version\":1}},{\"name\":\"mutation: createTodo rejects empty titles\",\"ok\":true,\"details\":null},{\"name\":\"mutations: toggle, edit, delete\",\"ok\":true,\"details\":null},{\"name\":\"admin runner surfaces captured handler read/write facts\",\"ok\":true,\"details\":{\"reads\":[{\"kind\":\"auth\",\"field\":\"userId\",\"value\":\"user_ada\"},{\"kind\":\"row\",\"table\":\"todos\",\"id\":\"019f807e-b4de-77f2-9ad0-829552aed5ee\",\"version\":1}],\"writes\":[{\"table\":\"todos\",\"id\":\"019f807e-b4de-77f2-9ad0-829552aed5ee\",\"op\":\"Update\"}]}},{\"name\":\"live subscription returns authoritative initial snapshot\",\"ok\":true,\"details\":{\"subscriptionId\":\"sub_019f807eb50075939f04ab05a404a71d\",\"version\":1}},{\"name\":\"realtime update reaches a second client\",\"ok\":true,\"details\":{\"rows\":4}},{\"name\":\"websocket stream pushes live replace without outbox polling\",\"ok\":true,\"details\":{\"version\":2,\"rows\":4}},{\"name\":\"generated ephemeral board cursors use product API and preserve durable lane\",\"ok\":true,\"details\":{\"coalesced\":29,\"rateLimited\":8}},{\"name\":\"realtime matcher skips unrelated user-scoped mutations\",\"ok\":true,\"details\":{\"updates\":0,\"liveDelivery\":{\"totalFanoutAttempts\":1,\"totalDeliveries\":0,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"realtime matcher skips hidden row patch and delete\",\"ok\":true,\"details\":{\"hiddenId\":\"019f807e-b702-7661-a6f0-7a02858d43a3\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":1,\"totalSkipped\":2,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"realtime matcher uses captured In predicates beyond auth scope\",\"ok\":true,\"details\":{\"id\":\"019f807e-b742-7ba0-b790-7cb8b77a2180\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":2,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":1,\"lastSkipped\":0,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"ordinary query is honestly reported as NOT syncable\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_NOT_LIVE\"}},{\"name\":\"read-set conflict prevents a stale-invariant commit\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_MUTATION_CONFLICT\",\"dependency\":{\"table\":\"todos\",\"id\":\"019f807e-b769-7c82-bc7d-577c08e8d5db\",\"expected\":1,\"actual\":2}}},{\"name\":\"diagnostic: invalid schema (system field) fails loud\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_SCHEMA_SYSTEM_FIELD\"}},{\"name\":\"diagnostic: artifact version mismatch is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION\",\"details\":{\"expectedArtifactKind\":\"schemaManifest\",\"artifactKind\":\"schemaManifest\",\"expectedSchemaVersion\":\"snapback.v0\",\"supportedSchemaVersions\":[\"snapback.v0\",\"snapback.v1\"],\"schemaVersion\":\"snapback.v999\",\"contentHash\":\"sha256:bae4664c6b61e69f\",\"inputsHash\":\"d7a59f47a3d003d79e2a3cf6142e28a7cc9d0d92f770cafa1882dc6ab2339f0f\"}}},{\"name\":\"diagnostic: invalid query (unknown field) fails loud at the server\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID\",\"installCode\":\"SNAPBACK_UNKNOWN_FUNCTION\"}},{\"name\":\"diagnostic: handler ambient capability denial is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_CAPABILITY_DENIED\"}},{\"name\":\"diagnostic: handler throw is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_FAILED\"}},{\"name\":\"codegen fails closed on an invalid definition (no silent drop)\",\"ok\":true,\"details\":{\"codes\":[\"QUERY_UNKNOWN_FIELD\"]}}],\"expectedChecks\":24,\"outcome\":\"pass\",\"cleanupErrors\":[],\"cleanupErrorCount\":0}"
+        "{\"schemaVersion\":\"snapback.todo-v0-receipt.v1\",\"title\":\"todo / headless\",\"passed\":24,\"skipped\":0,\"failed\":0,\"total\":24,\"ok\":true,\"results\":[{\"name\":\"health reports local ibex+sqlite target\",\"ok\":true,\"details\":{\"ok\":true,\"target\":\"local-dev-sqlite-ibex\",\"sqlite_version\":0,\"ibex_available\":true,\"authProvider\":\"dormant\",\"binary\":{\"crateVersion\":\"0.1.0\",\"gitCommit\":\"6142938e2487e83f0193c7f4e66070087bab0771\",\"gitDirty\":true,\"buildProfile\":\"debug\",\"startupNonce\":\"019f99c1-936c-73b0-8a55-92ec36a0856e\"}}},{\"name\":\"schema load (no error diagnostics)\",\"ok\":true,\"details\":{\"diagnostics\":[]}},{\"name\":\"generated function references load + are inspectable\",\"ok\":true,\"details\":{\"functions\":[\"createTodo\",\"deleteTodo\",\"editTitle\",\"listTodos\",\"listTodosOnce\",\"setCompleted\"],\"capabilityGaps\":[\"postgres\",\"cloudflare\",\"hosted_untrusted_code\",\"external_auth\",\"assets\",\"outbound_actions\",\"bounded_response_stream_v1\",\"notifications\",\"ephemeral_hosted_adapter\",\"ephemeral_multi_instance_sticky_routing\",\"ibex_cli\"],\"bridge\":\"Available\",\"generatedRef\":{\"appId\":\"todo\",\"artifactKind\":\"functionReference\",\"id\":\"todo:createTodo\",\"kind\":\"Mutation\",\"name\":\"createTodo\",\"schemaVersion\":\"snapback.v0\"}}},{\"name\":\"deterministic reset + declarative seed\",\"ok\":true,\"details\":{\"rows\":3}},{\"name\":\"user-scoped query (auth filter) isolates users\",\"ok\":true,\"details\":null},{\"name\":\"mutation: createTodo returns id; ctx.db write + system fields\",\"ok\":true,\"details\":{\"id\":\"019f99c1-9487-7f73-ba9a-7854104d70b4\",\"version\":1}},{\"name\":\"mutation: createTodo rejects empty titles\",\"ok\":true,\"details\":null},{\"name\":\"mutations: toggle, edit, delete\",\"ok\":true,\"details\":null},{\"name\":\"admin runner surfaces captured handler read/write facts\",\"ok\":true,\"details\":{\"reads\":[{\"kind\":\"auth\",\"field\":\"userId\",\"value\":\"user_ada\"},{\"kind\":\"row\",\"table\":\"todos\",\"id\":\"019f99c1-94fd-7fa0-836a-8903824325d1\",\"version\":1}],\"writes\":[{\"table\":\"todos\",\"id\":\"019f99c1-94fd-7fa0-836a-8903824325d1\",\"op\":\"Update\"}]}},{\"name\":\"live subscription returns authoritative initial snapshot\",\"ok\":true,\"details\":{\"subscriptionId\":\"sub_019f99c1951c7da3963aec112c4c9ab2\",\"version\":1}},{\"name\":\"realtime update reaches a second client\",\"ok\":true,\"details\":{\"rows\":4}},{\"name\":\"websocket stream pushes live replace without outbox polling\",\"ok\":true,\"details\":{\"version\":2,\"rows\":4}},{\"name\":\"generated ephemeral board cursors use product API and preserve durable lane\",\"ok\":true,\"details\":{\"coalesced\":29,\"rateLimited\":8}},{\"name\":\"realtime matcher skips unrelated user-scoped mutations\",\"ok\":true,\"details\":{\"updates\":0,\"liveDelivery\":{\"totalFanoutAttempts\":1,\"totalDeliveries\":0,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}},\"resume\":{\"attempted\":0,\"currentAsOfAnswers\":0,\"deltaReplayAnswers\":0,\"replayOps\":0,\"replayBytesAvoided\":0,\"freshReplaceAnswers\":0,\"refused\":{},\"noCertifiedSummary\":0,\"tokensMinted\":0,\"tokensRefreshed\":0,\"mintRefusals\":0,\"lastJournalDistance\":0,\"maxJournalDistance\":0}}}},{\"name\":\"realtime matcher skips hidden row patch and delete\",\"ok\":true,\"details\":{\"hiddenId\":\"019f99c1-9760-7f30-8d99-7d27cb40162c\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":1,\"totalSkipped\":2,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}},\"resume\":{\"attempted\":0,\"currentAsOfAnswers\":0,\"deltaReplayAnswers\":0,\"replayOps\":0,\"replayBytesAvoided\":0,\"freshReplaceAnswers\":0,\"refused\":{},\"noCertifiedSummary\":0,\"tokensMinted\":0,\"tokensRefreshed\":0,\"mintRefusals\":0,\"lastJournalDistance\":0,\"maxJournalDistance\":0}}}},{\"name\":\"realtime matcher uses captured In predicates beyond auth scope\",\"ok\":true,\"details\":{\"id\":\"019f99c1-979c-7822-ac80-348129301796\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":2,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":1,\"lastSkipped\":0,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}},\"resume\":{\"attempted\":0,\"currentAsOfAnswers\":0,\"deltaReplayAnswers\":0,\"replayOps\":0,\"replayBytesAvoided\":0,\"freshReplaceAnswers\":0,\"refused\":{},\"noCertifiedSummary\":0,\"tokensMinted\":0,\"tokensRefreshed\":0,\"mintRefusals\":0,\"lastJournalDistance\":0,\"maxJournalDistance\":0}}}},{\"name\":\"ordinary query is honestly reported as NOT syncable\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_NOT_LIVE\"}},{\"name\":\"read-set conflict prevents a stale-invariant commit\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_MUTATION_CONFLICT\",\"dependency\":{\"table\":\"todos\",\"id\":\"019f99c1-97c7-7831-82a3-68faa22ae479\",\"expected\":1,\"actual\":2}}},{\"name\":\"diagnostic: invalid schema (system field) fails loud\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_SCHEMA_SYSTEM_FIELD\"}},{\"name\":\"diagnostic: artifact version mismatch is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION\",\"details\":{\"expectedArtifactKind\":\"schemaManifest\",\"artifactKind\":\"schemaManifest\",\"expectedSchemaVersion\":\"snapback.v0\",\"supportedSchemaVersions\":[\"snapback.v0\",\"snapback.v1\"],\"schemaVersion\":\"snapback.v999\",\"contentHash\":\"sha256:df0057bf0767c28c\",\"inputsHash\":\"9978876586ebd270246126f995b5ab4a494af9f38016c7fa6a6ff3e40ba19a94\"}}},{\"name\":\"diagnostic: invalid query (unknown field) fails loud at the server\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID\",\"installCode\":\"SNAPBACK_UNKNOWN_FUNCTION\"}},{\"name\":\"diagnostic: handler ambient capability denial is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_CAPABILITY_DENIED\"}},{\"name\":\"diagnostic: handler throw is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_FAILED\"}},{\"name\":\"codegen fails closed on an invalid definition (no silent drop)\",\"ok\":true,\"details\":{\"codes\":[\"QUERY_UNKNOWN_FIELD\"]}}],\"expectedChecks\":24,\"outcome\":\"pass\",\"cleanupErrors\":[],\"cleanupErrorCount\":0}"
       ],
-      "stderrTail": []
+      "stderrTail": [
+        "PORT REASSIGNED: requested :4399 but the isolated child bound :61241. Callers must read the returned baseUrl; pass bindPortExactly to bind-or-fail instead (demos/_kit/README.md \"Port semantics\")."
+      ]
     },
     {
       "id": "capability-v0",
@@ -47,20 +49,20 @@
       ],
       "status": 0,
       "signal": null,
-      "stdoutSha256": "304bccbbbf9b95994cf86eef19740ebd9ec62c2e8a2ae0f66095d6dfb945688b",
-      "stderrSha256": "453d8d215ad8db3a7e1da5b62dd0ee274513139591d5bdbfc02a1fc5819fc863",
+      "stdoutSha256": "d186dc08b3d07316f33dd91d2786a07a272229a3bafacd2c40e99c91bcffe08d",
+      "stderrSha256": "47ba172baaa9079d62c765d998d9944ecce8efb24801e094b1e2371df5817ac9",
       "stdoutTail": [
         "running 3 tests",
         "test p2_committed_cloudflare_manifest_matches_the_declared_target ... ok",
         "test p2_committed_capability_manifest_matches_the_declared_server_manifest ... ok",
         "test p2_live_inspect_manifest_matches_committed_modulo_instance_fields ... ok",
         "",
-        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
       ],
       "stderrTail": [
-        "Compiling snapback v0.1.0 (/Users/ccheever/projects/snapback)",
-        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.62s",
-        "     Running tests/capability_v0.rs (target/debug/deps/capability_v0-fad9a2a5357ae088)"
+        "Compiling snapback v0.1.0 (/private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt)",
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.63s",
+        "     Running tests/capability_v0.rs (target/debug/deps/capability_v0-43883e7356f6f5cc)"
       ]
     },
     {
@@ -70,16 +72,16 @@
       ],
       "status": 0,
       "signal": null,
-      "stdoutSha256": "29538b96031e231a7b827b7dcb1d922d5862971a336e9acf0a524f1811924040",
+      "stdoutSha256": "3daf9989ce1c818dd999dfbe7ae37b5fc8552315efa2e7a84f8a62065538cf21",
       "stderrSha256": "1d94fa5375e4eb50115abdfcf73304625e7da09bdd73d4583d9cae9bea56957e",
       "stdoutTail": [
-        "codegen ok: /Users/ccheever/projects/snapback/demos/rbac/snapback/generated  (inputsHash snapback.v1:…)",
+        "codegen ok: /private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/rbac/snapback/generated  (inputsHash snapback.v1:…)",
         "[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/shindig/snapback",
-        "codegen ok: /Users/ccheever/projects/snapback/demos/shindig/snapback/generated  (inputsHash c28b06f0dac7…)",
+        "codegen ok: /private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/shindig/snapback/generated  (inputsHash e4c08905b957…)",
         "[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback",
-        "codegen ok: /Users/ccheever/projects/snapback/demos/partiful-matrix/snapback/generated  (inputsHash f2a917d4d294…)",
+        "codegen ok: /private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/snapback/generated  (inputsHash ffbc919046a2…)",
         "[check-generated-artifacts] $ node admin-ui/generate-contract-bindings.mjs",
-        "admin-ui: generated Contract bindings -> /Users/ccheever/projects/snapback/admin-ui/generated/contract",
+        "admin-ui: generated Contract bindings -> /private/tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/admin-ui/generated/contract",
         "[check-generated-artifacts] ok: committed generated artifacts are current"
       ],
       "stderrTail": [
@@ -97,7 +99,7 @@
   "children": [
     {
       "path": "demos/partiful-matrix/acceptance/results/step0-v0-todo.json",
-      "sha256": "332eb5e5ccac9269643bb5587a9c34347c2a0e7347380922b3f4f9d2dc664d6a",
+      "sha256": "6d29aa4d7d06001aaee281236e1e7057270a221d39c33d470bacbb1c9862e8fa",
       "schemaVersion": "snapback.todo-v0-receipt.v1",
       "total": 24,
       "expectedChecks": 24
@@ -119,11 +121,11 @@
     },
     {
       "path": "tests/capability_v0.rs",
-      "sha256": "45731f2aafc74a9850f03b2c5c6b5c5eaa3cfac925d7a0f8ad8dad2803374429"
+      "sha256": "199796323bb4d28ff951dc81206e0cee5a0007fe3be407dc4ef32cfd6d583c03"
     },
     {
       "path": "scripts/check-generated-artifacts",
-      "sha256": "30fa266579baddef1c3629da459afc26a094f95f5becdd63e61e7dc80e00d99f"
+      "sha256": "3072aa405e2f472ae3bd59b5254beb3e6a989cf58ef3cad93d0e308973cb0c98"
     }
   ]
 }
