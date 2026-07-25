@@ -4067,6 +4067,29 @@ pub(crate) fn validate_relational_boundary(
     })
 }
 
+/// Validate a decoded standard-pattern cursor boundary against the declared
+/// cursor field (LLP 0065): the value must be non-null (the field is
+/// required by generation) and satisfy the field's declared type. Failures
+/// collapse into the caller's uniform
+/// `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`.
+pub(crate) fn validate_standard_pattern_boundary(
+    schema: &SchemaManifest,
+    table: &str,
+    cursor_field: &str,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let table = schema_table(schema, table)?;
+    if value.is_null() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "standard-pattern cursor boundary cannot be null",
+        ));
+    }
+    ensure_orderable_field(table, cursor_field)?;
+    validate_query_filter_value(table, cursor_field, value)
+}
+
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
 //   0..=1024. Structural/type validation beyond this is generation's job;

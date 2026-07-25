@@ -13879,6 +13879,123 @@ fn relational_cursor_mint_unavailable() -> SnapbackError {
     )
 }
 
+/// The one uniform standard-pattern cursor refusal (LLP 0065): malformed,
+/// cross-plan, and cross-owner presentations must stay
+/// byte-indistinguishable, so every class produces this exact error.
+fn standard_pattern_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+        "query",
+        "pagination cursor is not valid for this operation and caller; \
+         request the first page again",
+    )
+}
+
+fn standard_pattern_cursor_mint_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
+        "query",
+        "a full page could not mint its continuation cursor; retry the request",
+    )
+}
+
+/// The generated `defineOwnedKeysetPages` facts the runtime recovers from a
+/// standard-pattern function's own plan: the strict continuation filter
+/// names the cursor argument, the (single) order field is the cursor field,
+/// and the plan limit is the page size. Recovered rather than re-declared so
+/// the manifest stays closed and the two can never disagree.
+struct StandardPatternKeysetFacts<'a> {
+    cursor_arg: Option<&'a str>,
+    cursor_field: &'a str,
+    page_limit: usize,
+}
+
+fn standard_pattern_keyset_facts<'a>(
+    function: &'a FunctionDefinition,
+    plan: &'a QueryPlan,
+) -> Option<StandardPatternKeysetFacts<'a>> {
+    let pattern = function.standard_pattern.as_ref()?;
+    if pattern.helper != "owned-keyset-pages.v1" {
+        return None;
+    }
+    let order = plan.order.first()?;
+    let page_limit = plan.limit?;
+    let mut cursor_arg = None;
+    for filter in &plan.filters {
+        let strict = matches!(
+            (&filter.op, &order.direction),
+            (crate::manifest::FilterOp::Gt, crate::manifest::OrderDirection::Asc)
+                | (crate::manifest::FilterOp::Lt, crate::manifest::OrderDirection::Desc)
+        );
+        if filter.field == order.field
+            && strict
+            && let ValueExpr::Arg(name) = &filter.value
+        {
+            cursor_arg = Some(name.as_str());
+        }
+    }
+    Some(StandardPatternKeysetFacts {
+        cursor_arg,
+        cursor_field: &order.field,
+        page_limit,
+    })
+}
+
+/// The standard-pattern cursor binding digest (LLP 0065): app, the *pair*
+/// plan identity, and the caller's authority partition. A keyset pair's
+/// first and next functions share everything except the strict
+/// continuation filter, so the binding covers the plan with that filter
+/// excluded — a cursor minted by `first` continues through `next`, while a
+/// different table, index, order, direction, page size, visibility, or
+/// pattern profile still refuses. The deployment/database axis rides the
+/// per-instance MAC keyring rather than the digest.
+fn standard_pattern_cursor_binding(
+    app_id: &str,
+    function: &FunctionDefinition,
+    plan: &QueryPlan,
+    facts: &StandardPatternKeysetFacts<'_>,
+    input: &HandlerInput,
+    permission_epochs: &BTreeMap<String, u64>,
+) -> Result<String, ()> {
+    let pattern = function.standard_pattern.as_ref().ok_or(())?;
+    let shared_filters: Vec<Value> = plan
+        .filters
+        .iter()
+        .filter(|filter| {
+            !(filter.field == facts.cursor_field
+                && matches!(
+                    filter.op,
+                    crate::manifest::FilterOp::Gt | crate::manifest::FilterOp::Lt
+                )
+                && matches!(&filter.value, ValueExpr::Arg(_)))
+        })
+        .map(|filter| serde_json::to_value(filter).unwrap_or(Value::Null))
+        .collect();
+    let epochs: Value = match input.auth.user_id.as_deref() {
+        Some(user_id) => {
+            let scope = user_permission_scope(user_id);
+            let epoch = permission_epochs.get(&scope).copied().unwrap_or(0);
+            json!({ scope: epoch })
+        }
+        None => json!({}),
+    };
+    let binding = json!({
+        "app": app_id,
+        "helper": pattern.helper,
+        "profile": pattern.profile,
+        "table": plan.table,
+        "index": plan.indexed_by,
+        "order": serde_json::to_value(&plan.order).map_err(|_| ())?,
+        "limit": plan.limit,
+        "filters": shared_filters,
+        "authority": {
+            "fingerprint": crate::manifest::auth_fingerprint(&input.auth),
+            "epochs": epochs,
+        },
+    });
+    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+}
+
 /// The canonical cursor binding digest (LLP 0080 §2): the cursor binds the
 /// app, the plan, the normalized non-cursor arguments, the order schema, and
 /// the caller's authority partition (auth fingerprint plus the caller's
@@ -13972,7 +14089,102 @@ fn execute_query_invocation(
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
         ) => {
-            let output = db.query(plan, &input)?;
+            // @ref LLP 0065#3-the-generated-operations — defineOwnedKeysetPages
+            //   continuation is an opaque versioned cursor: the runtime
+            //   verifies the presented token (MAC + binding over app, plan
+            //   identity, and authority partition), substitutes the bound
+            //   boundary value for the cursor argument, and mints the next
+            //   continuation for a full page. Malformed, cross-plan, and
+            //   cross-owner presentations refuse byte-identically and are
+            //   never repositioned.
+            let keyset = standard_pattern_keyset_facts(function, plan);
+            let mut input = input;
+            if let Some(facts) = &keyset
+                && let Some(arg_name) = facts.cursor_arg
+            {
+                match input.args.get(arg_name).cloned() {
+                    None | Some(Value::Null) => {}
+                    Some(Value::String(token)) => {
+                        let authority =
+                            cursor_authority.ok_or_else(standard_pattern_cursor_invalid)?;
+                        let body = crate::rqs::decode_and_verify_standard_pattern_cursor(
+                            &token,
+                            &authority
+                                .keyring
+                                .read()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+                            now_millis(),
+                            crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                        )
+                        .map_err(|_| standard_pattern_cursor_invalid())?;
+                        let binding = standard_pattern_cursor_binding(
+                            authority.app_id,
+                            function,
+                            plan,
+                            facts,
+                            &input,
+                            permission_epochs,
+                        )
+                        .map_err(|()| standard_pattern_cursor_invalid())?;
+                        if body.app != authority.app_id || body.binding != binding {
+                            return Err(standard_pattern_cursor_invalid());
+                        }
+                        crate::storage::validate_standard_pattern_boundary(
+                            db.schema(),
+                            &plan.table,
+                            facts.cursor_field,
+                            &body.boundary,
+                        )
+                        .map_err(|_| standard_pattern_cursor_invalid())?;
+                        if let Value::Object(args) = &mut input.args {
+                            args.insert(arg_name.to_owned(), body.boundary);
+                        }
+                    }
+                    Some(_) => return Err(standard_pattern_cursor_invalid()),
+                }
+            }
+            let mut output = db.query(plan, &input)?;
+            if let Some(facts) = &keyset
+                && facts.page_limit > 0
+                && output.rows.len() == facts.page_limit
+            {
+                // A full page must carry its continuation (mirrors the
+                // relational rule): mint failure fails the request rather
+                // than misreporting the page as terminal.
+                let boundary = output
+                    .rows
+                    .last()
+                    .and_then(|row| row.get(facts.cursor_field).cloned())
+                    .filter(|value| !value.is_null())
+                    .ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let authority =
+                    cursor_authority.ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let binding = standard_pattern_cursor_binding(
+                    authority.app_id,
+                    function,
+                    plan,
+                    facts,
+                    &input,
+                    permission_epochs,
+                )
+                .map_err(|()| standard_pattern_cursor_mint_unavailable())?;
+                let (key_id, key) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let body = crate::rqs::StandardPatternCursorBody {
+                    app: authority.app_id.to_owned(),
+                    binding,
+                    boundary,
+                    issued_at: now_millis(),
+                };
+                output.cursor = Some(
+                    crate::rqs::mint_standard_pattern_cursor(key.as_ref(), &key_id, &body)
+                        .ok_or_else(standard_pattern_cursor_mint_unavailable)?,
+                );
+            }
             let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
@@ -16718,6 +16930,225 @@ globalThis.__snapbackHandlers = {
                     malformed.diagnostic.message.as_str()
                 ),
                 "every cursor refusal class is byte-indistinguishable",
+            );
+        }
+    }
+
+    // @ref LLP 0065#3-the-generated-operations — defineOwnedKeysetPages'
+    //   continuation is an opaque versioned cursor bound to the app, the
+    //   pair plan identity, and the caller's authority partition: first
+    //   mints, next continues, a short page is terminal, and malformed,
+    //   raw-value, cross-pair, cross-owner, and stale-authority
+    //   presentations refuse byte-identically with
+    //   SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID.
+    #[test]
+    fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, StandardPatternIdentity, TableManifest,
+        };
+        let table = |name: &str, index: &str| TableManifest {
+            name: name.to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "pageKey".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: index.to_owned(),
+                fields: vec!["ownerId".to_owned(), "pageKey".to_owned()],
+                unique: true,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                table("pages", "by_owner_page_key"),
+                table("others", "by_owner_other_key"),
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let keyset_pair = |table: &str, index: &str, first: &str, next: &str| {
+            let base_plan = |with_cursor: bool| QueryPlan {
+                table: table.to_owned(),
+                filters: if with_cursor {
+                    vec![
+                        owner_filter.clone(),
+                        FilterExpr {
+                            field: "pageKey".to_owned(),
+                            op: FilterOp::Gt,
+                            value: ValueExpr::Arg("after".to_owned()),
+                        },
+                    ]
+                } else {
+                    vec![owner_filter.clone()]
+                },
+                membership_filters: Vec::new(),
+                order: vec![crate::manifest::OrderExpr {
+                    field: "pageKey".to_owned(),
+                    direction: crate::manifest::OrderDirection::Asc,
+                }],
+                limit: Some(2),
+                indexed_by: Some(index.to_owned()),
+            };
+            let pattern = || {
+                Some(StandardPatternIdentity {
+                    helper: "owned-keyset-pages.v1".to_owned(),
+                    profile: "owner.v1".to_owned(),
+                })
+            };
+            let mut first_def = FunctionDefinition::new(
+                first,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(base_plan(false))),
+            );
+            first_def.standard_pattern = pattern();
+            let mut next_def = FunctionDefinition::new(
+                next,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(base_plan(true))),
+            );
+            next_def.standard_pattern = pattern();
+            [first_def, next_def]
+        };
+        let [first_pages, next_pages] =
+            keyset_pair("pages", "by_owner_page_key", "firstPages", "nextPages");
+        let [first_other, next_other] =
+            keyset_pair("others", "by_owner_other_key", "firstOther", "nextOther");
+
+        let mut snapback = LocalSnapback::memory().expect("memory keyset fixture");
+        snapback.apply_schema(schema).expect("apply keyset schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![first_pages, next_pages, first_other, next_other],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "keyset fixture must activate: {diagnostics:?}"
+        );
+        let row = |owner: &str, key: i64| {
+            json!({ "ownerId": owner, "pageKey": key })
+                .as_object()
+                .cloned()
+                .expect("seed row")
+        };
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "pages".to_owned(),
+                        (1..=5).map(|key| row("user-a", key)).collect(),
+                    ),
+                    ("others".to_owned(), vec![row("user-a", 1)]),
+                ]),
+            })
+            .expect("seed keyset rows");
+
+        let input = |user: &str, args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let keys = |output: &crate::manifest::QueryOutput| {
+            output
+                .rows
+                .iter()
+                .map(|row| row["pageKey"].as_i64().expect("page key"))
+                .collect::<Vec<_>>()
+        };
+
+        // first → [1,2] + cursor; next → [3,4] + cursor; next → [5] terminal.
+        let page1 = snapback
+            .invoke_query("firstPages", input("user-a", json!({})))
+            .expect("first page");
+        assert_eq!(keys(&page1), vec![1, 2]);
+        let cursor1 = page1.cursor.expect("full first page mints a continuation");
+        assert!(
+            cursor1.starts_with("sbpc1."),
+            "cursor is versioned wire opaque: {cursor1}"
+        );
+        let page2 = snapback
+            .invoke_query("nextPages", input("user-a", json!({ "after": cursor1.clone() })))
+            .expect("second page");
+        assert_eq!(keys(&page2), vec![3, 4]);
+        let cursor2 = page2.cursor.expect("full next page mints a continuation");
+        let page3 = snapback
+            .invoke_query("nextPages", input("user-a", json!({ "after": cursor2 })))
+            .expect("terminal page");
+        assert_eq!(keys(&page3), vec![5]);
+        assert!(page3.cursor.is_none(), "a short page is terminal");
+
+        // Refusal classes, byte-identical to one another.
+        let refusal = |snapback: &LocalSnapback, user: &str, args: Value, function: &str| {
+            match snapback.invoke_query(function, input(user, args.clone())) {
+                Err(error) => error,
+                Ok(output) => panic!(
+                    "cursor presentation must refuse: {function} {user} {args} -> {output:?}"
+                ),
+            }
+        };
+        let malformed = refusal(
+            &snapback,
+            "user-a",
+            json!({ "after": "sbpc1.garbage" }),
+            "nextPages",
+        );
+        assert_eq!(
+            malformed.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        );
+        // A raw boundary value — the pre-opaque wire shape — is refused, not
+        // silently honored: pagination is cursor-in, cursor-out only.
+        let raw_value = refusal(&snapback, "user-a", json!({ "after": 2 }), "nextPages");
+        // Cross-pair: a pages cursor presented to the others pair.
+        let cross_pair = refusal(
+            &snapback,
+            "user-a",
+            json!({ "after": cursor1.clone() }),
+            "nextOther",
+        );
+        // Cross-owner: another caller presents the cursor.
+        let cross_owner = refusal(
+            &snapback,
+            "user-b",
+            json!({ "after": cursor1.clone() }),
+            "nextPages",
+        );
+        // Stale authority: the caller's permission-scope epoch rolled.
+        snapback
+            .permission_epochs
+            .insert(super::user_permission_scope("user-a"), 3);
+        let stale = refusal(&snapback, "user-a", json!({ "after": cursor1 }), "nextPages");
+        for refused in [&raw_value, &cross_pair, &cross_owner, &stale] {
+            assert_eq!(
+                (
+                    refused.diagnostic.code.as_str(),
+                    refused.diagnostic.message.as_str()
+                ),
+                (
+                    malformed.diagnostic.code.as_str(),
+                    malformed.diagnostic.message.as_str()
+                ),
+                "every standard-pattern cursor refusal class is byte-indistinguishable",
             );
         }
     }

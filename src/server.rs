@@ -19856,6 +19856,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // unmintable cursor is a transient serving failure, not a terminal
         // page silently lied about.
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -20067,6 +20068,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // malformed, cross-plan, cross-argument-set, cross-authority,
         // stale-authority, order-schema-invalid — never repositioned.
         | "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        // LLP 0065: the standard-pattern keyset cursor's collapsed refusal —
+        // malformed, cross-plan, and cross-owner are byte-indistinguishable.
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
@@ -32263,6 +32267,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
         "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
         "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
@@ -32454,6 +32459,7 @@ globalThis.__snapbackHandlers = {
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",

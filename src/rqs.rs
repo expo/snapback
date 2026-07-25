@@ -281,6 +281,113 @@ pub fn jcs(value: &Value) -> Result<String, MintRefusal> {
 }
 
 // ---------------------------------------------------------------------------
+// Standard-pattern keyset cursor (LLP 0065 §3)
+// ---------------------------------------------------------------------------
+
+/// Standard-pattern cursor wire prefix (LLP 0065: opaque and versioned).
+pub const STANDARD_PATTERN_CURSOR_WIRE_PREFIX: &str = "sbpc1";
+const STANDARD_PATTERN_CURSOR_MAC_DOMAIN: &str = "snapback.standard-pattern-cursor.v1";
+
+/// The opaque `defineOwnedKeysetPages` continuation body. `binding` folds
+/// the app, the plan identity (function id, helper, profile, direction,
+/// cursor field, serialized plan), and the caller's authority partition;
+/// the per-instance resume keyring MAC supplies the deployment/database
+/// binding — a cursor minted by one instance cannot verify on another.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StandardPatternCursorBody {
+    pub app: String,
+    pub binding: String,
+    /// The exact unique boundary value — the last returned row's cursor
+    /// field. Unique inside one owner partition by the declared compound
+    /// index, so no `_id` tie-break is needed (LLP 0065).
+    pub boundary: Value,
+    pub issued_at: u64,
+}
+
+fn standard_pattern_cursor_mac(
+    key: &[u8],
+    key_id: &str,
+    body: &StandardPatternCursorBody,
+) -> HmacSha256 {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    put_string(&mut mac, STANDARD_PATTERN_CURSOR_MAC_DOMAIN);
+    put_string(&mut mac, key_id);
+    put_string(&mut mac, &body.app);
+    put_string(&mut mac, &body.binding);
+    // A non-canonicalizable boundary was refused at mint; on verify the
+    // empty frame simply fails the MAC — uniformly refused either way.
+    put_string(&mut mac, &jcs(&body.boundary).unwrap_or_default());
+    put_u64(&mut mac, body.issued_at);
+    mac
+}
+
+/// Mint the wire cursor; `None` when the boundary cannot canonicalize or
+/// the wire form would exceed the size cap — callers fail closed rather
+/// than serving a full page without its continuation.
+pub fn mint_standard_pattern_cursor(
+    key: &[u8],
+    key_id: &str,
+    body: &StandardPatternCursorBody,
+) -> Option<String> {
+    jcs(&body.boundary).ok()?;
+    let body_value = serde_json::to_value(body).ok()?;
+    let body_json = jcs(&body_value).ok()?;
+    let mac = standard_pattern_cursor_mac(key, key_id, body)
+        .finalize()
+        .into_bytes();
+    let wire = format!(
+        "{STANDARD_PATTERN_CURSOR_WIRE_PREFIX}.{key_id}.{}.{}",
+        URL_SAFE_NO_PAD.encode(body_json.as_bytes()),
+        URL_SAFE_NO_PAD.encode(mac)
+    );
+    (wire.len() <= RELATIONAL_CURSOR_MAX_WIRE_BYTES).then_some(wire)
+}
+
+/// Decode and cryptographically verify a presented standard-pattern
+/// cursor. Cause-free like the relational family: every refusal class
+/// answers with one byte-identical `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`.
+pub fn decode_and_verify_standard_pattern_cursor(
+    token_wire: &str,
+    keyring: &ResumeKeyring,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<StandardPatternCursorBody, RelationalCursorRefusal> {
+    const REFUSED: RelationalCursorRefusal = RelationalCursorRefusal;
+    if token_wire.len() > RELATIONAL_CURSOR_MAX_WIRE_BYTES {
+        return Err(REFUSED);
+    }
+    let mut parts = token_wire.split('.');
+    let (Some(prefix), Some(key_id), Some(body_part), Some(mac_part), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Err(REFUSED);
+    };
+    if prefix != STANDARD_PATTERN_CURSOR_WIRE_PREFIX || ResumeKeyId::parse(key_id).is_err() {
+        return Err(REFUSED);
+    }
+    let body_bytes = URL_SAFE_NO_PAD.decode(body_part).map_err(|_| REFUSED)?;
+    let mac_bytes = URL_SAFE_NO_PAD.decode(mac_part).map_err(|_| REFUSED)?;
+    if mac_bytes.len() != 32 {
+        return Err(REFUSED);
+    }
+    let body: StandardPatternCursorBody =
+        serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
+    let key = keyring.verification_key(key_id, now_ms).map_err(|_| REFUSED)?;
+    standard_pattern_cursor_mac(key.secret.as_ref(), key_id, &body)
+        .verify_slice(&mac_bytes)
+        .map_err(|_| REFUSED)?;
+    if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
+        return Err(REFUSED);
+    }
+    Ok(body)
+}
+
+// ---------------------------------------------------------------------------
 // RelationalResultEncodingV1 (LLP 0080 §2)
 // ---------------------------------------------------------------------------
 

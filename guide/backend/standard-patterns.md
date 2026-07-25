@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-20
-reviewed-commit: 27e3689a239c52a01a01ddf51f52ec4221ea7a86
+reviewed: 2026-07-25
+reviewed-commit: 6fe11376af0429eb2154627c253586224be063bb
 ---
 
 # Safe standard data patterns
@@ -135,6 +135,19 @@ order. A unique index with a third field is not sufficient because the cursor
 may still repeat within one owner's partition. A generated string `pageKey`
 using an `id` trusted default is the safe v1 continuation when the natural sort
 field, such as a timestamp, is not independently unique.
+
+The continuation is an opaque versioned cursor, never the raw boundary
+value. When a page returns its full `limit` of rows, the response carries a
+`cursor` next to `rows`; pass it as the next-page function's cursor argument
+(`after` by default). The cursor binds the app, the first/next pair's plan
+identity, and the caller's authority partition: a malformed, raw-value,
+cross-pair, cross-owner, or post-authorization-change presentation is
+refused with `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` (HTTP 400), never
+silently repositioned, and every refusal class answers byte-identically. A
+page with fewer than `limit` rows is terminal and carries no cursor.
+Continuation guarantees no skipped and no duplicated row among rows
+untouched by concurrent mutations; a row whose cursor field is concurrently
+mutated may move relative to the page boundary.
 
 ## Know when to leave the profile
 
