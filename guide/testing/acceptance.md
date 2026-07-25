@@ -94,6 +94,26 @@ What it guarantees:
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
 
+### Keep cron out of your suite
+
+If the app declares cron jobs, a live scheduler can commit runs mid-suite —
+and the first one can land surprisingly early: an `everyMs` job's nominal
+grid anchors at Unix epoch 0, so its first tick can fire up to one full
+interval after boot **regardless of when demand arrived** ([LLP 0028
+§Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). Start
+the server with the scheduler inert and drive ticks yourself:
+
+```js fragment reason="illustrative option on the startServer call above"
+const server = await startServer({ db: ':memory:', cwd: repoRoot, cronDisabled: true });
+```
+
+`cronDisabled: true` sets `SNAPBACK_CRON_DISABLED=1` on the child (the CLI
+form is `--cron-disabled`) and refuses to reuse an already-running server,
+whose scheduler may be live. Definitions still load and inspect; the
+admin `cronTick()` seam keeps working, so scheduled behavior stays testable
+deterministically — see [backend/cron](../backend/cron.md).
+
 If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
 it must pass a fresh `--ready-file <path>`. The process-bound impersonation
 capability is published only to that owner-only sidecar; it is never written to

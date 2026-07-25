@@ -72,6 +72,11 @@ export async function startServer({
   // value is read only from the mechanical ready-file sibling after the
   // ready nonce has been verified against the live child.
   captureImpersonationCapability = false,
+  // Start the child with SNAPBACK_CRON_DISABLED=1: cron definitions still
+  // load and inspect, but the scheduler never claims a run on its own —
+  // suites drive ticks deterministically via the admin cron/tick endpoint
+  // (LLP 0028 §Scheduler state and run ledger).
+  cronDisabled = false,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}) {
   return startServerWithDeps({
@@ -84,6 +89,7 @@ export async function startServer({
     bindPortExactly,
     startupArtifacts,
     captureImpersonationCapability,
+    cronDisabled,
     startupTimeoutMs,
   }, {});
 }
@@ -106,6 +112,7 @@ async function startServerWithDeps({
   bindPortExactly = false,
   startupArtifacts = null,
   captureImpersonationCapability = false,
+  cronDisabled = false,
   startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}, deps = {}) {
   if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
@@ -133,7 +140,7 @@ async function startServerWithDeps({
       cwd,
       fetchImpl,
     });
-    if (verdict.ok && !captureImpersonationCapability) {
+    if (verdict.ok && !captureImpersonationCapability && !cronDisabled) {
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
       return serverHandle({
         baseUrl: requestedBaseUrl,
@@ -143,7 +150,9 @@ async function startServerWithDeps({
       });
     }
     const reason = verdict.ok
-      ? 'this test requires the new child\'s process-bound impersonation sidecar'
+      ? (cronDisabled
+        ? 'this test requires a child started with SNAPBACK_CRON_DISABLED (a reused server may have a live scheduler)'
+        : 'this test requires the new child\'s process-bound impersonation sidecar')
       : verdict.reason;
     console.error(
       `PROVENANCE MISMATCH: a server answers /health on :${port} but ${reason}. ` +
@@ -186,6 +195,7 @@ async function startServerWithDeps({
     ...process.env,
     ...env,
     ...runtimeEnv,
+    ...(cronDisabled ? { SNAPBACK_CRON_DISABLED: '1' } : {}),
     ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}),
     ...(expectedIdentity.gitCommit && expectedIdentity.gitCommit !== 'unknown'
       ? { SNAPBACK_BUILD_GIT_COMMIT: expectedIdentity.gitCommit }
