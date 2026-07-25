@@ -228,9 +228,10 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "mutation_read_set_validation",
             "permission_epoch_resync",
             "relational_query_v1",
+            "migration_keyset_scan_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 10);
+    assert_eq!(TargetCapabilityId::ALL.len(), 11);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
