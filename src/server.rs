@@ -31884,11 +31884,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
         "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
         "SNAPBACK_READY_FILE_PATH_COLLISION",
-        // LLP 0080 root-window executor invariants: the relational plan is
-        // server-generated (a bad plan is a server bug, not caller input) and
-        // a duplicate unique join key is a store-integrity refusal.
-        "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
-        "SNAPBACK_RELATIONAL_PLAN_INVALID",
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SQLITE_ERROR",
