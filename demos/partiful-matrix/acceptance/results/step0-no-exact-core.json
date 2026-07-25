@@ -74,7 +74,7 @@
     },
     {
       "path": "packages/snapback-client/package.json",
-      "sha256": "7d2a7cd71e455061b0279d7e2251d5e288b7b9a9ffba7f48df130a63a7b86908"
+      "sha256": "754884b1f53c8e540b3264cc6fb207141af51dda94a3f09a5589a10d817262ef"
     },
     {
       "path": "packages/snapback-codegen/package.json",
@@ -86,7 +86,7 @@
     },
     {
       "path": "packages/snapback-client/package.test.mjs",
-      "sha256": "3ae03a386a834dda658acf1a5315566c35f7d2e8003ae3495f3156783bb2dca2"
+      "sha256": "e1a664a7feab675956e19fabb707f49c92d2972f0ec857a281e1130fc38cbbfd"
     },
     {
       "path": "packages/snapback-codegen/identifier-validation.test.mjs",
