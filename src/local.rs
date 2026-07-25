@@ -19342,9 +19342,9 @@ globalThis.__snapbackHandlers = {
             diagnostics.iter().any(|d| {
                 (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
                     || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
-                    && d.message.contains("relationalRetentionNone")
+                    && d.message.contains("incompleteReadSummary")
             }),
-            "relational retention is default-deny with an honest reason: {diagnostics:?}"
+            "retention stays default-deny: a bare retainable flag without the              relational read summary and dependence declaration refuses              (the complete opaque-authorized-snapshot-v1 declaration is              witnessed in relational_retention_admission_is_default_deny):              {diagnostics:?}"
         );
     }
 
@@ -20977,6 +20977,200 @@ globalThis.__snapbackHandlers = {
         ));
     }
 
+    // @ref LLP 0080#4-live-and-retained-capability — the obligation-fault
+    //   e2e: a shrinking replacement on an owner-visible relational
+    //   subscription is obligation-backed, so a lost delivery cannot leave
+    //   forbidden rows visible — the level-triggered obligation reprojects
+    //   until the exact ACK discharges it, and no live_delta ever escapes.
+    #[test]
+    fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
+        let (schema, mut functions) = relational_live_fixture_functions(10);
+        functions.functions.push(FunctionDefinition::new(
+            "deleteBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "books".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("memory shrink fixture");
+        snapback.apply_schema(schema).expect("apply shrink schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "shrink fixture must activate: {diagnostics:?}"
+        );
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "ada", "name": "Ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert author");
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "alpha", "slug": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert book");
+        let book_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read book id")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("book id")
+            .to_owned();
+
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = managed_session_admission();
+        let owner_input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        // An owner-visible plan needs a real Session authority under the
+        // session-mode admission (the anonymous test default would refuse
+        // with AUTH_USER_MISSING).
+        let session_authority = crate::auth::invocation::InvocationGate::prepare_authority(
+            crate::auth::invocation::InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            crate::admin::ServerProfile::Test,
+            1,
+            1,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Session {
+                user_id: "user-a".to_owned(),
+                session_id: "sess-shrink".to_owned(),
+                provider: "test".to_owned(),
+                generation: 1,
+                authority_instance_id: "authinst-shrink".to_owned(),
+                session_not_after_ms: u64::MAX / 2,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("prepare session authority");
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    input: owner_input,
+                    authorization_namespace: Some(test_authorization_namespace(7)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                session_authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("owner-visible relational auth-scoped subscription");
+        assert_eq!(
+            subscribed.snapshot.expect("initial snapshot").rows,
+            vec![json!({ "title": "alpha" })],
+        );
+        assert!(drain_live_stream_through_test_sink(&mut snapback, "rel-shrink").is_empty());
+
+        // The shrinking commit: the only visible root is deleted.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteBook",
+            HandlerInput {
+                args: json!({ "id": book_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("delete the visible book");
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed shrinking replacement frame");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["resolution"]["kind"], "snapshot");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "a relational shrink must never escape as best-effort live_delta"
+        );
+
+        // The fault: the replacement is treated as lost — no ACK arrives.
+        // Recovery is the obligation machinery, not best-effort delivery:
+        // reprojection re-emits the level-triggered obligation, the managed
+        // rerun re-delivers the atomic snapshot, and only the exact ACK
+        // discharges it.
+        snapback
+            .reproject_authorization_invalidations("rel-shrink", &admission)
+            .expect("reproject after lost delivery");
+        let hint = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink")
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("level-triggered obligation survives the lost delivery");
+        assert!(
+            hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
+            "a snapshot resolution is never projected without its atomic rows"
+        );
+        let rerun = snapback
+            .authorization_invalidation_frames("rel-shrink", &admission)
+            .expect("managed rerun");
+        let rerun = serde_json::from_slice::<Value>(
+            &rerun.first().expect("fresh snapshot frame").payload,
+        )
+        .expect("rerun frame JSON");
+        assert_eq!(rerun["snapshot"]["rows"], json!([]));
+        let ack_token = rerun["resolution"]["ackToken"]
+            .as_str()
+            .expect("ack token")
+            .to_owned();
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("exact ack");
+        assert_eq!(ack.outcome, "discharged");
+        assert!(
+            snapback
+                .authorization_invalidation_frames("rel-shrink", &admission)
+                .expect("post-ack frames")
+                .is_empty(),
+            "the exact ACK discharges the obligation"
+        );
+    }
+
     #[test]
     fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
         let mut snapback = live_limit_snapback();
@@ -21661,11 +21855,69 @@ globalThis.__snapbackHandlers = {
             membership: None,
         };
 
+        let books = TableManifest {
+            name: "books".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "authorSlug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_owner_title".to_owned(),
+                fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                unique: false,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
+        let authors = TableManifest {
+            name: "authors".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "slug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "name".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_slug".to_owned(),
+                fields: vec!["slug".to_owned()],
+                unique: true,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback
             .apply_schema(SchemaManifest {
                 schema_hash: Some(deployment.schema_hash.clone()),
-                tables: vec![items.clone()],
+                tables: vec![items.clone(), books.clone(), authors.clone()],
                 ..SchemaManifest::default()
             })
             .expect("apply lease schema");
@@ -21694,9 +21946,57 @@ globalThis.__snapbackHandlers = {
             mode: Some("singleTable".to_owned()),
             auth_scope_field: None,
         };
+        // @ref LLP 0080#4-live-and-retained-capability — the retained
+        //   relational lease-class fixture: retainable declares exactly
+        //   opaque-authorized-snapshot-v1, owner-visible, with the
+        //   relational read summary and UserId dependence.
+        let mut relational_retained = FunctionDefinition::new(
+            "relationalOwned",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(
+                crate::manifest::RelationalQueryPlan {
+                    root: "books".to_owned(),
+                    root_alias: "book".to_owned(),
+                    joined: "authors".to_owned(),
+                    joined_alias: "author".to_owned(),
+                    join_kind: crate::manifest::JoinKind::Inner,
+                    join_on: vec![crate::manifest::JoinEquality {
+                        root_field: "authorSlug".to_owned(),
+                        joined_field: "slug".to_owned(),
+                    }],
+                    root_filters: Vec::new(),
+                    root_visibility: vec![FilterExpr {
+                        field: "ownerId".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::AuthUserId,
+                    }],
+                    joined_visibility: Vec::new(),
+                    projection: vec![crate::manifest::ProjectionLeaf {
+                        name: "title".to_owned(),
+                        source: crate::manifest::ProjectionSource::RootField("title".to_owned()),
+                    }],
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    take: 10,
+                    root_index: "by_owner_title".to_owned(),
+                    joined_index: "by_slug".to_owned(),
+                },
+            )),
+        );
+        relational_retained.retainable = true;
+        relational_retained.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        relational_retained.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
         let diagnostics = snapback.load_functions(FunctionManifest {
             bundle_hash: Some(deployment.bundle_hash.clone()),
-            functions: vec![retained],
+            functions: vec![retained, relational_retained],
             ..FunctionManifest::default()
         });
         assert!(
@@ -21714,7 +22014,7 @@ globalThis.__snapbackHandlers = {
             }),
             schema_hash: Some(deployment.schema_hash.clone()),
             inputs_hash: Some(deployment.inputs_hash.clone()),
-            tables: vec![items],
+            tables: vec![items, books, authors],
             ..SchemaManifest::default()
         };
         let db = snapback.auth_database_mut();
@@ -21862,6 +22162,117 @@ globalThis.__snapbackHandlers = {
             &capture.app_id,
         )
         .expect("sign captured lease")
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — the
+    //   opaque-authorized-snapshot-v1 lease class end to end: an
+    //   owner-visible retained relational plan captures, signs, and
+    //   reserves an authorized lease under a real Sessions authority; the
+    //   projected result is the opaque snapshot (the relational
+    //   continuation cursor never rides the lease envelope), and the
+    //   default-deny admission refuses anonymous plans and incomplete
+    //   declarations at load.
+    #[test]
+    fn relational_retention_lease_class_admits_and_captures() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "relationalOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_relational_1"),
+            )
+            .expect("owner-visible retained relational plan captures a lease");
+        assert!(
+            capture.output.rows.is_empty(),
+            "empty owner partition captures an empty opaque snapshot"
+        );
+        assert!(
+            capture.output.cursor.is_none(),
+            "a short page carries no continuation into the retained snapshot"
+        );
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("retained relational lease reserves end to end");
+    }
+
+    // The default-deny admission half: anonymous plans and incomplete
+    // relational declarations refuse at load with typed reasons.
+    #[test]
+    fn relational_retention_admission_is_default_deny() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let relational = functions.functions[0].clone();
+        let load = |schema: &SchemaManifest, function: FunctionDefinition| {
+            let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply retention schema");
+            snapback.load_functions(FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            })
+        };
+        let refuses = |diagnostics: &[crate::diagnostic::Diagnostic], reason: &str| {
+            diagnostics.iter().any(|d| {
+                (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+                    || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
+                    && d.message.contains(reason)
+            })
+        };
+
+        // All-public retained relational: anonymous results have no
+        // admissible v1 retention.
+        let mut anonymous = relational.clone();
+        anonymous.retainable = true;
+        if let FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) =
+            &mut anonymous.runtime
+        {
+            plan.root_visibility.clear();
+        }
+        let diagnostics = load(&schema, anonymous);
+        assert!(
+            refuses(&diagnostics, "relationalAnonymousRetention"),
+            "{diagnostics:?}"
+        );
+
+        // Owner-visible but with a missing relational read summary.
+        let mut incomplete = relational.clone();
+        incomplete.retainable = true;
+        incomplete.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        let diagnostics = load(&schema, incomplete);
+        assert!(
+            refuses(&diagnostics, "incompleteReadSummary"),
+            "{diagnostics:?}"
+        );
+
+        // The complete declaration activates.
+        let mut declared = relational;
+        declared.retainable = true;
+        declared.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        declared.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
+        let diagnostics = load(&schema, declared);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "the complete lease-class declaration must activate: {diagnostics:?}"
+        );
     }
 
     /// ENG-24989: one user's unresolved obligation must not deny lease

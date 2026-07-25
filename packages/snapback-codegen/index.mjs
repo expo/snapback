@@ -3421,6 +3421,18 @@ function decorateFunctions(appId, functions) {
 }
 
 function readSummary(fn) {
+  // The relational read summary names its own mode and both declared
+  // sources in root-then-joined order (LLP 0080 §4; retention admission
+  // validates this exact shape).
+  const relationalPlan = fn.runtime?.HostPlan?.RelationalQuery;
+  if (relationalPlan) {
+    return {
+      mode: 'relational',
+      primaryTable: relationalPlan.root,
+      tables: [relationalPlan.root, relationalPlan.joined],
+      authScopeField: null,
+    };
+  }
   if (fn.declaredReads) {
     return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredReads.length ? 'singleTable' : 'none'), primaryTable: fn.declaredReads[0] ?? null, tables: fn.declaredReads, authScopeField: fn.authScopeField ?? null };
   }
