@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "13494426ca9938879ef683917a3987296733741e"
+    "commit": "e1edbbc1a706d0406de24646d2731b7e9fe93bd8"
   },
   "nav": {
     ".": [
@@ -478,14 +478,15 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "demos/all-aboard/snapback/functions.mjs",
-        "demos/all-aboard/tests/acceptance/cron.mjs"
+        "demos/all-aboard/tests/acceptance/cron.mjs",
+        "demos/_kit/server-process.mjs"
       ],
       "examples": [
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a9804beeecb5c03a389de7937ff1b1f3804e098e28cbeace81a83c545efc43dc",
+      "sha256": "c20c2f27b0f69c430d450c088f052a1dcec3e57ebdc7ad59e2e9978c65a2d16c",
       "snippets": [
         {
           "lang": "js",
@@ -1586,7 +1587,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "85a8f2e43bd82668106eec916f2fc68f60e886bd165041c7dc412f07927bf4a0",
+      "sha256": "63e0fa2e6c675c26969de50d75a25c80516054bc9c79df09ff85f391f9e9a6e9",
       "snippets": [
         {
           "lang": "js",
@@ -1597,6 +1598,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         }
       ]
     }
@@ -1655,5 +1660,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "f93e547f0b3c352c9bef8ad831b92710e6aa3b3b1b78257c53c89cfa5a572dee"
+  "contentHash": "f19cc20836deb795bef481b09ecee7481c75cfc75bec223910833d6dc1c07e64"
 }

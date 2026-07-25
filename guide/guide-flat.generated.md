@@ -1813,7 +1813,7 @@ id: backend.cron
 order: 4
 audience: agent-first
 capabilities: [backend.cron]
-authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
@@ -1900,6 +1900,36 @@ The acceptance asserts the whole path—tick → action → mutation → live up
 and the bounded recent-run ledger. Assert the job and a successful run so a
 vacuous tick cannot pass.
 
+## Run with the scheduler inert
+
+To keep autonomous cron runs out of a test or dev session entirely, start
+the server with the scheduler disabled:
+
+```sh
+SNAPBACK_CRON_DISABLED=1 snapback   # or: snapback --cron-disabled
+```
+
+The switch accepts `1` or `true`; any other value leaves the scheduler on,
+so a typo cannot silently disarm production crons. Definitions still load,
+validate, and appear in `/inspect` with their ordinary armed/inactive
+state — only autonomous claiming stops. `POST /_snapback/api/cron/tick`
+keeps working, so a suite drives every tick itself. From an acceptance
+suite, pass the kit option instead of hand-building the environment:
+`startServer({ ..., cronDisabled: true })` sets `SNAPBACK_CRON_DISABLED=1`
+on the child (and refuses to reuse an already-running server, whose
+scheduler may be live). See
+[LLP 0028 §Scheduler state and run ledger](repo:llp/0028-cron-scheduled-execution.rfc.md).
+
+**The first tick can look early.** `everyMs` schedules anchor their nominal
+grid at Unix epoch 0, so an armed job's first evaluation usually finds a
+past-due nominal and fires one catch-up run — up to one full interval after
+boot, regardless of when your subscription armed it. A 180 s job observed
+firing ~180 s after boot "before anything subscribed" is this anchor, not a
+bug ([LLP 0028 §Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). If
+that mid-suite run would perturb your assertions, disable the scheduler as
+above and tick manually.
+
 Definition generations and run sequences are exact JavaScript-safe integer
 identities. The maximum value is usable once; a successor fails before taking
 ownership with `SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED` or
@@ -1915,7 +1945,8 @@ portable maximum instead of wrapping.
 - **Do not schedule a mutation directly.** Cron targets actions; the action
   calls a mutation for durable effects.
 - **Do not sleep in tests.** Force an authenticated tick and inspect its run
-  ledger.
+  ledger; start the suite's server with `cronDisabled: true` so the live
+  scheduler cannot commit a competing run mid-assertion.
 - **Do not poll while nobody can observe the result.** Use `whileLive` for
   warm-poll products that should scale to zero.
 - **Do not disable jitter casually.** Fixed no-jitter schedules need an
@@ -5326,6 +5357,26 @@ What it guarantees:
   group exit). Nothing else is ever killed.
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
+
+### Keep cron out of your suite
+
+If the app declares cron jobs, a live scheduler can commit runs mid-suite —
+and the first one can land surprisingly early: an `everyMs` job's nominal
+grid anchors at Unix epoch 0, so its first tick can fire up to one full
+interval after boot **regardless of when demand arrived** ([LLP 0028
+§Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). Start
+the server with the scheduler inert and drive ticks yourself:
+
+```js fragment reason="illustrative option on the startServer call above"
+const server = await startServer({ db: ':memory:', cwd: repoRoot, cronDisabled: true });
+```
+
+`cronDisabled: true` sets `SNAPBACK_CRON_DISABLED=1` on the child (the CLI
+form is `--cron-disabled`) and refuses to reuse an already-running server,
+whose scheduler may be live. Definitions still load and inspect; the
+admin `cronTick()` seam keeps working, so scheduled behavior stays testable
+deterministically — see [backend/cron](../backend/cron.md).
 
 If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
 it must pass a fresh `--ready-file <path>`. The process-bound impersonation
