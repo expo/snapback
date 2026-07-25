@@ -40,7 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
-| backend.relational-queries | Bounded two-source equi-joins with explicit visibility and closed projections (`defineRelationalQuery`, experimental capability) | joins, relational queries, denormalized reads | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineMaintainedProjection` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
@@ -2179,7 +2179,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-25
-reviewed-commit: e1edbbc1a706d0406de24646d2731b7e9fe93bd8
+reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
 ---
 
 # Relational queries (bounded joins)
@@ -2281,9 +2281,66 @@ versioned continuation cursor next to `rows`; pass it back as
   concurrent mutations; a concurrently mutated root may move relative to
   the boundary.
 
-Maintained projections (`defineMaintainedProjection`) and author-supplied
-root filters are specified by LLP 0080 but not yet implemented — see the
-Step 5 implementation program under `issues/`.
+## Maintained projections
+
+`defineMaintainedProjection` turns the same closed join into a durable
+output table the runtime maintains inside **every source mutation's own
+commit** — source and projection either commit together or not at all,
+with no background repair and no separately visible projection version.
+
+```js source=demos/competitive-checkpoint/snapback/functions.mjs
+export const conversationCardsProjection = defineMaintainedProjection({
+  id: 'conversation-cards',
+  root: schema.tables.conversations,
+  joined: schema.tables.models,
+  output: schema.tables.conversationCards,
+  join: [{ root: 'model', joined: 'slug' }],
+  // Left: a conversation whose model is not registered still projects a
+  // card with a null modelName; the owner evidence rides the root.
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: { kind: 'owner', field: 'ownerId' },
+  },
+  projection: {
+    ownerId: { root: 'ownerId' },
+    title: { root: 'title' },
+    modelName: { joined: 'displayName' },
+  },
+  rootReverseIndex: 'by_model',
+  fanOutLimit: 64,
+  sharedFanOutDisclosure: true,
+});
+```
+
+The contract, all enforced at generation and re-proved at activation:
+
+- **The output table is maintenance-only.** Any function that writes it is
+  refused; a closed HostPlan may read an owner-visible output only with
+  its visibility predicate composed (`eq(ownerField, authUserId())`), and
+  opaque JS handlers may not touch it at all. Chains and diamonds —
+  projections sourcing another projection's output — are refused.
+- **Row identity is key-stable.** `outputKey` is the root `_id` (default)
+  or `{ index }` naming a declared unique root index whose fields become
+  immutable: a mutation that moves a key field is refused, and the same
+  output key owns the same row `_id` across delete/re-insert and rebuilds.
+- **Fan-out is bounded and declared.** `rootReverseIndex` must lead with
+  the root join fields; `fanOutLimit` (1–1023) counts *every*
+  reverse-index entry for a joined key. A write that would exceed it — or
+  push a mutation past the 1,024-write bound including projection writes —
+  refuses whole with `SNAPBACK_PROJECTION_FANOUT_EXCEEDED`.
+- **Shared-source coupling is explicit.** A public joined source feeding
+  an owner output couples callers through the shared `fanOutLimit`;
+  declare `sharedFanOutDisclosure: true` or generation refuses with
+  `SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED`.
+- **Unchanged bytes cost nothing.** An affected output row whose
+  recomputed logical bytes are unchanged issues no write; repeated writes
+  to one source row coalesce to one evaluation against the final snapshot.
+
+Author-supplied root filters beyond visibility remain specified by
+LLP 0080 but not yet implemented — see the Step 5 implementation program
+under `issues/`.
 
 ---
 
@@ -5908,7 +5965,7 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs]
 status: current
 targets: [local]
@@ -6082,6 +6139,70 @@ Then load and drive the app exactly as production clients do — see
 `loadSchema`/`loadFunctions`/`reset`/`seed` and the query/mutation calls,
 and [realtime/live-queries](../realtime/live-queries.md) for asserting on
 live updates.
+
+## Bootstrap a backend without the JS kit
+
+A non-JS harness (Swift, Kotlin, plain curl) can load an app into a bare
+server from documents alone — no `ensureApp(...)`, no kit. The model
+consumer is the Swift clean-room harness
+([snapback-prove](repo:clients/swift/SnapbackClient/Sources/snapback-prove/main.swift)).
+
+**1. Start the server and discover it through the ready file.** A process
+without a controlling terminal must pass a fresh `--ready-file <path>`;
+once the listener binds, Snapback writes a JSON readiness descriptor there
+(schema: [host-ready](repo:schemas/host-ready.schema.json)) with
+`serverUrl`, `port`, `ready`, and — when a token was auto-minted —
+`adminTokenFile`:
+
+```sh
+snapback --memory --ready-file /tmp/sb-ready.json &
+# ...wait for the file, then:
+BASE_URL=$(jq -r .serverUrl /tmp/sb-ready.json)
+```
+
+**2. Get the admin token.** If you exported `SNAPBACK_ADMIN_TOKEN`, that
+exact token is active and no file is written. Otherwise the server mints
+one and persists it 0600 in the sidecar named by the descriptor's
+`adminTokenFile` — mechanically `<ready-file>.admin-token` (the same
+sibling convention as the instance lock). Tooling that can read that
+owner-only file is already local admin; send it as the
+`x-snapback-admin-token` header on every call below:
+
+```sh
+ADMIN_TOKEN=$(cat "$(jq -r .adminTokenFile /tmp/sb-ready.json)")
+```
+
+**3. Load the generated manifests and seed.** The three admin routes take
+these exact body shapes — the load routes take the **raw generated
+manifest JSON as the whole body** (no wrapper object), and reset wraps the
+seed:
+
+- `POST /_snapback/api/schema/load` — body is the contents of
+  `demos/<app>/snapback/generated/schema.manifest.json`, unmodified.
+- `POST /_snapback/api/functions/load` — body is the contents of
+  `generated/functions.manifest.json`, unmodified.
+- `POST /_snapback/api/app/reset` — body is optional; to reset **and**
+  seed deterministically, send `{"seed": <contents of seed.json>}`.
+
+```sh
+G=demos/todo/snapback/generated
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/schema.manifest.json" "$BASE_URL/_snapback/api/schema/load"
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/functions.manifest.json" "$BASE_URL/_snapback/api/functions/load"
+jq '{seed: .}' demos/todo/snapback/seed.json | curl -sf -X POST \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  --data-binary @- "$BASE_URL/_snapback/api/app/reset"
+```
+
+The reset response reports `{"seeded": ...}` when a seed was applied. From
+here the harness drives the app through the ordinary client surface
+(`/query/{name}`, `/mutation/{name}`, `/connection/open`, live routes) —
+the wire contract is [LLP 0094](repo:llp/0094-wire-envelope-contract.spec.md)
+and the lifecycle obligations are
+[LLP 0095](repo:llp/0095-client-lifecycle-and-conformance.spec.md).
 
 ## What a good suite asserts
 

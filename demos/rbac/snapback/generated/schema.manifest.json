@@ -11,12 +11,12 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:30d8bcced603e36f7517a9891c5dd0631d8518f792f1397c45d04d377938c36f",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:a4b09f89557e60abf7b809d98866c76d977554e97bb411b5cccd35e1d67528bf",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:60ea8f88be3e62fb9904f00188217b16482fea72c94cda20c3e4b0c1eaf2a923",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:2fbe738145267f336af86065bf8b8b3e13925f8d3d60ad473e0cce20f9d1b426",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

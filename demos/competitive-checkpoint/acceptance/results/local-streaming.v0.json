@@ -3,12 +3,12 @@
   "protocol": "llp-0075-convex-checkpoint-v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "targetIdentitySource": "GET /inspect targetProfileId",
-  "capabilityManifestSha256": "a71185bb09e2a774cad724a3b1acac24021f530d9e200fcae3968d00649952fa",
+  "capabilityManifestSha256": "8bf947522e335a36d4476b3b6a539367b8dcba66e18f8063bc76bc2a1549228e",
   "title": "competitive checkpoint / local streamed actions",
-  "passed": 7,
+  "passed": 8,
   "skipped": 0,
   "failed": 0,
-  "total": 7,
+  "total": 8,
   "ok": true,
   "results": [
     {
@@ -27,6 +27,15 @@
           "update",
           "delete"
         ]
+      }
+    },
+    {
+      "name": "maintained projection materializes cards in the source commits",
+      "ok": true,
+      "details": {
+        "projection": "conversation-cards",
+        "fanOut": "reverse-index by_model",
+        "readPath": "owner-composed live query"
       }
     },
     {
@@ -77,7 +86,7 @@
       }
     }
   ],
-  "expectedChecks": 7,
+  "expectedChecks": 8,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }

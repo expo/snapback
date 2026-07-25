@@ -45,7 +45,7 @@ const client = new SnapbackClient(server.baseUrl, server.clientOptions);
 // hand-written alias, and pin the exact served manifest bytes in the receipt.
 const servedIdentity = await deriveServedTargetIdentity(server.baseUrl);
 const cleanups = [() => source.close(), () => server.stop()];
-const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 7 });
+const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 8 });
 let conversationId;
 
 await runAcceptance(suite, async () => {
@@ -128,6 +128,39 @@ await runAcceptance(suite, async () => {
       generatedOperations: 8,
       visibility: { kind: 'owner', field: 'ownerId' },
       crossUserDenialsWitnessed: ['list', 'uniqueLookup', 'keysetPage', 'update', 'delete'],
+    };
+  });
+
+  // @ref LLP 0080#5-transactionally-maintained-projections — the projection
+  // output materializes inside each SOURCE mutation's own commit: the root
+  // insert projects a card immediately (left join, null modelName), the
+  // joined-side insert fans out through the reverse index, and the output
+  // table is readable only through its owner-composed query.
+  await suite.check('maintained projection materializes cards in the source commits', async () => {
+    const before = await client.query(api.listConversationCards, { userId: ADA });
+    assertEqual(before.rows.length, 1, 'root insert already projected the card');
+    assertEqual(before.rows[0].title, 'First chat', 'card mirrors the root leaf');
+    assertEqual(before.rows[0].modelName ?? null, null, 'unregistered model projects null');
+
+    await client.mutate(api.registerModel, {
+      userId: ADA,
+      args: { slug: 'deterministic-v0', displayName: 'Deterministic v0' },
+    });
+    const after = await client.query(api.listConversationCards, { userId: ADA });
+    assertEqual(
+      after.rows[0].modelName,
+      'Deterministic v0',
+      'the joined-side insert fanned out to the card in its own commit',
+    );
+    assertEqual(
+      (await client.query(api.listConversationCards, { userId: GRACE })).rows,
+      [],
+      'cards stay owner-scoped',
+    );
+    return {
+      projection: 'conversation-cards',
+      fanOut: 'reverse-index by_model',
+      readPath: 'owner-composed live query',
     };
   });
 

@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25
+**Revised:** 2026-07-25; 2026-07-25 (live-owner identity rule on
+T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
+Swift clean-room defect ledger)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
 
 ## Summary
@@ -99,7 +101,21 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   register mode, owned there).
 - **T-UNSUB** (`LIVE → RELEASED`): explicit unsubscribe on normal shutdown
   and backgrounding. This is a conformance obligation, not etiquette
-  (LLP 0093 D2 demand ownership).
+  (LLP 0093 D2 demand ownership). **Release must present the
+  subscription's establishing live owner**: the resolved authority
+  identity the subscribe carried (dev mode: the `auth` object of the
+  subscribe input, e.g. `auth.user_id`) on the same connection grant.
+  The server's ownership predicate is `LiveSubscription::is_owned_by`
+  (`src/local.rs`) over `RetainedLiveAuthority::matches`
+  (`src/auth/invocation.rs`) — resolved-identity key, auth mode, profile,
+  and exact connection effect fence — and a mismatch (including an absent
+  `auth` on an authed subscription) refuses HTTP 403
+  `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the shared live-ownership code; scope
+  documented in LLP 0094 §0E). Because T-UNSUB is an obligation, the
+  identity requirement is itself conformance-load-bearing: a conformant
+  client **retains the establishing auth identity per subscription** —
+  discarding it makes demand unreleasable and leaks billing-visible
+  demand.
 - **T-REAP** (crash backstop, never normal release): on the local arm the
   120 s idle TTL (`CONNECTION_IDLE_TTL_MS`, `src/server.rs`) reaps an
   abandoned socketless connection and releases its demand; on the hosted
@@ -116,7 +132,14 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `src/local.rs`; D3 fact 2). Backoff 250 ms → 10 s.
 - **T-RECONNECT** (`RECOVERING → ATTACHED_LIVE`; each dropped subscription
   `→ PENDING` with `supersedes`): reconnect is **fresh subscribe with
-  `supersedes`**, never implicit resumption. The reattach route
+  `supersedes`**, never implicit resumption. The fresh subscribe **must
+  repeat the establishing identity**: the `supersedes` validation applies
+  the same ownership predicate as T-UNSUB, and a superseded subscription
+  owned by a different live owner fails closed with
+  `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the known-foreign-owner check in
+  `subscribe_live`'s supersession validation, `src/local.rs`) — so for
+  authed subscriptions the retained per-subscription identity of T-UNSUB
+  is also what makes reconnect possible. The reattach route
   (`resume_live`) and RQS token resume are decided ground documented as-is
   (LLP 0090/0091 §0B.4; reattach local-arm-only; no first-party client
   calls it today).
@@ -206,6 +229,34 @@ conformance harness feeds each `frame` to the client in the `given` state
 and asserts the `expect` obligations against the §1 model. The corpus is
 **normative for clients** (LLP 0093 D1 precedence) — complete over the
 specified behavior classes, not exhaustive over all valid schema values.
+
+**Judgment rules** (pinned 2026-07-25 from the P-2 clean-room defect
+ledger — without them two independent harnesses could pass the same corpus
+under different judgments; the Swift harness,
+`clients/swift/SnapbackClient`, `FixtureHarness.swift`, is the first
+consumer implementing all three):
+
+1. **Actions are an exact, unordered set.** A client's emitted actions for
+   a fixture must equal `expect.actions` as a set — no omissions, no
+   extras, ordering never asserted. `expect.actions` is neither a trace
+   nor a minimum obligation the client may exceed.
+2. **Batch composition and subsumption.** For fixtures carrying
+   `batchContext`, the evaluated drain batch is the fixture's `frame`
+   followed by the `batchContext` entries in order. In a batch containing
+   an undecodable item, the per-item actions of the remaining items
+   (their `unwrap_durable` and version-guard outcomes) are **subsumed**
+   under the single `deliver_batch_remainder` action; a clean batch
+   reports per-item actions explicitly (contrast
+   `poll.acknowledged_batch.malformed_item_forces_resync` with
+   `poll.wrapped_durable.unwrap`).
+3. **Attached-connection population.** `given.connection:
+   {"state": "attached"}` with no explicit subscription list is evaluated
+   against the pinned minimal population: **two durable subscriptions in
+   `LIVE`** (ids arbitrary), so connection-wide transitions
+   (`all_subscriptions → resync_pending`) are observable as such rather
+   than degenerate single-subscription effects. A future `formatVersion`
+   may add explicit `given.subscriptions`; until then this population is
+   normative for connection-scoped fixtures.
 
 Positive frames are constructed **through the serde wire types**, so a
 fixture can never drift from the wire; negative frames are raw JSON.

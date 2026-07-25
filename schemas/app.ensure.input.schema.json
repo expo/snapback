@@ -1295,6 +1295,13 @@
             "null"
           ]
         },
+        "projections": {
+          "description": "Transactionally maintained projections (LLP 0080 §5). Activation\nvalidates each plan against the schema and the whole active set (the\nper-source write-budget proof), and every source mutation maintains\nthe output in its own commit.",
+          "items": {
+            "$ref": "#/$defs/MaintainedProjectionPlan"
+          },
+          "type": "array"
+        },
         "schemaVersion": {
           "default": "snapback.v0",
           "type": "string"
@@ -1458,6 +1465,105 @@
         "Custom"
       ],
       "type": "string"
+    },
+    "MaintainedProjectionPlan": {
+      "additionalProperties": false,
+      "description": "`MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a\nstable output key expression, per-source and output visibility\ndeclarations, the declared root reverse index (the bounded lookup and\nadmission proof for joined-source fan-out), and a static `fanOutLimit`.\nIt deliberately has no caller-relative ordering, cursor, or `take`.",
+      "properties": {
+        "fanOutLimit": {
+          "description": "Static per-joined-key reference bound, `1..=1023`. Counts every\nreverse-index entry for the joined key, not only filter-admitted\nroots.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Stable plan identity (publication metadata). The stored projection\nidentity assigned at first activation derives from this and is\nrevision-stable — it names the row-identity domain, never re-keys.",
+          "type": "string"
+        },
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "outputKey": {
+          "$ref": "#/$defs/ProjectionOutputKey"
+        },
+        "outputTable": {
+          "type": "string"
+        },
+        "outputVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "projection": {
+          "description": "Projection leaves; declaration order is the output field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "rebuildRecipe": {
+          "description": "The versioned rebuild recipe this plan declares (LLP 0080 §5);\n`\"rebuild-v1\"` is the only admitted value until the 0081 slice.",
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "The non-security root filter `materializeAll` enumerates under —\nportable literal-only predicates in v1 (no caller, no auth exprs).",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootReverseIndex": {
+          "description": "Declared root reverse index whose leading fields are exactly the\nroot join-field sequence — targets may not discover affected roots\nthrough a table scan.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "sharedFanOutDisclosure": {
+          "default": false,
+          "description": "Explicit acknowledgment of the cross-authority capacity coupling\nwhen a mutable shared joined source feeds an owner output\n(LLP 0080 §3); absent otherwise.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "rootVisibility",
+        "joinedVisibility",
+        "projection",
+        "outputTable",
+        "outputKey",
+        "outputVisibility",
+        "rootReverseIndex",
+        "fanOutLimit",
+        "rebuildRecipe"
+      ],
+      "type": "object"
     },
     "MembershipExpiry": {
       "additionalProperties": false,
@@ -2121,6 +2227,45 @@
       ],
       "type": "object"
     },
+    "ProjectionOutputKey": {
+      "description": "The closed root-to-output key expression of a maintained projection\n(LLP 0080 §5): the root `_id`, or the complete ordered tuple of a\ndeclared unique root index whose fields the plan marks immutable, so an\noutput key cannot move under maintenance. Either form is injective over\nroots by the uniqueness proof.",
+      "oneOf": [
+        {
+          "enum": [
+            "RootId"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootUniqueIndex": {
+              "properties": {
+                "fields": {
+                  "description": "The exact index fields, restated so the plan is self-describing\nand validation can prove the restatement matches the schema.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "index": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RootUniqueIndex"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ProjectionSource": {
       "oneOf": [
         {
@@ -2154,6 +2299,37 @@
           },
           "required": [
             "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProjectionVisibility": {
+      "description": "Source/output visibility declaration for a maintained projection —\ndeclarative (unlike the callable plan's executable filter lists) because\nmaintenance runs under internal projection-maintenance authority and the\ndeclarations constrain information flow and the output's read\nenforcement, not a caller (LLP 0080 §3/§5).",
+      "oneOf": [
+        {
+          "enum": [
+            "public-read"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "owner"
           ],
           "type": "object"
         }

@@ -1,0 +1,1190 @@
+{
+  "formatVersion": 1,
+  "name": "relational-callable-corpus-v1",
+  "authority": "llp/0080-portable-relational-queries-and-projections.rfc.md#acceptance",
+  "schema": {
+    "tables": [
+      {
+        "name": "books",
+        "fields": [
+          {
+            "name": "title",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "authorSlug",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "rank",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "flag",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "ownerId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [
+          {
+            "name": "by_owner_title",
+            "fields": [
+              "ownerId",
+              "title"
+            ],
+            "unique": false
+          },
+          {
+            "name": "by_title",
+            "fields": [
+              "title"
+            ],
+            "unique": false
+          },
+          {
+            "name": "by_rank",
+            "fields": [
+              "rank"
+            ],
+            "unique": false
+          }
+        ]
+      },
+      {
+        "name": "authors",
+        "fields": [
+          {
+            "name": "slug",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "name",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "nickname",
+            "field_type": "String",
+            "optional": true
+          },
+          {
+            "name": "rating",
+            "field_type": "Integer",
+            "optional": false
+          },
+          {
+            "name": "active",
+            "field_type": "Boolean",
+            "optional": false
+          },
+          {
+            "name": "ownerId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [
+          {
+            "name": "by_slug",
+            "fields": [
+              "slug"
+            ],
+            "unique": true
+          },
+          {
+            "name": "by_slug_active",
+            "fields": [
+              "slug",
+              "active"
+            ],
+            "unique": true
+          },
+          {
+            "name": "by_rating",
+            "fields": [
+              "rating"
+            ],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "mirrors",
+        "fields": [
+          {
+            "name": "slug",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "name",
+            "field_type": "String",
+            "optional": false
+          },
+          {
+            "name": "ownerId",
+            "field_type": "String",
+            "optional": false
+          }
+        ],
+        "indexes": [
+          {
+            "name": "by_mirror_slug",
+            "fields": [
+              "slug"
+            ],
+            "unique": false
+          }
+        ]
+      }
+    ]
+  },
+  "tables": {
+    "books": [
+      {
+        "_id": "b1",
+        "title": "alpha",
+        "rank": 1,
+        "flag": true,
+        "ownerId": "user-a",
+        "authorSlug": "ada"
+      },
+      {
+        "_id": "b2",
+        "title": "beta",
+        "rank": 2,
+        "flag": false,
+        "ownerId": "user-a",
+        "authorSlug": "grace"
+      },
+      {
+        "_id": "b3",
+        "title": "gamma",
+        "rank": 3,
+        "flag": true,
+        "ownerId": "user-a"
+      },
+      {
+        "_id": "b4",
+        "title": "delta",
+        "rank": 1,
+        "flag": true,
+        "ownerId": "user-b",
+        "authorSlug": "ada"
+      },
+      {
+        "_id": "b6",
+        "title": "nfc",
+        "rank": 20,
+        "flag": true,
+        "ownerId": "user-a",
+        "authorSlug": "café"
+      },
+      {
+        "_id": "b7",
+        "title": "nfd",
+        "rank": 21,
+        "flag": true,
+        "ownerId": "user-a",
+        "authorSlug": "café"
+      },
+      {
+        "_id": "b8",
+        "title": "cap",
+        "rank": 22,
+        "flag": true,
+        "ownerId": "user-a",
+        "authorSlug": "Ada"
+      }
+    ],
+    "authors": [
+      {
+        "_id": "a1",
+        "slug": "ada",
+        "name": "Ada",
+        "rating": 1,
+        "active": true,
+        "ownerId": "user-a"
+      },
+      {
+        "_id": "a2",
+        "slug": "grace",
+        "name": "Grace",
+        "rating": 2,
+        "active": false,
+        "ownerId": "user-b"
+      },
+      {
+        "_id": "a3",
+        "slug": "café",
+        "name": "NfcAuthor",
+        "rating": 5,
+        "active": true,
+        "ownerId": "user-a"
+      },
+      {
+        "_id": "a4",
+        "slug": "café",
+        "name": "NfdAuthor",
+        "rating": 6,
+        "active": true,
+        "ownerId": "user-a"
+      },
+      {
+        "_id": "a5",
+        "slug": "Ada",
+        "name": "CapAda",
+        "rating": 7,
+        "active": true,
+        "ownerId": "user-a",
+        "nickname": "Cap"
+      }
+    ],
+    "mirrors": []
+  },
+  "cases": [
+    {
+      "name": "inner-owner-basic",
+      "auth": "user-a",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [],
+        "rootVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "joinedVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\"},{\"title\":\"cap\",\"authorName\":\"CapAda\"},{\"title\":\"nfc\",\"authorName\":\"NfcAuthor\"},{\"title\":\"nfd\",\"authorName\":\"NfdAuthor\"}]"
+      }
+    },
+    {
+      "name": "left-owner-null-leaves-are-literal",
+      "auth": "user-a",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Left",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta",
+                "gamma"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "joinedVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          },
+          {
+            "name": "nick",
+            "source": {
+              "JoinedField": "nickname"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\",\"nick\":null},{\"title\":\"beta\",\"authorName\":null,\"nick\":null},{\"title\":\"gamma\",\"authorName\":null,\"nick\":null}]"
+      }
+    },
+    {
+      "name": "public-inner-integer-key",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "rank",
+            "joinedField": "rating"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta",
+                "gamma",
+                "delta"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_rank",
+        "joinedIndex": "by_rating"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\"},{\"title\":\"beta\",\"authorName\":\"Grace\"},{\"title\":\"delta\",\"authorName\":\"Ada\"}]"
+      }
+    },
+    {
+      "name": "public-inner-compound-boolean-and-null-component",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          },
+          {
+            "rootField": "flag",
+            "joinedField": "active"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta",
+                "gamma",
+                "delta"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug_active"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\"},{\"title\":\"beta\",\"authorName\":\"Grace\"},{\"title\":\"delta\",\"authorName\":\"Ada\"}]"
+      }
+    },
+    {
+      "name": "left-compound-null-component-nulls-leaves",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Left",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          },
+          {
+            "rootField": "flag",
+            "joinedField": "active"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "gamma"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug_active"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"gamma\",\"authorName\":null}]"
+      }
+    },
+    {
+      "name": "nfc-nfd-spellings-stay-distinct",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "nfc",
+                "nfd"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"nfc\",\"authorName\":\"NfcAuthor\"},{\"title\":\"nfd\",\"authorName\":\"NfdAuthor\"}]"
+      }
+    },
+    {
+      "name": "case-variant-slugs-stay-distinct",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "cap",
+                "alpha"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\"},{\"title\":\"cap\",\"authorName\":\"CapAda\"}]"
+      }
+    },
+    {
+      "name": "owner-visibility-before-window",
+      "auth": "user-b",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [],
+        "rootVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 1,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"delta\",\"authorName\":\"Ada\"}]"
+      }
+    },
+    {
+      "name": "take-zero-empty-page",
+      "auth": "user-a",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [],
+        "rootVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "joinedVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 0,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[]"
+      }
+    },
+    {
+      "name": "cross-user-empty-result",
+      "auth": "user-c",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [],
+        "rootVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "joinedVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[]"
+      }
+    },
+    {
+      "name": "joined-owner-visibility-before-projection",
+      "auth": "user-b",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [
+          {
+            "field": "ownerId",
+            "op": "Eq",
+            "value": "AuthUserId"
+          }
+        ],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"beta\",\"authorName\":\"Grace\"}]"
+      }
+    },
+    {
+      "name": "duplicate-order-keys-totalized-by-id",
+      "auth": null,
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta",
+                "delta"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "rank",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_rank",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\"},{\"title\":\"delta\"},{\"title\":\"beta\"}]"
+      }
+    },
+    {
+      "name": "public-read-anonymous-matches-authenticated",
+      "auth": "user-a",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "rank",
+            "joinedField": "rating"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha",
+                "beta",
+                "gamma",
+                "delta"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_rank",
+        "joinedIndex": "by_rating"
+      },
+      "expect": {
+        "bytes": "[{\"title\":\"alpha\",\"authorName\":\"Ada\"},{\"title\":\"beta\",\"authorName\":\"Grace\"},{\"title\":\"delta\",\"authorName\":\"Ada\"}]"
+      }
+    },
+    {
+      "name": "below-constraint-duplicate-injection-refuses",
+      "auth": null,
+      "lanes": "storage",
+      "tables": {
+        "mirrors": [
+          {
+            "_id": "m1",
+            "slug": "ada",
+            "name": "One",
+            "ownerId": "user-a"
+          },
+          {
+            "_id": "m2",
+            "slug": "ada",
+            "name": "Two",
+            "ownerId": "user-a"
+          }
+        ]
+      },
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "mirrors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [
+          {
+            "field": "title",
+            "op": "In",
+            "value": {
+              "Literal": [
+                "alpha"
+              ]
+            }
+          }
+        ],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_mirror_slug"
+      },
+      "expect": {
+        "code": "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
+      }
+    },
+    {
+      "name": "zero-join-pairs-refused",
+      "auth": null,
+      "lanes": "storage",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [],
+        "rootFilters": [],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 10,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "code": "SNAPBACK_RELATIONAL_PLAN_INVALID"
+      }
+    },
+    {
+      "name": "take-over-cap-refused",
+      "auth": null,
+      "lanes": "storage",
+      "plan": {
+        "root": "books",
+        "rootAlias": "book",
+        "joined": "authors",
+        "joinedAlias": "author",
+        "joinKind": "Inner",
+        "joinOn": [
+          {
+            "rootField": "authorSlug",
+            "joinedField": "slug"
+          }
+        ],
+        "rootFilters": [],
+        "rootVisibility": [],
+        "joinedVisibility": [],
+        "projection": [
+          {
+            "name": "title",
+            "source": {
+              "RootField": "title"
+            }
+          },
+          {
+            "name": "authorName",
+            "source": {
+              "JoinedField": "name"
+            }
+          }
+        ],
+        "order": [
+          {
+            "field": "title",
+            "direction": "Asc"
+          }
+        ],
+        "take": 1025,
+        "rootIndex": "by_owner_title",
+        "joinedIndex": "by_slug"
+      },
+      "expect": {
+        "code": "SNAPBACK_RELATIONAL_PLAN_INVALID"
+      }
+    }
+  ]
+}

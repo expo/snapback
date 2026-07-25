@@ -19,6 +19,7 @@ const FN = Symbol('snapback.fn');
 const ROUTES = Symbol('snapback.routes');
 const CRON = Symbol('snapback.cron');
 const CONFIG = Symbol('snapback.config');
+const PROJECTION = Symbol('snapback.maintainedProjection');
 const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
@@ -902,6 +903,264 @@ export function defineRelationalQuery(spec) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Maintained projections (LLP 0080 §5 — MaintainedProjectionPlanV1)
+// ---------------------------------------------------------------------------
+
+const PROJECTION_SPEC_FIELDS = new Set([
+  'id', 'root', 'rootAlias', 'joined', 'joinedAlias', 'join', 'kind',
+  'visibility', 'projection', 'output', 'outputKey', 'rootReverseIndex',
+  'fanOutLimit', 'sharedFanOutDisclosure',
+]);
+const PROJECTION_ID = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
+function projectionVisibilityManifest(visibility) {
+  return visibility.kind === 'owner'
+    ? { owner: { field: visibility.field } }
+    : 'public-read';
+}
+
+/**
+ * A transactionally maintained projection: a relational core plus a stable
+ * output key, whose output table the runtime maintains inside every source
+ * mutation\'s own commit. Generation mirrors activation: everything the
+ * server would refuse at load refuses here first, with the same rules.
+ *
+ * @ref LLP 0080#5-transactionally-maintained-projections — the closed plan:
+ *   output key = root `_id` or an immutable unique root index tuple; the
+ *   root reverse index is the bounded fan-out lookup; `fanOutLimit` counts
+ *   every reverse-index entry.
+ * @ref LLP 0080#3-visibility-and-authority — owner derivation from a
+ *   guaranteed-present source, the same-subject static row relation, and
+ *   the `sharedFanOutDisclosure` acknowledgment for a mutable shared
+ *   joined source feeding an owner output.
+ */
+export function defineMaintainedProjection(spec) {
+  assertKnownSpecFields(spec, 'MaintainedProjection', PROJECTION_SPEC_FIELDS);
+  assert(
+    typeof spec.id === 'string' && PROJECTION_ID.test(spec.id),
+    'maintained projection id must be a stable identifier (letters, digits, _ or -)',
+  );
+  const rootFacts = relationalTable(spec.root, 'root');
+  const joinedFacts = relationalTable(spec.joined, 'joined');
+  const outputFacts = relationalTable(spec.output, 'output');
+  assert(
+    rootFacts.name !== joinedFacts.name
+      && outputFacts.name !== rootFacts.name
+      && outputFacts.name !== joinedFacts.name,
+    'root, joined, and output must be three distinct tables',
+  );
+  const rootAlias = spec.rootAlias ?? rootFacts.name;
+  const joinedAlias = spec.joinedAlias ?? joinedFacts.name;
+  assert(
+    RELATIONAL_IDENT.test(rootAlias) && RELATIONAL_IDENT.test(joinedAlias)
+      && rootAlias !== joinedAlias,
+    'projection aliases must be distinct identifiers',
+  );
+  const kind = spec.kind ?? 'inner';
+  assert(kind === 'inner' || kind === 'left', "projection kind must be 'inner' or 'left'");
+
+  assert(
+    Array.isArray(spec.join) && spec.join.length >= 1 && spec.join.length <= 4,
+    'projection join requires 1..=4 equality pairs',
+  );
+  const joinOn = spec.join.map((pair, index) => {
+    assert(
+      pair && typeof pair === 'object' && Object.keys(pair).length === 2
+        && typeof pair.root === 'string' && typeof pair.joined === 'string',
+      `join[${index}] must be { root, joined } field names`,
+    );
+    const rootValidator = rootFacts.fields[pair.root];
+    const joinedValidator = joinedFacts.fields[pair.joined];
+    assert(rootValidator, `join[${index}].root names unknown field ${rootFacts.name}.${pair.root}`);
+    assert(joinedValidator, `join[${index}].joined names unknown field ${joinedFacts.name}.${pair.joined}`);
+    assert(
+      !joinedValidator.optional,
+      `join[${index}].joined field must be non-optional so the unique key is total`,
+    );
+    const rootClass = relationalJoinKeyClass(rootValidator, `join[${index}].root`);
+    const joinedClass = relationalJoinKeyClass(joinedValidator, `join[${index}].joined`);
+    assert(
+      rootClass === joinedClass,
+      `join[${index}] compares ${rootClass} with ${joinedClass}; both operands must share one admitted type`,
+    );
+    return { rootField: pair.root, joinedField: pair.joined };
+  });
+
+  // Cardinality proof: some declared unique joined index whose complete
+  // ordered key is exactly the joined-field sequence.
+  const joinedKey = joinOn.map((pair) => pair.joinedField);
+  assert(
+    joinedFacts.indexes.some((candidate) => (
+      candidate.unique === true
+        && candidate.fields.length === joinedKey.length
+        && candidate.fields.every((field, index) => field === joinedKey[index])
+    )),
+    `projection requires a declared unique index on ${joinedFacts.name} whose complete ordered key is exactly [${joinedKey.join(', ')}]`,
+  );
+
+  // The bounded fan-out lookup: a declared root index (not necessarily
+  // unique) leading with exactly the root join-field sequence.
+  assert(typeof spec.rootReverseIndex === 'string', 'projection rootReverseIndex is required');
+  const rootKey = joinOn.map((pair) => pair.rootField);
+  const reverse = rootFacts.indexes.find((candidate) => candidate.name === spec.rootReverseIndex);
+  assert(
+    reverse && reverse.fields.length >= rootKey.length
+      && rootKey.every((field, index) => reverse.fields[index] === field),
+    `rootReverseIndex ${spec.rootReverseIndex} must be a declared index on ${rootFacts.name} leading with [${rootKey.join(', ')}]`,
+  );
+
+  assert(
+    Number.isSafeInteger(spec.fanOutLimit) && spec.fanOutLimit >= 1 && spec.fanOutLimit <= 1_023,
+    'projection fanOutLimit must be an integer from 1 through 1023',
+  );
+
+  // Output key: the root _id (default), or an immutable declared unique
+  // root index whose fields are restated into the plan.
+  let outputKey = 'RootId';
+  if (spec.outputKey !== undefined && spec.outputKey !== 'rootId') {
+    assert(
+      spec.outputKey && typeof spec.outputKey === 'object'
+        && typeof spec.outputKey.index === 'string'
+        && Object.keys(spec.outputKey).length === 1,
+      "projection outputKey must be 'rootId' or { index: '<unique root index>' }",
+    );
+    const keyIndex = rootFacts.indexes.find((candidate) => candidate.name === spec.outputKey.index);
+    assert(
+      keyIndex && keyIndex.unique === true && keyIndex.fields.length > 0,
+      `outputKey index ${spec.outputKey.index} must be a declared unique index on ${rootFacts.name}`,
+    );
+    outputKey = { RootUniqueIndex: { index: keyIndex.name, fields: [...keyIndex.fields] } };
+  }
+
+  assert(
+    spec.visibility && typeof spec.visibility === 'object' && !Array.isArray(spec.visibility),
+    'defineMaintainedProjection requires visibility: { root, joined, output }',
+  );
+  for (const key of Object.keys(spec.visibility)) {
+    assert(RELATIONAL_VISIBILITY_FIELDS.has(key), `visibility has unknown field ${key}`);
+  }
+  const rootVisibility = relationalVisibility(rootFacts, spec.visibility.root, 'root');
+  const joinedVisibility = relationalVisibility(joinedFacts, spec.visibility.joined, 'joined');
+  const anyOwner = rootVisibility.kind === 'owner' || joinedVisibility.kind === 'owner';
+  const output = spec.visibility.output;
+  if (anyOwner) {
+    assert(
+      output && typeof output === 'object' && output.kind === 'owner'
+        && typeof output.field === 'string',
+      "an owner source forces visibility.output { kind: 'owner', field } — no widening",
+    );
+  } else {
+    assert(
+      output && typeof output === 'object' && output.kind === 'public-read',
+      "all-public sources force visibility.output { kind: 'public-read' } — never silently narrower",
+    );
+  }
+
+  assert(
+    spec.projection && typeof spec.projection === 'object' && !Array.isArray(spec.projection)
+      && Object.keys(spec.projection).length > 0,
+    'projection leaves must be a non-empty object',
+  );
+  const projection = Object.entries(spec.projection).map(([leafName, source]) => {
+    assert(RELATIONAL_IDENT.test(leafName), `projection field ${leafName} must be an identifier`);
+    assert(
+      outputFacts.fields[leafName],
+      `projection field ${leafName} must exist on output table ${outputFacts.name}`,
+    );
+    assert(
+      source && typeof source === 'object' && Object.keys(source).length === 1,
+      `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
+    );
+    if (typeof source.root === 'string') {
+      assert(rootFacts.fields[source.root], `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      return { name: leafName, source: { RootField: source.root } };
+    }
+    if (typeof source.joined === 'string') {
+      assert(joinedFacts.fields[source.joined], `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      return { name: leafName, source: { JoinedField: source.joined } };
+    }
+    assert(
+      Object.hasOwn(source, 'literal'),
+      `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
+    );
+    return { name: leafName, source: { Literal: source.literal ?? null } };
+  });
+
+  if (output.kind === 'owner') {
+    assert(
+      outputFacts.fields[output.field],
+      `visibility.output.field ${output.field} must exist on output table ${outputFacts.name}`,
+    );
+    const ownerLeaf = projection.find((leaf) => leaf.name === output.field);
+    assert(ownerLeaf, `output owner field ${output.field} must be a projection leaf`);
+    // Owner derivation from a guaranteed-present source: the root, or the
+    // joined side only under an inner join (LLP 0080 §3).
+    const derivationProven = (
+      (ownerLeaf.source.RootField !== undefined
+        && rootVisibility.kind === 'owner'
+        && ownerLeaf.source.RootField === rootVisibility.field)
+      || (ownerLeaf.source.JoinedField !== undefined
+        && joinedVisibility.kind === 'owner'
+        && ownerLeaf.source.JoinedField === joinedVisibility.field
+        && kind === 'inner')
+    );
+    assert(
+      derivationProven,
+      'output owner must derive from a declared source owner field on a guaranteed-present source (the root, or the joined side under inner)',
+    );
+    // Same subject as a static row relation: two owner sources must connect
+    // through the declared join equalities.
+    if (rootVisibility.kind === 'owner' && joinedVisibility.kind === 'owner') {
+      assert(
+        joinOn.some((pair) => (
+          pair.rootField === rootVisibility.field && pair.joinedField === joinedVisibility.field
+        )),
+        'both sources are owner-visible but their owner fields do not connect through the declared join equalities',
+      );
+    }
+    // A mutable shared joined source couples callers through the shared
+    // fanOutLimit; the coupling requires the explicit acknowledgment.
+    if (joinedVisibility.kind !== 'owner') {
+      assert(
+        spec.sharedFanOutDisclosure === true,
+        'SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED: a shared public joined source feeding an owner output requires sharedFanOutDisclosure: true to acknowledge the cross-authority capacity coupling',
+      );
+    }
+  } else {
+    assert(
+      spec.sharedFanOutDisclosure === undefined || spec.sharedFanOutDisclosure === false,
+      'sharedFanOutDisclosure applies only to an owner output over a shared joined source',
+    );
+  }
+
+  return Object.freeze({
+    [PROJECTION]: true,
+    plan: {
+      id: spec.id,
+      root: rootFacts.name,
+      rootAlias,
+      joined: joinedFacts.name,
+      joinedAlias,
+      joinKind: kind === 'inner' ? 'Inner' : 'Left',
+      joinOn,
+      rootFilters: [],
+      rootVisibility: projectionVisibilityManifest(rootVisibility),
+      joinedVisibility: projectionVisibilityManifest(joinedVisibility),
+      projection,
+      outputTable: outputFacts.name,
+      outputKey,
+      outputVisibility: projectionVisibilityManifest(
+        output.kind === 'owner' ? { kind: 'owner', field: output.field } : { kind: 'public-read' },
+      ),
+      rootReverseIndex: spec.rootReverseIndex,
+      fanOutLimit: spec.fanOutLimit,
+      sharedFanOutDisclosure: spec.sharedFanOutDisclosure === true,
+      rebuildRecipe: 'rebuild-v1',
+    },
+  });
+}
+
 function exactRelationalVisibilityObject(visibility) {
   assert(
     visibility && typeof visibility === 'object' && !Array.isArray(visibility),
@@ -1184,6 +1443,10 @@ export function isFunctionDef(value) {
 
 export function isCronDef(value) {
   return !!(value && value[CRON]);
+}
+
+export function isMaintainedProjectionDef(value) {
+  return !!(value && value[PROJECTION]);
 }
 
 export function isRoutesDef(value) {

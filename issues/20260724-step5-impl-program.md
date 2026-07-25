@@ -41,6 +41,20 @@ dependency of both the 0065 and 0080 lanes.
 - **Phase B (next):** maintained projections + rebuild, the minimal 0081
   slice they force (barrier/executor, journal events, plan artifact +
   approval for `RebuildMaintainedProjection`), and the coupled suite.
+  **Status (2026-07-25): executed.** Maintained projections landed whole
+  (core engine in both mutation tiers, activation validation, the local
+  IMMEDIATE-transaction barrier rebuild with receipts and the streaming
+  split-oracle digest, `defineMaintainedProjection` authoring + demo +
+  guide) and `RELATIONAL_MIGRATION_COUPLED_SUITE_V1`'s v1 fixtures are
+  green (`tests/relational_migration_coupled_suite_v0.rs` +
+  `tests/relational_corpus_v0.rs` + the src witnesses; item→witness map
+  in the coupled-suite ticket). The minimal 0081 slice is deliberately
+  narrowed to the local profile — the durable batch-cursor executor,
+  full approval records, journal events, and verification/rollback stay
+  the complete Phase C lane. `Implemented` status flips and the
+  `relational_query_v1` maturity promotion are author decisions gated on
+  the ticket-recorded residuals (hosted arms, retention lease class,
+  obligation-fault e2e, Step 0).
 - **Phase C (when real deployments need schema changes):** the rest of the
   0081 lane. 0081 is safety machinery and should land essentially whole —
   do not trim it; defer it. The hosted DO executor stays deferred behind an

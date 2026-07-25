@@ -804,6 +804,12 @@ pub struct FunctionManifest {
     /// entries ride the generated function manifest the way cron jobs do.
     #[serde(default)]
     pub config: Vec<ConfigEntryDefinition>,
+    /// Transactionally maintained projections (LLP 0080 §5). Activation
+    /// validates each plan against the schema and the whole active set (the
+    /// per-source write-budget proof), and every source mutation maintains
+    /// the output in its own commit.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<MaintainedProjectionPlan>,
 }
 
 impl Default for FunctionManifest {
@@ -820,6 +826,7 @@ impl Default for FunctionManifest {
             functions: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),
+            projections: Vec::new(),
         }
     }
 }
@@ -2109,6 +2116,98 @@ pub struct EffectCeilingWrite {
     pub operations: Vec<String>,
 }
 
+/// The closed root-to-output key expression of a maintained projection
+/// (LLP 0080 §5): the root `_id`, or the complete ordered tuple of a
+/// declared unique root index whose fields the plan marks immutable, so an
+/// output key cannot move under maintenance. Either form is injective over
+/// roots by the uniqueness proof.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionOutputKey {
+    RootId,
+    RootUniqueIndex {
+        index: String,
+        /// The exact index fields, restated so the plan is self-describing
+        /// and validation can prove the restatement matches the schema.
+        fields: Vec<String>,
+    },
+}
+
+/// Source/output visibility declaration for a maintained projection —
+/// declarative (unlike the callable plan's executable filter lists) because
+/// maintenance runs under internal projection-maintenance authority and the
+/// declarations constrain information flow and the output's read
+/// enforcement, not a caller (LLP 0080 §3/§5).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionVisibility {
+    #[serde(rename = "public-read")]
+    PublicRead,
+    #[serde(rename = "owner")]
+    Owner { field: String },
+}
+
+/// `MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a
+/// stable output key expression, per-source and output visibility
+/// declarations, the declared root reverse index (the bounded lookup and
+/// admission proof for joined-source fan-out), and a static `fanOutLimit`.
+/// It deliberately has no caller-relative ordering, cursor, or `take`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MaintainedProjectionPlan {
+    /// Stable plan identity (publication metadata). The stored projection
+    /// identity assigned at first activation derives from this and is
+    /// revision-stable — it names the row-identity domain, never re-keys.
+    pub id: String,
+    pub root: String,
+    #[serde(rename = "rootAlias", alias = "root_alias")]
+    pub root_alias: String,
+    pub joined: String,
+    #[serde(rename = "joinedAlias", alias = "joined_alias")]
+    pub joined_alias: String,
+    #[serde(rename = "joinKind", alias = "join_kind")]
+    pub join_kind: JoinKind,
+    #[serde(rename = "joinOn", alias = "join_on")]
+    pub join_on: Vec<JoinEquality>,
+    /// The non-security root filter `materializeAll` enumerates under —
+    /// portable literal-only predicates in v1 (no caller, no auth exprs).
+    #[serde(default, rename = "rootFilters", alias = "root_filters")]
+    pub root_filters: Vec<FilterExpr>,
+    #[serde(rename = "rootVisibility", alias = "root_visibility")]
+    pub root_visibility: ProjectionVisibility,
+    #[serde(rename = "joinedVisibility", alias = "joined_visibility")]
+    pub joined_visibility: ProjectionVisibility,
+    /// Projection leaves; declaration order is the output field order.
+    pub projection: Vec<ProjectionLeaf>,
+    #[serde(rename = "outputTable", alias = "output_table")]
+    pub output_table: String,
+    #[serde(rename = "outputKey", alias = "output_key")]
+    pub output_key: ProjectionOutputKey,
+    #[serde(rename = "outputVisibility", alias = "output_visibility")]
+    pub output_visibility: ProjectionVisibility,
+    /// Declared root reverse index whose leading fields are exactly the
+    /// root join-field sequence — targets may not discover affected roots
+    /// through a table scan.
+    #[serde(rename = "rootReverseIndex", alias = "root_reverse_index")]
+    pub root_reverse_index: String,
+    /// Static per-joined-key reference bound, `1..=1023`. Counts every
+    /// reverse-index entry for the joined key, not only filter-admitted
+    /// roots.
+    #[serde(rename = "fanOutLimit", alias = "fan_out_limit")]
+    pub fan_out_limit: u32,
+    /// Explicit acknowledgment of the cross-authority capacity coupling
+    /// when a mutable shared joined source feeds an owner output
+    /// (LLP 0080 §3); absent otherwise.
+    #[serde(
+        default,
+        rename = "sharedFanOutDisclosure",
+        alias = "shared_fan_out_disclosure"
+    )]
+    pub shared_fan_out_disclosure: bool,
+    /// The versioned rebuild recipe this plan declares (LLP 0080 §5);
+    /// `"rebuild-v1"` is the only admitted value until the 0081 slice.
+    #[serde(rename = "rebuildRecipe", alias = "rebuild_recipe")]
+    pub rebuild_recipe: String,
+}
+
 /// The versioned helper/profile identity a standard-pattern function carries
 /// (LLP 0065 §3).
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2414,6 +2513,12 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             functions,
             cron_jobs,
             config,
+            // Maintained-projection plans are dropped from the public
+            // projection like every HandlerPlan body: they are executable
+            // maintenance declarations, not identity/compat facts. A typed
+            // public summary can be added deliberately if inspection needs
+            // one.
+            projections: _,
         } = manifest;
         PublicFunctionManifest {
             artifact_kind,
@@ -3987,6 +4092,47 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub relational_queries: Option<RelationalQueryFacts>,
+    /// Generated standard-pattern facts (LLP 0065 §4): live delivery is the
+    /// conservative resnapshot, and the `authScopeField`-enabled
+    /// disjointness-skip refinement of LLP 0053 is disabled — the field is
+    /// invalidation-routing metadata, never a skip enabler or enforcement.
+    /// Present exactly when the target runs generated standard patterns.
+    #[serde(
+        default,
+        rename = "standardPatterns",
+        alias = "standard_patterns",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub standard_patterns: Option<StandardPatternFacts>,
+}
+
+/// The declared standard-pattern live posture (LLP 0065 §4).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternFacts {
+    /// Always `"conservative-resnapshot"` in v1: a generated live query
+    /// resnapshots on a dependency commit and never claims `live_delta` —
+    /// the runtime excludes pattern-identified functions from the delta
+    /// lane even when the plan shape would otherwise qualify.
+    #[serde(rename = "liveDelivery", alias = "live_delivery")]
+    pub live_delivery: String,
+    /// Always `"disabled"` in v1: `authScopeField` routes invalidation and
+    /// never enables LLP 0053's disjointness-skip refinement, so no
+    /// convergence fixture is owed until a future profile claims the skip.
+    #[serde(
+        rename = "authScopeDisjointnessSkip",
+        alias = "auth_scope_disjointness_skip"
+    )]
+    pub auth_scope_disjointness_skip: String,
+}
+
+impl StandardPatternFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            live_delivery: "conservative-resnapshot".to_owned(),
+            auth_scope_disjointness_skip: "disabled".to_owned(),
+        }
+    }
 }
 
 /// The declared relational live/retention posture (LLP 0080 §4).
@@ -4107,6 +4253,7 @@ impl CapabilityManifest {
             cron: true,
             notifications: false,
             relational_queries: Some(RelationalQueryFacts::local_v1()),
+            standard_patterns: Some(StandardPatternFacts::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -4357,6 +4504,11 @@ impl CapabilityManifest {
         // capability gap is the machine-readable refusal, so the fact block
         // must not ride along from the local profile (LLP 0080 §2).
         manifest.relational_queries = None;
+        // The narrow Cloudflare proof has no standard-pattern runtime
+        // support (no cursor keyring, no pattern admission gates); loading
+        // pattern-identified functions there is outside the proof, so no
+        // fact block is claimed.
+        manifest.standard_patterns = None;
         // The proof's supported query subset is single-table only (LLP 0040
         // §Measurements: evidence for the supported query subset only).
         manifest.supported_query_forms = vec![

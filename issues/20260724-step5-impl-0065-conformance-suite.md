@@ -75,12 +75,22 @@ from the following witnesses (Rust lib tests unless noted):
 
 **Residuals before flipping LLP 0065 to Implemented:**
 
-- the *disabled disjointness-skip* capability record (item 13's second
-  half): no skip refinement exists in the runtime, but the capability
-  artifact does not yet record the refinement as disabled — a small
-  manifest fact analogous to `relationalQueries`;
-- the Sessions-auth-mode matrix run of the principal and cursor
-  negatives (the dev-admitted lane canonicalizes sessions away);
+- ~~the *disabled disjointness-skip* capability record~~ — landed
+  2026-07-25: the capability manifest carries a `standardPatterns` fact
+  block (`liveDelivery: "conservative-resnapshot"`,
+  `authScopeDisjointnessSkip: "disabled"`) on local + remote-service and
+  deliberately nothing on the narrow Cloudflare proof; the runtime also
+  now excludes pattern-identified functions from the live_delta lane
+  (the unordered unique lookup would otherwise qualify), witnessed with
+  a same-shape control in
+  `standard_pattern_live_is_conservative_and_recorded`;
+- ~~the Sessions-auth-mode matrix~~ — landed 2026-07-25:
+  `cursor_negatives_hold_under_sessions_authorities` runs both cursor
+  families under real `ResolvedAppAuthority::Session` identities and
+  witnesses the session-axis authority transition (same user, re-minted
+  session) refusing byte-identically with the cross-user class; the
+  principal profile-class witness already ran under
+  `AuthMode::Sessions`;
 - the two-app negative for live-query keys and capability artifacts as
   explicit fixtures (currently instance-bound by construction);
 - `STEP5.DECLARATION_REDUCTION` itself stays a Partitime/LLP 0063

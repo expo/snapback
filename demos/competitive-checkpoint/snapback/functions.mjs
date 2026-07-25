@@ -5,9 +5,16 @@
 // seam; every durable patch still crosses an ordinary mutation.
 
 import {
+  arg,
+  authUserId,
   defineAction,
   defineJsLiveQuery,
   defineJsMutation,
+  defineLiveQuery,
+  defineMaintainedProjection,
+  defineMutation,
+  eq,
+  insert,
   v,
 } from '@snapback/codegen/define';
 import {
@@ -137,4 +144,51 @@ export const streamReply = defineAction({
   js: { source: 'handlers.mjs', exportName: 'streamReply' },
   writes: ['messages'],
   auth: 'authenticated',
+});
+
+// --------------------------------------------------------------------------
+// Maintained projection (LLP 0080 §5): conversation cards join each owner's
+// conversations to the public model dimension inside every source
+// mutation's own commit. The output table is read through an ordinary
+// owner-filtered live query and can never be written directly.
+// --------------------------------------------------------------------------
+
+export const conversationCardsProjection = defineMaintainedProjection({
+  id: 'conversation-cards',
+  root: schema.tables.conversations,
+  joined: schema.tables.models,
+  output: schema.tables.conversationCards,
+  join: [{ root: 'model', joined: 'slug' }],
+  // Left: a conversation whose model is not registered still projects a
+  // card with a null modelName; the owner evidence rides the root.
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: { kind: 'owner', field: 'ownerId' },
+  },
+  projection: {
+    ownerId: { root: 'ownerId' },
+    title: { root: 'title' },
+    modelName: { joined: 'displayName' },
+  },
+  rootReverseIndex: 'by_model',
+  fanOutLimit: 64,
+  sharedFanOutDisclosure: true,
+});
+
+export const registerModel = defineMutation({
+  args: { slug: v.string(), displayName: v.string() },
+  auth: 'authenticated',
+  plan: insert('models', { slug: arg('slug'), displayName: arg('displayName') }),
+});
+
+export const listConversationCards = defineLiveQuery({
+  table: 'conversationCards',
+  index: 'cards_by_owner',
+  auth: 'authenticated',
+  authScopeField: 'ownerId',
+  // The output visibility predicate, composed executably — a read without
+  // it is refused at generation and activation.
+  filter: [eq('ownerId', authUserId())],
 });

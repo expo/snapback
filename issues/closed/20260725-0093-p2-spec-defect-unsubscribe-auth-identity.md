@@ -37,3 +37,35 @@ Three defects for the documents:
 **Fix wanted:** P-1 (LLP 0095) documents the live-owner identity rule on
 T-UNSUB/T-RECONNECT, and the refusal-code registry gains the code with its
 actual scope.
+
+## Resolution (2026-07-25)
+
+All three defects addressed as spec edits, verified against the code:
+
+1. **T-UNSUB** (LLP 0095 §1.4) now states the live-owner identity rule:
+   release must present the subscription's establishing resolved identity
+   (dev mode: the subscribe input's `auth` object) on the same connection
+   grant; the predicate is `LiveSubscription::is_owned_by` (`src/local.rs`)
+   over `RetainedLiveAuthority::matches` (`src/auth/invocation.rs`), a
+   mismatch refuses HTTP 403 `SNAPBACK_LIVE_RESUME_OWNERSHIP`, and
+   retaining the identity per subscription is named
+   conformance-load-bearing.
+2. **The code's scope is now registered**: LLP 0094 §0E gained a scope
+   clarification — `SNAPBACK_LIVE_RESUME_OWNERSHIP` is the intentionally
+   shared live-ownership refusal minted by `live_owner_mismatch` /
+   the shared ownership predicate across unsubscribe, `supersedes`
+   replacement on subscribe, resume/reattach, and
+   authorization-invalidation manual retry (all call sites in
+   `src/local.rs`); the resume-flavored name is recorded as historical
+   (LLP 0032 S2).
+3. **T-RECONNECT** (LLP 0095 §1.4) now states the fresh subscribe must
+   repeat the establishing identity: the `supersedes` validation applies
+   the same ownership predicate and known foreign owners fail closed with
+   the same code (`subscribe_live` supersession validation,
+   `src/local.rs`), so authed reconnect depends on the same retained
+   per-subscription identity.
+
+Not done here (deliberately): marking `auth` semantically required in
+`live.unsubscribe.input.schema.json` — the member is genuinely optional at
+the wire layer (unauthed dev subscriptions release without it); the
+requirement is behavioral and now lives in the specs.

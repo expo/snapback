@@ -10,9 +10,11 @@ export interface SnapbackContractLinks {
   deleteConversation(args: { id: string }): unknown;
   firstConversationPage(args: Record<string, never>): unknown;
   getConversation(args: { id: string }): unknown;
+  listConversationCards(args: Record<string, never>): unknown;
   listConversations(args: Record<string, never>): unknown;
   listMessages(args: { conversationId: string }): unknown;
   nextConversationPage(args: { after: string }): unknown;
+  registerModel(args: { slug: string; displayName: string }): unknown;
   settleReply(args: { attemptId: string; status: string }): unknown;
   startReply(args: { conversationId: string; content: string; idempotencyKey: string }): unknown;
   updateConversation(args: { id: string; title: string; model: string }): unknown;

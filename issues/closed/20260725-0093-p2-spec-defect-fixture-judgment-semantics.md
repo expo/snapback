@@ -38,3 +38,27 @@ seen; two-subscription population for attached-connection fixtures. All
 **Fix wanted:** LLP 0095 §2.1 pins the three rules (or the corpus grows
 explicit members for them) so two independent harnesses cannot pass the
 same corpus under different judgments.
+
+## Resolution (2026-07-25)
+
+LLP 0095 §2.1 now carries a normative **"Judgment rules"** block pinning
+all three, matching the judgments the P-2 Swift harness
+(`clients/swift/SnapbackClient`, `FixtureHarness.swift`) implements and
+all ten seeded fixtures satisfy:
+
+1. `expect.actions` is judged as an **exact, unordered set** — no
+   omissions, no extras, never a trace, never a minimum.
+2. **Batch composition and subsumption**: the evaluated drain batch is
+   `frame` followed by `batchContext` in order; in a batch containing an
+   undecodable item, the remaining items' per-item actions are subsumed
+   under `deliver_batch_remainder`, while clean batches report per-item
+   actions explicitly.
+3. **Attached-connection population**: `given.connection: {"state":
+   "attached"}` without explicit subscriptions is evaluated against a
+   pinned minimal population of two durable subscriptions in `LIVE`, with
+   explicit `given.subscriptions` named as a possible future
+   `formatVersion` evolution.
+
+Chosen the spec-pin arm of the ticket's either/or; growing corpus members
+(e.g. explicit `given.subscriptions`) remains available as a later
+`formatVersion` change and is not required for two harnesses to agree.

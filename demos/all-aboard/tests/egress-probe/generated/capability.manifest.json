@@ -115,6 +115,10 @@
   ],
   "runtimeEngine": "ibex",
   "schemaVersion": "snapback.v0",
+  "standardPatterns": {
+    "authScopeDisjointnessSkip": "disabled",
+    "liveDelivery": "conservative-resnapshot"
+  },
   "storageEngine": "sqlite",
   "supportedArtifactAuthPairs": [
     {

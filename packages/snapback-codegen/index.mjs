@@ -945,6 +945,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const contractMutations = dict();
   const cronDefs = [];
   const configDefs = [];
+  const projectionDefs = [];
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
@@ -970,6 +971,10 @@ export async function generateInProcess(backendDir, options = {}) {
     }
     if (isIsolatedDefinition(def, 'config')) {
       configDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'maintained-projection')) {
+      projectionDefs.push({ exportName: name, def });
       continue;
     }
     if (!isIsolatedDefinition(def, 'function')) continue;
@@ -1508,6 +1513,7 @@ export async function generateInProcess(backendDir, options = {}) {
 
   validateActionPlans(functions, err);
   const cronJobs = buildCronJobs(cronDefs, functions, err);
+  const projections = buildMaintainedProjections(projectionDefs, functions, err);
   const configEntries = buildConfigEntries(configDefs, functions, err);
 
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -1681,6 +1687,7 @@ export async function generateInProcess(backendDir, options = {}) {
     functions: decoratedFunctionDefinitions,
     cronJobs,
     config: configEntries,
+    ...(projections.length > 0 ? { projections } : {}),
   };
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
@@ -5346,7 +5353,7 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isRoutesDef, isTableDef } from ${define};`;
+  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
@@ -5354,6 +5361,7 @@ function __snapbackDefinitionKind(value) {
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
   if (isRoutesDef(value)) return 'routes';
+  if (isMaintainedProjectionDef(value)) return 'maintained-projection';
   return null;
 }
 function __snapbackKnownMarkerKind(value) {
@@ -5555,6 +5563,86 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
       ],
     }));
   });
+}
+
+/// Cross-plan and cross-function validation for maintained projections
+/// (LLP 0080 §5/§Acceptance): generation refuses chains/diamonds, duplicate
+/// outputs, an unprovable per-source write budget, any function writing an
+/// output table, a raw HostPlan read of an owner-visible output without its
+/// visibility predicate, and opaque handler access to an output table. The
+/// per-plan rules were already proved by defineMaintainedProjection against
+/// the installed table builders; activation re-proves everything server-side.
+function buildMaintainedProjections(projectionDefs, functions, err) {
+  const projections = [];
+  const seenIds = new Set();
+  const outputs = new Map();
+  for (const { exportName, def } of projectionDefs) {
+    const plan = def.plan;
+    if (seenIds.has(plan.id)) {
+      err('PROJECTION_DUPLICATE_ID', 'projection', `${exportName}: duplicate projection id ${plan.id}`, { projection: plan.id });
+      continue;
+    }
+    seenIds.add(plan.id);
+    if (outputs.has(plan.outputTable)) {
+      err('PROJECTION_OUTPUT_SHARED', 'projection', `${exportName}: output table ${plan.outputTable} already belongs to projection ${outputs.get(plan.outputTable)}`, { projection: plan.id, table: plan.outputTable });
+      continue;
+    }
+    outputs.set(plan.outputTable, plan.id);
+    projections.push(plan);
+  }
+  for (const plan of projections) {
+    for (const source of [plan.root, plan.joined]) {
+      if (outputs.has(source)) {
+        err('PROJECTION_CHAIN_REFUSED', 'projection', `projection ${plan.id} sources ${source}, which is projection ${outputs.get(source)}'s output; chains and diamonds are refused at generation`, { projection: plan.id, table: source });
+      }
+    }
+  }
+  // Static per-source write budget: one direct write plus every plan's
+  // worst-case output writes from a single-row non-key-moving mutation.
+  const budget = new Map();
+  for (const plan of projections) {
+    budget.set(plan.root, (budget.get(plan.root) ?? 1) + 1);
+    budget.set(plan.joined, (budget.get(plan.joined) ?? 1) + plan.fanOutLimit);
+  }
+  for (const [source, writes] of budget) {
+    if (writes > 1_024) {
+      err('PROJECTION_WRITE_BUDGET_EXCEEDED', 'projection', `a single-row mutation of ${source} could require ${writes} writes across direct effects and projections; the mutation bound is 1024`, { table: source, writes });
+    }
+  }
+  if (projections.length === 0) return projections;
+  const ownerOutputs = new Map(
+    projections
+      .filter((plan) => plan.outputVisibility !== 'public-read')
+      .map((plan) => [plan.outputTable, plan.outputVisibility.owner.field]),
+  );
+  for (const fn of functions) {
+    const hostPlan = fn.runtime?.HostPlan;
+    const mutationSteps = hostPlan?.Mutation?.steps ?? [];
+    for (const step of mutationSteps) {
+      const target = Object.values(step)[0]?.table;
+      if (target && outputs.has(target) && !('Get' in step) && !('Guard' in step) && !('Let' in step)) {
+        err('PROJECTION_OUTPUT_WRITE_DENIED', 'projection', `${fn.name}: writes projection output table ${target}; outputs are maintained only by their source mutations`, { function: fn.name, table: target });
+      }
+    }
+    const queryPlan = hostPlan?.Query;
+    if (queryPlan && ownerOutputs.has(queryPlan.table)) {
+      const ownerField = ownerOutputs.get(queryPlan.table);
+      const enforced = (queryPlan.filters ?? []).some((filter) => (
+        filter.field === ownerField && filter.op === 'Eq' && filter.value === 'AuthUserId'
+      ));
+      if (!enforced) {
+        err('PROJECTION_OUTPUT_READ_UNENFORCED', 'projection', `${fn.name}: reads owner-visible projection output ${queryPlan.table} without composing its visibility predicate`, { function: fn.name, table: queryPlan.table });
+      }
+    }
+    if (fn.runtime?.IbexModule) {
+      for (const table of [...(fn.declaredReads ?? []), ...(fn.declaredWrites ?? [])]) {
+        if (outputs.has(table)) {
+          err('PROJECTION_OUTPUT_OPAQUE_ACCESS', 'projection', `${fn.name}: declares opaque access to projection output ${table}; nothing proves an opaque handler applies the output visibility predicate`, { function: fn.name, table });
+        }
+      }
+    }
+  }
+  return projections;
 }
 
 function isIsolatedDefinition(value, expectedKind) {

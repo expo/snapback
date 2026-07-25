@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "41be95c8012017828adfb7826af10e5403997285"
+    "commit": "2852081ff7303a3e66284f6e228a989df50d3ef7"
   },
   "nav": {
     ".": [
@@ -641,13 +641,18 @@
         "packages/snapback-codegen/relational-authoring.test.mjs"
       ],
       "reviewed": "2026-07-25",
-      "reviewedCommit": "e1edbbc1a706d0406de24646d2731b7e9fe93bd8",
-      "sha256": "02ff4ae4e0f18f8f9c10fa62d7aeaa58eba55650a196e2e217600d971cfcbef1",
+      "reviewedCommit": "681a98701db0b986d230e4be456f1a4694d6e50d",
+      "sha256": "0cc48c2c2f50d00f6f1c53bded7fd24787c69d32ee4415accb1fb55774b3293f",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/relational-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/functions.mjs"
         }
       ]
     },
@@ -766,7 +771,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "f7486ab5b6176530f9c642528743d0798fcf6625aeaacd7a999a3f11cfc0d8cd",
+      "sha256": "fd4e3d783c576586a0e50ab811dc5ae9405ca7c52f719ffa610070959a9ee5ea",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1649,8 +1654,10 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
         "demos/_kit/harness.mjs",
-        "demos/_kit/server-process.mjs"
+        "demos/_kit/server-process.mjs",
+        "schemas/host-ready.schema.json"
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
@@ -1659,7 +1666,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "daf8e439531a57518478d100b618d038dce42976a747490a0e29fdc408a88fc4",
+      "sha256": "ed3ed95ae6f418db84d30cc29ceb0a9f6a7b6ad1a5373e877342df1c0540e9f2",
       "snippets": [
         {
           "lang": "js",
@@ -1741,5 +1748,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "2d897dcc6a9561ca2bdedfe9bd1521406e970a5853cd39ae0c584beee2c95587"
+  "contentHash": "3bccfefe0d4a678b0fb4ce614a91ff4c44fe5c96c3bb47d0624109d796469847"
 }
