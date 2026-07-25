@@ -98,3 +98,20 @@ resume, `verifying→verifying` added to the committed relation), and the
 publication-timestamp floor ignored staged CopyTable sources (now
 enforced). Physical cleanup of parked generations remains behind the
 cleanup-pending tail.
+
+**Phase D closure (2026-07-25):** two tails completed. (1) The
+generated-functions-against-successor check: publication refuses with
+`SNAPBACK_MIGRATION_PRECONDITION_FAILED` when the serving (staged)
+function set does not bind against the successor schema; witnessed both
+ways, including the by-design approval-audience staleness after restaging
+(`publication_refuses_a_function_set_that_does_not_bind_the_successor`).
+(2) The physical cleanup tail does real work: from `released` the parked
+`__retired_g*` predecessor generations and artifact-declared retired
+columns drop; from `rolled-back` the orphaned staged `__g*` generations
+drop; two durable cuts (`cleanup-pending` commits before physical work),
+idempotent inventory-driven sweeps, reopen-time resume covering BOTH
+crash interiors (a kill before the pending row commits resumes from the
+terminal + garbage inventory; a kill before the closing terminal resumes
+from the durable pending row), and `verify`'s receipt≡journal projection
+cuts at the first terminal row since the tail extends it. Witness:
+`cleanup_tail_drops_parked_generations_and_resumes_after_crash`.

@@ -32,3 +32,9 @@ retirement.
 owning subsystem's versioned adapter); authorized-lease posture witnesses
 across publication; scheduled-cron payload accounting once cron carries
 durable queued payloads on this profile.
+
+**Phase D note (2026-07-25):** the auth-scoped retained lane at
+publication is now a durable `Delete` disposition + authenticated scope
+retirement (see the journal-events ticket closure); unscoped retained
+state keeps the clear-retained resync. The `transformed` posture remains
+spec-deferred to its owning subsystems.

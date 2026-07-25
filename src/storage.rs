@@ -2293,6 +2293,14 @@ impl LocalDatabase {
         })
     }
 
+    /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
+    /// §4: a crash after release reopens only the successor and resumes
+    /// cleanup). Inventory-driven — no artifact required.
+    pub(crate) fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        let schema = self.schema.clone();
+        migration_executor::resume_pending_cleanup(&mut self.conn, &schema)
+    }
+
     /// Install the active maintained-projection set (LLP 0080 §5). Called by
     /// function-manifest activation after validation; every mutation path on
     /// this database maintains these outputs in its own commit.

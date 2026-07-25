@@ -1404,21 +1404,6 @@ impl LocalDatabase {
                 at_ms: at,
                 ..JournalAppend::of(&MigrationExecState::Released)
             })?;
-            // The cleanup tail: logical retirements keep their physical
-            // storage through the rollback window; the physical drop is the
-            // Wave 3 cleanup lane. The tail closes back into the same
-            // terminal it extends.
-            let cleanup = MigrationExecState::CleanupPending {
-                terminal: CleanupTerminal::Released,
-            };
-            journal.append(JournalAppend {
-                at_ms: at,
-                ..JournalAppend::of(&cleanup)
-            })?;
-            journal.append(JournalAppend {
-                at_ms: at,
-                ..JournalAppend::of(&MigrationExecState::Released)
-            })?;
             delete_meta(&tx, META_MIGRATION_FENCE)?;
             let receipt = seal_receipt(
                 &tx,
@@ -1435,6 +1420,35 @@ impl LocalDatabase {
         };
         // The serving handle adopts the successor schema.
         self.schema = successor_schema.clone();
+        // The physical cleanup tail (§3/§4): the rollback window closed at
+        // release, so parked predecessor generations and artifact-declared
+        // retired columns drop now. A tail error leaves the journal at
+        // cleanup-pending — reopen resumes the sweep — and never un-releases
+        // the already-terminal publication.
+        let retired_columns: Vec<(String, String)> = artifact
+            .body
+            .steps
+            .iter()
+            .filter_map(|record| match &record.step {
+                MigrationStep::RetireField { table, field } => {
+                    Some((table.clone(), field.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+        let context = CleanupContext {
+            operation_id: approval.operation_id.clone(),
+            plan_id: artifact.plan_id.clone(),
+            lease_epoch,
+            input_version,
+        };
+        let _ = run_cleanup_tail(
+            &mut self.conn,
+            &context,
+            CleanupTerminal::Released,
+            &retired_columns,
+            &self.schema.clone(),
+        );
         Ok(receipt)
     }
 
@@ -1700,17 +1714,6 @@ impl LocalDatabase {
             at_ms: now_ms,
             ..JournalAppend::of(&MigrationExecState::RolledBack)
         })?;
-        let cleanup = MigrationExecState::CleanupPending {
-            terminal: CleanupTerminal::RolledBack,
-        };
-        journal.append(JournalAppend {
-            at_ms: now_ms,
-            ..JournalAppend::of(&cleanup)
-        })?;
-        journal.append(JournalAppend {
-            at_ms: now_ms,
-            ..JournalAppend::of(&MigrationExecState::RolledBack)
-        })?;
         delete_meta(&tx, META_MIGRATION_FENCE)?;
 
         // Seal both faces: the rollback receipt, and a terminal forward
@@ -1772,6 +1775,22 @@ impl LocalDatabase {
         )?;
         store_receipt(&tx, &approval.operation_id, &forward)?;
         tx.commit()?;
+        // The rollback's cleanup tail: the republished predecessor is
+        // authoritative, so orphaned staged successor generations drop.
+        // Same resumable posture as the release tail.
+        let context = CleanupContext {
+            operation_id: approval.operation_id.clone(),
+            plan_id: artifact.plan_id.clone(),
+            lease_epoch,
+            input_version: head,
+        };
+        let _ = run_cleanup_tail(
+            &mut self.conn,
+            &context,
+            CleanupTerminal::RolledBack,
+            &[],
+            &self.schema.clone(),
+        );
         Ok(rollback_receipt)
     }
 
@@ -2164,6 +2183,223 @@ impl LocalDatabase {
                 Ok(verification)
             }
         }
+    }
+}
+
+/// The physical cleanup tail (LLP 0081 §3/§4): logical retirements keep
+/// their storage through the rollback window, and §6's fast rollback exists
+/// only in `published-held` — so once the journal reaches `released` the
+/// window is closed and the parked predecessor generations (plus, when the
+/// artifact is in hand, the logically retired columns) can be physically
+/// dropped. From `rolled-back` the garbage is the staged successor instead.
+/// Two durable cuts: `cleanup-pending` commits before any physical work, so
+/// a crash inside the tail resumes from the journal at reopen; every drop
+/// is idempotent; and the tail closes back into the same terminal it
+/// extends. Crash-resume needs no artifact: the parked/staged names are
+/// system-owned patterns no schema manifest can declare, so the physical
+/// inventory is self-describing.
+pub(crate) struct CleanupContext {
+    pub operation_id: String,
+    pub plan_id: String,
+    pub lease_epoch: u64,
+    pub input_version: u64,
+}
+
+pub(crate) fn run_cleanup_tail(
+    conn: &mut Connection,
+    context: &CleanupContext,
+    terminal: CleanupTerminal,
+    retired_columns: &[(String, String)],
+    schema: &SchemaManifest,
+) -> SnapbackResult<Value> {
+    // Durable cut 1: the tail's intent survives a crash.
+    {
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let journal = JournalHandle {
+            tx: &tx,
+            operation_id: context.operation_id.clone(),
+            plan_id: context.plan_id.clone(),
+            lease_epoch: context.lease_epoch,
+            input_version: context.input_version,
+        };
+        journal.append(JournalAppend {
+            at_ms: now_millis(),
+            ..JournalAppend::of(&MigrationExecState::CleanupPending { terminal })
+        })?;
+        tx.commit()?;
+    }
+    kill_point_check("cleanup-pending");
+    cleanup_sweep(conn, context, terminal, retired_columns, schema)
+}
+
+/// Durable cut 2 of the tail: the physical drops and the terminal-closing
+/// journal row commit together. Entered fresh from `run_cleanup_tail` and
+/// re-entered by crash recovery, whose journal already shows
+/// `cleanup-pending` (the enumerated relation admits no pending→pending
+/// self-transition, so resume skips the first cut).
+fn cleanup_sweep(
+    conn: &mut Connection,
+    context: &CleanupContext,
+    terminal: CleanupTerminal,
+    retired_columns: &[(String, String)],
+    schema: &SchemaManifest,
+) -> SnapbackResult<Value> {
+    let terminal_state = match terminal {
+        CleanupTerminal::Released => MigrationExecState::Released,
+        CleanupTerminal::RolledBack => MigrationExecState::RolledBack,
+    };
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut dropped_tables: Vec<String> = Vec::new();
+    let mut dropped_columns: Vec<String> = Vec::new();
+    let physical: Vec<String> = {
+        let mut statement = tx.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+    for name in &physical {
+        let garbage = match terminal {
+            // The rollback window is closed: parked predecessor
+            // generations go.
+            CleanupTerminal::Released => name.contains("__retired_g"),
+            // The rollback republished the predecessor: orphaned staged
+            // successor generations go.
+            CleanupTerminal::RolledBack => {
+                !name.contains("__retired_g")
+                    && name
+                        .rsplit_once("__g")
+                        .is_some_and(|(base, generation)| {
+                            !base.is_empty()
+                                && !generation.is_empty()
+                                && generation.chars().all(|c| c.is_ascii_digit())
+                        })
+            }
+        };
+        if garbage {
+            tx.execute_batch(&format!(
+                "DROP TABLE IF EXISTS {}",
+                crate::storage::quote_ident(name)?
+            ))?;
+            dropped_tables.push(name.clone());
+        }
+    }
+    if matches!(terminal, CleanupTerminal::Released) {
+        for (table, column) in retired_columns {
+            // Only a column the authoritative manifest no longer declares is
+            // retirement residue; anything else is refused by inspection.
+            let declared = schema
+                .table(table)
+                .is_some_and(|manifest| manifest.field(column).is_some());
+            if declared {
+                continue;
+            }
+            let physically_present: bool = {
+                let mut statement = tx.prepare(&format!(
+                    "SELECT COUNT(*) FROM pragma_table_info({}) WHERE name = ?1",
+                    crate::storage::quote_ident(table)?
+                ))?;
+                statement.query_row(params![column], |row| row.get::<_, i64>(0))? > 0
+            };
+            if physically_present {
+                tx.execute_batch(&format!(
+                    "ALTER TABLE {} DROP COLUMN {}",
+                    crate::storage::quote_ident(table)?,
+                    crate::storage::quote_ident(column)?
+                ))?;
+                dropped_columns.push(format!("{table}.{column}"));
+            }
+        }
+    }
+    let summary = json!({
+        "droppedTables": dropped_tables,
+        "droppedColumns": dropped_columns,
+    });
+    let journal = JournalHandle {
+        tx: &tx,
+        operation_id: context.operation_id.clone(),
+        plan_id: context.plan_id.clone(),
+        lease_epoch: context.lease_epoch,
+        input_version: context.input_version,
+    };
+    journal.append(JournalAppend {
+        verification: Some(&summary),
+        at_ms: now_millis(),
+        ..JournalAppend::of(&terminal_state)
+    })?;
+    tx.commit()?;
+    Ok(summary)
+}
+
+/// Crash recovery for the cleanup tail: when the newest journal row overall
+/// is `cleanup-pending`, resume the physical sweep at reopen (§4: a crash
+/// after release reopens only the successor and resumes cleanup). Runs
+/// without the artifact — the sweep is inventory-driven; artifact-derived
+/// column drops from the interrupted run are re-derived as manifest-absent
+/// residue on the next operation, never guessed here.
+pub(crate) fn resume_pending_cleanup(
+    conn: &mut Connection,
+    schema: &SchemaManifest,
+) -> SnapbackResult<Option<Value>> {
+    if !crate::storage::sqlite_table_exists(conn, "_snapback_migration_journal")? {
+        return Ok(None);
+    }
+    let latest: Option<String> = conn
+        .query_row(
+            "SELECT entry_json FROM _snapback_migration_journal ORDER BY seq DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(raw) = latest else { return Ok(None) };
+    let entry: MigrationJournalEntryV1 = serde_json::from_str(&raw)
+        .map_err(|_| journal_corrupt("journal entry does not parse".to_owned()))?;
+    let context = CleanupContext {
+        operation_id: entry.operation_id.clone(),
+        plan_id: entry.plan_id.clone(),
+        lease_epoch: entry.lease_epoch,
+        input_version: entry.input_version,
+    };
+    match entry.state {
+        // The pending cut committed; only the sweep remains.
+        MigrationExecState::CleanupPending { terminal } => {
+            cleanup_sweep(conn, &context, terminal, &[], schema).map(Some)
+        }
+        // A crash in the pending transition's interior loses the pending
+        // row itself (the kill fires before the append commits), so a
+        // terminal journal with system-owned garbage still resumes: the
+        // inventory is self-describing, and an empty inventory skips
+        // without journal noise.
+        MigrationExecState::Released | MigrationExecState::RolledBack => {
+            let terminal = match entry.state {
+                MigrationExecState::Released => CleanupTerminal::Released,
+                _ => CleanupTerminal::RolledBack,
+            };
+            let garbage_exists = {
+                let mut statement = conn.prepare(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' \
+                     AND name NOT LIKE 'sqlite_%'",
+                )?;
+                let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+                let names = rows.collect::<Result<Vec<_>, _>>()?;
+                names.iter().any(|name| match terminal {
+                    CleanupTerminal::Released => name.contains("__retired_g"),
+                    CleanupTerminal::RolledBack => {
+                        !name.contains("__retired_g")
+                            && name.rsplit_once("__g").is_some_and(|(base, generation)| {
+                                !base.is_empty()
+                                    && !generation.is_empty()
+                                    && generation.chars().all(|c| c.is_ascii_digit())
+                            })
+                    }
+                })
+            };
+            if !garbage_exists {
+                return Ok(None);
+            }
+            run_cleanup_tail(conn, &context, terminal, &[], schema).map(Some)
+        }
+        _ => Ok(None),
     }
 }
 
@@ -3480,7 +3716,26 @@ impl LocalDatabase {
             )
         })?;
         let entries = journal_entries_on(&self.conn, operation_id)?;
-        let entries_value = serde_json::to_value(&entries)
+        // The receipt seals atomically with publication; the cleanup tail
+        // extends the terminal afterwards (§4: the tail ends in the same
+        // terminal it extends). The receipt's journal projection is
+        // therefore the prefix through the first terminal row — tail rows
+        // are post-terminal housekeeping, journaled but outside the seal.
+        let terminal_cut = entries
+            .iter()
+            .position(|entry| {
+                matches!(
+                    entry.state,
+                    MigrationExecState::Released
+                        | MigrationExecState::RolledBack
+                        | MigrationExecState::Cancelled
+                        | MigrationExecState::Abandoned
+                )
+            })
+            .map(|index| index + 1)
+            .unwrap_or(entries.len());
+        let entries = &entries[..terminal_cut];
+        let entries_value = serde_json::to_value(entries)
             .map_err(|_| journal_corrupt("journal serialize".to_owned()))?;
         let journal_jcs = crate::rqs::jcs(&entries_value)
             .map_err(|_| journal_corrupt("journal canonicalize".to_owned()))?;
@@ -4485,10 +4740,10 @@ mod tests {
             assert_eq!(pre["_id"], post["_id"]);
             assert_eq!(pre["_createdAt"], post["_createdAt"]);
         }
-        // The predecessor generation parks under its retired name for the
-        // rollback window.
+        // The predecessor generation parked for the rollback window and,
+        // with the window closed at release, the cleanup tail dropped it.
         assert!(
-            super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
+            !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
                 .expect("retired lookup"),
         );
     }
@@ -4558,6 +4813,122 @@ mod tests {
     //   rollback: available exactly while published-held, republishes the
     //   retained predecessor byte-exactly, allocates one new version R,
     //   raises the floor, advances the storage generation (so re-migrating
+    // @ref LLP 0081#3-typed-migration-steps — physical cleanup is
+    //   separately fenced after the rollback window: release closes the
+    //   window (§6's fast rollback exists only in published-held), the
+    //   journaled cleanup-pending tail drops the parked predecessor
+    //   generation, a crash inside the tail resumes from the journal, and
+    //   the tail is never reachable before a terminal state (the committed
+    //   transition relation admits it only from released/rolled-back).
+    #[test]
+    fn cleanup_tail_drops_parked_generations_and_resumes_after_crash() {
+        // Clean release: the parked predecessor generation is dropped and
+        // the journal closes the tail back into `released`.
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        staged_apply(&mut db, &plan, &approval).expect("apply");
+        assert!(
+            !crate::storage::sqlite_table_exists(&db.conn, "items__retired_g1")
+                .expect("inventory"),
+            "the parked predecessor drops once the rollback window closes"
+        );
+        let entries = journal_entries_on(&db.conn, &approval.operation_id).expect("journal");
+        let kinds: Vec<&str> = entries.iter().map(|entry| entry.state.kind()).collect();
+        assert!(
+            kinds
+                .windows(2)
+                .any(|window| window == ["cleanup-pending", "released"]),
+            "the tail closes back into its terminal: {kinds:?}"
+        );
+        let summary = entries
+            .iter()
+            .rev()
+            .find(|entry| entry.state.kind() == "released")
+            .and_then(|entry| entry.verification.clone())
+            .expect("the terminal row carries the sweep summary");
+        assert_eq!(summary["droppedTables"], json!(["items__retired_g1"]));
+
+        // Crash inside the tail: the publication is already terminal, the
+        // journal shows cleanup-pending, the parked bytes survive, and the
+        // reopen-time resume completes the sweep.
+        let mut crashed = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("cleanup-pending", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut crashed, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "the armed kill point must fire");
+        // The kill fires in the pending transition's interior — before its
+        // row commits — so the journal still shows the terminal and the
+        // parked bytes survive; resume is inventory-driven.
+        assert_eq!(
+            latest_state_for_test(&crashed, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "released",
+        );
+        assert!(
+            crate::storage::sqlite_table_exists(&crashed.conn, "items__retired_g1")
+                .expect("inventory"),
+            "the parked bytes survive a crash inside the tail"
+        );
+        let resumed = crashed
+            .resume_pending_migration_cleanup()
+            .expect("resume")
+            .expect("terminal journal plus garbage inventory resumes");
+        assert_eq!(resumed["droppedTables"], json!(["items__retired_g1"]));
+        assert_eq!(
+            latest_state_for_test(&crashed, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "released",
+        );
+        assert!(
+            crashed
+                .resume_pending_migration_cleanup()
+                .expect("idempotent probe")
+                .is_none(),
+            "a clean inventory leaves nothing to resume"
+        );
+
+        // The other interior: the pending cut commits, the crash lands
+        // before the sweep's terminal row — reopen resumes from the
+        // journaled cleanup-pending itself.
+        let mut held = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("released", 1);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut held, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "the second released append must kill");
+        assert_eq!(
+            latest_state_for_test(&held, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "cleanup-pending",
+        );
+        let resumed = held
+            .resume_pending_migration_cleanup()
+            .expect("resume")
+            .expect("a durable pending row resumes");
+        assert_eq!(resumed["droppedTables"], json!(["items__retired_g1"]));
+        assert_eq!(
+            latest_state_for_test(&held, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "released",
+        );
+    }
+
     //   needs a fresh preview), seals the rollback receipt, and replays
     //   idempotently.
     #[test]
