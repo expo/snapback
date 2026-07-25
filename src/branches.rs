@@ -63,7 +63,7 @@ pub struct BranchRecord {
     /// Canonical version the branch forked from — its compare-and-swap base for
     /// promotion.
     ///
-    /// @ref LLP 0097#5-promotion-command-replay-staged-effect-settlement — v1
+    /// @ref LLP 0097#5 — v1
     /// promotion requires the canonical head to equal `base_version`.
     pub base_version: u64,
     /// Canonical data-version-stream identity the branch forked from.
@@ -540,7 +540,7 @@ pub fn overlay_writes(conn: &Connection) -> SnapbackResult<Vec<(u64, OverlayWrit
 // egress path that cannot be classified cannot be captured and must be refused
 // — it may never silently fire from within a branch.
 //
-// @ref LLP 0097#scope — HostMediated vs EndToEnd; v1 capability is HostMediated.
+// @ref LLP 0097#2 — HostMediated vs EndToEnd; v1 capability is HostMediated.
 // @ref LLP 0070 — the CaptureOnly idiom this generalizes.
 // ---------------------------------------------------------------------------
 
@@ -615,7 +615,7 @@ impl EffectClass {
 /// Capture scope. v1 admits `HostMediated` only; `EndToEnd` is refused until the
 /// end-to-end capture story lands.
 ///
-/// @ref LLP 0097#scope
+/// @ref LLP 0097#2
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectScope {
     HostMediated,
