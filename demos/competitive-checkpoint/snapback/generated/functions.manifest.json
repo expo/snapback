@@ -4,7 +4,7 @@
   ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:0ad8d89e81813e7f",
+  "bundleHash": "sha256:851fe12de349e781",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -597,6 +597,71 @@
       "authorizationDependence": [
         "userId"
       ],
+      "bundleEntrypoint": "listConversationCards",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "cards_by_owner",
+            "table": "conversationCards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listConversationCards",
+      "id": "competitive-checkpoint:listConversationCards",
+      "kind": "LiveQuery",
+      "name": "listConversationCards",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversationCards",
+        "tables": [
+          "conversationCards"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "cards_by_owner",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversationCards"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
       "bundleEntrypoint": "listConversations",
       "effectCeiling": {
         "authorizationInputs": [
@@ -797,6 +862,72 @@
         "mode": "none",
         "primaryTable": null,
         "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "registerModel",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "models"
+          }
+        ]
+      },
+      "exportedName": "registerModel",
+      "id": "competitive-checkpoint:registerModel",
+      "kind": "Mutation",
+      "name": "registerModel",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "models",
+                  "values": {
+                    "displayName": {
+                      "Arg": "displayName"
+                    },
+                    "slug": {
+                      "Arg": "slug"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "models",
+        "tables": [
+          "models"
+        ]
       }
     },
     {
@@ -1088,7 +1219,61 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c5d5ddca0e90dc70b965216637f8a7c713e2f06a6f8ccc6656db134540bb7cac",
+  "inputsHash": "c3dfc0ffe707551265512d4ce65840203fbee8bf8a75203a72b61dce424da869",
+  "projections": [
+    {
+      "fanOutLimit": 64,
+      "id": "conversation-cards",
+      "joinKind": "Left",
+      "joinOn": [
+        {
+          "joinedField": "slug",
+          "rootField": "model"
+        }
+      ],
+      "joined": "models",
+      "joinedAlias": "models",
+      "joinedVisibility": "public-read",
+      "outputKey": "RootId",
+      "outputTable": "conversationCards",
+      "outputVisibility": {
+        "owner": {
+          "field": "ownerId"
+        }
+      },
+      "projection": [
+        {
+          "name": "ownerId",
+          "source": {
+            "RootField": "ownerId"
+          }
+        },
+        {
+          "name": "title",
+          "source": {
+            "RootField": "title"
+          }
+        },
+        {
+          "name": "modelName",
+          "source": {
+            "JoinedField": "displayName"
+          }
+        }
+      ],
+      "rebuildRecipe": "rebuild-v1",
+      "root": "conversations",
+      "rootAlias": "conversations",
+      "rootFilters": [],
+      "rootReverseIndex": "by_model",
+      "rootVisibility": {
+        "owner": {
+          "field": "ownerId"
+        }
+      },
+      "sharedFanOutDisclosure": true
+    }
+  ],
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

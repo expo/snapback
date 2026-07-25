@@ -392,6 +392,35 @@ export interface RelationalQuerySpec {
   defaultLive?: boolean;
 }
 export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
+
+export interface MaintainedProjectionSpec {
+  /** Stable plan identity; the row-identity domain across rebuilds. */
+  id: string;
+  root: unknown;
+  rootAlias?: string;
+  joined: unknown;
+  joinedAlias?: string;
+  output: unknown;
+  join: Array<{ root: string; joined: string }>;
+  kind?: 'inner' | 'left';
+  visibility: {
+    root: { kind: 'owner'; field: string } | { kind: 'public-read' };
+    joined: { kind: 'owner'; field: string } | { kind: 'public-read' };
+    output: { kind: 'owner'; field: string } | { kind: 'public-read' };
+  };
+  projection: Record<string, { root: string } | { joined: string } | { literal: unknown }>;
+  /** Root `_id` by default, or an immutable declared unique root index. */
+  outputKey?: 'rootId' | { index: string };
+  /** Declared root index leading with the root join-field sequence. */
+  rootReverseIndex: string;
+  /** Per-joined-key reference bound, 1..=1023 (reverse-index entries). */
+  fanOutLimit: number;
+  /** Required acknowledgment when a shared public joined source feeds an
+   * owner output (the cross-authority capacity coupling). */
+  sharedFanOutDisclosure?: boolean;
+}
+export declare function defineMaintainedProjection(spec: MaintainedProjectionSpec): unknown;
+export declare function isMaintainedProjectionDef(value: unknown): boolean;
 export declare function defineMutation(spec: HostPlanMutationSpec): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
 export declare function defineJsMutation(spec: JsMutationSpec): unknown;
 export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): unknown;

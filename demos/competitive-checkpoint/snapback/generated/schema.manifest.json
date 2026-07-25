@@ -7,9 +7,9 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "c5d5ddca0e90dc70b965216637f8a7c713e2f06a6f8ccc6656db134540bb7cac",
+  "inputsHash": "c3dfc0ffe707551265512d4ce65840203fbee8bf8a75203a72b61dce424da869",
   "portabilityFlags": [],
-  "schemaHash": "sha256:8b4145ea5648f505",
+  "schemaHash": "sha256:cbc1ae35bf0483b5",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -73,6 +73,12 @@
             "createdAt"
           ],
           "name": "by_owner_created"
+        },
+        {
+          "fields": [
+            "model"
+          ],
+          "name": "by_model"
         }
       ],
       "name": "conversations",
@@ -166,6 +172,60 @@
         }
       ],
       "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "models_by_slug",
+          "unique": true
+        }
+      ],
+      "name": "models",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "modelName",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId"
+          ],
+          "name": "cards_by_owner"
+        }
+      ],
+      "name": "conversationCards",
       "syncable": true
     }
   ],

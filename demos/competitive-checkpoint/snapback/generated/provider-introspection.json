@@ -288,6 +288,64 @@
       {
         "arguments": {
           "fields": {
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slug",
+            "displayName"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "models"
+          ],
+          "writes": [
+            "models"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": null,
+                    "table": "models",
+                    "values": {
+                      "displayName": {
+                        "Arg": "displayName"
+                      },
+                      "slug": {
+                        "Arg": "slug"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "registerModel",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
             "attemptId": {
               "name": "string",
               "shape": "primitive"
@@ -753,6 +811,75 @@
         },
         "dependencies": {
           "reads": [
+            "conversationCards"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listConversationCards",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "modelName": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
             "conversations"
           ]
         },
@@ -1016,8 +1143,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:0ad8d89e81813e7f",
-    "inputsHash": "c5d5ddca0e90dc70b965216637f8a7c713e2f06a6f8ccc6656db134540bb7cac",
-    "schemaHash": "sha256:8b4145ea5648f505"
+    "implementationHash": "sha256:851fe12de349e781",
+    "inputsHash": "c3dfc0ffe707551265512d4ce65840203fbee8bf8a75203a72b61dce424da869",
+    "schemaHash": "sha256:cbc1ae35bf0483b5"
   }
 }
