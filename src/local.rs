@@ -3674,6 +3674,7 @@ impl LocalSnapback {
 
         self.functions = manifest;
         self.functions_loaded = true;
+        self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
@@ -3807,6 +3808,7 @@ impl LocalSnapback {
 
         self.functions = manifest;
         self.functions_loaded = true;
+        self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
         self.warm_vms.clear();
         let mut diagnostics = Vec::new();
@@ -13847,6 +13849,459 @@ fn validate_function_schema_references(
             field(primary_table, auth_scope_field)?;
         }
     }
+    validate_maintained_projections(manifest, schema)?;
+    Ok(())
+}
+
+/// Activation validation for `MaintainedProjectionPlanV1` (LLP 0080 §5):
+/// the closed plan shape, the schema binding, the cardinality and
+/// reverse-index proofs, the §3 visibility/same-subject rules, the
+/// chain/diamond refusal, output-table read/write enforcement over the
+/// whole function set, and the static per-source write-budget proof over
+/// the active plan set. The data-dependent halves (existing reverse-index
+/// counts, per-mutation admission) live in the maintenance engine.
+fn validate_maintained_projections(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    use crate::manifest::{ProjectionOutputKey, ProjectionSource, ProjectionVisibility};
+
+    let table = |name: &str| {
+        schema.table(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("maintained projection references unknown table {name}"),
+            )
+        })
+    };
+    let field = |table_name: &str, field_name: &str| -> SnapbackResult<()> {
+        let table = table(table_name)?;
+        if matches!(field_name, "_id" | "_version" | "_createdAt" | "_updatedAt")
+            || table.field(field_name).is_some()
+        {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!(
+                    "maintained projection references unknown field {table_name}.{field_name}"
+                ),
+            ))
+        }
+    };
+
+    let invalid = |plan_id: &str, message: String| {
+        SnapbackError::error(
+            "SNAPBACK_PROJECTION_PLAN_INVALID",
+            "runtime",
+            format!("maintained projection {plan_id}: {message}"),
+        )
+    };
+
+    let mut plan_ids = BTreeSet::new();
+    let mut output_tables = BTreeSet::new();
+    // Chain/diamond refusal runs before any schema binding so a chained
+    // plan gets the named refusal, not an incidental field error.
+    let all_outputs: BTreeSet<&String> = manifest
+        .projections
+        .iter()
+        .map(|plan| &plan.output_table)
+        .collect();
+    for plan in &manifest.projections {
+        if all_outputs.contains(&plan.root) || all_outputs.contains(&plan.joined) {
+            return Err(invalid(
+                &plan.id,
+                "a projection may not source another projection's output (chains and \
+                 diamonds are refused at generation)"
+                    .into(),
+            ));
+        }
+        if plan.id.is_empty() || !plan_ids.insert(&plan.id) {
+            return Err(invalid(&plan.id, "plan id must be non-empty and unique".into()));
+        }
+        if plan.root == plan.joined
+            || plan.output_table == plan.root
+            || plan.output_table == plan.joined
+        {
+            return Err(invalid(
+                &plan.id,
+                "root, joined, and output tables must be three distinct tables".into(),
+            ));
+        }
+        if plan.root_alias.is_empty()
+            || plan.joined_alias.is_empty()
+            || plan.root_alias == plan.joined_alias
+        {
+            return Err(invalid(&plan.id, "source aliases must be distinct and non-empty".into()));
+        }
+        if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+            return Err(invalid(
+                &plan.id,
+                format!("1..=4 join equality pairs required, got {}", plan.join_on.len()),
+            ));
+        }
+        if plan.fan_out_limit == 0 || plan.fan_out_limit > 1023 {
+            return Err(invalid(
+                &plan.id,
+                format!("fanOutLimit must be 1..=1023, got {}", plan.fan_out_limit),
+            ));
+        }
+        if plan.rebuild_recipe != "rebuild-v1" {
+            return Err(invalid(
+                &plan.id,
+                format!("unknown rebuild recipe {:?}", plan.rebuild_recipe),
+            ));
+        }
+        // The non-security root filter is portable and caller-free in v1:
+        // maintenance runs under internal authority with no argument or
+        // authorization inputs, so only literal predicates are admissible.
+        for filter in &plan.root_filters {
+            if !matches!(filter.value, ValueExpr::Literal(_)) {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "root filter on {:?} must be a literal predicate; maintenance has no caller",
+                        filter.field
+                    ),
+                ));
+            }
+        }
+
+        let root_table = table(&plan.root)?;
+        let joined_table = table(&plan.joined)?;
+        let output_table = table(&plan.output_table)?;
+        if output_table.membership.is_some() {
+            return Err(invalid(
+                &plan.id,
+                "a membership table cannot be a projection output".into(),
+            ));
+        }
+        for filter in &plan.root_filters {
+            field(&plan.root, &filter.field)?;
+        }
+        for pair in &plan.join_on {
+            field(&plan.root, &pair.root_field)?;
+            field(&plan.joined, &pair.joined_field)?;
+        }
+
+        // Cardinality proof: unique joined index whose complete ordered key
+        // is exactly the joined-field sequence (LLP 0080 §1).
+        let joined_key: Vec<&str> = plan
+            .join_on
+            .iter()
+            .map(|pair| pair.joined_field.as_str())
+            .collect();
+        let proven = joined_table.indexes.iter().any(|candidate| {
+            candidate.unique
+                && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == joined_key
+        });
+        if !proven {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                "runtime",
+                format!(
+                    "maintained projection {} requires a unique index on {} whose complete \
+                     ordered key is exactly the joined-field sequence",
+                    plan.id, plan.joined
+                ),
+            ));
+        }
+
+        // Reverse-index proof: a declared root index (not necessarily
+        // unique) whose leading fields are exactly the root join-field
+        // sequence — the bounded lookup for joined-source fan-out; targets
+        // may not discover affected roots through a table scan.
+        let root_key: Vec<&str> = plan
+            .join_on
+            .iter()
+            .map(|pair| pair.root_field.as_str())
+            .collect();
+        let reverse_proven = root_table.indexes.iter().any(|candidate| {
+            candidate.name == plan.root_reverse_index
+                && candidate.fields.len() >= root_key.len()
+                && candidate.fields[..root_key.len()]
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    == root_key
+        });
+        if !reverse_proven {
+            return Err(invalid(
+                &plan.id,
+                format!(
+                    "rootReverseIndex {:?} must be a declared index on {} leading with the \
+                     root join-field sequence",
+                    plan.root_reverse_index, plan.root
+                ),
+            ));
+        }
+
+        // Output key: root `_id`, or the complete tuple of a declared
+        // unique root index the plan marks immutable.
+        if let ProjectionOutputKey::RootUniqueIndex { index, fields } = &plan.output_key {
+            let proven = root_table.indexes.iter().any(|candidate| {
+                candidate.name == *index && candidate.unique && candidate.fields == *fields
+            });
+            if fields.is_empty() || !proven {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "outputKey index {index:?} must be a declared unique root index whose \
+                         fields are restated exactly"
+                    ),
+                ));
+            }
+        }
+
+        // Projection leaves: sources exist, output fields exist, and leaf
+        // names are unique. Output rows are exactly the declared leaves.
+        let mut leaf_names = BTreeSet::new();
+        for leaf in &plan.projection {
+            if leaf.name.is_empty() || !leaf_names.insert(&leaf.name) {
+                return Err(invalid(
+                    &plan.id,
+                    format!("projection field {:?} must be non-empty and unique", leaf.name),
+                ));
+            }
+            field(&plan.output_table, &leaf.name)?;
+            match &leaf.source {
+                ProjectionSource::RootField(name) => field(&plan.root, name)?,
+                ProjectionSource::JoinedField(name) => field(&plan.joined, name)?,
+                ProjectionSource::Literal(_) => {}
+            }
+        }
+
+        // Visibility rules (LLP 0080 §3, applied to the maintained form).
+        let owner_field = |visibility: &ProjectionVisibility,
+                           source: &str|
+         -> SnapbackResult<Option<String>> {
+            match visibility {
+                ProjectionVisibility::PublicRead => Ok(None),
+                ProjectionVisibility::Owner { field: name } => {
+                    field(source, name)?;
+                    Ok(Some(name.clone()))
+                }
+            }
+        };
+        let root_owner = owner_field(&plan.root_visibility, &plan.root)?;
+        let joined_owner = owner_field(&plan.joined_visibility, &plan.joined)?;
+        let any_owner = root_owner.is_some() || joined_owner.is_some();
+        match (&plan.output_visibility, any_owner) {
+            (ProjectionVisibility::PublicRead, true) => {
+                return Err(invalid(
+                    &plan.id,
+                    "public output cannot consume an owner source — no visibility widening".into(),
+                ));
+            }
+            (ProjectionVisibility::Owner { .. }, false) => {
+                return Err(invalid(
+                    &plan.id,
+                    "owner output requires at least one owner source — never silently narrower"
+                        .into(),
+                ));
+            }
+            _ => {}
+        }
+        if let ProjectionVisibility::Owner { field: output_owner } = &plan.output_visibility {
+            field(&plan.output_table, output_owner)?;
+            // The output owner must project directly from a source owner
+            // field on a guaranteed-present source: the root, or the
+            // joined side only under an inner join.
+            let leaf = plan
+                .projection
+                .iter()
+                .find(|leaf| &leaf.name == output_owner)
+                .ok_or_else(|| {
+                    invalid(
+                        &plan.id,
+                        format!("output owner field {output_owner:?} must be a projection leaf"),
+                    )
+                })?;
+            let derivation_proven = match &leaf.source {
+                ProjectionSource::RootField(name) => root_owner.as_deref() == Some(name),
+                ProjectionSource::JoinedField(name) => {
+                    joined_owner.as_deref() == Some(name)
+                        && matches!(plan.join_kind, crate::manifest::JoinKind::Inner)
+                }
+                ProjectionSource::Literal(_) => false,
+            };
+            if !derivation_proven {
+                return Err(invalid(
+                    &plan.id,
+                    "output owner must derive from a declared source owner field on a \
+                     guaranteed-present source (the root, or the joined side under inner)"
+                        .into(),
+                ));
+            }
+            // Same-subject as a static row relation: when both sources are
+            // owner-visible, their owner fields must connect through the
+            // declared join equalities.
+            if let (Some(root_owner), Some(joined_owner)) = (&root_owner, &joined_owner) {
+                let connected = plan.join_on.iter().any(|pair| {
+                    &pair.root_field == root_owner && &pair.joined_field == joined_owner
+                });
+                if !connected {
+                    return Err(invalid(
+                        &plan.id,
+                        "both sources are owner-visible but their owner fields do not connect \
+                         through the declared join equalities — rows owned by different \
+                         principals could combine"
+                            .into(),
+                    ));
+                }
+            }
+            // A mutable shared joined source couples callers through the
+            // shared fanOutLimit; the coupling requires an explicit
+            // acknowledgment (LLP 0080 §3).
+            if joined_owner.is_none() && !plan.shared_fan_out_disclosure {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
+                    "runtime",
+                    format!(
+                        "maintained projection {} joins a shared public source into an owner \
+                         output; declare sharedFanOutDisclosure to acknowledge the \
+                         cross-authority capacity coupling",
+                        plan.id
+                    ),
+                ));
+            }
+        }
+        if !output_tables.insert(&plan.output_table) {
+            return Err(invalid(
+                &plan.id,
+                format!("output table {} already belongs to another projection", plan.output_table),
+            ));
+        }
+    }
+
+    // Chain/diamond refusal and output-table write/read enforcement run
+    // over the whole set: no projection may source another's output, and no
+    // function may write an output table or read it without its visibility
+    // enforcement (opaque handlers are refused outright).
+    for function in &manifest.functions {
+        validate_function_against_projection_outputs(function, manifest, &output_tables)?;
+    }
+    // Static per-source write-budget proof (LLP 0080 §5): for each table in
+    // either role, one direct write plus every active plan's output writes
+    // triggered by a single-row non-key-moving mutation of that table must
+    // stay within the 1,024-write mutation bound.
+    let mut budget: BTreeMap<&str, u64> = BTreeMap::new();
+    for plan in &manifest.projections {
+        *budget.entry(plan.root.as_str()).or_insert(1) += 1;
+        *budget.entry(plan.joined.as_str()).or_insert(1) += u64::from(plan.fan_out_limit);
+    }
+    for (source, writes) in budget {
+        if writes > 1024 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
+                "runtime",
+                format!(
+                    "a single-row mutation of {source} could require {writes} writes across \
+                     direct effects and active projections; the mutation bound is 1024"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The output-table fences over one function (LLP 0080 §5/§Acceptance): no
+/// raw write reaches a projection output, a closed HostPlan read composes
+/// the output visibility (enforced by its own predicate execution), and an
+/// opaque handler's declared read of an output table is refused at
+/// admission because nothing proves it applies the output predicate.
+fn validate_function_against_projection_outputs(
+    function: &FunctionDefinition,
+    manifest: &FunctionManifest,
+    output_tables: &BTreeSet<&String>,
+) -> SnapbackResult<()> {
+    let denied = |message: String| {
+        SnapbackError::error(
+            "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED",
+            "runtime",
+            format!("function {}: {message}", function.name),
+        )
+    };
+    match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+            for step in &plan.steps {
+                let target = match step {
+                    MutationStep::Insert { table, .. }
+                    | MutationStep::Patch { table, .. }
+                    | MutationStep::Delete { table, .. }
+                    | MutationStep::DeleteWhere { table, .. }
+                    | MutationStep::InsertEach { table, .. } => Some(table),
+                    MutationStep::Get { .. }
+                    | MutationStep::Guard { .. }
+                    | MutationStep::Let { .. } => None,
+                };
+                if let Some(target) = target
+                    && output_tables.contains(target)
+                {
+                    return Err(denied(format!(
+                        "writes projection output table {target}; outputs are maintained \
+                         only by their source mutations"
+                    )));
+                }
+            }
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+            if output_tables.contains(&plan.table) {
+                // A closed HostPlan may read the output only with the
+                // output visibility predicate composed; the owner filter is
+                // the executable evidence.
+                let projection = manifest
+                    .projections
+                    .iter()
+                    .find(|projection| projection.output_table == plan.table);
+                if let Some(projection) = projection
+                    && let crate::manifest::ProjectionVisibility::Owner { field } =
+                        &projection.output_visibility
+                {
+                    let enforced = plan.filters.iter().any(|filter| {
+                        &filter.field == field
+                            && matches!(filter.op, crate::manifest::FilterOp::Eq)
+                            && matches!(filter.value, ValueExpr::AuthUserId)
+                    });
+                    if !enforced {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
+                            "runtime",
+                            format!(
+                                "function {} reads owner-visible projection output {} without \
+                                 composing its visibility predicate",
+                                function.name, plan.table
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        FunctionRuntime::HostPlan(_) => {}
+        FunctionRuntime::IbexModule(_) => {
+            for declared in function
+                .read_set_summary
+                .tables
+                .iter()
+                .chain(function.write_set_summary.tables.iter())
+            {
+                if output_tables.contains(declared) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
+                        "runtime",
+                        format!(
+                            "function {} declares opaque access to projection output {declared}; \
+                             nothing proves an opaque handler applies the output visibility \
+                             predicate",
+                            function.name
+                        ),
+                    ));
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -17578,6 +18033,549 @@ globalThis.__snapbackHandlers = {
             .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor })))
             .expect("home app resumes");
         assert_eq!(resumed.rows, vec![json!({ "title": "beta" })]);
+    }
+
+    fn projection_fixture(
+        fan_out_limit: u32,
+    ) -> (SchemaManifest, FunctionManifest, crate::manifest::MaintainedProjectionPlan) {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind,
+            MaintainedProjectionPlan, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
+            ProjectionVisibility, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let table = |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| {
+            TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                table(
+                    "books",
+                    vec![
+                        string("title", false),
+                        string("slug", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    vec![
+                        IndexManifest {
+                            name: "by_slug".to_owned(),
+                            fields: vec!["slug".to_owned()],
+                            unique: true,
+                        },
+                        IndexManifest {
+                            name: "by_author".to_owned(),
+                            fields: vec!["authorSlug".to_owned()],
+                            unique: false,
+                        },
+                    ],
+                ),
+                table(
+                    "authors",
+                    vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    vec![IndexManifest {
+                        name: "authors_by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                ),
+                table(
+                    "bookSummaries",
+                    vec![
+                        string("title", false),
+                        string("authorName", true),
+                        string("ownerId", false),
+                    ],
+                    Vec::new(),
+                ),
+            ],
+            ..SchemaManifest::default()
+        };
+        let plan = MaintainedProjectionPlan {
+            id: "book-summaries".to_owned(),
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: ProjectionVisibility::Owner {
+                field: "ownerId".to_owned(),
+            },
+            joined_visibility: ProjectionVisibility::PublicRead,
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "ownerId".to_owned(),
+                    source: ProjectionSource::RootField("ownerId".to_owned()),
+                },
+            ],
+            output_table: "bookSummaries".to_owned(),
+            output_key: ProjectionOutputKey::RootUniqueIndex {
+                index: "by_slug".to_owned(),
+                fields: vec!["slug".to_owned()],
+            },
+            output_visibility: ProjectionVisibility::Owner {
+                field: "ownerId".to_owned(),
+            },
+            root_reverse_index: "by_author".to_owned(),
+            fan_out_limit,
+            shared_fan_out_disclosure: true,
+            rebuild_recipe: "rebuild-v1".to_owned(),
+        };
+        let insert = |name: &str, table: &str, fields: &[(&str, ValueExpr)]| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: table.to_owned(),
+                        values: fields
+                            .iter()
+                            .map(|(field, value)| ((*field).to_owned(), value.clone()))
+                            .collect(),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                })),
+            )
+        };
+        let arg = |name: &str| ValueExpr::Arg(name.to_owned());
+        let functions = FunctionManifest {
+            functions: vec![
+                insert(
+                    "addBook",
+                    "books",
+                    &[
+                        ("title", arg("title")),
+                        ("slug", arg("slug")),
+                        ("authorSlug", arg("author")),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                insert(
+                    "addAuthor",
+                    "authors",
+                    &[
+                        ("slug", arg("slug")),
+                        ("name", arg("name")),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                FunctionDefinition::new(
+                    "renameAuthor",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Patch {
+                            table: "authors".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                            values: BTreeMap::from([(
+                                "name".to_owned(),
+                                ValueExpr::Arg("name".to_owned()),
+                            )]),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "moveBookSlug",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Patch {
+                            table: "books".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                            values: BTreeMap::from([(
+                                "slug".to_owned(),
+                                ValueExpr::Arg("slug".to_owned()),
+                            )]),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "deleteBook",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Delete {
+                            table: "books".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+            ],
+            projections: vec![plan.clone()],
+            ..FunctionManifest::default()
+        };
+        (schema, functions, plan)
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — the
+    //   maintenance engine end to end: source and output commit together
+    //   at one version; the affected-key set closes over pre/post images;
+    //   joined-side fan-out updates every referencing output in the same
+    //   commit; unchanged recomputations issue no write; row identity is
+    //   key-stable across delete/re-insert; fan-out admission refuses the
+    //   whole mutation; and output-key fields are immutable.
+    #[test]
+    fn maintained_projection_engine_end_to_end() {
+        let (schema, functions, _plan) = projection_fixture(2);
+        let mut snapback = LocalSnapback::memory().expect("memory projection fixture");
+        snapback.apply_schema(schema).expect("apply projection schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "projection fixture must activate: {diagnostics:?}"
+        );
+        let mutate = |snapback: &mut LocalSnapback, name: &str, args: Value| {
+            snapback
+                .invoke_mutation(
+                    name,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                )
+                .unwrap_or_else(|error| panic!("{name} {error:?}"))
+        };
+        let summaries = |snapback: &LocalSnapback| -> Vec<Value> {
+            snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "bookSummaries".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: vec![crate::manifest::OrderExpr {
+                            field: "title".to_owned(),
+                            direction: crate::manifest::OrderDirection::Asc,
+                        }],
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read summaries")
+                .rows
+        };
+
+        // Root insert with no matching author: inner join admits no row.
+        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        assert!(summaries(&snapback).is_empty());
+
+        // The joined row appears: the reverse index fans out to the root
+        // and the output materializes in the author's commit.
+        mutate(&mut snapback, "addAuthor", json!({ "slug": "ada", "name": "Ada" }));
+        let rows = summaries(&snapback);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["title"], json!("alpha"));
+        assert_eq!(rows[0]["authorName"], json!("Ada"));
+        assert_eq!(rows[0]["ownerId"], json!("user-a"));
+        let first_id = rows[0]["_id"].clone();
+        let first_created = rows[0]["_createdAt"].clone();
+
+        // Fan-out: a second book by Ada, then a rename updates both
+        // summaries in the rename's own commit.
+        mutate(&mut snapback, "addBook", json!({ "title": "beta", "slug": "s-beta", "author": "ada" }));
+        let author_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "authors".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read authors")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("author id")
+            .to_owned();
+        let rename = mutate(
+            &mut snapback,
+            "renameAuthor",
+            json!({ "id": author_id, "name": "Ada Lovelace" }),
+        );
+        // 1 direct write + 2 changed output rows in one commit.
+        assert_eq!(rename.changed_count, 3);
+        let rows = summaries(&snapback);
+        assert!(rows.iter().all(|row| row["authorName"] == json!("Ada Lovelace")));
+        let versions: BTreeSet<u64> = rows
+            .iter()
+            .map(|row| row["_version"].as_u64().expect("version"))
+            .collect();
+        assert_eq!(versions.len(), 1, "outputs commit at one version");
+
+        // Unchanged recomputation issues no write.
+        let unchanged = mutate(
+            &mut snapback,
+            "renameAuthor",
+            json!({ "id": author_id, "name": "Ada Lovelace" }),
+        );
+        assert_eq!(
+            unchanged.changed_count, 1,
+            "byte-unchanged output rows are not written"
+        );
+
+        // Key stability: delete + re-insert the same slug keeps the output
+        // row identity (the digest covers the stored identity + key bytes,
+        // not the root id), while _createdAt restarts at the new
+        // materialization.
+        let book_id = |snapback: &LocalSnapback, slug: &str| {
+            snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "books".to_owned(),
+                        filters: vec![FilterExpr {
+                            field: "slug".to_owned(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(json!(slug)),
+                        }],
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read book")
+                .rows[0]["_id"]
+                .as_str()
+                .expect("book id")
+                .to_owned()
+        };
+        let alpha_id = book_id(&snapback, "s-alpha");
+        mutate(&mut snapback, "deleteBook", json!({ "id": alpha_id }));
+        assert_eq!(summaries(&snapback).len(), 1, "delete removes the output row");
+        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        let rows = summaries(&snapback);
+        let alpha_row = rows
+            .iter()
+            .find(|row| row["title"] == json!("alpha"))
+            .expect("alpha summary");
+        assert_eq!(alpha_row["_id"], first_id, "output row identity is key-stable");
+        assert_ne!(alpha_row["_createdAt"], first_created);
+
+        // Fan-out admission: fanOutLimit is 2 and Ada already has two
+        // books, so a third refuses the whole mutation — no root row leaks.
+        let error = snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("third reference must exceed fanOutLimit 2");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROJECTION_FANOUT_EXCEEDED");
+        assert!(
+            book_id_missing(&snapback, "s-gamma"),
+            "the refused mutation left no root row behind"
+        );
+
+        // Output-key immutability: moving the marked key field refuses.
+        let beta_id = book_id(&snapback, "s-beta");
+        let error = snapback
+            .invoke_mutation(
+                "moveBookSlug",
+                HandlerInput {
+                    args: json!({ "id": beta_id, "slug": "s-beta-2" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("output-key fields are immutable under maintenance");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_PROJECTION_MAINTENANCE_INVALID"
+        );
+    }
+
+    fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
+        snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: vec![FilterExpr {
+                        field: "slug".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::Literal(json!(slug)),
+                    }],
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read books")
+            .rows
+            .is_empty()
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — activation
+    //   refusals: chains, undeclared disclosure, an unprovable per-source
+    //   write budget, and the output-table write/read fences.
+    #[test]
+    fn maintained_projection_activation_refusals() {
+        let (schema, functions, plan) = projection_fixture(2);
+
+        let load = |schema: &SchemaManifest, functions: FunctionManifest| {
+            let mut snapback = LocalSnapback::memory().expect("memory refusal fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply refusal schema");
+            snapback.load_functions(functions)
+        };
+        let has = |diagnostics: &[crate::diagnostic::Diagnostic], code: &str| {
+            diagnostics
+                .iter()
+                .any(|d| d.code == code || d.message.contains(code))
+        };
+
+        // Undeclared disclosure: a public joined source feeding an owner
+        // output requires the explicit acknowledgment.
+        let mut undisclosed = functions.clone();
+        undisclosed.projections[0].shared_fan_out_disclosure = false;
+        let diagnostics = load(&schema, undisclosed);
+        assert!(
+            has(&diagnostics, "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"),
+            "{diagnostics:?}"
+        );
+
+        // Unprovable write budget: a second plan joined to authors whose
+        // fan-out plus the first plan's exceeds 1024 refuses activation.
+        let mut over_budget = functions.clone();
+        let mut second = plan.clone();
+        second.id = "book-summaries-2".to_owned();
+        second.output_table = "bookSummaries2".to_owned();
+        second.fan_out_limit = 1023;
+        let mut third = plan.clone();
+        third.id = "book-summaries-3".to_owned();
+        third.output_table = "bookSummaries3".to_owned();
+        third.fan_out_limit = 1023;
+        over_budget.projections.push(second);
+        over_budget.projections.push(third);
+        let mut wide_schema = schema.clone();
+        for name in ["bookSummaries2", "bookSummaries3"] {
+            let mut clone = wide_schema
+                .tables
+                .iter()
+                .find(|t| t.name == "bookSummaries")
+                .expect("summary table")
+                .clone();
+            clone.name = name.to_owned();
+            wide_schema.tables.push(clone);
+        }
+        let diagnostics = load(&wide_schema, over_budget);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"),
+            "{diagnostics:?}"
+        );
+
+        // Output write fence: a function writing the output table refuses.
+        let mut writes_output = functions.clone();
+        writes_output.functions.push(FunctionDefinition::new(
+            "forgeSummary",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "bookSummaries".to_owned(),
+                    values: BTreeMap::new(),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        ));
+        let diagnostics = load(&schema, writes_output);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED"),
+            "{diagnostics:?}"
+        );
+
+        // Output read fence: an owner-visible output read without the
+        // visibility predicate refuses; with it, it activates.
+        let read_plan = |filters: Vec<FilterExpr>| {
+            FunctionDefinition::new(
+                "readSummaries",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters,
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )
+        };
+        let mut raw_read = functions.clone();
+        raw_read.functions.push(read_plan(Vec::new()));
+        let diagnostics = load(&schema, raw_read);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED"),
+            "{diagnostics:?}"
+        );
+        let mut enforced_read = functions.clone();
+        enforced_read.functions.push(read_plan(vec![FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        }]));
+        let diagnostics = load(&schema, enforced_read);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "a visibility-composed read must activate: {diagnostics:?}"
+        );
+
+        // Chain refusal: a projection rooted on another's output.
+        let mut chained = functions;
+        let mut chain = plan;
+        chain.id = "chained".to_owned();
+        chain.root = "bookSummaries".to_owned();
+        chain.output_table = "bookSummaries2".to_owned();
+        chained.projections.push(chain);
+        let diagnostics = load(&wide_schema, chained);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_PLAN_INVALID"),
+            "{diagnostics:?}"
+        );
     }
 
     // @ref LLP 0080#4-live-and-retained-capability — the load-time

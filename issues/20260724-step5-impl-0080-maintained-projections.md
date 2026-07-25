@@ -1,6 +1,6 @@
 # 0080: transactionally maintained projections + global fan-out proof
 
-**Status:** Deferred (phase B)
+**Status:** In progress (Phase B, core landed 2026-07-25)
 **Severity:** P2
 **Systems:** Storage, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -17,3 +17,42 @@ flat projections only; output-table write refusal and read enforcement
 deterministic mapper constraints; stored projection identity + the output
 _id rule as approved activation inputs; plan activation proof under the 0081
 barrier with the per-source non-key-moving bound. L-sized.
+
+**Progress (2026-07-25, core landed):**
+
+- `MaintainedProjectionPlanV1` manifest types (`MaintainedProjectionPlan`
+  on `FunctionManifest.projections`; closed output key = root `_id` |
+  immutable unique root index tuple; declarative source/output
+  visibility; `rootReverseIndex`; `fanOutLimit 1..=1023`;
+  `sharedFanOutDisclosure`; `rebuild-v1` recipe pin). Dropped from the
+  public inspect projection like every HandlerPlan body.
+- Activation validation (`validate_maintained_projections`): chain/diamond
+  refusal first, schema binding, cardinality + reverse-index proofs, §3
+  owner-derivation/same-subject/no-widening rules, disclosure requirement
+  (`SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED`), output-table write fence and
+  owner-read enforcement over the whole function set (opaque handlers
+  refused outright), and the static per-source write-budget proof
+  (`SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED`).
+- The maintenance engine (`maintain_projections_in_tx`) runs in BOTH
+  mutation tiers' commit transactions (HostPlan step loop and the
+  buffered/Ibex `apply_buffered_writes`): first-touch pre-images,
+  affected-key closure over pre/post images, reverse-index admission
+  (`SNAPBACK_PROJECTION_FANOUT_EXCEEDED`, whole-mutation refusal),
+  one evaluation per key against the final snapshot, changed-bytes-only
+  writes, deterministic `_id` (identity+key digest in UUIDv7 shape with
+  the activation-timestamp constant; identity persisted in
+  `_snapback_meta`), key-immutability refusal
+  (`SNAPBACK_PROJECTION_MAINTENANCE_INVALID`), and the 1,024 direct+output
+  write bound.
+- Witnesses: `maintained_projection_engine_end_to_end` (materialize on
+  joined-arrival, same-commit fan-out at one version, unchanged-bytes
+  no-write, key-stable row identity across delete/re-insert, fan-out
+  admission rollback, key immutability) and
+  `maintained_projection_activation_refusals`.
+
+**Remaining:** the existing-data activation proof (reverse-index counts
+over pre-existing rows when a plan activates, under the 0081 barrier —
+scheduled with the minimal 0081 slice); `defineMaintainedProjection`
+authoring surface + demo/guide; concurrent-admission race and
+1,023/1,024-boundary fixtures for the coupled suite; capability-artifact
+facts for projections.

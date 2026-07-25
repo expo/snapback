@@ -857,6 +857,17 @@ pub fn sha256_identity(value: &Value) -> Result<String, MintRefusal> {
     Ok(format!("sha256:{}", hex(&Sha256::digest(jcs(value)?.as_bytes()))))
 }
 
+/// Domain-separated digest for a maintained-projection output row
+/// (LLP 0080 §5): stored projection identity plus canonical output-key
+/// bytes. The storage layer maps the digest into the UUIDv7 shape with the
+/// identity's activation-timestamp constant in the time bits.
+pub(crate) fn projection_row_digest(identity: &str, key_bytes: &str) -> [u8; 32] {
+    sha256_tagged(
+        b"snapback-projection-row-v1\0",
+        &[identity.as_bytes(), key_bytes.as_bytes()],
+    )
+}
+
 fn frame(hash: &mut Sha256, component: &str) {
     hash.update((component.len() as u64).to_be_bytes());
     hash.update(component.as_bytes());
