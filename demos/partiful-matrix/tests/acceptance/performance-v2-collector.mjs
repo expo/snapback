@@ -37,9 +37,10 @@ import {
   thresholdSetId,
 } from './performance-v2-math.mjs';
 
-// @ref LLP 0063#amendment-a2-2026-07-24--p0c-comparator-instrument-invalidation-and-recovery
+// @ref LLP 0063#amendment-a3-2026-07-24--p0c-asynchronous-readiness-recovery
 // — the only governed Partitime v2 collector. Recovery P0a witnesses both
-// arms without enabling HeapProfiler or reading Runtime.getHeapUsage.
+// arms across lifecycle churn without enabling HeapProfiler or reading
+// Runtime.getHeapUsage.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -665,6 +666,18 @@ const graceStatusExpression = `(() => {
 })()`;
 
 async function correctnessWitness(page, arm) {
+  const settledSchedule = protocol.workload.warmupSchedules[0];
+  for (const activeSubscriptions of settledSchedule) {
+    await page.evaluate(
+      `window.__partitimePerformanceV2.reset(${JSON.stringify(activeSubscriptions)})`,
+    );
+    const settled = await page.evaluate('window.__partitimePerformanceV2.awaitStable()');
+    assert.equal(
+      settled.activeSubscriptions,
+      activeSubscriptions,
+      'PARTITIME_V2_P0A_LIFECYCLE_COUNT',
+    );
+  }
   await page.evaluate('window.__partitimePerformanceV2.reset(8)');
   const stable = await page.evaluate('window.__partitimePerformanceV2.awaitStable()');
   assert.equal(stable.activeSubscriptions, 8, 'PARTITIME_V2_SUBSCRIPTION_COUNT');
@@ -682,6 +695,7 @@ async function correctnessWitness(page, arm) {
   return {
     arm,
     activeSubscriptions: counters.activeSubscriptions,
+    settledSchedule,
     apiMethods: [...apiMethods],
     beforeGraceStatus,
     afterGraceStatus,

@@ -302,6 +302,13 @@ if (existsSync(p0aReceiptPath)) {
     ['react:snapback', 'contract:snapback'],
     'P0a must witness both comparator and holdout control APIs before P0c',
   );
+  for (const witness of p0aReceipt.p0a.correctnessWitnesses) {
+    assert.deepEqual(
+      witness.settledSchedule,
+      protocol.workload.warmupSchedules[0],
+      `${witness.arm} P0a witness omitted lifecycle churn`,
+    );
+  }
 }
 
 const result = {
