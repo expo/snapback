@@ -587,10 +587,16 @@ the complete hosted drill and public package path are operational.
   bundle package source in a clean checkout, while publication staging rewrites
   those edges to exact release versions inside the immutable tarballs. The
   shared required-surface gate now performs one frozen root-workspace install
-  before applying each surface's independent frozen Exact registry lock.
+  before applying each surface's independent frozen Exact registry lock, and
+  the older All Aboard cold-clone lane performs the same workspace preparation
+  before its direct surface build.
 - The cold-install proof then found that the upstream effect-ceiling module was
   imported by codegen but absent from its explicit package file closure.
   Adding it to `files` made the package match the production import graph.
+- Adding the Linux workflow also required extending the repository's closed CI
+  inventory and reviewed action counts. The lane itself passed on its first
+  complete run; the broader proof correctly refused the unreviewed workflow
+  until that meta-gate named and inspected it.
 - This was a useful advantage over checking only an application already inside
   the monorepo: the required-surface lane caught source resolution, and the
   external tarball install independently caught release closure.

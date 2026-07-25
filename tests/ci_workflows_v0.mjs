@@ -10,6 +10,7 @@ const workflowDir = join(ROOT, '.github', 'workflows');
 const workflowNames = readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)).sort();
 assert.deepEqual(workflowNames, [
   'all-aboard-cold-clone.yml',
+  'linux-runtime-package.yml',
   'local-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
@@ -133,8 +134,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 3, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 14, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 4, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 20, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
@@ -224,6 +225,18 @@ function assertExactHermesCache(workflow, workflowName) {
 assertExactHermesCache(localProof, 'local-proof');
 const coldClone = readFileSync(join(workflowDir, 'all-aboard-cold-clone.yml'), 'utf8');
 assertExactHermesCache(coldClone, 'all-aboard-cold-clone');
+const linuxRuntimePackage = readFileSync(join(workflowDir, 'linux-runtime-package.yml'), 'utf8');
+assertExactHermesCache(linuxRuntimePackage, 'linux-runtime-package');
+assert.match(
+  linuxRuntimePackage,
+  /snapback-package-cold-install\.mjs/,
+  'Linux runtime workflow must exercise the external package cold-install proof',
+);
+assert.match(
+  linuxRuntimePackage,
+  /actions\/upload-artifact@[0-9a-f]{40}/,
+  'Linux runtime workflow must retain its package and cold-install evidence',
+);
 const prepareHermesStart = localProof.indexOf('      - name: Prepare exact Hermes runtime');
 const verifyProofStart = localProof.indexOf('      - name: Verify Snapback local proof');
 assert(
