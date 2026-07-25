@@ -59,6 +59,7 @@ const caseValue = ({ base, remove = [], set = [] }) => {
 const response = (body) => ({
   ok: true,
   status: 200,
+  headers: new Headers(),
   text: async () => JSON.stringify(body),
 });
 
