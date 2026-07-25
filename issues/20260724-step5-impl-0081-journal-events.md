@@ -73,3 +73,21 @@ Witness: `publication_fires_durable_dispositions_for_auth_scoped_subscriptions`
 recorded reasons: blind read-set-free predecessor writes (needs
 mutation-wire artifact identity — LLP 0093 adjacency) and the JS
 client-side quarantine UX.
+
+**Flip-closure fixtures (2026-07-25, settlement slice):** the quarantined
+offline mutation now provably SETTLES through resync-before-replay
+(`quarantined_offline_mutation_settles_through_resync_before_replay`):
+the stale replay refuses recording nothing (the clientMutationId stays
+fresh), the resynced replay of the same id settles exactly once, a
+duplicate of the settled form returns the recorded result, and the
+discarded stale form refuses as a reused id after settlement. Landing it
+exposed and fixed a real defect in the floor gate: it refused any
+pre-floor ROW version — including untouched rows, whose pre-publication
+capture is byte-identical to a fresh post-resync capture — which would
+have refused every compatible client's post-resnapshot replay forever.
+The gate now refuses exactly the un-rebasable case (baseline pre-floor
+AND row changed — the erased-journal case) and untouched-row baselines
+pass under every posture, witnessed both ways in
+`successor_only_publication_gates_stale_replay_baselines`. JS
+client-side quarantine UX remains the recorded residual (server protocol
+is complete).

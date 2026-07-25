@@ -16180,10 +16180,72 @@ mod tests {
             );
             (snapback, baseline, row)
         };
+        // Same fixture with a pre-publication change to the row after the
+        // baseline capture: the history the raised floor then erases.
+        let build_with_interim = |posture: crate::migration::CompatibilityPosture| {
+            let (schema, functions, _plan) = projection_fixture(5);
+            let mut snapback = LocalSnapback::memory().expect("memory replay fixture");
+            snapback.apply_schema(schema).expect("apply schema");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            snapback
+                .invoke_mutation(
+                    "addAuthor",
+                    HandlerInput {
+                        args: json!({ "slug": "ada", "name": "Ada" }),
+                        ..HandlerInput::default()
+                    },
+                )
+                .expect("seed author");
+            let row = snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "authors".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read author")
+                .rows[0]
+                .clone();
+            let baseline = crate::manifest::ReadDependency {
+                table: "authors".to_owned(),
+                id: row["_id"].as_str().expect("id").to_owned(),
+                version: row["_version"].as_u64().expect("version"),
+            };
+            snapback
+                .invoke_mutation(
+                    "renameAuthor",
+                    HandlerInput {
+                        args: json!({ "id": baseline.id, "name": "Interim" }),
+                        ..HandlerInput::default()
+                    },
+                )
+                .expect("interim rename before publication");
+            crate::storage::publish_schema_transition_for_test(
+                &mut snapback.db,
+                posture,
+                &"p".repeat(64),
+            );
+            (snapback, baseline, row)
+        };
 
-        // Successor-only: the pre-publication baseline refuses, stable.
+        // Successor-only: a pre-floor baseline whose row has since changed
+        // is un-rebasable (the journal below the floor is gone) and
+        // refuses, stable. The intervening change happens before
+        // publication, so it is exactly the history the floor erased.
         let (mut snapback, baseline, row) =
-            build(crate::migration::CompatibilityPosture::SuccessorOnly);
+            build_with_interim(crate::migration::CompatibilityPosture::SuccessorOnly);
         let error = snapback
             .invoke_mutation(
                 "renameAuthor",
@@ -16193,7 +16255,7 @@ mod tests {
                     ..HandlerInput::default()
                 },
             )
-            .expect_err("stale baseline must refuse under successor-only");
+            .expect_err("stale changed-row baseline must refuse under successor-only");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_RESYNC_REQUIRED");
         assert_eq!(
             snapback
@@ -16201,8 +16263,33 @@ mod tests {
                 .get("authors", row["_id"].as_str().expect("id"))
                 .expect("read back")
                 .expect("row survives")["name"],
-            json!("Ada"),
+            json!("Interim"),
             "the refused replay wrote nothing",
+        );
+
+        // Successor-only, untouched row: the pre-publication capture of a
+        // row the migration did not change is byte-identical to a fresh
+        // post-resync capture — it passes, or every compatible client's
+        // post-resnapshot replay would refuse forever.
+        let (mut snapback, baseline, row) =
+            build(crate::migration::CompatibilityPosture::SuccessorOnly);
+        snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": baseline.id, "name": "Ada Lovelace" }),
+                    read_set: vec![baseline],
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("untouched-row baseline replays under successor-only");
+        assert_eq!(
+            snapback
+                .db
+                .get("authors", row["_id"].as_str().expect("id"))
+                .expect("read back")
+                .expect("row survives")["name"],
+            json!("Ada Lovelace"),
         );
 
         // Dual-compatible: ordinary conflict rules apply — the unchanged
@@ -16227,6 +16314,162 @@ mod tests {
                 .expect("row survives")["name"],
             json!("Ada Lovelace"),
         );
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+    //   quarantined offline mutation SETTLES through resync-before-replay:
+    //   the stale-baseline replay is refused recording nothing (the id
+    //   stays fresh), the resynced replay of the same clientMutationId
+    //   settles exactly once, a duplicate of the settled form returns the
+    //   recorded result without reapplying, and the discarded stale form
+    //   can never double-apply after settlement. This witness drives the
+    //   same primitives the staged server path composes (the recorded-
+    //   result pre-check plus the idempotent executor).
+    #[test]
+    fn quarantined_offline_mutation_settles_through_resync_before_replay() {
+        use crate::storage::ClientMutationIdentity;
+        let (schema, functions, _plan) = projection_fixture(5);
+        let mut snapback = LocalSnapback::memory().expect("memory settlement fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "ada", "name": "Ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed author");
+        let read_author = |snapback: &LocalSnapback| {
+            snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "authors".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read author")
+                .rows[0]
+                .clone()
+        };
+        let row = read_author(&snapback);
+        let author_id = row["_id"].as_str().expect("id").to_owned();
+        let baseline = |row: &Value| crate::manifest::ReadDependency {
+            table: "authors".to_owned(),
+            id: row["_id"].as_str().expect("id").to_owned(),
+            version: row["_version"].as_u64().expect("version"),
+        };
+        let rename_plan = MutationPlan {
+            steps: vec![MutationStep::Patch {
+                table: "authors".to_owned(),
+                id: ValueExpr::Arg("id".to_owned()),
+                values: BTreeMap::from([(
+                    "name".to_owned(),
+                    ValueExpr::Arg("name".to_owned()),
+                )]),
+            }],
+            return_value: None,
+        };
+        // The client-custodied offline mutation: captured pre-publication.
+        let stale_input = HandlerInput {
+            args: json!({ "id": author_id, "name": "Ada Lovelace" }),
+            read_set: vec![baseline(&row)],
+            ..HandlerInput::default()
+        };
+        let stale_identity =
+            ClientMutationIdentity::new("cm-offline-1", "renameAuthor", &stale_input);
+
+        // History the floor will erase: the row changes after the offline
+        // capture and before publication, making the stale baseline
+        // un-rebasable rather than merely old.
+        snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": author_id, "name": "Interim" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("interim rename before publication");
+
+        crate::storage::publish_schema_transition_for_test(
+            &mut snapback.db,
+            crate::migration::CompatibilityPosture::SuccessorOnly,
+            &"p".repeat(64),
+        );
+
+        // 1. The stale-baseline replay refuses with the stable code and
+        //    records nothing — the id is not poisoned by the refusal.
+        let error = snapback
+            .db
+            .execute_mutation_idempotent(&rename_plan, &stale_input, &stale_identity)
+            .expect_err("stale baseline refuses under successor-only");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_RESYNC_REQUIRED");
+        assert!(
+            snapback
+                .db
+                .client_mutation_result(&stale_identity)
+                .expect("lookup")
+                .is_none(),
+            "a refused replay must not consume the client mutation id",
+        );
+        assert_eq!(read_author(&snapback)["name"], json!("Interim"));
+
+        // 2. Resync-before-replay: the client takes a successor snapshot,
+        //    re-baselines the SAME logical mutation under the SAME
+        //    clientMutationId, and the replay settles.
+        let resynced_row = read_author(&snapback);
+        let resynced_input = HandlerInput {
+            args: json!({ "id": author_id, "name": "Ada Lovelace" }),
+            read_set: vec![baseline(&resynced_row)],
+            ..HandlerInput::default()
+        };
+        let resynced_identity =
+            ClientMutationIdentity::new("cm-offline-1", "renameAuthor", &resynced_input);
+        let settled = snapback
+            .db
+            .execute_mutation_idempotent(&rename_plan, &resynced_input, &resynced_identity)
+            .expect("resynced replay settles");
+        assert_eq!(read_author(&snapback)["name"], json!("Ada Lovelace"));
+
+        // 3. Exactly once: a duplicate of the settled form returns the
+        //    recorded result (the staged server path's pre-check) and the
+        //    row does not move.
+        let version_after = read_author(&snapback)["_version"].as_u64().expect("version");
+        let recorded = snapback
+            .db
+            .client_mutation_result(&resynced_identity)
+            .expect("recorded lookup")
+            .expect("settled result is recorded");
+        assert_eq!(recorded.version, settled.output.version);
+        assert_eq!(
+            read_author(&snapback)["_version"].as_u64().expect("version"),
+            version_after,
+            "the duplicate replay applied nothing",
+        );
+
+        // 4. The discarded stale form can never double-apply: after
+        //    settlement, presenting the ORIGINAL payload under the same id
+        //    refuses as a reused id, not a second application.
+        let error = snapback
+            .db
+            .client_mutation_result(&stale_identity)
+            .expect_err("the stale form is refused after settlement");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CLIENT_MUTATION_ID_REUSED");
+        assert_eq!(read_author(&snapback)["name"], json!("Ada Lovelace"));
     }
 
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
