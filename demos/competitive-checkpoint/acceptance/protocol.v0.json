@@ -63,6 +63,19 @@
         "Cross-user write refusals in the generated-CRUD check now expect SNAPBACK_ROW_NOT_FOUND, matching LLP 0065's Accepted anti-probing posture (a cross-user write refuses with the same code and body as a missing row). This tracks the shipped generated-pattern contract; the visibility floor itself is unchanged.",
         "Scope note reconciling LLP 0076's ledger remark: the generated-reference-only rule governs the client arm's app-data calls; the authored handler's nested host-side ctx.runMutation-by-name is the shipped server authoring surface and is inside this protocol's fixture as-is."
       ]
+    },
+    {
+      "version": "v0.6",
+      "date": "2026-07-24",
+      "prospective": true,
+      "reason": "Author decision (Charlie Cheever, 2026-07-24) against issues/20260723-llp0075-program-ownership.md: the concrete provider tuple for the first single-instance-container-vm.v1 remote drill is pinned and the long-lived program owner is recorded. No timed sample has run; v0's cutoff, evidence, and retained receipts are untouched. This amendment pins decisions, not provisioning: no Fly.io account or credential exists on the instrument machine as of this date, nothing was installed, and NO live drill target is claimed.",
+      "changes": [
+        "remoteDrillTarget added: provider fly.io (single Fly Machine VM), region default sjc (no repository evidence argued for another region), backup object store Fly's Tigris S3-compatible storage, credential backend FLY_API_TOKEN sourced from the git-ignored machine-local .agent-local-secrets.md.",
+        "Credential health recorded honestly as pending-not-provisioned: .agent-local-secrets.md does not exist on the instrument machine as of 2026-07-24 and no Fly.io credentials or accounts were created by this amendment.",
+        "Exact package identities (flyctl and any Tigris tooling) and the drill instrument version are recorded as unpinned-blocks-drill: they are pinned by the amendment that records first provisioning, before any drill run, in the same style as this protocol's other unpinned-blocks-timed-runs entries.",
+        "Program owner recorded: Charlie Cheever is the named long-lived competitive-program owner and ratifier across reruns — a session-directed default recorded per his 2026-07-24 direction, subject to his own amendment; issues/20260723-llp0075-program-ownership.md narrows to that owner-confirmation residue.",
+        "claimScope.proposedHostedAdapterStatus updated to reference this amendment as the versioned replacement record it was pending."
+      ]
     }
   ],
   "strategy": "llp/0074-convex-competitive-strategy.rfc.md",
@@ -80,10 +93,36 @@
     "snapbackLocalProfile": "local-dev-sqlite-ibex",
     "snapbackHostedProfile": "trusted-single-tenant-app-complete.v1",
     "proposedHostedAdapter": "cloudflare-worker-do-sqlite-v8.v0",
-    "proposedHostedAdapterStatus": "replaced-prospectively-2026-07-22-by-adjudication-pending-versioned-amendment",
+    "proposedHostedAdapterStatus": "replaced-prospectively-2026-07-22-by-adjudication; provider tuple for the replacement pinned by amendment v0.6 (2026-07-24, remoteDrillTarget) — still no live drill target",
     "nextExecutableAdapter": "single-instance-container-vm.v1",
     "convexPackage": "convex@1.42.3",
     "convexPackageAnchor": "demos/chat-matrix/expo/bun.lock"
+  },
+  "remoteDrillTarget": {
+    "profile": "single-instance-container-vm.v1",
+    "decidedBy": "Charlie Cheever, author decision 2026-07-24 (protocol amendment v0.6)",
+    "provider": "fly.io",
+    "providerShape": "single Fly Machine VM (container-image-based), matching the single-instance-container-vm.v1 profile",
+    "region": "sjc",
+    "regionRationale": "program default; no repository evidence argued for a different region (instrument machine and operator are US-Pacific)",
+    "backupObjectStore": "fly-tigris-s3-compatible",
+    "credentialBackend": {
+      "kind": "api-token",
+      "variable": "FLY_API_TOKEN",
+      "source": ".agent-local-secrets.md (git-ignored, machine-local; never committed)",
+      "health": "pending-not-provisioned",
+      "healthChecked": "2026-07-24: .agent-local-secrets.md absent on the instrument machine; no Fly.io account or token exists; nothing installed, no account created"
+    },
+    "packageIdentities": {
+      "status": "unpinned-blocks-drill",
+      "note": "flyctl and any Tigris-side tooling are not installed; their exact package identities/versions are pinned by the amendment recording first provisioning, before any drill run"
+    },
+    "instrumentVersion": {
+      "status": "unpinned-blocks-drill",
+      "note": "no container/VM drill instrument exists yet; the retained local-streaming instrument (expectedChecks 7) witnesses the local arm only"
+    },
+    "liveTarget": false,
+    "owner": "Charlie Cheever — named long-lived program owner/operator and ratifier (session-directed default recorded 2026-07-24, subject to his amendment)"
   },
   "fixture": {
     "tables": ["conversations", "messages"],

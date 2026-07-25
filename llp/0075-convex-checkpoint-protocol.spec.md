@@ -5,7 +5,23 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (protocol amendment v0.5 — the fixture-reconciliation
+**Revised:** 2026-07-24 (protocol amendment v0.6 — the program-ownership /
+drill-target decision slice, author decision Charlie Cheever 2026-07-24
+against `issues/20260723-llp0075-program-ownership.md`, prospective, before
+any timed sample: the first `single-instance-container-vm.v1` remote drill
+is pinned to provider fly.io (single Fly Machine VM), region default sjc,
+backup object store Fly's Tigris S3-compatible storage, and credential
+backend `FLY_API_TOKEN` sourced from the git-ignored machine-local
+`.agent-local-secrets.md`. Honesty posture recorded in the amendment
+itself: credential health is pending-not-provisioned (no Fly.io account or
+token exists on the instrument machine as of 2026-07-24), flyctl/Tigris
+package identities and the drill instrument version are
+unpinned-blocks-drill, and NO live drill target is claimed. Charlie Cheever
+is recorded as the named long-lived program owner/operator and ratifier —
+a session-directed default subject to his own amendment; the ownership
+ticket narrows to that one-line confirmation residue. The other open
+author decisions — comparison fairness, pre-timed-run pins, status
+disposition — are deliberately untouched.) 2026-07-24 (protocol amendment v0.5 — the fixture-reconciliation
 slice only, prospective, before any timed sample: the authored reference
 pattern adopts LLP 0076's host-owned StreamAttemptV1 control plane (attempt
 token on fetchStream, host settle with the durable winner recorded
@@ -394,7 +410,11 @@ recorded NOT READY verdicts, or the Spec reverts to Review, is an open author
 decision. The adapter replacement is prospective treatment work. Before a
 comparison rerun, its exact provider/region, package identities, credential
 health, and instrument version must be pinned in a versioned protocol amendment
-under LLP 0063; v0's cutoff and evidence are not rewritten.
+under LLP 0063; v0's cutoff and evidence are not rewritten. *(2026-07-24:
+protocol amendment v0.6 records the provider/region/object-store/credential
+tuple — fly.io, sjc, Tigris, `FLY_API_TOKEN` — with credential health
+honestly pending-not-provisioned; package identities and the drill
+instrument version remain unpinned-blocks-drill until first provisioning.)*
 
 ## Required artifacts
 
@@ -434,9 +454,16 @@ hosted-only delivery rather than flattening them into one capability label.
 
 ## Open questions
 
-- Who is the named long-lived competitive-program owner and operator after the
+- *(Resolved 2026-07-24, protocol amendment v0.6 — Charlie Cheever, recorded
+  as a session-directed default subject to his own amendment; the ticket
+  keeps a one-line owner-confirmation residue.)* Who is the named long-lived
+  competitive-program owner and operator after the
   current implementation session?
-- Which provider, region, backup object store, and credential backend will
+- *(Resolved 2026-07-24, protocol amendment v0.6 — fly.io / sjc / Tigris
+  S3-compatible / `FLY_API_TOKEN` via `.agent-local-secrets.md`; credential
+  health pending-not-provisioned, package identities and drill instrument
+  version unpinned-blocks-drill, no live target claimed.)* Which provider,
+  region, backup object store, and credential backend will
   instantiate `single-instance-container-vm.v1` for its first remote drill?
 - Does the public claim remain exact-fixture-only after v0, or which holdout
   fixture earns generalization to an agent-authored AI application profile?
