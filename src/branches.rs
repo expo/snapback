@@ -765,7 +765,9 @@ pub fn captured_effects(conn: &Connection) -> SnapbackResult<Vec<CapturedEffect>
 //   - branch-tagged receipts record every op's promotion outcome.
 //
 // @ref LLP 0097#design — staged promotion + provisional/pending + transitive
-//   effect-dependence. @ref LLP 0055/0070 — authority revalidated per attempt.
+//   effect-dependence.
+// @ref LLP 0055 — authority revalidated per attempt, never preserved from fork.
+// @ref LLP 0070 — durable background work / capture-and-settle semantics.
 // ---------------------------------------------------------------------------
 
 /// A branch operation in causal (child-version) order — the promotion op-log.
@@ -799,7 +801,8 @@ pub fn branch_op_log(conn: &Connection) -> SnapbackResult<Vec<BranchOp>> {
 /// Authority is revalidated at promotion (and at each async effect attempt),
 /// never carried over from the fork. A `Denied` decision fails promotion closed.
 ///
-/// @ref LLP 0055/0070
+/// @ref LLP 0055
+/// @ref LLP 0070
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthorityDecision {
     Revalidated,
