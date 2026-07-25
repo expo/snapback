@@ -5,7 +5,7 @@
   "manifestSha256": "b5c904b7f6275f9447bb107b62db05450b6214d0ca565452fce9e6895b90ddbf",
   "stepZeroClaimCount": 19,
   "exact": {
-    "revision": "a8b089a2c932f1b753dde62c7f6b780617b9116e",
+    "revision": "8caf2a587aebab2e6d6fa18ccf6fd9ff813a903d",
     "dirty": false
   },
   "sharedContractExactRevision": "4e211735e356197632e9c863eb8fc7f3de834448",
