@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createMemorySnapbackClientStore,
   createSnapbackContractSurface,
+  retainedQueryKey,
   snapbackAuthFingerprint,
 } from './index.mjs';
 
@@ -15,6 +16,32 @@ const identity = {
   databaseId: 'database-a',
   versionStreamId: 'stream-a',
 };
+
+// @ref LLP 0065#6-acceptance — same subject, function name, and arguments
+// remain disjoint across two generated application authority domains.
+{
+  const ref = (appId) => ({
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId,
+    id: `${appId}:listRows`,
+    kind: 'LiveQuery',
+    name: 'listRows',
+  });
+  const appA = retainedQueryKey(ref('app-a'), { owner: 'same-subject' });
+  const appB = retainedQueryKey(ref('app-b'), { owner: 'same-subject' });
+  assert.notEqual(appA, appB, 'generated live-query keys bind the app domain');
+  assert.equal(
+    retainedQueryKey('listRows', { owner: 'same-subject' }),
+    'listRows:{"owner":"same-subject"}',
+    'plain string references preserve the legacy single-app key',
+  );
+  assert.throws(
+    () => retainedQueryKey({ ...ref('app-a'), id: 'app-b:listRows' }, {}),
+    /coherent generated function reference/,
+    'a forged cross-app function reference cannot mint a retained key',
+  );
+}
 
 // Store-level compare-and-set: deliberately finish v2 before v1. The older
 // completion must not overwrite the current retained cursor.

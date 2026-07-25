@@ -212,6 +212,13 @@
     },
     "CapabilityManifest": {
       "properties": {
+        "appId": {
+          "description": "Application binding on a generated capability artifact. The canonical\ntarget declaration omits this field because its facts describe a\nserving profile; codegen adds the app id when projecting those facts\ninto one application's artifact set.\n\n@ref LLP 0065#3-common-pattern-contracts — capability artifacts cannot\n  cross the application authority domain.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "artifactKind": {
           "default": "capabilityManifest",
           "type": "string"

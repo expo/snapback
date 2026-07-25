@@ -1692,9 +1692,13 @@ export async function generateInProcess(backendDir, options = {}) {
   };
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
-  // target declaration, drift-gated by tests/capability_v0.rs, and embedded
-  // verbatim.
-  const capabilityManifest = canonicalCapability.manifest;
+  // target declaration and drift-gated by tests/capability_v0.rs. Codegen's
+  // sole projection is the application-domain binding required by LLP 0065;
+  // no app source can assert or alter the target facts.
+  const capabilityManifest = {
+    ...canonicalCapability.manifest,
+    appId,
+  };
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
   // — the flags below claim exactly that and nothing more.

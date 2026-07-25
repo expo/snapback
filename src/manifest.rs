@@ -3955,6 +3955,20 @@ pub struct CapabilityManifest {
         alias = "schema_version"
     )]
     pub schema_version: String,
+    /// Application binding on a generated capability artifact. The canonical
+    /// target declaration omits this field because its facts describe a
+    /// serving profile; codegen adds the app id when projecting those facts
+    /// into one application's artifact set.
+    ///
+    /// @ref LLP 0065#3-common-pattern-contracts — capability artifacts cannot
+    ///   cross the application authority domain.
+    #[serde(
+        default,
+        rename = "appId",
+        alias = "app_id",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub app_id: Option<String>,
     #[serde(rename = "targetProfileId", alias = "target_profile_id")]
     pub target_profile_id: String,
     #[serde(
@@ -4267,6 +4281,7 @@ impl CapabilityManifest {
         let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
             schema_version: snapback_schema_version(),
+            app_id: None,
             target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
             supported_artifact_versions: vec![ArtifactVersion::V0, ArtifactVersion::V1],
             supported_auth_modes: vec![AuthMode::Dev, AuthMode::Sessions],

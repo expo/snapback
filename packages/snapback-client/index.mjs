@@ -4186,7 +4186,10 @@ export class SnapbackClient {
     // @ref LLP 0053#client-fences — every auth-scoped materialization owns a
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
-    const queryKey = retainedQueryKey(name, args);
+    const queryKey = retainedQueryKey(
+      ref?.artifactKind === 'functionReference' ? ref : name,
+      args,
+    );
     let queryNamespace = authorizationProtocolEnabled
       ? authorizationNamespace === null
         ? createLiveQueryNamespace({

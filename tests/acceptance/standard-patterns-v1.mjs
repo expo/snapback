@@ -194,11 +194,11 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   await mutate(ada, 'deleteTodo', { id: adaRow._id }, 'cm_patterns_own_delete');
   await assert.rejects(
     () => mutate(ada, 'updateTodo', { id: adaRow._id, title: 'missing' }, 'cm_patterns_missing_update'),
-    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
+    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_FOUND',
   );
   await assert.rejects(
     () => mutate(ada, 'deleteTodo', { id: adaRow._id }, 'cm_patterns_missing_delete'),
-    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
+    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_FOUND',
   );
 
   // A raw protocol caller can include unknown object members in v0. The plan

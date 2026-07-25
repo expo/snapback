@@ -1,4 +1,5 @@
 {
+  "appId": "graffiti",
   "artifactKind": "capabilityManifest",
   "assetUpload": false,
   "authImpersonation": true,

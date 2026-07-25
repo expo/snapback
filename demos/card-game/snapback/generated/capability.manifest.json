@@ -1,4 +1,5 @@
 {
+  "appId": "card-game",
   "artifactKind": "capabilityManifest",
   "assetUpload": false,
   "authImpersonation": true,

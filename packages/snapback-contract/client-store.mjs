@@ -55,7 +55,30 @@ const canonical = (value) => {
 
 export const stableJson = (value) => JSON.stringify(canonical(value));
 
-export const retainedQueryKey = (name, args = {}) => `${name}:${stableJson(args)}`;
+// Generated references carry LLP 0004's app-bound function identity. Preserve
+// it in the retained/live key so two applications exporting the same function
+// name with the same arguments cannot share an authorization namespace. Plain
+// string names remain the legacy single-app compatibility form.
+//
+// @ref LLP 0065#4-capability-and-llp-0053-composition — authority-partition
+//   identity is part of every generated live-query key.
+export const retainedQueryKey = (ref, args = {}) => {
+  if (typeof ref === 'string') return `${ref}:${stableJson(args)}`;
+  if (
+    ref !== null
+    && typeof ref === 'object'
+    && !Array.isArray(ref)
+    && ref.artifactKind === 'functionReference'
+    && typeof ref.appId === 'string'
+    && ref.appId.length > 0
+    && typeof ref.name === 'string'
+    && ref.name.length > 0
+    && ref.id === `${ref.appId}:${ref.name}`
+  ) {
+    return `${ref.id}:${stableJson(args)}`;
+  }
+  throw new TypeError('retainedQueryKey requires a function name or coherent generated function reference');
+};
 
 // Small synchronous SHA-256 implementation for the browser-facing store. The
 // auth fingerprint is needed while a surface is being scoped, before any

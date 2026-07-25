@@ -1,4 +1,5 @@
 {
+  "appId": "partiful-matrix",
   "artifactKind": "capabilityManifest",
   "assetUpload": false,
   "authImpersonation": true,

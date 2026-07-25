@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -434,6 +435,64 @@ export const getTodoByHand = defineLiveQuery({
   const regenerated = await generate(dir);
   assert.equal(regenerated.ok, true, JSON.stringify(regenerated.diagnostics));
   assert.deepEqual(snapshotTree(join(dir, 'generated')), firstTree, 'regeneration must be byte-identical');
+
+  // @ref LLP 0065#6-acceptance — explicit same-subject/two-app artifact
+  // negative. Identical standard-pattern sources projected for two app ids
+  // retain the same server-authored target facts, but both the capability
+  // artifact and every generated function identity bind their own app
+  // authority domain.
+  const domainRoot = mkdtempSync(join(tmpdir(), 'snapback-standard-patterns-two-app-'));
+  try {
+    const appDirs = ['domain-app-a', 'domain-app-b'].map((appId) => (
+      join(domainRoot, appId, 'snapback')
+    ));
+    for (const appDir of appDirs) {
+      mkdirSync(appDir, { recursive: true });
+      writeFileSync(join(appDir, 'schema.mjs'), readFileSync(join(dir, 'schema.mjs')));
+      writeFileSync(join(appDir, 'functions.mjs'), readFileSync(join(dir, 'functions.mjs')));
+      const appResult = await generate(appDir);
+      assert.equal(appResult.ok, true, JSON.stringify(appResult.diagnostics));
+    }
+
+    const readGenerated = (root, file) => JSON.parse(
+      readFileSync(join(root, 'generated', file), 'utf8'),
+    );
+    const appA = {
+      index: readGenerated(appDirs[0], 'artifacts.json'),
+      capability: readGenerated(appDirs[0], 'capability.manifest.json'),
+      functions: readGenerated(appDirs[0], 'functions.manifest.json'),
+    };
+    const appB = {
+      index: readGenerated(appDirs[1], 'artifacts.json'),
+      capability: readGenerated(appDirs[1], 'capability.manifest.json'),
+      functions: readGenerated(appDirs[1], 'functions.manifest.json'),
+    };
+    assert.notEqual(appA.index.appId, appB.index.appId);
+    for (const app of [appA, appB]) {
+      assert.equal(app.capability.appId, app.index.appId);
+      assert.equal(app.functions.appId, app.index.appId);
+      assert(app.index.artifacts.includes('capability.manifest.json'));
+      assert.deepEqual(app.capability.standardPatterns, {
+        authScopeDisjointnessSkip: 'disabled',
+        liveDelivery: 'conservative-resnapshot',
+      });
+      for (const fn of app.functions.functions) {
+        assert.equal(fn.id, `${app.index.appId}:${fn.name}`);
+      }
+    }
+    assert.notDeepEqual(
+      appA.capability,
+      appB.capability,
+      'an app-A capability artifact cannot be substituted byte-for-byte for app B',
+    );
+    assert.equal(
+      appB.functions.functions.some((fn) => fn.id === `${appA.index.appId}:listTodos`),
+      false,
+      'app B exposes no app-A live function identity',
+    );
+  } finally {
+    rmSync(domainRoot, { recursive: true, force: true });
+  }
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
