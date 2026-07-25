@@ -10,14 +10,14 @@
       "name": "gateway serves the model catalog",
       "ok": true,
       "details": {
-        "models": 339
+        "models": 345
       }
     },
     {
       "name": "sqlite completes send → assistant reply",
       "ok": true,
       "details": {
-        "latencyMs": 2107,
+        "latencyMs": 1405,
         "reply": "pong"
       }
     },
@@ -25,7 +25,7 @@
       "name": "snapback completes send → assistant reply",
       "ok": true,
       "details": {
-        "latencyMs": 2109,
+        "latencyMs": 1406,
         "reply": "pong"
       }
     },
@@ -33,7 +33,7 @@
       "name": "convex completes send → assistant reply",
       "ok": true,
       "details": {
-        "latencyMs": 1616,
+        "latencyMs": 1595,
         "reply": "pong"
       }
     },
@@ -41,7 +41,7 @@
       "name": "supabase completes send → assistant reply",
       "ok": true,
       "details": {
-        "latencyMs": 2322,
+        "latencyMs": 2399,
         "reply": "pong"
       }
     }

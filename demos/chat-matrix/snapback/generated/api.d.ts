@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -52,13 +53,13 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  applyAssistantDelta: FunctionReference<'applyAssistantDelta', 'Mutation', { messageId: Id<'messages'>; content: string; status: string }>;
-  claimReply: FunctionReference<'claimReply', 'Mutation', { messageId: Id<'messages'> }>;
-  createConversation: FunctionReference<'createConversation', 'Mutation', { title: string; model: string; createdAt: number }>;
-  generateReply: FunctionReference<'generateReply', 'Action', { messageId: Id<'messages'> }>;
-  listConversations: FunctionReference<'listConversations', 'LiveQuery', Record<string, never>>;
-  sendMessage: FunctionReference<'sendMessage', 'Mutation', { conversationId: Id<'conversations'>; content: string; createdAt: number }>;
-  thread: FunctionReference<'thread', 'LiveQuery', { conversationId: Id<'conversations'> }>;
+  applyAssistantDelta: FunctionReference<'applyAssistantDelta', 'Mutation', { messageId: Id<'messages'>; content: string; status: string }, unknown>;
+  claimReply: FunctionReference<'claimReply', 'Mutation', { messageId: Id<'messages'> }, unknown>;
+  createConversation: FunctionReference<'createConversation', 'Mutation', { title: string; model: string; createdAt: number }, unknown>;
+  generateReply: FunctionReference<'generateReply', 'Action', { messageId: Id<'messages'> }, unknown>;
+  listConversations: FunctionReference<'listConversations', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "title": string }>>;
+  sendMessage: FunctionReference<'sendMessage', 'Mutation', { conversationId: Id<'conversations'>; content: string; createdAt: number }, unknown>;
+  thread: FunctionReference<'thread', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "content": string; "conversationId": string; "createdAt": number; "role": string; "status": string }>>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;

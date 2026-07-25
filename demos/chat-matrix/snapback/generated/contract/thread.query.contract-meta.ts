@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./thread.query.ts', {
   thread: query({ reads: ["messages"], readMode: 'sync', cacheKey: 'messages', result: 'ThreadRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  ThreadRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","conversationId":"string","role":"string","content":"string","status":"string","createdAt":"number"} }),
+  ThreadRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","content":"string","conversationId":"string","createdAt":"number","role":"string","status":"string"} }),
 });
