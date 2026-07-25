@@ -17449,7 +17449,9 @@ globalThis.__snapbackHandlers = {
             authorization_inputs: Vec::new(),
         });
         let mut snapback = LocalSnapback::memory().expect("memory fault fixture");
-        snapback.apply_schema(schema.clone()).expect("apply fault schema");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply fault schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![doctored],
             ..FunctionManifest::default()
@@ -17487,7 +17489,9 @@ globalThis.__snapbackHandlers = {
             authorization_inputs: Vec::new(),
         });
         let mut snapback = LocalSnapback::memory().expect("memory auth-input fixture");
-        snapback.apply_schema(schema).expect("apply auth-input schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply auth-input schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![relational],
             ..FunctionManifest::default()
@@ -17600,12 +17604,12 @@ globalThis.__snapbackHandlers = {
         // Same subject, same function name, same plan shape — different
         // application authority domain: refused, never repositioned.
         let error = app_b
-            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor.clone() })))
+            .invoke_query(
+                "booksWithAuthors",
+                input(json!({ "cursor": cursor.clone() })),
+            )
             .expect_err("cross-app cursor must refuse");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_CURSOR_INVALID");
         // And the home app still accepts it.
         let resumed = app_a
             .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor })))

@@ -1390,8 +1390,7 @@ impl ObservedEffects {
     }
 
     fn write(&mut self, table: &str, operation: &str) {
-        self.writes
-            .insert((table.to_owned(), operation.to_owned()));
+        self.writes.insert((table.to_owned(), operation.to_owned()));
     }
 
     fn expr(&mut self, expr: &ValueExpr) {
@@ -1417,10 +1416,8 @@ impl ObservedEffects {
             ValueExpr::MembershipExists(_) => {
                 self.authorization_inputs.insert("membershipPredicate");
             }
-            ValueExpr::Arg(_)
-            | ValueExpr::Args
-            | ValueExpr::Binding(_)
-            | ValueExpr::Literal(_) => {}
+            ValueExpr::Arg(_) | ValueExpr::Args | ValueExpr::Binding(_) | ValueExpr::Literal(_) => {
+            }
             ValueExpr::Field { base, .. } => self.expr(base),
             ValueExpr::Binary { left, right, .. } => {
                 self.expr(left);
@@ -1547,9 +1544,10 @@ fn validate_effect_ceiling(function: &FunctionDefinition) -> SnapbackResult<()> 
         }))
     };
     for (table, access, index) in &observed.reads {
-        let admitted = ceiling.reads.iter().any(|read| {
-            read.table == *table && read.access == *access && read.index == *index
-        });
+        let admitted = ceiling
+            .reads
+            .iter()
+            .any(|read| read.table == *table && read.access == *access && read.index == *index);
         if !admitted {
             return Err(exceeded(
                 "read",
