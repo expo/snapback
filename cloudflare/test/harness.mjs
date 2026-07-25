@@ -199,7 +199,7 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
         HANDLER: selected.handlerWorker,
         ...(selected.actionHandlerWorker ? { ACTION_HANDLER: selected.actionHandlerWorker } : {}),
       },
-      // The admin-token gate on /reset and /evict (ENG-23587); the client
+      // The admin-token gate on /_snapback/api/app/reset and /_snapback/api/object/evict (ENG-23587); the client
       // below presents it, and the acceptance suite asserts its absence 403s.
       bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
       ...(assetsDirectory
@@ -302,7 +302,7 @@ class ProofClient {
   }
 
   async reset() {
-    const response = await this.mf.dispatchFetch(`${this.base}/reset`, {
+    const response = await this.mf.dispatchFetch(`${this.base}/_snapback/api/app/reset`, {
       method: 'POST',
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     });
@@ -310,7 +310,7 @@ class ProofClient {
   }
 
   async evict() {
-    const response = await this.mf.dispatchFetch(`${this.base}/evict`, {
+    const response = await this.mf.dispatchFetch(`${this.base}/_snapback/api/object/evict`, {
       method: 'POST',
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     });
@@ -318,7 +318,7 @@ class ProofClient {
   }
 
   async corruptMeta(payload) {
-    const response = await this.mf.dispatchFetch(`${this.base}/__test/corrupt-meta`, {
+    const response = await this.mf.dispatchFetch(`${this.base}/_snapback/test/corrupt-meta`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload ?? {}),

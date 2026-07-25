@@ -88,7 +88,7 @@ async function main() {
   });
   const base = await proof.url();
   const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
-  const cronStatus = async () => (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  const cronStatus = async () => (await (await fetch(`${base}/_snapback/api/cron/status`)).json()).jobs[0];
   try {
     await client.ensureApp({ seed });
 
@@ -102,10 +102,10 @@ async function main() {
     check('an idle deployment takes zero warm-poll wakeups (no external fetch)', mock.seen.fetches === 0);
 
     // --- manual run trigger is admin-gated ---------------------------------
-    const ungated = await fetch(`${base}/cron/run`, { method: 'POST', body: JSON.stringify({ job: 'warmPoll' }) });
+    const ungated = await fetch(`${base}/_snapback/api/cron/run`, { method: 'POST', body: JSON.stringify({ job: 'warmPoll' }) });
     check('the manual run trigger is admin-gated (no public run-now route)', ungated.status === 403);
     const manual = await (
-      await fetch(`${base}/cron/run`, {
+      await fetch(`${base}/_snapback/api/cron/run`, {
         method: 'POST',
         headers: { 'x-snapback-admin-token': ADMIN_TOKEN, 'content-type': 'application/json' },
         body: JSON.stringify({ job: 'warmPoll' }),
@@ -113,7 +113,7 @@ async function main() {
     ).json();
     const afterManual = await cronStatus();
     const manualRecoveryState = await (
-      await fetch(`${base}/__test/cron-claims`, { method: 'POST' })
+      await fetch(`${base}/_snapback/test/cron-claims`, { method: 'POST' })
     ).json();
     check(
       'an admin manual run executes without allocating recoverable claim/replay rows',
@@ -164,9 +164,9 @@ async function main() {
     const claimedSlotFetches = mock.seen.fetches;
     // Fire the dispatcher directly twice in a row: the second firing sees
     // the slot already claimed (or nothing due) and must not double-fetch.
-    await fetch(`${base}/__test/alarm`, { method: 'POST' });
+    await fetch(`${base}/_snapback/test/alarm`, { method: 'POST' });
     const afterFirst = mock.seen.fetches;
-    await fetch(`${base}/__test/alarm`, { method: 'POST' });
+    await fetch(`${base}/_snapback/test/alarm`, { method: 'POST' });
     const afterSecond = mock.seen.fetches;
     check(
       'a duplicate wakeup for an already-claimed slot does not double-fetch or double-commit',

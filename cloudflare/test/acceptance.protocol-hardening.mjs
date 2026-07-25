@@ -200,8 +200,8 @@ try {
   const sideEffectFingerprint = async () => {
     const health = await proof.health();
     const notes = await proof.query('listNotes', { boardId: 'b' });
-    const connections = await testState('/__test/connection-state');
-    const cron = await testState('/__test/cron-claims');
+    const connections = await testState('/_snapback/test/connection-state');
+    const cron = await testState('/_snapback/test/cron-claims');
     return {
       version: health.version,
       notes: { version: notes.version, rows: notes.rows },
@@ -283,9 +283,9 @@ try {
     { name: 'app ensure', path: '/app/ensure' },
     { name: 'kit live subscribe', path: '/live/listNotes/subscribe' },
     { name: 'kit live unsubscribe', path: '/live/listNotes/unsubscribe' },
-    { name: 'handler host call', path: '/host-call', headers: { 'x-snapback-host-token': 'invalid' } },
-    { name: 'testing action', path: '/__test/action' },
-    { name: 'operator cron run', path: '/cron/run', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } },
+    { name: 'handler host call', path: '/_snapback/host-call', headers: { 'x-snapback-host-token': 'invalid' } },
+    { name: 'testing action', path: '/_snapback/test/action' },
+    { name: 'operator cron run', path: '/_snapback/api/cron/run', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } },
   ];
   for (const route of bodyRoutes) {
     const before = await sideEffectFingerprint();
@@ -313,14 +313,14 @@ try {
   const emptyBodyFailure = bodyFailures.find((failure) => failure.name === 'empty required body');
   const beforeEmptyCron = await sideEffectFingerprint();
   assert.deepEqual(
-    await raw('/cron/run', {
+    await raw('/_snapback/api/cron/run', {
       ...emptyBodyFailure.request,
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     }),
     emptyBodyFailure.expected,
-    '/cron/run must require the same JSON object body as every operator write',
+    '/_snapback/api/cron/run must require the same JSON object body as every operator write',
   );
-  assert.deepEqual(await sideEffectFingerprint(), beforeEmptyCron, 'empty /cron/run must not touch the scheduler ledger');
+  assert.deepEqual(await sideEffectFingerprint(), beforeEmptyCron, 'empty /_snapback/api/cron/run must not touch the scheduler ledger');
 
   console.log(`cloudflare protocol-hardening acceptance: schema, kind, and ${bodyRoutes.length * bodyFailures.length} exact body-rejection cases passed`);
 } finally {
@@ -424,7 +424,7 @@ try {
   // compatibility verdict must be the same stable diagnostic.
   for (const entry of functionsByKind) {
     const versionBefore = (await kindProof.health()).version;
-    const attempt = await post('/__test/action', { name: entry.name, args: entry.args });
+    const attempt = await post('/_snapback/test/action', { name: entry.name, args: entry.args });
     assert.equal(attempt.status, 200);
     if (entry.kind === 'Action') {
       assert.equal(attempt.body.ok, true, `proof action rejected Action: ${JSON.stringify(attempt.body)}`);
@@ -448,7 +448,7 @@ try {
       'SNAPBACK_LIVE_NOT_A_LIVE_QUERY',
       'proof live must keep unknown-function diagnosis distinct from known wrong-kind functions',
     );
-    const stateBeforeValidProofLive = await post('/__test/connection-state', {});
+    const stateBeforeValidProofLive = await post('/_snapback/test/connection-state', {});
     assert.equal(stateBeforeValidProofLive.body.subscriptions.length, 0, 'proof live mismatches persisted subscriptions');
     const liveQuery = functionsByKind.find((entry) => entry.kind === 'LiveQuery');
     proofSocket.send({ type: 'subscribe', name: liveQuery.name, args: liveQuery.args });
@@ -500,11 +500,11 @@ try {
   }
 
   // The override is a test-route seam, not a request field on the real
-  // operator endpoint. Supplying the same spelling to /cron/run must still
+  // operator endpoint. Supplying the same spelling to /_snapback/api/cron/run must still
   // execute the manifest-declared refreshFeed Action rather than the caller's
   // Query target.
   const publicCronOverride = await post(
-    '/cron/run',
+    '/_snapback/api/cron/run',
     { job: 'warmPoll', actionOverride: 'stationsQuery' },
     { 'x-snapback-admin-token': ADMIN_TOKEN },
   );
@@ -517,13 +517,13 @@ try {
   // function and must remain visible in the cron ledger.
   for (const entry of functionsByKind) {
     const versionBefore = (await kindProof.health()).version;
-    const attempt = await post('/__test/run-cron', {
+    const attempt = await post('/_snapback/test/run-cron', {
       job: 'warmPoll',
       trigger: 'manual',
       actionOverride: entry.name,
     });
     assert.equal(attempt.status, 200, JSON.stringify(attempt.body));
-    const status = await get('/cron/status', { 'x-snapback-admin-token': ADMIN_TOKEN });
+    const status = await get('/_snapback/api/cron/status', { 'x-snapback-admin-token': ADMIN_TOKEN });
     const job = status.body.jobs.find((candidate) => candidate.name === 'warmPoll');
     assert.equal(job.lastRun.runId, attempt.body.runId);
     assert.equal((await kindProof.health()).version, versionBefore, 'kind-probe cron target changed app data');
@@ -540,7 +540,7 @@ try {
   // calls the real ctx.runMutation host operation with every target kind.
   for (const entry of functionsByKind) {
     const versionBefore = (await kindProof.health()).version;
-    const attempt = await post('/__test/action', {
+    const attempt = await post('/_snapback/test/action', {
       name: 'probeWrongNestedKind',
       args: { target: entry.name, targetArgs: entry.args },
     });

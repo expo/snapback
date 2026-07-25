@@ -20,7 +20,7 @@ try {
     { nowMs: 35, expected: 40 },
     { nowMs: 40, expected: 50 },
   ]) {
-    const response = await proof.raw('/__test/cron-nominal-reconciliation', {
+    const response = await proof.raw('/_snapback/test/cron-nominal-reconciliation', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ previousNominalMs: epochMs, intervalMs: 10, nowMs: epochMs + nowMs }),
@@ -40,7 +40,7 @@ try {
 
 const production = await startProof({ app: 'all-aboard', bindings: { SNAPBACK_TESTING: '0' } });
 try {
-  const hidden = await production.raw('/__test/cron-nominal-reconciliation', {
+  const hidden = await production.raw('/_snapback/test/cron-nominal-reconciliation', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ previousNominalMs: 0, intervalMs: 10, nowMs: 35 }),

@@ -5935,14 +5935,10 @@ fn d2_unsubscribe_live_disposes_and_enforces_ownership() {
         )
         .expect("unsubscribe");
     assert!(disposed.disposed);
-    assert_eq!(
-        disposed.receipt.as_ref().expect("receipt")["event"],
-        "disposed"
-    );
-    assert_eq!(
-        disposed.receipt.as_ref().expect("receipt")["reason"],
-        "unsubscribed"
-    );
+    let disposed_receipt =
+        serde_json::to_value(disposed.receipt.as_ref().expect("receipt")).expect("receipt json");
+    assert_eq!(disposed_receipt["event"], "disposed");
+    assert_eq!(disposed_receipt["reason"], "unsubscribed");
 
     snapback
         .invoke_mutation(

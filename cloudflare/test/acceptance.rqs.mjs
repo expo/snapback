@@ -7,8 +7,8 @@
 //   refresh on the live path; the read-mode bundle endpoint against the
 //   compiled routes manifest; gateway Channel A composition (inline, degrade,
 //   response mechanics); byte-exact serializer conformance; keyring rows in
-//   DO SQLite surviving the /evict in-memory-state clear (the ring is
-//   storage-resident by construction); versionStream rotation across /reset
+//   DO SQLite surviving the /_snapback/api/object/evict in-memory-state clear (the ring is
+//   storage-resident by construction); versionStream rotation across /_snapback/api/app/reset
 //   refusing outstanding tokens.
 //   NOT provable here: real platform eviction/machine moves (the keyring uses
 //   the same DO SQLite class the subscription registry's remote eviction
@@ -264,7 +264,7 @@ try {
 
   // --- per-cause refusals over genuinely MAC'd tokens ---------------------
   const testMint = async (body) => {
-    const response = await proof.raw('/__test/rqs-mint', {
+    const response = await proof.raw('/_snapback/test/rqs-mint', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
@@ -392,7 +392,7 @@ try {
   );
 
   // --- keyring custody + restart surrogate --------------------------------
-  const stats = await (await proof.raw('/__test/rqs-stats', {
+  const stats = await (await proof.raw('/_snapback/test/rqs-stats', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: '{}',
@@ -410,7 +410,7 @@ try {
   await proof.evict();
   const postEvict = await resumeWith({ token: preEvict.token, meta: {} });
   check(
-    'a token minted before /evict still verifies after (storage-resident keyring)',
+    'a token minted before /_snapback/api/object/evict still verifies after (storage-resident keyring)',
     postEvict.type === 'current_as_of',
     JSON.stringify(postEvict).slice(0, 200)
   );
@@ -434,7 +434,7 @@ try {
     let restartOk = false;
     let restartDetail = '';
     try {
-      const mint = await (await restartProof.raw('/__test/rqs-mint', {
+      const mint = await (await restartProof.raw('/_snapback/test/rqs-mint', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ function: 'boardNotes', args: { boardId: 'b1' } }),

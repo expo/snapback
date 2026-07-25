@@ -18,7 +18,7 @@
 // re-run billing-windows.mjs over the reported idle window afterwards for the
 // settled numbers.
 //
-// Eviction legs: POST /evict forces an in-place discard of coordinator
+// Eviction legs: POST /_snapback/api/object/evict forces an in-place discard of coordinator
 // in-memory state (the guaranteed leg), and the runner also compares the
 // /health objectBoot marker across the idle window — when Cloudflare
 // genuinely evicted the hibernating object the marker changes and the run
@@ -48,8 +48,8 @@ const adminToken = process.env.SNAPBACK_ADMIN_TOKEN || '';
 
 async function post(path, body) {
   const headers = { 'content-type': 'application/json' };
-  // /reset and /evict are token-gated on the deployed gateway (ENG-23587).
-  if (path === '/reset' || path === '/evict') {
+  // /_snapback/api/app/reset and /_snapback/api/object/evict are token-gated on the deployed gateway (ENG-23587).
+  if (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict') {
     if (!adminToken) {
       console.error('set SNAPBACK_ADMIN_TOKEN to drive the admin endpoints on a real deploy');
       process.exit(2);
@@ -116,7 +116,7 @@ function openSocket(path) {
 }
 
 async function main() {
-  await post('/reset');
+  await post('/_snapback/api/app/reset');
   const manifest = await get('/inspect');
   check('capability manifest served', manifest.targetProfileId === 'cloudflare-do-sqlite-v8', JSON.stringify(manifest.targetProfileId));
   check('capability manifest does not claim deployed auth impersonation',
@@ -151,7 +151,7 @@ async function main() {
   // state on the real deployment while the subscriber stays connected, then
   // prove a committed mutation still reaches it — subscription rehydration
   // from persisted rows, tested rather than assumed.
-  await post('/evict');
+  await post('/_snapback/api/object/evict');
   await post('/mutation', { name: 'addNote', args: { boardId: 'b1', text: 'after evict' } });
   const afterEvict = await socket.waitFor('live_replace');
   check('post-eviction commit reaches the still-connected subscriber',

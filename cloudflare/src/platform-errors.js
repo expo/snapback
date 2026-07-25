@@ -97,7 +97,7 @@ export function platformFailureResponse(path, failure) {
   // LLP 0040's proof protocol and the internal host-call protocol encode
   // failures in a 200 JSON result. Kit routes use the local server's ApiError
   // envelope and meaningful HTTP status.
-  if (path === '/query' || path === '/mutation' || path === '/host-call') {
+  if (path === '/query' || path === '/mutation' || path === '/_snapback/host-call') {
     return new Response(JSON.stringify(failure), { status: 200, headers });
   }
   const status = failure.code === 'SNAPBACK_VALUE_TOO_LARGE' ? 413 : 503;

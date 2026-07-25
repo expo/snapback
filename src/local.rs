@@ -670,8 +670,10 @@ pub struct LiveSubscribeOutput {
     #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
     /// Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478).
+    // @ref LLP 0094#0d--subscription-receipt-typing-implemented — the typed
+    //   Receipt union rides the subscribe output; no longer an untyped seam.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub receipt: Option<Value>,
+    pub receipt: Option<Receipt>,
     #[serde(
         default,
         rename = "authorizationScope",
@@ -770,8 +772,10 @@ pub struct LiveUnsubscribeInput {
 pub struct LiveUnsubscribeOutput {
     pub subscription_id: String,
     pub disposed: bool,
+    // @ref LLP 0094#0d--subscription-receipt-typing-implemented — typed
+    //   Receipt on the unsubscribe output, matching the subscribe half.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub receipt: Option<Value>,
+    pub receipt: Option<Receipt>,
     #[serde(
         default,
         rename = "scopeRetirement",
@@ -7769,10 +7773,9 @@ impl LocalSnapback {
                 capped_correlation(subscription_input.correlation.clone()).unwrap_or(Value::Null),
             ),
             received_at_ms: now_millis(),
-        }
-        .into_value();
+        };
         self.receipts
-            .push_connection(&input.connection_id, receipt.clone());
+            .push_connection(&input.connection_id, receipt.clone().into_value());
 
         // Rung-1 answer: enqueue the `current_as_of` durable envelope (with
         // its mandatory fresh token) in the same &mut cut that registered the
@@ -8029,10 +8032,9 @@ impl LocalSnapback {
             snapshot_version: Some(snapshot_version),
             correlation: None,
             received_at_ms: now_millis(),
-        }
-        .into_value();
+        };
         self.receipts
-            .push_connection(&subscription.connection_id, receipt.clone());
+            .push_connection(&subscription.connection_id, receipt.clone().into_value());
         Ok(LiveUnsubscribeOutput {
             subscription_id: subscription.id,
             disposed: true,

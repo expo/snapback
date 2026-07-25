@@ -36,7 +36,10 @@ const APP_OBJECT_NAME = appMeta.objectName;
 // Exact-path API routes forwarded to the coordinator with a fresh POST body.
 // /app/bundle is the RQS bundle endpoint (LLP 0092 §0D.1) — forwarded like
 // the other app-data JSON routes; the coordinator owns admission and limits.
-const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-meta', '/connection/open', '/app/ensure', '/app/bundle']);
+// Testing seams live under the reserved system namespace
+// (/_snapback/test/*, LLP 0094 §0A.3); the corrupt-meta seam is enumerated
+// here because it must stay reachable during a startup refusal.
+const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/_snapback/test/corrupt-meta', '/connection/open', '/app/ensure', '/app/bundle']);
 
 // §0E.5 pinned Channel A budgets (seam policy knobs). The anonymous
 // per-client-address rate window is in-memory per gateway isolate — a
@@ -101,10 +104,12 @@ async function gatewayFetch(request, env) {
 
     // Re-entrant host calls from the handler isolate. The coordinator id rides
     // x-snapback-do-id so the call reaches the object holding the invocation.
-    if (path === '/host-call') {
+    // @ref LLP 0031#the-invariant — no system operation lives at the root;
+    //   the hosted system surface migrated under /_snapback/* (LLP 0094 §0A.3).
+    if (path === '/_snapback/host-call') {
       const doId = request.headers.get('x-snapback-do-id');
       const stub = coordinatorStub(env, doId);
-      return stub.fetch('http://coordinator/host-call', {
+      return stub.fetch('http://coordinator/_snapback/host-call', {
         method: 'POST',
         headers: request.headers,
         body: request.body,
@@ -116,8 +121,8 @@ async function gatewayFetch(request, env) {
     if (path === '/health') return stub.fetch('http://coordinator/health');
     // Operator config diagnosis (LLP 0049 Phase 1): names, set/missing
     // state, grants, generation — never values.
-    if (path === '/config/status') {
-      return stub.fetch('http://coordinator/config/status', {
+    if (path === '/_snapback/api/config/status') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
       });
@@ -125,20 +130,20 @@ async function gatewayFetch(request, env) {
     // Cron ledger/activation status (public bounded projection, with scrubbed
     // detail for an authenticated operator), and the admin-gated manual run
     // trigger — forward method/headers so the coordinator owns both decisions.
-    if (path === '/cron/status') {
-      return stub.fetch('http://coordinator/cron/status', {
+    if (path === '/_snapback/api/cron/status') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
       });
     }
-    if (path === '/cron/run') {
-      return stub.fetch('http://coordinator/cron/run', {
+    if (path === '/_snapback/api/cron/run') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
         body: request.method === 'GET' ? undefined : request.body,
       });
     }
-    if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
+    if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
         return json(405, {
           diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires POST` },
@@ -149,8 +154,14 @@ async function gatewayFetch(request, env) {
     // Destructive admin endpoints: forwarded with the caller's method and
     // headers so the coordinator can enforce the POST-only, token-gated admin
     // surface (ENG-23587). The gateway itself never mints admin authority.
-    if (path === '/reset' || path === '/evict') {
+    if (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict') {
       return stub.fetch(`http://coordinator${path}`, { method: request.method, headers: request.headers });
+    }
+    // Anything else under the reserved system namespace is an explicit JSON
+    // 404: /_snapback/* never falls through to the SPA asset lane, so a
+    // proxy's "forward the root, refuse /_snapback/*" rule stays exhaustive.
+    if (path === '/_snapback' || path.startsWith('/_snapback/')) {
+      return json(404, { error: 'not found', path });
     }
     if (KIT_ROUTE.test(path)) {
       const expectedMethod = path.startsWith('/outbox/') ? 'GET' : 'POST';

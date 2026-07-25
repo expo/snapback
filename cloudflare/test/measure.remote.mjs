@@ -84,7 +84,7 @@ function round(value) {
 let observedColo = null;
 async function post(path, body) {
   const headers = { 'content-type': 'application/json' };
-  if (adminToken && (path === '/reset' || path === '/evict')) {
+  if (adminToken && (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict')) {
     headers['x-snapback-admin-token'] = adminToken;
   }
   const response = await fetch(`${base}${path}`, {
@@ -172,7 +172,7 @@ async function main() {
 
   let resetApplied = false;
   if (adminToken) {
-    const reset = await post('/reset');
+    const reset = await post('/_snapback/api/app/reset');
     resetApplied = reset.ok === true;
   }
 

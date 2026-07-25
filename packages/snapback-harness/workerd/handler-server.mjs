@@ -469,7 +469,10 @@ async function invoke(body, env, responseToken) {
     hostOptions.headers = headers;
     hostOptions.body = kept.jsonStringify(hostBody);
     if (deadline.signal) hostOptions.signal = deadline.signal;
-    const fetched = env.HOST.fetch("http://snapback-host/host-call", hostOptions);
+    // The host-call seam lives inside the reserved system namespace on every
+    // arm (LLP 0031 invariant; hosted migration LLP 0094 §0A.3) — the local
+    // loopback listener and the Cloudflare gateway accept the same path.
+    const fetched = env.HOST.fetch("http://snapback-host/_snapback/host-call", hostOptions);
     const decoded = trustedThen(fetched, (response) =>
       kept.reflectApply(kept.responseJson, response, [])
     );

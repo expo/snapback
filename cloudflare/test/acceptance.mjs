@@ -153,14 +153,14 @@ async function main() {
       `v1=${v1} v2=${second.version}`);
 
     // -- admin surface fails closed (ENG-23587) ------------------------------
-    const bareReset = await client.adminWithoutToken('/reset');
-    check('an unauthenticated /reset is refused', bareReset.status === 403 && bareReset.body.ok === false,
+    const bareReset = await client.adminWithoutToken('/_snapback/api/app/reset');
+    check('an unauthenticated /_snapback/api/app/reset is refused', bareReset.status === 403 && bareReset.body.ok === false,
       JSON.stringify(bareReset));
-    const bareEvict = await client.adminWithoutToken('/evict');
-    check('an unauthenticated /evict is refused', bareEvict.status === 403 && bareEvict.body.ok === false,
+    const bareEvict = await client.adminWithoutToken('/_snapback/api/object/evict');
+    check('an unauthenticated /_snapback/api/object/evict is refused', bareEvict.status === 403 && bareEvict.body.ok === false,
       JSON.stringify(bareEvict));
-    const getReset = await client.adminWithoutToken('/reset', 'GET');
-    check('a GET /reset is refused (POST-only)', getReset.status === 405, JSON.stringify(getReset));
+    const getReset = await client.adminWithoutToken('/_snapback/api/app/reset', 'GET');
+    check('a GET /_snapback/api/app/reset is refused (POST-only)', getReset.status === 405, JSON.stringify(getReset));
     const survived = await client.query('listNotes', { boardId: 'b1' });
     check('data survives the refused admin calls', survived.ok && survived.rows.length === 2,
       JSON.stringify({ count: survived.rows?.length }));
