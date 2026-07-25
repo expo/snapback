@@ -18,6 +18,11 @@ const proxy = {
 };
 export default defineConfig(({ mode }) => ({
   plugins: [react(), partitimeCostAttribution()],
+  resolve: {
+    // Convex's generated API lives outside this surface directory, so normal
+    // importer-based lookup cannot see the surface-local pinned dependency.
+    alias: { convex: resolve(root, 'node_modules/convex') },
+  },
   define: {
     __MATRIX_BACKEND__: JSON.stringify(mode),
     __SNAPBACK_API_ORIGIN__: JSON.stringify(process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433'),

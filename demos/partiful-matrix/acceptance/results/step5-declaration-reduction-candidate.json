@@ -113,7 +113,7 @@
     },
     "baseline": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "sha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa"
+      "sha256": "294adc60fcb145104e0a1979fdeed770e34d3536bd22b87b1d624211d31bdb13"
     }
   },
   "limitations": [

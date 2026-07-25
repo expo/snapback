@@ -4,7 +4,7 @@
   "ok": true,
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "054765a4b6b87e144ee3ece4ddc29a28a244d692b8fe0f2ce056a09bd35008cb",
+  "manifestSemanticSha256": "ad34b54b999f3b3f475f9f1dd790610e4a403bc91cb774ed8701cf141a94a458",
   "authority": {
     "repository": "snapback",
     "path": "demos/partiful-matrix/acceptance/claims.v1.json",
@@ -39,7 +39,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "b8b6a2c1fffb115431f2fb28d99cd775b3667d5fafea74ed549617ad79feda34"
+        "sha256": "e303bee83e7927bc56d783ce5715617290363bc26b4da5e3f9e66333553f74e5"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -55,15 +55,15 @@
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "3a87dd466f2574df2ece37a1f143d525d28ceed19bef74e1aec2c9552004b1b2"
+      "sha256": "5dd15d31b2d6627eb84eb2c72003fe1162f48bf8bc9e41a01a0fda51f3707b21"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "b05cc902e89ab09874d5628a9bc9181088f7140488a7e3df7e7a5e999036fc3d"
+      "sha256": "656d708ab7612df5f152b3639ab4671f3411777bafb5d0da396d33be8579bbcc"
     }
   },
   "exact": {
-    "revision": "dffb96183743149e91cfb38f606eb3538cd98b9f",
+    "revision": "49720a6d9e055643597b2febb6023870708681a1",
     "dirty": false
   },
   "inputs": {

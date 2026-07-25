@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 import { exactContractWeb } from '@exact/devtools/contract-web';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
@@ -7,6 +9,11 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
     root: __dirname,
     base,
     plugins: [exactContractWeb({ data: 'snapback', app: { entry: '/main.ts' } }), partitimeCostAttribution()],
+    resolve: {
+      // Convex's generated API lives outside this surface directory, so normal
+      // importer-based lookup cannot see the surface-local pinned dependency.
+      alias: { convex: resolve(__dirname, 'node_modules/convex') },
+    },
     define: {
       __MATRIX_BACKEND__: JSON.stringify(mode),
       __PARTITIME_BASE_PATH__: JSON.stringify(base),
