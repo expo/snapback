@@ -621,7 +621,7 @@
             }
           ],
           "default": null,
-          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check.\n@ref LLP 0065#1-fact-classes — EffectCeilingV1."
+          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check."
         },
         "exportedName": {
           "default": null,
@@ -647,6 +647,10 @@
             "$ref": "#/$defs/PermissionScopeExpr"
           },
           "type": "array"
+        },
+        "publicInline": {
+          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\n@ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —\n  authored on the function definition, compiled by codegen, re-enforced\n  at manifest load; never route-manifest authored.",
+          "type": "boolean"
         },
         "readSetSummary": {
           "$ref": "#/$defs/DependencySummary",
@@ -800,6 +804,19 @@
             "Action"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "LLP 0080 §1 — the closed bounded-join profile. Callable and\n`live_replace`-capable only; targets that cannot execute it report a\nmachine-readable capability gap before invocation.",
+          "properties": {
+            "RelationalQuery": {
+              "$ref": "#/$defs/RelationalQueryPlan"
+            }
+          },
+          "required": [
+            "RelationalQuery"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -815,6 +832,128 @@
       "required": [
         "source",
         "export"
+      ],
+      "type": "object"
+    },
+    "JoinEquality": {
+      "additionalProperties": false,
+      "properties": {
+        "joinedField": {
+          "type": "string"
+        },
+        "rootField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootField",
+        "joinedField"
+      ],
+      "type": "object"
+    },
+    "JoinKind": {
+      "enum": [
+        "Inner",
+        "Left"
+      ],
+      "type": "string"
+    },
+    "MaintainedProjectionPlan": {
+      "additionalProperties": false,
+      "description": "`MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a\nstable output key expression, per-source and output visibility\ndeclarations, the declared root reverse index (the bounded lookup and\nadmission proof for joined-source fan-out), and a static `fanOutLimit`.\nIt deliberately has no caller-relative ordering, cursor, or `take`.",
+      "properties": {
+        "fanOutLimit": {
+          "description": "Static per-joined-key reference bound, `1..=1023`. Counts every\nreverse-index entry for the joined key, not only filter-admitted\nroots.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Stable plan identity (publication metadata). The stored projection\nidentity assigned at first activation derives from this and is\nrevision-stable — it names the row-identity domain, never re-keys.",
+          "type": "string"
+        },
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "outputKey": {
+          "$ref": "#/$defs/ProjectionOutputKey"
+        },
+        "outputTable": {
+          "type": "string"
+        },
+        "outputVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "projection": {
+          "description": "Projection leaves; declaration order is the output field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "rebuildRecipe": {
+          "description": "The versioned rebuild recipe this plan declares (LLP 0080 §5);\n`\"rebuild-v1\"` is the only admitted value until the 0081 slice.",
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "The non-security root filter `materializeAll` enumerates under —\nportable literal-only predicates in v1 (no caller, no auth exprs).",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootReverseIndex": {
+          "description": "Declared root reverse index whose leading fields are exactly the\nroot join-field sequence — targets may not discover affected roots\nthrough a table scan.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "sharedFanOutDisclosure": {
+          "default": false,
+          "description": "Explicit acknowledgment of the cross-authority capacity coupling\nwhen a mutable shared joined source feeds an owner output\n(LLP 0080 §3); absent otherwise.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "rootVisibility",
+        "joinedVisibility",
+        "projection",
+        "outputTable",
+        "outputKey",
+        "outputVisibility",
+        "rootReverseIndex",
+        "fanOutLimit",
+        "rebuildRecipe"
       ],
       "type": "object"
     },
@@ -1215,6 +1354,130 @@
         }
       ]
     },
+    "ProjectionLeaf": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ProjectionSource"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "ProjectionOutputKey": {
+      "description": "The closed root-to-output key expression of a maintained projection\n(LLP 0080 §5): the root `_id`, or the complete ordered tuple of a\ndeclared unique root index whose fields the plan marks immutable, so an\noutput key cannot move under maintenance. Either form is injective over\nroots by the uniqueness proof.",
+      "oneOf": [
+        {
+          "enum": [
+            "RootId"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootUniqueIndex": {
+              "properties": {
+                "fields": {
+                  "description": "The exact index fields, restated so the plan is self-describing\nand validation can prove the restatement matches the schema.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "index": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RootUniqueIndex"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProjectionSource": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "RootField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "JoinedField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "JoinedField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProjectionVisibility": {
+      "description": "Source/output visibility declaration for a maintained projection —\ndeclarative (unlike the callable plan's executable filter lists) because\nmaintenance runs under internal projection-maintenance authority and the\ndeclarations constrain information flow and the output's read\nenforcement, not a caller (LLP 0080 §3/§5).",
+      "oneOf": [
+        {
+          "enum": [
+            "public-read"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "owner"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "QueryPlan": {
       "properties": {
         "filters": {
@@ -1258,6 +1521,100 @@
       },
       "required": [
         "table"
+      ],
+      "type": "object"
+    },
+    "RelationalQueryPlan": {
+      "additionalProperties": false,
+      "description": "LLP 0080 §1 — the closed first relational profile: one root table, exactly\none unique-joined table, at most four equality pairs, explicit\nvisibility on both sources, index-served root access, deterministic\nroot ordering, and a bounded `take`. Evaluation follows the normative\n`root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor\nboundary → root order → take N roots → join + joined visibility →\nprojection. `take` bounds consumed authorized roots, not emitted rows.",
+      "properties": {
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "description": "1..=4 equality pairs; declaration order preserved. A null in any\njoin-key position never matches (LLP 0080 §2).",
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedIndex": {
+          "description": "The declared unique joined index whose complete ordered key is\nexactly the joined-field sequence — the cardinality proof.",
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "default": [],
+          "description": "The joined-source visibility predicate, executed per joined row\nbefore projection: an invisible joined row behaves as absent.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "order": {
+          "default": [],
+          "description": "Root scalar order fields; the storage layer's `_id` tie-break\ntotalizes it exactly as for single-table queries.",
+          "items": {
+            "$ref": "#/$defs/OrderExpr"
+          },
+          "type": "array"
+        },
+        "projection": {
+          "description": "Explicit projection whose leaves are literals or qualified source\nfields; declaration order is the result field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "Non-security root filters from the portable vocabulary, index-served.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootIndex": {
+          "description": "The declared root access index proving bounded, index-served access.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "default": [],
+          "description": "The root visibility predicate, composed before ordering and `take`\nso an invisible root cannot occupy a bounded-result slot. Empty for\nan explicitly declared `public-read` root.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "take": {
+          "description": "Consumed-authorized-roots bound, `0..=1024`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "projection",
+        "take",
+        "rootIndex",
+        "joinedIndex"
       ],
       "type": "object"
     },
@@ -1635,6 +1992,13 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/functions.manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "acknowledgedExperimentalCapabilities": {
+      "description": "Experimental-capability acknowledgments for the generated artifact\npair (LLP 0058 §Capability maturity, amendment 2026-07-24): the\nregistry ids this artifact knowingly requires at experimental\nmaturity. Emitted by codegen from the same closed capability table it\nderives requirements from; admission refuses an experimental\nrequirement the artifact does not acknowledge. Acknowledging a stable\nid is a no-op, so promotion to stable never breaks the artifact, and\nan acknowledgment can never make an unsupported capability supported.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "appId": {
       "default": "local-app",
       "type": "string"
@@ -1687,6 +2051,13 @@
         "string",
         "null"
       ]
+    },
+    "projections": {
+      "description": "Transactionally maintained projections (LLP 0080 §5). Activation\nvalidates each plan against the schema and the whole active set (the\nper-source write-budget proof), and every source mutation maintains\nthe output in its own commit.",
+      "items": {
+        "$ref": "#/$defs/MaintainedProjectionPlan"
+      },
+      "type": "array"
     },
     "schemaVersion": {
       "default": "snapback.v0",

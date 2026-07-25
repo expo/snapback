@@ -50,7 +50,7 @@ Workers + Durable Objects-scoped API token:
 bun install --frozen-lockfile           # installs the exact committed Wrangler
 export CLOUDFLARE_API_TOKEN=...        # do NOT commit this
 export CLOUDFLARE_ACCOUNT_ID=...
-export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
+export SNAPBACK_ADMIN_TOKEN=...        # gates /_snapback/api/app/reset + /_snapback/api/object/evict on the deploy
 ./cloudflare/deploy.sh
 SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \
   node cloudflare/test/acceptance.remote.mjs
@@ -66,6 +66,16 @@ preserved`, or `UNKNOWN`. Set `SNAPBACK_ADMIN_TOKEN_REMOVE=1` for explicit,
 attested removal. Mixed-state bootstrap deploys stripped configs only for
 Workers confirmed missing; authentication/network ambiguity fails closed.
 
+When a deploy changes the schema/inputs hash over non-empty persisted state,
+the new version's `/health` refuses with `SNAPBACK_STALE_CLOUDFLARE_*` and the
+deploy fails closed (rolling back) by default. For proof/demo targets whose
+persisted state is disposable, set `SNAPBACK_DEPLOY_RESET_ON_STALE=1` (with
+`SNAPBACK_ADMIN_TOKEN` exported): on a stale refusal, `deploy.sh` invokes the
+authenticated `/_snapback/api/app/reset` against the just-activated version —
+which rebuilds and stamps the new hashes — then re-probes health and continues
+the normal path. Any reset or re-probe failure falls through to the ordinary
+failure/rollback path.
+
 For All Aboard config, send the secret pool object over stdin (never argv) and
 authenticate the admin-read attestation:
 
@@ -76,7 +86,7 @@ SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
 ```
 
 The remote runner holds a connected-hibernating idle window
-(`SNAPBACK_IDLE_WINDOW_MS`, default 60s), drives the `/evict` rehydration leg,
+(`SNAPBACK_IDLE_WINDOW_MS`, default 60s), drives the `/_snapback/api/object/evict` rehydration leg,
 watches `/health`'s `objectBoot` marker for a genuine platform eviction, and
 reads the billing counters for the window through
 `cloudflare/test/billing-windows.mjs` (which also works standalone for any

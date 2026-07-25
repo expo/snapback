@@ -20,9 +20,11 @@
     "operations/deleteConversation.args.schema.json",
     "operations/firstConversationPage.args.schema.json",
     "operations/getConversation.args.schema.json",
+    "operations/listConversationCards.args.schema.json",
     "operations/listConversations.args.schema.json",
     "operations/listMessages.args.schema.json",
     "operations/nextConversationPage.args.schema.json",
+    "operations/registerModel.args.schema.json",
     "operations/settleReply.args.schema.json",
     "operations/startReply.args.schema.json",
     "operations/streamReply.args.schema.json",
@@ -44,12 +46,16 @@
     "contract/firstConversationPage.query.contract-meta.ts",
     "contract/getConversation.query.ts",
     "contract/getConversation.query.contract-meta.ts",
+    "contract/listConversationCards.query.ts",
+    "contract/listConversationCards.query.contract-meta.ts",
     "contract/listConversations.query.ts",
     "contract/listConversations.query.contract-meta.ts",
     "contract/listMessages.query.ts",
     "contract/listMessages.query.contract-meta.ts",
     "contract/nextConversationPage.query.ts",
     "contract/nextConversationPage.query.contract-meta.ts",
+    "contract/registerModel.mutation.ts",
+    "contract/registerModel.mutation.contract-meta.ts",
     "contract/settleReply.mutation.ts",
     "contract/settleReply.mutation.contract-meta.ts",
     "contract/startReply.mutation.ts",
@@ -57,7 +63,7 @@
     "contract/updateConversation.mutation.ts",
     "contract/updateConversation.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:6a267efb075fc3dc",
+  "bundleHash": "sha256:9440ba565fcc86c3",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -103,6 +109,11 @@
       "name": "getConversation"
     },
     {
+      "id": "competitive-checkpoint:listConversationCards",
+      "kind": "LiveQuery",
+      "name": "listConversationCards"
+    },
+    {
       "id": "competitive-checkpoint:listConversations",
       "kind": "LiveQuery",
       "name": "listConversations"
@@ -116,6 +127,11 @@
       "id": "competitive-checkpoint:nextConversationPage",
       "kind": "LiveQuery",
       "name": "nextConversationPage"
+    },
+    {
+      "id": "competitive-checkpoint:registerModel",
+      "kind": "Mutation",
+      "name": "registerModel"
     },
     {
       "id": "competitive-checkpoint:settleReply",
@@ -139,11 +155,13 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "a7c5837ec329890b7c8ebaccaec29e85368d48118fed37a9bb36a9f297b9b462",
-  "schemaHash": "sha256:dcf2cd16404ddae4",
+  "inputsHash": "11c89c6b7716efa4433ca774633c907d10dd48bc616632f28bc7c7e14f5263ad",
+  "schemaHash": "sha256:cbc1ae35bf0483b5",
   "schemaVersion": "snapback.v0",
   "tables": [
     "conversations",
-    "messages"
+    "messages",
+    "models",
+    "conversationCards"
   ]
 }

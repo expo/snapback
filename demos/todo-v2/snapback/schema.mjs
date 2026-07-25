@@ -14,6 +14,9 @@ export default defineSchema({
   })
     // by_user backs the user-scoped live query's index-first lookup.
     .index('by_user', ['userId'])
+    // by_user_priority backs the deep-link slice (LLP 0090 D4 rollout
+    // step 7): listTodosByPriority filters on (userId, priority).
+    .index('by_user_priority', ['userId', 'priority'])
     // Declared syncable so it can back the restricted syncable-live subset.
     .sync(),
 }, {

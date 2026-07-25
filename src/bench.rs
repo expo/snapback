@@ -387,6 +387,7 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
                 input: args(json!({})),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )?;
     }
@@ -414,6 +415,7 @@ fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f6
                 input: args(json!({})),
                 authorization_namespace: None,
                 supersedes: None,
+                resume_from_token: None,
             },
         )?;
     }

@@ -464,7 +464,14 @@ export function defineOwnedKeysetPages(options) {
     }),
     [names.next]: defineLiveQuery({
       ...base,
-      args: { [cursor]: cursorValidator },
+      // The continuation argument is the opaque versioned cursor the server
+      // minted on the previous full page (LLP 0065): a string token, never
+      // the raw boundary value. The runtime verifies its MAC and binding
+      // (app, pair plan identity, caller authority) and substitutes the
+      // bound boundary before the strict comparison runs; a malformed,
+      // cross-plan, or cross-owner token refuses with
+      // SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID, never repositioned.
+      args: { [cursor]: v.string() },
       filter: [eq(ownerField, authUserId()), after],
     }),
   });

@@ -942,7 +942,10 @@ fn read_host_call_request<R: BufRead>(
     let request_line = std::str::from_utf8(&request_line)
         .map_err(|_| HostTransportReadError::Malformed)?
         .trim_end_matches(['\r', '\n']);
-    if request_line != "POST /host-call HTTP/1.1" {
+    // @ref LLP 0094#0a--arm--route-matrix — the host-call seam uses the
+    //   reserved-namespace path on every arm; the shared workerd harness
+    //   sends the same path the Cloudflare gateway serves.
+    if request_line != "POST /_snapback/host-call HTTP/1.1" {
         return Err(HostTransportReadError::Malformed);
     }
 
@@ -1128,7 +1131,7 @@ mod security_tests {
 
     fn request(token: &str, content_length: &str, body: &[u8]) -> Vec<u8> {
         let mut bytes = format!(
-            "POST /host-call HTTP/1.1\r\ncontent-length: {content_length}\r\nx-snapback-host-token: {token}\r\n\r\n"
+            "POST /_snapback/host-call HTTP/1.1\r\ncontent-length: {content_length}\r\nx-snapback-host-token: {token}\r\n\r\n"
         )
         .into_bytes();
         bytes.extend_from_slice(body);
@@ -1151,7 +1154,7 @@ mod security_tests {
             HostTransportReadError::BodyTooLarge
         );
 
-        let mut long_header = b"POST /host-call HTTP/1.1\r\nx-long: ".to_vec();
+        let mut long_header = b"POST /_snapback/host-call HTTP/1.1\r\nx-long: ".to_vec();
         long_header.extend(std::iter::repeat_n(b'a', MAX_HOST_CALL_HEADER_LINE_BYTES));
         long_header.extend_from_slice(b"\r\n\r\n");
         assert_eq!(

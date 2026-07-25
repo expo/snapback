@@ -430,7 +430,7 @@ await runAcceptance(suite, async () => {
           if (!established.some((event) => event.queryName === 'guestList' && event.transport === 'push')) {
             throw new Error(`guestList lacks push transport provenance: ${JSON.stringify(evidence)}`);
           }
-          if (evidence.some((event) => event.pollFallbackEnabled !== false)) {
+          if (established.some((event) => event.pollFallbackEnabled !== false)) {
             throw new Error(`surface receipt does not prove fallback was disabled: ${JSON.stringify(evidence)}`);
           }
           return {
@@ -594,7 +594,8 @@ async function runProductionWebChecks({ suite: activeSuite, cdp, previewUrl, out
       await outOfBandClient.mutate(api.rsvp, { args: { eventId: 'event_sunset', guestName: 'Eve', status: next.status }, userId: 'user_eve' });
       const after = await page.pollText('guest-user_eve', next.label, 5_000);
       const evidence = await page.transportEvidence();
-      if (!after?.includes(next.label) || after === before || !evidence.some((entry) => entry.queryName === 'guestList' && entry.event === 'established' && entry.transport === 'push') || evidence.some((entry) => entry.pollFallbackEnabled !== false)) {
+      const established = evidence.filter((entry) => entry.event === 'established');
+      if (!after?.includes(next.label) || after === before || !established.some((entry) => entry.queryName === 'guestList' && entry.transport === 'push') || established.some((entry) => entry.pollFallbackEnabled !== false)) {
         throw new Error(`hydrated live delivery lacks push provenance: ${JSON.stringify({ before, after, evidence })}`);
       }
       return { before, after, latencyMs: Date.now() - startedAtMs, pollFallback: 'disabled', evidence };

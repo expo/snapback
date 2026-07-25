@@ -129,6 +129,32 @@
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"priority\": string; \"title\": string; \"userId\": string }>"
       },
       {
+        "argumentsType": "{ \"priority\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "listTodosByPriority",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"priority\": string; \"title\": string; \"userId\": string }>"
+      },
+      {
         "argumentsType": "Record<string, never>",
         "delivery": {
           "defaultLive": false,
@@ -157,7 +183,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "c43c1570f402b621e3b5f79b1303672a42dff9837f8debc3255bd94aed76be1b",
+    "inputsHash": "f7e662620015ebb19e81f53a72f4a2e95a3bbde1a04ff39631f258fc8cc3690c",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

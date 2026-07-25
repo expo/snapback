@@ -1,7 +1,7 @@
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
+import { SnapbackClient, createRqsRegisteredRegistry } from '../../../_kit/client.mjs';
 import {
   createLocalStorageSnapbackClientStore,
   createSnapbackContractSurface,
@@ -9,6 +9,7 @@ import {
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
+import routesManifest from '../../snapback/generated/routes.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import app from './todo.contract';
@@ -100,13 +101,44 @@ async function boot(): Promise<void> {
   try {
     await client.health();
     status('Ensuring backend provisioning...');
-    await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+    // The routes manifest rides along (LLP 0092 §0C.1) so the served
+    // instance can answer register-mode bundle boots on the next pageload.
+    await client.ensureApp({
+      schema: schemaManifest,
+      functions: functionsManifest,
+      seed,
+      routes: routesManifest,
+    });
   } catch {
     // The surface below may still boot from an authorized retained snapshot.
     // If this is a first run (nothing retained), construction fails with the
     // original network error instead of inventing an empty app.
     status('Backend unavailable — checking retained data...');
   }
+
+  // Channel C authenticated boot (LLP 0090 D4 rollout step 7): shell + ONE
+  // register-mode bundle under the caller's identity. The bundle response is
+  // the fresh snapshot AND the live registration set at one commit cut, with
+  // the connection grant minted in the same response — the surface below
+  // adopts each registration instead of opening its own
+  // snapshot-with-subscribe, and its socket attaches under the bundle grant.
+  // Auth-scoped entries carry no resume token (v1 rule). Best-effort: any
+  // failure (older server, refused route, offline) degrades to today's boot.
+  let registeredBoot = null;
+  try {
+    status('Fetching the register-mode boot bundle...');
+    const bundle = await client.fetchBundle({ route: '/', mode: 'register', userId: ADA });
+    const registry = createRqsRegisteredRegistry(bundle);
+    if (registry.size > 0 && registry.connection?.connectionId) registeredBoot = registry;
+  } catch (error) {
+    console.warn('[snapback-todo-v2] register-mode boot degraded to fresh subscribe', error);
+  }
+  // Test/debug facts for acceptance and agents.
+  (globalThis as { todoV2Rqs?: unknown }).todoV2Rqs = {
+    registeredEntries: registeredBoot?.size ?? 0,
+    connection: registeredBoot?.connection?.connectionId ?? null,
+    generation: registeredBoot?.generation ?? null,
+  };
 
   status('Mounting Contract surface...');
   installContractWebHost();
@@ -125,6 +157,16 @@ async function boot(): Promise<void> {
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
+    // Register-mode adoption: the bound query consumes its bundle
+    // registration (one-shot) and the shared socket presents the
+    // bundle-minted grant for the atomic pending-registration handoff.
+    ...(registeredBoot
+      ? {
+          connectionId: registeredBoot.connection.connectionId,
+          rqsRegistered: (name: string, args: Record<string, unknown>) =>
+            registeredBoot.consume(name, args),
+        }
+      : {}),
   });
   activeSurface = surface;
   const reconnect = () => {

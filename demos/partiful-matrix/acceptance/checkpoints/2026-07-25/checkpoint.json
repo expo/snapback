@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "partitime.checkpoint-integration.v1",
+  "checkpointId": "llp0063-checkpoint-integration-2026-07-25",
+  "status": "candidate-evidence",
+  "authoritative": false,
+  "claimsUpdated": false,
+  "claimsPromoted": [],
+  "source": {
+    "snapbackRevision": "5116c269b174faa6713d91ed2c1350ae0ffb0527",
+    "exactBuildRevision": "3152b9c0c02754492c34814ce8ed6f913a67a088",
+    "exactAuthorityRevision": "2d687583744b3ffa0bcad71b0a695b05e60b92cd",
+    "harness": {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "42dbcb63bdc8fc0e27bf0ab326f7dc43dd133a1328057a87bbc3ed4c6837cfe3",
+      "extractedFromCommit": "0df687d1a8c0097f768fc2693458f397da100532",
+      "scope": "Evaluate fallback-disabled provenance only on established subscription events; connection-state events do not carry subscription policy."
+    },
+    "environment": {
+      "host": "M4 Mac mini",
+      "cpu": "Apple M4",
+      "os": "darwin-25.5.0-arm64",
+      "node": "v22.19.0",
+      "bun": "1.3.12",
+      "chrome": "Google Chrome 150.0.7871.182"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "demos/partiful-matrix/acceptance/checkpoints/2026-07-25/step0-web.candidate.json",
+      "sha256": "553081fc8671fd668f0bda221705e1dafbf2c0e8b3d113925215f9be6fc6b543",
+      "result": {
+        "passed": 43,
+        "failed": 0,
+        "skipped": 0,
+        "total": 43,
+        "ok": true
+      }
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/checkpoints/2026-07-25/step4-production-web-browser.candidate.json",
+      "sha256": "3b0c1216c810f12d7e5468691197424f385f61aa08ba950d073d93ce907b89f4",
+      "result": {
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "total": 9,
+        "ok": true
+      }
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/checkpoints/2026-07-25/step4-production-web.candidate.json",
+      "sha256": "1c033281644cf15743164395294a8b29ff29cc69bd13ff013f04dd5898941201",
+      "result": {
+        "passed": 11,
+        "red": 1,
+        "nonclaims": 0,
+        "total": 12,
+        "ok": false,
+        "outcome": "red"
+      }
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/checkpoints/2026-07-25/step4-budgets.candidate.json",
+      "sha256": "b6aaad1ec09150ae4ec9fe9ca9cba1a2e2d668befac30bca3e54d55e2d820484",
+      "result": {
+        "passed": 8,
+        "red": 18,
+        "nonclaims": 16,
+        "total": 26,
+        "ok": false,
+        "outcome": "red"
+      }
+    }
+  ],
+  "admission": {
+    "decision": "retain-off-authoritative-ledger",
+    "reason": "The fresh runs are truthful, but unrelated passing Step 0 receipts on current Snapback main have stale input inventories. Replacing the frozen Step 4 artifacts before rerunning and relocking those prerequisites would make the cumulative manifest internally inconsistent.",
+    "blockingIssue": "issues/20260725-partitime-step0-evidence-drift.md",
+    "requiredBeforePromotion": [
+      "Rerun every stale passing Step 0 receipt against current Snapback and Exact mains.",
+      "Rebuild the self-reference-safe Step 0 aggregate and Exact mirror in their prescribed order.",
+      "Rerun the Step 4 aggregates and content-address the final authoritative manifest.",
+      "Keep STEP4.PRODUCTION_WEB and STEP4.BUDGETS failing unless their complete frozen gates are genuinely green."
+    ]
+  }
+}

@@ -276,7 +276,7 @@ fn system_field_predicates_are_affected_by_updates() {
     let subscription = snapback
         .subscribe_live("listVersionOne", sub_input("conn", "ada"))
         .expect("subscribe");
-    assert_eq!(subscription.snapshot.rows.len(), 1);
+    assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 1);
 
     set_title(&mut snapback, &id, "versioned-again");
 
@@ -404,6 +404,7 @@ fn sub_input(connection: &str, user: &str) -> LiveSubscribeInput {
         input: input(json!({ "userId": user }), user),
         authorization_namespace: None,
         supersedes: None,
+        resume_from_token: None,
     }
 }
 

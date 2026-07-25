@@ -5,13 +5,19 @@
   "description": "Managed Snapback Vite dev plugin: mode-aware backend lifecycle, /__snapback app-route proxy allowlist, and structured diagnostics.",
   "files": [
     "allowlist.mjs",
+    "channel-a-core.mjs",
+    "channel-a.mjs",
     "index.mjs",
     "lifecycle.mjs",
-    "proxy.mjs"
+    "proxy.mjs",
+    "rqs-serializer.mjs"
   ],
   "exports": {
     ".": "./index.mjs",
     "./allowlist": "./allowlist.mjs",
+    "./channel-a": "./channel-a.mjs",
+    "./channel-a-core": "./channel-a-core.mjs",
+    "./rqs-serializer": "./rqs-serializer.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -36,6 +42,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs"
+    "test": "node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs"
   }
 }

@@ -48,9 +48,10 @@ assert.deepEqual(
   'durable-lane kinds drifted between schemas/live.envelope.schema.json and client.mjs LIVE_DURABLE_KINDS',
 );
 
-// Socket control lane: every schema kind is either dispatched or knowingly
-// ignored (DURABLE_BYTES has no client recovery; it is declared in
-// LIVE_SOCKET_KINDS with that note, so the set comparison still pins it).
+// Socket control lane: every schema kind is dispatched (DURABLE_BYTES
+// recovers via a synthesized connection-wide clear-retained resync —
+// dispatchDurableBytesFrame in the kit; regression-durable-bytes-resync.mjs
+// covers the transition — so the set comparison still pins it).
 const socketSchema = schemaKinds('live.socket-server.schema.json', 'kind');
 const socketHandled = new Set(Object.values(LIVE_SOCKET_KINDS));
 assert.deepEqual(

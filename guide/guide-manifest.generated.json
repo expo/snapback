@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "87d1a9eea99b46e993bc9001b9e0fe56ed969843"
+    "commit": "17f0741c962395e4ef8d0373bdb8009ec8d2a26c"
   },
   "nav": {
     ".": [
@@ -79,6 +79,11 @@
         "id": "backend.standard-patterns",
         "order": 25,
         "title": "Safe standard data patterns"
+      },
+      {
+        "id": "backend.relational-queries",
+        "order": 26,
+        "title": "Relational queries (bounded joins)"
       },
       {
         "id": "backend.streamed-actions",
@@ -473,14 +478,15 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "demos/all-aboard/snapback/functions.mjs",
-        "demos/all-aboard/tests/acceptance/cron.mjs"
+        "demos/all-aboard/tests/acceptance/cron.mjs",
+        "demos/_kit/server-process.mjs"
       ],
       "examples": [
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a9804beeecb5c03a389de7937ff1b1f3804e098e28cbeace81a83c545efc43dc",
+      "sha256": "c20c2f27b0f69c430d450c088f052a1dcec3e57ebdc7ad59e2e9978c65a2d16c",
       "snippets": [
         {
           "lang": "js",
@@ -595,6 +601,42 @@
         }
       ]
     },
+    "backend.relational-queries": {
+      "path": "guide/backend/relational-queries.md",
+      "title": "Relational queries (bounded joins)",
+      "order": 26,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.relational-queries"
+      ],
+      "authorities": [
+        "llp/0080-portable-relational-queries-and-projections.rfc.md",
+        "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "packages/snapback-codegen/define.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/relational-authoring.test.mjs"
+      ],
+      "reviewed": "2026-07-25",
+      "reviewedCommit": "681a98701db0b986d230e4be456f1a4694d6e50d",
+      "sha256": "0cc48c2c2f50d00f6f1c53bded7fd24787c69d32ee4415accb1fb55774b3293f",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/relational-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/functions.mjs"
+        }
+      ]
+    },
     "backend.standard-patterns": {
       "path": "guide/backend/standard-patterns.md",
       "title": "Safe standard data patterns",
@@ -615,9 +657,9 @@
       "examples": [
         "packages/snapback-codegen/standard-patterns.test.mjs"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "27e3689a239c52a01a01ddf51f52ec4221ea7a86",
-      "sha256": "76663ec27712c04d7b26cc538e69c0e1734385809d2b20945b776a134d15cbd4",
+      "reviewed": "2026-07-25",
+      "reviewedCommit": "6fe11376af0429eb2154627c253586224be063bb",
+      "sha256": "ac547433d5abe88da94b5f07a6886bd3290536d2fc3b818ca5a39f9f9a74b9aa",
       "snippets": [
         {
           "lang": "js",
@@ -666,9 +708,9 @@
         "demos/competitive-checkpoint",
         "cloudflare/test/acceptance.egress.mjs"
       ],
-      "reviewed": "2026-07-24",
+      "reviewed": "2026-07-25",
       "reviewedCommit": "HEAD",
-      "sha256": "15033cc08d9274c55a37f12159914e7a48d1c1c618822d17e2fdd3ee1c78b46e",
+      "sha256": "afe1ec571402c91ff7ed7ec8dab5b271e5c05073780dbcaa2aee0c050a08c6b9",
       "snippets": [
         {
           "lang": "js",
@@ -710,7 +752,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "18bb0514601468856270154b74173a998f24b5c2969e94c7049767a8d8e9d8c8",
+      "sha256": "3f91d88775adb178977bb654edc4713cc304f58e331c92d9bbae20beec9219d8",
       "snippets": []
     },
     "clients.app-cli": {
@@ -778,7 +820,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "2dc542c8517a721cfb01cdf001384d54df221cb8d99352fb181d9ba829106b68",
+      "sha256": "6b16980d00c03358810c87d3da2a4542f2597e769adff716c9db2581a3d333d8",
       "snippets": [
         {
           "lang": "contract",
@@ -1118,7 +1160,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "02e15086da5e2dc1f7e793f1aa4c712d937f9b719a442e84b23bc8c18a9ac372",
+      "sha256": "e5d9077059c5e7ee2318a434ad27faa7ea9f6b105aba5e4a481dc6bea3aa9a77",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1541,16 +1583,19 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
         "demos/_kit/harness.mjs",
-        "demos/_kit/server-process.mjs"
+        "demos/_kit/server-process.mjs",
+        "schemas/host-ready.schema.json"
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
-        "demos/card-game/tests/acceptance/authority-scope.mjs"
+        "demos/card-game/tests/acceptance/authority-scope.mjs",
+        "demos/all-aboard/tests/acceptance/headless.mjs"
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "85a8f2e43bd82668106eec916f2fc68f60e886bd165041c7dc412f07927bf4a0",
+      "sha256": "ed3ed95ae6f418db84d30cc29ceb0a9f6a7b6ad1a5373e877342df1c0540e9f2",
       "snippets": [
         {
           "lang": "js",
@@ -1561,6 +1606,15 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/acceptance/headless.mjs"
         }
       ]
     }
@@ -1580,6 +1634,7 @@
       "backend.functions",
       "backend.provisioning",
       "backend.query-semantics",
+      "backend.relational-queries",
       "backend.schema",
       "backend.seed",
       "backend.standard-patterns",
@@ -1610,11 +1665,13 @@
       "sync.offline",
       "testing.acceptance"
     ],
-    "gaps": []
+    "gaps": [
+      "realtime.snapshot-bundles"
+    ]
   },
   "surfaces": {
-    "routes": 68,
+    "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "7b78ccdb9a242c05d15deb2ecfbf5e53954467d42b082ccfe716feb8b1935bd9"
+  "contentHash": "d4da9e0cd115b2cd6c0571c1a8d5d3845ea96b0b44285e48621e49cea5100241"
 }

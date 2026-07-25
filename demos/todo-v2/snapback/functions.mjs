@@ -44,6 +44,20 @@ export const listTodosOnce = defineQuery({
   index: 'by_user',
 });
 
+// Deep-link slice (LLP 0090 D4 rollout step 7): the same user's todos
+// narrowed to one priority — the second query a /priority/:priority
+// register-mode bundle cold start needs, so one bundle request replaces two
+// per-query subscribe round trips. Auth-scoped like listTodos: bundle
+// entries for it carry `resume: null` in both modes (no RQS resume state
+// for auth-scoped queries in v1).
+export const listTodosByPriority = defineLiveQuery({
+  table: 'todos',
+  args: { priority: v.string() },
+  filter: [eq('userId', authUserId()), eq('priority', arg('priority'))],
+  order: [asc('_createdAt')],
+  index: 'by_user_priority',
+});
+
 export const createTodo = defineMutation({
   args: { title: v.string(), priority: v.string() },
   plan: insert(

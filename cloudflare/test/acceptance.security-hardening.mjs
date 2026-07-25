@@ -70,9 +70,9 @@ try {
   assert.equal(stations.rows.length, 21);
   assert.ok(stations.rows.every((row) => row.name !== 'ATTACKER CONTROLLED'));
 
-  const publicStatus = await fetch(`${base}/config/status`);
+  const publicStatus = await fetch(`${base}/_snapback/api/config/status`);
   assert.equal(publicStatus.status, 403);
-  const adminStatusResponse = await fetch(`${base}/config/status`, {
+  const adminStatusResponse = await fetch(`${base}/_snapback/api/config/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   });
   const adminStatus = await adminStatusResponse.json();
@@ -87,7 +87,7 @@ try {
   // stripped, and per-action admission limits cap public abuse.
   const hiddenProbe = await jsonFetch(base, '/action/probeSlowFetch', { args: { url: 'http://127.0.0.1:1/' } });
   assert.equal(hiddenProbe.body.diagnostic?.code, 'SNAPBACK_ACTION_UNKNOWN');
-  const hiddenCronOverride = await jsonFetch(base, '/__test/run-cron', {
+  const hiddenCronOverride = await jsonFetch(base, '/_snapback/test/run-cron', {
     job: 'warmPoll',
     actionOverride: 'stationsQuery',
   });
@@ -159,8 +159,8 @@ try {
   const base = await testing.url();
   const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
-  const testAction = (name, args = {}) => jsonFetch(base, '/__test/action', { name, args });
-  const payload = await jsonFetch(base, '/__test/secrets-payload', { name: 'probeSecrets' });
+  const testAction = (name, args = {}) => jsonFetch(base, '/_snapback/test/action', { name, args });
+  const payload = await jsonFetch(base, '/_snapback/test/secrets-payload', { name: 'probeSecrets' });
   const grants = JSON.parse(payload.body.secretsJson).entries;
   const crossGrant = await testAction('probeSecretForgery', { capabilityId: grants.caltrainFeed.firstCapabilityId });
   const noGrant = await testAction('probeSecretForgeryNoGrant', { capabilityId: grants.directions.firstCapabilityId });
@@ -187,7 +187,7 @@ try {
   }
   const manualNested = await client.action('refreshFeed', { args: { source: 'recorded', trigger: 'manual-ledger-check' } });
   assert.equal(manualNested.ok, true);
-  const manualLedger = await jsonFetch(base, '/__test/cron-claims', {});
+  const manualLedger = await jsonFetch(base, '/_snapback/test/cron-claims', {});
   assert.equal(manualLedger.body.mutationResults, 0, 'ordinary actions must not accumulate retry-ledger rows');
 
   // WebSocket credentials: query-only is refused without echoing the token;
@@ -203,14 +203,14 @@ try {
   );
   assert.equal(socketless.status, 409);
   assert.equal(socketless.body.diagnostic?.code, 'SNAPBACK_CONNECTION_SOCKET_REQUIRED');
-  const socketlessState = await jsonFetch(base, '/__test/connection-state', {});
+  const socketlessState = await jsonFetch(base, '/_snapback/test/connection-state', {});
   assert.equal(socketlessState.body.subscriptions.length, 0, 'socketless subscribe must not persist demand');
-  const socketlessCron = await (await fetch(`${base}/cron/status`)).json();
+  const socketlessCron = await (await fetch(`${base}/_snapback/api/cron/status`)).json();
   assert.equal(socketlessCron.jobs[0].activation.state, 'inactive:no-demand');
-  await jsonFetch(base, '/__test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
-  const corruptSocketlessCron = await (await fetch(`${base}/cron/status`)).json();
+  await jsonFetch(base, '/_snapback/test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
+  const corruptSocketlessCron = await (await fetch(`${base}/_snapback/api/cron/status`)).json();
   assert.equal(corruptSocketlessCron.jobs[0].activation.demand, 0, 'a corrupt v3 socketless kit row must not count as proof demand');
-  const reapedSocketless = await jsonFetch(base, '/__test/subscription-migration', {});
+  const reapedSocketless = await jsonFetch(base, '/_snapback/test/subscription-migration', {});
   assert.equal(reapedSocketless.body.layout.subscriptionSchemaVersion, 3);
   assert.equal(reapedSocketless.body.layout.subscriptionCount, 0, 'v2→v3 migration must reap socketless kit rows');
   const queryOnly = await testing.raw(`/live/${connectionId}/stream?connection_token=${encodeURIComponent(token)}`, {
@@ -265,7 +265,7 @@ try {
   // delete the replacement session's row.
   headerSocket.ws.send(JSON.stringify({ type: 'unsubscribe', subscriptionId: subscribed.body.subscription_id }));
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const replacementOwned = await jsonFetch(base, '/__test/connection-state', {});
+  const replacementOwned = await jsonFetch(base, '/_snapback/test/connection-state', {});
   assert.equal(replacementOwned.body.subscriptions.length, 1);
   assert.notEqual(replacementOwned.body.subscriptions[0].socket_session_id, null);
   await testing.evict();
@@ -282,6 +282,22 @@ try {
   }));
   current.ws.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
+  // Drain frames the replacement legitimately received BEFORE current's open
+  // closed it server-side: the armed warm poll (subscribe arms cron on this
+  // bundle) can commit feed mutations at nondeterministic times, queueing
+  // extra live_replace frames client-side. Those are pre-replacement traffic,
+  // not a violation; the invariant under test is that nothing NEW arrives for
+  // the post-replacement commit below (this drain closed a host-timing flake,
+  // issues/closed/20260724-security-hardening-obsolete-socket-flake.md).
+  for (;;) {
+    try {
+      await replacement.next(200);
+    } catch (_) {
+      break;
+    }
+  }
+  const preFinal = await jsonFetch(base, '/_snapback/test/connection-state', {});
+  assert.equal(preFinal.body.subscriptions.length, 0);
   await client.mutate('applyFeedTick', { args: { trigger: 'replacement-close-first', source: 'recorded' } });
   let obsoleteReceived = false;
   try {
@@ -321,12 +337,12 @@ try {
   const full = await jsonFetch(base, '/connection/open', { connectionId: 'bounded-d' });
   assert.equal(full.status, 429);
   assert.equal(full.body.diagnostic?.code, 'SNAPBACK_CONNECTION_GRANT_LIMIT');
-  await jsonFetch(base, '/__test/age-connections', {});
+  await jsonFetch(base, '/_snapback/test/age-connections', {});
   const expiredUse = await fetch(`${base}/outbox/bounded-a`, {
     headers: { 'x-snapback-connection-token': openedGrants.get('bounded-a') },
   });
   assert.equal(expiredUse.status, 401, 'an idle-expired grant must be rejected even before the next open');
-  const expired = await jsonFetch(base, '/__test/expire-connections', {});
+  const expired = await jsonFetch(base, '/_snapback/test/expire-connections', {});
   assert.equal(expired.body.reaped, 2);
   assert.equal((await jsonFetch(base, '/connection/open', { connectionId: 'bounded-d' })).status, 200);
   const rateLimited = await jsonFetch(base, '/connection/open', { connectionId: 'bounded-e' });
@@ -378,10 +394,10 @@ try {
   const oversized = await second.waitFor('error');
   assert.equal(oversized.code, 'SNAPBACK_SUBSCRIPTION_ARGS_TOO_LARGE');
   assert.equal(oversized.details?.limitBytes, 64);
-  const boundedState = await jsonFetch(base, '/__test/connection-state', {});
+  const boundedState = await jsonFetch(base, '/_snapback/test/connection-state', {});
   assert.equal(boundedState.body.subscriptions.length, 3, 'rejected legacy subscriptions persist no rows');
 
-  await jsonFetch(base, '/__test/schema-hardening', {
+  await jsonFetch(base, '/_snapback/test/schema-hardening', {
     operation: 'insert-legacy-subscription',
     subscriptionId: 'overflow-global',
     connectionId: 'legacy-overflow',
@@ -389,7 +405,7 @@ try {
     argsJson: '{"boardId":"overflow"}',
     schemaVersion: 2,
   });
-  const globalRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  const globalRefusal = await jsonFetch(base, '/_snapback/test/schema-hardening', { operation: 'reinitialize' });
   assert.equal(globalRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT_EXCEEDED');
   assert.equal(
     globalRefusal.body.subscriptionSchemaVersion,
@@ -402,7 +418,7 @@ try {
   second.close();
 
   for (let index = 0; index < 3; index += 1) {
-    await jsonFetch(base, '/__test/schema-hardening', {
+    await jsonFetch(base, '/_snapback/test/schema-hardening', {
       operation: 'insert-legacy-subscription',
       subscriptionId: `overflow-connection-${index}`,
       connectionId: 'one-legacy-connection',
@@ -410,18 +426,18 @@ try {
       argsJson: JSON.stringify({ boardId: `legacy-${index}` }),
     });
   }
-  const connectionRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  const connectionRefusal = await jsonFetch(base, '/_snapback/test/schema-hardening', { operation: 'reinitialize' });
   assert.equal(connectionRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT_EXCEEDED');
   assert.equal((await boundedSubscriptions.reset()).reset, true);
 
-  await jsonFetch(base, '/__test/schema-hardening', {
+  await jsonFetch(base, '/_snapback/test/schema-hardening', {
     operation: 'insert-legacy-subscription',
     subscriptionId: 'overflow-args',
     connectionId: 'legacy-args',
     functionName: 'listNotes',
     argsJson: JSON.stringify({ boardId: 'z'.repeat(100) }),
   });
-  const argsRefusal = await jsonFetch(base, '/__test/schema-hardening', { operation: 'reinitialize' });
+  const argsRefusal = await jsonFetch(base, '/_snapback/test/schema-hardening', { operation: 'reinitialize' });
   assert.equal(argsRefusal.body.startupError?.code, 'SNAPBACK_SUBSCRIPTION_ARGS_LIMIT_EXCEEDED');
   assert.equal((await boundedSubscriptions.reset()).reset, true);
   assert.equal((await boundedSubscriptions.health()).ok, true);
@@ -457,7 +473,7 @@ try {
   )));
   assert.deepEqual(attempts.map((attempt) => attempt.status).sort((a, b) => a - b), [200, 429]);
   assert.equal(attempts.find((attempt) => attempt.status === 429)?.body.diagnostic?.code, 'SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT');
-  const state = await jsonFetch(base, '/__test/connection-state', {});
+  const state = await jsonFetch(base, '/_snapback/test/connection-state', {});
   assert.equal(state.body.subscriptions.length, 1, 'delayed concurrent snapshots cannot overbook the persisted cap');
   for (const { socket } of opened) socket.close();
 } finally {
@@ -477,7 +493,7 @@ const linearizedSubscriptions = await startProof({
 });
 try {
   const base = await linearizedSubscriptions.url();
-  const linearized = await jsonFetch(base, '/__test/subscription-linearization', {});
+  const linearized = await jsonFetch(base, '/_snapback/test/subscription-linearization', {});
   assert.equal(linearized.status, 200);
   assert.equal(linearized.body.stagedAdmission?.ok, true);
   assert.equal(linearized.body.persisted?.ok, false);
@@ -505,7 +521,7 @@ try {
     assert.equal(response.status, 101);
     response.webSocket.accept();
     current = response.webSocket;
-    const state = await jsonFetch(base, '/__test/connection-state', {});
+    const state = await jsonFetch(base, '/_snapback/test/connection-state', {});
     assert.equal(state.body.acceptedSocketCount, 1, 'reconnect must replace, not accumulate, accepted sockets');
     // Miniflare's in-process client endpoint does not surface the server-side
     // close event, so the authoritative hibernation registry count above is
@@ -563,7 +579,7 @@ try {
     let last = null;
     while (Date.now() < deadline) {
       try {
-        last = await jsonFetch(base, '/__test/connection-state', {});
+        last = await jsonFetch(base, '/_snapback/test/connection-state', {});
         if (last.body.acceptedSocketCount === expected) return;
       } catch (_) {}
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -613,7 +629,7 @@ try {
     response.webSocket.accept();
     oldSockets.push(response.webSocket);
   }
-  const lowered = await jsonFetch(base, '/__test/socket-limit-upgrade', {
+  const lowered = await jsonFetch(base, '/_snapback/test/socket-limit-upgrade', {
     acceptedSockets: 1,
     legacyProofSockets: 1,
     socketsPerConnection: 1,
@@ -625,7 +641,7 @@ try {
   const deadline = Date.now() + 2_000;
   let upgradedState = null;
   while (Date.now() < deadline) {
-    upgradedState = await jsonFetch(base, '/__test/connection-state', {});
+    upgradedState = await jsonFetch(base, '/_snapback/test/connection-state', {});
     if (upgradedState.body.acceptedSocketCount === 0) break;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }

@@ -38,6 +38,10 @@ export const cron = [];
 export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
+// @ref LLP 0058#capability-maturity — this bundle requires no experimental
+// capability, so it acknowledges none.
+export const acknowledgedExperimentalCapabilities = [];
+
 export const schema = {
   schemaHash: deploymentIdentity.schemaHash,
   tables: [
@@ -58,6 +62,60 @@ export const bundleHash = deploymentIdentity.bundleHash;
 
 export const functions = [
   { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes', tables: ['notes'] },
+  // RQS-eligible queries (LLP 0090 rollout step 4). These are declarative
+  // HostPlan queries the coordinator evaluates natively — no JS handler, no
+  // opaque code — which is what makes the compiled facts honest: the
+  // rqsEligible predicate (authorityIndependent + the closed-inputs
+  // singleTable proof) and the publicInline disclosure fact are DERIVED by
+  // the coordinator from these fields (cloudflare/src/rqs-host.mjs), the
+  // deploy-time-compiled analog of the local arm's codegen + served-manifest
+  // validation. `boardNotes` is unordered (mset1 digests); `boardNotesOrdered`
+  // adds an order clause (seq1 digests) so both digest kinds have a
+  // Cloudflare-arm witness.
+  {
+    name: 'boardNotes',
+    kind: 'LiveQuery',
+    tables: ['notes'],
+    authRequirement: 'public',
+    authorityIndependent: true,
+    publicInline: true,
+    uses: [],
+    readSetSummary: { authScopeField: null, mode: 'singleTable', primaryTable: 'notes', tables: ['notes'] },
+    runtime: {
+      HostPlan: {
+        Query: {
+          table: 'notes',
+          indexed_by: 'by_board',
+          filters: [{ field: 'boardId', op: 'Eq', value: { Arg: 'boardId' } }],
+          membershipFilters: [],
+          order: [],
+          limit: null,
+        },
+      },
+    },
+  },
+  {
+    name: 'boardNotesOrdered',
+    kind: 'LiveQuery',
+    tables: ['notes'],
+    authRequirement: 'public',
+    authorityIndependent: true,
+    publicInline: true,
+    uses: [],
+    readSetSummary: { authScopeField: null, mode: 'singleTable', primaryTable: 'notes', tables: ['notes'] },
+    runtime: {
+      HostPlan: {
+        Query: {
+          table: 'notes',
+          indexed_by: 'by_board',
+          filters: [{ field: 'boardId', op: 'Eq', value: { Arg: 'boardId' } }],
+          membershipFilters: [],
+          order: [{ field: '_createdAt', direction: 'Asc' }],
+          limit: null,
+        },
+      },
+    },
+  },
   { name: 'addNote', kind: 'Mutation', export: 'addNote', tables: ['notes'] },
   // A probe used only by the ambient-power denial acceptance test (LLP 0040
   // §Acceptance). It reports what the handler isolate can and cannot reach, so
@@ -79,6 +137,33 @@ export const functions = [
   { name: 'probeBadTable', kind: 'Mutation', export: 'probeBadTable', tables: ['notes'], testingOnly: true },
   { name: 'addNoteDetachedFailure', kind: 'Mutation', export: 'addNoteDetachedFailure', tables: ['notes'], testingOnly: true },
 ];
+
+// The route→query manifest compiled into the Worker (LLP 0092 §0C.1's 0C
+// artifact; LLP 0090 rollout step 4). Deploy-time compiled like everything
+// else on this arm — the coordinator validates it at first use and the
+// gateway's Channel A seam matches pageload paths against it. `/board/:boardId`
+// and `/` are the publicInline lanes; `/private/:boardId` deliberately names
+// the non-publicInline `listNotes` so the NOT_PUBLIC refusal and the
+// degrade-to-shell posture stay under test.
+export const routesManifest = {
+  formatVersion: 1,
+  app: 'notes',
+  routes: [
+    { route: '/', queries: [{ function: 'boardNotes', args: { boardId: 'lobby' } }] },
+    {
+      route: '/board/:boardId',
+      queries: [{ function: 'boardNotes', args: { boardId: { $param: 'boardId' } } }],
+    },
+    {
+      route: '/ordered/:boardId',
+      queries: [{ function: 'boardNotesOrdered', args: { boardId: { $param: 'boardId' } } }],
+    },
+    {
+      route: '/private',
+      queries: [{ function: 'listNotes', args: { boardId: 'secret' } }],
+    },
+  ],
+};
 
 // One handler module, the same `globalThis.__snapbackHandlers` contract the
 // local Ibex target and the LLP 0048 twin execute. Every db touch is awaited

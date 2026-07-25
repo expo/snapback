@@ -27,13 +27,63 @@ dependency of both the 0065 and 0080 lanes.
   boilerplate from every app and feeds `STEP5.DECLARATION_REDUCTION`;
   bounded joins are the most user-visible gap. No maintained-projection or
   migration machinery required.
+  **Status (2026-07-25): executed.** 0007 suffix, the full 0065 lane
+  (candidate-conformance, conditional lowering, effect ceiling incl. the
+  new runtime subset enforcement, DTO identities, opaque keyset cursors,
+  principal profile-class admission, and the §6 suite index in
+  `20260724-step5-impl-0065-conformance-suite.md`), and the 0080 callable
+  slice (plan codegen, root-window evaluator with opaque cursors +
+  `RelationalResultEncodingV1`, live/0053 inheritance + retention
+  default-deny + capability facts) are landed and witnessed. Named
+  residuals live in the 0065 suite ticket and the 0080 live-0053 ticket
+  (retention successor class, disabled-skip capability record,
+  Sessions-mode negative matrix, acceptance corpus).
 - **Phase B (next):** maintained projections + rebuild, the minimal 0081
   slice they force (barrier/executor, journal events, plan artifact +
   approval for `RebuildMaintainedProjection`), and the coupled suite.
+  **Status (2026-07-25): executed.** Maintained projections landed whole
+  (core engine in both mutation tiers, activation validation, the local
+  IMMEDIATE-transaction barrier rebuild with receipts and the streaming
+  split-oracle digest, `defineMaintainedProjection` authoring + demo +
+  guide) and `RELATIONAL_MIGRATION_COUPLED_SUITE_V1`'s v1 fixtures are
+  green (`tests/relational_migration_coupled_suite_v0.rs` +
+  `tests/relational_corpus_v0.rs` + the src witnesses; item→witness map
+  in the coupled-suite ticket). The minimal 0081 slice is deliberately
+  narrowed to the local profile — the durable batch-cursor executor,
+  full approval records, journal events, and verification/rollback stay
+  the complete Phase C lane. `Implemented` status flips and the
+  `relational_query_v1` maturity promotion are author decisions gated on
+  the ticket-recorded residuals (hosted arms, retention lease class,
+  obligation-fault e2e, Step 0).
 - **Phase C (when real deployments need schema changes):** the rest of the
   0081 lane. 0081 is safety machinery and should land essentially whole —
   do not trim it; defer it. The hosted DO executor stays deferred behind an
   LLP 0072 target selection.
+  **Status (2026-07-25): executed on the local profile.** Three waves:
+  (1) `MigrationPlanArtifactV1` + observation/approval/admission types
+  with frozen golden vectors, the deterministic planner order/step-ID
+  grammar, and the UUIDv7 synthesis namespace (`d10c80aa`);
+  `MigrationKeysetScanV1` + `ContentDigestV1` with resumable accumulators
+  (`73023273`). (2) The durable executor (`907214a2`): the closed
+  13-state journal machine with its transition relation committed as
+  schema, the persisted migration fence over the enumerated 8-lane
+  registry surviving process reopen, semantic approval/admission
+  enforcement, batch atomicity, the enforced downtime ceiling, and the
+  `snapback migrate` CLI. (3) Schema-transition events as first-class
+  LLP 0007 journal grammar with floor-gated replay, the stable
+  upgrade-required refusal, retained-work proof, and live retirement
+  (`85fa2375`, `5116c269`); the §5 independent data proof, §6 fast
+  rollback from published-held, staged generations, and the kill-point
+  matrix (`17f0741c` — which found and fixed two Wave-2 executor bugs).
+  0081 acceptance corpus green; coupled-suite map updated. Deferred by
+  design: the hosted DO executor (LLP 0072 selection); sessions-profile
+  residuals (durable auth-scoped dispositions at publication, client
+  quarantine UX, mutation-wire artifact identity — LLP 0093 adjacency)
+  are named in the tickets. `Implemented` flips for 0065/0080/0081 and
+  capability-maturity promotions remain author decisions; three small
+  0081 spec frictions are recorded for the next amendment
+  (cancel_requested naming, an explicit `release` verb, the
+  admission-timing profile note).
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 

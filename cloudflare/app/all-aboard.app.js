@@ -31,6 +31,12 @@ export const appMeta = {
 export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
+// @ref LLP 0058#capability-maturity — this acknowledgment predates the
+// stream capability's promotion to stable (LLP 0076 Accepted 2026-07-25) and
+// is deliberately retained as the survival witness: acknowledging a stable id
+// is a harmless no-op, so pre-promotion bundles keep deploying unchanged.
+export const acknowledgedExperimentalCapabilities = ['bounded_response_stream_v1'];
+
 export const schema = {
   schemaHash: schemaManifest.schemaHash,
   tables: [
@@ -1157,3 +1163,8 @@ globalThis.__snapbackHandlers = {
     ];
   },
 };
+
+// No route→query manifest yet: All Aboard's queries are opaque-JS handlers,
+// which can never carry the rqsEligible closed-inputs fact (LLP 0092 §0C.2),
+// so Channel A has nothing to serve on this bundle (LLP 0090 rollout step 4).
+export const routesManifest = null;

@@ -63,6 +63,35 @@
         "Cross-user write refusals in the generated-CRUD check now expect SNAPBACK_ROW_NOT_FOUND, matching LLP 0065's Accepted anti-probing posture (a cross-user write refuses with the same code and body as a missing row). This tracks the shipped generated-pattern contract; the visibility floor itself is unchanged.",
         "Scope note reconciling LLP 0076's ledger remark: the generated-reference-only rule governs the client arm's app-data calls; the authored handler's nested host-side ctx.runMutation-by-name is the shipped server authoring surface and is inside this protocol's fixture as-is."
       ]
+    },
+    {
+      "version": "v0.6",
+      "date": "2026-07-24",
+      "prospective": true,
+      "reason": "Author decision (Charlie Cheever, 2026-07-24) against issues/20260723-llp0075-program-ownership.md: the concrete provider tuple for the first single-instance-container-vm.v1 remote drill is pinned and the long-lived program owner is recorded. No timed sample has run; v0's cutoff, evidence, and retained receipts are untouched. This amendment pins decisions, not provisioning: no Fly.io account or credential exists on the instrument machine as of this date, nothing was installed, and NO live drill target is claimed.",
+      "changes": [
+        "remoteDrillTarget added: provider fly.io (single Fly Machine VM), region default sjc (no repository evidence argued for another region), backup object store Fly's Tigris S3-compatible storage, credential backend FLY_API_TOKEN sourced from the git-ignored machine-local .agent-local-secrets.md.",
+        "Credential health recorded honestly as pending-not-provisioned: .agent-local-secrets.md does not exist on the instrument machine as of 2026-07-24 and no Fly.io credentials or accounts were created by this amendment.",
+        "Exact package identities (flyctl and any Tigris tooling) and the drill instrument version are recorded as unpinned-blocks-drill: they are pinned by the amendment that records first provisioning, before any drill run, in the same style as this protocol's other unpinned-blocks-timed-runs entries.",
+        "Program owner recorded: Charlie Cheever is the named long-lived competitive-program owner and ratifier across reruns — a session-directed default recorded per his 2026-07-24 direction, subject to his own amendment; issues/20260723-llp0075-program-ownership.md narrows to that owner-confirmation residue.",
+        "claimScope.proposedHostedAdapterStatus updated to reference this amendment as the versioned replacement record it was pending."
+      ]
+    },
+    {
+      "version": "v0.7",
+      "date": "2026-07-25",
+      "prospective": true,
+      "reason": "First provisioning of the v0.6-pinned remote drill target is recorded and the unpinned-blocks-drill identities flip to pinned, exactly as v0.6 anticipated. The drill legs ran and their receipts are retained (remote-streaming 7/7, durable-row scan PASS, Tigris backup read-back PASS, hosted-auth refusal witness). No timed sample has run; v0's cutoff, evidence, and retained receipts are untouched. No secret values appear here: only resource names and token variable names.",
+      "changes": [
+        "remoteDrillTarget first provisioning pinned: Fly.io app snapback-drill (org personal), ONE machine 819701c927ee68 (shared-cpu-1x, 512MB, auto-stop/auto-start), region sjc, image snapback-drill:deployment-01KYCPZGTFWWQW18V77TYA1HS9, ONE Tigris bucket snapback-drill-backups (endpoint https://fly.storage.tigris.dev), public origin https://snapback-drill.fly.dev. The auto-created fly-builder app in the org is a platform artifact of --remote-only builds, recorded for teardown. liveTarget flips to true.",
+        "credentialBackend.health flips to provisioned: FLY_API_TOKEN (named revocable org token) and SNAPBACK_DRILL_ADMIN_TOKEN live in the git-ignored machine-local .agent-local-secrets.md, verified working 2026-07-25; SNAPBACK_ADMIN_TOKEN plus the Tigris AWS_* credentials are Fly app secrets. Values never enter this repository.",
+        "packageIdentities pinned: flyctl fly v0.4.74 darwin/arm64 (commit b74c9391409b3e443383a5f4d928cef007825ddc, build 2026-07-22); Tigris-side tooling is deliberately none — the backup witness uses curl --aws-sigv4 inside the machine image, no separate Tigris CLI exists to pin.",
+        "instrumentVersion pinned by content digest as landed with this amendment: remote-streaming.mjs sha256 57c4616a00a0e955a85933fdffd6989f17b2ffbcab6321c56d4c8e38a0440adc (expectedChecks 7, twin of the retained local instrument), scan-durable-rows.mjs sha256 f7d29318d51fdcbe0158db4d646ebfcf6884f167902e5c8ddef19590d59dcb47, backup-to-tigris.sh sha256 02a36e8e7d8140ccdc456b101587f141260390eeb48b23aff8fc11d7e0d6b9aa; Linux Hermes runtime bundle hermes-linux-x64-ac8c6e6c80ec-bcd8ab683229.tar.gz sha256 9dcdbc0317716b7fdb06d82f0e7ccf37aefc45c8f3e08893e399ff25a6d1cc4e (prebuilt patched bundle, checksum-verified in the drill Dockerfile, staged untracked).",
+        "Fixture reconciliation (prospective, before any timed sample, per the v0.5 precedent): the streamReply handler's inner mutations now route through a bounded SNAPBACK_MUTATION_CONFLICT reconcile (re-invoke; each inner mutation re-reads the row in a fresh transaction and re-evaluates its terminal/stale branches). The first drill run hit the durable-cancel-vs-progress-commit write race reliably on the shared-CPU machine: the conflict surfaced to the handler, safeCode bucketed it as failed, and the action envelope disagreed with the durable cancelled row. The durable row was never wrong; the envelope was. Local twin re-witnessed 7/7 after the change.",
+        "Server defect found by the drill and fixed in the same landing: the serve path validated --allow-insecure-dev-auth pre-bind but never installed it into the request-path AppState, so every app-data route on a non-loopback bind refused SNAPBACK_AUTH_TRANSPORT_INSECURE regardless of the flag (src/cli.rs; regression test serve_path_installs_insecure_dev_auth_override_into_app_state). Also pinned in fly.toml: SNAPBACK_PROFILE=test, because an unset profile fails CLOSED to prod on a non-loopback bind and prod never honors the override.",
+        "Drill receipts retained: acceptance/results/remote-streaming.v0.json (7/7 PASS), durable-row-scan.v0.json (PASS, 0 findings over the post-run machine dumps), tigris-backup.v0.json (byte-exact read-back PASS), hosted-auth-refusal.v0.json (SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED witnessed on-machine, exit 1; the LLP 0077 sender-auth matrix cannot honestly run on this target — sessions refuse SNAPBACK_AUTH_TRANSPORT_INSECURE on a plaintext non-loopback bind with no override by design). hostedAuthCapable is NOT claimed; the LLP 0077 program gate stays open.",
+        "claimScope.proposedHostedAdapterStatus updated: the replacement drill target is now live and drilled; trusted-single-tenant-app-complete.v1 remains unsupported and no control-plane adapter operations exist for this target (claim boundary of LLP 0072's first-instantiation record)."
+      ]
     }
   ],
   "strategy": "llp/0074-convex-competitive-strategy.rfc.md",
@@ -80,10 +109,51 @@
     "snapbackLocalProfile": "local-dev-sqlite-ibex",
     "snapbackHostedProfile": "trusted-single-tenant-app-complete.v1",
     "proposedHostedAdapter": "cloudflare-worker-do-sqlite-v8.v0",
-    "proposedHostedAdapterStatus": "replaced-prospectively-2026-07-22-by-adjudication-pending-versioned-amendment",
+    "proposedHostedAdapterStatus": "replaced-prospectively-2026-07-22-by-adjudication; provider tuple pinned by amendment v0.6 and first provisioning recorded by amendment v0.7 (2026-07-25): the drill target is live and drilled. trusted-single-tenant-app-complete.v1 remains unsupported; no control-plane adapter operations exist for this target",
     "nextExecutableAdapter": "single-instance-container-vm.v1",
     "convexPackage": "convex@1.42.3",
     "convexPackageAnchor": "demos/chat-matrix/expo/bun.lock"
+  },
+  "remoteDrillTarget": {
+    "profile": "single-instance-container-vm.v1",
+    "decidedBy": "Charlie Cheever, author decision 2026-07-24 (protocol amendment v0.6)",
+    "provider": "fly.io",
+    "providerShape": "single Fly Machine VM (container-image-based), matching the single-instance-container-vm.v1 profile",
+    "region": "sjc",
+    "regionRationale": "program default; no repository evidence argued for a different region (instrument machine and operator are US-Pacific)",
+    "backupObjectStore": "fly-tigris-s3-compatible",
+    "credentialBackend": {
+      "kind": "api-token",
+      "variable": "FLY_API_TOKEN",
+      "source": ".agent-local-secrets.md (git-ignored, machine-local; never committed)",
+      "health": "provisioned",
+      "healthChecked": "2026-07-25 (amendment v0.7): FLY_API_TOKEN and SNAPBACK_DRILL_ADMIN_TOKEN present in the git-ignored .agent-local-secrets.md and verified against the live target; SNAPBACK_ADMIN_TOKEN plus Tigris AWS_* credentials are Fly app secrets. No secret values in this repository"
+    },
+    "packageIdentities": {
+      "status": "pinned",
+      "flyctl": "fly v0.4.74 darwin/arm64, commit b74c9391409b3e443383a5f4d928cef007825ddc, build 2026-07-22",
+      "tigrisTooling": "none — the backup witness uses curl --aws-sigv4 inside the machine image; there is no separate Tigris CLI to pin"
+    },
+    "instrumentVersion": {
+      "status": "pinned",
+      "remoteStreamingInstrument": "demos/competitive-checkpoint/tests/acceptance/remote-streaming.mjs sha256 57c4616a00a0e955a85933fdffd6989f17b2ffbcab6321c56d4c8e38a0440adc (expectedChecks 7)",
+      "durableRowScan": "demos/competitive-checkpoint/tests/acceptance/scan-durable-rows.mjs sha256 f7d29318d51fdcbe0158db4d646ebfcf6884f167902e5c8ddef19590d59dcb47",
+      "backupWitness": "demos/competitive-checkpoint/acceptance/drill/backup-to-tigris.sh sha256 02a36e8e7d8140ccdc456b101587f141260390eeb48b23aff8fc11d7e0d6b9aa"
+    },
+    "provisionedIdentities": {
+      "recordedBy": "amendment v0.7 (2026-07-25); complete inventory for teardown",
+      "app": "snapback-drill (org personal)",
+      "machineId": "819701c927ee68",
+      "machineShape": "shared-cpu-1x, 512MB, auto-stop/auto-start, min 0 running",
+      "region": "sjc",
+      "image": "snapback-drill:deployment-01KYCPZGTFWWQW18V77TYA1HS9",
+      "publicOrigin": "https://snapback-drill.fly.dev",
+      "tigrisBucket": "snapback-drill-backups (endpoint https://fly.storage.tigris.dev)",
+      "platformArtifacts": "the auto-created fly-builder app in the org (a --remote-only build artifact)",
+      "hermesRuntimeBundle": "hermes-linux-x64-ac8c6e6c80ec-bcd8ab683229.tar.gz sha256 9dcdbc0317716b7fdb06d82f0e7ccf37aefc45c8f3e08893e399ff25a6d1cc4e (prebuilt patched bundle, checksum-verified in the Dockerfile, staged untracked)"
+    },
+    "liveTarget": true,
+    "owner": "Charlie Cheever — named long-lived program owner/operator and ratifier (session-directed default recorded 2026-07-24, subject to his amendment)"
   },
   "fixture": {
     "tables": ["conversations", "messages"],

@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:6a267efb075fc3dc",
+  "bundleHash": "sha256:9440ba565fcc86c3",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "a7c5837ec329890b7c8ebaccaec29e85368d48118fed37a9bb36a9f297b9b462",
+  "inputsHash": "11c89c6b7716efa4433ca774633c907d10dd48bc616632f28bc7c7e14f5263ad",
   "manifestVersion": 2,
   "mutations": {
     "applyReplyProgress": {
@@ -221,6 +221,50 @@
       "serverRunnable": true,
       "writes": [
         "conversations"
+      ]
+    },
+    "registerModel": {
+      "argOrder": [
+        "slug",
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "slug": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "models"
+      ],
+      "name": "registerModel",
+      "optimistic": true,
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "models",
+              "values": {
+                "displayName": {
+                  "Arg": "displayName"
+                },
+                "slug": {
+                  "Arg": "slug"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "serverRunnable": true,
+      "writes": [
+        "models"
       ]
     },
     "settleReply": {
@@ -593,6 +637,61 @@
       "subscription": "initial-snapshot",
       "transport": "push"
     },
+    "listConversationCards": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listConversationCards",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "conversationCards"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "modelName": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
     "listConversations": {
       "argOrder": [],
       "args": {},
@@ -831,6 +930,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:dcf2cd16404ddae4",
+  "schemaHash": "sha256:cbc1ae35bf0483b5",
   "schemaVersion": "snapback.v0"
 }

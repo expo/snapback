@@ -1615,6 +1615,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             function: "listTodos".to_owned(),
             version: 7,
             rows: vec![json!({ "_id": "a", "title": "x" })],
+            resume: None,
         },
         LiveEnvelope::LiveDelta {
             subscription_id: "sub_1".to_owned(),
@@ -1632,6 +1633,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                     row: None,
                 },
             ],
+            resume: None,
         },
         LiveEnvelope::ResyncRequired {
             reason: "outbox_overflow".to_owned(),
@@ -1905,14 +1907,30 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     let snapshot = QueryOutput {
         version: 7,
         rows: vec![json!({ "_id": "a" })],
+        cursor: None,
     };
     assert_validates(
         "live.subscribe.output.schema.json",
         &serde_json::to_value(LiveSubscribeOutput {
             subscription_id: "sub_1".to_owned(),
-            snapshot: snapshot.clone(),
+            snapshot: Some(snapshot.clone()),
+            resume: None,
+            resume_refusal: None,
             permission_epochs: std::collections::BTreeMap::new(),
-            receipt: Some(json!({ "kind": "subscription" })),
+            receipt: Some(Receipt::Subscription {
+                event: SubscriptionReceiptEvent::Established,
+                reason: None,
+                subscription_id: Some("sub_1".to_owned()),
+                superseded_by: None,
+                lane: None,
+                binding_id: None,
+                collection: None,
+                removed: None,
+                scope: json!({ "listId": "l1" }),
+                snapshot_version: Some(7),
+                correlation: Some(Value::Null),
+                received_at_ms: 3,
+            }),
             authorization_scope: None,
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
@@ -1966,6 +1984,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             input: input.clone(),
             authorization_namespace: None,
             supersedes: None,
+            resume_from_token: None,
         })
         .unwrap(),
     );

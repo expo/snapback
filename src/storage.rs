@@ -4,7 +4,8 @@ use crate::manifest::{
     AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
     CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-    MutationOutput, MutationPlan, MutationStep, OrderDirection, PORTABLE_STORAGE_VERSION_MAX,
+    MutationOutput, MutationPlan, MutationStep, OrderDirection, OrderExpr,
+    PORTABLE_STORAGE_VERSION_MAX,
     QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
     QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
     auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
@@ -33,6 +34,7 @@ use uuid::Uuid;
 #[allow(dead_code)]
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
+pub mod migration_executor;
 
 // @ref LLP 0055#principal-kinds — agent-principal ownership and durable
 //   deactivation live in their own module beneath the auth catalog. Grant/token
@@ -81,6 +83,9 @@ pub(crate) mod auth_sender;
 
 #[path = "storage/auth_throttle.rs"]
 pub(crate) mod auth_throttle;
+
+#[path = "storage/hosted_admission.rs"]
+pub(crate) mod hosted_admission;
 
 #[path = "storage/authorized_lease.rs"]
 pub(crate) mod authorized_lease;
@@ -766,6 +771,11 @@ pub struct LocalDatabase {
     /// replace the interlock beneath already-running service publications.
     service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
     app_state_graph_claimed: bool,
+    /// Active maintained-projection plans (LLP 0080 §5), installed by
+    /// function-manifest activation after validation. Every mutation path
+    /// consults them so source commits and projection maintenance share one
+    /// transaction.
+    projections: Arc<Vec<crate::manifest::MaintainedProjectionPlan>>,
 }
 
 fn reset_and_seed_transaction(
@@ -1216,6 +1226,7 @@ impl LocalDatabase {
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
+            projections: Arc::new(Vec::new()),
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -1251,6 +1262,7 @@ impl LocalDatabase {
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
+            projections: Arc::new(Vec::new()),
         };
         db.configure(true)?;
         db.create_infra()?;
@@ -1308,6 +1320,7 @@ impl LocalDatabase {
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
+            projections: Arc::new(Vec::new()),
         })
     }
 
@@ -1916,6 +1929,37 @@ impl LocalDatabase {
         Ok(from_version < self.journal_floor_version()?)
     }
 
+    /// Distinct row ids journaled for `table` strictly after `version` — the
+    /// rung-2 replay's journal-affected id set (LLP 0090 D1.3): only these
+    /// ids are touched in the accumulator update; untouched witness leaves
+    /// remain. Returns at most `limit + 1` ids, so a caller comparing against
+    /// its replay-vs-replace threshold detects "over threshold" without
+    /// unbounded work. The caller must already have checked
+    /// `resume_requires_resnapshot` — below the retained floor, absence from
+    /// the journal proves nothing.
+    pub fn changed_row_ids_for_table_since(
+        &self,
+        table: &str,
+        version: u64,
+        limit: usize,
+    ) -> SnapbackResult<Vec<String>> {
+        let table = schema_table(&self.schema, table)?;
+        let mut statement = self.conn.prepare_cached(
+            "SELECT DISTINCT row_id FROM _snapback_changes \
+             WHERE table_name = ?1 AND version > ?2 LIMIT ?3",
+        )?;
+        let version = version_to_sql_integer(version)?;
+        let fetch = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
+        let rows = statement.query_map(params![table.name, version, fetch], |row| {
+            row.get::<_, String>(0)
+        })?;
+        let mut ids = Vec::new();
+        for row in rows {
+            ids.push(row?);
+        }
+        Ok(ids)
+    }
+
     /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation
     /// query, so a test can assert it uses the `(table_name, version)` index
     /// rather than scanning.
@@ -2230,6 +2274,35 @@ impl LocalDatabase {
         query_on(&self.conn, &self.schema, plan, input)
     }
 
+    /// One ceiling-bounded batch of the privileged migration scan against a
+    /// pinned read snapshot (LLP 0081 §3). The Wave-2 executor instead calls
+    /// [`migration_keyset_scan_batch_on`] inside its own batch transaction.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn migration_keyset_scan_batch(
+        &self,
+        request: &MigrationKeysetScanRequestV1,
+        checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
+    ) -> SnapbackResult<MigrationKeysetScanBatch> {
+        self.with_pinned_read_view(|db| match db {
+            DbRead::Pinned { conn, schema } => {
+                migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
+            }
+            DbRead::Live(db) => {
+                migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
+            }
+        })
+    }
+
+    /// Install the active maintained-projection set (LLP 0080 §5). Called by
+    /// function-manifest activation after validation; every mutation path on
+    /// this database maintains these outputs in its own commit.
+    pub(crate) fn set_projections(
+        &mut self,
+        plans: Vec<crate::manifest::MaintainedProjectionPlan>,
+    ) {
+        self.projections = Arc::new(plans);
+    }
+
     /// Execute a closed relational plan under `root-window-v1`.
     ///
     /// @ref LLP 0080#2-portable-evaluation-semantics — the normative
@@ -2242,8 +2315,9 @@ impl LocalDatabase {
         &self,
         plan: &crate::manifest::RelationalQueryPlan,
         input: &HandlerInput,
-    ) -> SnapbackResult<QueryOutput> {
-        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input))
+        cursor: Option<&KeysetAfter>,
+    ) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
+        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input, cursor))
     }
 
     /// Run one complete query invocation against a snapshot-bound view of this
@@ -2483,6 +2557,17 @@ impl LocalDatabase {
         check_live()?;
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
+        let projections = self.projections.clone();
+        let projection_sources: BTreeSet<String> = projections
+            .iter()
+            .flat_map(|plan| [plan.root.clone(), plan.joined.clone()])
+            .collect();
+        // First-touch pre-images of projection-source rows (LLP 0080 §5):
+        // the affected-key set closes over the mutation pre-image and the
+        // final post-image, so key values that exist only transiently
+        // inside the transaction never select an output row.
+        let mut projection_pre_images: BTreeMap<(String, String), Option<Map<String, Value>>> =
+            BTreeMap::new();
         let replay_ledger = validate_plan_replay_ledger(input)?;
         let now_ms = replay_ledger
             .as_ref()
@@ -2493,6 +2578,11 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   persisted migration fence closes the mutation lane durably: it
+        //   is re-read inside every commit transaction, so a crash between
+        //   reopen and resume cannot readmit application writes.
+        migration_executor::ensure_migration_fence_open(&tx)?;
         let current_version = current_version_on(&tx)?;
         #[cfg(test)]
         notify_commit_version_sampled(&tx);
@@ -2587,6 +2677,11 @@ impl LocalDatabase {
 
                     let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
                     let changed_fields = changed_field_names(&row);
+                    if projection_sources.contains(&table.name) {
+                        projection_pre_images
+                            .entry((table.name.clone(), id.clone()))
+                            .or_insert(None);
+                    }
                     let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
                     record_change(
                         &tx,
@@ -2616,6 +2711,13 @@ impl LocalDatabase {
                     )?;
                     let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
                     let changed_fields = changed_field_names(&row);
+                    if projection_sources.contains(&table.name)
+                        && !projection_pre_images.contains_key(&(table.name.clone(), id.clone()))
+                    {
+                        let pre = get_document_from_tx(&tx, table, &id, next_version)?
+                            .and_then(|value| value.as_object().cloned());
+                        projection_pre_images.insert((table.name.clone(), id.clone()), pre);
+                    }
                     if patch_document(&tx, table, &id, &row, next_version, now_ms)? {
                         let document = get_document_from_tx(&tx, table, &id, next_version)?;
                         record_change(
@@ -2648,6 +2750,14 @@ impl LocalDatabase {
                     //   host-bound, not a HostPlan generic delete).
                     enforce_resource_delete_guard(&schema, &tx, &table.name, Some(&id))?;
                     let document = get_document_from_tx(&tx, table, &id, next_version)?;
+                    if projection_sources.contains(&table.name)
+                        && !projection_pre_images.contains_key(&(table.name.clone(), id.clone()))
+                    {
+                        projection_pre_images.insert(
+                            (table.name.clone(), id.clone()),
+                            document.as_ref().and_then(|value| value.as_object().cloned()),
+                        );
+                    }
                     if delete_document(&tx, table, &id)? {
                         record_change(
                             &tx,
@@ -2816,6 +2926,8 @@ impl LocalDatabase {
                         now_ms,
                         Some(&next_id),
                         None,
+                        None,
+                        false,
                     )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
@@ -2836,6 +2948,13 @@ impl LocalDatabase {
                     // sees each removal, exactly as per-row Delete steps.
                     for row in rows {
                         check_live()?;
+                        if projection_sources.contains(&table.name)
+                            && let Some(id) = row.get("_id").and_then(Value::as_str)
+                        {
+                            projection_pre_images
+                                .entry((table.name.clone(), id.to_owned()))
+                                .or_insert_with(|| row.as_object().cloned());
+                        }
                         let Some(id) = row.get("_id").and_then(Value::as_str).map(str::to_owned)
                         else {
                             continue;
@@ -2898,6 +3017,11 @@ impl LocalDatabase {
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
                         let id = next_id()?;
+                        if projection_sources.contains(&table.name) {
+                            projection_pre_images
+                                .entry((table.name.clone(), id.clone()))
+                                .or_insert(None);
+                        }
                         let row = eval_value_map(values, input, &item_bindings, now_ms, &next_id)?;
                         let changed_fields = changed_field_names(&row);
                         let document =
@@ -2923,6 +3047,25 @@ impl LocalDatabase {
             }
         }
 
+        // @ref LLP 0080#5-transactionally-maintained-projections — every
+        //   source mutation computes the bounded affected-key set and
+        //   updates the outputs in this same transaction and commit
+        //   version. Under the serialized writer, running admission here —
+        //   after the step loop, before COMMIT — is observationally
+        //   equivalent to before-any-write admission: a refusal aborts the
+        //   whole transaction atomically, and no reader can observe the
+        //   intermediate state.
+        if !projections.is_empty() {
+            maintain_projections_in_tx(
+                &tx,
+                &schema,
+                &projections,
+                &mut changes,
+                &projection_pre_images,
+                next_version,
+                now_ms,
+            )?;
+        }
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
         }
@@ -3214,6 +3357,13 @@ impl LocalDatabase {
         );
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
+        let projections = self.projections.clone();
+        let projection_sources: BTreeSet<String> = projections
+            .iter()
+            .flat_map(|plan| [plan.root.clone(), plan.joined.clone()])
+            .collect();
+        let mut projection_pre_images: BTreeMap<(String, String), Option<Map<String, Value>>> =
+            BTreeMap::new();
         // The handler's frozen clock is part of the buffered effect, not a
         // value to rediscover at reconnect/commit time. Replay, optimistic
         // output, persisted system fields, and the journal therefore share
@@ -3229,6 +3379,7 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        migration_executor::ensure_migration_fence_open(&tx)?;
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;
 
@@ -3285,6 +3436,11 @@ impl LocalDatabase {
             match write {
                 BufferedWrite::Insert { table, id, values } => {
                     let table = schema_table(&schema, &table)?;
+                    if projection_sources.contains(&table.name) {
+                        projection_pre_images
+                            .entry((table.name.clone(), id.clone()))
+                            .or_insert(None);
+                    }
                     let changed_fields = changed_field_names(&values);
                     let document = insert_document(&tx, table, &id, &values, next_version, now_ms)?;
                     write_membership_creation_provenance(&tx, table, &id, write_writer.as_ref())?;
@@ -3321,6 +3477,13 @@ impl LocalDatabase {
                         continue;
                     }
                     let before = get_document_from_tx(&tx, table, &id, next_version)?;
+                    if projection_sources.contains(&table.name) {
+                        projection_pre_images
+                            .entry((table.name.clone(), id.clone()))
+                            .or_insert_with(|| {
+                                before.as_ref().and_then(|value| value.as_object().cloned())
+                            });
+                    }
                     let changed_fields = changed_field_names(&values);
                     if patch_document(&tx, table, &id, &values, next_version, now_ms)? {
                         let document = get_document_from_tx(&tx, table, &id, next_version)?;
@@ -3355,6 +3518,14 @@ impl LocalDatabase {
                 BufferedWrite::Delete { table, id } => {
                     let table = schema_table(&schema, &table)?;
                     let document = get_document_from_tx(&tx, table, &id, next_version)?;
+                    if projection_sources.contains(&table.name)
+                        && !projection_pre_images.contains_key(&(table.name.clone(), id.clone()))
+                    {
+                        projection_pre_images.insert(
+                            (table.name.clone(), id.clone()),
+                            document.as_ref().and_then(|value| value.as_object().cloned()),
+                        );
+                    }
                     if delete_document(&tx, table, &id)? {
                         record_membership_transition(
                             &tx,
@@ -3405,6 +3576,21 @@ impl LocalDatabase {
         });
         if protected_membership_change {
             auth_agents::validate_protected_membership_final_state(&tx, &schema, next_version)?;
+        }
+
+        // @ref LLP 0080#5-transactionally-maintained-projections — the
+        //   buffered (Ibex) tier maintains projections in the same commit,
+        //   exactly like the HostPlan tier: one implementation, one bound.
+        if !projections.is_empty() {
+            maintain_projections_in_tx(
+                &tx,
+                &schema,
+                &projections,
+                &mut changes,
+                &projection_pre_images,
+                next_version,
+                now_ms,
+            )?;
         }
 
         if !changes.is_empty() {
@@ -3905,6 +4091,1578 @@ pub(crate) fn query_on(
     query_on_with_storage_limit(conn, schema, plan, input, effective_query_limit(plan))
 }
 
+/// A `root-window-v1` keyset boundary: the order-key values and `_id` of the
+/// last consumed root. `entries` aligns 1:1 with the plan's `order` fields —
+/// a `Value::Null` entry marks a null/absent component, which sorts last
+/// under either direction (`NULLS LAST`). The same shape serves both roles:
+/// the verified boundary a presented cursor decodes to, and the continuation
+/// the executor reports for the next mint.
+///
+/// @ref LLP 0080#2-portable-evaluation-semantics — continuation follows the
+///   root order key from the last consumed root, including roots omitted by
+///   an inner join; boundary keys may include fields the projection does not
+///   expose.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct KeysetAfter {
+    pub entries: Vec<(String, Value)>,
+    pub id: String,
+}
+
+// ---------------------------------------------------------------------------
+// MigrationKeysetScanV1 (LLP 0081 §3)
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_plan_invalid(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "storage",
+        format!("migration keyset scan refused: {detail}"),
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_precondition_failed(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+        "storage",
+        format!("migration keyset scan precondition failed: {detail}"),
+    )
+}
+
+/// The closed per-batch ceilings a target enforces on the privileged scan
+/// (LLP 0081 §3). These are the scan's OWN bounds — the scan is not the
+/// application query surface and neither relaxes nor consumes LLP 0007's
+/// 1,024-row query or 500-binding limits.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationScanCeilingsV1 {
+    pub max_batch_rows: u32,
+    pub max_batch_bytes: u64,
+    pub max_batch_millis: u64,
+}
+
+/// Hard caps the local target enforces over any requested ceiling.
+pub const MIGRATION_SCAN_MAX_BATCH_ROWS: u32 = 16_384;
+pub const MIGRATION_SCAN_MAX_BATCH_BYTES: u64 = 64 * 1024 * 1024;
+pub const MIGRATION_SCAN_MAX_BATCH_MILLIS: u64 = 60_000;
+
+/// The closed validator facts a plan may request from the scan (LLP 0081
+/// §3): the scan emits facts, never application rows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MigrationScanValidatorV1 {
+    /// Count rows whose field is null or absent (`ValidateRequired`).
+    NonNull { field: String },
+    /// Count adjacent duplicate non-null values (`ValidateUnique`). Sound
+    /// only in that field's own order, so the scan requires the field to
+    /// lead the scan index.
+    Unique { field: String },
+}
+
+/// Resumable per-validator state, persisted with the batch checkpoint.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MigrationScanValidatorStateV1 {
+    NonNull {
+        field: String,
+        violations: u64,
+        /// First offending row ids (bounded sample for actionability).
+        samples: Vec<String>,
+    },
+    Unique {
+        field: String,
+        duplicates: u64,
+        samples: Vec<String>,
+        /// The previous non-null value at the batch boundary — adjacency
+        /// carries across batches through this.
+        last: Option<Value>,
+    },
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+const MIGRATION_SCAN_SAMPLE_CAP: usize = 8;
+
+/// One scan request: one declared table, an optional declared index (the
+/// stable key order; `_id` order when absent), the requested closed facts,
+/// optional `ContentDigestV1` streaming, and the batch ceilings.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationKeysetScanRequestV1 {
+    pub table: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validators: Vec<MigrationScanValidatorV1>,
+    /// When present, the scan streams both `ContentDigestV1` stages —
+    /// logical rows under the logical domain and system fields under the
+    /// system domain — with this shared header.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub digest: Option<crate::rqs::ContentDigestHeaderV1>,
+    pub ceilings: MigrationScanCeilingsV1,
+}
+
+/// The serializable batch checkpoint the Wave-2 executor persists in its
+/// journal: identity of the scan, the keyset boundary, cumulative
+/// counters, resumable validator states, and the digest accumulators
+/// (SHA-256 chaining state + counters, LLP 0081 §5).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationKeysetScanCheckpointV1 {
+    pub version: String,
+    pub table: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary: Option<KeysetAfter>,
+    pub rows_scanned: u64,
+    pub bytes_scanned: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validators: Vec<MigrationScanValidatorStateV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logical_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+}
+
+pub const MIGRATION_SCAN_CHECKPOINT_VERSION: &str = "migration-keyset-scan-checkpoint-v1";
+
+/// One batch's outcome: the ceiling-bounded work done, whether the table
+/// is exhausted, and the checkpoint to persist. Sealed digests are only
+/// available once `done` (the trailer binds the total row count).
+#[derive(Clone, Debug)]
+pub struct MigrationKeysetScanBatch {
+    pub batch_rows: u64,
+    pub batch_bytes: u64,
+    pub done: bool,
+    pub checkpoint: MigrationKeysetScanCheckpointV1,
+    /// `Some((logical, system))` exactly when `done` and the request
+    /// streamed digests.
+    pub sealed_digests: Option<(String, String)>,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_scan_order(
+    table: &TableManifest,
+    index: Option<&str>,
+) -> SnapbackResult<Vec<OrderExpr>> {
+    let Some(index_name) = index else {
+        return Ok(Vec::new());
+    };
+    let declared = table
+        .indexes
+        .iter()
+        .find(|candidate| candidate.name == index_name)
+        .ok_or_else(|| {
+            migration_plan_invalid(format!(
+                "index {index_name:?} is not declared on {}",
+                table.name
+            ))
+        })?;
+    for field in &declared.fields {
+        ensure_orderable_field(table, field)?;
+    }
+    Ok(declared
+        .fields
+        .iter()
+        .map(|field| OrderExpr {
+            field: field.clone(),
+            direction: OrderDirection::Asc,
+        })
+        .collect())
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_scan_initial_state(
+    request: &MigrationKeysetScanRequestV1,
+) -> SnapbackResult<MigrationKeysetScanCheckpointV1> {
+    let header = request.digest.as_ref();
+    Ok(MigrationKeysetScanCheckpointV1 {
+        version: MIGRATION_SCAN_CHECKPOINT_VERSION.to_owned(),
+        table: request.table.clone(),
+        index: request.index.clone(),
+        boundary: None,
+        rows_scanned: 0,
+        bytes_scanned: 0,
+        validators: request
+            .validators
+            .iter()
+            .map(|validator| match validator {
+                MigrationScanValidatorV1::NonNull { field } => {
+                    MigrationScanValidatorStateV1::NonNull {
+                        field: field.clone(),
+                        violations: 0,
+                        samples: Vec::new(),
+                    }
+                }
+                MigrationScanValidatorV1::Unique { field } => {
+                    MigrationScanValidatorStateV1::Unique {
+                        field: field.clone(),
+                        duplicates: 0,
+                        samples: Vec::new(),
+                        last: None,
+                    }
+                }
+            })
+            .collect(),
+        logical_digest: header.map(|header| {
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, header)
+                .checkpoint()
+        }),
+        system_digest: header.map(|header| {
+            crate::rqs::ContentDigestStream::new(
+                crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
+                header,
+            )
+            .checkpoint()
+        }),
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn validate_migration_scan_request(
+    schema: &SchemaManifest,
+    request: &MigrationKeysetScanRequestV1,
+) -> SnapbackResult<()> {
+    let table = schema_table(schema, &request.table)?;
+    let ceilings = &request.ceilings;
+    if ceilings.max_batch_rows == 0
+        || ceilings.max_batch_rows > MIGRATION_SCAN_MAX_BATCH_ROWS
+        || ceilings.max_batch_bytes == 0
+        || ceilings.max_batch_bytes > MIGRATION_SCAN_MAX_BATCH_BYTES
+        || ceilings.max_batch_millis == 0
+        || ceilings.max_batch_millis > MIGRATION_SCAN_MAX_BATCH_MILLIS
+    {
+        return Err(migration_plan_invalid(format!(
+            "batch ceilings must be positive and within the target caps \
+             (rows <= {MIGRATION_SCAN_MAX_BATCH_ROWS}, bytes <= \
+             {MIGRATION_SCAN_MAX_BATCH_BYTES}, millis <= {MIGRATION_SCAN_MAX_BATCH_MILLIS})"
+        )));
+    }
+    let order = migration_scan_order(table, request.index.as_deref())?;
+    for validator in &request.validators {
+        match validator {
+            MigrationScanValidatorV1::NonNull { field } => {
+                ensure_field_or_system(table, field)?;
+            }
+            MigrationScanValidatorV1::Unique { field } => {
+                ensure_field_or_system(table, field)?;
+                let leads = order.first().is_some_and(|first| &first.field == field);
+                if !leads {
+                    return Err(migration_plan_invalid(format!(
+                        "uniqueness over {field:?} requires scanning an index that \
+                         leads with that field; adjacency is only sound in the \
+                         field's own order"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// One ceiling-bounded batch of the privileged migration scan (LLP 0081
+/// §3): stable total key order (`index fields ASC NULLS LAST, _id ASC` —
+/// the same totalization as every keyset surface), a checkpointed cursor,
+/// closed validator facts, and optional `ContentDigestV1` streaming. Runs
+/// against whatever connection the caller pins — the Wave-2 executor calls
+/// it inside its own batch transaction.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn migration_keyset_scan_batch_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    request: &MigrationKeysetScanRequestV1,
+    checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
+) -> SnapbackResult<MigrationKeysetScanBatch> {
+    validate_migration_scan_request(schema, request)?;
+    let table = schema_table(schema, &request.table)?;
+    let order = migration_scan_order(table, request.index.as_deref())?;
+
+    let mut state = match checkpoint {
+        None => migration_scan_initial_state(request)?,
+        Some(checkpoint) => {
+            if checkpoint.version != MIGRATION_SCAN_CHECKPOINT_VERSION
+                || checkpoint.table != request.table
+                || checkpoint.index != request.index
+            {
+                return Err(migration_precondition_failed(
+                    "checkpoint does not belong to this scan request".to_owned(),
+                ));
+            }
+            checkpoint.clone()
+        }
+    };
+    let mut logical_stream = state
+        .logical_digest
+        .as_ref()
+        .map(|accumulator| {
+            crate::rqs::ContentDigestStream::resume(accumulator)
+                .map_err(|reason| migration_precondition_failed(reason.to_owned()))
+        })
+        .transpose()?;
+    let mut system_stream = state
+        .system_digest
+        .as_ref()
+        .map(|accumulator| {
+            crate::rqs::ContentDigestStream::resume(accumulator)
+                .map_err(|reason| migration_precondition_failed(reason.to_owned()))
+        })
+        .transpose()?;
+
+    // Privileged SQL: the scan bypasses the application query surface (and
+    // its membership-privacy fence) deliberately — it emits closed facts,
+    // never application rows, and only the migration executor can reach it.
+    let outer = quote_ident("__snapback_migration_scan")?;
+    let mut sql = format!(
+        "SELECT {outer}.* FROM {} AS {outer}",
+        quote_ident(&table.name)?
+    );
+    let mut values: Vec<SqlValue> = Vec::new();
+    if let Some(boundary) = &state.boundary {
+        let mut bindings = 0_usize;
+        let (clause, keyset_values) =
+            build_keyset_after_sql(table, &order, boundary, &mut bindings)?;
+        sql.push_str(" WHERE ");
+        sql.push_str(&clause);
+        values.extend(keyset_values);
+    }
+    let mut order_parts: Vec<String> = Vec::new();
+    for expr in &order {
+        order_parts.push(format!("{} ASC NULLS LAST", quote_ident(&expr.field)?));
+    }
+    order_parts.push("\"_id\" ASC".to_owned());
+    sql.push_str(" ORDER BY ");
+    sql.push_str(&order_parts.join(", "));
+    sql.push_str(&format!(" LIMIT {}", request.ceilings.max_batch_rows));
+
+    let started = std::time::Instant::now();
+    let mut statement = conn.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params_from_iter(values.iter()))?;
+
+    let mut batch_rows = 0_u64;
+    let mut batch_bytes = 0_u64;
+    let mut fetched = 0_u32;
+    let mut ceiling_stop = false;
+    let mut last_row: Option<Value> = None;
+    while let Some(row) = rows.next()? {
+        fetched += 1;
+        let document = row_to_document(row, table, &columns)?;
+        let id = document
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| migration_plan_invalid("scanned row without _id".to_owned()))?
+            .to_owned();
+
+        // Facts.
+        for validator in &mut state.validators {
+            match validator {
+                MigrationScanValidatorStateV1::NonNull {
+                    field,
+                    violations,
+                    samples,
+                } => {
+                    let value = document.get(field.as_str());
+                    if value.is_none() || value.is_some_and(Value::is_null) {
+                        *violations += 1;
+                        if samples.len() < MIGRATION_SCAN_SAMPLE_CAP {
+                            samples.push(id.clone());
+                        }
+                    }
+                }
+                MigrationScanValidatorStateV1::Unique {
+                    field,
+                    duplicates,
+                    samples,
+                    last,
+                } => {
+                    let value = document.get(field.as_str()).filter(|v| !v.is_null());
+                    match (last.as_ref(), value) {
+                        (Some(previous), Some(current)) if previous == current => {
+                            *duplicates += 1;
+                            if samples.len() < MIGRATION_SCAN_SAMPLE_CAP {
+                                samples.push(id.clone());
+                            }
+                        }
+                        _ => {}
+                    }
+                    *last = value.cloned();
+                }
+            }
+        }
+
+        // Digest streams: logical rows exclude the four system fields;
+        // system fields stream separately under their own domain
+        // (LLP 0081 §5). A value outside the canonical proof domain fails
+        // closed rather than digesting approximately.
+        if logical_stream.is_some() || system_stream.is_some() {
+            let object = document
+                .as_object()
+                .ok_or_else(|| migration_plan_invalid("scanned row is not an object".to_owned()))?;
+            let mut logical = Map::new();
+            let mut system = Map::new();
+            for (key, value) in object {
+                if matches!(key.as_str(), "_id" | "_version" | "_createdAt" | "_updatedAt") {
+                    system.insert(key.clone(), value.clone());
+                } else {
+                    logical.insert(key.clone(), value.clone());
+                }
+            }
+            if let Some(stream) = logical_stream.as_mut() {
+                stream.absorb_row(&Value::Object(logical)).map_err(|_| {
+                    migration_plan_invalid(format!(
+                        "row {id} of {} is outside the canonical proof domain",
+                        table.name
+                    ))
+                })?;
+            }
+            if let Some(stream) = system_stream.as_mut() {
+                stream.absorb_row(&Value::Object(system)).map_err(|_| {
+                    migration_plan_invalid(format!(
+                        "system fields of row {id} in {} are outside the canonical proof domain",
+                        table.name
+                    ))
+                })?;
+            }
+        }
+
+        batch_rows += 1;
+        batch_bytes += serde_json::to_string(&document)
+            .map(|serialized| serialized.len() as u64)
+            .unwrap_or(0);
+        last_row = Some(document);
+
+        // Ceilings: every batch makes progress (at least one row) and then
+        // stops at whichever ceiling trips first.
+        if batch_bytes >= request.ceilings.max_batch_bytes
+            || started.elapsed().as_millis() as u64 >= request.ceilings.max_batch_millis
+        {
+            ceiling_stop = true;
+            break;
+        }
+    }
+
+    if let Some(last) = &last_row {
+        let entries = order
+            .iter()
+            .map(|expr| {
+                (
+                    expr.field.clone(),
+                    last.get(&expr.field).cloned().unwrap_or(Value::Null),
+                )
+            })
+            .collect();
+        let id = last
+            .get("_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        state.boundary = Some(KeysetAfter { entries, id });
+    }
+    state.rows_scanned += batch_rows;
+    state.bytes_scanned += batch_bytes;
+    state.logical_digest = logical_stream.as_ref().map(|stream| stream.checkpoint());
+    state.system_digest = system_stream.as_ref().map(|stream| stream.checkpoint());
+
+    let done = !ceiling_stop && fetched < request.ceilings.max_batch_rows;
+    let sealed_digests = if done {
+        match (logical_stream, system_stream) {
+            (Some(logical), Some(system)) => Some((logical.finalize(), system.finalize())),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    Ok(MigrationKeysetScanBatch {
+        batch_rows,
+        batch_bytes,
+        done,
+        checkpoint: state,
+        sealed_digests,
+    })
+}
+
+/// Lower a keyset boundary to one WHERE clause selecting rows strictly after
+/// the boundary row under the plan's `(order…, _id ASC)` total order with
+/// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
+/// clauses so it composes with mixed directions and null boundary
+/// components; a plain SQL row-value comparison would inherit SQL null
+/// semantics and skip rows.
+fn build_keyset_after_sql(
+    table: &TableManifest,
+    order: &[OrderExpr],
+    keyset: &KeysetAfter,
+    filter_bindings: &mut usize,
+) -> SnapbackResult<(String, Vec<SqlValue>)> {
+    if keyset.entries.len() != order.len()
+        || keyset
+            .entries
+            .iter()
+            .zip(order)
+            .any(|((field, _), order)| field != &order.field)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "keyset boundary fields must match the plan's order fields exactly",
+        ));
+    }
+    let id_value = Value::String(keyset.id.clone());
+    validate_query_filter_value(table, "_id", &id_value)?;
+
+    let mut disjuncts: Vec<String> = Vec::new();
+    let mut values: Vec<SqlValue> = Vec::new();
+    // Equality clauses (and their bound values) for the already-walked
+    // prefix of the order key.
+    let mut prefix_clauses: Vec<String> = Vec::new();
+    let mut prefix_values: Vec<SqlValue> = Vec::new();
+
+    for ((field, value), order) in keyset.entries.iter().zip(order) {
+        ensure_orderable_field(table, field)?;
+        validate_query_filter_value(table, field, value)?;
+        let ident = quote_ident(field)?;
+        let ftype = field_type(table, field);
+        if value.is_null() {
+            // Nothing sorts after a null component except by later
+            // tie-breaks; contribute only the prefix equality.
+            prefix_clauses.push(format!("{ident} IS NULL"));
+            continue;
+        }
+        let comparator = match order.direction {
+            OrderDirection::Asc => ">",
+            OrderDirection::Desc => "<",
+        };
+        let mut clause = prefix_clauses.clone();
+        clause.push(format!("({ident} {comparator} ? OR {ident} IS NULL)"));
+        disjuncts.push(format!("({})", clause.join(" AND ")));
+        add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, field)?;
+        values.extend(prefix_values.iter().cloned());
+        values.push(json_to_sql_value(value, ftype)?);
+
+        prefix_clauses.push(format!("{ident} = ?"));
+        add_query_filter_bindings(filter_bindings, 1, field)?;
+        prefix_values.push(json_to_sql_value(value, ftype)?);
+    }
+
+    let mut final_clause = prefix_clauses;
+    final_clause.push("\"_id\" > ?".to_owned());
+    disjuncts.push(format!("({})", final_clause.join(" AND ")));
+    add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, "_id")?;
+    values.extend(prefix_values);
+    values.push(json_to_sql_value(&id_value, None)?);
+
+    Ok((format!("({})", disjuncts.join(" OR ")), values))
+}
+
+/// Validate a decoded cursor boundary against the plan's order schema and
+/// build the executor keyset. Every failure means the presented cursor does
+/// not fit this plan's order schema — the caller collapses it into the one
+/// uniform `SNAPBACK_RELATIONAL_CURSOR_INVALID` refusal (LLP 0080 §2:
+/// refused, never repositioned).
+pub(crate) fn validate_relational_boundary(
+    schema: &SchemaManifest,
+    plan: &crate::manifest::RelationalQueryPlan,
+    boundary: &[Value],
+    id: &str,
+) -> SnapbackResult<KeysetAfter> {
+    let table = schema_table(schema, &plan.root)?;
+    if boundary.len() != plan.order.len() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "cursor boundary arity does not match the plan's order schema",
+        ));
+    }
+    if id.is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "cursor boundary requires a non-empty _id tie-break",
+        ));
+    }
+    let mut entries = Vec::with_capacity(boundary.len());
+    for (value, order) in boundary.iter().zip(&plan.order) {
+        ensure_orderable_field(table, &order.field)?;
+        validate_query_filter_value(table, &order.field, value)?;
+        entries.push((order.field.clone(), value.clone()));
+    }
+    Ok(KeysetAfter {
+        entries,
+        id: id.to_owned(),
+    })
+}
+
+/// Validate a decoded standard-pattern cursor boundary against the declared
+/// cursor field (LLP 0065): the value must be non-null (the field is
+/// required by generation) and satisfy the field's declared type. Failures
+/// collapse into the caller's uniform
+/// `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`.
+pub(crate) fn validate_standard_pattern_boundary(
+    schema: &SchemaManifest,
+    table: &str,
+    cursor_field: &str,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let table = schema_table(schema, table)?;
+    if value.is_null() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "standard-pattern cursor boundary cannot be null",
+        ));
+    }
+    ensure_orderable_field(table, cursor_field)?;
+    validate_query_filter_value(table, cursor_field, value)
+}
+
+// ---------------------------------------------------------------------------
+// Transactionally maintained projections (LLP 0080 §5)
+// ---------------------------------------------------------------------------
+
+fn projection_fanout_exceeded(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
+        "storage",
+        format!(
+            "the mutation exceeds an admitted projection capacity and is refused whole: {detail}"
+        ),
+    )
+}
+
+fn projection_invariant(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_PROJECTION_MAINTENANCE_INVALID",
+        "storage",
+        format!("projection maintenance refused the mutation: {detail}"),
+    )
+}
+
+/// The stored projection identity and its activation timestamp (LLP 0080
+/// §5): assigned at first activation, persisted in `_snapback_meta`, and
+/// revision-stable — the same output key owns the same row identity across
+/// maintenance, rebuilds, and plan revisions.
+fn ensure_projection_identity(
+    tx: &Transaction<'_>,
+    plan_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<(String, u64)> {
+    let identity_key = format!("projection_identity:{plan_id}");
+    let activated_key = format!("projection_activated_at:{plan_id}");
+    let existing: Option<String> = tx
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![identity_key],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(identity) = existing {
+        let activated: Option<String> = tx
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![activated_key],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let activated = activated
+            .and_then(|value| value.parse::<u64>().ok())
+            .ok_or_else(|| {
+                projection_invariant(format!(
+                    "stored activation timestamp for {plan_id} is missing or corrupt"
+                ))
+            })?;
+        return Ok((identity, activated));
+    }
+    // 48-bit UUIDv7 range check (LLP 0081 §3) at assignment time.
+    if now_ms >= (1 << 48) {
+        return Err(projection_invariant(
+            "activation timestamp exceeds the 48-bit UUIDv7 range".to_owned(),
+        ));
+    }
+    let identity = format!("proj_{}", Uuid::now_v7().simple());
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![identity_key, identity],
+    )?;
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![activated_key, now_ms.to_string()],
+    )?;
+    Ok((identity, now_ms))
+}
+
+/// The deterministic output-row `_id` (LLP 0080 §5): a domain-separated
+/// digest of the stored projection identity plus the canonical output-key
+/// bytes, mapped into LLP 0007's UUIDv7 shape with the time bits carrying
+/// the identity's activation-timestamp constant — key-stable, so the same
+/// output key owns the same row across maintenance and rebuilds.
+fn projection_row_id(identity: &str, activated_at_ms: u64, key_bytes: &str) -> String {
+    let digest = crate::rqs::projection_row_digest(identity, key_bytes);
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[..6].copy_from_slice(&activated_at_ms.to_be_bytes()[2..8]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes).to_string()
+}
+
+/// The canonical output key of one root row, or a typed refusal when a key
+/// component is null/absent (LLP 0080 §5: a null key component refuses the
+/// mutation — the plan marked the fields immutable and total).
+fn projection_root_key(
+    plan: &crate::manifest::MaintainedProjectionPlan,
+    id: &str,
+    row: Option<&Map<String, Value>>,
+) -> SnapbackResult<Option<Vec<Value>>> {
+    use crate::manifest::ProjectionOutputKey;
+    match &plan.output_key {
+        ProjectionOutputKey::RootId => Ok(Some(vec![Value::String(id.to_owned())])),
+        ProjectionOutputKey::RootUniqueIndex { fields, .. } => {
+            let Some(row) = row else { return Ok(None) };
+            let mut key = Vec::with_capacity(fields.len());
+            for field in fields {
+                match row.get(field) {
+                    Some(value) if !value.is_null() => key.push(value.clone()),
+                    _ => {
+                        return Err(projection_invariant(format!(
+                            "projection {} output-key component {}.{field} is null",
+                            plan.id, plan.root
+                        )));
+                    }
+                }
+            }
+            Ok(Some(key))
+        }
+    }
+}
+
+fn projection_key_bytes(key: &[Value]) -> SnapbackResult<String> {
+    crate::rqs::jcs(&Value::Array(key.to_vec())).map_err(|_| {
+        projection_invariant("output-key bytes are not canonicalizable".to_owned())
+    })
+}
+
+/// Receipt of one `RebuildMaintainedProjection` operation (the LLP 0081
+/// minimal slice, local profile): the deterministic operation id, the plan
+/// and streaming content digests, and the publication facts. Persisted in
+/// `_snapback_meta` and consumed by verification witnesses.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionRebuildReceipt {
+    pub operation_id: String,
+    pub plan_digest: String,
+    pub content_digest: String,
+    pub row_count: usize,
+    pub generation: u64,
+    pub published_version: u64,
+    pub cause: String,
+    pub at_ms: u64,
+}
+
+impl LocalDatabase {
+    /// Rebuild a maintained projection when its plan digest changed or it
+    /// has never materialized; `Ok(None)` when the stored generation is
+    /// already current. Activation calls this for every declared plan, so
+    /// the §5 oracle holds from the first commit version a plan is active.
+    pub(crate) fn rebuild_projection_if_stale(
+        &mut self,
+        plan: &crate::manifest::MaintainedProjectionPlan,
+        cause: &str,
+    ) -> SnapbackResult<Option<ProjectionRebuildReceipt>> {
+        let plan_digest =
+            crate::rqs::sha256_identity(&serde_json::to_value(plan).map_err(|_| {
+                projection_invariant("projection plan does not serialize".to_owned())
+            })?)
+            .map_err(|_| {
+                projection_invariant("projection plan is not canonicalizable".to_owned())
+            })?;
+        let digest_key = format!("projection_plan_digest:{}", plan.id);
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![digest_key],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if stored.as_deref() == Some(plan_digest.as_str()) {
+            return Ok(None);
+        }
+        self.rebuild_projection(plan, &plan_digest, cause).map(Some)
+    }
+
+    /// `RebuildMaintainedProjection` under the local exclusive barrier
+    /// (LLP 0080 §5 / LLP 0081 minimal slice): one IMMEDIATE transaction is
+    /// the barrier — the serialized writer fences every source write for
+    /// the rebuild's duration, a crash at any point rolls back to the
+    /// predecessor generation whole, and publication is the commit. The
+    /// durable batch-cursor state machine, approval records with the full
+    /// LLP 0072 audience, and the downtime ceiling land with the complete
+    /// 0081 lane; this slice records a typed admission/receipt row and the
+    /// streaming content digest under the split oracle.
+    fn rebuild_projection(
+        &mut self,
+        plan: &crate::manifest::MaintainedProjectionPlan,
+        plan_digest: &str,
+        cause: &str,
+    ) -> SnapbackResult<ProjectionRebuildReceipt> {
+        crate::exec_guard::debug_assert_off_async_worker("a projection rebuild");
+        let schema = self.schema.clone();
+        let now_ms = now_millis();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
+        let root_table = schema_table(&schema, &plan.root)?;
+        let output_table = schema_table(&schema, &plan.output_table)?;
+        let (identity, activated_at_ms) = ensure_projection_identity(&tx, &plan.id, now_ms)?;
+
+        // --- Enumerate every root; prove existing-data fan-out. -----------
+        let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
+        let mut references: BTreeMap<String, u32> = BTreeMap::new();
+        let scan = QueryPlan {
+            table: plan.root.clone(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let (sql, values) = build_query_sql(
+            root_table,
+            &schema,
+            &scan,
+            &HandlerInput::default(),
+            &BTreeMap::new(),
+            None,
+            now_ms,
+            None,
+            None,
+            None,
+            false,
+        )?;
+        let mut statement = tx.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params_from_iter(values.iter()))?;
+        let mut roots: Vec<Value> = Vec::new();
+        while let Some(row) = rows.next()? {
+            roots.push(row_to_document(row, root_table, &columns)?);
+        }
+        drop(rows);
+        drop(statement);
+        for root in &roots {
+            // Pre-activation fan-out proof: every reverse-index entry for a
+            // joined key consumes limit, admitted or not, so an existing
+            // over-limit population refuses activation instead of leaving
+            // the joined row permanently un-updatable.
+            let joined_key = plan
+                .join_on
+                .iter()
+                .map(|pair| match root.get(&pair.root_field) {
+                    Some(value) if !value.is_null() => Some(value.clone()),
+                    _ => None,
+                })
+                .collect::<Option<Vec<Value>>>();
+            if let Some(joined_key) = joined_key {
+                let count = references
+                    .entry(projection_key_bytes(&joined_key)?)
+                    .or_insert(0);
+                *count += 1;
+                if *count > plan.fan_out_limit {
+                    return Err(projection_fanout_exceeded(format!(
+                        "existing data holds more than fanOutLimit {} references to one \
+                         joined key of projection {}; activation is refused",
+                        plan.fan_out_limit, plan.id
+                    )));
+                }
+            }
+            let id = root
+                .get("_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
+            let filter_plan = QueryPlan {
+                table: plan.root.clone(),
+                filters: plan.root_filters.clone(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            };
+            if crate::live_matcher::row_matches_query_filters(
+                &filter_plan,
+                &HandlerInput::default(),
+                root,
+            ) != Some(true)
+            {
+                continue;
+            }
+            let Some(key) = projection_root_key(plan, id, root.as_object())? else {
+                continue;
+            };
+            let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)?
+            else {
+                continue;
+            };
+            desired.insert(projection_key_bytes(&key)?, (key, logical));
+        }
+
+        // --- Converge the output table; stream the content digest. --------
+        let existing = {
+            let scan = QueryPlan {
+                table: plan.output_table.clone(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            };
+            let (sql, values) = build_query_sql(
+                output_table,
+                &schema,
+                &scan,
+                &HandlerInput::default(),
+                &BTreeMap::new(),
+                None,
+                now_ms,
+                None,
+                None,
+                None,
+                false,
+            )?;
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query(params_from_iter(values.iter()))?;
+            let mut existing = Vec::new();
+            while let Some(row) = rows.next()? {
+                existing.push(row_to_document(row, output_table, &columns)?);
+            }
+            existing
+        };
+        let mut pending: BTreeMap<String, (&Vec<Value>, &Map<String, Value>)> = desired
+            .iter()
+            .map(|(bytes, (key, logical))| {
+                let output_id = projection_row_id(&identity, activated_at_ms, bytes);
+                (output_id, (key, logical))
+            })
+            .collect();
+        let mut changed = false;
+        for row in &existing {
+            let Some(id) = row.get("_id").and_then(Value::as_str) else {
+                continue;
+            };
+            match pending.remove(id) {
+                None => {
+                    // Not in the rebuilt generation: remove.
+                    if delete_document(&tx, output_table, id)? {
+                        record_change(
+                            &tx,
+                            next_version,
+                            &output_table.name,
+                            id,
+                            ChangeOp::Delete,
+                            None,
+                            now_ms,
+                        )?;
+                        changed = true;
+                    }
+                }
+                Some((_, logical)) => {
+                    let unchanged = plan.projection.iter().all(|leaf| {
+                        row.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                            == logical.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                    });
+                    if !unchanged {
+                        patch_document(&tx, output_table, id, logical, next_version, now_ms)?;
+                        let document =
+                            get_document_from_tx(&tx, output_table, id, next_version)?;
+                        record_change(
+                            &tx,
+                            next_version,
+                            &output_table.name,
+                            id,
+                            ChangeOp::Update,
+                            document.as_ref(),
+                            now_ms,
+                        )?;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        for (output_id, (_, logical)) in &pending {
+            let document =
+                insert_document(&tx, output_table, output_id, logical, next_version, now_ms)?;
+            record_change(
+                &tx,
+                next_version,
+                &output_table.name,
+                output_id,
+                ChangeOp::Insert,
+                Some(&document),
+                now_ms,
+            )?;
+            changed = true;
+        }
+
+        // The streaming content digest under the split oracle: logical rows
+        // (key + declared leaves) in canonical output-key byte order.
+        // System fields are checked against their own deterministic rule by
+        // the verification witnesses, never folded into this digest.
+        let digest_rows: Vec<Value> = desired
+            .iter()
+            .map(|(_, (key, logical))| {
+                json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
+            })
+            .collect();
+        let content_digest = crate::rqs::seq1_digest(&digest_rows).map_err(|_| {
+            projection_invariant("rebuilt rows are not canonicalizable".to_owned())
+        })?;
+
+        // --- Publication: admission/receipt row + digest pin + commit. ----
+        let generation_key = format!("projection_generation:{}", plan.id);
+        let generation: u64 = tx
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![generation_key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0)
+            + 1;
+        // The minimal deterministic operation-id namespace: digest over the
+        // plan digest and generation. The full LLP 0081 §3 UUIDv7 namespace
+        // with conformance vectors lands with the plan-artifact ticket.
+        let operation_digest =
+            crate::rqs::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
+        let operation_id = format!(
+            "rebuild_{}",
+            operation_digest[..8]
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        let receipt = ProjectionRebuildReceipt {
+            operation_id,
+            plan_digest: plan_digest.to_owned(),
+            content_digest,
+            row_count: desired.len(),
+            generation,
+            published_version: if changed { next_version } else { current_version },
+            cause: cause.to_owned(),
+            at_ms: now_ms,
+        };
+        let upsert = |key: String, value: String| -> SnapbackResult<()> {
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, value],
+            )?;
+            Ok(())
+        };
+        upsert(digest_key_for_projection(&plan.id), plan_digest.to_owned())?;
+        upsert(generation_key, generation.to_string())?;
+        upsert(
+            format!("projection_rebuild_receipt:{}", plan.id),
+            serde_json::to_string(&receipt).map_err(|_| {
+                projection_invariant("rebuild receipt does not serialize".to_owned())
+            })?,
+        )?;
+        if changed {
+            set_version(&tx, next_version)?;
+        }
+        tx.commit()?;
+        Ok(receipt)
+    }
+
+    /// The persisted receipt of the last rebuild of `plan_id`, if any.
+    /// Consumed by the coupled-suite verification witnesses today; the
+    /// operator-facing `snapback migrate verify` surface (the full 0081
+    /// lane) is its production reader.
+    pub(crate) fn projection_rebuild_receipt(
+        &self,
+        plan_id: &str,
+    ) -> SnapbackResult<Option<ProjectionRebuildReceipt>> {
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![format!("projection_rebuild_receipt:{plan_id}")],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(match stored {
+            Some(raw) => Some(serde_json::from_str(&raw).map_err(|_| {
+                projection_invariant("stored rebuild receipt is corrupt".to_owned())
+            })?),
+            None => None,
+        })
+    }
+}
+
+fn digest_key_for_projection(plan_id: &str) -> String {
+    format!("projection_plan_digest:{plan_id}")
+}
+
+/// The logical output row of one admitted root under a maintained
+/// projection (LLP 0080 §5): perform the declared unique join against the
+/// current transaction state and project the declared leaves. `None` means
+/// the plan admits no output row for this root (an inner join with a
+/// missing or null-keyed joined row). Shared by same-transaction
+/// maintenance and barrier rebuild so the two evaluators cannot drift.
+fn projection_logical_row(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    plan: &crate::manifest::MaintainedProjectionPlan,
+    root: &Value,
+    now_ms: u64,
+) -> SnapbackResult<Option<Map<String, Value>>> {
+    use crate::manifest::{JoinKind, ProjectionSource};
+    let root_join_key = plan
+        .join_on
+        .iter()
+        .map(|pair| match root.get(&pair.root_field) {
+            Some(value) if !value.is_null() => Some(value.clone()),
+            _ => None,
+        })
+        .collect::<Option<Vec<Value>>>();
+    let joined_row: Option<Value> = match root_join_key {
+        None => None,
+        Some(joined_key) => {
+            let joined_table = schema_table(schema, &plan.joined)?;
+            let filters: Vec<crate::manifest::FilterExpr> = plan
+                .join_on
+                .iter()
+                .zip(&joined_key)
+                .map(|(pair, value)| crate::manifest::FilterExpr {
+                    field: pair.joined_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(value.clone()),
+                })
+                .collect();
+            let lookup = QueryPlan {
+                table: plan.joined.clone(),
+                filters,
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: Some(2),
+                indexed_by: None,
+            };
+            let (sql, values) = build_query_sql(
+                joined_table,
+                schema,
+                &lookup,
+                &HandlerInput::default(),
+                &BTreeMap::new(),
+                None,
+                now_ms,
+                None,
+                Some(2),
+                None,
+                false,
+            )?;
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut matched = statement.query(params_from_iter(values.iter()))?;
+            let mut found: Vec<Value> = Vec::new();
+            while let Some(row) = matched.next()? {
+                found.push(row_to_document(row, joined_table, &columns)?);
+            }
+            if found.len() > 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
+                    "storage",
+                    format!(
+                        "two joined rows in {} share the unique key during maintenance of \
+                         projection {}",
+                        plan.joined, plan.id
+                    ),
+                ));
+            }
+            found.into_iter().next()
+        }
+    };
+    if joined_row.is_none() && matches!(plan.join_kind, JoinKind::Inner) {
+        return Ok(None);
+    }
+    let mut fields = Map::new();
+    for leaf in &plan.projection {
+        let value = match &leaf.source {
+            ProjectionSource::Literal(value) => value.clone(),
+            ProjectionSource::RootField(field) => {
+                root.get(field).cloned().unwrap_or(Value::Null)
+            }
+            ProjectionSource::JoinedField(field) => joined_row
+                .as_ref()
+                .and_then(|row| row.get(field).cloned())
+                .unwrap_or(Value::Null),
+        };
+        fields.insert(leaf.name.clone(), value);
+    }
+    Ok(Some(fields))
+}
+
+/// Same-transaction projection maintenance (LLP 0080 §5): close the
+/// affected-key set over pre/post images, prove the reverse-index and
+/// write-budget bounds, evaluate each affected output row exactly once
+/// against the final transaction snapshot, and write only rows whose
+/// logical bytes changed. The mutation either commits source and
+/// projection together or commits neither.
+#[allow(clippy::too_many_arguments)]
+fn maintain_projections_in_tx(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    plans: &[crate::manifest::MaintainedProjectionPlan],
+    changes: &mut Vec<ChangedRow>,
+    pre_images: &BTreeMap<(String, String), Option<Map<String, Value>>>,
+    next_version: u64,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    use crate::manifest::ProjectionOutputKey;
+
+    let direct_writes = changes.len();
+    let mut projection_writes = 0_usize;
+
+    for plan in plans {
+        let touches_plan = changes[..direct_writes].iter().any(|change| {
+            change.table == plan.root || change.table == plan.joined
+        });
+        if !touches_plan {
+            continue;
+        }
+        let root_table = schema_table(schema, &plan.root)?;
+        let output_table = schema_table(schema, &plan.output_table)?;
+        let (identity, activated_at_ms) = ensure_projection_identity(tx, &plan.id, now_ms)?;
+
+        // --- Affected-key closure over pre and final post images. ---------
+        let mut affected: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+        let mut admission_joined_keys: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+        let joined_key_of = |row: &Map<String, Value>| -> Option<Vec<Value>> {
+            let mut key = Vec::with_capacity(plan.join_on.len());
+            for pair in &plan.join_on {
+                match row.get(&pair.joined_field) {
+                    Some(value) if !value.is_null() => key.push(value.clone()),
+                    _ => return None,
+                }
+            }
+            Some(key)
+        };
+        let root_join_key_of = |row: &Map<String, Value>| -> Option<Vec<Value>> {
+            let mut key = Vec::with_capacity(plan.join_on.len());
+            for pair in &plan.join_on {
+                match row.get(&pair.root_field) {
+                    Some(value) if !value.is_null() => key.push(value.clone()),
+                    _ => return None,
+                }
+            }
+            Some(key)
+        };
+
+        for change in &changes[..direct_writes] {
+            let pre = pre_images
+                .get(&(change.table.clone(), change.id.clone()))
+                .and_then(|pre| pre.as_ref());
+            let post = change.row.as_ref().and_then(|row| row.as_object());
+            if change.table == plan.root {
+                let pre_key = projection_root_key(plan, &change.id, pre)?;
+                let post_key = projection_root_key(plan, &change.id, post)?;
+                // The plan marks output-key fields immutable: a committed
+                // row whose key tuple moved refuses the whole mutation.
+                if let (Some(pre_key), Some(post_key)) = (&pre_key, &post_key)
+                    && matches!(plan.output_key, ProjectionOutputKey::RootUniqueIndex { .. })
+                    && pre_key != post_key
+                {
+                    return Err(projection_invariant(format!(
+                        "projection {} output-key fields are immutable; the mutation moved \
+                         the key of {}/{}",
+                        plan.id, plan.root, change.id
+                    )));
+                }
+                for key in [pre_key, post_key].into_iter().flatten() {
+                    affected.insert(projection_key_bytes(&key)?, key);
+                }
+                // A root insert or join-key change adds a reverse-index
+                // reference; its joined key re-proves capacity below.
+                if let Some(post) = post
+                    && let Some(joined_key) = root_join_key_of(post)
+                {
+                    admission_joined_keys
+                        .insert(projection_key_bytes(&joined_key)?, joined_key);
+                }
+            }
+            if change.table == plan.joined {
+                for row in [pre, post].into_iter().flatten() {
+                    if let Some(joined_key) = joined_key_of(row) {
+                        admission_joined_keys
+                            .insert(projection_key_bytes(&joined_key)?, joined_key);
+                    }
+                }
+            }
+        }
+
+        // --- Reverse-index admission + joined-side affected roots. --------
+        // The scan reads exactly the counted range: every reverse-index
+        // entry for the joined key consumes limit, filtered-out roots
+        // included, so the work is bounded by the proved quantity.
+        for (_, joined_key) in admission_joined_keys {
+            let filters: Vec<crate::manifest::FilterExpr> = plan
+                .join_on
+                .iter()
+                .zip(&joined_key)
+                .map(|(pair, value)| crate::manifest::FilterExpr {
+                    field: pair.root_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(value.clone()),
+                })
+                .collect();
+            let scan = QueryPlan {
+                table: plan.root.clone(),
+                filters,
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: Some(plan.fan_out_limit as usize + 1),
+                indexed_by: Some(plan.root_reverse_index.clone()),
+            };
+            let (sql, values) = build_query_sql(
+                root_table,
+                schema,
+                &scan,
+                &HandlerInput::default(),
+                &BTreeMap::new(),
+                None,
+                now_ms,
+                None,
+                Some(plan.fan_out_limit as usize + 1),
+                None,
+                false,
+            )?;
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query(params_from_iter(values.iter()))?;
+            let mut references = 0_usize;
+            while let Some(row) = rows.next()? {
+                references += 1;
+                if references > plan.fan_out_limit as usize {
+                    return Err(projection_fanout_exceeded(format!(
+                        "joined key in projection {} would exceed fanOutLimit {}",
+                        plan.id, plan.fan_out_limit
+                    )));
+                }
+                let document = row_to_document(row, root_table, &columns)?;
+                let id = document
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
+                if let Some(key) =
+                    projection_root_key(plan, id, document.as_object())?
+                {
+                    affected.insert(projection_key_bytes(&key)?, key);
+                }
+            }
+        }
+
+        // --- Evaluate each affected key once against the final snapshot. --
+        for (key_bytes, key) in affected {
+            let root_row: Option<Value> = match &plan.output_key {
+                ProjectionOutputKey::RootId => {
+                    let Some(Value::String(id)) = key.first() else {
+                        return Err(projection_invariant("malformed RootId key".to_owned()));
+                    };
+                    get_document_from_tx(tx, root_table, id, next_version)?
+                }
+                ProjectionOutputKey::RootUniqueIndex { fields, .. } => {
+                    let filters: Vec<crate::manifest::FilterExpr> = fields
+                        .iter()
+                        .zip(&key)
+                        .map(|(field, value)| crate::manifest::FilterExpr {
+                            field: field.clone(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(value.clone()),
+                        })
+                        .collect();
+                    let lookup = QueryPlan {
+                        table: plan.root.clone(),
+                        filters,
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: Some(1),
+                        indexed_by: None,
+                    };
+                    let (sql, values) = build_query_sql(
+                        root_table,
+                        schema,
+                        &lookup,
+                        &HandlerInput::default(),
+                        &BTreeMap::new(),
+                        None,
+                        now_ms,
+                        None,
+                        Some(1),
+                        None,
+                        false,
+                    )?;
+                    let mut statement = tx.prepare(&sql)?;
+                    let columns = statement
+                        .column_names()
+                        .into_iter()
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>();
+                    let mut rows = statement.query(params_from_iter(values.iter()))?;
+                    match rows.next()? {
+                        Some(row) => Some(row_to_document(row, root_table, &columns)?),
+                        None => None,
+                    }
+                }
+            };
+            // materializeAll admission: the non-security root filter, no
+            // caller (visibility declarations constrain information flow,
+            // not maintenance selection).
+            let admitted_root = root_row.as_ref().filter(|row| {
+                let filter_plan = QueryPlan {
+                    table: plan.root.clone(),
+                    filters: plan.root_filters.clone(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                };
+                crate::live_matcher::row_matches_query_filters(
+                    &filter_plan,
+                    &HandlerInput::default(),
+                    row,
+                ) == Some(true)
+            });
+
+            let logical: Option<Map<String, Value>> = match admitted_root {
+                None => None,
+                Some(root) => projection_logical_row(tx, schema, plan, root, now_ms)?,
+            };
+
+            let output_id = projection_row_id(&identity, activated_at_ms, &key_bytes);
+            let existing = get_document_from_tx(tx, output_table, &output_id, next_version)?;
+            let existing_logical = existing.as_ref().map(|row| {
+                let mut fields = Map::new();
+                for leaf in &plan.projection {
+                    fields.insert(
+                        leaf.name.clone(),
+                        row.get(&leaf.name).cloned().unwrap_or(Value::Null),
+                    );
+                }
+                fields
+            });
+
+            // The counted unit is a distinct output row whose bytes change:
+            // unchanged recomputations issue no write and count nothing.
+            let write = match (&existing_logical, &logical) {
+                (None, None) => None,
+                (Some(previous), Some(next)) if previous == next => None,
+                (_, Some(next)) => Some(Some(next.clone())),
+                (Some(_), None) => Some(None),
+            };
+            let Some(write) = write else { continue };
+            projection_writes += 1;
+            if direct_writes + projection_writes > 1024 {
+                return Err(projection_fanout_exceeded(format!(
+                    "direct writes ({direct_writes}) plus projection writes \
+                     ({projection_writes}) exceed the 1024-write mutation bound"
+                )));
+            }
+            match write {
+                Some(next) => {
+                    let changed_fields = changed_field_names(&next);
+                    if existing.is_some() {
+                        patch_document(tx, output_table, &output_id, &next, next_version, now_ms)?;
+                        let document =
+                            get_document_from_tx(tx, output_table, &output_id, next_version)?;
+                        record_change(
+                            tx,
+                            next_version,
+                            &output_table.name,
+                            &output_id,
+                            ChangeOp::Update,
+                            document.as_ref(),
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: output_table.name.clone(),
+                            id: output_id,
+                            op: ChangeOp::Update,
+                            row: document,
+                            changed_fields,
+                        });
+                    } else {
+                        let document = insert_document(
+                            tx,
+                            output_table,
+                            &output_id,
+                            &next,
+                            next_version,
+                            now_ms,
+                        )?;
+                        record_change(
+                            tx,
+                            next_version,
+                            &output_table.name,
+                            &output_id,
+                            ChangeOp::Insert,
+                            Some(&document),
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: output_table.name.clone(),
+                            id: output_id,
+                            op: ChangeOp::Insert,
+                            row: Some(document),
+                            changed_fields,
+                        });
+                    }
+                }
+                None => {
+                    if delete_document(tx, output_table, &output_id)? {
+                        record_change(
+                            tx,
+                            next_version,
+                            &output_table.name,
+                            &output_id,
+                            ChangeOp::Delete,
+                            None,
+                            now_ms,
+                        )?;
+                        changes.push(ChangedRow {
+                            table: output_table.name.clone(),
+                            id: output_id,
+                            op: ChangeOp::Delete,
+                            row: existing,
+                            changed_fields: Vec::new(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
 //   0..=1024. Structural/type validation beyond this is generation's job;
@@ -3939,11 +5697,12 @@ fn validate_relational_plan_shape(
     Ok(())
 }
 
-fn query_relational_on(
+pub(crate) fn query_relational_on(
     db: &DbRead<'_>,
     plan: &crate::manifest::RelationalQueryPlan,
     input: &HandlerInput,
-) -> SnapbackResult<QueryOutput> {
+    cursor: Option<&KeysetAfter>,
+) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
     use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
 
     validate_relational_plan_shape(plan)?;
@@ -3961,14 +5720,45 @@ fn query_relational_on(
             membership_filters: Vec::new(),
             indexed_by: Some(plan.root_index.clone()),
         };
-        db.query(&root_plan, input)?
+        db.query_keyset(&root_plan, input, cursor)?
     };
     if plan.take == 0 {
-        return Ok(QueryOutput {
-            version: root_window.version,
-            rows: Vec::new(),
-        });
+        return Ok((
+            QueryOutput {
+                version: root_window.version,
+                rows: Vec::new(),
+                cursor: None,
+            },
+            None,
+        ));
     }
+
+    // `take` bounds consumed authorized roots, not emitted rows. A full
+    // window continues from the last consumed root — even when every root
+    // in the window was omitted by an inner join — and a short window is
+    // terminal (LLP 0080 §2).
+    let continuation = if root_window.rows.len() == plan.take as usize {
+        root_window.rows.last().map(|last| {
+            let entries = plan
+                .order
+                .iter()
+                .map(|order| {
+                    (
+                        order.field.clone(),
+                        last.get(&order.field).cloned().unwrap_or(Value::Null),
+                    )
+                })
+                .collect();
+            let id = last
+                .get("_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            KeysetAfter { entries, id }
+        })
+    } else {
+        None
+    };
 
     let mut rows = Vec::with_capacity(root_window.rows.len());
     for root_row in &root_window.rows {
@@ -4033,28 +5823,34 @@ fn query_relational_on(
 
         // Field order inside the JSON value is serde-sorted here; the
         // declaration-order byte rule (RelationalResultEncodingV1) is the
-        // wire encoder's contract, not the storage row's.
+        // wire encoder's contract, not the storage row's. Absent is
+        // expressed by omission; a `left` join's missing joined row sets
+        // every joined leaf to the null literal (LLP 0080 §2).
         let mut projected = Map::new();
         for leaf in &plan.projection {
             let value = match &leaf.source {
-                ProjectionSource::Literal(value) => value.clone(),
-                ProjectionSource::RootField(field) => {
-                    root_row.get(field).cloned().unwrap_or(Value::Null)
-                }
-                ProjectionSource::JoinedField(field) => joined_row
-                    .as_ref()
-                    .and_then(|row| row.get(field).cloned())
-                    .unwrap_or(Value::Null),
+                ProjectionSource::Literal(value) => Some(value.clone()),
+                ProjectionSource::RootField(field) => root_row.get(field).cloned(),
+                ProjectionSource::JoinedField(field) => match &joined_row {
+                    Some(row) => row.get(field).cloned(),
+                    None => Some(Value::Null),
+                },
             };
-            projected.insert(leaf.name.clone(), value);
+            if let Some(value) = value {
+                projected.insert(leaf.name.clone(), value);
+            }
         }
         rows.push(Value::Object(projected));
     }
 
-    Ok(QueryOutput {
-        version: root_window.version,
-        rows,
-    })
+    Ok((
+        QueryOutput {
+            version: root_window.version,
+            rows,
+            cursor: None,
+        },
+        continuation,
+    ))
 }
 
 pub(crate) fn query_on_with_storage_limit(
@@ -4067,6 +5863,28 @@ pub(crate) fn query_on_with_storage_limit(
     query_on_with_storage_limit_visibility(conn, schema, plan, input, storage_limit, false)
 }
 
+/// The relational root window's entry: the generic validated query path with
+/// an optional keyset boundary and the always-total `(order…, _id ASC)`
+/// ordering `root-window-v1` continuation identity depends on.
+pub(crate) fn query_on_keyset(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    keyset: Option<&KeysetAfter>,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        effective_query_limit(plan),
+        false,
+        keyset,
+        true,
+    )
+}
+
 fn query_on_with_storage_limit_visibility(
     conn: &Connection,
     schema: &SchemaManifest,
@@ -4075,8 +5893,34 @@ fn query_on_with_storage_limit_visibility(
     storage_limit: usize,
     allow_private_membership: bool,
 ) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        storage_limit,
+        allow_private_membership,
+        None,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn query_on_with_storage_limit_visibility_keyset(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    storage_limit: usize,
+    allow_private_membership: bool,
+    keyset: Option<&KeysetAfter>,
+    force_id_order: bool,
+) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
+        // The query lane consults the persisted migration fence in its own
+        // snapshot (LLP 0081 §4's lane registry, enforced per admission).
+        migration_executor::ensure_migration_fence_open(conn)?;
         let snapshot_version = current_version_on(conn)?;
         let table = schema_table(schema, &plan.table)?;
         validate_query_plan_shape(plan)?;
@@ -4132,6 +5976,8 @@ fn query_on_with_storage_limit_visibility(
             now_millis(),
             None,
             Some(storage_limit),
+            keyset,
+            force_id_order,
         )?;
         let mut statement = conn.prepare(&sql)?;
         let columns = statement
@@ -4151,6 +5997,7 @@ fn query_on_with_storage_limit_visibility(
         Ok(QueryOutput {
             version: snapshot_version,
             rows: output,
+            cursor: None,
         })
     })
 }
@@ -4527,6 +6374,19 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    /// Keyset-bounded, total-ordered query — the relational root window.
+    pub(crate) fn query_keyset(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        keyset: Option<&KeysetAfter>,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on_keyset(conn, schema, plan, input, keyset),
+            DbRead::Live(db) => query_on_keyset(&db.conn, &db.schema, plan, input, keyset),
         }
     }
 
@@ -6639,6 +8499,8 @@ fn build_query_sql(
     now_ms: u64,
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
     sql_limit: Option<usize>,
+    keyset: Option<&KeysetAfter>,
+    force_id_order: bool,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
     // itself be the query's primary table; without distinct aliases the inner
@@ -6809,12 +8671,22 @@ fn build_query_sql(
         values.extend(extra);
     }
 
+    if let Some(keyset) = keyset {
+        let (clause, keyset_values) =
+            build_keyset_after_sql(table, &plan.order, keyset, &mut filter_bindings)?;
+        where_parts.push(clause);
+        values.extend(keyset_values);
+    }
+
     if !where_parts.is_empty() {
         sql.push_str(" WHERE ");
         sql.push_str(&where_parts.join(" AND "));
     }
 
-    if !plan.order.is_empty() {
+    // `force_id_order` (the relational root window) keeps the total order —
+    // and therefore its keyset continuation — deterministic even when the
+    // plan declares no order fields: `_id ASC` alone is still a total order.
+    if !plan.order.is_empty() || force_id_order || keyset.is_some() {
         let mut order_parts = Vec::new();
         for order in &plan.order {
             ensure_orderable_field(table, &order.field)?;
@@ -7039,6 +8911,31 @@ fn validate_read_set(
     read_set: &[ReadDependency],
     maximum: u64,
 ) -> SnapbackResult<()> {
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
+    //   pre-publication baseline replays through the raised retention
+    //   floor: under a successor-only publication, an offline mutation
+    //   whose isolation baseline predates the floor receives the stable
+    //   resync-before-replay refusal (its payload is client-custodied and
+    //   quarantined by the client; the server neither silently replays nor
+    //   drops it). Compatible postures keep the ordinary conflict rules.
+    if let Some(stalest) = read_set.iter().map(|dependency| dependency.version).min() {
+        let floor = retention_floor_at_most(tx, current_version_on(tx)?)?;
+        if stalest < floor
+            && let Some(transition) = schema_transition_events_on(tx, 0)?.into_iter().last()
+            && matches!(
+                transition.body.compatibility_posture,
+                crate::migration::CompatibilityPosture::SuccessorOnly
+            )
+            && stalest < transition.body.retention_floor
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
+                "storage",
+                "this mutation's read baseline predates a successor-only schema publication; \
+                 resync before replaying client-custodied offline work",
+            ));
+        }
+    }
     for dependency in read_set {
         let table = schema_table(schema, &dependency.table)?;
         let current = get_row_version(tx, table, &dependency.id, maximum)?;
@@ -10519,6 +12416,281 @@ fn get_document_from_tx(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Schema-transition journal events (LLP 0081 §4's same-landing LLP 0007
+// amendment): `schema-resync` and `rollback-resync` are first-class typed
+// operations in the change-journal grammar. They ride `_snapback_changes`
+// under the reserved pseudo-table name below, count toward the journal
+// high-water exactly like a data operation (they are ordinary journal rows
+// at their publication version), and the head/journal-cut equality holds
+// across them unchanged. The vocabulary is closed: a row under the
+// pseudo-table whose operation or payload does not decode is corruption,
+// never an ignorable dialect.
+// ---------------------------------------------------------------------------
+
+/// The reserved journal pseudo-table for schema-transition events.
+/// Application tables cannot collide (`validate_user_identifier` refuses the
+/// `_snapback` prefix), and the per-table strict operation parser never
+/// queries this name.
+pub const SCHEMA_TRANSITION_JOURNAL_TABLE: &str = "_snapback_schema";
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum SchemaTransitionKind {
+    #[serde(rename = "schema-resync")]
+    SchemaResync,
+    #[serde(rename = "rollback-resync")]
+    RollbackResync,
+}
+
+impl SchemaTransitionKind {
+    pub const fn as_op(self) -> &'static str {
+        match self {
+            Self::SchemaResync => "schema-resync",
+            Self::RollbackResync => "rollback-resync",
+        }
+    }
+
+    pub fn from_op(op: &str) -> Option<Self> {
+        match op {
+            "schema-resync" => Some(Self::SchemaResync),
+            "rollback-resync" => Some(Self::RollbackResync),
+            _ => None,
+        }
+    }
+}
+
+/// The typed payload of one schema-transition event — the pinned amendment
+/// vocabulary: operation identity, predecessor/successor schema hashes,
+/// storage-generation identities, and the retention floor the publication
+/// raised, plus the plan's compatibility posture (what the posture-aware
+/// client handshake consumes). Strict: an unknown member is corruption.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SchemaTransitionEventBodyV1 {
+    pub operation_id: String,
+    pub plan_id: String,
+    pub predecessor_schema_hash: String,
+    pub successor_schema_hash: String,
+    pub predecessor_generation: u64,
+    pub successor_generation: u64,
+    pub retention_floor: u64,
+    pub compatibility_posture: crate::migration::CompatibilityPosture,
+}
+
+/// One decoded schema-transition event: the journal row's kind, version,
+/// and timestamp around the typed body.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SchemaTransitionEventV1 {
+    pub kind: SchemaTransitionKind,
+    pub version: u64,
+    pub at_ms: u64,
+    pub body: SchemaTransitionEventBodyV1,
+}
+
+fn schema_transition_corrupt(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STORAGE_VERSION_CORRUPT",
+        "storage",
+        format!("schema-transition journal event is corrupt: {detail}"),
+    )
+}
+
+/// Append one typed schema-transition event at `version`. The caller's
+/// publication transaction must also `set_version(version)` and raise the
+/// retention floor to `version` — the constructor enforces the floor
+/// equality so the amendment's "raised in the publication transaction"
+/// clause cannot drift from the event's own claim.
+pub(crate) fn record_schema_transition_event(
+    tx: &Transaction<'_>,
+    version: u64,
+    kind: SchemaTransitionKind,
+    body: &SchemaTransitionEventBodyV1,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    if body.operation_id.is_empty() {
+        return Err(schema_transition_corrupt("empty operation id".to_owned()));
+    }
+    if body.retention_floor != version {
+        return Err(schema_transition_corrupt(format!(
+            "retention floor {} does not equal the publication version {version}",
+            body.retention_floor
+        )));
+    }
+    if body.successor_generation <= body.predecessor_generation
+        && matches!(kind, SchemaTransitionKind::SchemaResync)
+    {
+        return Err(schema_transition_corrupt(
+            "forward publication must advance the storage generation".to_owned(),
+        ));
+    }
+    let payload = serde_json::to_string(body)
+        .map_err(|error| schema_transition_corrupt(error.to_string()))?;
+    tx.execute(
+        "INSERT INTO _snapback_changes(version, table_name, row_id, op, row_json, changed_at_ms)
+         VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            version_to_sql_integer(version)?,
+            SCHEMA_TRANSITION_JOURNAL_TABLE,
+            body.operation_id,
+            kind.as_op(),
+            payload,
+            timestamp_to_sql_millis(now_ms)?
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn schema_transition_events_on(
+    conn: &Connection,
+    since_version: u64,
+) -> SnapbackResult<Vec<SchemaTransitionEventV1>> {
+    let mut statement = conn.prepare_cached(
+        "SELECT version, op, row_json, changed_at_ms FROM _snapback_changes \
+         WHERE table_name = ?1 AND version > ?2 ORDER BY version, id",
+    )?;
+    let rows = statement.query_map(
+        params![
+            SCHEMA_TRANSITION_JOURNAL_TABLE,
+            version_to_sql_integer(since_version)?
+        ],
+        |row| {
+            let version: SqlValue = row.get(0)?;
+            let op: SqlValue = row.get(1)?;
+            let payload: SqlValue = row.get(2)?;
+            let at_ms: SqlValue = row.get(3)?;
+            Ok((version, op, payload, at_ms))
+        },
+    )?;
+    let mut events = Vec::new();
+    for row in rows {
+        let (version, op, payload, at_ms) = row?;
+        let version =
+            decode_required_committed_version(version, "schema-transition event version")?;
+        let op = decode_required_storage_text(op, "schema-transition event operation")?;
+        let kind = SchemaTransitionKind::from_op(&op).ok_or_else(|| {
+            schema_transition_corrupt(format!(
+                "operation {op:?} is outside the closed schema-transition vocabulary"
+            ))
+        })?;
+        let payload = decode_optional_storage_text(payload, "schema-transition event payload")?
+            .ok_or_else(|| schema_transition_corrupt("missing payload".to_owned()))?;
+        let body: SchemaTransitionEventBodyV1 = serde_json::from_str(&payload)
+            .map_err(|error| schema_transition_corrupt(error.to_string()))?;
+        let at_ms = match at_ms {
+            SqlValue::Integer(raw) if raw >= 0 => raw as u64,
+            other => {
+                return Err(schema_transition_corrupt(format!(
+                    "timestamp column holds {other:?}"
+                )));
+            }
+        };
+        events.push(SchemaTransitionEventV1 {
+            kind,
+            version,
+            at_ms,
+            body,
+        });
+    }
+    Ok(events)
+}
+
+impl LocalDatabase {
+    /// Every schema-transition event after `since_version`, decoded under
+    /// the closed grammar (unknown operations or payloads are corruption).
+    pub fn schema_transition_events(
+        &self,
+        since_version: u64,
+    ) -> SnapbackResult<Vec<SchemaTransitionEventV1>> {
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            schema_transition_events_on(conn, since_version)
+        })
+    }
+
+    /// The most recent schema-transition event, if any — what the
+    /// posture-aware client handshake consults.
+    pub fn latest_schema_transition(&self) -> SnapbackResult<Option<SchemaTransitionEventV1>> {
+        Ok(self.schema_transition_events(0)?.into_iter().last())
+    }
+}
+
+/// Barrier-time retained-work proof (LLP 0081 §6): v1's local profile can
+/// prove exactly one posture — `empty` — by counting the server-resident
+/// work stores this target actually holds (retained client-mutation
+/// records and durable auth-invalidation retry episodes). `dual-compatible`
+/// binds predecessor/successor payload validators that no owning subsystem
+/// models on this profile yet, so a non-empty store under it fails closed
+/// rather than admitting unproven work; `transformed` was already refused
+/// at plan validation. Draining currently runnable work does not erase
+/// scheduled-future payloads from this check — the counts are of durable
+/// rows, not of what happens to be runnable.
+pub(crate) fn prove_retained_work_posture(
+    tx: &Transaction<'_>,
+    posture: crate::migration::RetainedWorkPosture,
+) -> SnapbackResult<()> {
+    let count = |table: &str| -> SnapbackResult<i64> {
+        if !sqlite_table_exists(tx, table)? {
+            return Ok(0);
+        }
+        Ok(tx.query_row(&format!("SELECT COUNT(*) FROM {}", quote_ident(table)?), [], |row| {
+            row.get(0)
+        })?)
+    };
+    let retained_mutations = count("_snapback_client_mutations")?;
+    let retry_episodes = count("_snapback_auth_retry_episodes")?;
+    let empty = retained_mutations == 0 && retry_episodes == 0;
+    match posture {
+        crate::migration::RetainedWorkPosture::Empty
+        | crate::migration::RetainedWorkPosture::DualCompatible
+            if empty => Ok(()),
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE",
+            "storage",
+            format!(
+                "the target holds retained server-resident work the declared posture cannot \
+                 prove ({retained_mutations} retained mutation records, {retry_episodes} retry \
+                 episodes); the local profile proves only the empty posture"
+            ),
+        )),
+    }
+}
+
+/// Test-only seam: manufacture one publication cut (typed transition
+/// event, version bump, floor raise) outside the executor, for the posture
+/// and floor witnesses in `local`.
+#[cfg(test)]
+pub(crate) fn publish_schema_transition_for_test(
+    db: &mut LocalDatabase,
+    posture: crate::migration::CompatibilityPosture,
+    predecessor_schema_hash: &str,
+) -> u64 {
+    let tx = db
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .expect("transition tx");
+    let version = current_version_on(&tx).expect("head") + 1;
+    record_schema_transition_event(
+        &tx,
+        version,
+        SchemaTransitionKind::SchemaResync,
+        &SchemaTransitionEventBodyV1 {
+            operation_id: "operation-v1:posture-test".to_owned(),
+            plan_id: "migration-v1:posture-test".to_owned(),
+            predecessor_schema_hash: predecessor_schema_hash.to_owned(),
+            successor_schema_hash: "s".repeat(64),
+            predecessor_generation: 1,
+            successor_generation: 2,
+            retention_floor: version,
+            compatibility_posture: posture,
+        },
+        1_000,
+    )
+    .expect("record transition");
+    set_version(&tx, version).expect("set version");
+    save_retention_floor_on(&tx, version).expect("raise floor");
+    tx.commit().expect("commit transition");
+    version
+}
+
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -11234,6 +13406,228 @@ mod guarded_commit_tests {
     use std::cell::Cell;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+    fn migration_scan_database() -> LocalDatabase {
+        use crate::manifest::IndexManifest;
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "scanned".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "k".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "v".to_owned(),
+                        field_type: FieldType::String,
+                        optional: true,
+                    },
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_k".to_owned(),
+                    fields: vec!["k".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply scan schema");
+        let row = |id: &str, k: &str, v: Option<&str>| {
+            let mut object = Map::new();
+            object.insert("_id".to_owned(), json!(id));
+            object.insert("k".to_owned(), json!(k));
+            if let Some(v) = v {
+                object.insert("v".to_owned(), json!(v));
+            }
+            object
+        };
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "scanned".to_owned(),
+                vec![
+                    row("r1", "alpha", Some("1")),
+                    row("r2", "alpha", Some("2")),
+                    row("r3", "beta", None),
+                    row("r4", "beta", Some("4")),
+                    row("r5", "beta", Some("5")),
+                    row("r6", "gamma", None),
+                    row("r7", "delta", Some("7")),
+                ],
+            )]),
+        })
+        .expect("seed scan rows");
+        db
+    }
+
+    fn migration_scan_request(max_batch_rows: u32) -> MigrationKeysetScanRequestV1 {
+        MigrationKeysetScanRequestV1 {
+            table: "scanned".to_owned(),
+            index: Some("by_k".to_owned()),
+            validators: vec![
+                MigrationScanValidatorV1::NonNull {
+                    field: "v".to_owned(),
+                },
+                MigrationScanValidatorV1::Unique {
+                    field: "k".to_owned(),
+                },
+            ],
+            digest: Some(crate::rqs::ContentDigestHeaderV1 {
+                algorithm_version: 1,
+                plan_digest: "sha256:test".to_owned(),
+                schema_hash: "sha256:schema".to_owned(),
+                qualified_table: "app.scanned".to_owned(),
+                generation: "gen-1".to_owned(),
+                barrier_head: 7,
+                publication_version: 8,
+                publication_timestamp: 1_784_000_000_000,
+            }),
+            ceilings: MigrationScanCeilingsV1 {
+                max_batch_rows,
+                max_batch_bytes: 1024 * 1024,
+                max_batch_millis: 10_000,
+            },
+        }
+    }
+
+    fn run_scan_to_completion(
+        db: &LocalDatabase,
+        request: &MigrationKeysetScanRequestV1,
+    ) -> MigrationKeysetScanBatch {
+        let mut checkpoint: Option<MigrationKeysetScanCheckpointV1> = None;
+        for _ in 0..64 {
+            let batch = db
+                .migration_keyset_scan_batch(request, checkpoint.as_ref())
+                .expect("scan batch");
+            if batch.done {
+                return batch;
+            }
+            // The checkpoint round-trips through serialization exactly as
+            // the executor journal will persist it.
+            let serialized =
+                serde_json::to_string(&batch.checkpoint).expect("checkpoint serializes");
+            checkpoint = Some(serde_json::from_str(&serialized).expect("checkpoint parses"));
+        }
+        panic!("scan did not complete within 64 batches");
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps — the privileged scan reads in
+    //   stable key order with checkpointed cursors and emits only closed
+    //   facts: interrupting it at every batch size yields byte-identical
+    //   facts and sealed ContentDigestV1 values to the one-shot scan.
+    #[test]
+    fn migration_keyset_scan_is_batch_invariant() {
+        let db = migration_scan_database();
+        let one_shot = run_scan_to_completion(&db, &migration_scan_request(1024));
+        assert_eq!(one_shot.checkpoint.rows_scanned, 7);
+        let (logical, system) = one_shot.sealed_digests.clone().expect("sealed digests");
+        assert!(logical.starts_with("cdv1:") && system.starts_with("cdv1:"));
+        // Facts: two null/absent v rows (r3, r6); duplicates within k:
+        // alpha x2 -> 1, beta x3 -> 2 (adjacent in by_k order).
+        let non_null = one_shot
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::NonNull {
+                    violations,
+                    samples,
+                    ..
+                } => Some((*violations, samples.clone())),
+                _ => None,
+            })
+            .expect("non-null facts");
+        assert_eq!(non_null.0, 2);
+        assert_eq!(non_null.1, vec!["r3".to_owned(), "r6".to_owned()]);
+        let unique = one_shot
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::Unique { duplicates, .. } => Some(*duplicates),
+                _ => None,
+            })
+            .expect("unique facts");
+        assert_eq!(unique, 3, "alpha contributes one duplicate, beta two");
+
+        for batch_rows in 1..=8 {
+            let resumed = run_scan_to_completion(&db, &migration_scan_request(batch_rows));
+            assert_eq!(
+                resumed.checkpoint.rows_scanned, one_shot.checkpoint.rows_scanned,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.checkpoint.bytes_scanned, one_shot.checkpoint.bytes_scanned,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.checkpoint.validators, one_shot.checkpoint.validators,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.sealed_digests,
+                one_shot.sealed_digests,
+                "batch size {batch_rows}: resumed digests must equal one-shot"
+            );
+        }
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps — scan refusals are typed and
+    //   fail closed: ceilings outside the target caps, a checkpoint from a
+    //   different scan, uniqueness without its leading index, and sealed
+    //   digests withheld until the table is exhausted.
+    #[test]
+    fn migration_keyset_scan_refusals_and_sealing() {
+        let db = migration_scan_database();
+
+        let mut zero = migration_scan_request(0);
+        zero.ceilings.max_batch_rows = 0;
+        let error = db
+            .migration_keyset_scan_batch(&zero, None)
+            .expect_err("zero ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        let mut oversized = migration_scan_request(4);
+        oversized.ceilings.max_batch_bytes = MIGRATION_SCAN_MAX_BATCH_BYTES + 1;
+        let error = db
+            .migration_keyset_scan_batch(&oversized, None)
+            .expect_err("oversized ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        // Uniqueness demands its own order: `v` does not lead `by_k`.
+        let mut misordered = migration_scan_request(4);
+        misordered.validators = vec![MigrationScanValidatorV1::Unique {
+            field: "v".to_owned(),
+        }];
+        let error = db
+            .migration_keyset_scan_batch(&misordered, None)
+            .expect_err("uniqueness without leading index");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        // A partial batch seals nothing and its checkpoint refuses to
+        // resume a different request.
+        let request = migration_scan_request(3);
+        let partial = db
+            .migration_keyset_scan_batch(&request, None)
+            .expect("first batch");
+        assert!(!partial.done);
+        assert!(partial.sealed_digests.is_none());
+        let other = migration_scan_request(3);
+        let mut foreign = partial.checkpoint.clone();
+        foreign.table = "items".to_owned();
+        let error = db
+            .migration_keyset_scan_batch(&other, Some(&foreign))
+            .expect_err("foreign checkpoint");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+    }
+
     fn schema() -> SchemaManifest {
         SchemaManifest {
             tables: vec![TableManifest {
@@ -11269,6 +13663,162 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time
+    //   retained-work proof: the local profile proves exactly the `empty`
+    //   posture by counting the durable server-resident work stores; a
+    //   non-empty store fails closed under either admitted posture because
+    //   no owning subsystem models dual-compatible payload validators yet.
+    #[test]
+    fn retained_work_posture_is_proven_not_assumed() {
+        use crate::migration::RetainedWorkPosture;
+        let mut db = database();
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("tx");
+            prove_retained_work_posture(&tx, RetainedWorkPosture::Empty)
+                .expect("an empty target proves the empty posture");
+            prove_retained_work_posture(&tx, RetainedWorkPosture::DualCompatible)
+                .expect("an empty target trivially satisfies dual-compatible");
+        }
+        // Retain one client-mutation record, then both postures fail closed.
+        let identity = ClientMutationIdentity {
+            id: "m-1".to_owned(),
+            function: "createTodo".to_owned(),
+            auth_fingerprint: "sha256:test".to_owned(),
+            authority_instance_id: Uuid::now_v7().to_string(),
+            input_fingerprint: "sha256:input".to_owned(),
+        };
+        db.execute_mutation_idempotent(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Literal(json!("retained")),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+            &identity,
+        )
+        .expect("retained mutation");
+        let tx = db
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .expect("tx");
+        for posture in [RetainedWorkPosture::Empty, RetainedWorkPosture::DualCompatible] {
+            let error = prove_retained_work_posture(&tx, posture)
+                .expect_err("retained work must fail closed");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE"
+            );
+        }
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+    //   same-landing LLP 0007 amendment: schema-resync/rollback-resync are
+    //   first-class typed journal operations. They count toward the journal
+    //   high-water exactly like a data operation (the event alone IS the
+    //   head here), head/journal-cut equality holds across them (pruning's
+    //   whole-journal validation passes), and the vocabulary is closed —
+    //   an unknown operation under the pseudo-table is corruption.
+    #[test]
+    fn schema_transition_events_are_first_class_and_closed() {
+        let mut db = database();
+        let body = SchemaTransitionEventBodyV1 {
+            operation_id: "operation-v1:test".to_owned(),
+            plan_id: "migration-v1:abc".to_owned(),
+            predecessor_schema_hash: "p".repeat(64),
+            successor_schema_hash: "s".repeat(64),
+            predecessor_generation: 1,
+            successor_generation: 2,
+            retention_floor: 1,
+            compatibility_posture: crate::migration::CompatibilityPosture::SuccessorOnly,
+        };
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("tx");
+            record_schema_transition_event(
+                &tx,
+                1,
+                SchemaTransitionKind::SchemaResync,
+                &body,
+                1_000,
+            )
+            .expect("record event");
+            set_version(&tx, 1).expect("set version");
+            save_retention_floor_on(&tx, 1).expect("raise floor");
+            tx.commit().expect("commit");
+        }
+
+        // Typed round-trip.
+        let events = db.schema_transition_events(0).expect("read events");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, SchemaTransitionKind::SchemaResync);
+        assert_eq!(events[0].version, 1);
+        assert_eq!(events[0].body, body);
+        assert_eq!(
+            db.latest_schema_transition().expect("latest").expect("some").body,
+            body
+        );
+
+        // High-water/head-cut equality holds across the event: pruning's
+        // whole-journal validation (head vs journal MAX) accepts it.
+        db.prune_change_journal(2_000, 10, 10).expect("prune validates");
+        assert_eq!(db.journal_floor_version().expect("floor"), 1);
+
+        // Constructor invariants: floor mismatch and a non-advancing
+        // generation are refused before any row is written.
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("tx");
+            let error = record_schema_transition_event(
+                &tx,
+                7,
+                SchemaTransitionKind::SchemaResync,
+                &body,
+                1_000,
+            )
+            .expect_err("floor mismatch refuses");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+            let mut regressed = body.clone();
+            regressed.retention_floor = 7;
+            regressed.successor_generation = 1;
+            let error = record_schema_transition_event(
+                &tx,
+                7,
+                SchemaTransitionKind::SchemaResync,
+                &regressed,
+                1_000,
+            )
+            .expect_err("non-advancing generation refuses");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        }
+
+        // Closed vocabulary: a row under the pseudo-table with an unknown
+        // operation is corruption, never an ignorable dialect.
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_changes(version, table_name, row_id, op, row_json, \
+                 changed_at_ms) VALUES(1, ?1, 'x', 'mystery-op', '{}', 1000)",
+                params![SCHEMA_TRANSITION_JOURNAL_TABLE],
+            )
+            .expect("inject unknown op");
+        let error = db
+            .schema_transition_events(0)
+            .expect_err("unknown operation must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
     }
 
     #[test]
@@ -11483,9 +14033,13 @@ mod guarded_commit_tests {
         // user-b, so the joined predicate makes her absent and b2 is
         // omitted; b3 has a null join key; b4 is another owner's root and
         // never occupies a window slot. Short page, no refill.
-        let inner = db
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+        let (inner, inner_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner relational query");
+        assert!(
+            inner_continuation.is_none(),
+            "a short page is terminal and returns no continuation",
+        );
         assert_eq!(
             inner.rows,
             vec![json!({
@@ -11497,8 +14051,8 @@ mod guarded_commit_tests {
 
         // Left: every visible root emits; missing/invisible/null-key joined
         // leaves are null — indistinguishable from one another.
-        let left = db
-            .query_relational(&relational_plan(JoinKind::Left, 10), &input)
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left relational query");
         let titles: Vec<(&str, bool)> = left
             .rows
@@ -11514,17 +14068,22 @@ mod guarded_commit_tests {
         // take bounds consumed authorized roots, not emitted rows: with
         // take=2 the window is [alpha, beta]; beta's author is invisible so
         // inner emits one row, and gamma is never consumed to refill.
-        let windowed = db
-            .query_relational(&relational_plan(JoinKind::Inner, 2), &input)
+        let (windowed, windowed_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
             .expect("windowed inner query");
         assert_eq!(windowed.rows.len(), 1);
         assert_eq!(windowed.rows[0]["title"], json!("alpha"));
+        // The window consumed its full take of authorized roots, so the
+        // short emitted page still carries a progressing continuation.
+        let continuation = windowed_continuation.expect("full window continues");
+        assert_eq!(continuation.id, "b2");
 
         // take: 0 is an empty page that consumes nothing.
-        let empty = db
-            .query_relational(&relational_plan(JoinKind::Inner, 0), &input)
+        let (empty, empty_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
+        assert!(empty_continuation.is_none());
 
         // Below-constraint duplicate injection: a second row under the
         // claimed-unique joined key is a storage-invariant refusal.
@@ -11556,7 +14115,7 @@ mod guarded_commit_tests {
             })
             .expect("seed duplicate authors");
         let error = corrupted
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect_err("duplicate unique key must refuse");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
 
@@ -11564,15 +14123,256 @@ mod guarded_commit_tests {
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
         no_pairs.join_on.clear();
         let error = db
-            .query_relational(&no_pairs, &input)
+            .query_relational(&no_pairs, &input, None)
             .expect_err("zero join pairs");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
         let mut too_big = relational_plan(JoinKind::Inner, 10);
         too_big.take = 1025;
         let error = db
-            .query_relational(&too_big, &input)
+            .query_relational(&too_big, &input, None)
             .expect_err("take over 1024");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — continuation follows
+    //   the root order key from the last consumed root: a full window
+    //   continues even when every root in it was omitted by the inner join
+    //   (all-omitted windows progress), and only a short window is terminal.
+    #[test]
+    fn relational_keyset_pages_without_skip_or_duplicate() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let plan = relational_plan(JoinKind::Inner, 1);
+
+        // Visible roots for user-a in title order: alpha(b1), beta(b2,
+        // author invisible), gamma(b3, null join key).
+        let (page1, cursor1) = db
+            .query_relational(&plan, &input, None)
+            .expect("first page");
+        assert_eq!(page1.rows.len(), 1);
+        assert_eq!(page1.rows[0]["title"], json!("alpha"));
+        let cursor1 = cursor1.expect("full window continues");
+        assert_eq!(cursor1.id, "b1");
+        assert_eq!(cursor1.entries, vec![("title".to_owned(), json!("alpha"))]);
+
+        // Window [beta]: consumed one root, emitted zero rows (invisible
+        // author), still progresses.
+        let (page2, cursor2) = db
+            .query_relational(&plan, &input, Some(&cursor1))
+            .expect("second page");
+        assert!(page2.rows.is_empty(), "all-omitted window emits no rows");
+        let cursor2 = cursor2.expect("all-omitted window still progresses");
+        assert_eq!(cursor2.id, "b2");
+
+        // Window [gamma]: null join key, same shape.
+        let (page3, cursor3) = db
+            .query_relational(&plan, &input, Some(&cursor2))
+            .expect("third page");
+        assert!(page3.rows.is_empty());
+        let cursor3 = cursor3.expect("full window continues");
+        assert_eq!(cursor3.id, "b3");
+
+        // Past the last root: consumes nothing, terminal — end-of-stream
+        // is an empty page with no continuation, exactly as pinned.
+        let (page4, cursor4) = db
+            .query_relational(&plan, &input, Some(&cursor3))
+            .expect("terminal page");
+        assert!(page4.rows.is_empty());
+        assert!(cursor4.is_none(), "a short window is terminal");
+
+        // No skip, no duplicate: the union of consumed roots across pages
+        // is exactly the unpaged window.
+        let (all, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("unpaged window");
+        assert_eq!(all.rows.len(), 3);
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — executor rows encode
+    //   byte-deterministically under RelationalResultEncodingV1: members in
+    //   projection declaration order, left-join nulls as the literal, and
+    //   the same bytes on every evaluation.
+    #[test]
+    fn relational_rows_encode_under_result_encoding_v1() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let field_order: Vec<String> = ["title", "authorName", "shelf"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        let (inner, _) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .expect("inner query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
+                .expect("inner rows encode"),
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+        );
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("left query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
+                .expect("left rows encode"),
+            concat!(
+                r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"},"#,
+                r#"{"title":"beta","authorName":null,"shelf":"fiction"},"#,
+                r#"{"title":"gamma","authorName":null,"shelf":"fiction"}]"#,
+            ),
+            "left-join nulls stay literal; members follow the declaration order",
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — pagination is not
+    //   snapshot-consistent across pages, and the claim is exactly the
+    //   stated bound: no skipped and no duplicated root among roots whose
+    //   order keys and visibility are untouched by concurrent mutations; a
+    //   mutated root may move relative to the boundary, and a root
+    //   inserted before the boundary is not revisited.
+    #[test]
+    fn relational_keyset_bound_survives_concurrent_mutations() {
+        use crate::manifest::JoinKind;
+        let input = relational_input("user-a");
+        let plan = relational_plan(JoinKind::Left, 2);
+        let book = |id: &str, title: &str| {
+            json!({ "_id": id, "title": title, "authorSlug": "ada", "ownerId": "user-a" })
+                .as_object()
+                .cloned()
+                .expect("seed row")
+        };
+        let author = json!({ "_id": "a1", "slug": "ada", "name": "Ada", "ownerId": "user-a" })
+            .as_object()
+            .cloned()
+            .expect("seed row");
+        let seed = |books: Vec<Map<String, Value>>| {
+            let mut db = LocalDatabase::memory().expect("memory database");
+            db.apply_schema(relational_schema()).expect("apply schema");
+            db.seed(SeedData {
+                tables: BTreeMap::from([
+                    ("books".to_owned(), books),
+                    ("authors".to_owned(), vec![author.clone()]),
+                ]),
+            })
+            .expect("seed");
+            db
+        };
+
+        let before = seed(vec![
+            book("b1", "alpha"),
+            book("b2", "beta"),
+            book("b3", "gamma"),
+            book("b4", "delta"),
+        ]);
+        let (page1, cursor) = before
+            .query_relational(&plan, &input, None)
+            .expect("first page");
+        assert_eq!(
+            page1.rows.iter().map(|r| r["title"].clone()).collect::<Vec<_>>(),
+            vec![json!("alpha"), json!("beta")],
+        );
+        let cursor = cursor.expect("full window continues");
+
+        // "Concurrent" mutations between pages: alpha deleted, a new root
+        // inserted before the boundary, and gamma's order key moved past
+        // delta. Only delta is untouched, and it must appear exactly once.
+        let after = seed(vec![
+            book("b0", "aardvark"),
+            book("b2", "beta"),
+            book("b3", "zeta"),
+            book("b4", "delta"),
+        ]);
+        let (page2, _) = after
+            .query_relational(&plan, &input, Some(&cursor))
+            .expect("second page");
+        assert_eq!(
+            page2.rows.iter().map(|r| r["title"].clone()).collect::<Vec<_>>(),
+            vec![json!("delta"), json!("zeta")],
+            "the untouched root is neither skipped nor duplicated; the moved \
+             root reappears at its new position; the pre-boundary insert is \
+             not revisited",
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the buffered
+    //   read-your-writes overlay executes only single-table `QueryPlan`s:
+    //   `ctx.db` host calls deserialize their plan strictly as `QueryPlan`
+    //   (whose `table` member is required), so the relational shape fails
+    //   admission before any overlay code runs. Relational plans exist
+    //   only as function runtimes, and the buffered arm of §2 is satisfied
+    //   by construction rather than by a second evaluator.
+    #[test]
+    fn relational_plans_cannot_enter_the_buffered_overlay() {
+        use crate::manifest::JoinKind;
+        let relational =
+            serde_json::to_value(relational_plan(JoinKind::Inner, 10)).expect("plan serializes");
+        assert!(
+            serde_json::from_value::<QueryPlan>(relational).is_err(),
+            "a relational plan must not deserialize as a single-table QueryPlan",
+        );
+    }
+
+    // The keyset lowering matches Snapback's total order exactly: NULLS
+    // LAST in both directions and the `_id` tie-break, so a boundary can
+    // sit on a duplicate order key or a null component without skipping or
+    // duplicating rows.
+    #[test]
+    fn keyset_lowering_totalizes_nulls_and_tiebreak() {
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let plan = QueryPlan {
+            table: "books".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: vec![OrderExpr {
+                field: "authorSlug".to_owned(),
+                direction: OrderDirection::Asc,
+            }],
+            limit: None,
+            indexed_by: None,
+        };
+        let ids = |output: &QueryOutput| {
+            output
+                .rows
+                .iter()
+                .map(|row| row["_id"].as_str().expect("row id").to_owned())
+                .collect::<Vec<_>>()
+        };
+        let boundary = |value: Value, id: &str| KeysetAfter {
+            entries: vec![("authorSlug".to_owned(), value)],
+            id: id.to_owned(),
+        };
+        db.with_pinned_read_view(|view| {
+            // Total order: b1(ada), b4(ada), b2(grace), b3(null).
+            let full = view.query_keyset(&plan, &input, None)?;
+            assert_eq!(ids(&full), vec!["b1", "b4", "b2", "b3"]);
+            // Duplicate order key: the `_id` tie-break carries the boundary.
+            let after_b1 = view.query_keyset(&plan, &input, Some(&boundary(json!("ada"), "b1")))?;
+            assert_eq!(ids(&after_b1), vec!["b4", "b2", "b3"]);
+            // Nulls sort after every value, so they follow a non-null boundary.
+            let after_b2 =
+                view.query_keyset(&plan, &input, Some(&boundary(json!("grace"), "b2")))?;
+            assert_eq!(ids(&after_b2), vec!["b3"]);
+            // A null boundary component admits only later tie-breaks.
+            let after_b3 = view.query_keyset(&plan, &input, Some(&boundary(Value::Null, "b3")))?;
+            assert!(ids(&after_b3).is_empty());
+            // A boundary whose fields do not match the order schema is an
+            // internal invariant refusal, not a silent reposition.
+            let error = view
+                .query_keyset(
+                    &plan,
+                    &input,
+                    Some(&KeysetAfter {
+                        entries: vec![("title".to_owned(), json!("alpha"))],
+                        id: "b1".to_owned(),
+                    }),
+                )
+                .expect_err("mismatched boundary fields must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_KEYSET_INVALID");
+            Ok(())
+        })
+        .expect("pinned keyset probes");
     }
 
     // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
@@ -11726,12 +14526,11 @@ mod guarded_commit_tests {
                     quote_ident(physical).unwrap()
                 ))
                 .unwrap();
-            let columns = statement
+            statement
                 .query_map([], |row| row.get::<_, String>(2))
                 .unwrap()
                 .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            columns
+                .unwrap()
         };
         assert_eq!(
             index_columns(&db, "items_by_rank"),
@@ -17793,6 +20592,8 @@ mod membership_write_tests {
             0,
             None,
             None,
+            None,
+            false,
         )
         .expect("lower internal semi-join");
         assert!(sql.contains("AS \"__snapback_outer\""));

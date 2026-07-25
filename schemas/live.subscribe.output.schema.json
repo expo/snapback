@@ -115,6 +115,13 @@
       ],
       "type": "object"
     },
+    "MutationReceiptOutcome": {
+      "enum": [
+        "confirmed",
+        "rejected"
+      ],
+      "type": "string"
+    },
     "QueryNamespace": {
       "additionalProperties": false,
       "properties": {
@@ -140,6 +147,13 @@
     },
     "QueryOutput": {
       "properties": {
+        "cursor": {
+          "description": "Relational continuation cursor (LLP 0080 §2): present exactly when a\n`root-window-v1` page consumed its full `take` of authorized roots.\nOpaque and versioned; presenting it back as the `cursor` argument\nresumes from the last consumed root. Absent for every non-relational\nquery and for terminal pages.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rows": {
           "items": true,
           "type": "array"
@@ -156,6 +170,179 @@
         "rows"
       ],
       "type": "object"
+    },
+    "Receipt": {
+      "description": "A retention-ring receipt (LLP 0034 §3.2): connectionless facts about\nmutations and subscription lifecycle, served by the receipts snapshot and\nechoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts\ncarry opaque ids, versions, table names, and reasons — never row data or\nargument values.",
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "outcome": {
+                    "const": "confirmed"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "snapshotVersion": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "One mutation invocation: confirmed or rejected, with the write\nsurface that fan-out used.",
+          "properties": {
+            "affectedTables": {
+              "description": "`null` means EXPLICITLY unknown (an IbexModule handler without a\ndeclared write set) — distinct from `[]`, no tables.",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "correlation": {
+              "description": "Adapter-supplied opaque correlation, echoed verbatim (capped)."
+            },
+            "kind": {
+              "const": "mutation",
+              "type": "string"
+            },
+            "mutation": {
+              "type": "string"
+            },
+            "mutationId": {
+              "type": "string"
+            },
+            "outcome": {
+              "$ref": "#/$defs/MutationReceiptOutcome"
+            },
+            "receivedAtMs": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rollbackReason": {
+              "description": "The diagnostic CODE only — messages may embed argument values\n(§3.3 privacy). `null` on confirmed mutations.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "snapshotVersion": {
+              "description": "`null` only when the rejected invocation could not safely read the\ndurable cursor; never fabricate zero from a storage failure.",
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "transport": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "mutationId",
+            "mutation",
+            "outcome",
+            "snapshotVersion",
+            "transport",
+            "correlation",
+            "receivedAtMs"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Subscription lifecycle: established / disposed, on both the durable\nlive-query lane and the ephemeral room lane (`lane: \"ephemeral\"`,\nwhich carries `bindingId`/`collection` instead of `subscriptionId`).",
+          "properties": {
+            "bindingId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "collection": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "correlation": true,
+            "event": {
+              "$ref": "#/$defs/SubscriptionReceiptEvent"
+            },
+            "kind": {
+              "const": "subscription",
+              "type": "string"
+            },
+            "lane": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "receivedAtMs": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "removed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "scope": {
+              "description": "The subscription's routing/scope args (REQUIRED — LLP 0034 §3.2)."
+            },
+            "snapshotVersion": {
+              "description": "`null` when no storage read is safe at the emission site (the\ndisconnect teardown path) — the honest \"unknown at death\" value.",
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "subscriptionId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "supersededBy": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "event",
+            "scope",
+            "receivedAtMs"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "ResolutionKind": {
       "enum": [
@@ -208,6 +395,62 @@
         "witness",
         "maxDisposition",
         "ackToken"
+      ],
+      "type": "object"
+    },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
       ],
       "type": "object"
     },
@@ -372,6 +615,13 @@
         "mac"
       ],
       "type": "object"
+    },
+    "SubscriptionReceiptEvent": {
+      "enum": [
+        "established",
+        "disposed"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.output.schema.json",
@@ -408,7 +658,33 @@
       "type": "object"
     },
     "receipt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Receipt"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478)."
+    },
+    "resume": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResumeWire"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Fresh resume token for `rqsEligible` subscriptions answered with rows\n(the \"initial `LiveReplace`\" mint of LLP 0091 §0A.5 on this arm)."
+    },
+    "resumeRefusal": {
+      "description": "Per-cause `SNAPBACK_RESUME_*` code when a presented token was refused\n(LLP 0091 §0B.6) — an observability fact; the subscribe itself\nsucceeded with rung 3.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "scopeRetirements": {
       "items": {
@@ -417,15 +693,22 @@
       "type": "array"
     },
     "snapshot": {
-      "$ref": "#/$defs/QueryOutput"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QueryOutput"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Absent exactly when the subscribe was answered without rows (LLP 0090\nD1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta\nreplay (the witness verified). The answer rides the durable lane —\nthe `current_as_of` or replay `live_delta` envelope carries the fresh\ntoken. Only a resume-capable caller can receive the absent form."
     },
     "subscription_id": {
       "type": "string"
     }
   },
   "required": [
-    "subscription_id",
-    "snapshot"
+    "subscription_id"
   ],
   "title": "LiveSubscribeOutput",
   "type": "object"

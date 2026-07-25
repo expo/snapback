@@ -30,7 +30,9 @@ use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfi
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
-use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
+use crate::live_wire::{
+    LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, ResumeWire,
+};
 use crate::local::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
@@ -42,6 +44,10 @@ use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
+use crate::migration::{
+    MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
+    MigrationPreviewObservationV1,
+};
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
     MutationResponse, OpenConnectionRequest,
@@ -49,7 +55,7 @@ use crate::server::{
 use crate::service_profile::{
     RemoteAuthCapabilityManifest, RemoteDataCapabilityManifest, RemoteServiceProfile,
 };
-use crate::storage::StorageInfo;
+use crate::storage::{SchemaTransitionEventBodyV1, StorageInfo};
 
 /// A generated schema artifact: the committed file name (relative to the
 /// repo-root `schemas/` directory) and the JSON Schema derived from a Rust type.
@@ -91,6 +97,41 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
         ),
+        // LLP 0081 canonical migration artifacts (the Phase C wave-1 types).
+        finish(
+            "migration.plan.schema.json",
+            schemars::schema_for!(MigrationPlanArtifactV1),
+        ),
+        finish(
+            "migration.observation.schema.json",
+            schemars::schema_for!(MigrationPreviewObservationV1),
+        ),
+        finish(
+            "migration.approval.schema.json",
+            schemars::schema_for!(MigrationApprovalV1),
+        ),
+        finish(
+            "migration.admission.schema.json",
+            schemars::schema_for!(MigrationAdmissionV1),
+        ),
+        finish(
+            "migration.receipt.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationReceiptV1),
+        ),
+        finish(
+            "migration.rollback-receipt.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationRollbackReceiptV1),
+        ),
+        finish(
+            "migration.journal-entry.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationJournalEntryV1),
+        ),
+        // The migration scan's journal-persisted batch checkpoint
+        // (LLP 0081 §3/§5) — the Wave-2 executor's durable contract.
+        finish(
+            "migration.keyset-scan.checkpoint.schema.json",
+            schemars::schema_for!(crate::storage::MigrationKeysetScanCheckpointV1),
+        ),
         finish(
             "auth.hosted-capabilities.schema.json",
             schemars::schema_for!(HostedAuthCapabilities),
@@ -120,6 +161,12 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "storage-info.schema.json",
             schemars::schema_for!(StorageInfo),
+        ),
+        // LLP 0081 §4's same-landing LLP 0007 amendment: the typed
+        // schema-transition event payload (schema-resync / rollback-resync).
+        finish(
+            "schema-transition.event.schema.json",
+            schemars::schema_for!(SchemaTransitionEventBodyV1),
         ),
         finish(
             "host-ops.result.schema.json",
@@ -230,6 +277,23 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "auth.rescue-colliding-table.output.schema.json",
             schemars::schema_for!(crate::auth::rescue::CollisionRescueResult),
         ),
+        // The snapshot bundle endpoint (LLP 0092 §0D.1): request/response of
+        // `POST /app/bundle`, exported through the LLP 0051 drift gates.
+        finish(
+            "app.bundle.input.schema.json",
+            schemars::schema_for!(crate::bundle::BundleRequest),
+        ),
+        finish(
+            "app.bundle.output.schema.json",
+            schemars::schema_for!(crate::bundle::BundleResponse),
+        ),
+        // The route→query manifest artifact (LLP 0092 §0C.1): compiled by
+        // codegen from `snapback/routes.mjs`, admitted through ensure, and
+        // hashed into `generation` as `routeManifestHash`.
+        finish(
+            "routes.manifest.schema.json",
+            schemars::schema_for!(crate::bundle::RoutesManifest),
+        ),
         finish(
             "app.ensure.input.schema.json",
             schemars::schema_for!(EnsureAppRequest),
@@ -257,6 +321,13 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "live.resume.output.schema.json",
             schemars::schema_for!(LiveResumeOutput),
+        ),
+        // The RQS token-resume resume object (LLP 0091 §0B.1). Named
+        // `resume-token` so the token-resume vocabulary never collides with
+        // the reattach operation's `live.resume.*` schemas above (§0B.4).
+        finish(
+            "live.resume-token.schema.json",
+            schemars::schema_for!(ResumeWire),
         ),
         finish(
             "live.resume.input.schema.json",
@@ -309,13 +380,53 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// committed beside the schemas so a pinned git checkout is sufficient for a
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
-    vec![SchemaArtifact {
-        file: "data-tier.profile.json",
-        schema: sorted_keys(
-            serde_json::to_value(DataTierProfile::current())
-                .expect("data-tier profile serializes to JSON"),
-        ),
-    }]
+    vec![
+        SchemaArtifact {
+            file: "data-tier.profile.json",
+            schema: sorted_keys(
+                serde_json::to_value(DataTierProfile::current())
+                    .expect("data-tier profile serializes to JSON"),
+            ),
+        },
+        // RelationalResultEncodingV1 golden vectors (LLP 0080 §2): the
+        // committed vectors are generated through the encoder itself, so
+        // this file, the drift gate, and the runtime cannot diverge.
+        SchemaArtifact {
+            file: "relational.result-encoding-v1.json",
+            schema: sorted_keys(crate::rqs::relational_result_encoding_artifact()),
+        },
+        // LLP 0081 §2/§3 golden vectors: plan digest/id, canonical step
+        // IDs, observation/approval/admission digests, and the synthesized
+        // UUIDv7 conformance vectors — generated through the
+        // The closed migration state machine and transition relation
+        // (LLP 0081 §4), generated through the executor module so the
+        // committed enumeration cannot drift from the append-time refusal.
+        SchemaArtifact {
+            file: "migration.journal-machine.v1.json",
+            schema: sorted_keys(crate::storage::migration_executor::migration_journal_artifact()),
+        },
+        // implementation, byte-pinned in migration::tests.
+        SchemaArtifact {
+            file: "migration.vectors-v1.json",
+            schema: sorted_keys(crate::migration::migration_vectors_artifact()),
+        },
+        // ContentDigestV1 golden vectors (LLP 0081 §5), generated through
+        // the streaming implementation (resume-equality is asserted during
+        // generation, so a committed file implies the property).
+        SchemaArtifact {
+            file: "content-digest.v1.json",
+            schema: sorted_keys(crate::rqs::content_digest_artifact()),
+        },
+        // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
+        // canonical frames + expected state-machine transitions, generated
+        // through the live-wire serde types so fixtures cannot drift from
+        // the wire. tests/wire_fixtures_v1.rs proves each fixture's
+        // schemaValid claim against the committed family schema.
+        SchemaArtifact {
+            file: crate::wire_fixtures::WIRE_FIXTURES_FILE,
+            schema: sorted_keys(crate::wire_fixtures::wire_fixture_corpus()),
+        },
+    ]
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { __startServerForTests } from '../../../_kit/server-process.mjs';
+import { startServer } from '../../../_kit/server-process.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import api from '../../snapback/generated/api.mjs';
 import { createConvexAdapter } from '../../backends/gateway/convex.ts';
@@ -21,10 +21,17 @@ const suite = createSuite('partiful matrix / provider conformance', { expectedCh
 const cleanups = [];
 
 await runAcceptance(suite, async () => {
-  const server = await __startServerForTests(
-    { port: 0, db: ':memory:', cwd: repoRoot, provenance: { appId: 'partiful-matrix', artifactsPath: join(backendDir, 'generated', 'artifacts.json') } },
-    { launchSpec: ({ args }) => ({ command: join(repoRoot, 'target', 'debug', 'snapback'), args: args.slice(args.indexOf('--') + 1), cwd: repoRoot, env: process.env }) },
-  );
+  // LLP 0030 ladder rung 1: this suite deliberately boots the prebuilt binary
+  // (no cargo compile in the loop). serverBinary is the documented option that
+  // replaced the raw launchSpec escape; drift from the checkout is reported on
+  // server.identity instead of blocking the run.
+  const server = await startServer({
+    port: 0,
+    db: ':memory:',
+    cwd: repoRoot,
+    serverBinary: join(repoRoot, 'target', 'debug', 'snapback'),
+    provenance: { appId: 'partiful-matrix', artifactsPath: join(backendDir, 'generated', 'artifacts.json') },
+  });
   cleanups.push(() => server.stop());
   const snapback = new SnapbackClient(server.baseUrl, server.clientOptions);
   await snapback.ensureApp({ schema: generated('schema.manifest.json'), functions: generated('functions.manifest.json'), seed });

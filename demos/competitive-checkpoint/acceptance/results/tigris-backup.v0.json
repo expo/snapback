@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.tigris-backup.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "single-instance-container-vm.v1",
+  "capturedAt": "2026-07-25T13:33:38Z",
+  "scope": "drill-scoped backup-store witness only: the pinned bucket exists, machine credentials reach it, and an application-consistent SQLite backup round-trips byte-exact. This is NOT the LLP 0072 backup/restore drill corpus (immutable manifest, destroy/replace, restore-paused activation), which stays open with the RFC.",
+  "command": "fly ssh console -a snapback-drill -C /app/bin/backup-to-tigris.sh",
+  "provider": {
+    "name": "fly.io",
+    "app": "snapback-drill",
+    "machineId": "819701c927ee68",
+    "region": "sjc",
+    "image": "snapback-drill:deployment-01KYCPZGTFWWQW18V77TYA1HS9"
+  },
+  "witness": {
+    "kind": "tigris-backup-readback",
+    "bucket": "snapback-drill-backups",
+    "endpoint": "https://fly.storage.tigris.dev",
+    "objectKey": "backups/drill-20260725T133338Z.sqlite3",
+    "sourceDb": "/data/drill.sqlite3",
+    "backupBytes": 196608,
+    "backupSha256": "eacd6b6a4cd19c2f51b409e1708f57b55e408576ff6c61d6cba4d525c46c4a0c",
+    "readbackSha256": "eacd6b6a4cd19c2f51b409e1708f57b55e408576ff6c61d6cba4d525c46c4a0c",
+    "verdict": "PASS"
+  }
+}

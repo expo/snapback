@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.durable-row-scan.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "single-instance-container-vm.v1",
+  "scannedAt": "2026-07-25T13:33:29.319Z",
+  "scope": "durable rows retained on the hosted target after the remote-streaming drill run: the host StreamAttemptV1 records plus the fixture app tables",
+  "needleClasses": {
+    "fixtureSecretCorpus": [
+      "test-511-key-alpha",
+      "test-ors-key-omega",
+      "stream-secret-value-7f3a"
+    ],
+    "liveSecretClasses": [
+      "admin_token"
+    ],
+    "upstreamMaterial": [
+      "http://127.0.0.1:4488",
+      "127.0.0.1:4488",
+      "/stream\"",
+      "/slow\"",
+      "/ambiguous\""
+    ],
+    "markers": [
+      "[snapback secret"
+    ]
+  },
+  "tables": [
+    {
+      "table": "_snapback_stream_attempts",
+      "bytesScanned": 2721,
+      "rowCount": 5,
+      "sha256": "dc2001f87708be1e9ec4256473a9260745ca131513c90a17dd1cd634a5d2295b",
+      "findings": []
+    },
+    {
+      "table": "messages",
+      "bytesScanned": 5718,
+      "rowCount": 12,
+      "sha256": "2cd8e1f587158148685080dde74c120ef24f434cd62e696b0d99711b2473e98d",
+      "findings": []
+    },
+    {
+      "table": "conversations",
+      "bytesScanned": 317,
+      "rowCount": 1,
+      "sha256": "6a7ca8c15b222befe86c8a3d16d2f8c81896d14c91032ef5f5a1f459126225cd",
+      "findings": []
+    }
+  ],
+  "verdict": "PASS"
+}

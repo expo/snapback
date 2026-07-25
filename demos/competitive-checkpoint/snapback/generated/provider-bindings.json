@@ -84,6 +84,22 @@
         }
       },
       {
+        "argumentsType": "{ \"displayName\": string; \"slug\": string }",
+        "effects": {
+          "invalidates": [
+            "models"
+          ],
+          "writes": [
+            "models"
+          ]
+        },
+        "name": "registerModel",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
         "argumentsType": "{ \"attemptId\": string; \"status\": string }",
         "effects": {
           "invalidates": [
@@ -231,6 +247,32 @@
         },
         "dependencies": {
           "reads": [
+            "conversationCards"
+          ]
+        },
+        "name": "listConversationCards",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"modelName\"?: string; \"ownerId\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
             "conversations"
           ]
         },
@@ -297,7 +339,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "a7c5837ec329890b7c8ebaccaec29e85368d48118fed37a9bb36a9f297b9b462",
+    "inputsHash": "11c89c6b7716efa4433ca774633c907d10dd48bc616632f28bc7c7e14f5263ad",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

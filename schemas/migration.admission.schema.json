@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "MigrationCeilings": {
+      "additionalProperties": false,
+      "description": "Approval-relevant resource ceilings — canonical body fields and\nbarrier-time admission preconditions (LLP 0081 §2).",
+      "properties": {
+        "maxAffectedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBarrierDowntimeMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWrites": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxAffectedRows",
+        "maxBytes",
+        "maxWrites",
+        "maxBarrierDowntimeMs"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.admission.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Barrier-time admission (LLP 0081 §2): binds the actual predecessor head,\nthe enforced resource bounds, and the approval it consumes. The receipt\ncarries both records.",
+  "properties": {
+    "admittedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "approvalDigest": {
+      "type": "string"
+    },
+    "enforced": {
+      "$ref": "#/$defs/MigrationCeilings"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "predecessorHeadVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "planDigest",
+    "approvalDigest",
+    "predecessorHeadVersion",
+    "enforced",
+    "admittedAtMs"
+  ],
+  "title": "MigrationAdmissionV1",
+  "type": "object"
+}

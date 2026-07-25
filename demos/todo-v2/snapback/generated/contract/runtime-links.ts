@@ -6,6 +6,7 @@ export interface SnapbackContractLinks {
   deleteTodo(args: { id: string }): unknown;
   editTitle(args: { id: string; title: string }): unknown;
   listTodos(args: Record<string, never>): unknown;
+  listTodosByPriority(args: { priority: string }): unknown;
   listTodosOnce(args: Record<string, never>): unknown;
   setCompleted(args: { id: string; completed: boolean }): unknown;
   setPriority(args: { id: string; priority: string }): unknown;

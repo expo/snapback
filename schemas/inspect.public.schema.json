@@ -238,6 +238,46 @@
           },
           "type": "array"
         },
+        "capabilityMaturity": {
+          "additionalProperties": false,
+          "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
+          "properties": {
+            "auth.sessions.v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "bounded_response_stream_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron_action_run_mutation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "host_plan_runtime": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "ibex_ctx_db_host_bridge": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "live_subscriptions": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "migration_keyset_scan_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "mutation_read_set_validation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "permission_epoch_resync": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "relational_query_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            }
+          },
+          "type": "object"
+        },
         "cron": {
           "type": "boolean"
         },
@@ -274,6 +314,17 @@
         "localServerLifecycle": {
           "type": "boolean"
         },
+        "migration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MigrationTargetFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Migration-executor facts (LLP 0081 §4): the executor profile and\nthe closed fence lane registry. Present exactly when the target has\na migration executor; absent targets refuse with\n`SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`."
+        },
         "mutationIsolationMode": {
           "type": "string"
         },
@@ -301,6 +352,17 @@
           },
           "type": "array"
         },
+        "relationalQueries": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationalQueryFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Relational-query facts (LLP 0080 §4): the live delivery class and\nthe closed set of admitted retention classes. Present exactly when\nthe target supports `relational_query_v1`; a target without the\nexecutor reports the capability gap instead."
+        },
         "replaceOnlyQueries": {
           "type": "boolean"
         },
@@ -319,6 +381,17 @@
         "schemaVersion": {
           "default": "snapback.v0",
           "type": "string"
+        },
+        "standardPatterns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StandardPatternFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Generated standard-pattern facts (LLP 0065 §4): live delivery is the\nconservative resnapshot, and the `authScopeField`-enabled\ndisjointness-skip refinement of LLP 0053 is disabled — the field is\ninvalidation-routing metadata, never a skip enabler or enforcement.\nPresent exactly when the target runs generated standard patterns."
         },
         "storageEngine": {
           "type": "string"
@@ -393,6 +466,15 @@
         "capabilityGaps"
       ],
       "type": "object"
+    },
+    "CapabilityMaturity": {
+      "description": "The closed maturity vocabulary for registry capability ids (LLP 0058\n§Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule\nfor Draft authorities).\n\n- `proposed`: the contract exists in a proposal document but no\n  implementation is registered; a proposed id is never emitted in\n  `supportedCapabilities` at all.\n- `experimental`: the implementation is registered and the id's positive\n  instance predicate holds, but the governing contract is not Accepted —\n  the entry asserts current-contract compatibility only, and admission\n  refuses requirements on it unless the requiring artifact explicitly\n  acknowledges the experimental contract.\n- `stable`: the original LLP 0058 reading — positive presence is the\n  plain compatibility assertion.",
+      "enum": [
+        "proposed",
+        "experimental",
+        "stable"
+      ],
+      "type": "string"
     },
     "CapabilityState": {
       "enum": [
@@ -827,6 +909,25 @@
           "minimum": 0,
           "type": "integer"
         },
+        "resume": {
+          "$ref": "#/$defs/RqsResumeStats",
+          "default": {
+            "attempted": 0,
+            "currentAsOfAnswers": 0,
+            "deltaReplayAnswers": 0,
+            "freshReplaceAnswers": 0,
+            "lastJournalDistance": 0,
+            "maxJournalDistance": 0,
+            "mintRefusals": 0,
+            "noCertifiedSummary": 0,
+            "refused": {},
+            "replayBytesAvoided": 0,
+            "replayOps": 0,
+            "tokensMinted": 0,
+            "tokensRefreshed": 0
+          },
+          "description": "RQS resume/refresh observability (LLP 0090 §Scalability: counters land\nwith rollout step 1). Cumulative runtime-epoch counters."
+        },
         "totalDeliveries": {
           "format": "uint64",
           "minimum": 0,
@@ -1142,6 +1243,28 @@
         "op",
         "by",
         "target"
+      ],
+      "type": "object"
+    },
+    "MigrationTargetFacts": {
+      "additionalProperties": false,
+      "description": "The migration-executor posture and the closed lane registry the\npersisted migration fence covers (LLP 0081 §4): a lane the fence does\nnot name cannot be admitted at all, so the registry is a capability\nfact, not prose.",
+      "properties": {
+        "executor": {
+          "description": "The executor profile: `\"local-exclusive-single-writer\"` on the\nlocal target (one IMMEDIATE transaction per durable transition).",
+          "type": "string"
+        },
+        "fenceLanes": {
+          "description": "The closed, enumerated lane registry the durable fence closes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "executor",
+        "fenceLanes"
       ],
       "type": "object"
     },
@@ -1527,6 +1650,10 @@
           },
           "type": "array"
         },
+        "publicInline": {
+          "description": "LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it\nauthorizes, so it rides the public projection.",
+          "type": "boolean"
+        },
         "readSetSummary": {
           "$ref": "#/$defs/DependencySummary"
         },
@@ -1537,6 +1664,10 @@
           "type": "array"
         },
         "retainable": {
+          "type": "boolean"
+        },
+        "rqsEligible": {
+          "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
           "type": "boolean"
         },
         "runtime": {
@@ -1564,6 +1695,8 @@
         "kind",
         "requiredCapabilities",
         "authorityIndependent",
+        "publicInline",
+        "rqsEligible",
         "authorityCreating",
         "retainable",
         "authorizationDependence",
@@ -1578,6 +1711,12 @@
     "PublicFunctionManifest": {
       "description": "The public projection of [`FunctionManifest`] served inside the root\n`/inspect` identity descriptor. Like `PublicInspect` it is a typed\nallowlist: the `From` impls below destructure the full structs exhaustively,\nso a newly-added field is a compile error here rather than a silent leak.\n\nWhat it keeps: identity/compat and dependency facts — app id, bundle/inputs\nhashes, function names/kinds/capability summaries, read/write summaries,\ncron and config *declarations* (never values; secrets do not ride the\nmanifest — LLP 0036). What it drops: every executable handler body\n(`IbexModule.source`, `HandlerPlan` step bodies), every function/cron/config\n`sourceSpan` (a source-path leak), and free-form unsupported-dependency\ndiagnostic message/details. Full operational context stays only on the gated\n`/_snapback/api/inspect` twin.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity\n  descriptor; handler source and plan bodies are operational facts for the\n  gated twin only (ENG-23441).",
       "properties": {
+        "acknowledgedExperimentalCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "appId": {
           "type": "string"
         },
@@ -1677,7 +1816,8 @@
       "enum": [
         "Query",
         "Mutation",
-        "Action"
+        "Action",
+        "RelationalQuery"
       ],
       "type": "string"
     },
@@ -1906,6 +2046,28 @@
       ],
       "type": "object"
     },
+    "RelationalQueryFacts": {
+      "additionalProperties": false,
+      "description": "The declared relational live/retention posture (LLP 0080 §4).",
+      "properties": {
+        "liveDelivery": {
+          "description": "Always `\"live_replace\"` in v1: relational subscriptions inherit\nLLP 0053 with table-granular invalidation and no proved-disjoint\nskip, and no incremental delta matcher is admitted.",
+          "type": "string"
+        },
+        "retention": {
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans. V1 is exactly `[\"none\"]`;\n`opaque-authorized-snapshot-v1` (the authenticated lease class) is\nspecified but not yet admitted by authoring, and anonymous results\nhave no admissible retention.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "retention"
+      ],
+      "type": "object"
+    },
     "ResourceLimit": {
       "properties": {
         "name": {
@@ -1953,6 +2115,108 @@
       ],
       "type": "object"
     },
+    "RqsResumeStats": {
+      "description": "Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),\nrung taken, journal distance, and token refresh overhead.",
+      "properties": {
+        "attempted": {
+          "description": "Subscribes that presented `resumeFromToken`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currentAsOfAnswers": {
+          "description": "Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deltaReplayAnswers": {
+          "default": 0,
+          "description": "Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the\nwitness verified and a `live_delta` answered the resume.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "freshReplaceAnswers": {
+          "description": "Token presented, answered with rung 3 (refusal or no available proof).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastJournalDistance": {
+          "description": "Journal distance (head − token version) of the last presented token.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxJournalDistance": {
+          "description": "Maximum observed journal distance.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mintRefusals": {
+          "description": "Rows/args the 0A canonicalization refused at mint (`resume` absent).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "noCertifiedSummary": {
+          "description": "Rung-1 table-set fall-throughs: journal floor held but no certified\ndependency-summary artifact exists yet (cluster 0C), so the answer is\nrung 3. Not a token refusal — its own telemetry cause.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "refused": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).",
+          "type": "object"
+        },
+        "replayBytesAvoided": {
+          "default": 0,
+          "description": "Estimated bytes avoided by rung-2 answers versus a rung-3\nreplacement: serialized replacement rows minus the serialized delta\nenvelope, saturating at zero per answer.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "replayOps": {
+          "default": 0,
+          "description": "Total `live_delta` ops replayed by rung-2 answers.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokensMinted": {
+          "description": "Tokens minted on the live path (subscribe answers + envelope refresh).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokensRefreshed": {
+          "description": "Refreshed tokens attached to `live_replace`/`live_delta` envelopes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempted",
+        "currentAsOfAnswers",
+        "freshReplaceAnswers",
+        "refused",
+        "noCertifiedSummary",
+        "tokensMinted",
+        "tokensRefreshed",
+        "mintRefusals",
+        "lastJournalDistance",
+        "maxJournalDistance"
+      ],
+      "type": "object"
+    },
     "SessionInvalidation": {
       "enum": [
         "unavailable",
@@ -1960,6 +2224,25 @@
         "globallyFenced"
       ],
       "type": "string"
+    },
+    "StandardPatternFacts": {
+      "additionalProperties": false,
+      "description": "The declared standard-pattern live posture (LLP 0065 §4).",
+      "properties": {
+        "authScopeDisjointnessSkip": {
+          "description": "Always `\"disabled\"` in v1: `authScopeField` routes invalidation and\nnever enables LLP 0053's disjointness-skip refinement, so no\nconvergence fixture is owed until a future profile claims the skip.",
+          "type": "string"
+        },
+        "liveDelivery": {
+          "description": "Always `\"conservative-resnapshot\"` in v1: a generated live query\nresnapshots on a dependency commit and never claims `live_delta` —\nthe runtime excludes pattern-identified functions from the delta\nlane even when the plan shape would otherwise qualify.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "authScopeDisjointnessSkip"
+      ],
+      "type": "object"
     },
     "SupportedArtifactAuthPair": {
       "additionalProperties": false,
@@ -2044,7 +2327,9 @@
         "ibex_ctx_db_host_bridge",
         "live_subscriptions",
         "mutation_read_set_validation",
-        "permission_epoch_resync"
+        "permission_epoch_resync",
+        "relational_query_v1",
+        "migration_keyset_scan_v1"
       ],
       "type": "string"
     }

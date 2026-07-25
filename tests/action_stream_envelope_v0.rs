@@ -84,9 +84,13 @@ fn functions() -> FunctionManifest {
     // Positive admission witness: with egress enabled in this process, the
     // served instance manifest supports the stream capability and the loader
     // admits a stream-requiring artifact (the lib suite carries the
-    // egress-disabled negative twin).
+    // egress-disabled negative twin). The acknowledgment below predates the
+    // capability's promotion to stable (LLP 0076 Accepted 2026-07-25) and is
+    // deliberately retained: a surviving acknowledgment is a no-op, and the
+    // unacknowledged twin below witnesses that admission no longer needs it.
     refusal_probe.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
     FunctionManifest {
+        acknowledged_experimental_capabilities: vec!["bounded_response_stream_v1".to_owned()],
         functions: vec![
             define("streamInvalidProbe", FunctionKind::Action),
             define("forgedStreamCodeProbe", FunctionKind::Action),
@@ -276,5 +280,33 @@ async fn mutations_cannot_open_streams_as_an_executed_negative() {
     assert_eq!(
         body["diagnostic"]["code"], "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
         "queries and mutations cannot open streams: {body}"
+    );
+}
+
+#[tokio::test]
+async fn stable_stream_requirement_admits_without_acknowledgment() {
+    // @ref LLP 0058#capability-maturity — promotion regression for LLP 0076's
+    // acceptance (2026-07-25): the stream id is stable, so positive presence
+    // is the plain compatibility assertion and an artifact that never
+    // acknowledged the (former) experimental contract admits cleanly. Before
+    // acceptance this exact fixture was refused SNAPBACK_CAPABILITY_UNSUPPORTED;
+    // the still-experimental refusal path stays witnessed in the lib suite
+    // via `relational_query_v1`.
+    let diagnostics = tokio::task::spawn_blocking(|| {
+        // SAFETY: same value every test in this binary wants; see stream_app.
+        unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut unacknowledged = functions();
+        unacknowledged.acknowledged_experimental_capabilities.clear();
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.load_functions(unacknowledged)
+    })
+    .await
+    .expect("unacknowledged fixture");
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SNAPBACK_CAPABILITY_UNSUPPORTED"),
+        "stable stream support must admit without acknowledgment: {diagnostics:?}"
     );
 }

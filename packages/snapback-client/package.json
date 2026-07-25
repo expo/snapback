@@ -11,6 +11,9 @@
     "external-store.mjs",
     "hosted-browser.mjs",
     "index.mjs",
+    "rqs.mjs",
+    "rqs-store.mjs",
+    "rqs-store-file.mjs",
     "sender-proof.mjs"
   ],
   "exports": {
@@ -21,6 +24,10 @@
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
     },
+    "./rqs": "./rqs.mjs",
+    "./rqs-preload": "./rqs-preload.mjs",
+    "./rqs-store": "./rqs-store.mjs",
+    "./rqs-store-file": "./rqs-store-file.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -30,6 +37,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node rqs-digest-parity.test.mjs"
+    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node bundle.test.mjs"
   }
 }

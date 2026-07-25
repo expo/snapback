@@ -5,7 +5,8 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (v0.6 — see Revision history)
+**Revised:** 2026-07-25 (step-5 native implementation amendment — see
+Revision history); 2026-07-24 (v0.6 — see Revision history)
 **Related:** LLP 0008, LLP 0011, LLP 0022, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0060, LLP 0063, LLP 0074, LLP 0076, LLP 0077, LLP 0082, LLP 0083, LLP 0086
 
 ## Revision history
@@ -18,6 +19,8 @@
 - **v0.6** (2026-07-24) — round-6 revision, closing the loop under the convergence stopping rule (targeted delta reviews: Fable CLEAN, Codex NOT CLEAN with delta-confined findings; both report **no Major/Moderate in pre-existing text**; plus an implementer-lens review of the 0A contract, UNDERDETERMINED): the rung-2 accumulator-update rule corrected to touch only journal-affected row ids so untouched witness leaves remain (the v0.5 wording would have dropped unchanged rows), with a strict-subset fixture; eligibility unified under one named served-manifest predicate `rqsEligible` (authorityIndependent + closed-inputs) keyed by minting, bundle `resume` presence, Channel B persistence, and admission alike; `tokenBody` gains `digestKind` + `issuedAt` (the expiry anchor), the token pinned as a self-describing envelope with `meta` never an admission input and widened to carry every D3-arbitration identity field; expiry narrowed to a server-admission staleness backstop (offline display stays under 0043's never-current rule); canonical row encoding named (RFC 8785 JCS), leaves domain-separated and length-framed, published digest pinned as a compressed root over server-held state, 0A constructions to be pinned by name and parameters with a proposed LtHash-16-class default; keyring verification-overlap window and the `SNAPBACK_RESUME_*` refusal namespace pinned; register mode scoped to credentialed callers (anonymous → read mode) with the 0F amendment mapping sender-key identity/credential incarnation to LLP 0077's thumbprint and replay epoch; local-arm `generation` pinned content-derived (no-op ensure preserves it) and resume-relevant config enumerated; local seam named as `packages/snapback-vite` with graffiti's plugin adoption and public/`authorityIndependent`/`publicInline` declarations stated as step-3 work; ordered-query global-proof-only restated as a deliberate v1 simplification; least-recently-resumed defined as last successful authoritative resume with atomic bookkeeping; the false-`publicInline` stakes reworded to distribution/caching; D3/Q4 wording qualified to the RQS store so the 0043/0053 lease store is unambiguously untouched; `publicInline` added to the re-check fact list and Q1 clarified (authoring surface open, fact always codegen-compiled); LLP 0034 amendment citation corrected to §2.4
 
 - **Accepted** (2026-07-24) — accepted by Charlie Cheever after the six-round super-refine loop (see `llp/reviews/0090-*`), with Q1/Q2/Q4/Q6 recorded open and owned by rollout clusters 0C/0E and the D5 follow-on, and with the v0.6 delta-confined edits' unreviewed status disclosed at acceptance.
+- **Implementation amendment** (2026-07-24, ENG-25455/commit 04b8828e) — three step-4 findings reconciled without design change: (1) D2/0C are silent on where the deploy-time-compiled Cloudflare arm's eligibility facts come from — that arm has no codegen/ensure lane and its pre-existing handlers are opaque JS, so eligibility there derives from compiled HostPlan facts evaluated natively (single-table, closed-inputs subset), per the dated LLP 0092 amendment; a literal reading of this RFC would have made the step-4 eligible set empty. (2) D1.2's "the single coordinator DO serializes reads naturally" is precise only under the invocation mutex — handler queries await across the isolate seam, so DO single-threading alone is not the serialization cut; step 4 held the invariant by evaluating eligible entries natively without awaits. (3) D2's response-mechanics phrasing assumes the serving seam controls compression; on Workers the runtime owns content-encoding, satisfied by handing identity bytes to the runtime. Registered here so the RFC's next revision absorbs them; normative details live in the LLP 0091/0092 dated amendments.
+- **Implementation amendment** (2026-07-25, ENG-25456, step-5 native half) — Channel B's native arm landed as the DK-9 file-backed store (`packages/snapback-client/rqs-store-file.mjs`), with three findings registered without design change. (1) **What DK-9's surface actually is:** LLP 0008 DK-9's implemented code surface is the LLP 0043 contract-layer store's `{read, write, withExclusive}` adapter seam (`packages/snapback-contract/client-store.mjs`, memory + localStorage) — there was no pre-existing native/SQLite implementation, and the RQS store is a separate bounded artifact with its own entry contract consumed store-agnostically by the client. "Rides DK-9" therefore lands as riding DK-9's *discipline* (store-agnostic interface, single-connection mutex serialization, atomic transactions, corrupt-bytes-preserved fail-closed posture, in-memory-degradation honesty) on the RQS entry contract, not as literally stacking on the 0043 lease store — which D3 already requires to remain a separate, untouched artifact. D3's "SQLite or files" is exercised on the files side; a SQLite backing swaps in behind the same injected files/adapter seam without observable change. (2) **Single-writer without Web Locks:** the D3 web multi-tab ownership role is replaced by an exclusively created on-disk lock file plus same-process registry with liveness-based (never lease-based) staleness; normative detail in LLP 0091's step-5 native amendment, which also pins the OQ2 cadence/budget values (web numbers unchanged; host-lifecycle flush; constrained processes never persist). (3) **Q4 baseline noted:** the v1 at-rest posture for the native store is OS-level protection (app-container isolation plus platform disk encryption); the store adds no encryption of its own and Q4 stays open. The step-5 acceptance list runs identically on both arms from one store-parameterized suite (`rqs-resume-suite.mjs`, 18 tests per arm) plus 11 native store-unit obligations; the on-device (React Native/Hermes files-adapter injection and device-harness proof) remainder is tracked in `issues/20260725-rqs-native-ondevice-adapter.md`.
 
 ## Summary
 
@@ -866,12 +869,17 @@ the others, and the gates must see all three.
   invalidation — the Electric-style story and LLP 0008's bookmarkable-versions
   thread. Deferred to the D5 follow-on unless a cheap subset falls out of
   step 4; v1 explicitly ships `no-store`.
-- **Q7 — Membership witness format.** Rung 2's witness must be an exact,
+- **Q7 — Membership witness format.** ~~Rung 2's witness must be an exact,
   bounded, recoverable representation of held row identity (D1.3); raw key
   set vs recoverable encoding, the reconciliation rule, and the default size
-  cap are open. The v1 preference for client-supplied witness over a
-  server-held CVR is decided (D1.3). Belongs to the rung-2 prerequisite
-  (rollout step 5a).
+  cap are open.~~ **Decided** (2026-07-24, rollout steps 5a+6, ENG-25457)
+  in LLP 0091's dated rung-2 membership-witness amendment: raw
+  `(rowId, oldRowHash)` pairs in ascending UTF-16 id order with an explicit
+  count; caps of 4096 entries / 1 MiB (server policy knobs); a fail-closed
+  per-cause reconciliation rule (any ambiguity → rung 3, never suppressing
+  a removal); and a replay-vs-replace knob defaulting to
+  affected ≤ held-count. The v1 preference for client-supplied witness over
+  a server-held CVR was already decided (D1.3).
 
 (Former Q3 — resume-miss policy — is resolved in D1.1: short-circuit with a
 fresh `LiveReplace`. Former Q5 — bundle consistency — is a prerequisite in

@@ -18,6 +18,11 @@ function freezeSnapshot(snapshot) {
     rows: Object.freeze([]),
     connection: 'connecting',
     error: null,
+    // Row freshness (LLP 0090 D1 / LLP 0043 retained-data distinction):
+    // 'retained' rows come from persistence/preload and are never presented
+    // as current — they ride the existing 'pending' status; 'current' rows
+    // arrived through an authoritative delivery.
+    freshness: 'unknown',
     generation: 0,
     mutation: Object.freeze({
       status: 'idle',
@@ -230,15 +235,30 @@ export function createExternalQueryStore({
       pending(connection = 'connecting', previous = snapshot.rows) {
         publish({ status: 'pending', connection, rows: Object.freeze([...previous]), error: null }, attemptGeneration);
       },
+      // Persisted/preloaded rows surfaced before the first authoritative
+      // answer (LLP 0090 D3 render-first): the existing 'pending' status —
+      // never 'ready' — with the freshness fact exposed on the snapshot.
+      retained(rows, connection = snapshot.connection) {
+        publish(
+          () => ({
+            status: 'pending',
+            rows: acceptAuthoritativeRows(rows),
+            connection,
+            error: null,
+            freshness: 'retained',
+          }),
+          attemptGeneration,
+        );
+      },
       ready(rows, connection = snapshot.connection) {
         delivered = publish(
-          () => ({ status: 'ready', rows: acceptAuthoritativeRows(rows), connection, error: null }),
+          () => ({ status: 'ready', rows: acceptAuthoritativeRows(rows), connection, error: null, freshness: 'current' }),
           attemptGeneration,
         ) || delivered;
       },
       refreshing(rows = snapshot.rows, connection = snapshot.connection) {
         delivered = publish(
-          () => ({ status: 'refreshing', rows: acceptAuthoritativeRows(rows), connection, error: null }),
+          () => ({ status: 'refreshing', rows: acceptAuthoritativeRows(rows), connection, error: null, freshness: 'current' }),
           attemptGeneration,
         ) || delivered;
       },
@@ -492,6 +512,10 @@ export class ExternalQueryScope {
           });
           return;
         }
+        if (delivery.kind === 'retained') {
+          controller.retained(rows, connection);
+          return;
+        }
         controller.ready(rows, connection);
       }),
     });
@@ -512,6 +536,14 @@ export class ExternalQueryScope {
           : { kind: 'authoritative' };
         lastSnapshot = next;
         observer(next.rows, next.connection, delivery);
+      } else if (
+        next !== lastSnapshot
+        && next.status === 'pending'
+        && next.freshness === 'retained'
+        && next.rows !== lastSnapshot.rows
+      ) {
+        lastSnapshot = next;
+        observer(next.rows, next.connection, { kind: 'retained' });
       }
     });
     const binding = { store, unsubscribe, disposed: false };

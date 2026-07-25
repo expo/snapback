@@ -67,6 +67,13 @@
           "description": "The server profile the decision ran under.",
           "type": "string"
         },
+        "routes": {
+          "description": "'matched' | 'provisioned' | 'gated' — absent when no routes manifest\nwas posted (LLP 0092 §0C.1 ensure admission).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "schema": {
           "description": "'matched' | 'provisioned' | 'gated' | 'skipped-absent'",
           "type": "string"

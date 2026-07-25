@@ -1,0 +1,35 @@
+# In-namespace TLS terminator for the LLP 0098
+# `loopback-terminated-single-instance.v1` hosted-edge profile.
+#
+# This file is the reason the profile's edge facts are checkable rather than
+# promised. Caddy owns the public HTTPS leg and reaches the Snapback origin over
+# loopback only, so LLP 0060 D2's "every hop between the TLS-terminating edge
+# and the origin process is same-host loopback" holds literally, and no address
+# outside this network namespace can reach the origin socket at all.
+#
+# Fly's edge is configured for raw TCP passthrough on 443, so the TLS handshake
+# terminates HERE, not at the platform edge. That is what removes the
+# direct-origin bypass class: a co-resident workload on the platform's private
+# network has nothing to connect to.
+
+{
+	# Fly maps public 443 -> 8443 (raw TCP) and public 80 -> 8080 (http handler,
+	# for the ACME HTTP-01 challenge).
+	http_port 8080
+	https_port 8443
+	# Certificate material persists on the machine rootfs so an ordinary
+	# stop/start does not re-issue and burn Let's Encrypt duplicate-certificate
+	# budget. An image update resets it and re-issues once.
+	storage file_system /data/caddy
+}
+
+snapback-drill.fly.dev {
+	# The origin listens on loopback. This single line is the topology.
+	reverse_proxy 127.0.0.1:4287 {
+		# Caddy replaces (never appends to) X-Forwarded-For with the real
+		# client address, which is what makes LLP 0098 §6's rightmost-entry
+		# selection correct: the last hop is the one this trusted terminator
+		# wrote.
+		header_up X-Forwarded-For {http.request.remote.host}
+	}
+}

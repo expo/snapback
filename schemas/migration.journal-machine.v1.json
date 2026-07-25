@@ -1,0 +1,145 @@
+{
+  "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md#4-execution-journaling-and-crash-recovery",
+  "cleanupTailRule": "cleanup-pending extends exactly the terminal it was entered from and ends in that same terminal",
+  "fencingToken": "leaseEpoch — validated against the stored epoch before every append",
+  "states": [
+    "admitted",
+    "barriered",
+    "executing",
+    "verifying",
+    "published-held",
+    "released",
+    "rolling-back",
+    "rolled-back",
+    "cancel_requested",
+    "aborting",
+    "cancelled",
+    "abandoned",
+    "cleanup-pending"
+  ],
+  "terminalStates": [
+    "released",
+    "rolled-back",
+    "cancelled",
+    "abandoned"
+  ],
+  "transitions": [
+    {
+      "from": "admitted",
+      "to": "barriered"
+    },
+    {
+      "from": "admitted",
+      "to": "cancel_requested"
+    },
+    {
+      "from": "admitted",
+      "to": "abandoned"
+    },
+    {
+      "from": "barriered",
+      "to": "executing"
+    },
+    {
+      "from": "barriered",
+      "to": "verifying"
+    },
+    {
+      "from": "barriered",
+      "to": "cancel_requested"
+    },
+    {
+      "from": "barriered",
+      "to": "aborting"
+    },
+    {
+      "from": "barriered",
+      "to": "abandoned"
+    },
+    {
+      "from": "executing",
+      "to": "executing"
+    },
+    {
+      "from": "executing",
+      "to": "verifying"
+    },
+    {
+      "from": "executing",
+      "to": "cancel_requested"
+    },
+    {
+      "from": "executing",
+      "to": "aborting"
+    },
+    {
+      "from": "executing",
+      "to": "abandoned"
+    },
+    {
+      "from": "verifying",
+      "to": "verifying"
+    },
+    {
+      "from": "verifying",
+      "to": "published-held"
+    },
+    {
+      "from": "verifying",
+      "to": "cancel_requested"
+    },
+    {
+      "from": "verifying",
+      "to": "aborting"
+    },
+    {
+      "from": "verifying",
+      "to": "abandoned"
+    },
+    {
+      "from": "published-held",
+      "to": "released"
+    },
+    {
+      "from": "published-held",
+      "to": "rolling-back"
+    },
+    {
+      "from": "rolling-back",
+      "to": "rolled-back"
+    },
+    {
+      "from": "cancel_requested",
+      "to": "aborting"
+    },
+    {
+      "from": "cancel_requested",
+      "to": "abandoned"
+    },
+    {
+      "from": "aborting",
+      "to": "cancelled"
+    },
+    {
+      "from": "aborting",
+      "to": "abandoned"
+    },
+    {
+      "from": "released",
+      "to": "cleanup-pending"
+    },
+    {
+      "from": "rolled-back",
+      "to": "cleanup-pending"
+    },
+    {
+      "from": "cleanup-pending",
+      "to": "released"
+    },
+    {
+      "from": "cleanup-pending",
+      "to": "rolled-back"
+    }
+  ],
+  "version": "migration-journal-v1"
+}

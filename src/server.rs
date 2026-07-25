@@ -69,8 +69,8 @@ use crate::local::{
     live_stream_text,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AuthInput, AuthMode, CtxAnswerLedger, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
+    ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, CtxAnswerLedger,
+    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
 };
@@ -169,6 +169,17 @@ fn configured_cron_dispatch_concurrency(raw: Option<&str>) -> usize {
         .filter(|limit| *limit > 0)
         .map(|limit| limit.min(CRON_DISPATCH_CONCURRENCY_MAX))
         .unwrap_or(CRON_DISPATCH_CONCURRENCY_DEFAULT)
+}
+
+/// Parse the `SNAPBACK_CRON_DISABLED` switch: `1` or `true` (any ASCII case,
+/// surrounding whitespace ignored) disable autonomous cron claiming; every
+/// other value — including empty and typos — leaves the scheduler on, so a
+/// malformed variable can never silently disarm production crons.
+pub(crate) fn cron_autonomy_disabled(raw: Option<&str>) -> bool {
+    raw.is_some_and(|value| {
+        let value = value.trim();
+        value == "1" || value.eq_ignore_ascii_case("true")
+    })
 }
 
 fn detached_action_limiter() -> &'static DetachedActionLimiter {
@@ -4801,6 +4812,77 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Remove a pending-registration grant for reaping, yielding a
+    /// whole-id-cleanup-safe terminal capture (the connection existed only
+    /// for the reaped bundle, so whole-id teardown is exact). The caller
+    /// publishes the capture so the retirement sink disarms demand and
+    /// purges topology.
+    fn retire_bundle_connection(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+    ) -> Option<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        if state
+            .grants
+            .get(connection_id)
+            .is_none_or(|record| record.grant_id != grant_id)
+        {
+            return None;
+        }
+        let record = state.remove_grant(connection_id)?;
+        Some(
+            record
+                .authority
+                .terminal_capture(connection_id.to_owned(), record.grant_id)
+                .after_mint_only_containment(),
+        )
+    }
+
+    /// Rotate a pending-registration grant's secret in place (LLP 0031 dated
+    /// amendment: a lost-response retry returns the registration set under a
+    /// freshly rotated connection-grant secret bound to the same connection
+    /// identity; re-returning a possibly-exposed secret verbatim is refused).
+    fn rotate_grant_token(&self, connection_id: &str, grant_id: &str) -> SnapbackResult<String> {
+        let mut state = self.lock();
+        let record = state
+            .grants
+            .get_mut(connection_id)
+            .filter(|record| record.grant_id == grant_id)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                    "realtime",
+                    "the pending connection grant is no longer installed",
+                )
+            })?;
+        let token = format!("sct_{}", Uuid::new_v4().simple());
+        record.token = token.clone();
+        Ok(token)
+    }
+
+    /// The effect fence and invalidation connection for an installed grant —
+    /// the register-mode supersede path re-derives the pending connection's
+    /// registration identity from the registry record.
+    fn bundle_register_identity(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+    ) -> Option<(
+        crate::ephemeral::ConnectionEffectFence,
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
+    )> {
+        let state = self.lock();
+        let record = state
+            .grants
+            .get(connection_id)
+            .filter(|record| record.grant_id == grant_id)?;
+        Some((
+            record.authority.effect_fence(grant_id),
+            record.authorization_invalidation.clone(),
+        ))
+    }
+
     /// Refresh the grant's mutable cached lease after authenticated-use
     /// publication. The immutable authority identity and grant id must still
     /// match at the session fence cut.
@@ -5759,7 +5841,14 @@ pub struct AuthorizedLeaseQueryResponse {
 
 impl AuthorizedLeaseQueryResponse {
     fn from_parts(output: QueryOutput, authorized_lease: AuthorizedLease) -> Self {
-        let QueryOutput { version, rows } = output;
+        // A retained authorized snapshot is decode-only (LLP 0080 §4): a
+        // relational continuation cursor never rides the lease envelope, so
+        // it is deliberately dropped here rather than silently flattened in.
+        let QueryOutput {
+            version,
+            rows,
+            cursor: _,
+        } = output;
         Self {
             version,
             rows,
@@ -5896,6 +5985,13 @@ pub enum ResponseSensitivity {
     /// reveal no protected row, but caching either protocol response is still
     /// invalid.
     PublicNoStore,
+    /// Declared-public application data (LLP 0031 dated LLP 0090 amendment):
+    /// arbitrary app query rows whose anonymous emission is authorized by the
+    /// query's own codegen-compiled served-manifest facts, re-checked
+    /// server-side. Governs the bundle/Channel A lanes only. Operator-plane
+    /// logging posture stays that of application data (bodies excluded);
+    /// cache posture is `no-store` in v1 (the middleware's non-public arm).
+    DeclaredPublicApplicationData,
     ApplicationData,
     ConnectionSecret,
     OperatorMetadata,
@@ -6881,6 +6977,26 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_auth_route("POST", "/client-mutations/acknowledge"),
             post(acknowledge_mutations),
         ),
+        // The snapshot bundle endpoint (LLP 0090 D1.2 / LLP 0092 §0D):
+        // optional credential — anonymous accepted only for read mode against
+        // publicInline-class routes; register mode is credentialed-only. The
+        // response class is the amendment's DeclaredPublicApplicationData.
+        // @ref LLP 0092#0d7-route-taxonomy-entry-llp-0031 — the taxonomy row
+        //   this registration implements.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/app/bundle",
+                RouteClass::AppData,
+                RoutePolicy::AppAuth,
+                CredentialResolution::LegacyBodyAuth,
+                InvocationAuthority::ClientAsserted,
+                LegacyBodyPolicy::Allowed,
+                ResponseSensitivity::DeclaredPublicApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::app_function_session()),
+            post(app_bundle),
+        ),
         RegisteredRoute::new(
             app_function_route("POST", "/mutation/{name}"),
             post(invoke_mutation),
@@ -7633,6 +7749,21 @@ fn auth_diagnostic_app_route(path: &str) -> bool {
 /// authorized later by the `/app/ensure` operation gate.
 // @ref LLP 0060#d1-plaintext-listener-fence — repeat the startup transport
 // refusal for embedded/router composition without claiming proxy/TLS posture.
+/// The fixed 404 a hosted deployment serves for every `/_snapback/*` route.
+///
+/// Deliberately body-free and identical for every operator path: a response
+/// that varied by route would let an unauthenticated caller enumerate the
+/// operator surface it is not allowed to reach.
+///
+/// @ref LLP 0060#c2-defenses-that-do-not-change-the-boundary — the first
+/// hosted profile chooses `operatorSurface: "disabled"`, and CORS is not
+/// enabled on this path.
+fn hosted_operator_surface_disabled_response() -> Response {
+    let mut response = Response::new(axum::body::Body::empty());
+    *response.status_mut() = StatusCode::NOT_FOUND;
+    response
+}
+
 fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
     if spec.class != RouteClass::AppData {
         return None;
@@ -7644,7 +7775,11 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     if runtime.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted
         && !matches!(spec.path, "/" | "/health")
     {
-        let Some(authority) = runtime.hosted_serving.as_ref() else {
+        let Some(authority) = runtime
+            .hosted_serving
+            .as_ref()
+            .and_then(|handle| handle.current())
+        else {
             return Some(crate::auth::deployment::deployment_unsupported(
                 crate::auth::deployment::HostedAuthCapabilities::local_target(),
             ));
@@ -7868,12 +8003,18 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
+        // Bundle entries are evaluated exactly like HTTP queries; register
+        // mode re-prepares LiveInitialQuery authorities per entry inside the
+        // local cut (LLP 0092 §0D.5).
+        "/app/bundle" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge"
-        | "/live/authorization-invalidation/acknowledge"
+        "/client-mutations/acknowledge" => {
+            Some(InvocationSource::MutationSettlementAcknowledgement)
+        }
+        "/live/authorization-invalidation/acknowledge"
         | "/live/authorization-invalidation/manual-retry" => {
-            Some(InvocationSource::StandaloneAcknowledgement)
+            Some(InvocationSource::InvalidationAcknowledgement)
         }
         "/connection/open" => Some(InvocationSource::ConnectionOpen),
         "/live/{name}/subscribe" => Some(InvocationSource::LiveInitialQuery),
@@ -7963,7 +8104,11 @@ fn dev_host_operation_authority(value: Option<&Value>) -> ResolvedAppAuthority {
 
 fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bool {
     match source {
-        InvocationSource::StandaloneAcknowledgement => true,
+        // @ref LLP 0096#81-the-acknowledge-routes-demand-the-authreplay-offer-coupling —
+        // invalidation acks are item-6-owned; only mutation settlement is
+        // descriptor-bound, so `InvalidationAcknowledgement` falls through to
+        // the `false` arm.
+        InvocationSource::MutationSettlementAcknowledgement => true,
         InvocationSource::HttpMutation => body.and_then(Value::as_object).is_some_and(|object| {
             object.contains_key("clientMutationId")
                 || object.contains_key("client_mutation_id")
@@ -8897,6 +9042,52 @@ fn sender_proof_subprotocol(headers: &HeaderMap) -> Result<Option<String>, Snapb
     Ok(proof)
 }
 
+/// The `{name}` segment of a generated function-invocation route, extracted
+/// from the raw request path. Hosted admission consults this only after
+/// `canonical_external_uri` has rejected `%`-encoding, backslashes, doubled
+/// slashes, and dot segments, so the raw segment cannot spell one function
+/// name for the middleware and a different one for the handler's decoded
+/// `Path` extractor.
+fn function_invocation_route_name(spec: RouteSpec, path: &str) -> Option<&str> {
+    let name = match spec.path {
+        "/query/{name}" => path.strip_prefix("/query/")?,
+        "/query/{name}/authorized-lease" => path
+            .strip_prefix("/query/")?
+            .strip_suffix("/authorized-lease")?,
+        "/mutation/{name}" => path.strip_prefix("/mutation/")?,
+        "/action/{name}" => path.strip_prefix("/action/")?,
+        _ => return None,
+    };
+    (!name.is_empty() && !name.contains('/')).then_some(name)
+}
+
+/// Whether the published function manifest proves this function-invocation
+/// request can never legitimately serve a caller with no session carrier at
+/// all, hoisting the function-level `authRequirement` into route policy for
+/// the hosted absent-carrier decision (LLP 0077 D-1).
+///
+/// Fails closed on ambiguity: only a name the published manifest statically
+/// declares `public` or `optional-user` may admit an absent carrier. An
+/// unknown name — which no caller, anonymous or authenticated, can ever
+/// invoke successfully — refuses identically to an `authenticated` one, so
+/// the pre-body refusal is not a function-existence oracle.
+///
+/// @ref LLP 0077#http-binding — an unproven sender must never cause body
+/// ingestion; the route-level policy alone cannot see function requirements.
+fn hosted_function_route_requires_session_carrier(
+    spec: RouteSpec,
+    path: &str,
+    runtime: &AppState,
+) -> bool {
+    let Some(name) = function_invocation_route_name(spec, path) else {
+        return false;
+    };
+    !matches!(
+        runtime.read.published_function_auth_requirement(name),
+        Some(AuthRequirement::Public | AuthRequirement::OptionalUser)
+    )
+}
+
 fn hosted_route_may_present_session(spec: RouteSpec, effective: EffectiveRoutePolicy) -> bool {
     spec.path != "/auth/family-alarm"
         && (matches!(
@@ -8965,6 +9156,7 @@ fn sender_admission_response(
     response
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn charge_hosted_sender_attempt(
     runtime: &AppState,
     throttle: crate::auth::deployment::HostedAuthenticationThrottle,
@@ -9055,7 +9247,11 @@ async fn charge_hosted_body_auth_attempt(
     if !matches!(spec.path, "/auth/request-code" | "/auth/exchange") {
         return Ok(());
     }
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         return Ok(());
     };
     let now_ms = installed_auth_provider(runtime)
@@ -9078,6 +9274,7 @@ async fn charge_hosted_body_auth_attempt(
 /// @ref LLP 0077#http-binding — canonical target authority comes only from
 /// the provider-authenticated hosted target, and the SQLite replay/nonce cut
 /// completes before any body poll.
+#[allow(clippy::too_many_arguments)]
 async fn admit_hosted_sender_request(
     spec: RouteSpec,
     effective: EffectiveRoutePolicy,
@@ -9088,7 +9285,11 @@ async fn admit_hosted_sender_request(
     nonce_response: SenderNonceResponse,
     effective_source: Option<std::net::IpAddr>,
 ) -> Result<Option<HostedSenderGrantBinding>, Response> {
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         return Ok(None);
     };
     let now_ms = installed_auth_provider(runtime)
@@ -9180,10 +9381,16 @@ async fn admit_hosted_sender_request(
         return Ok(None);
     }
     let presented = presented_session_bearer(&headers);
+    // @ref LLP 0077#http-binding — D-1: the function-level closed
+    // `authRequirement` is hoisted into the route-policy decision here, so an
+    // absent carrier on a route that can never legitimately serve an
+    // anonymous caller refuses before any body poll instead of deferring to
+    // the post-parse function-authority gate.
+    let requires_session_carrier = effective.credential_resolution
+        == CredentialResolution::RequiredSessionBearer
+        || hosted_function_route_requires_session_carrier(spec, request_uri.path(), runtime);
     let bearer = match presented {
-        PresentedSessionBearer::Absent
-            if effective.credential_resolution != CredentialResolution::RequiredSessionBearer =>
-        {
+        PresentedSessionBearer::Absent if !requires_session_carrier => {
             if spec.path == "/connection/open" {
                 charge_hosted_sender_attempt(
                     runtime,
@@ -9313,6 +9520,23 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(effective);
         return apply_registered_response_controls(effective, next.run(request).await);
     }
+    // @ref LLP 0098#81-first-served-origin-run--2026-07-25 — enforce the
+    // operator-surface disablement the admission *attests*. Verifying that a
+    // snapshot says `operatorSurface: disabled` while the routes stay reachable
+    // is an attested fact with no enforcing code behind it, which is worse than
+    // an unverifiable assertion because it looks verified. LLP 0060 C2 defines
+    // the disabled surface as a fixed 404 on the public application origin, so
+    // that is what a hosted deployment serves — before any handler, and
+    // identically for pages and API routes so the response cannot distinguish
+    // a present route from an absent one.
+    if runtime.hosted_serving.is_some()
+        && matches!(spec.class, RouteClass::SystemStatic | RouteClass::SystemApi)
+    {
+        return apply_registered_response_controls(
+            effective,
+            hosted_operator_surface_disabled_response(),
+        );
+    }
     if let Some(error) = auth_app_data_refusal(spec, &runtime) {
         return apply_registered_response_controls(
             effective,
@@ -9356,10 +9580,45 @@ async fn enforce_registered_route_policy(
         .get::<SenderNonceResponse>()
         .cloned()
         .unwrap_or_default();
-    let hosted_effective_source = request
+    // @ref LLP 0098#6-effective-source-under-this-topology — on a hosted
+    // deployment the immediate peer is ALWAYS the in-namespace terminator, so
+    // using it as the effective source would collapse LLP 0060 D3's five-bucket
+    // set onto one bucket and make per-source throttling a fiction. The
+    // derivation is the enforcing code behind the attested
+    // `effectiveSource: trusted`; a local target keeps the raw peer.
+    let peer_ip = request
         .extensions()
         .get::<ConnectInfo<std::net::SocketAddr>>()
         .map(|ConnectInfo(address)| address.ip());
+    let hosted_effective_source = if runtime.hosted_serving.is_some() {
+        let forwarded = {
+            let values = request
+                .headers()
+                .get_all(crate::auth::effective_source::FORWARDED_HEADER)
+                .iter()
+                .collect::<Vec<_>>();
+            // Two headers are a conflict, and a conflict fails closed rather
+            // than letting a caller pick which one the origin believes.
+            match values.as_slice() {
+                [single] => single.to_str().ok().map(str::to_owned),
+                _ => None,
+            }
+        };
+        match crate::auth::effective_source::derive_effective_source(
+            peer_ip,
+            forwarded.as_deref(),
+        ) {
+            Ok(source) => Some(source),
+            Err(error) => {
+                return apply_registered_response_controls(
+                    effective,
+                    ApiError::from(error).into_response(),
+                );
+            }
+        }
+    } else {
+        peer_ip
+    };
     let hosted_sender_admission = match admit_hosted_sender_request(
         spec,
         effective,
@@ -10229,7 +10488,11 @@ fn prepare_sender_issuance(
     request_uri: &axum::http::Uri,
     now_ms: u64,
 ) -> Result<Option<SenderIssuanceCommitment>, ApiError> {
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         if request.sender_constraint.is_some() {
             return Err(sender_issuance_invalid());
         }
@@ -14045,6 +14308,10 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 // prune by TTL, LLP 0013 §TTL and leases).
                 ephemeral.cleanup_expired(now);
             }
+            // Pending-registration owners are swept every tick (5 s, inside
+            // the ≤10 s bound of LLP 0092 §0D.4): a reaped boot leaves no
+            // armed demand and no usable grant.
+            sweep_pending_bundle_owners(&runtime);
             let connections = runtime.connections.clone();
             let retired_idle = if run_maintenance {
                 connections.retire_idle_for_cleanup(now.saturating_sub(CONNECTION_IDLE_TTL_MS))
@@ -14146,8 +14413,18 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
     })
 }
 
-pub fn spawn_cron_scheduler(state: SharedSnapback) -> JoinHandle<()> {
+pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> JoinHandle<()> {
     tokio::spawn(async move {
+        // @ref LLP 0028#scheduler-state-and-run-ledger — SNAPBACK_CRON_DISABLED
+        // / --cron-disabled gates only autonomous claiming, and it gates here
+        // at the loop rather than by dropping definitions: jobs still load,
+        // validate, and inspect, and the admin manual tick still claims and
+        // executes due runs. Returning before the ticker starts keeps the
+        // idle-cost contract trivially (zero periodic work, not merely
+        // zero-lock ticks).
+        if autonomy_disabled {
+            return;
+        }
         // Clone the activity flag once, then poll it lock-free. When no cron
         // jobs are loaded the tick takes the global lock zero times — idle
         // means idle.
@@ -14311,6 +14588,14 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
             serde_json::to_value(runtime.auth_program_readiness())
                 .expect("AuthProgramReadiness is infallibly serializable"),
         );
+    // @ref LLP 0098#41-composition — a hosted deployment publishes the tuple
+    // carried by its *verified* admission; a local target keeps the
+    // all-negative build default. The descriptor is therefore a property of a
+    // verified deployment, not of a binary anyone can download, so an ordinary
+    // `snapback dev` server can never advertise `externalTls: enforced`.
+    if let Some(capabilities) = runtime.hosted_serving_capabilities() {
+        inspect.capability_manifest.hosted_auth = capabilities;
+    }
 }
 
 /// The v0 admin aliases perform system writes, so they share the
@@ -15670,6 +15955,385 @@ async fn invoke_query(
     Ok(Json(FunctionResponse::new(output, attribution)))
 }
 
+/// Interim replay-tuple identities (LLP 0031 dated amendment; see
+/// `BundleReplayScope`): stable projections of the resolved authority pending
+/// sender-constrained custody wiring on this route.
+fn bundle_authority_key(resolved: &ResolvedAppAuthority) -> String {
+    match resolved {
+        ResolvedAppAuthority::Anonymous => "anonymous".to_owned(),
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => format!("dev:{user_id}"),
+        ResolvedAppAuthority::Session { user_id, .. } => format!("session:{user_id}"),
+        ResolvedAppAuthority::ServicePrincipal { actor_user_id, .. } => {
+            format!("service:{actor_user_id}")
+        }
+        ResolvedAppAuthority::AdminBypass { .. } => "admin".to_owned(),
+        ResolvedAppAuthority::System => "system".to_owned(),
+    }
+}
+
+fn bundle_sender_identity(resolved: &ResolvedAppAuthority) -> (String, u64) {
+    match resolved {
+        ResolvedAppAuthority::Anonymous => ("anonymous".to_owned(), 0),
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => (format!("dev:{user_id}"), 0),
+        ResolvedAppAuthority::Session {
+            session_id,
+            authority_instance_id,
+            generation,
+            ..
+        } => (
+            format!("session:{authority_instance_id}:{session_id}"),
+            *generation,
+        ),
+        ResolvedAppAuthority::ServicePrincipal {
+            credential_id,
+            token_id,
+            credential_generation,
+            ..
+        } => (
+            format!("service:{credential_id}:{token_id}"),
+            *credential_generation,
+        ),
+        ResolvedAppAuthority::AdminBypass { reason } => (format!("admin:{reason}"), 0),
+        ResolvedAppAuthority::System => ("system".to_owned(), 0),
+    }
+}
+
+/// Reap a pending-registration connection: registry removal with terminal
+/// capture, which the retirement sink turns into full ephemeral + local
+/// topology teardown — demand disarmed, capacity released, grant invalidated
+/// (LLP 0092 §0D.4).
+fn bundle_reap_connection(runtime: &AppState, connection_id: String, grant_id: String) {
+    if let Some(capture) = runtime
+        .connections
+        .retire_bundle_connection(&connection_id, &grant_id)
+    {
+        runtime.connections.publish_retirement(capture);
+    }
+}
+
+fn bundle_refusal(code: &'static str, message: &str) -> ApiError {
+    ApiError::from(SnapbackError::error(code, "realtime", message.to_owned()))
+}
+
+/// The attach-grace window (LLP 0092 §0D.4: 30 s default, a server policy
+/// knob — overridable so acceptance suites can exercise reaping without a
+/// 30-second wait).
+fn bundle_attach_grace_ms() -> u64 {
+    std::env::var("SNAPBACK_BUNDLE_ATTACH_GRACE_MS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(crate::bundle::BUNDLE_ATTACH_GRACE_MS)
+}
+
+/// Reap every pending-registration owner past its attach deadline. The
+/// maintenance worker calls this every tick; it is public so the acceptance
+/// suite can drive the sweep deterministically. Returns the number reaped.
+pub fn sweep_pending_bundle_owners(runtime: &AppState) -> usize {
+    let now = now_millis();
+    let reaped = runtime.bundle_pending.sweep(now);
+    let count = reaped.len();
+    for (connection_id, grant_id) in reaped {
+        bundle_reap_connection(runtime, connection_id, grant_id);
+    }
+    count
+}
+
+/// `POST /app/bundle` — the snapshot bundle endpoint (LLP 0090 D1.2 rollout
+/// step 2; the contract is LLP 0092 §0D). Read mode evaluates a manifest
+/// entry's queries at one commit cut and creates no server state; register
+/// mode additionally arms the pending-registration owner of the LLP 0031
+/// dated amendment — the one sanctioned socketless-demand exception.
+async fn app_bundle(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    input: Result<Json<crate::bundle::BundleRequest>, JsonRejection>,
+) -> Result<Json<crate::bundle::BundleResponse>, ApiError> {
+    use crate::bundle::{self, BundleMode, RegisterAdmission, code};
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let mode = bundle::validate_mode(request.mode.as_deref(), request.idempotency_key.as_deref())
+        .map_err(|code| {
+        bundle_refusal(code, "bundle mode/idempotency-key combination refused")
+    })?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_key = bundle_authority_key(authority.resolved());
+    runtime
+        .bundle_pending
+        .admit_rate(&authority_key, epoch_now_ms)
+        .map_err(|code| bundle_refusal(code, "per-authority bundle request rate exceeded"))?;
+    // Route resolution (LLP 0092 §0C.1, ENG-25448 landed): while a route
+    // manifest is served it is the only source of entries and the inline
+    // `devManifestEntry` dev/test form refuses by design; without one the
+    // inline form is required. Anonymous reads additionally require every
+    // named query to carry the codegen-compiled `publicInline` fact in the
+    // served functions manifest (§0D.1's NOT_PUBLIC gate — the fact check is
+    // server-side, never the route-manifest author's word).
+    let anonymous_read =
+        mode == BundleMode::Read && matches!(authority.resolved(), ResolvedAppAuthority::Anonymous);
+    let entry = {
+        let route = request.route.clone();
+        let dev_entry = request.dev_manifest_entry.clone();
+        with_snapback(&state, move |snapback| {
+            let entry = snapback.resolve_bundle_route(&route, dev_entry.as_ref())?;
+            if anonymous_read && !snapback.bundle_entry_public_inline(&entry) {
+                return Err(SnapbackError::error(
+                    code::NOT_PUBLIC,
+                    "realtime",
+                    "anonymous bundle reads require a publicInline-class route".to_owned(),
+                ));
+            }
+            Ok(entry)
+        })
+        .await
+        .map_err(ApiError::from)?
+    };
+    let route = request.route.clone();
+    let params = request.params.clone();
+    let auth = request.auth.clone();
+    match mode {
+        BundleMode::Read => {
+            let response = with_snapback(&state, move |snapback| {
+                snapback.evaluate_bundle(&entry, &params, &route, &auth, &authority, None)
+            })
+            .await
+            .map_err(ApiError::from)?;
+            Ok(Json(response))
+        }
+        BundleMode::Register => {
+            if !authority.resolved().carries_user() {
+                // Refused explicitly so the client retries in read mode —
+                // never a silent mode substitution (LLP 0092 §0D.2).
+                return Err(bundle_refusal(
+                    code::REGISTER_REQUIRES_CREDENTIAL,
+                    "register mode requires a credentialed caller; retry in read mode",
+                ));
+            }
+            let key = request
+                .idempotency_key
+                .clone()
+                .expect("register mode validated the key present");
+            let generation = with_snapback(&state, |snapback| snapback.rqs_generation_digest())
+                .await
+                .map_err(ApiError::from)?;
+            let (sender_identity, credential_incarnation) =
+                bundle_sender_identity(authority.resolved());
+            let identity_of = |value: serde_json::Value| {
+                crate::rqs::sha256_identity(&value).map_err(|_| {
+                    bundle_refusal(
+                        code::ENTRY_INVALID,
+                        "bundle entry is not canonically hashable",
+                    )
+                })
+            };
+            let entry_identity =
+                identity_of(serde_json::to_value(&entry).unwrap_or(serde_json::Value::Null))?;
+            let args_identity = identity_of(serde_json::json!({
+                "route": route,
+                "params": params,
+            }))?;
+            let scope = bundle::BundleReplayScope {
+                authority_key,
+                sender_identity,
+                credential_incarnation,
+                generation,
+                entry_identity,
+                args_identity,
+            };
+            let admission_outcome = runtime
+                .bundle_pending
+                .begin_register(&key, &scope)
+                .map_err(|code| bundle_refusal(code, "bundle idempotency-key admission refused"))?;
+            match admission_outcome {
+                RegisterAdmission::New => {
+                    let presented = presented_session_bearer(&headers);
+                    let prepared_open = match prepare_connection_open_authority_with_scoped_token(
+                        &runtime,
+                        presented,
+                        epoch_now_ms,
+                        monotonic_now,
+                        None,
+                    )
+                    .await
+                    {
+                        Ok(prepared_open) => prepared_open,
+                        Err(error) => {
+                            runtime.bundle_pending.abandon_register(&key);
+                            return Err(error);
+                        }
+                    };
+                    // Atomic mint (LLP 0031 amendment): the grant is
+                    // discarded on any downstream failure, so a failed
+                    // bundle mints nothing and strands no server state.
+                    let opened =
+                        match runtime
+                            .connections
+                            .open_prepared(ConnectionOpenAttempt::new(
+                                None,
+                                None,
+                                false,
+                                prepared_open.clone(),
+                                epoch_now_ms,
+                                monotonic_now,
+                                None,
+                            )) {
+                            Ok(opened) => opened,
+                            Err(error) => {
+                                runtime.bundle_pending.abandon_register(&key);
+                                return Err(ApiError::from(error));
+                            }
+                        };
+                    let target = crate::local::BundleRegisterTarget {
+                        connection_id: opened.grant.connection_id.clone(),
+                        effect_fence: prepared_open.bound.effect_fence(&opened.grant_id),
+                        invalidation_connection: opened.grant.authorization_invalidation.clone(),
+                    };
+                    let evaluated = {
+                        let entry = entry.clone();
+                        let params = params.clone();
+                        let route = route.clone();
+                        let auth = auth.clone();
+                        let authority = authority.clone();
+                        let target = target.clone();
+                        with_snapback(&state, move |snapback| {
+                            snapback.evaluate_bundle(
+                                &entry,
+                                &params,
+                                &route,
+                                &auth,
+                                &authority,
+                                Some(target),
+                            )
+                        })
+                        .await
+                    };
+                    let mut response = match evaluated {
+                        Ok(response) => response,
+                        Err(error) => {
+                            runtime.connections.discard_unpublished_open(&opened);
+                            runtime.bundle_pending.abandon_register(&key);
+                            return Err(ApiError::from(error));
+                        }
+                    };
+                    let attach_deadline = epoch_now_ms + bundle_attach_grace_ms();
+                    runtime
+                        .bundle_pending
+                        .commit_register(bundle::PendingRegistrationOwner {
+                            idempotency_key: key,
+                            scope,
+                            connection_id: opened.grant.connection_id.clone(),
+                            grant_id: opened.grant_id.clone(),
+                            subscription_ids: response
+                                .entries
+                                .iter()
+                                .filter_map(|entry| entry.subscription_id.clone())
+                                .collect(),
+                            attach_deadline_ms: attach_deadline,
+                        });
+                    runtime
+                        .ephemeral
+                        .touch_connection(&opened.grant.connection_id);
+                    response.connection = Some(bundle::BundleConnection {
+                        connection_id: opened.grant.connection_id.clone(),
+                        grant: opened.grant.connection_token.clone(),
+                        attach_deadline,
+                    });
+                    Ok(Json(response))
+                }
+                RegisterAdmission::Replay {
+                    connection_id,
+                    grant_id,
+                } => {
+                    // Lost-response retry: atomically supersede the pending
+                    // set — fresh evaluation at a new commit cut, the same
+                    // connection identity, a freshly rotated grant secret.
+                    let token = runtime
+                        .connections
+                        .rotate_grant_token(&connection_id, &grant_id)
+                        .map_err(ApiError::from)?;
+                    let Some((effect_fence, invalidation_connection)) = runtime
+                        .connections
+                        .bundle_register_identity(&connection_id, &grant_id)
+                    else {
+                        runtime
+                            .bundle_pending
+                            .resolve_key(&key, bundle::PendingResolution::Reaped);
+                        return Err(bundle_refusal(
+                            code::IDEMPOTENCY_EXPIRED,
+                            "the pending connection is no longer installed",
+                        ));
+                    };
+                    let target = crate::local::BundleRegisterTarget {
+                        connection_id: connection_id.clone(),
+                        effect_fence,
+                        invalidation_connection,
+                    };
+                    let evaluated = {
+                        let entry = entry.clone();
+                        let params = params.clone();
+                        let route = route.clone();
+                        let auth = auth.clone();
+                        let authority = authority.clone();
+                        let target = target.clone();
+                        with_snapback(&state, move |snapback| {
+                            // Supersede under the same local cut: purge the
+                            // prior pending set, then register afresh.
+                            snapback.purge_connection_topology(
+                                &target.connection_id,
+                                &target.effect_fence,
+                            );
+                            snapback.evaluate_bundle(
+                                &entry,
+                                &params,
+                                &route,
+                                &auth,
+                                &authority,
+                                Some(target.clone()),
+                            )
+                        })
+                        .await
+                    };
+                    match evaluated {
+                        Ok(mut response) => {
+                            let attach_deadline = epoch_now_ms + bundle_attach_grace_ms();
+                            runtime.bundle_pending.commit_register(
+                                bundle::PendingRegistrationOwner {
+                                    idempotency_key: key,
+                                    scope,
+                                    connection_id: connection_id.clone(),
+                                    grant_id,
+                                    subscription_ids: response
+                                        .entries
+                                        .iter()
+                                        .filter_map(|entry| entry.subscription_id.clone())
+                                        .collect(),
+                                    attach_deadline_ms: attach_deadline,
+                                },
+                            );
+                            response.connection = Some(bundle::BundleConnection {
+                                connection_id,
+                                grant: token,
+                                attach_deadline,
+                            });
+                            Ok(Json(response))
+                        }
+                        Err(error) => {
+                            // The prior set is already purged; a failed
+                            // supersede reaps the owner entirely so the
+                            // client starts a fresh boot with a new key.
+                            bundle_reap_connection(&runtime, connection_id, grant_id);
+                            runtime
+                                .bundle_pending
+                                .resolve_key(&key, bundle::PendingResolution::Reaped);
+                            Err(ApiError::from(error))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Run a fresh full query, sign outside the app lock (preserving the global
 /// provider-before-app lock order), then reacquire the app lane for one exact
 /// head/auth/activation/no-pending reservation transaction.
@@ -16427,6 +17091,25 @@ async fn stream_live(
     {
         return error.into_response();
     }
+    // Pending-registration attach (LLP 0031 dated amendment): a socket
+    // presenting the grant inside the grace window takes atomic handoff of
+    // the pending registrations (the owner resolves and its idempotency
+    // key's replay validity ends); past `attachDeadline` the attach is
+    // refused exactly, regardless of reaper timing, and the owner is reaped.
+    match runtime
+        .bundle_pending
+        .mark_attached(&connection_id, epoch_now_ms)
+    {
+        crate::bundle::AttachOutcome::Expired { grant_id } => {
+            bundle_reap_connection(&runtime, connection_id.clone(), grant_id);
+            return bundle_refusal(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "the pending-registration attach deadline has passed",
+            )
+            .into_response();
+        }
+        crate::bundle::AttachOutcome::Attached | crate::bundle::AttachOutcome::NotPending => {}
+    }
     // Select the negotiated subprotocol when offered (a browser fails the
     // connection if it offered subprotocols and the server echoed none).
     ws.max_message_size(MAX_LIVE_SOCKET_FRAME_BYTES)
@@ -16772,7 +17455,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // treats its nonce as consumed-unknown and resynchronizes through the
     // bounded challenge.
     if let Some(nonce) = &sender_successor_nonce {
-        let frame = serde_json::json!({ "kind": "sender_nonce", "nonce": nonce }).to_string();
+        let frame = serde_json::to_string(&crate::live_wire::LiveSocketServerFrame::SenderNonce {
+            nonce: nonce.clone(),
+        })
+        .expect("sender-nonce frame serializes");
         if SinkExt::send(&mut sender, Message::Text(frame.into()))
             .await
             .is_err()
@@ -18495,10 +19181,18 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 }
 
 /// Outbox drain reaches the room authority directly — no global mutex (L9).
-/// The drain is destructive (a bearerless drain was the ENG-23442 data-theft
-/// vector), so it demands the connection token like every connection-scoped
-/// operation; polling clients may pass it as `?connection_token=` when headers
-/// are inconvenient.
+/// The drain is a leased batch with an ownership-transfer cut (LLP 0059):
+/// entries are selected without removal, removed only once ownership transfer
+/// is accepted, and released — possibly redelivered — when a drain is
+/// cancelled before the cut. Because an accepted drain hands the batch over
+/// permanently (a bearerless drain was the ENG-23442 data-theft vector), it
+/// demands the connection token like every connection-scoped operation.
+/// Decision (LLP 0095 §4, the LLP 0093 P-1 pin): the `?connection_token=`
+/// query carrier is RETAINED as a constrained dev-arm affordance — rejected
+/// under sessions mode, header/subprotocol carriage is the conformant path.
+///
+/// @ref LLP 0059#durable-and-ephemeral-outboxes — leased selection,
+///   acknowledged removal at the ownership cut, redelivery on cancellation.
 async fn drain_outbox(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -19067,6 +19761,33 @@ impl From<SnapbackError> for ApiError {
 /// unrecognized code fails conservatively as 500 so a runtime/storage failure
 /// can never silently masquerade as bad input (ENG-24357).
 fn status_for_diagnostic_code(code: &str) -> StatusCode {
+    // @ref LLP 0092#0d1-route-and-schemas-finalizing-0090-d12s-provisional-shape —
+    //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
+    //   statuses advisory).
+    match code {
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_BUNDLE_NOT_PUBLIC"
+        | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
+        | "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH" => StatusCode::FORBIDDEN,
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH" | "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED" => {
+            StatusCode::CONFLICT
+        }
+        "SNAPBACK_BUNDLE_LIMIT_QUERIES"
+        | "SNAPBACK_BUNDLE_LIMIT_ROWS"
+        | "SNAPBACK_BUNDLE_LIMIT_BYTES"
+        | "SNAPBACK_BUNDLE_LIMIT_TIME" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_BUNDLE_RATE_LIMITED" | "SNAPBACK_BUNDLE_PENDING_CAPACITY" => {
+            StatusCode::TOO_MANY_REQUESTS
+        }
+        "SNAPBACK_BUNDLE_PARAMS_INVALID"
+        | "SNAPBACK_BUNDLE_MODE_INVALID"
+        | "SNAPBACK_BUNDLE_ENTRY_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_BUNDLE_QUERY_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
+        _ => status_for_established_diagnostic_code(code),
+    }
+}
+
+fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
@@ -19128,6 +19849,18 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
+        | "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        | "SNAPBACK_MIGRATION_PLAN_STALE"
+        | "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE"
+        | "SNAPBACK_MIGRATION_EXECUTOR_STALE"
+        | "SNAPBACK_MIGRATION_CANCELLED"
+        | "SNAPBACK_MIGRATION_STEP_FAILED"
+        | "SNAPBACK_MIGRATION_VERIFICATION_FAILED"
+        | "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE"
+        | "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE"
+        | "SNAPBACK_MIGRATION_RESYNC_REQUIRED"
+        | "SNAPBACK_MIGRATION_UPGRADE_REQUIRED"
+        | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -19164,6 +19897,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
         | "SNAPBACK_MEMBERSHIP_READ_PRIVATE"
         | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
+        // LLP 0065: profile-class admission — an authenticated principal
+        // that projects no user subject is refused after the auth gate.
+        | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
+        // LLP 0081 §2: apply without a binding authenticated approval.
+        | "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
@@ -19263,6 +20001,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_RESERVATION_STALE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE"
+        | "SNAPBACK_AUTH_SOURCE_UNTRUSTED"
         | "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE"
         | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
         | "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN"
@@ -19282,6 +20021,16 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_STORAGE_VERSION_CORRUPT"
         | "SNAPBACK_STORAGE_VERSION_EXHAUSTED"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
+        // LLP 0080 §2: a full page must carry its continuation, so an
+        // unmintable cursor is a transient serving failure, not a terminal
+        // page silently lied about.
+        | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
+        // LLP 0081 §4: the persisted fence and barrier failures are
+        // transient serving refusals — the barrier clears at a terminal
+        // journal state.
+        | "SNAPBACK_MIGRATION_FENCE_CLOSED"
+        | "SNAPBACK_MIGRATION_BARRIER_FAILED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
         // application-handler diagnostics. Adding a new code does not add it
@@ -19291,6 +20040,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_ACTION_STREAM_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
+        | "SNAPBACK_PUBLIC_INLINE_INVALID"
+        | "SNAPBACK_ROUTES_MANIFEST_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE"
@@ -19479,6 +20230,25 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_SOURCE_INVALID"
         // LLP 0080 slice 1: a malformed relational plan is author input.
         | "SNAPBACK_RELATIONAL_PLAN_INVALID"
+        // LLP 0065 §1: a HostPlan whose observed operations exceed its
+        // admitted EffectCeilingV1 is a doctored/under-declared artifact.
+        | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+        // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
+        // deferred retained-work posture are author input.
+        | "SNAPBACK_MIGRATION_PLAN_INVALID"
+        | "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED"
+        | "SNAPBACK_MIGRATION_TARGET_MISMATCH"
+        // LLP 0080 §5: maintained-projection artifact and mutation
+        // refusals — malformed plans, unprovable write budgets, output
+        // fences, and maintenance invariants (null/moved output keys).
+        // (The privileged scan's plan refusals share the LLP 0081 §2/§3
+        // SNAPBACK_MIGRATION_PLAN_INVALID arm above.)
+        | "SNAPBACK_PROJECTION_PLAN_INVALID"
+        | "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"
+        | "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"
+        | "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED"
+        | "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED"
+        | "SNAPBACK_PROJECTION_MAINTENANCE_INVALID"
         | "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
@@ -19486,6 +20256,14 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_QUERY_LIMIT_INVALID"
         | "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_UNKNOWN_INDEX"
+        | "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"
+        // LLP 0080 §2: one uniform cursor refusal for all six classes —
+        // malformed, cross-plan, cross-argument-set, cross-authority,
+        // stale-authority, order-schema-invalid — never repositioned.
+        | "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        // LLP 0065: the standard-pattern keyset cursor's collapsed refusal —
+        // malformed, cross-plan, and cross-owner are byte-indistinguishable.
+        | "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
@@ -19726,7 +20504,15 @@ mod tests {
     }
 
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
+        auth_runtime_fixture_with(mode, |_| {})
+    }
+
+    fn auth_runtime_fixture_with(
+        mode: PolicyAuthMode,
+        prepare: impl FnOnce(&mut LocalSnapback),
+    ) -> (AppState, String) {
         let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
+        prepare(&mut snapback);
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         activate_catalog(
             snapback.auth_database_mut(),
@@ -20173,6 +20959,7 @@ mod tests {
                             query_instance_id: 500 + query_instance_id,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -20548,6 +21335,7 @@ globalThis.__snapbackHandlers = {
                 .method(method)
                 .uri(uri)
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .header("x-snapback-auth-invalidation-protocol", "1")
                 .header("x-snapback-connection-token", &connection_token);
             let body = if let Some(body) = body {
@@ -21631,6 +22419,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .body(body)
                 .expect("matrix finite bearer request")
         };
@@ -21660,6 +22449,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::empty())
                     .expect("matrix auth/session request"),
@@ -21732,6 +22522,7 @@ globalThis.__snapbackHandlers = {
                         .uri(format!("/outbox/{connection_id}"))
                         .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                         .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .expect("matrix connection act request"),
                     None,
@@ -22051,6 +22842,7 @@ globalThis.__snapbackHandlers = {
                             query_instance_id: 9_002,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     authority,
                     LiveInvalidationAdmission {
@@ -22690,7 +23482,15 @@ globalThis.__snapbackHandlers = {
         if let Some(impersonation) = impersonation {
             builder = builder.header(IMPERSONATION_CAPABILITY_HEADER, impersonation);
         }
-        builder.body(Body::from(body)).expect("auth HTTP request")
+        // Every auth-surface test request is stamped with the terminator
+        // facts. A hosted target requires them (see `via_hosted_terminator`);
+        // a local target derives its source from the peer and ignores the
+        // forwarded header, so for local tests this doubles as proof that a
+        // client-spoofed header carries no authority.
+        via_hosted_terminator(
+            builder.body(Body::from(body)).expect("auth HTTP request"),
+            TEST_HOSTED_CLIENT_SOURCE,
+        )
     }
 
     fn offer_auth_client_protocol(request: &mut Request<Body>) {
@@ -22698,6 +23498,57 @@ globalThis.__snapbackHandlers = {
             HeaderName::from_static("x-snapback-auth-client-protocol"),
             HeaderValue::from_static("1"),
         );
+    }
+
+    /// The one simulated end-client address for hosted tests whose intent is
+    /// a single source. Tests about per-source bucket identity pass their own
+    /// distinct-or-shared addresses instead.
+    const TEST_HOSTED_CLIENT_SOURCE: &str = "198.51.100.7";
+
+    /// Stamp onto a request the two facts the in-namespace TLS terminator
+    /// supplies on every real hosted request: a loopback immediate peer and
+    /// exactly one `x-forwarded-for` naming the end client.
+    ///
+    /// @ref LLP 0098#6-effective-source-under-this-topology — under loopback
+    /// termination the immediate peer is ALWAYS the terminator, so a hosted
+    /// request without the terminator-supplied header fails closed
+    /// (SNAPBACK_AUTH_SOURCE_UNTRUSTED); falling back to the peer instead
+    /// would collapse LLP 0060 D3's five throttle buckets onto one source.
+    /// Tests must therefore supply what the terminator supplies, choosing one
+    /// source per simulated client.
+    fn via_hosted_terminator(mut request: Request<Body>, client_source: &str) -> Request<Body> {
+        request.headers_mut().insert(
+            HeaderName::from_static(crate::auth::effective_source::FORWARDED_HEADER),
+            HeaderValue::from_str(client_source).expect("hosted client source header"),
+        );
+        request.extensions_mut().insert(ConnectInfo(
+            "127.0.0.1:443"
+                .parse::<std::net::SocketAddr>()
+                .expect("loopback terminator peer"),
+        ));
+        request
+    }
+
+    /// Builder-chain form of [`via_hosted_terminator`]. Unlike the request
+    /// form (whose `insert` replaces), the builder form *appends* the header,
+    /// so apply it exactly once per chain — a duplicated header is a conflict
+    /// and fails closed by design.
+    trait ViaHostedTerminator {
+        fn via_hosted_terminator(self, client_source: &str) -> Self;
+    }
+
+    impl ViaHostedTerminator for axum::http::request::Builder {
+        fn via_hosted_terminator(self, client_source: &str) -> Self {
+            self.header(
+                crate::auth::effective_source::FORWARDED_HEADER,
+                client_source,
+            )
+            .extension(ConnectInfo(
+                "127.0.0.1:443"
+                    .parse::<std::net::SocketAddr>()
+                    .expect("loopback terminator peer"),
+            ))
+        }
     }
 
     fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<Body> {
@@ -22827,7 +23678,7 @@ globalThis.__snapbackHandlers = {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         let prepared = |user_id: &str| {
             InvocationGate::prepare_admitted_authority(
-                InvocationSource::StandaloneAcknowledgement,
+                InvocationSource::MutationSettlementAcknowledgement,
                 AuthMode::Dev,
                 ServerProfile::Test,
                 state.auth_admission_controller().admit_dev().unwrap(),
@@ -22929,6 +23780,7 @@ globalThis.__snapbackHandlers = {
                 Request::builder()
                     .uri("/auth/session")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -23122,6 +23974,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "99")
                     .body(Body::empty())
                     .unwrap(),
@@ -23490,6 +24343,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{}}"#))
                     .expect("predecessor bearer query"),
             )
@@ -24136,6 +24990,7 @@ globalThis.__snapbackHandlers = {
                         })
                         .uri(uri)
                         .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -24170,6 +25025,7 @@ globalThis.__snapbackHandlers = {
                 Request::builder()
                     .uri("/inspect")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -24445,6 +25301,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/mutation/does-not-exist")
                     .header(header::CONTENT_TYPE, "application/json")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{},"clientMutationId":"queued-1"}"#))
                     .unwrap(),
             )
@@ -24459,6 +25316,125 @@ globalThis.__snapbackHandlers = {
         assert_eq!(body["diagnostic"]["details"]["capability"], "queuedReplay");
     }
 
+    /// LLP 0096 §8.1 P-3 regression: the invalidation-ack routes are owned by
+    /// the authorization-invalidation program (LLP 0059 item 6). In the
+    /// readiness interval where item 6 is ready but the authority-descriptor
+    /// program (item 7) is not, a client offering only the invalidation
+    /// protocol — no `x-snapback-authority-descriptor-protocol` header — must
+    /// still discharge invalidation obligations; only mutation settlement
+    /// remains descriptor-bound.
+    #[tokio::test]
+    async fn invalidation_ack_routes_do_not_require_the_authority_descriptor_plane() {
+        let state = sessions_activation_server_fixture_async().await;
+        let settled = state.auth_mode_state().as_ref().clone();
+        let state = state
+            .with_auth_runtime_facts(
+                settled,
+                AuthProgramReadiness::new(true, true, true, true, true, false, false),
+            )
+            .expect("install item-6 sessions posture");
+        let credential = mint_test_credential(&state, "invalidation-ack-item6@example.com").await;
+        let bearer = credential["token"].as_str().expect("bearer").to_owned();
+        let router = app(state.clone());
+
+        let opened = router
+            .clone()
+            .oneshot(connection_open_request(
+                Some(&bearer),
+                json!({ "authInvalidationProtocol": 1 }),
+            ))
+            .await
+            .expect("open invalidation-negotiated connection");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"].as_str().expect("connection id");
+        let connection_token = opened["connectionToken"]
+            .as_str()
+            .expect("connection token");
+        assert_eq!(opened["authorizationInvalidation"]["protocolVersion"], 1);
+
+        let invalidation_only_request = |uri: &str, body: Value| {
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-auth-invalidation-protocol", "1")
+                .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                .body(Body::from(serde_json::to_vec(&body).expect("body")))
+                .expect("invalidation-only request")
+        };
+
+        let acknowledged = router
+            .clone()
+            .oneshot(invalidation_only_request(
+                "/live/authorization-invalidation/acknowledge",
+                json!({ "connectionId": connection_id, "ackToken": "no_pending_obligation" }),
+            ))
+            .await
+            .expect("acknowledge without descriptor offer");
+        let acknowledged_status = acknowledged.status();
+        let acknowledged = response_json(acknowledged).await;
+        assert_eq!(
+            acknowledged_status,
+            StatusCode::OK,
+            "item-6 clients must reach the acknowledge handler without the \
+             descriptor plane: {acknowledged}"
+        );
+        assert_eq!(acknowledged["outcome"], "stale");
+
+        let retried = router
+            .clone()
+            .oneshot(invalidation_only_request(
+                "/live/authorization-invalidation/manual-retry",
+                json!({
+                    "connectionId": connection_id,
+                    "subscriptionId": "missing_subscription",
+                    "manualRetryId": "item6_retry",
+                }),
+            ))
+            .await
+            .expect("manual retry without descriptor offer");
+        let retried = response_json(retried).await;
+        assert_eq!(
+            retried["diagnostic"]["code"], "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
+            "manual retry must pass the policy gate and fail only on the \
+             unknown subscription: {retried}"
+        );
+
+        // Mutation settlement stays descriptor-bound: the same
+        // invalidation-only client is refused on the queued-replay plane.
+        let settlement = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/client-mutations/acknowledge")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .header("x-snapback-auth-invalidation-protocol", "1")
+                    .body(Body::from(
+                        serde_json::to_vec(&json!({ "clientMutationIds": [] })).expect("body"),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("settlement acknowledgement without descriptor offer");
+        assert_eq!(settlement.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let settlement = response_json(settlement).await;
+        assert_eq!(
+            settlement["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            settlement["diagnostic"]["details"]["capability"],
+            "queuedReplay"
+        );
+    }
+
     #[tokio::test]
     async fn authorized_lease_route_requires_readiness_and_exact_protocol_offer() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
@@ -24471,6 +25447,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .header("x-snapback-auth-invalidation-protocol", "1");
             if let Some(lease_protocol) = lease_protocol {
                 builder = builder.header("x-snapback-authorized-lease-protocol", lease_protocol);
@@ -24806,6 +25783,76 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    /// The first served-origin run found `/_snapback/*` answering 503 while the
+    /// admission attested `operatorSurface: "disabled"` — an attested fact with
+    /// no enforcing code behind it. This pins the enforcement.
+    ///
+    /// @ref LLP 0098#81-first-served-origin-run--2026-07-25
+    #[tokio::test]
+    async fn hosted_admission_enforces_the_operator_surface_it_attests() {
+        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let state = state
+            .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
+            .expect("install hosted serving authority");
+        let router = app(state);
+
+        // Every operator route is a fixed, body-free 404 — including with a
+        // valid admin token, and identically for pages and API routes so the
+        // response cannot distinguish a present route from an absent one.
+        // NOTE: the method must match each route's registration. A
+        // method-mismatched request is rejected by axum's method router with
+        // 405 *before* this middleware runs, so a wrong-method probe still
+        // distinguishes a present operator route from an absent one. That
+        // residual is recorded in LLP 0098 §8.1 rather than papered over here.
+        for (method, path) in [
+            ("GET", "/_snapback/admin"),
+            ("GET", "/_snapback/api/inspect"),
+            ("POST", "/_snapback/api/schema/load"),
+        ] {
+            let disabled = router
+                .clone()
+                .oneshot(via_hosted_terminator(
+                    Request::builder()
+                        .method(method)
+                        .uri(path)
+                        .header("x-snapback-admin-token", "auth-http-admin")
+                        .body(Body::empty())
+                        .unwrap(),
+                    TEST_HOSTED_CLIENT_SOURCE,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(
+                disabled.status(),
+                StatusCode::NOT_FOUND,
+                "{path} must be a fixed 404 under an attested disabled operator surface"
+            );
+            let body = axum::body::to_bytes(disabled.into_body(), usize::MAX)
+                .await
+                .expect("read disabled operator body");
+            assert!(body.is_empty(), "{path} must expose no body");
+        }
+
+        // The capability projection stays reachable: disabling the operator
+        // surface must not also hide the descriptor a hosted deployment
+        // publishes about itself.
+        let inspect = router
+            .clone()
+            .oneshot(via_hosted_terminator(
+                Request::builder()
+                    .uri("/inspect")
+                    .header("x-snapback-admin-token", "auth-http-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+                TEST_HOSTED_CLIENT_SOURCE,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(inspect.status(), StatusCode::OK);
+    }
+
     #[tokio::test]
     async fn hosted_auth_configuration_is_fail_closed_in_embedded_composition() {
         let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
@@ -24896,6 +25943,7 @@ globalThis.__snapbackHandlers = {
                     .method("POST")
                     .uri("/auth/refresh")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("absent sender carrier request"),
             )
@@ -24916,6 +25964,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh?attacker=query")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("hosted sender challenge request"),
             )
@@ -24947,6 +25996,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, "not-a-compact-proof")
                     .body(Body::new(PanicOnPollBody))
                     .expect("malformed sender proof request"),
@@ -24974,6 +26024,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, "one")
                     .header(super::SENDER_PROOF_HEADER, "two")
                     .body(Body::new(PanicOnPollBody))
@@ -25029,20 +26080,17 @@ globalThis.__snapbackHandlers = {
             .expect("install hosted throttle authority");
         let router = app(state.clone());
         let request = || {
-            let mut request = Request::builder()
+            // One client, one source: the denial debt charged here must land
+            // in the GLOBAL bucket (the per-source policy is generous).
+            Request::builder()
                 .method("POST")
                 .uri("/auth/refresh")
                 .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator("192.0.2.10")
                 .header(super::SENDER_PROOF_HEADER, "not-a-compact-proof")
                 .body(Body::new(PanicOnPollBody))
-                .expect("hosted throttled sender request");
-            request.extensions_mut().insert(ConnectInfo(
-                "192.0.2.10:443"
-                    .parse::<std::net::SocketAddr>()
-                    .expect("test effective source"),
-            ));
-            request
+                .expect("hosted throttled sender request")
         };
 
         let first = router
@@ -25137,11 +26185,9 @@ globalThis.__snapbackHandlers = {
             None,
         );
         offer_auth_client_protocol(&mut request_code);
-        request_code.extensions_mut().insert(ConnectInfo(
-            "192.0.2.20:443"
-                .parse::<std::net::SocketAddr>()
-                .expect("request-code effective source"),
-        ));
+        // Distinct from the exchange sources below: the assertion is that the
+        // SUBJECT bucket keys on the challenge id across different sources.
+        let request_code = via_hosted_terminator(request_code, "192.0.2.20");
         let request_code = router
             .clone()
             .oneshot(request_code)
@@ -25178,17 +26224,12 @@ globalThis.__snapbackHandlers = {
                 None,
             );
             offer_auth_client_protocol(&mut request);
-            request.extensions_mut().insert(ConnectInfo(
-                source
-                    .parse::<std::net::SocketAddr>()
-                    .expect("exchange effective source"),
-            ));
-            request
+            via_hosted_terminator(request, source)
         };
 
         let invalid_proof = router
             .clone()
-            .oneshot(exchange("192.0.2.21:443"))
+            .oneshot(exchange("192.0.2.21"))
             .await
             .expect("first exchange reaches sender proof verification");
         assert_eq!(invalid_proof.status(), StatusCode::UNAUTHORIZED);
@@ -25198,7 +26239,9 @@ globalThis.__snapbackHandlers = {
         );
 
         let denied = router
-            .oneshot(exchange("192.0.2.22:443"))
+            // A different source again: only the shared subject key can carry
+            // the denial debt from the first exchange to this one.
+            .oneshot(exchange("192.0.2.22"))
             .await
             .expect("second exchange denied by shared subject bucket");
         assert_eq!(denied.status(), StatusCode::TOO_MANY_REQUESTS);
@@ -25249,13 +26292,9 @@ globalThis.__snapbackHandlers = {
             .expect("install hosted source throttle authority");
         let router = app(state);
         let request = || {
-            let mut request = connection_open_request(None, json!({}));
-            request.extensions_mut().insert(ConnectInfo(
-                "192.0.2.30:443"
-                    .parse::<std::net::SocketAddr>()
-                    .expect("connection-open effective source"),
-            ));
-            request
+            // The SAME source both times: the second open must be denied by
+            // the per-source admission bucket the first one consumed.
+            via_hosted_terminator(connection_open_request(None, json!({})), "192.0.2.30")
         };
 
         let admitted = router
@@ -25274,6 +26313,210 @@ globalThis.__snapbackHandlers = {
             response_json(denied).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_THROTTLED",
         );
+    }
+
+    /// Hosted sessions fixture with published functions across the closed
+    /// `authRequirement` range: `listNotes`/`appendNote` are `authenticated`
+    /// (the LLP 0077 D-1 probe shape), `listOptionalNotes` keeps the
+    /// `optional-user` default, and `listPublicNotes` is declared `public`.
+    fn hosted_function_route_state() -> AppState {
+        let (mut state, _) = auth_runtime_fixture_with(PolicyAuthMode::Sessions, |snapback| {
+            snapback
+                .apply_schema(SchemaManifest {
+                    tables: vec![TableManifest {
+                        name: "notes".to_owned(),
+                        fields: vec![FieldManifest {
+                            name: "text".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        }],
+                        indexes: Vec::new(),
+                        syncable: true,
+                        permission_backing: false,
+                        permission_fields: None,
+                        membership: None,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .expect("apply hosted function fixture schema");
+            let notes_query = || {
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                }))
+            };
+            let mut authenticated =
+                FunctionDefinition::new("listNotes", FunctionKind::Query, notes_query());
+            authenticated.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+            let mut append_values = BTreeMap::new();
+            append_values.insert("text".to_owned(), ValueExpr::Arg("text".to_owned()));
+            let mut authenticated_mutation = FunctionDefinition::new(
+                "appendNote",
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "notes".to_owned(),
+                        values: append_values,
+                        bind_id_as: None,
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                })),
+            );
+            authenticated_mutation.auth_requirement =
+                Some(crate::manifest::AuthRequirement::Authenticated);
+            let optional =
+                FunctionDefinition::new("listOptionalNotes", FunctionKind::Query, notes_query());
+            let mut public_query =
+                FunctionDefinition::new("listPublicNotes", FunctionKind::Query, notes_query());
+            public_query.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                bundle_hash: Some("hosted-function-route-fixture".to_owned()),
+                functions: vec![authenticated, authenticated_mutation, optional, public_query],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                !diagnostics.iter().any(|diagnostic| matches!(
+                    diagnostic.severity,
+                    crate::diagnostic::DiagnosticSeverity::Error
+                        | crate::diagnostic::DiagnosticSeverity::Fatal
+                )),
+                "hosted function fixture must load cleanly: {diagnostics:?}",
+            );
+        });
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let now_ms = state
+            .auth_provider
+            .as_ref()
+            .expect("hosted fixture provider")
+            .now_ms();
+        state
+            .with_hosted_serving_authority(hosted_serving_authority(now_ms))
+            .expect("install hosted sender authority")
+    }
+
+    /// LLP 0077 D-1 regression: on a hosted sender-gated origin, an absent
+    /// Authorization on a route whose auth requirement lives in the function
+    /// (`authRequirement: authenticated`, not route policy) must refuse with
+    /// `SNAPBACK_AUTH_REQUIRED` before any body poll. `PanicOnPollBody` is
+    /// the poisoned-body witness that the JSON parser is never reached.
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_authenticated_function_refuses_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        for path in [
+            "/query/listNotes",
+            "/query/listNotes/authorized-lease",
+            "/mutation/appendNote",
+        ] {
+            let refused = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(path)
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .body(Body::new(PanicOnPollBody))
+                        .expect("absent carrier function request"),
+                )
+                .await
+                .expect("absent carrier function response");
+            assert_eq!(refused.status(), StatusCode::UNAUTHORIZED, "{path}");
+            assert!(refused.headers().get(super::SENDER_NONCE_HEADER).is_none());
+            assert_eq!(
+                response_json(refused).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REQUIRED",
+                "{path}",
+            );
+        }
+    }
+
+    /// The fail-closed half of the D-1 hoist: a function name the published
+    /// manifest does not contain can never legitimately serve any caller, so
+    /// an absent carrier refuses identically to an `authenticated` function
+    /// — before the body poll, and indistinguishable from the authenticated
+    /// refusal (no function-existence oracle).
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        let refused = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/noSuchFunction")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::new(PanicOnPollBody))
+                    .expect("absent carrier unknown-function request"),
+            )
+            .await
+            .expect("absent carrier unknown-function response");
+        assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
+        assert!(refused.headers().get(super::SENDER_NONCE_HEADER).is_none());
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUIRED",
+        );
+    }
+
+    /// A malformed carrier on a function-authenticated hosted route keeps the
+    /// LLP 0077 anti-oracle shape — the keyed cover-nonce sender challenge —
+    /// and still refuses before any body poll.
+    #[tokio::test]
+    async fn hosted_malformed_carrier_on_authenticated_function_challenges_before_body_poll() {
+        let router = app(hosted_function_route_state());
+        let challenged = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/listNotes")
+                    .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::new(PanicOnPollBody))
+                    .expect("malformed carrier function request"),
+            )
+            .await
+            .expect("malformed carrier function response");
+        assert_eq!(challenged.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            challenged
+                .headers()
+                .get(super::SENDER_NONCE_HEADER)
+                .and_then(|value| value.to_str().ok())
+                .map(str::len),
+            Some(43),
+        );
+        assert_eq!(
+            response_json(challenged).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        );
+    }
+
+    /// The load-bearing other half of the D-1 fix: functions the published
+    /// manifest statically declares `public` or `optional-user` must keep
+    /// admitting anonymous callers on the hosted origin — the hoist must not
+    /// flip genuinely anonymous-capable routes to required.
+    #[tokio::test]
+    async fn hosted_absent_carrier_on_anonymous_capable_functions_still_admits() {
+        let router = app(hosted_function_route_state());
+        for name in ["listOptionalNotes", "listPublicNotes"] {
+            let admitted = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(format!("/query/{name}"))
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .body(Body::from(r#"{"args":{}}"#))
+                        .expect("anonymous function request"),
+                )
+                .await
+                .expect("anonymous function response");
+            assert_eq!(admitted.status(), StatusCode::OK, "{name}");
+        }
     }
 
     #[tokio::test]
@@ -25634,6 +26877,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("hosted sender session request");
         offer_auth_client_protocol(&mut session_request);
+        let session_request = via_hosted_terminator(session_request, TEST_HOSTED_CLIENT_SOURCE);
         let session = router
             .clone()
             .oneshot(session_request)
@@ -25762,6 +27006,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("sender replay-authority failure request");
         offer_auth_client_protocol(&mut unavailable_request);
+        let unavailable_request =
+            via_hosted_terminator(unavailable_request, TEST_HOSTED_CLIENT_SOURCE);
         let unavailable = router
             .clone()
             .oneshot(unavailable_request)
@@ -25797,6 +27043,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("retry sender session request");
         offer_auth_client_protocol(&mut retried_session_request);
+        let retried_session_request =
+            via_hosted_terminator(retried_session_request, TEST_HOSTED_CLIENT_SOURCE);
         let retried_session = router
             .clone()
             .oneshot(retried_session_request)
@@ -25884,7 +27132,8 @@ globalThis.__snapbackHandlers = {
                 let mut builder = Request::builder()
                     .method(*method)
                     .uri(path)
-                    .header("x-snapback-auth-client-protocol", "1");
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
                 if *websocket_carrier {
                     let mut protocols = format!(
                         "{}, {}{}",
@@ -26030,7 +27279,8 @@ globalThis.__snapbackHandlers = {
             let mut builder = Request::builder()
                 .method(*method)
                 .uri(path)
-                .header("x-snapback-auth-client-protocol", "1");
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
             if *websocket_carrier {
                 builder = builder.header(
                     header::SEC_WEBSOCKET_PROTOCOL,
@@ -26084,6 +27334,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("bare sender-bound grant request"),
             )
@@ -26118,6 +27369,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, outbox_proof)
                     .body(Body::empty())
                     .expect("proof-gated sender-bound grant request"),
@@ -26159,6 +27411,14 @@ globalThis.__snapbackHandlers = {
         let mut websocket_request = format!("ws://{address}/live/{connection_id}/stream")
             .into_client_request()
             .expect("hosted sender websocket request");
+        // Over the real listener the immediate peer IS loopback, so unlike
+        // the oneshot sites only the terminator's forwarded header is needed.
+        websocket_request.headers_mut().insert(
+            crate::auth::effective_source::FORWARDED_HEADER,
+            TEST_HOSTED_CLIENT_SOURCE
+                .parse()
+                .expect("hosted websocket client source"),
+        );
         websocket_request.headers_mut().insert(
             header::SEC_WEBSOCKET_PROTOCOL,
             format!(
@@ -26241,6 +27501,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("stale post-reset sender request");
         offer_auth_client_protocol(&mut stale_post_reset_request);
+        let stale_post_reset_request =
+            via_hosted_terminator(stale_post_reset_request, TEST_HOSTED_CLIENT_SOURCE);
         let stale_post_reset = app(reset_state)
             .oneshot(stale_post_reset_request)
             .await
@@ -26376,6 +27638,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("stale-epoch grant request"),
             )
@@ -26398,6 +27661,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("post-advance nonce challenge request");
         offer_auth_client_protocol(&mut challenge_request);
+        let challenge_request = via_hosted_terminator(challenge_request, TEST_HOSTED_CLIENT_SOURCE);
         let challenge = router
             .clone()
             .oneshot(challenge_request)
@@ -26517,6 +27781,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("post-logout signed request");
         offer_auth_client_protocol(&mut terminal_request);
+        let terminal_request = via_hosted_terminator(terminal_request, TEST_HOSTED_CLIENT_SOURCE);
         let terminal = router
             .clone()
             .oneshot(terminal_request)
@@ -26547,6 +27812,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("replayed post-logout request");
         offer_auth_client_protocol(&mut replay_request);
+        let replay_request = via_hosted_terminator(replay_request, TEST_HOSTED_CLIENT_SOURCE);
         let replayed = router
             .clone()
             .oneshot(replay_request)
@@ -26567,6 +27833,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("bare post-logout request");
         offer_auth_client_protocol(&mut bare_request);
+        let bare_request = via_hosted_terminator(bare_request, TEST_HOSTED_CLIENT_SOURCE);
         let bare = router
             .clone()
             .oneshot(bare_request)
@@ -26808,6 +28075,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{}}"#))
                     .unwrap(),
             )
@@ -26941,6 +28209,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::empty())
                     .unwrap(),
@@ -26974,6 +28243,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::from(
                         serde_json::to_vec(&json!({
@@ -27038,6 +28308,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .body(Body::from(
                         serde_json::to_vec(&json!({
@@ -27089,6 +28360,7 @@ globalThis.__snapbackHandlers = {
                     .method("GET")
                     .uri(format!("/live/{connection_id}/stream"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                     .body(Body::empty())
                     .unwrap(),
@@ -27122,6 +28394,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .body(Body::from(r#"{"args":{}}"#))
                 .unwrap()
         };
@@ -31282,6 +32555,10 @@ globalThis.__snapbackHandlers = {
             "compile-time environment variable carrying build provenance",
         ),
         (
+            "SNAPBACK_CRON_DISABLED",
+            "environment variable disabling autonomous cron claiming; manual admin ticks still run",
+        ),
+        (
             "SNAPBACK_CRON_DISPATCH_CONCURRENCY",
             "environment variable configuring bounded cron dispatch",
         ),
@@ -31326,6 +32603,14 @@ globalThis.__snapbackHandlers = {
             "environment variable overriding the Ibex executable",
         ),
         (
+            "SNAPBACK_BUNDLE_",
+            "diagnostic-code family prefix appearing in bundle refusal-registry docs (LLP 0092 §0D.2)",
+        ),
+        (
+            "SNAPBACK_BUNDLE_ATTACH_GRACE_MS",
+            "environment variable overriding the bundle attach-grace window (LLP 0092 §0D.4 policy knob)",
+        ),
+        (
             "SNAPBACK_MARK__",
             "suffix of the __SNAPBACK_MARK__ HTML template placeholder",
         ),
@@ -31340,6 +32625,102 @@ globalThis.__snapbackHandlers = {
         (
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
+        ),
+        (
+            "SNAPBACK_RESUME_",
+            "diagnostic-code family prefix appearing in RQS refusal-registry docs (LLP 0091 §0B.6)",
+        ),
+        (
+            "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+            "internal RQS generation-mint impediment; swallowed into a token-mint absence or a wire refusal code, never an HTTP diagnostic",
+        ),
+        // The SNAPBACK_RESUME_* registry (LLP 0091 §0B.6): wire refusal
+        // codes carried inside a SUCCESSFUL subscribe answer (`resumeRefusal`
+        // + observability counters). Every refusal answers with rung 3 —
+        // a coded refusal is an observability fact, never an HTTP error.
+        (
+            "SNAPBACK_RESUME_TOKEN_MALFORMED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_TOKEN_OVERSIZE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_MAC_INVALID",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_KEY_UNKNOWN",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_KEY_RETIRED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_TOKEN_EXPIRED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_APP_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_GENERATION_STALE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_STREAM_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_QUERY_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_NOT_ELIGIBLE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_DIGEST_KIND_MISMATCH",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_VERSION_IMPLAUSIBLE",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_JOURNAL_FLOOR",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_INVALID",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_OVERSIZE",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_BUDGET_EXCEEDED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_RATE_LIMITED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_POLICY_REPLACED",
+            "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RUN__",
@@ -31374,9 +32755,15 @@ globalThis.__snapbackHandlers = {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ACTION_STREAM_INVALID",
+        // LLP 0092 §0D.1 bundle request-shape refusals.
+        "SNAPBACK_BUNDLE_ENTRY_INVALID",
+        "SNAPBACK_BUNDLE_MODE_INVALID",
+        "SNAPBACK_BUNDLE_PARAMS_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+        "SNAPBACK_PUBLIC_INLINE_INVALID",
+        "SNAPBACK_ROUTES_MANIFEST_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE",
@@ -31556,6 +32943,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
+        "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+        "SNAPBACK_MIGRATION_TARGET_MISMATCH",
+        "SNAPBACK_PROJECTION_PLAN_INVALID",
+        "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
+        "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
+        "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED",
+        "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
+        "SNAPBACK_PROJECTION_MAINTENANCE_INVALID",
         "SNAPBACK_PLAN_SOURCE_INVALID",
         "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
@@ -31564,6 +32961,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_QUERY_LIMIT_INVALID",
         "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
+        "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+        "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
@@ -31614,6 +33014,12 @@ globalThis.__snapbackHandlers = {
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
+        "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
+        // LLP 0092 §0D.1 bundle authorization/sender refusals.
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH",
+        "SNAPBACK_BUNDLE_NOT_PUBLIC",
+        "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL",
         "SNAPBACK_AUTH_AGENT_DEACTIVATED",
         "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
@@ -31644,6 +33050,7 @@ globalThis.__snapbackHandlers = {
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
         "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
@@ -31655,7 +33062,22 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
+        "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE",
+        "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
+        "SNAPBACK_MIGRATION_UPGRADE_REQUIRED",
+        "SNAPBACK_MIGRATION_PLAN_STALE",
+        "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
+        "SNAPBACK_MIGRATION_EXECUTOR_STALE",
+        "SNAPBACK_MIGRATION_CANCELLED",
+        "SNAPBACK_MIGRATION_STEP_FAILED",
+        "SNAPBACK_MIGRATION_VERIFICATION_FAILED",
+        "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
+        "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        // LLP 0092 §0D.3 idempotency replay-validity conflicts.
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH",
         "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
@@ -31694,6 +33116,11 @@ globalThis.__snapbackHandlers = {
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+        // LLP 0092 §0D.2 bundle hard limits.
+        "SNAPBACK_BUNDLE_LIMIT_BYTES",
+        "SNAPBACK_BUNDLE_LIMIT_QUERIES",
+        "SNAPBACK_BUNDLE_LIMIT_ROWS",
+        "SNAPBACK_BUNDLE_LIMIT_TIME",
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
@@ -31704,6 +33131,9 @@ globalThis.__snapbackHandlers = {
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
+        // LLP 0092 §0D.2/§0D.4 bundle rate and pending-owner capacity.
+        "SNAPBACK_BUNDLE_PENDING_CAPACITY",
+        "SNAPBACK_BUNDLE_RATE_LIMITED",
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
@@ -31738,6 +33168,10 @@ globalThis.__snapbackHandlers = {
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_MIGRATION_FENCE_CLOSED",
+        "SNAPBACK_MIGRATION_BARRIER_FAILED",
         "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
@@ -31767,6 +33201,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_RESERVATION_STALE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
+        // LLP 0098 §6: forwarding metadata that is absent, malformed,
+        // over-long, or presented by an untrusted peer leaves the origin with
+        // no trustworthy source to throttle on, so the request fails closed
+        // rather than being answered under a collapsed bucket.
+        "SNAPBACK_AUTH_SOURCE_UNTRUSTED",
         "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
         "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
@@ -31809,6 +33248,17 @@ globalThis.__snapbackHandlers = {
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
+        // from validated cursors, so a field/order mismatch reaching storage
+        // is a server bug, never a client class.
+        "SNAPBACK_QUERY_KEYSET_INVALID",
+        "SNAPBACK_MIGRATION_JOURNAL_CORRUPT",
+        "SNAPBACK_MIGRATION_PUBLICATION_AMBIGUOUS",
+        // LLP 0080 §5: informational activation-rebuild diagnostic; never an
+        // ApiError.
+        "SNAPBACK_PROJECTION_REBUILT",
+        // LLP 0092 §0D.2 atomic entry-evaluation failure.
+        "SNAPBACK_BUNDLE_QUERY_FAILED",
         "SNAPBACK_ACTION_HOST_MISSING",
         "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
         "SNAPBACK_ACTION_SECRETS_DEPRECATED",
@@ -31825,6 +33275,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_BACKUP_INVALID",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
         "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+        // LLP 0098 §3.1 hosted-edge adapter refusals. Like the backup/restore
+        // codes above these are control-plane/operator diagnostics raised
+        // before a listener serves, never request-path 4xx; the fail-safe HTTP
+        // projection remains 500 if one ever crosses ApiError.
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_FOREIGN",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_CONFIGURATION",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_STALE_SUPPORT",
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED",
+        "SNAPBACK_AUTH_HOSTED_TOPOLOGY_INVALID",
         "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",
         "SNAPBACK_AUTH_TRANSPORT_INSECURE",
         "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
@@ -32176,6 +33636,22 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn cron_autonomy_disabled_accepts_only_explicit_switch_values() {
+        assert!(super::cron_autonomy_disabled(Some("1")));
+        assert!(super::cron_autonomy_disabled(Some("true")));
+        assert!(super::cron_autonomy_disabled(Some("TRUE")));
+        assert!(super::cron_autonomy_disabled(Some(" true ")));
+        // Anything else — including empty, zero, and typos — keeps the
+        // scheduler on; a malformed value must not silently disarm crons.
+        assert!(!super::cron_autonomy_disabled(None));
+        assert!(!super::cron_autonomy_disabled(Some("")));
+        assert!(!super::cron_autonomy_disabled(Some("0")));
+        assert!(!super::cron_autonomy_disabled(Some("false")));
+        assert!(!super::cron_autonomy_disabled(Some("yes")));
+        assert!(!super::cron_autonomy_disabled(Some("disabled")));
+    }
+
+    #[test]
     fn detached_action_admission_rejects_at_capacity_and_recovers() {
         let limiter = Arc::new(Semaphore::new(1));
         let permit = reserve_detached_action_worker(limiter.clone(), 1).expect("first worker");
@@ -32463,6 +33939,137 @@ globalThis.__snapbackHandlers = {
                 })
         }));
         wait_for_dispatcher_permits(&dispatcher, 4).await;
+    }
+
+    /// An always-armed `everyMs` job whose epoch-0 interval anchor makes it
+    /// past-due the moment it loads, backed by a host-plan action so the run
+    /// executes without an Ibex VM.
+    fn armed_due_cron_state() -> SharedSnapback {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "inertAction",
+                FunctionKind::Action,
+                FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                })),
+            )],
+            cron_jobs: vec![CronJobDefinition {
+                name: "inert".to_owned(),
+                schedule: CronSchedule {
+                    every_ms: Some(60_000),
+                    cron: None,
+                },
+                action: "inertAction".to_owned(),
+                enabled: true,
+                activation: CronActivationPolicy::default(),
+                jitter_policy: CronJitterPolicy {
+                    enabled: false,
+                    max_offset_ms: 0,
+                },
+                overlap_policy: CronOverlapPolicy::NoOverlap,
+                retry_policy: CronRetryPolicy {
+                    mode: CronRetryMode::NextTick,
+                },
+                required_capabilities: Vec::new(),
+                target_wakeup: None,
+                source_span: None,
+            }],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("cron disable test state");
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "armed due cron manifest must install: {diagnostics:?}"
+        );
+        Arc::new(Mutex::new(snapback))
+    }
+
+    /// How long the disabled scheduler is observed for. The control test below
+    /// proves an enabled scheduler commits the armed due run well inside the
+    /// same window, so an empty ledger here is meaningful evidence.
+    const CRON_DISABLE_OBSERVATION_MS: u64 = 2_500;
+
+    // @ref LLP 0028#scheduler-state-and-run-ledger — the disable switch keeps
+    // definitions loaded/armed/inspectable and manual ticks working while the
+    // autonomous scheduler never claims.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn disabled_scheduler_claims_nothing_while_manual_ticks_still_run() {
+        let state = armed_due_cron_state();
+        // The job is armed and already due (epoch-0 interval anchor): an
+        // enabled scheduler's first 1 s tick would claim it.
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        let job = inspect
+            .cron
+            .jobs
+            .iter()
+            .find(|job| job.name == "inert")
+            .expect("definitions still load and inspect under the disable switch");
+        assert_eq!(
+            job.activation_state,
+            crate::cron::CronActivationState::Armed
+        );
+        assert!(
+            job.next_due_at_ms.is_some_and(|due| due <= super::now_millis()),
+            "fixture job must be past due: {:?}",
+            job.next_due_at_ms
+        );
+
+        let scheduler = super::spawn_cron_scheduler(state.clone(), true);
+        tokio::time::sleep(Duration::from_millis(CRON_DISABLE_OBSERVATION_MS)).await;
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        assert!(
+            inspect.cron.recent_runs.is_empty(),
+            "no autonomous run may commit under the disable switch: {:?}",
+            inspect.cron.recent_runs
+        );
+        let job = inspect
+            .cron
+            .jobs
+            .iter()
+            .find(|job| job.name == "inert")
+            .expect("job stays inspectable");
+        assert_eq!(job.last_run_at_ms, None);
+        assert_eq!(job.in_flight_run_id, None);
+
+        // The admin manual tick keeps working: it claims and executes the due
+        // run deterministically.
+        let runs = super::cron_tick_detached(&state, super::now_millis())
+            .await
+            .unwrap();
+        assert_eq!(runs.len(), 1, "manual tick must claim the due job");
+        assert_eq!(runs[0].outcome, CronRunOutcome::Succeeded);
+        let inspect = super::inspect_snapback(&state).await.unwrap();
+        assert_eq!(inspect.cron.recent_runs.len(), 1);
+        scheduler.abort();
+    }
+
+    /// Control for the disabled test above: an enabled scheduler commits the
+    /// same fixture's armed due run inside the observation window, so the
+    /// disabled test's empty ledger cannot pass vacuously.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn enabled_scheduler_fires_the_armed_due_job_within_the_disable_window() {
+        let state = armed_due_cron_state();
+        let scheduler = super::spawn_cron_scheduler(state.clone(), false);
+        tokio::time::timeout(
+            Duration::from_millis(CRON_DISABLE_OBSERVATION_MS),
+            async {
+                loop {
+                    let inspect = super::inspect_snapback(&state).await.unwrap();
+                    if !inspect.cron.recent_runs.is_empty() {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+            },
+        )
+        .await
+        .expect("an enabled scheduler must fire the armed due job within the window the disabled test holds open");
+        scheduler.abort();
     }
 
     fn generation_test_manifest() -> FunctionManifest {
@@ -35562,6 +37169,7 @@ globalThis.__snapbackHandlers = {
                             query_instance_id: 9_001,
                         }),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     authority,
                     LiveInvalidationAdmission {
@@ -35762,6 +37370,7 @@ globalThis.__snapbackHandlers = {
                     query_instance_id: 9_002,
                 }),
                 supersedes: None,
+                resume_from_token: None,
             })),
         )
         .await
@@ -35972,7 +37581,8 @@ globalThis.__snapbackHandlers = {
             .method("POST")
             .uri("/connection/open")
             .header(header::CONTENT_TYPE, "application/json")
-            .header("x-snapback-auth-client-protocol", "1");
+            .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
         if let Some(bearer) = bearer {
             builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
         }
@@ -36561,6 +38171,7 @@ globalThis.__snapbackHandlers = {
                         .header(header::CONTENT_TYPE, "application/json")
                         .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                         .header("x-snapback-auth-client-protocol", "1")
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .header("x-snapback-auth-invalidation-protocol", "1")
                         .body(Body::from(
                             serde_json::to_vec(&json!({
@@ -36606,6 +38217,7 @@ globalThis.__snapbackHandlers = {
             .header(header::CONTENT_TYPE, "application/json")
             .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
             .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
             .body(Body::from(
                 r#"{"args":{"value":"must-not-cross-grant-expiry"}}"#,
             ))
@@ -37033,6 +38645,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .header("x-snapback-authorized-lease-protocol", "1")
@@ -37059,6 +38672,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .header("x-snapback-authorized-lease-protocol", "1")
                     .body(Body::from(

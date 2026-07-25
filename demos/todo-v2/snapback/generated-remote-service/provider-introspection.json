@@ -435,6 +435,85 @@
       },
       {
         "arguments": {
+          "fields": {
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "priority"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listTodosByPriority",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "completed": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "priority": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "userId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
           "fields": {},
           "order": []
         },
@@ -508,8 +587,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:a86d4500dfda4078",
-    "inputsHash": "1e33990ea1a28518a37228695598e26fcc9f1924dbf3248dd8e405bace29b23b",
-    "schemaHash": "sha256:64f3c074173809c7"
+    "implementationHash": "sha256:0208d3a01c3babda",
+    "inputsHash": "0f50e45d3b6350b4b70fa5574e7e92bf8f33d9f55b3215eb614f63f5d124d910",
+    "schemaHash": "sha256:111df146debc77df"
   }
 }

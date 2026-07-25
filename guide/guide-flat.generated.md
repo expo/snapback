@@ -40,6 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
@@ -50,6 +51,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
@@ -68,7 +70,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | First-class React external-store hook over generated functions | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
-| operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
+| operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI | install, new app, dev, watch, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -127,6 +129,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
 | /action/{name} | backend.actions |
+| /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
 | /auth/agents/pair | auth.agent-principals |
 | /auth/agents/revoke-self | auth.agent-principals |
@@ -254,6 +257,8 @@ you never build around a feature because you didn't know it existed.
   read-set conflict validation, and structured results.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and server-derived time and IDs.
+- [Relational queries](./backend/relational-queries.md) — bounded two-source
+  equi-joins with explicit visibility and closed projections (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
@@ -1808,7 +1813,7 @@ id: backend.cron
 order: 4
 audience: agent-first
 capabilities: [backend.cron]
-authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
@@ -1895,6 +1900,36 @@ The acceptance asserts the whole path—tick → action → mutation → live up
 and the bounded recent-run ledger. Assert the job and a successful run so a
 vacuous tick cannot pass.
 
+## Run with the scheduler inert
+
+To keep autonomous cron runs out of a test or dev session entirely, start
+the server with the scheduler disabled:
+
+```sh
+SNAPBACK_CRON_DISABLED=1 snapback   # or: snapback --cron-disabled
+```
+
+The switch accepts `1` or `true`; any other value leaves the scheduler on,
+so a typo cannot silently disarm production crons. Definitions still load,
+validate, and appear in `/inspect` with their ordinary armed/inactive
+state — only autonomous claiming stops. `POST /_snapback/api/cron/tick`
+keeps working, so a suite drives every tick itself. From an acceptance
+suite, pass the kit option instead of hand-building the environment:
+`startServer({ ..., cronDisabled: true })` sets `SNAPBACK_CRON_DISABLED=1`
+on the child (and refuses to reuse an already-running server, whose
+scheduler may be live). See
+[LLP 0028 §Scheduler state and run ledger](repo:llp/0028-cron-scheduled-execution.rfc.md).
+
+**The first tick can look early.** `everyMs` schedules anchor their nominal
+grid at Unix epoch 0, so an armed job's first evaluation usually finds a
+past-due nominal and fires one catch-up run — up to one full interval after
+boot, regardless of when your subscription armed it. A 180 s job observed
+firing ~180 s after boot "before anything subscribed" is this anchor, not a
+bug ([LLP 0028 §Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). If
+that mid-suite run would perturb your assertions, disable the scheduler as
+above and tick manually.
+
 Definition generations and run sequences are exact JavaScript-safe integer
 identities. The maximum value is usable once; a successor fails before taking
 ownership with `SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED` or
@@ -1910,7 +1945,8 @@ portable maximum instead of wrapping.
 - **Do not schedule a mutation directly.** Cron targets actions; the action
   calls a mutation for durable effects.
 - **Do not sleep in tests.** Force an authenticated tick and inspect its run
-  ledger.
+  ledger; start the suite's server with `cronDisabled: true` so the live
+  scheduler cannot commit a competing run mid-assertion.
 - **Do not poll while nobody can observe the result.** Use `whileLive` for
   warm-poll products that should scale to zero.
 - **Do not disable jitter casually.** Fixed no-jitter schedules need an
@@ -1930,8 +1966,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-20
-reviewed-commit: 27e3689a239c52a01a01ddf51f52ec4221ea7a86
+reviewed: 2026-07-25
+reviewed-commit: 6fe11376af0429eb2154627c253586224be063bb
 ---
 
 # Safe standard data patterns
@@ -2057,6 +2093,19 @@ may still repeat within one owner's partition. A generated string `pageKey`
 using an `id` trusted default is the safe v1 continuation when the natural sort
 field, such as a timestamp, is not independently unique.
 
+The continuation is an opaque versioned cursor, never the raw boundary
+value. When a page returns its full `limit` of rows, the response carries a
+`cursor` next to `rows`; pass it as the next-page function's cursor argument
+(`after` by default). The cursor binds the app, the first/next pair's plan
+identity, and the caller's authority partition: a malformed, raw-value,
+cross-pair, cross-owner, or post-authorization-change presentation is
+refused with `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` (HTTP 400), never
+silently repositioned, and every refusal class answers byte-identically. A
+page with fewer than `limit` rows is terminal and carries no cursor.
+Continuation guarantees no skipped and no duplicated row among rows
+untouched by concurrent mutations; a row whose cursor field is concurrently
+mutated may move relative to the page boundary.
+
 ## Know when to leave the profile
 
 The v1 helpers do not authorize joins, projections, migrations, shared ACLs,
@@ -2077,6 +2126,184 @@ can prove structure; it cannot prove who may see or mutate a row.
 
 ---
 
+<!-- snapback-guide-source: guide/backend/relational-queries.md -->
+---
+title: Relational queries (bounded joins)
+id: backend.relational-queries
+order: 26
+audience: agent-first
+capabilities: [backend.relational-queries]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/relational-authoring.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-25
+reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
+---
+
+# Relational queries (bounded joins)
+
+> **Local target only, experimental capability.** Relational queries require
+> the `relational_query_v1` target capability, which is **experimental**
+> until LLP 0080's coupled acceptance suite passes: generated artifacts
+> acknowledge the experimental contract automatically, and a target without
+> the executor (for example the Cloudflare path) refuses at generation with
+> a machine-readable capability gap, never at runtime.
+
+Use `defineRelationalQuery` for the common "each row plus its one related
+row" read: a bounded two-source equi-join with an explicit projection. It is
+a closed plan — no SQL text, no callbacks — and every visibility fact is
+declared, never inferred from field names or read sets.
+
+```js source=packages/snapback-codegen/relational-authoring.test.mjs
+export const booksWithAuthors = defineRelationalQuery({
+  root: schema.tables.books,
+  joined: schema.tables.authors,
+  join: [{ root: 'authorSlug', joined: 'slug' }],
+  kind: 'inner',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'owner', field: 'ownerId' },
+    output: 'owner',
+  },
+  projection: {
+    title: { root: 'title' },
+    authorName: { joined: 'name' },
+    shelf: { literal: 'fiction' },
+  },
+  take: 50,
+  rootIndex: 'by_owner_title',
+  joinedIndex: 'by_slug',
+});
+```
+
+The shape is closed and proven at authoring time:
+
+- **Exactly two sources.** One root table and one joined table, with 1–4
+  equality pairs. Join keys must share one admitted type — string,
+  principal, reference id (same target table), integer, or boolean. A null
+  key never matches.
+- **The joined side must be provably unique.** `joinedIndex` names a
+  declared `unique` index whose complete ordered key is exactly the joined
+  field sequence — that declaration is the cardinality proof. Two joined
+  rows under one key at runtime is a storage-invariant refusal, never a
+  silent first-row pick.
+- **Root access is index-served.** `rootIndex` names a declared index; for
+  an owner-visible root its leading field is the owner field. Results order
+  by the index's field sequence (ties broken deterministically by `_id`),
+  and `take` (0–1024) bounds consumed authorized roots. v1 does not accept
+  extra root filters yet.
+- **Visibility is explicit on both sources and the output.** Each source
+  declares `{ kind: 'owner', field }` or `{ kind: 'public-read' }`. The
+  output must be declared too, and it can never be broader than a
+  contributing source: owner sources force `output: 'owner'` (the generated
+  function requires authentication), and only all-public sources may
+  declare `output: 'public-read'`. A `left` join is refused when the only
+  owner evidence sits on the omissible joined side.
+- **Invisible means absent.** A joined row the caller cannot see behaves
+  exactly like a missing row: `inner` omits that root (the page may come
+  back short — it is not refilled), and `left` returns the root with null
+  joined leaves. Callers cannot distinguish the two cases.
+
+Live subscriptions deliver whole-result replacement (`live_replace`): a
+commit touching either source re-runs the query. No incremental delta or
+skip proof is claimed, matching LLP 0080's deliberately conservative v1.
+A relational plan is never `authorityIndependent` — public plans stay
+authority-partition-scoped — and retention is default-deny: v1 admits only
+`retention: none` (declaring a relational query retainable is a load
+error), with the authenticated-lease snapshot class specified as the
+successor. The capability manifest records both facts under
+`relationalQueries`.
+
+## Pagination
+
+Every relational query accepts one implicit argument, `cursor`. When a page
+consumes its full `take` of authorized roots, the response carries an opaque
+versioned continuation cursor next to `rows`; pass it back as
+`{ cursor }` to resume from the last consumed root. The contract:
+
+- **`take` counts consumed roots, not emitted rows.** An `inner` join can
+  emit a short — even empty — page whose continuation still progresses, and
+  no page is refilled.
+- **A short page is terminal.** A page that consumed fewer than `take`
+  roots returns no cursor; `take: 0` returns an empty page with no cursor
+  and consumes nothing.
+- **Cursors are bound, not positional.** The cursor binds the app, the
+  plan, the argument set, the order schema, and the caller's authority
+  partition. A malformed, tampered, cross-plan, cross-argument,
+  cross-user, or stale-authority cursor — including one presented after an
+  authorization change — is refused with `SNAPBACK_RELATIONAL_CURSOR_INVALID`
+  (HTTP 400), never silently repositioned, and every refusal class answers
+  with byte-identical output.
+- **Pages are not snapshot-consistent with each other.** Continuation
+  guarantees no skipped and no duplicated root among roots untouched by
+  concurrent mutations; a concurrently mutated root may move relative to
+  the boundary.
+
+## Maintained projections
+
+`defineMaintainedProjection` turns the same closed join into a durable
+output table the runtime maintains inside **every source mutation's own
+commit** — source and projection either commit together or not at all,
+with no background repair and no separately visible projection version.
+
+```js source=demos/competitive-checkpoint/snapback/functions.mjs
+export const conversationCardsProjection = defineMaintainedProjection({
+  id: 'conversation-cards',
+  root: schema.tables.conversations,
+  joined: schema.tables.models,
+  output: schema.tables.conversationCards,
+  join: [{ root: 'model', joined: 'slug' }],
+  // Left: a conversation whose model is not registered still projects a
+  // card with a null modelName; the owner evidence rides the root.
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: { kind: 'owner', field: 'ownerId' },
+  },
+  projection: {
+    ownerId: { root: 'ownerId' },
+    title: { root: 'title' },
+    modelName: { joined: 'displayName' },
+  },
+  rootReverseIndex: 'by_model',
+  fanOutLimit: 64,
+  sharedFanOutDisclosure: true,
+});
+```
+
+The contract, all enforced at generation and re-proved at activation:
+
+- **The output table is maintenance-only.** Any function that writes it is
+  refused; a closed HostPlan may read an owner-visible output only with
+  its visibility predicate composed (`eq(ownerField, authUserId())`), and
+  opaque JS handlers may not touch it at all. Chains and diamonds —
+  projections sourcing another projection's output — are refused.
+- **Row identity is key-stable.** `outputKey` is the root `_id` (default)
+  or `{ index }` naming a declared unique root index whose fields become
+  immutable: a mutation that moves a key field is refused, and the same
+  output key owns the same row `_id` across delete/re-insert and rebuilds.
+- **Fan-out is bounded and declared.** `rootReverseIndex` must lead with
+  the root join fields; `fanOutLimit` (1–1023) counts *every*
+  reverse-index entry for a joined key. A write that would exceed it — or
+  push a mutation past the 1,024-write bound including projection writes —
+  refuses whole with `SNAPBACK_PROJECTION_FANOUT_EXCEEDED`.
+- **Shared-source coupling is explicit.** A public joined source feeding
+  an owner output couples callers through the shared `fanOutLimit`;
+  declare `sharedFanOutDisclosure: true` or generation refuses with
+  `SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED`.
+- **Unchanged bytes cost nothing.** An affected output row whose
+  recomputed logical bytes are unchanged issues no write; repeated writes
+  to one source row coalesce to one evaluation against the final snapshot.
+
+Author-supplied root filters beyond visibility remain specified by
+LLP 0080 but not yet implemented — see the Step 5 implementation program
+under `issues/`.
+
+---
+
 <!-- snapback-guide-source: guide/backend/streamed-actions.md -->
 ---
 title: Streamed actions
@@ -2089,7 +2316,7 @@ examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-24
+reviewed: 2026-07-25
 reviewed-commit: HEAD
 ---
 
@@ -2107,18 +2334,20 @@ action-only *response-byte* reader, not a general streaming API: clients
 never see a stream object. They observe ordinary authoritative live-query
 commits that your nested mutations produce
 ([LLP 0076](repo:llp/0076-bounded-streamed-actions.rfc.md) is the semantic
-authority and is still **Draft**; its evidence ledger is the honest record).
+authority, **Accepted** 2026-07-25; its evidence ledger is the honest
+record).
 
 **What is witnessed where** (`maturity: partial` made concrete): the full
 surface on this page — reader, limits, attempt control plane, crash-safe
 settlement — is implemented and witnessed on the local target. The Workerd
 target passes a narrower Miniflare witness (pull/chunk/total/cancel/idle,
 progress-rate and cursor caps, secret placement) but has **no
-`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed —
-and the gate-bearing hosted receipt does not exist yet. Whether the
-capability carries an explicit experimental marker is an open author
-decision; admission is decided by the **served instance manifest**, never by
-this page.
+`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed.
+The gate-bearing hosted receipt exists (the 2026-07-25 Fly.io
+`single-instance-container-vm.v1` drill; protocol amendment v0.7), and the
+capability is **stable** in the LLP 0058 registry since LLP 0076's
+acceptance; admission is decided by the **served instance manifest**, never
+by this page.
 
 ## Require the capability and enable egress
 
@@ -2130,6 +2359,16 @@ destructuring count, comments do not) and adds the requirement to the
 function manifest; every loader then resolves it against the live `/inspect`
 manifest before any handler runs. An egress-disabled instance refuses the
 artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED` at load, not at first use.
+
+The capability is **stable** (LLP 0076 Accepted 2026-07-25), so positive
+presence in the served manifest is the plain compatibility assertion — no
+acknowledgment is needed. Artifacts generated while the id was
+`experimental` still carry it in `acknowledgedExperimentalCapabilities`;
+that entry is a harmless no-op (acknowledging a stable id never refuses), so
+pre-promotion artifacts keep admitting unchanged. The experimental-maturity
+admission rule itself (LLP 0058 §Capability maturity) still applies to ids
+that remain experimental, currently `relational_query_v1` and
+`migration_keyset_scan_v1`.
 
 ## Consume the body with one pull-driven reader
 
@@ -2177,7 +2416,7 @@ of re-running:
   if (attempt.terminal) {
     // A durable winner already exists (a previous runner settled, or the
     // trusted terminalizer did): return it verbatim, never re-run.
-    await ctx.runMutation('settleReply', {
+    await runReconciled(ctx, 'settleReply', {
       attemptId: args.attemptId,
       status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,
       effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,
@@ -2216,7 +2455,7 @@ coalesce chunks between commits:
       readsSinceCommit += 1;
       if (readsSinceCommit >= 2) {
         sequence += 1;
-        const progress = await ctx.runMutation('applyReplyProgress', {
+        const progress = await runReconciled(ctx, 'applyReplyProgress', {
           attemptId: args.attemptId,
           sequence,
           delta: pending,
@@ -2225,7 +2464,7 @@ coalesce chunks between commits:
           await reader.cancel();
           const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);
           if (settled) {
-            await ctx.runMutation('settleReply', {
+            await runReconciled(ctx, 'settleReply', {
               attemptId: args.attemptId,
               status: settled.cause === 'complete' ? progress.status : settled.cause,
               effectMayHaveExecuted: settled.effectMayHaveExecuted,
@@ -2250,6 +2489,13 @@ The rules this pattern encodes, which the host enforces or checks for you:
   transaction (`applyReplyProgress` returns `terminal: true` above). The
   host fences late commits too, but the authored check is part of the
   contract.
+- **Reconcile inner-mutation conflicts, never last-writer-wins.** A
+  concurrent committed writer (a durable client cancel racing a progress
+  commit) rejects the whole inner mutation with
+  `SNAPBACK_MUTATION_CONFLICT`. `runReconciled` above is the reference
+  reconcile: re-invoke boundedly so the mutation re-reads the row in a
+  fresh transaction and observes the cancel as `terminal` instead of
+  overwriting it.
 - **No retry after durable progress.** Once any progress commit landed,
   reopening the upstream under the same attempt is refused — transport
   re-segmentation could bind one sequence number to different bytes.
@@ -2493,6 +2739,16 @@ external publication remains a later packaged-loop gate in LLP 0063.
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
+    // Register-mode adoption: the bound query consumes its bundle
+    // registration (one-shot) and the shared socket presents the
+    // bundle-minted grant for the atomic pending-registration handoff.
+    ...(registeredBoot
+      ? {
+          connectionId: registeredBoot.connection.connectionId,
+          rqsRegistered: (name: string, args: Record<string, unknown>) =>
+            registeredBoot.consume(name, args),
+        }
+      : {}),
   });
   activeSurface = surface;
 ```
@@ -2500,11 +2756,20 @@ external publication remains a later packaged-loop gate in LLP 0063.
 Then hand the surface's links to the generated registry —
 `configureSnapbackContractLinks(surface.links)` — and mount. Before the
 surface, boot runs `client.health()` and the **idempotent**
-`client.ensureApp({ schema, functions, seed })` (provisions only what's
-missing, seeds only empty tables — a reload never resets data; LLP 0034
-§5). If the backend is unreachable, the surface may still boot from an
+`client.ensureApp({ schema, functions, seed, routes })` (provisions only
+what's missing, seeds only empty tables — a reload never resets data; LLP
+0034 §5). If the backend is unreachable, the surface may still boot from an
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
+
+The `registeredBoot` spread is the optional **Channel C register-mode boot**
+(LLP 0090 D4): one `client.fetchBundle({ route, mode: 'register', userId })`
+returns every query's snapshot plus its live registration and the connection
+grant at a single commit cut; `createRqsRegisteredRegistry(bundle)` keys the
+entries, and the surface adopts each one instead of opening its own
+snapshot-with-subscribe (zero `/live/*/subscribe` round trips at boot). Any
+failure degrades to the ordinary fresh-subscribe boot, so the spread is
+strictly an optimization.
 
 Agent clients use the same surface constructor. A `SnapbackClient` configured
 with `AgentAuthorityFence` is resolved as explicit custody; Contract does not
@@ -5113,8 +5378,8 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, schemas/host-ready.schema.json]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -5197,22 +5462,160 @@ What it guarantees:
   reused only when its loaded bundle identity matches the declared
   `provenance` (or `binaryProvenance`); any mismatch — or no declared
   identity — refuses reuse and spawns a fresh isolated server instead.
+- **Launch by the LLP 0030 resolver ladder.** A fresh spawn resolves its
+  command in order: a caller-configured binary (`serverBinary` option or
+  `SNAPBACK_SERVER_BINARY`), then an existing `target/debug/snapback` whose
+  `/health` build stamp verifies against the pinned checkout, then
+  `cargo run` as the source-tree fallback. The handle reports which rung won
+  (`server.launch.rung`) and an honest build-identity verdict
+  (`server.identity.verdict`); see `demos/_kit/README.md` for the verdicts.
 - **Owned teardown.** The returned handle's `.stop()` tears down the whole
   process tree the harness itself started (SIGTERM then SIGKILL, attested
   group exit). Nothing else is ever killed.
+- **A dead child cannot masquerade as live.** After readiness the kit
+  watches the spawned child: `server.exit` flips from `null` to
+  `{ code, signal, expected }` when it closes; `server.assertAlive()`
+  throws a typed `SNAPBACK_SERVER_CHILD_DIED` instead of letting a dead
+  backend surface as raw connection errors; `startServer({
+  onUnexpectedExit })` (or `server.onUnexpectedExit(fn)`) notifies
+  wrappers so they can exit non-zero or restart; and `stop()` issued
+  after an unexpected death still cleans up but **rejects** rather than
+  attesting a clean teardown.
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
+
+### Need the requested port exactly?
+
+Pass `bindPortExactly: true` with an explicit port when a fixed origin is
+part of the contract — a restart seam reclaiming a released port, a wrapper
+advertising a fixed URL. The child then binds that exact port atomically or
+startup fails; there is no probe, no reuse, and no silent fallback, and the
+ready-file port is verified against the request. Without it, `port` is only
+a verified-reuse probe: a fresh child always binds an OS-assigned port, and
+the kit announces the difference with a loud `PORT REASSIGNED` line. Either
+way, read the effective origin from `server.baseUrl`.
+
+### Keep cron out of your suite
+
+If the app declares cron jobs, a live scheduler can commit runs mid-suite —
+and the first one can land surprisingly early: an `everyMs` job's nominal
+grid anchors at Unix epoch 0, so its first tick can fire up to one full
+interval after boot **regardless of when demand arrived** ([LLP 0028
+§Inspection and query
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). Start
+the server with the scheduler inert and drive ticks yourself:
+
+```js fragment reason="illustrative option on the startServer call above"
+const server = await startServer({ db: ':memory:', cwd: repoRoot, cronDisabled: true });
+```
+
+`cronDisabled: true` sets `SNAPBACK_CRON_DISABLED=1` on the child (the CLI
+form is `--cron-disabled`) and refuses to reuse an already-running server,
+whose scheduler may be live. Definitions still load and inspect; the
+admin `cronTick()` seam keeps working, so scheduled behavior stays testable
+deterministically — see [backend/cron](../backend/cron.md).
 
 If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
 it must pass a fresh `--ready-file <path>`. The process-bound impersonation
 capability is published only to that owner-only sidecar; it is never written to
 captured stdout/stderr. Prefer `startServer`, which already owns this handshake.
 
+### Reset to the literal seed state between checks
+
+Design app-level reset hooks **seed-true**: restore the exact seeded rows —
+provenance-style fields like a `lastSource: 'seed'` marker included — rather
+than stamping a distinguishable "reset" state. A reset that marks itself
+forces every suite and wrapper to build admin-token reseed seams just to get
+back to an honest baseline; this was the single most-tripped-on defect in
+the All Aboard external review, across every client arm. The model is
+all-aboard's `resetFeed`
+([handlers](repo:demos/all-aboard/snapback/handlers.mjs)), whose seed-truth
+is pinned by a byte-equivalence check against the seed fixture:
+
+```js source=demos/all-aboard/tests/acceptance/headless.mjs
+  await suite.check('resetFeed restores the literal seed state (byte-equivalent to seed.json)', async () => {
+    // Dirty every handler-mutable feed field first: the tick above moved
+    // tickIndex/lastSource/fetchedAt, and a claimFeedPoll stamps the optional
+    // lastUpstreamPollAt (the ENG-23642 budget) that a seed-true reset must
+    // clear back to "absent".
+    await db.mutate('claimFeedPoll', { args: { trigger: 'test' } });
+    await db.mutate('resetFeed', {});
+    assertEqual((await snapshotDelays())['sb-limited'], 0, 'delays cleared');
+```
+
+If the product genuinely needs zero-state semantics distinct from seed,
+keep them under a different mutation name so the seed-true hook still
+exists for suites.
+
 Then load and drive the app exactly as production clients do — see
 [your first backend](../getting-started/your-first-backend.md) for
 `loadSchema`/`loadFunctions`/`reset`/`seed` and the query/mutation calls,
 and [realtime/live-queries](../realtime/live-queries.md) for asserting on
 live updates.
+
+## Bootstrap a backend without the JS kit
+
+A non-JS harness (Swift, Kotlin, plain curl) can load an app into a bare
+server from documents alone — no `ensureApp(...)`, no kit. The model
+consumer is the Swift clean-room harness
+([snapback-prove](repo:clients/swift/SnapbackClient/Sources/snapback-prove/main.swift)).
+
+**1. Start the server and discover it through the ready file.** A process
+without a controlling terminal must pass a fresh `--ready-file <path>`;
+once the listener binds, Snapback writes a JSON readiness descriptor there
+(schema: [host-ready](repo:schemas/host-ready.schema.json)) with
+`serverUrl`, `port`, `ready`, and — when a token was auto-minted —
+`adminTokenFile`:
+
+```sh
+snapback --memory --ready-file /tmp/sb-ready.json &
+# ...wait for the file, then:
+BASE_URL=$(jq -r .serverUrl /tmp/sb-ready.json)
+```
+
+**2. Get the admin token.** If you exported `SNAPBACK_ADMIN_TOKEN`, that
+exact token is active and no file is written. Otherwise the server mints
+one and persists it 0600 in the sidecar named by the descriptor's
+`adminTokenFile` — mechanically `<ready-file>.admin-token` (the same
+sibling convention as the instance lock). Tooling that can read that
+owner-only file is already local admin; send it as the
+`x-snapback-admin-token` header on every call below:
+
+```sh
+ADMIN_TOKEN=$(cat "$(jq -r .adminTokenFile /tmp/sb-ready.json)")
+```
+
+**3. Load the generated manifests and seed.** The three admin routes take
+these exact body shapes — the load routes take the **raw generated
+manifest JSON as the whole body** (no wrapper object), and reset wraps the
+seed:
+
+- `POST /_snapback/api/schema/load` — body is the contents of
+  `demos/<app>/snapback/generated/schema.manifest.json`, unmodified.
+- `POST /_snapback/api/functions/load` — body is the contents of
+  `generated/functions.manifest.json`, unmodified.
+- `POST /_snapback/api/app/reset` — body is optional; to reset **and**
+  seed deterministically, send `{"seed": <contents of seed.json>}`.
+
+```sh
+G=demos/todo/snapback/generated
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/schema.manifest.json" "$BASE_URL/_snapback/api/schema/load"
+curl -sf -X POST -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-binary @"$G/functions.manifest.json" "$BASE_URL/_snapback/api/functions/load"
+jq '{seed: .}' demos/todo/snapback/seed.json | curl -sf -X POST \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  --data-binary @- "$BASE_URL/_snapback/api/app/reset"
+```
+
+The reset response reports `{"seeded": ...}` when a seed was applied. From
+here the harness drives the app through the ordinary client surface
+(`/query/{name}`, `/mutation/{name}`, `/connection/open`, live routes) —
+the wire contract is [LLP 0094](repo:llp/0094-wire-envelope-contract.spec.md)
+and the lifecycle obligations are
+[LLP 0095](repo:llp/0095-client-lifecycle-and-conformance.spec.md).
 
 ## What a good suite asserts
 
@@ -5236,3 +5639,7 @@ admin-gated operations with the server-issued `server.adminToken`.
   in reverse order and fails the run if any cleanup rejects.
 - **Do not assert on diagnostic message text.** Use `assertThrows(fn,
   'SNAPBACK_...')` against the code.
+- **Do not build reseed side-channels.** If restoring the seed baseline
+  needs an admin-token reset or a second control port, the app's reset hook
+  is not seed-true — fix the hook (see "Reset to the literal seed state")
+  instead of wrapping it.

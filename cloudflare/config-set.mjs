@@ -17,13 +17,13 @@
 //                                      values are never printed)
 //
 // The flow (the ordering invariant, LLP 0049):
-//   1. read the deployed /config/status -> current generation G;
+//   1. read the deployed /_snapback/api/config/status -> current generation G;
 //   2. stage generation N = G + 1 (state: pending);
 //   3. write the changed entries AND the bumped SNAPBACK_CONFIG_GENERATION in
 //      ONE `wrangler secret bulk` payload — one activation, so the attesting
 //      activation can never precede a secret write it attests. An interactive
 //      `wrangler secret put` of an entry alone never attests anything.
-//   4. poll /config/status until it reports generation >= N (state: applied),
+//   4. poll /_snapback/api/config/status until it reports generation >= N (state: applied),
 //      or time out and report that the write remains pending.
 //
 // Secret values ride stdin directly into the wrangler payload and are never
@@ -103,21 +103,21 @@ export async function readStatus(
     : AbortSignal.timeout(Math.max(1, remainingMs(deadlineMs)));
   let response;
   try {
-    response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/config/status`, { headers, signal });
+    response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/_snapback/api/config/status`, { headers, signal });
   } catch (error) {
     if (signal?.aborted || error?.name === 'AbortError' || error?.name === 'TimeoutError') {
-      throw new ConfigDeadlineError('timed out waiting for /config/status');
+      throw new ConfigDeadlineError('timed out waiting for /_snapback/api/config/status');
     }
     throw error;
   }
   if (!response.ok) {
-    throw new Error(`GET /config/status failed: HTTP ${response.status}`);
+    throw new Error(`GET /_snapback/api/config/status failed: HTTP ${response.status}`);
   }
   try {
     return await response.json();
   } catch (error) {
     if (signal?.aborted || error?.name === 'AbortError' || error?.name === 'TimeoutError') {
-      throw new ConfigDeadlineError('timed out reading /config/status');
+      throw new ConfigDeadlineError('timed out reading /_snapback/api/config/status');
     }
     throw error;
   }
@@ -230,7 +230,7 @@ export function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.url) throw new Error('--url <deployed gateway origin> is required (attestation reads /config/status)');
+  if (!args.url) throw new Error('--url <deployed gateway origin> is required (attestation reads /_snapback/api/config/status)');
   if (!args.entriesStdin) throw new Error('--entries-stdin is required; secret values are read from stdin, never argv');
   // Resolve and version-check the committed local dependency before reading
   // secret stdin or contacting any mutation surface.
@@ -247,7 +247,7 @@ async function main() {
     if (error instanceof ConfigDeadlineError) {
       throw new ConfigPendingError(
         'SNAPBACK_CONFIG_STATUS_UNKNOWN',
-        'the initial authenticated status read timed out before any write; no mutation was attempted. Re-check /config/status and retry',
+        'the initial authenticated status read timed out before any write; no mutation was attempted. Re-check /_snapback/api/config/status and retry',
       );
     }
     throw error;
@@ -276,7 +276,7 @@ async function main() {
     if (error instanceof ConfigDeadlineError) {
       throw new ConfigPendingError(
         'SNAPBACK_CONFIG_STATUS_UNKNOWN',
-        'the overall deadline elapsed before Wrangler started; no write was attempted. Re-check /config/status and retry',
+        'the overall deadline elapsed before Wrangler started; no write was attempted. Re-check /_snapback/api/config/status and retry',
       );
     }
     throw error;
@@ -287,11 +287,11 @@ async function main() {
       : 'exited without local confirmation';
     throw new ConfigPendingError(
       'SNAPBACK_CONFIG_APPLY_PENDING',
-      `the locked Wrangler child ${reason}; remote activation is unknown. Re-check /config/status before retrying`,
+      `the locked Wrangler child ${reason}; remote activation is unknown. Re-check /_snapback/api/config/status before retrying`,
     );
   }
 
-  console.log('config.set: bulk write activated; attesting via /config/status …');
+  console.log('config.set: bulk write activated; attesting via /_snapback/api/config/status …');
   const outcome = await attestApplied(args.url, staged, {
     adminToken,
     expectedEntries: input,
@@ -302,7 +302,7 @@ async function main() {
   } else {
     throw new ConfigPendingError(
       'SNAPBACK_CONFIG_APPLY_PENDING',
-      `the runtime has not attested generation ${staged} within the overall ${args.timeoutMs}ms deadline; re-check /config/status before retrying`,
+      `the runtime has not attested generation ${staged} within the overall ${args.timeoutMs}ms deadline; re-check /_snapback/api/config/status before retrying`,
     );
   }
 }

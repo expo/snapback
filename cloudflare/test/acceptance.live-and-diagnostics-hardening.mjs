@@ -26,7 +26,7 @@ async function subscribe(proof, boardId) {
 }
 
 async function fanOutDiagnostics(proof) {
-  const response = await postTest(proof, '/__test/fanout-diagnostics');
+  const response = await postTest(proof, '/_snapback/test/fanout-diagnostics');
   assert.equal(response.status, 200);
   return response.body;
 }
@@ -181,7 +181,7 @@ try {
     args: { boardId: 'proto-canonical' },
   });
   await ordinarySocket.waitFor('snapshot');
-  const state = await postTest(frameProof, '/__test/connection-state');
+  const state = await postTest(frameProof, '/_snapback/test/connection-state');
   assert.equal(state.body.subscriptions.length, 2, 'refused frames changed the subscription registry');
   assert.deepEqual(
     new Set(state.body.subscriptions.map((entry) => entry.args_json)),
@@ -214,14 +214,14 @@ const cronProof = await startProof({
 try {
   const base = await cronProof.url();
   const actionOverride = `${privateSentinel}-${cronSecret}-${'z'.repeat(4000)}`;
-  const attempt = await postTest(cronProof, '/__test/run-cron', {
+  const attempt = await postTest(cronProof, '/_snapback/test/run-cron', {
     job: 'warmPoll',
     trigger: 'manual',
     actionOverride,
   });
   assert.equal(attempt.body.outcome, 'failed');
 
-  const publicResponse = await fetch(`${base}/cron/status`);
+  const publicResponse = await fetch(`${base}/_snapback/api/cron/status`);
   const publicBody = await publicResponse.json();
   const publicText = JSON.stringify(publicBody);
   const publicRun = publicBody.jobs[0].lastRun;
@@ -234,7 +234,7 @@ try {
   assert.ok(!publicText.includes(privateSentinel));
   assert.ok(!publicText.includes(cronSecret));
 
-  const operatorResponse = await fetch(`${base}/cron/status`, {
+  const operatorResponse = await fetch(`${base}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   });
   const operatorBody = await operatorResponse.json();
@@ -249,7 +249,7 @@ try {
   assert.ok(!operatorRun.error.includes(cronSecret));
   assert.ok(textEncoder.encode(operatorRun.error).byteLength <= 1024);
 
-  const retained = await postTest(cronProof, '/__test/cron-claims');
+  const retained = await postTest(cronProof, '/_snapback/test/cron-claims');
   const retainedError = String(retained.body.cronState[0].last_error);
   assert.ok(!retainedError.includes(cronSecret));
   assert.ok(textEncoder.encode(retainedError).byteLength <= 1024);
@@ -258,28 +258,28 @@ try {
   // diagnostic. It remains useful to an authenticated operator, but cannot
   // extend the public endpoint's closed classification vocabulary.
   const rawPrivateCode = 'SNAPBACK_PRIVATE_UPSTREAM_SENTINEL';
-  const rawAttempt = await postTest(cronProof, '/__test/run-cron', {
+  const rawAttempt = await postTest(cronProof, '/_snapback/test/run-cron', {
     job: 'warmPoll',
     trigger: 'manual',
     rawErrorOverride: `${rawPrivateCode}: raw failure detail`,
   });
   assert.equal(rawAttempt.body.outcome, 'failed');
-  const rawPublic = await (await fetch(`${base}/cron/status`)).json();
+  const rawPublic = await (await fetch(`${base}/_snapback/api/cron/status`)).json();
   assert.equal(rawPublic.jobs[0].lastRun.errorCode, 'SNAPBACK_CRON_ACTION_FAILED');
   assert.ok(!JSON.stringify(rawPublic).includes(rawPrivateCode));
-  const rawOperator = await (await fetch(`${base}/cron/status`, {
+  const rawOperator = await (await fetch(`${base}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json();
   assert.equal(rawOperator.jobs[0].lastRun.errorCode, 'SNAPBACK_CRON_ACTION_FAILED');
   assert.ok(rawOperator.jobs[0].lastRun.error.includes(rawPrivateCode));
-  const rawRetained = await postTest(cronProof, '/__test/cron-claims');
+  const rawRetained = await postTest(cronProof, '/_snapback/test/cron-claims');
   assert.equal(
     rawRetained.body.cronState[0].last_error_code,
     'SNAPBACK_CRON_ACTION_FAILED',
   );
   assert.ok(!String(rawRetained.body.cronState[0].last_error_code).includes(rawPrivateCode));
 
-  const legacy = await postTest(cronProof, '/__test/migrate-legacy-cron-diagnostic', {
+  const legacy = await postTest(cronProof, '/_snapback/test/migrate-legacy-cron-diagnostic', {
     errorCode: 'SNAPBACK_LEGACY_PRIVATE_CODE',
     error: `${privateSentinel}-${cronSecret}-${controlCronSecret}-${'q'.repeat(4000)}`,
   });
@@ -289,10 +289,10 @@ try {
   assert.ok(!String(legacy.body.state.last_error).includes(controlCronSecret));
   assert.ok(!String(legacy.body.state.last_error).includes('cron secret value'));
   assert.ok(textEncoder.encode(String(legacy.body.state.last_error)).byteLength <= 1024);
-  const legacyPublic = await (await fetch(`${base}/cron/status`)).json();
+  const legacyPublic = await (await fetch(`${base}/_snapback/api/cron/status`)).json();
   assert.equal(legacyPublic.jobs[0].lastRun.errorCode, 'SNAPBACK_CRON_ACTION_FAILED');
   assert.ok(!JSON.stringify(legacyPublic).includes('SNAPBACK_LEGACY_PRIVATE_CODE'));
-  const legacyOperator = await (await fetch(`${base}/cron/status`, {
+  const legacyOperator = await (await fetch(`${base}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json();
   const legacyOperatorText = JSON.stringify(legacyOperator);

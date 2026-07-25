@@ -781,6 +781,21 @@ pub struct FunctionManifest {
         alias = "unsupported_dependency_diagnostics"
     )]
     pub unsupported_dependency_diagnostics: Vec<Diagnostic>,
+    /// Experimental-capability acknowledgments for the generated artifact
+    /// pair (LLP 0058 §Capability maturity, amendment 2026-07-24): the
+    /// registry ids this artifact knowingly requires at experimental
+    /// maturity. Emitted by codegen from the same closed capability table it
+    /// derives requirements from; admission refuses an experimental
+    /// requirement the artifact does not acknowledge. Acknowledging a stable
+    /// id is a no-op, so promotion to stable never breaks the artifact, and
+    /// an acknowledgment can never make an unsupported capability supported.
+    #[serde(
+        default,
+        rename = "acknowledgedExperimentalCapabilities",
+        alias = "acknowledged_experimental_capabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub acknowledged_experimental_capabilities: Vec<String>,
     #[serde(default)]
     pub functions: Vec<FunctionDefinition>,
     #[serde(default, rename = "cronJobs", alias = "cron_jobs")]
@@ -789,6 +804,12 @@ pub struct FunctionManifest {
     /// entries ride the generated function manifest the way cron jobs do.
     #[serde(default)]
     pub config: Vec<ConfigEntryDefinition>,
+    /// Transactionally maintained projections (LLP 0080 §5). Activation
+    /// validates each plan against the schema and the whole active set (the
+    /// per-source write-budget proof), and every source mutation maintains
+    /// the output in its own commit.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<MaintainedProjectionPlan>,
 }
 
 impl Default for FunctionManifest {
@@ -801,14 +822,26 @@ impl Default for FunctionManifest {
             inputs_hash: None,
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
+            acknowledged_experimental_capabilities: Vec::new(),
             functions: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),
+            projections: Vec::new(),
         }
     }
 }
 
 impl FunctionManifest {
+    /// The artifact's experimental acknowledgments parsed to registry ids
+    /// (unknown strings are inert; see `parse_acknowledged_capabilities`).
+    pub fn acknowledged_capability_ids(&self) -> BTreeSet<TargetCapabilityId> {
+        CapabilityManifest::parse_acknowledged_capabilities(
+            self.acknowledged_experimental_capabilities
+                .iter()
+                .map(String::as_str),
+        )
+    }
+
     pub fn function(&self, name: &str) -> Option<&FunctionDefinition> {
         self.functions
             .iter()
@@ -875,6 +908,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
                 ) => validate_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                ) => validate_relational_query_plan_shape(plan)?,
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -896,13 +933,26 @@ impl FunctionManifest {
 
             validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
+            validate_public_inline(function)?;
             validate_retainable_query(function)?;
+            validate_effect_ceiling(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
                     function.required_capabilities.iter().map(String::as_str),
                 )?;
             }
+        }
+
+        if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
+            // v1 grammar symmetry (LLP 0058 §Capability maturity): a sessions
+            // artifact's acknowledgments must spell known registry ids, the
+            // same closed-vocabulary rule its requirements obey.
+            validate_known_v1_capabilities(
+                self.acknowledged_experimental_capabilities
+                    .iter()
+                    .map(String::as_str),
+            )?;
         }
 
         let by_name = self
@@ -1088,7 +1138,94 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
     })))
 }
 
-fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
+/// LLP 0092 §0C.3: `publicInline` is a disclosure permission accepted only on
+/// a query that also carries a *valid* `authorityIndependent: true`
+/// declaration (which entails `public` under the existing invariant —
+/// [`validate_authority_independent`] runs first, so reaching this check with
+/// `authority_independent` set means the declaration validated). v1 keeps the
+/// narrower rule fail-closed: no consumer exists for a
+/// public-but-authority-dependent inline query.
+fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.public_inline || function.authority_independent {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_PUBLIC_INLINE_INVALID",
+        "auth",
+        format!(
+            "function {} declares publicInline without a valid authorityIndependent declaration",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "authRequirement": function.effective_auth_requirement().as_str(),
+    })))
+}
+
+/// The derived, never-authored `rqsEligible` served-manifest predicate
+/// (LLP 0090 Authorization scope; LLP 0092 §0C.2): declared
+/// `authorityIndependent` (entailing `public`) AND the LLP 0053
+/// closed-inputs/retainable proof — HostPlan query runtime, no ambient or
+/// membership dependency, and a complete `singleTable` read summary whose
+/// table set equals the plan's. Evaluated non-erroringly: a query failing the
+/// proof is simply not eligible, never a load error. Returns the digest kind
+/// the eligible query's `contentDigest` takes (LLP 0091 §0A.4's selector:
+/// DK-3-analyzable unordered → `mset1`; ordered/limited replace-only →
+/// `seq1`).
+///
+/// Everything keyed on the predicate — token minting, bundle `resume`
+/// presence, Channel B persistence, D1.1 admission — reads this one derived
+/// fact; there is no authored `rqsEligible` field anywhere (an authored field
+/// of that name refuses at load via `deny_unknown_fields`).
+pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+    if !function.authority_independent {
+        return None;
+    }
+    if function.kind != FunctionKind::LiveQuery {
+        return None;
+    }
+    if function.effective_auth_requirement() != AuthRequirement::Public {
+        return None;
+    }
+    if !function.uses.is_empty()
+        || function.read_set_summary.auth_scope_field.is_some()
+        || !function.authorization_dependence.is_empty()
+    {
+        return None;
+    }
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return None;
+    };
+    if plan
+        .filters
+        .iter()
+        .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value))
+    {
+        return None;
+    }
+    if !plan.membership_filters.is_empty() {
+        return None;
+    }
+    // Closed-inputs proof (the `validate_retainable_query` obligations for the
+    // retainable class, reused as a measurement): a complete `singleTable`
+    // read summary whose table set equals the plan's.
+    let summary = &function.read_set_summary;
+    let summary_complete = summary.mode.as_deref() == Some("singleTable")
+        && summary.primary_table.as_deref() == Some(plan.table.as_str())
+        && summary.tables.len() == 1
+        && summary.tables.first() == Some(&plan.table);
+    if !summary_complete {
+        return None;
+    }
+    Some(if plan.order.is_empty() && plan.limit.is_none() {
+        crate::rqs::DigestKind::Mset1
+    } else {
+        crate::rqs::DigestKind::Seq1
+    })
+}
+
+pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
     match value {
         ValueExpr::AuthUserId
         | ValueExpr::AuthKind
@@ -1237,6 +1374,226 @@ fn validate_protected_query_profile(function: &FunctionDefinition) -> SnapbackRe
     Ok(())
 }
 
+/// Observed effects of a closed HostPlan, in exactly the vocabulary of
+/// codegen's `EffectCeilingV1` walker (`packages/snapback-codegen/
+/// effect-ceiling.mjs`). The two must stay mirror images: deriving *more*
+/// here would falsely refuse legitimately generated artifacts, deriving
+/// *less* would let a doctored artifact under-declare.
+#[derive(Debug, Default)]
+struct ObservedEffects {
+    reads: BTreeSet<(String, String, Option<String>)>,
+    writes: BTreeSet<(String, String)>,
+    host_operations: BTreeSet<&'static str>,
+    authorization_inputs: BTreeSet<&'static str>,
+}
+
+impl ObservedEffects {
+    fn read(&mut self, table: &str, access: &str, index: Option<&str>) {
+        self.reads.insert((
+            table.to_owned(),
+            access.to_owned(),
+            index.map(str::to_owned),
+        ));
+    }
+
+    fn write(&mut self, table: &str, operation: &str) {
+        self.writes
+            .insert((table.to_owned(), operation.to_owned()));
+    }
+
+    fn expr(&mut self, expr: &ValueExpr) {
+        match expr {
+            ValueExpr::AuthUserId => {
+                self.authorization_inputs.insert("authUserId");
+            }
+            ValueExpr::AuthKind => {
+                self.authorization_inputs.insert("authKind");
+            }
+            ValueExpr::AuthActorKind => {
+                self.authorization_inputs.insert("authActorKind");
+            }
+            ValueExpr::AuthIsDelegated => {
+                self.authorization_inputs.insert("authIsDelegated");
+            }
+            ValueExpr::RuntimeId => {
+                self.host_operations.insert("runtimeId");
+            }
+            ValueExpr::RuntimeNow => {
+                self.host_operations.insert("runtimeNow");
+            }
+            ValueExpr::MembershipExists(_) => {
+                self.authorization_inputs.insert("membershipPredicate");
+            }
+            ValueExpr::Arg(_)
+            | ValueExpr::Args
+            | ValueExpr::Binding(_)
+            | ValueExpr::Literal(_) => {}
+            ValueExpr::Field { base, .. } => self.expr(base),
+            ValueExpr::Binary { left, right, .. } => {
+                self.expr(left);
+                self.expr(right);
+            }
+            ValueExpr::Unary { expr, .. } => self.expr(expr),
+            ValueExpr::If { cond, then, r#else } => {
+                self.expr(cond);
+                self.expr(then);
+                self.expr(r#else);
+            }
+            ValueExpr::Concat(parts) => parts.iter().for_each(|part| self.expr(part)),
+            ValueExpr::Call { args, .. } => args.iter().for_each(|arg| self.expr(arg)),
+            ValueExpr::Record { fields } => fields.values().for_each(|value| self.expr(value)),
+        }
+    }
+
+    fn filters(&mut self, filters: &[FilterExpr]) {
+        for filter in filters {
+            self.expr(&filter.value);
+        }
+    }
+
+    fn handler_plan(&mut self, plan: &HandlerPlan) {
+        match plan {
+            HandlerPlan::Query(plan) => {
+                self.read(&plan.table, "query", plan.indexed_by.as_deref());
+                self.filters(&plan.filters);
+                if !plan.membership_filters.is_empty() {
+                    self.authorization_inputs.insert("membershipPredicate");
+                }
+            }
+            HandlerPlan::RelationalQuery(plan) => {
+                self.read(&plan.root, "query", Some(&plan.root_index));
+                self.read(&plan.joined, "query", Some(&plan.joined_index));
+                self.filters(&plan.root_filters);
+                self.filters(&plan.root_visibility);
+                self.filters(&plan.joined_visibility);
+            }
+            HandlerPlan::Mutation(plan) => {
+                for step in &plan.steps {
+                    match step {
+                        MutationStep::Insert { table, values, .. } => {
+                            self.write(table, "insert");
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                        MutationStep::Patch { table, id, values } => {
+                            self.write(table, "patch");
+                            self.read(table, "point", None);
+                            self.expr(id);
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                        MutationStep::Delete { table, id } => {
+                            self.write(table, "delete");
+                            self.read(table, "point", None);
+                            self.expr(id);
+                        }
+                        MutationStep::Get { table, id, .. } => {
+                            self.read(table, "point", None);
+                            self.expr(id);
+                        }
+                        MutationStep::Guard { cond, .. } => self.expr(cond),
+                        MutationStep::Let { expr, .. } => self.expr(expr),
+                        MutationStep::DeleteWhere { table, filter } => {
+                            self.write(table, "deleteWhere");
+                            self.read(table, "query", None);
+                            self.filters(filter);
+                        }
+                        MutationStep::InsertEach {
+                            table,
+                            source,
+                            values,
+                            ..
+                        } => {
+                            self.write(table, "insertEach");
+                            self.expr(source);
+                            values.values().for_each(|value| self.expr(value));
+                        }
+                    }
+                }
+            }
+            HandlerPlan::Action(plan) => {
+                for step in &plan.steps {
+                    let ActionStep::RunMutation { args, .. } = step;
+                    args.values().for_each(|value| self.expr(value));
+                    self.host_operations.insert("runMutation");
+                }
+            }
+        }
+    }
+}
+
+/// LLP 0065 §1: the runtime checks observed operations are a subset of the
+/// admitted `EffectCeilingV1` and fails closed on mismatch. For a closed
+/// HostPlan the plan *is* the totality of what executes, so the load-time
+/// subset check over the typed IR is exactly the observed-operations check —
+/// a doctored artifact that under-declares its ceiling refuses activation
+/// instead of running past its admission.
+fn validate_effect_ceiling(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(ceiling) = &function.effect_ceiling else {
+        return Ok(());
+    };
+    let FunctionRuntime::HostPlan(plan) = &function.runtime else {
+        // Opaque handlers restate author declarations (`basis: "declared"`);
+        // their runtime enforcement is the declared-reads path.
+        return Ok(());
+    };
+    let mut observed = ObservedEffects::default();
+    observed.handler_plan(plan);
+
+    let exceeded = |axis: &str, detail: String| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
+            "runtime",
+            format!(
+                "function {} performs a {axis} outside its admitted effect ceiling: {detail}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "axis": axis,
+            "detail": detail,
+        }))
+    };
+    for (table, access, index) in &observed.reads {
+        let admitted = ceiling.reads.iter().any(|read| {
+            read.table == *table && read.access == *access && read.index == *index
+        });
+        if !admitted {
+            return Err(exceeded(
+                "read",
+                format!("{table} ({access}, index {index:?})"),
+            ));
+        }
+    }
+    for (table, operation) in &observed.writes {
+        let admitted = ceiling
+            .writes
+            .iter()
+            .any(|write| write.table == *table && write.operations.contains(operation));
+        if !admitted {
+            return Err(exceeded("write", format!("{table} ({operation})")));
+        }
+    }
+    for host_operation in &observed.host_operations {
+        if !ceiling
+            .host_operations
+            .iter()
+            .any(|admitted| admitted == host_operation)
+        {
+            return Err(exceeded("host operation", (*host_operation).to_owned()));
+        }
+    }
+    for input in &observed.authorization_inputs {
+        if !ceiling
+            .authorization_inputs
+            .iter()
+            .any(|admitted| admitted == input)
+        {
+            return Err(exceeded("authorization input", (*input).to_owned()));
+        }
+    }
+    Ok(())
+}
+
 fn undeclarable_retention(function: &FunctionDefinition, reason: &str) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
@@ -1326,6 +1683,19 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
         return Err(undeclarable_retention(function, "retainableNonQuery"));
     }
 
+    // @ref LLP 0080#4-live-and-retained-capability — retention is a closed
+    //   default-deny plan capability for relational queries: v1 authoring
+    //   admits only `none`, so a retainable relational declaration refuses
+    //   with its own honest reason. `opaque-authorized-snapshot-v1` (the
+    //   authenticated lease class) is the specified successor; anonymous
+    //   results have no admissible v1 retention at all.
+    if matches!(
+        &function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_))
+    ) {
+        return Err(undeclarable_retention(function, "relationalRetentionNone"));
+    }
+
     // The shipped DK-4 reset does not reset module lexical/imported singleton
     // state, and JavaScript declarations cannot prove they read only userId.
     // Retaining an Ibex result would therefore turn a trusted string into a
@@ -1389,6 +1759,58 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
         return Ok(());
     }
     Err(undeclarable_retention(function, "notUserIdOnly"))
+}
+
+/// Structural admission of the closed relational plan (LLP 0080 §1); schema
+/// binding (tables, fields, indexes, the cardinality proof) is validated at
+/// artifact load, and the load-bearing bounds are re-checked at execution.
+pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_RELATIONAL_PLAN_INVALID", "runtime", message)
+    };
+    if plan.root.is_empty() || plan.joined.is_empty() || plan.root == plan.joined {
+        return Err(invalid(
+            "relational plan requires two distinct named source tables".to_owned(),
+        ));
+    }
+    if plan.root_alias.is_empty()
+        || plan.joined_alias.is_empty()
+        || plan.root_alias == plan.joined_alias
+    {
+        return Err(invalid(
+            "relational plan requires distinct non-empty source aliases".to_owned(),
+        ));
+    }
+    if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+        return Err(invalid(format!(
+            "relational plan requires 1..=4 join equality pairs, got {}",
+            plan.join_on.len()
+        )));
+    }
+    if plan.take > 1024 {
+        return Err(invalid(format!(
+            "relational take must be 0..=1024, got {}",
+            plan.take
+        )));
+    }
+    if plan.projection.is_empty() {
+        return Err(invalid("relational projection must be non-empty".to_owned()));
+    }
+    let mut names = std::collections::BTreeSet::new();
+    for leaf in &plan.projection {
+        if leaf.name.is_empty() || !names.insert(&leaf.name) {
+            return Err(invalid(format!(
+                "relational projection field {:?} must be non-empty and unique",
+                leaf.name
+            )));
+        }
+    }
+    if plan.root_index.is_empty() || plan.joined_index.is_empty() {
+        return Err(invalid(
+            "relational plan requires named root and joined indexes".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
@@ -1490,6 +1912,21 @@ pub struct FunctionDefinition {
         skip_serializing_if = "is_false"
     )]
     pub authority_independent: bool,
+    /// Disclosure permission for Channel A / read-mode public bundles: this
+    /// already-public query's rows may be embedded in a tokenless HTML
+    /// response. Grants no invocation authority; accepted only beside a valid
+    /// `authorityIndependent` declaration.
+    ///
+    /// @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    ///   authored on the function definition, compiled by codegen, re-enforced
+    ///   at manifest load; never route-manifest authored.
+    #[serde(
+        default,
+        rename = "publicInline",
+        alias = "public_inline",
+        skip_serializing_if = "is_false"
+    )]
+    pub public_inline: bool,
     /// This entry point may reach a durable permission-backing write. The
     /// marker is part of delegated consent: changing it terminally invalidates
     /// scopes minted against the prior function basis.
@@ -1531,7 +1968,8 @@ pub struct FunctionDefinition {
     /// HostPlans (`basis: "static"`) and records author declarations for
     /// opaque handlers (`basis: "declared"`). Optional so pre-ceiling
     /// manifests keep loading; enforcement remains the runtime subset check.
-    /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
+    // @ref LLP 0065#1-fact-classes — EffectCeilingV1. (Plain comment: doc
+    //   text flows into generated schemas.)
     #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
     pub effect_ceiling: Option<EffectCeiling>,
     /// Stable versioned standard-pattern identity — which generated helper
@@ -1574,6 +2012,7 @@ impl FunctionDefinition {
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
+            public_inline: false,
             authority_creating: false,
             retainable: false,
             authorization_dependence: Vec::new(),
@@ -1675,6 +2114,98 @@ pub struct EffectCeilingRead {
 pub struct EffectCeilingWrite {
     pub table: String,
     pub operations: Vec<String>,
+}
+
+/// The closed root-to-output key expression of a maintained projection
+/// (LLP 0080 §5): the root `_id`, or the complete ordered tuple of a
+/// declared unique root index whose fields the plan marks immutable, so an
+/// output key cannot move under maintenance. Either form is injective over
+/// roots by the uniqueness proof.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionOutputKey {
+    RootId,
+    RootUniqueIndex {
+        index: String,
+        /// The exact index fields, restated so the plan is self-describing
+        /// and validation can prove the restatement matches the schema.
+        fields: Vec<String>,
+    },
+}
+
+/// Source/output visibility declaration for a maintained projection —
+/// declarative (unlike the callable plan's executable filter lists) because
+/// maintenance runs under internal projection-maintenance authority and the
+/// declarations constrain information flow and the output's read
+/// enforcement, not a caller (LLP 0080 §3/§5).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionVisibility {
+    #[serde(rename = "public-read")]
+    PublicRead,
+    #[serde(rename = "owner")]
+    Owner { field: String },
+}
+
+/// `MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a
+/// stable output key expression, per-source and output visibility
+/// declarations, the declared root reverse index (the bounded lookup and
+/// admission proof for joined-source fan-out), and a static `fanOutLimit`.
+/// It deliberately has no caller-relative ordering, cursor, or `take`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MaintainedProjectionPlan {
+    /// Stable plan identity (publication metadata). The stored projection
+    /// identity assigned at first activation derives from this and is
+    /// revision-stable — it names the row-identity domain, never re-keys.
+    pub id: String,
+    pub root: String,
+    #[serde(rename = "rootAlias", alias = "root_alias")]
+    pub root_alias: String,
+    pub joined: String,
+    #[serde(rename = "joinedAlias", alias = "joined_alias")]
+    pub joined_alias: String,
+    #[serde(rename = "joinKind", alias = "join_kind")]
+    pub join_kind: JoinKind,
+    #[serde(rename = "joinOn", alias = "join_on")]
+    pub join_on: Vec<JoinEquality>,
+    /// The non-security root filter `materializeAll` enumerates under —
+    /// portable literal-only predicates in v1 (no caller, no auth exprs).
+    #[serde(default, rename = "rootFilters", alias = "root_filters")]
+    pub root_filters: Vec<FilterExpr>,
+    #[serde(rename = "rootVisibility", alias = "root_visibility")]
+    pub root_visibility: ProjectionVisibility,
+    #[serde(rename = "joinedVisibility", alias = "joined_visibility")]
+    pub joined_visibility: ProjectionVisibility,
+    /// Projection leaves; declaration order is the output field order.
+    pub projection: Vec<ProjectionLeaf>,
+    #[serde(rename = "outputTable", alias = "output_table")]
+    pub output_table: String,
+    #[serde(rename = "outputKey", alias = "output_key")]
+    pub output_key: ProjectionOutputKey,
+    #[serde(rename = "outputVisibility", alias = "output_visibility")]
+    pub output_visibility: ProjectionVisibility,
+    /// Declared root reverse index whose leading fields are exactly the
+    /// root join-field sequence — targets may not discover affected roots
+    /// through a table scan.
+    #[serde(rename = "rootReverseIndex", alias = "root_reverse_index")]
+    pub root_reverse_index: String,
+    /// Static per-joined-key reference bound, `1..=1023`. Counts every
+    /// reverse-index entry for the joined key, not only filter-admitted
+    /// roots.
+    #[serde(rename = "fanOutLimit", alias = "fan_out_limit")]
+    pub fan_out_limit: u32,
+    /// Explicit acknowledgment of the cross-authority capacity coupling
+    /// when a mutable shared joined source feeds an owner output
+    /// (LLP 0080 §3); absent otherwise.
+    #[serde(
+        default,
+        rename = "sharedFanOutDisclosure",
+        alias = "shared_fan_out_disclosure"
+    )]
+    pub shared_fan_out_disclosure: bool,
+    /// The versioned rebuild recipe this plan declares (LLP 0080 §5);
+    /// `"rebuild-v1"` is the only admitted value until the 0081 slice.
+    #[serde(rename = "rebuildRecipe", alias = "rebuild_recipe")]
+    pub rebuild_recipe: String,
 }
 
 /// The versioned helper/profile identity a standard-pattern function carries
@@ -1787,6 +2318,11 @@ pub enum FunctionKind {
     Action,
 }
 
+// `HandlerPlan` outgrew clippy's variant-size threshold as the relational
+// profile (LLP 0080) widened query plans. The externally-tagged shape is the
+// ratified v0 artifact pin and every construction site spells the variant
+// directly, so boxing here would be churn without a wire or safety win.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),
@@ -1832,6 +2368,12 @@ pub struct PublicFunctionManifest {
     pub generated_at: Option<u64>,
     #[serde(rename = "unsupportedDependencyDiagnostics")]
     pub unsupported_dependency_diagnostics: Vec<PublicDiagnostic>,
+    #[serde(
+        default,
+        rename = "acknowledgedExperimentalCapabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub acknowledged_experimental_capabilities: Vec<String>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
     pub cron_jobs: Vec<PublicCronJobDefinition>,
@@ -1897,6 +2439,14 @@ pub struct PublicFunctionDefinition {
     pub auth_requirement: Option<AuthRequirement>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
+    /// LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it
+    /// authorizes, so it rides the public projection.
+    #[serde(rename = "publicInline", skip_serializing_if = "is_false")]
+    pub public_inline: bool,
+    /// LLP 0092 §0C.2 derived predicate — never authored; clients key the
+    /// alias-key promotion check and token expectations on it.
+    #[serde(rename = "rqsEligible", skip_serializing_if = "is_false")]
+    pub rqs_eligible: bool,
     #[serde(rename = "authorityCreating", skip_serializing_if = "is_false")]
     pub authority_creating: bool,
     #[serde(skip_serializing_if = "is_false")]
@@ -1934,6 +2484,7 @@ pub enum PublicHostPlanKind {
     Query,
     Mutation,
     Action,
+    RelationalQuery,
 }
 
 /// Public projection of [`IbexModule`]: the export name, never the source.
@@ -1954,9 +2505,16 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             inputs_hash,
             generated_at,
             unsupported_dependency_diagnostics,
+            acknowledged_experimental_capabilities,
             functions,
             cron_jobs,
             config,
+            // Maintained-projection plans are dropped from the public
+            // projection like every HandlerPlan body: they are executable
+            // maintenance declarations, not identity/compat facts. A typed
+            // public summary can be added deliberately if inspection needs
+            // one.
+            projections: _,
         } = manifest;
         PublicFunctionManifest {
             artifact_kind,
@@ -1969,6 +2527,7 @@ impl From<FunctionManifest> for PublicFunctionManifest {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
+            acknowledged_experimental_capabilities,
             functions: functions.into_iter().map(Into::into).collect(),
             cron_jobs: cron_jobs.into_iter().map(Into::into).collect(),
             config: config.into_iter().map(Into::into).collect(),
@@ -2038,6 +2597,9 @@ impl From<ConfigEntryDefinition> for PublicConfigEntryDefinition {
 
 impl From<FunctionDefinition> for PublicFunctionDefinition {
     fn from(definition: FunctionDefinition) -> Self {
+        // Derived before the destructure: the served-manifest `rqsEligible`
+        // fact (LLP 0092 §0C.2) is computed, never carried.
+        let rqs_eligible = rqs_eligible_digest_kind(&definition).is_some();
         let FunctionDefinition {
             id,
             name,
@@ -2047,6 +2609,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
             authority_creating,
             retainable,
             authorization_dependence,
@@ -2068,6 +2631,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
+            rqs_eligible,
             authority_creating,
             retainable,
             authorization_dependence,
@@ -2089,6 +2654,9 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
+                // Plan-level kind only: per-row facts stay off the ordinary
+                // inspection surface (LLP 0080 §7).
+                HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
             }),
             // `source: _` is the redaction this projection exists for.
             FunctionRuntime::IbexModule(IbexModule { source: _, export }) => {
@@ -2103,6 +2671,10 @@ pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
+    /// LLP 0080 §1 — the closed bounded-join profile. Callable and
+    /// `live_replace`-capable only; targets that cannot execute it report a
+    /// machine-readable capability gap before invocation.
+    RelationalQuery(RelationalQueryPlan),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3048,6 +3620,13 @@ pub struct QueryOutput {
     #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
+    /// Relational continuation cursor (LLP 0080 §2): present exactly when a
+    /// `root-window-v1` page consumed its full `take` of authorized roots.
+    /// Opaque and versioned; presenting it back as the `cursor` argument
+    /// resumes from the last consumed root. Absent for every non-relational
+    /// query and for terminal pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3136,10 +3715,14 @@ pub enum TargetCapabilityId {
     MutationReadSetValidation,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
+    #[serde(rename = "relational_query_v1")]
+    RelationalQueryV1,
+    #[serde(rename = "migration_keyset_scan_v1")]
+    MigrationKeysetScanV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 11] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
@@ -3149,6 +3732,8 @@ impl TargetCapabilityId {
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
+        Self::RelationalQueryV1,
+        Self::MigrationKeysetScanV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -3162,6 +3747,36 @@ impl TargetCapabilityId {
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
+            Self::RelationalQueryV1 => "relational_query_v1",
+            Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
+        }
+    }
+
+    /// The registry-owned maturity of this capability id (LLP 0058
+    /// §Capability maturity, amendment 2026-07-24). Maturity is a fact about
+    /// the id's governing contract, not about any one runtime instance, so it
+    /// lives on the closed registry next to the id itself: candidate
+    /// artifacts can neither assert nor upgrade it.
+    ///
+    /// @ref LLP 0058#capability-maturity — an `experimental` entry in
+    /// `supportedCapabilities` is not the plain 0058 compatibility assertion;
+    /// admission refuses it unless the requiring artifact acknowledges the
+    /// experimental contract.
+    pub const fn maturity(self) -> CapabilityMaturity {
+        match self {
+            // LLP 0076 was Accepted 2026-07-25 (author ratification, gate-2
+            // receipts complete): `bounded_response_stream_v1` fell out of
+            // this non-stable table as the acceptance act — positive presence
+            // is now the plain 0058 compatibility assertion. Artifacts that
+            // still acknowledge it are unaffected (stable acknowledgment is a
+            // no-op).
+            // LLP 0080 is Accepted (semantics), but its executable witnesses
+            // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
+            // relational profile's id stays `experimental`; flipping it to
+            // `Stable` is the Implemented act.
+            Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
+            Self::MigrationKeysetScanV1 => CapabilityMaturity::Experimental,
+            _ => CapabilityMaturity::Stable,
         }
     }
 
@@ -3200,6 +3815,14 @@ impl TargetCapabilityId {
                         .any(|form| form == "cron-action-run-mutation")
             }
             Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
+            // Fail-closed dedicated fact: a target implementing host plans
+            // (e.g. the Cloudflare host-ops path) does not thereby implement
+            // the relational executor (LLP 0080 §2's capability-gap rule).
+            Self::RelationalQueryV1 => facts.relational_query_v1_registered,
+            // Fail-closed dedicated fact (LLP 0081 §3): the privileged
+            // migration scan is a target capability; a target without it
+            // cannot claim migration proofs.
+            Self::MigrationKeysetScanV1 => facts.migration_keyset_scan_v1_registered,
         }
     }
 }
@@ -3221,12 +3844,50 @@ impl FromStr for TargetCapabilityId {
     }
 }
 
+/// The closed maturity vocabulary for registry capability ids (LLP 0058
+/// §Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule
+/// for Draft authorities).
+///
+/// - `proposed`: the contract exists in a proposal document but no
+///   implementation is registered; a proposed id is never emitted in
+///   `supportedCapabilities` at all.
+/// - `experimental`: the implementation is registered and the id's positive
+///   instance predicate holds, but the governing contract is not Accepted —
+///   the entry asserts current-contract compatibility only, and admission
+///   refuses requirements on it unless the requiring artifact explicitly
+///   acknowledges the experimental contract.
+/// - `stable`: the original LLP 0058 reading — positive presence is the
+///   plain compatibility assertion.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+pub enum CapabilityMaturity {
+    #[serde(rename = "proposed")]
+    Proposed,
+    #[serde(rename = "experimental")]
+    Experimental,
+    #[serde(rename = "stable")]
+    Stable,
+}
+
+impl CapabilityMaturity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Experimental => "experimental",
+            Self::Stable => "stable",
+        }
+    }
+}
+
 /// Code-owned implementation facts not representable by existing capability
 /// manifest fields. Constructors are internal so candidate artifacts cannot
 /// turn assertions into target authority.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
     bounded_response_stream_v1_registered: bool,
+    relational_query_v1_registered: bool,
+    migration_keyset_scan_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3240,6 +3901,8 @@ impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
         Self {
             bounded_response_stream_v1_registered: true,
+            relational_query_v1_registered: true,
+            migration_keyset_scan_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -3314,6 +3977,20 @@ pub struct CapabilityManifest {
         alias = "supported_capabilities"
     )]
     pub supported_capabilities: Vec<TargetCapabilityId>,
+    /// Maturity annotations over `supportedCapabilities` (LLP 0058
+    /// §Capability maturity, amendment 2026-07-24). Only emitted ids whose
+    /// registry maturity is not `stable` appear here; an id absent from this
+    /// map is stable, and a manifest omitting the field predates the maturity
+    /// dimension. The map is derived from the same closed Rust registry as
+    /// `supportedCapabilities` — it is reporting, never accepted as authority
+    /// from a posted artifact.
+    #[serde(
+        default,
+        rename = "capabilityMaturity",
+        alias = "capability_maturity",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pub capability_maturity: BTreeMap<TargetCapabilityId, CapabilityMaturity>,
     #[serde(
         default,
         rename = "authProtocols",
@@ -3410,6 +4087,130 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub runtime_facts: Option<Value>,
+    /// Migration-executor facts (LLP 0081 §4): the executor profile and
+    /// the closed fence lane registry. Present exactly when the target has
+    /// a migration executor; absent targets refuse with
+    /// `SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`.
+    #[serde(
+        default,
+        rename = "migration",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub migration: Option<MigrationTargetFacts>,
+    /// Relational-query facts (LLP 0080 §4): the live delivery class and
+    /// the closed set of admitted retention classes. Present exactly when
+    /// the target supports `relational_query_v1`; a target without the
+    /// executor reports the capability gap instead.
+    #[serde(
+        default,
+        rename = "relationalQueries",
+        alias = "relational_queries",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub relational_queries: Option<RelationalQueryFacts>,
+    /// Generated standard-pattern facts (LLP 0065 §4): live delivery is the
+    /// conservative resnapshot, and the `authScopeField`-enabled
+    /// disjointness-skip refinement of LLP 0053 is disabled — the field is
+    /// invalidation-routing metadata, never a skip enabler or enforcement.
+    /// Present exactly when the target runs generated standard patterns.
+    #[serde(
+        default,
+        rename = "standardPatterns",
+        alias = "standard_patterns",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub standard_patterns: Option<StandardPatternFacts>,
+}
+
+/// The declared standard-pattern live posture (LLP 0065 §4).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternFacts {
+    /// Always `"conservative-resnapshot"` in v1: a generated live query
+    /// resnapshots on a dependency commit and never claims `live_delta` —
+    /// the runtime excludes pattern-identified functions from the delta
+    /// lane even when the plan shape would otherwise qualify.
+    #[serde(rename = "liveDelivery", alias = "live_delivery")]
+    pub live_delivery: String,
+    /// Always `"disabled"` in v1: `authScopeField` routes invalidation and
+    /// never enables LLP 0053's disjointness-skip refinement, so no
+    /// convergence fixture is owed until a future profile claims the skip.
+    #[serde(
+        rename = "authScopeDisjointnessSkip",
+        alias = "auth_scope_disjointness_skip"
+    )]
+    pub auth_scope_disjointness_skip: String,
+}
+
+impl StandardPatternFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            live_delivery: "conservative-resnapshot".to_owned(),
+            auth_scope_disjointness_skip: "disabled".to_owned(),
+        }
+    }
+}
+
+/// The migration-executor posture and the closed lane registry the
+/// persisted migration fence covers (LLP 0081 §4): a lane the fence does
+/// not name cannot be admitted at all, so the registry is a capability
+/// fact, not prose.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrationTargetFacts {
+    /// The executor profile: `"local-exclusive-single-writer"` on the
+    /// local target (one IMMEDIATE transaction per durable transition).
+    pub executor: String,
+    /// The closed, enumerated lane registry the durable fence closes.
+    #[serde(rename = "fenceLanes")]
+    pub fence_lanes: Vec<String>,
+}
+
+impl MigrationTargetFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            executor: "local-exclusive-single-writer".to_owned(),
+            fence_lanes: [
+                "mutation",
+                "buffered-mutation",
+                "query",
+                "live-subscribe",
+                "live-resume",
+                "cron",
+                "action-stage",
+                "ephemeral-publish",
+            ]
+            .iter()
+            .map(|lane| (*lane).to_owned())
+            .collect(),
+        }
+    }
+}
+
+/// The declared relational live/retention posture (LLP 0080 §4).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RelationalQueryFacts {
+    /// Always `"live_replace"` in v1: relational subscriptions inherit
+    /// LLP 0053 with table-granular invalidation and no proved-disjoint
+    /// skip, and no incremental delta matcher is admitted.
+    #[serde(rename = "liveDelivery", alias = "live_delivery")]
+    pub live_delivery: String,
+    /// Closed, default-deny retention classes the target admits for
+    /// relational plans. V1 is exactly `["none"]`;
+    /// `opaque-authorized-snapshot-v1` (the authenticated lease class) is
+    /// specified but not yet admitted by authoring, and anonymous results
+    /// have no admissible retention.
+    pub retention: Vec<String>,
+}
+
+impl RelationalQueryFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            live_delivery: "live_replace".to_owned(),
+            retention: vec!["none".to_owned()],
+        }
+    }
 }
 
 pub(crate) fn vm_lifecycle_fresh() -> String {
@@ -3480,6 +4281,7 @@ impl CapabilityManifest {
                 },
             ],
             supported_capabilities: Vec::new(),
+            capability_maturity: BTreeMap::new(),
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -3502,6 +4304,9 @@ impl CapabilityManifest {
             outbound_actions: false,
             cron: true,
             notifications: false,
+            migration: Some(MigrationTargetFacts::local_v1()),
+            relational_queries: Some(RelationalQueryFacts::local_v1()),
+            standard_patterns: Some(StandardPatternFacts::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -3748,6 +4553,18 @@ impl CapabilityManifest {
         manifest.offline_retention = false;
         manifest.optimistic_replay = false;
         manifest.cron = false;
+        // No migration executor on this target: absence of the fact block
+        // is the machine-readable refusal (LLP 0081 §4).
+        manifest.migration = None;
+        // No relational executor on this target: the `relational_query_v1`
+        // capability gap is the machine-readable refusal, so the fact block
+        // must not ride along from the local profile (LLP 0080 §2).
+        manifest.relational_queries = None;
+        // The narrow Cloudflare proof has no standard-pattern runtime
+        // support (no cursor keyring, no pattern admission gates); loading
+        // pattern-identified functions there is outside the proof, so no
+        // fact block is claimed.
+        manifest.standard_patterns = None;
         // The proof's supported query subset is single-table only (LLP 0040
         // §Measurements: evidence for the supported query subset only).
         manifest.supported_query_forms = vec![
@@ -3814,12 +4631,39 @@ impl CapabilityManifest {
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
             .collect();
+        // @ref LLP 0058#capability-maturity — the maturity map annotates
+        // exactly the emitted support set; stable ids are omitted, so a
+        // manifest with only stable support serializes without the field.
+        self.capability_maturity = self
+            .supported_capabilities
+            .iter()
+            .filter(|capability| capability.maturity() != CapabilityMaturity::Stable)
+            .map(|capability| (*capability, capability.maturity()))
+            .collect();
     }
 
     /// Validate one app-artifact requirement against the closed registry and
     /// this target's positive support set. Candidate claims and missing gaps
-    /// are deliberately irrelevant.
+    /// are deliberately irrelevant. Callers with no acknowledgment channel
+    /// get stable-only semantics: an experimental capability is refused
+    /// exactly like unsupported one, because an experimental entry is not the
+    /// plain 0058 compatibility assertion (LLP 0058 §Capability maturity).
     pub fn require_capability(&self, required: &str) -> SnapbackResult<TargetCapabilityId> {
+        self.require_capability_acknowledging(required, &BTreeSet::new())
+    }
+
+    /// Requirement resolution with the artifact's experimental
+    /// acknowledgments (LLP 0058 §Capability maturity, amendment 2026-07-24).
+    /// A required id whose registry maturity is not `stable` admits only when
+    /// the requiring artifact lists it in
+    /// `acknowledgedExperimentalCapabilities`; acknowledging a stable id is a
+    /// harmless no-op, so acknowledgments survive the capability's later
+    /// promotion to stable unchanged.
+    pub fn require_capability_acknowledging(
+        &self,
+        required: &str,
+        acknowledged: &BTreeSet<TargetCapabilityId>,
+    ) -> SnapbackResult<TargetCapabilityId> {
         let capability = required.parse::<TargetCapabilityId>().map_err(|()| {
             SnapbackError::error(
                 "SNAPBACK_CAPABILITY_UNSUPPORTED",
@@ -3836,17 +4680,49 @@ impl CapabilityManifest {
             )
             .with_details(serde_json::json!({ "capability": required })));
         }
+        let maturity = capability.maturity();
+        if maturity != CapabilityMaturity::Stable && !acknowledged.contains(&capability) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "capability",
+                format!(
+                    "target supports required capability {required} only at {} maturity, \
+                     which is not plain support; the requiring artifact must list it in \
+                     acknowledgedExperimentalCapabilities",
+                    maturity.as_str()
+                ),
+            )
+            .with_details(serde_json::json!({
+                "capability": required,
+                "maturity": maturity.as_str(),
+                "acknowledged": false,
+            })));
+        }
         Ok(capability)
     }
 
     pub fn require_capabilities<'a>(
         &self,
         required: impl IntoIterator<Item = &'a str>,
+        acknowledged: &BTreeSet<TargetCapabilityId>,
     ) -> SnapbackResult<()> {
         for capability in required {
-            self.require_capability(capability)?;
+            self.require_capability_acknowledging(capability, acknowledged)?;
         }
         Ok(())
+    }
+
+    /// Parse an artifact's acknowledgment list into registry ids. Unknown
+    /// strings are ignored — an acknowledgment can only ever narrow a refusal
+    /// for a known id, never mint authority, so lenient parsing is
+    /// fail-closed (a typo simply leaves the experimental refusal in place).
+    pub fn parse_acknowledged_capabilities<'a>(
+        acknowledged: impl IntoIterator<Item = &'a str>,
+    ) -> BTreeSet<TargetCapabilityId> {
+        acknowledged
+            .into_iter()
+            .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
+            .collect()
     }
 }
 
@@ -3954,6 +4830,119 @@ mod membership_manifest_grammar_tests {
             enabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+    }
+
+    // @ref LLP 0058#capability-maturity — the maturity map annotates exactly
+    // the emitted support set, and an experimental entry is not plain
+    // support: admission requires the artifact's explicit acknowledgment.
+    #[test]
+    fn experimental_maturity_is_published_and_gates_admission() {
+        // The maturity map annotates the emitted set: experimental ids appear
+        // exactly when they are supported, and stable ids never appear. The
+        // stream id left this map when LLP 0076 was Accepted (2026-07-25) —
+        // its absence below is the promotion regression.
+        let disabled = CapabilityManifest::local_v0_declared();
+        // The relational profile is supported by the local runtime and its
+        // id is experimental until the coupled suite passes, so even the
+        // outbound-disabled declared manifest carries that one entry.
+        assert_eq!(
+            disabled
+                .capability_maturity
+                .get(&TargetCapabilityId::RelationalQueryV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        // The privileged migration scan (LLP 0081 §3) is likewise
+        // experimental until its executor and corpus land.
+        assert_eq!(
+            disabled
+                .capability_maturity
+                .get(&TargetCapabilityId::MigrationKeysetScanV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        assert_eq!(disabled.capability_maturity.len(), 2);
+        // The stream id is supported by the egress-enabled instance but is
+        // stable since LLP 0076's acceptance: it must NOT appear in the
+        // maturity map (positive presence is the plain 0058 assertion).
+        let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
+        assert!(
+            enabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+        assert!(
+            !enabled
+                .capability_maturity
+                .contains_key(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+        assert_eq!(enabled.capability_maturity.len(), 2);
+
+        // Serialization: the annotated manifest carries the field; the
+        // all-stable manifest omits it, and an omitted field round-trips to
+        // an empty map (older manifests predate the dimension).
+        let serialized = serde_json::to_value(&enabled).expect("serialize");
+        assert_eq!(
+            serialized["capabilityMaturity"],
+            json!({
+                "migration_keyset_scan_v1": "experimental",
+                "relational_query_v1": "experimental",
+            })
+        );
+        // An all-stable manifest omits the field, and an omitted field
+        // round-trips to an empty map (older manifests predate the
+        // dimension).
+        let mut all_stable = CapabilityManifest::local_v0_declared();
+        all_stable
+            .supported_capabilities
+            .retain(|id| id.maturity() == CapabilityMaturity::Stable);
+        all_stable.capability_maturity.clear();
+        let plain = serde_json::to_value(&all_stable).expect("serialize");
+        assert!(plain.get("capabilityMaturity").is_none());
+        let round_tripped: CapabilityManifest =
+            serde_json::from_value(plain).expect("deserialize without the field");
+        assert!(round_tripped.capability_maturity.is_empty());
+
+        // Admission: unacknowledged experimental support is refused exactly
+        // like unsupported (with the maturity named in the details) …
+        let refusal = enabled
+            .require_capability("relational_query_v1")
+            .expect_err("experimental support is not plain support");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(refusal.diagnostic.details["maturity"], "experimental");
+        assert_eq!(refusal.diagnostic.details["acknowledged"], false);
+
+        // … while the promoted stream id is now plain support: it admits
+        // with NO acknowledgment at all (LLP 0076 Accepted 2026-07-25).
+        enabled
+            .require_capability("bounded_response_stream_v1")
+            .expect("stable support admits without acknowledgment");
+
+        // The acknowledging artifact admits, acknowledging a stable id —
+        // including one promoted after the artifact was generated — is a
+        // harmless no-op, and an acknowledgment can never make an
+        // unsupported capability supported.
+        let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
+            "relational_query_v1",
+            "bounded_response_stream_v1",
+            "live_subscriptions",
+            "not.a.known.capability",
+        ]);
+        enabled
+            .require_capability_acknowledging("relational_query_v1", &acknowledged)
+            .expect("acknowledged experimental requirement admits");
+        enabled
+            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+            .expect("a surviving pre-promotion acknowledgment stays a no-op");
+        enabled
+            .require_capability_acknowledging("live_subscriptions", &acknowledged)
+            .expect("acknowledging a stable id is a no-op");
+        assert_eq!(
+            disabled
+                .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+                .expect_err("acknowledgment cannot mint support")
+                .diagnostic
+                .code,
+            "SNAPBACK_CAPABILITY_UNSUPPORTED"
         );
     }
 

@@ -12,6 +12,10 @@ export const conversations = defineTable({
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner_created', ['ownerId', 'createdAt'])
+  // The maintained projection's bounded fan-out lookup (LLP 0080 §5): a
+  // model rename discovers affected conversations through this index,
+  // never a table scan.
+  .index('by_model', ['model'])
   .sync();
 
 export const messages = defineTable({
@@ -35,4 +39,27 @@ export const messages = defineTable({
   .index('by_owner_idempotency', ['ownerId', 'idempotencyKey'], { unique: true })
   .sync();
 
-export default defineSchema({ conversations, messages }, { auth: { mode: 'dev' } });
+// A small public dimension table: the joined source of the maintained
+// projection below (LLP 0080 §5).
+export const models = defineTable({
+  slug: v.string(),
+  displayName: v.string(),
+})
+  .index('models_by_slug', ['slug'], { unique: true })
+  .sync();
+
+// The maintained projection's output: written only by projection
+// maintenance inside each source mutation's commit — any function writing
+// it directly is refused at generation and activation.
+export const conversationCards = defineTable({
+  ownerId: v.principal(),
+  title: v.string(),
+  modelName: v.optional(v.string()),
+})
+  .index('cards_by_owner', ['ownerId'])
+  .sync();
+
+export default defineSchema(
+  { conversations, messages, models, conversationCards },
+  { auth: { mode: 'dev' } },
+);

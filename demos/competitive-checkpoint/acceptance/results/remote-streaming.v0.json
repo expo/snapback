@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.remote-streaming.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "single-instance-container-vm.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "targetIdentitySource": "GET /inspect targetProfileId (admin-authenticated on the non-loopback bind)",
+  "capabilityManifestSha256": "a71185bb09e2a774cad724a3b1acac24021f530d9e200fcae3968d00649952fa",
+  "servedOrigin": "https://snapback-drill.fly.dev",
+  "upstreamSource": "http://127.0.0.1:4488 (machine-loopback; never exposed through the edge)",
+  "provider": {
+    "name": "fly.io",
+    "app": "snapback-drill",
+    "machineId": "819701c927ee68",
+    "region": "sjc"
+  },
+  "tls": {
+    "transport": "https",
+    "verified": true,
+    "protocol": "TLSv1.3",
+    "servername": "snapback-drill.fly.dev",
+    "subject": "*.fly.dev",
+    "issuer": "Let's Encrypt",
+    "subjectaltname": "DNS:*.fly.dev",
+    "validFrom": "Jun 21 23:22:45 2026 GMT",
+    "validTo": "Sep 19 23:22:44 2026 GMT",
+    "fingerprint256": "F6:3E:15:49:6D:97:94:61:45:C9:E5:D5:CC:21:C8:3F:12:DD:2E:35:14:DD:9A:B2:21:40:85:69:53:71:9B:19"
+  },
+  "authPosture": {
+    "mode": "dev (client-asserted, drill fixture identities)",
+    "serverProfile": "test",
+    "nonLoopbackDevAuthOverride": true,
+    "note": "plaintext non-loopback bind behind the platform TLS edge; --allow-insecure-dev-auth is the recorded drill posture, refused by the prod profile"
+  },
+  "title": "competitive checkpoint / remote streamed actions (single-instance-container-vm.v1)",
+  "passed": 7,
+  "skipped": 0,
+  "failed": 0,
+  "total": 7,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated owner CRUD, unique lookup, and keyset pages retain negative authorization",
+      "ok": true,
+      "details": {
+        "generatedOperations": 8,
+        "visibility": {
+          "kind": "owner",
+          "field": "ownerId"
+        },
+        "crossUserDenialsWitnessed": [
+          "list",
+          "uniqueLookup",
+          "keysetPage",
+          "update",
+          "delete"
+        ]
+      }
+    },
+    {
+      "name": "16 upstream chunks become multiple authoritative native-push commits",
+      "ok": true,
+      "details": {
+        "sourceChunks": 16,
+        "sourceDurationMsMinimum": 800,
+        "intermediateAuthoritativeCommits": 8,
+        "transport": "native-websocket-push",
+        "fallback": false
+      }
+    },
+    {
+      "name": "reply start retries are idempotent and cross-user progress mutation is refused",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "durable cancellation stops the reader and fences every late patch",
+      "ok": true,
+      "details": {
+        "terminal": "cancelled",
+        "sequence": 1,
+        "latePatches": 0
+      }
+    },
+    {
+      "name": "idle response settles timed_out distinctly",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "GET transport failure and unkeyed POST ambiguity remain distinct",
+      "ok": true,
+      "details": {
+        "failed": "failed",
+        "ambiguous": "ambiguous"
+      }
+    },
+    {
+      "name": "terminal rows mirror the host-derived effect certainty",
+      "ok": true,
+      "details": {
+        "cancelled": true,
+        "timed_out": true,
+        "ambiguous": true
+      }
+    }
+  ],
+  "expectedChecks": 7,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

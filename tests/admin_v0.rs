@@ -452,10 +452,11 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
                     input: handler_input(json!({}), "user_1"),
                     authorization_namespace: None,
                     supersedes: None,
+                    resume_from_token: None,
                 },
             )
             .expect("subscribe live query");
-        assert_eq!(subscription.snapshot.rows.len(), 2);
+        assert_eq!(subscription.snapshot.as_ref().unwrap().rows.len(), 2);
         snapback
             .invoke_mutation(
                 "createTodo",

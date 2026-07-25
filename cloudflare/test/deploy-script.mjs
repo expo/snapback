@@ -196,7 +196,20 @@ process.exit(91);
 `;
 const curlFake = `#!/usr/bin/env node
 const fs = require('node:fs');
+const curlArgs = process.argv.slice(2);
 const state = JSON.parse(fs.readFileSync(process.env.MOCK_STATE, 'utf8'));
+if (curlArgs.some((arg) => arg.includes('/_snapback/api/app/reset'))) {
+  const prefix = 'x-snapback-admin-token: ';
+  const authed = curlArgs.some((arg) => arg.startsWith(prefix) && arg.length > prefix.length);
+  if (process.env.MOCK_RESET_FAIL === '1' || !authed) {
+    console.log(JSON.stringify({ error: 'SNAPBACK_ADMIN_FORBIDDEN' }));
+  } else {
+    state.resetDone = true;
+    fs.writeFileSync(process.env.MOCK_STATE, JSON.stringify(state));
+    console.log(JSON.stringify({ reset: true, seeded: true }));
+  }
+  process.exit(0);
+}
 state.healthCalls += 1;
 fs.writeFileSync(process.env.MOCK_STATE, JSON.stringify(state));
 const failAfter = Number(process.env.MOCK_HEALTH_FAIL_AFTER_CALL || 0);
@@ -209,7 +222,7 @@ const wrongVersion = process.env.MOCK_HEALTH_WRONG_VERSION === '1' || (wrongAfte
 const workerVersion = { id: wrongVersion ? previousVersion : activeVersion, tag: '', timestamp: '2026-07-12T00:00:00.000Z' };
 if (process.env.MOCK_HEALTH_FAIL === '1' || (failAfter > 0 && state.healthCalls >= failAfter)) {
   console.log(JSON.stringify({ ok: true, bindings: { handler: false, actionHandler: false }, workerVersion }));
-} else if (process.env.MOCK_HEALTH_STALE === '1') {
+} else if (process.env.MOCK_HEALTH_STALE === '1' && !state.resetDone) {
   console.log(JSON.stringify({ ok: false, code: 'SNAPBACK_STALE_CLOUDFLARE_INPUTS_HASH', bindings: { handler: true, actionHandler }, workerVersion }));
 } else {
   console.log(JSON.stringify({ ok: true, bindings: { handler: true, actionHandler }, workerVersion }));
@@ -601,7 +614,51 @@ try {
   const staleHealth = run('stale-health', { MOCK_EXISTING: '', MOCK_HEALTH_STALE: '1' });
   assert.notEqual(staleHealth.status, 0);
   assert.match(staleHealth.output, /DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED/);
+  assert.match(staleHealth.output, /SNAPBACK_DEPLOY_RESET_ON_STALE=1/, 'the refusal must teach the operator the sanctioned escape hatch');
+  assert.ok(!staleHealth.output.includes('/_snapback/api/app/reset on the new version'), 'without the knob no reset may be attempted');
   assert.deepEqual(new Set(deletedConfigs(staleHealth)), new Set(['wrangler.handler.jsonc', 'wrangler.jsonc']));
+
+  // The opt-in stale-hash escape hatch: reset the just-activated version,
+  // re-probe, and continue the normal healthy path (no rollback/cleanup).
+  const staleResetKnob = run('stale-health-reset-knob', {
+    MOCK_EXISTING: '',
+    MOCK_HEALTH_STALE: '1',
+    SNAPBACK_DEPLOY_RESET_ON_STALE: '1',
+    SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret',
+    SNAPBACK_DEPLOY_RESET_ATTEMPTS: '2',
+    SNAPBACK_DEPLOY_RESET_DELAY_SECONDS: '0',
+  });
+  assert.equal(staleResetKnob.status, 0, staleResetKnob.output);
+  assert.match(staleResetKnob.output, /invoking authenticated \/_snapback\/api\/app\/reset on the new version/);
+  assert.match(staleResetKnob.output, /health passes after reset/);
+  assert.deepEqual(deletedConfigs(staleResetKnob), []);
+  assert.deepEqual(rollbackConfigs(staleResetKnob), []);
+  assert.doesNotMatch(JSON.stringify(staleResetKnob.calls) + staleResetKnob.output, /never-log-this-secret/);
+
+  // A refused/failed reset must fall through to the existing failure path.
+  const staleResetKnobFails = run('stale-health-reset-knob-fails', {
+    MOCK_EXISTING: '',
+    MOCK_HEALTH_STALE: '1',
+    MOCK_RESET_FAIL: '1',
+    SNAPBACK_DEPLOY_RESET_ON_STALE: '1',
+    SNAPBACK_ADMIN_TOKEN: 'never-log-this-secret',
+    SNAPBACK_DEPLOY_RESET_ATTEMPTS: '2',
+    SNAPBACK_DEPLOY_RESET_DELAY_SECONDS: '0',
+  });
+  assert.notEqual(staleResetKnobFails.status, 0);
+  assert.match(staleResetKnobFails.output, /DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED/);
+  assert.deepEqual(new Set(deletedConfigs(staleResetKnobFails)), new Set(['wrangler.handler.jsonc', 'wrangler.jsonc']));
+
+  // The knob without an admin token cannot authenticate and must fail closed.
+  const staleResetKnobNoToken = run('stale-health-reset-knob-no-token', {
+    MOCK_EXISTING: '',
+    MOCK_HEALTH_STALE: '1',
+    SNAPBACK_DEPLOY_RESET_ON_STALE: '1',
+  });
+  assert.notEqual(staleResetKnobNoToken.status, 0);
+  assert.match(staleResetKnobNoToken.output, /SNAPBACK_ADMIN_TOKEN is not in the/);
+  assert.match(staleResetKnobNoToken.output, /DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED/);
+  assert.deepEqual(new Set(deletedConfigs(staleResetKnobNoToken)), new Set(['wrangler.handler.jsonc', 'wrangler.jsonc']));
 
   const allAboardBase = { SNAPBACK_CF_APP: 'all-aboard', MOCK_EXISTING: allAboardExisting, MOCK_FAIL_AFTER_ACTIVATE: '1' };
   const existingHandlerFailure = run('existing-handler-activated-failure', {

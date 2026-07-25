@@ -18,6 +18,10 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
+  "capabilityMaturity": {
+    "migration_keyset_scan_v1": "experimental",
+    "relational_query_v1": "experimental"
+  },
   "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,
@@ -32,6 +36,19 @@
   },
   "liveSubscriptions": true,
   "localServerLifecycle": true,
+  "migration": {
+    "executor": "local-exclusive-single-writer",
+    "fenceLanes": [
+      "mutation",
+      "buffered-mutation",
+      "query",
+      "live-subscribe",
+      "live-resume",
+      "cron",
+      "action-stage",
+      "ephemeral-publish"
+    ]
+  },
   "mutationIsolationMode": "handler-captured-read-set-validation",
   "notifications": false,
   "offlineRetention": true,
@@ -40,6 +57,12 @@
   "outboundActions": true,
   "permissionDiagnostics": false,
   "portabilityOptOuts": [],
+  "relationalQueries": {
+    "liveDelivery": "live_replace",
+    "retention": [
+      "none"
+    ]
+  },
   "replaceOnlyQueries": true,
   "resourceLimits": [
     {
@@ -105,6 +128,10 @@
   ],
   "runtimeEngine": "ibex",
   "schemaVersion": "snapback.v0",
+  "standardPatterns": {
+    "authScopeDisjointnessSkip": "disabled",
+    "liveDelivery": "conservative-resnapshot"
+  },
   "storageEngine": "sqlite",
   "supportedArtifactAuthPairs": [
     {
@@ -133,7 +160,9 @@
     "ibex_ctx_db_host_bridge",
     "live_subscriptions",
     "mutation_read_set_validation",
-    "permission_epoch_resync"
+    "permission_epoch_resync",
+    "relational_query_v1",
+    "migration_keyset_scan_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

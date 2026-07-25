@@ -50,7 +50,7 @@ async function main() {
   };
   try {
     // --- config status ----------------------------------------------------
-    const status = await (await fetch(`${base}/config/status`, {
+    const status = await (await fetch(`${base}/_snapback/api/config/status`, {
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     })).json();
     const caltrain = status.declarations.find((entry) => entry.name === 'caltrainFeed');
@@ -70,7 +70,7 @@ async function main() {
     check('config status carries no key material', !containsKeyMaterial(status));
 
     // --- invocation payload: descriptors only ------------------------------
-    const payload = await post('/__test/secrets-payload', { name: 'probeSecrets' });
+    const payload = await post('/_snapback/test/secrets-payload', { name: 'probeSecrets' });
     const grants = JSON.parse(payload.secretsJson);
     check(
       'action invocation payload carries descriptors only (asserted, not by convention)',
@@ -82,7 +82,7 @@ async function main() {
     );
 
     // --- granted action sees redacted, fail-closed handles ----------------
-    const run1 = await post('/__test/action', { name: 'probeSecrets' });
+    const run1 = await post('/_snapback/test/action', { name: 'probeSecrets' });
     const probe1 = run1.result;
     check('granted action receives ctx.secrets', run1.ok === true && probe1.secretsType === 'object');
     check(
@@ -107,8 +107,8 @@ async function main() {
     check('the action result carries no key material', !containsKeyMaterial(run1));
 
     // --- invocation-scoped opaque capabilities ---------------------------
-    const run2 = await post('/__test/action', { name: 'probeSecrets' });
-    const run3 = await post('/__test/action', { name: 'probeSecrets' });
+    const run2 = await post('/_snapback/test/action', { name: 'probeSecrets' });
+    const run3 = await post('/_snapback/test/action', { name: 'probeSecrets' });
     check(
       'secret capabilities are opaque and freshly scoped to each invocation',
       typeof probe1.caltrainFeed.descriptor.capabilityId === 'string' &&
@@ -126,7 +126,7 @@ async function main() {
 
     // --- destructive reset does not clear configured secrets ---------------
     await proof.reset();
-    const statusAfterReset = await (await fetch(`${base}/config/status`, {
+    const statusAfterReset = await (await fetch(`${base}/_snapback/api/config/status`, {
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     })).json();
     const caltrainAfter = statusAfterReset.declarations.find((entry) => entry.name === 'caltrainFeed');
@@ -168,7 +168,7 @@ async function main() {
         adminToken: ADMIN_TOKEN,
         expectedEntries: { caltrainFeed: [KEY_A, KEY_B] },
       });
-      check('the generation-bearing activation attests applied via /config/status', applied === 'applied');
+      check('the generation-bearing activation attests applied via /_snapback/api/config/status', applied === 'applied');
     } finally {
       await activated.dispose();
     }

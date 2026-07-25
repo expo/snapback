@@ -726,6 +726,11 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
+    /// Pending-registration owners for bundle register mode plus the
+    /// per-authority bundle rate limiter (LLP 0031 dated LLP 0090 amendment;
+    /// LLP 0092 §0D.4 bounds and reaping). Public for the acceptance suite;
+    /// handlers and the maintenance sweep are the only production writers.
+    pub bundle_pending: crate::bundle::PendingBundleRegistry,
     /// Terminal invalidation shares the exact registry and delivery notifier
     /// installed in this app state. The pre-bind expiry worker receives a
     /// clone, so readiness cannot accidentally describe a different graph.
@@ -780,7 +785,7 @@ pub struct AppState {
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
     /// Provider-authenticated hosted origin/admission authority. It is absent
     /// on every local target and cannot be synthesized from request headers.
-    pub(crate) hosted_serving: Option<Arc<crate::auth::deployment::HostedServingAuthority>>,
+    pub(crate) hosted_serving: Option<crate::auth::deployment::HostedServingHandle>,
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
@@ -848,6 +853,7 @@ impl AppState {
                 ephemeral,
                 server: Arc::new(server),
                 connections,
+                bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
                 service_authority_fences,
                 auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
@@ -952,6 +958,27 @@ impl AppState {
         self
     }
 
+    /// The capability tuple carried by a verified hosted admission, if one is
+    /// installed. `None` for every local deployment.
+    ///
+    /// @ref LLP 0098#41-composition — the published descriptor comes from the
+    /// verified attestation, never from a build constant.
+    pub(crate) fn hosted_serving_capabilities(
+        &self,
+    ) -> Option<crate::auth::deployment::HostedAuthCapabilities> {
+        self.hosted_serving
+            .as_ref()
+            .and_then(|handle| handle.current())
+            .map(|authority| authority.capabilities())
+    }
+
+    /// The hot-swap slot, for the renewal loop. `None` on every local target.
+    pub(crate) fn hosted_serving_handle(
+        &self,
+    ) -> Option<crate::auth::deployment::HostedServingHandle> {
+        self.hosted_serving.clone()
+    }
+
     /// Install the target-authenticated hosted serving authority and create
     /// its replay/nonce tables before any request can observe hosted posture.
     #[allow(dead_code)] // First concrete adapter composition is the next LLP 0072 tranche.
@@ -995,7 +1022,7 @@ impl AppState {
                 .auth_database_mut()
                 .apply_sender_replay_epoch_floor(authority.sender_replay_epoch_floor())?;
         }
-        self.hosted_serving = Some(Arc::new(authority));
+        self.hosted_serving = Some(crate::auth::deployment::HostedServingHandle::new(authority));
         Ok(self)
     }
 
@@ -1210,6 +1237,7 @@ impl AppState {
             return self
                 .hosted_serving
                 .as_ref()
+                .and_then(|handle| handle.current())
                 .ok_or_else(|| {
                     crate::auth::deployment::deployment_unsupported(
                         crate::auth::deployment::HostedAuthCapabilities::local_target(),

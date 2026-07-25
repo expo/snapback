@@ -565,21 +565,31 @@ globalThis.__snapbackHandlers = {
     return { allowed: true, trigger, retryInMs: 0, lastUpstreamPollAt: observedAt };
   },
 
+  // Seed-true reset: restores every feed field this file can mutate to its
+  // literal seed value (seed.gen.mjs), so an app client can return the board to
+  // the honest boot state — lastSource 'seed', tickIndex 0, fetchedAt 0 — with
+  // no admin reseed. Handler files are closed single-file scripts (no imports),
+  // so this does not embed a copy of the seed fixture; instead it rewrites the
+  // handler-mutable fields and relies on the fact that no mutation in this file
+  // ever touches the seed-only fields (staleAfterMs, tickCount, the static
+  // schedule tables). The headless acceptance suite asserts the post-reset
+  // state byte-equivalent to seed.json, which holds that invariant against
+  // future drift. lastUpstreamPollAt: null clears the ENG-23642 upstream-poll
+  // budget (the fresh-seed row has no claim on record).
   async resetFeed(ctx) {
-    const observedAt = nowMs(ctx);
     for (const patternId of PATTERN_IDS) {
-      await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt });
+      await ctx.db.patch('trainStatus', patternId, { delaySeconds: 0, status: 'on-time', observedAt: 0 });
     }
     for (const row of await ctx.db.query('liveDepartures').collect()) {
       await ctx.db.delete('liveDepartures', row._id);
     }
     await ctx.db.patch('feedRefreshState', 'caltrain', {
-      fetchedAt: observedAt,
+      fetchedAt: 0,
       tickIndex: 0,
-      lastSource: 'reset',
-      lastRunTrigger: 'reset',
+      lastSource: 'seed',
+      lastRunTrigger: 'seed',
       lastError: '',
-      lastUpstreamPollAt: 0,
+      lastUpstreamPollAt: null,
     });
     return { tickIndex: 0 };
   },

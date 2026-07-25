@@ -380,6 +380,85 @@ async fn compose_auth_mode_startup(
     }
 }
 
+/// Compose the hosted-edge adapter attestation, or refuse the hosted request.
+///
+/// Returns `None` for an ordinary local deployment. For a hosted request this
+/// runs the LLP 0098 §3.1 pre-bind conjunction and returns the verified
+/// admission; any failure is the coded refusal, and a hosted request with no
+/// adapter at all keeps the shipped `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`
+/// refusal with its exact closed blocker list.
+///
+/// @ref LLP 0098#41-composition — the capability tuple a hosted deployment
+/// publishes comes from the verified admission, never from a build constant, so
+/// an ordinary local server can never advertise `externalTls: enforced`.
+fn hosted_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+type ComposedHostedEdge = Option<(
+    crate::auth::hosted_edge::VerifiedHostedAdmission,
+    crate::auth::hosted_edge::AdmissionRenewalInputs,
+)>;
+
+fn compose_hosted_edge_admission(
+    args: &Args,
+    bind_ip: IpAddr,
+) -> crate::diagnostic::SnapbackResult<ComposedHostedEdge> {
+    use crate::auth::deployment::AuthDeploymentTarget;
+
+    if args.auth_deployment != AuthDeploymentTarget::Hosted {
+        return Ok(None);
+    }
+    let (Some(config_path), Some(envelope_path)) =
+        (args.hosted_edge.as_ref(), args.hosted_admission.as_ref())
+    else {
+        // No adapter supplied: the shipped refusal, unchanged.
+        return crate::auth::deployment::validate_auth_deployment(
+            args.auth_deployment,
+            crate::auth::deployment::HostedAuthCapabilities::local_target(),
+        )
+        .map(|()| None);
+    };
+
+    let read = |path: &std::path::Path| -> crate::diagnostic::SnapbackResult<Vec<u8>> {
+        std::fs::read(path).map_err(|_| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted-edge adapter input could not be read",
+            )
+        })
+    };
+
+    let config = crate::auth::hosted_edge::HostedEdgeConfig::parse(&read(config_path)?)?;
+    let now_ms = hosted_now_ms();
+    let envelope =
+        crate::auth::hosted_edge::select_admission_for_now(&read(envelope_path)?, now_ms)?;
+
+    // The origin's own half of the conjunction: it decides for itself whether
+    // the address it is about to bind is loopback (LLP 0098 H1). A caller
+    // cannot assert this any more than it can assert sessions transport.
+    let facts = config.self_facts(bind_ip.is_loopback())?;
+    let admission_public_key = config.admission_public_key_bytes()?;
+    let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
+        &envelope,
+        &admission_public_key,
+        &facts,
+        now_ms,
+    )?;
+    // The renewal loop re-runs this exact conjunction against successors, so it
+    // carries the same inputs rather than a cached decision.
+    let renewal = crate::auth::hosted_edge::AdmissionRenewalInputs {
+        document_path: envelope_path.clone(),
+        admission_public_key,
+        facts,
+    };
+    Ok(Some((verified, renewal)))
+}
+
 // @ref LLP 0060#d1-plaintext-listener-fence — sessions have no plaintext
 // non-loopback override; desired sessions are fenced before listener bind too.
 fn validate_auth_transport(
@@ -490,11 +569,33 @@ pub struct Args {
     #[arg(long)]
     pub allow_insecure_dev_auth: bool,
 
+    /// Run with the cron scheduler inert: definitions still load, validate,
+    /// and inspect, but no run is ever claimed autonomously. The admin manual
+    /// tick (`POST …/cron/tick`) keeps working, so suites drive ticks
+    /// deterministically. `SNAPBACK_CRON_DISABLED=1` (or `true`) is the
+    /// environment form of the same switch.
+    #[arg(long)]
+    pub cron_disabled: bool,
+
     /// Require the serving target to enforce the complete hosted-auth edge and
-    /// browser contract. The local target refuses this must-understand request;
-    /// loopback plus a reverse proxy is not an attestation.
+    /// browser contract. Without a verified hosted-edge adapter attestation the
+    /// target refuses this must-understand request; loopback plus a reverse
+    /// proxy is not an attestation.
     #[arg(long, value_enum, default_value = "local")]
     pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+
+    /// Hosted-edge adapter configuration (LLP 0098). Carries no authority: it
+    /// tells the origin which deployment identity, origin, first-contact
+    /// mechanism, verification key, and support digest to *check* against the
+    /// signed admission envelope.
+    #[arg(long, requires = "hosted_admission")]
+    pub hosted_edge: Option<PathBuf>,
+
+    /// The signed hosted admission envelope produced by the control plane. Its
+    /// authority is its Ed25519 signature against the release-bound key, never
+    /// its presence on disk.
+    #[arg(long, requires = "hosted_edge")]
+    pub hosted_admission: Option<PathBuf>,
 
     /// Unit-test-only injection at the two fallible construction receipts.
     #[cfg(test)]
@@ -511,10 +612,13 @@ impl Default for Args {
             memory: false,
             ready_file: None,
             restored_from_backup: None,
+            hosted_edge: None,
+            hosted_admission: None,
             startup_artifacts: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             #[cfg(test)]
             auth_construction_failure: None,
@@ -611,6 +715,98 @@ pub enum HostCommand {
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
     Mcp,
+    /// migrate.* — LLP 0081 reviewed storage evolution (local profile).
+    Migrate {
+        #[command(subcommand)]
+        command: MigrateCommand,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum MigrateCommand {
+    /// migrate.preview — deterministic plan + separately digested
+    /// observation from explicit intents. Read-only against app state.
+    Preview {
+        #[arg(long)]
+        db: PathBuf,
+        /// JSON file: an array of MigrationIntent values.
+        #[arg(long)]
+        intents: PathBuf,
+        /// The staged successor schema manifest (JSON).
+        #[arg(long)]
+        schema: PathBuf,
+        /// The approved publication timestamp constant (ms). Migration
+        /// constants are explicit inputs; preview creates none.
+        #[arg(long)]
+        publication_timestamp_ms: u64,
+        /// The explicit rollback timestamp constant (ms) — required later
+        /// to execute the LLP 0081 §6 fast rollback; must be >= the
+        /// publication timestamp.
+        #[arg(long)]
+        rollback_timestamp_ms: Option<u64>,
+        /// Optional JSON object of named literal constants.
+        #[arg(long)]
+        constants: Option<PathBuf>,
+        #[arg(long, default_value_t = 1_000_000)]
+        max_affected_rows: u64,
+        #[arg(long, default_value_t = 60_000)]
+        max_barrier_downtime_ms: u64,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// migrate.approve — a local authenticated operator record: authority
+    /// is filesystem custody of the database plus the recorded local
+    /// operator principal ($USER unless --approver). Hosted approval is an
+    /// LLP 0072 control-plane operation, not this command.
+    Approve {
+        /// The preview output (plan + observation).
+        plan: PathBuf,
+        #[arg(long)]
+        approver: Option<String>,
+        /// Approval validity window in milliseconds.
+        #[arg(long, default_value_t = 24 * 60 * 60 * 1_000)]
+        expires_in_ms: u64,
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// migrate.apply — execute the approved file by path; never
+    /// regenerates a plan. --dry-run validates admission without writing.
+    Apply {
+        /// The approved file from `migrate approve`.
+        approved: PathBuf,
+        /// The staged successor schema manifest (JSON).
+        #[arg(long)]
+        schema: PathBuf,
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// migrate.cancel — request cancellation at the next admitted
+    /// pre-publication boundary.
+    Cancel {
+        approved: PathBuf,
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// migrate.verify — the receipt-vs-journal projection check. The §5
+    /// data proof (expected values, content digests) lands with the
+    /// verification wave and refuses honestly until then.
+    Verify {
+        #[arg(long)]
+        operation_id: String,
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// migrate.rollback — not yet available on this profile; refuses with
+    /// SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE rather than guessing.
+    Rollback {
+        receipt: PathBuf,
+        #[arg(long)]
+        db: PathBuf,
+    },
 }
 
 #[derive(clap::Subcommand)]
@@ -784,6 +980,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
+        Some(HostCommand::Migrate { command }) => migrate_command(command),
     }
 }
 
@@ -1491,10 +1688,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
     // hosted request before opening target state; operator config is a request,
     // never authority for target-owned TLS/proxy/throttle/invalidation facts.
-    crate::auth::deployment::validate_auth_deployment(
-        args.auth_deployment,
-        crate::auth::deployment::HostedAuthCapabilities::local_target(),
-    )?;
+    //
+    // @ref LLP 0098#4-the-admission-seam — the one place hosted serving can be
+    // admitted. Every clause not needing durable state runs here, before the
+    // database path is created, so an unsupported hosted request still leaves
+    // the target byte-for-byte unchanged.
+    let verified_hosted_admission = compose_hosted_edge_admission(&args, bind_ip)?;
     let (prepared_database_path, mut startup_target_reservation) = if args.memory {
         (None, None)
     } else {
@@ -1861,6 +2060,79 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ephemeral.clone(),
         server_context,
     );
+    // @ref LLP 0060#d1-plaintext-listener-fence — the request-path fence
+    // consumes this bit per request; the production profile never honors it.
+    // Install the CLI override into the runtime middleware consults per
+    // request. Pre-bind validation alone is not enough: without this the
+    // request-path fence (`auth_app_data_refusal`) sees the default `false`
+    // and refuses every app-data route on a non-loopback bind even though the
+    // operator passed the flag — found by the first remote drill target, where
+    // the bind is 0.0.0.0 behind the platform TLS edge. Middleware still
+    // ignores the bit under the production profile.
+    let app_state = app_state.with_insecure_dev_auth_override(args.allow_insecure_dev_auth);
+    // @ref LLP 0098#43-ordering — install the verified attestation before any
+    // listener binds. Installation performs the durable monotonicity check that
+    // the pre-bind phase could not, then creates the replay/nonce and throttle
+    // tables and applies the LLP 0077 decision-1 sender-replay epoch floor.
+    let app_state = match verified_hosted_admission.as_ref() {
+        Some((verified, _)) => {
+            let authority = {
+                let mut snapback = state.lock().await;
+                snapback
+                    .auth_database_mut()
+                    .install_hosted_admission(verified, hosted_now_ms())
+                    .map_err(anyhow::Error::new)?
+            };
+            app_state
+                .with_hosted_serving_authority(authority)
+                .map_err(anyhow::Error::new)?
+        }
+        None => app_state,
+    };
+    // @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing — an admission
+    // lives at most five minutes, so a deployment that serves longer needs its
+    // authority replaced in place. The loop only ever installs another
+    // independently verified snapshot; when the document stops covering the
+    // clock it installs nothing and the incumbent expires, so withdrawal is
+    // composed with rather than suppressed.
+    if let Some((verified, renewal)) = verified_hosted_admission {
+        let handle = app_state.hosted_serving_handle();
+        let renewal_state = state.clone();
+        let mut installed_issued_at_ms = verified.issued_at_ms();
+        if let Some(handle) = handle {
+            tokio::spawn(async move {
+                let interval = std::time::Duration::from_millis(
+                    crate::auth::hosted_edge::ADMISSION_RENEWAL_INTERVAL_MS,
+                );
+                loop {
+                    tokio::time::sleep(interval).await;
+                    let now_ms = hosted_now_ms();
+                    let renewed = {
+                        let mut snapback = renewal_state.lock().await;
+                        snapback.auth_database_mut().renew_hosted_admission(
+                            &renewal,
+                            installed_issued_at_ms,
+                            now_ms,
+                        )
+                    };
+                    match renewed {
+                        Ok(Some((authority, issued_at_ms))) => {
+                            if handle.install(authority) {
+                                installed_issued_at_ms = issued_at_ms;
+                            }
+                        }
+                        // Incumbent still current: nothing to do.
+                        Ok(None) => {}
+                        // A document that no longer covers the clock, or a
+                        // successor that fails any clause, leaves the incumbent
+                        // to expire on its own terms. Withdrawal is the
+                        // designed outcome, not an error to route around.
+                        Err(_) => {}
+                    }
+                }
+            });
+        }
+    }
     let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
@@ -2073,9 +2345,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // startup publication (operator sidecars, ready descriptor, and console
     // handoff) has succeeded. From this point the only ordinary exit is server
     // shutdown, where all three handles are aborted below.
+    let cron_autonomy_disabled = args.cron_disabled
+        || server::cron_autonomy_disabled(std::env::var("SNAPBACK_CRON_DISABLED").ok().as_deref());
+    if cron_autonomy_disabled {
+        // The switch is meant for suites/dev loops; say so at boot rather
+        // than letting an inert scheduler present as a mystery.
+        println!(
+            "cron: autonomous scheduling disabled (SNAPBACK_CRON_DISABLED / --cron-disabled); \
+             definitions still load and POST /_snapback/api/cron/tick runs due jobs"
+        );
+    }
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
-        .then(|| server::spawn_cron_scheduler(state.clone()));
+        .then(|| server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled));
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
@@ -3805,6 +4087,12 @@ mod tests {
         assert_eq!(args.port, None);
         assert_eq!(args.db, PathBuf::from(".snapback/dev.sqlite3"));
         assert!(!args.memory);
+        assert!(!args.cron_disabled);
+    }
+
+    #[test]
+    fn cron_disabled_flag_parses() {
+        assert!(Args::parse_from(["snapback", "--cron-disabled"]).cron_disabled);
     }
 
     #[test]
@@ -3817,7 +4105,7 @@ mod tests {
             .find("target\n            .write_atomic_protected")
             .expect("ready descriptor publication remains explicit");
         let cron = source
-            .find("server::spawn_cron_scheduler(state.clone())")
+            .find("server::spawn_cron_scheduler(state.clone(), cron_autonomy_disabled)")
             .expect("cron scheduler spawn remains explicit");
         let maintenance = source
             .find("server::spawn_maintenance_worker(app_state)")
@@ -3828,6 +4116,28 @@ mod tests {
         assert!(sidecar < cron && ready < cron);
         assert!(sidecar < maintenance && ready < maintenance);
         assert!(sidecar < auth_gc && ready < auth_gc);
+    }
+
+    #[test]
+    fn serve_path_installs_insecure_dev_auth_override_into_app_state() {
+        // The request-path transport fence reads
+        // `AppState.allow_insecure_dev_auth`, not the CLI args, so the serve
+        // path must install the flag between AppState construction and app
+        // build. Without this the flag validates pre-bind and is then
+        // silently dropped: every app-data route on a non-loopback bind
+        // refuses with SNAPBACK_AUTH_TRANSPORT_INSECURE (found by the first
+        // remote drill target).
+        let source = include_str!("cli.rs");
+        let constructed = source
+            .find("AppState::new_with_secret_read_operator(\n        state.clone(),")
+            .expect("serve-path AppState construction remains explicit");
+        let installed = source
+            .find(".with_insecure_dev_auth_override(args.allow_insecure_dev_auth)")
+            .expect("serve path installs the CLI override into request-path state");
+        let built = source
+            .find("connection_binding_receipt.build(app_state.clone())")
+            .expect("app build from AppState remains explicit");
+        assert!(constructed < installed && installed < built);
     }
 
     #[test]
@@ -4501,12 +4811,15 @@ mod tests {
             port: Some(0),
             db: restored_database.clone(),
             memory: false,
+            hosted_edge: None,
+            hosted_admission: None,
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             auth_construction_failure: None,
         })
@@ -4523,10 +4836,13 @@ mod tests {
             memory: false,
             ready_file: Some(ready.clone()),
             restored_from_backup: Some(declaration_id),
+            hosted_edge: None,
+            hosted_admission: None,
             startup_artifacts: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
+            cron_disabled: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             auth_construction_failure: None,
         }));
@@ -5991,5 +6307,300 @@ mod tests {
                 .unwrap()
                 .is_file()
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// migrate.* — LLP 0081 host operations (local profile)
+// ---------------------------------------------------------------------------
+
+fn migrate_envelope(
+    operation: &str,
+    ok: bool,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: format!("hop_{}", Uuid::now_v7().simple()),
+        operation: operation.to_owned(),
+        ok,
+        target: crate::host_ops::HostOpsTarget {
+            app_id: "local".to_owned(),
+            app_root: None,
+            target_profile: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            server_url: None,
+        },
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data,
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn migrate_emit(operation: &str, outcome: anyhow::Result<Value>) -> anyhow::Result<()> {
+    let envelope = match outcome {
+        Ok(data) => migrate_envelope(operation, true, data, Vec::new()),
+        Err(error) => {
+            let diagnostic = match error.downcast::<crate::diagnostic::SnapbackError>() {
+                Ok(snapback) => snapback.diagnostic,
+                Err(other) => {
+                    crate::diagnostic::SnapbackError::error(
+                        "SNAPBACK_MIGRATION_PLAN_INVALID",
+                        "storage",
+                        other.to_string(),
+                    )
+                    .diagnostic
+                }
+            };
+            migrate_envelope(operation, false, Value::Null, vec![diagnostic])
+        }
+    };
+    println!("{}", serde_json::to_string_pretty(&envelope)?);
+    if envelope.ok {
+        Ok(())
+    } else {
+        std::process::exit(1);
+    }
+}
+
+fn migrate_read_json<T: serde::de::DeserializeOwned>(path: &PathBuf, what: &str) -> anyhow::Result<T> {
+    let raw = std::fs::read_to_string(path)
+        .map_err(|error| anyhow::anyhow!("read {what} {}: {error}", path.display()))?;
+    serde_json::from_str(&raw).map_err(|error| anyhow::anyhow!("parse {what}: {error}"))
+}
+
+/// The preview/approve interchange file: the sealed plan artifact plus its
+/// separately digested observation. Only the plan bytes are required to be
+/// byte-identical across repeated previews.
+#[derive(serde::Deserialize, serde::Serialize)]
+struct MigratePreviewFile {
+    artifact: crate::migration::MigrationPlanArtifactV1,
+    observation: crate::migration::MigrationPreviewObservationV1,
+    #[serde(rename = "generatedBy")]
+    generated_by: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct MigrateApprovedFile {
+    artifact: crate::migration::MigrationPlanArtifactV1,
+    observation: crate::migration::MigrationPreviewObservationV1,
+    approval: crate::migration::MigrationApprovalV1,
+}
+
+fn wall_clock_now_ms() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn local_operator() -> String {
+    std::env::var("USER").unwrap_or_else(|_| "local-operator".to_owned())
+}
+
+pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
+    match command {
+        MigrateCommand::Preview {
+            db,
+            intents,
+            schema,
+            publication_timestamp_ms,
+            rollback_timestamp_ms,
+            constants,
+            max_affected_rows,
+            max_barrier_downtime_ms,
+            out,
+        } => migrate_emit("migrate.preview", (|| {
+            let intents: Vec<crate::migration::MigrationIntent> =
+                migrate_read_json(&intents, "intents")?;
+            let successor: crate::manifest::SchemaManifest =
+                migrate_read_json(&schema, "successor schema")?;
+            let constant_values: std::collections::BTreeMap<String, Value> = match &constants {
+                Some(path) => migrate_read_json(path, "constants")?,
+                None => Default::default(),
+            };
+            let snapback = crate::local::LocalSnapback::open(&db)?;
+            let predecessor = snapback.migrate_predecessor_schema();
+            let head = snapback.migrate_head_version()?;
+            let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
+            let body = crate::migration::MigrationPlanBody {
+                schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: snapback.migrate_app_id(),
+                instance: db.display().to_string(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash:
+                    crate::storage::migration_executor::schema_identity(&predecessor)?,
+                successor_schema_hash:
+                    crate::storage::migration_executor::schema_identity(&successor)?,
+                predecessor_generation: head,
+                steps,
+                execution_strategy:
+                    crate::migration::MigrationExecutionStrategy::SingleTransaction,
+                proof: crate::migration::MigrationProof {
+                    method: crate::migration::MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: crate::migration::MigrationCeilings {
+                    max_affected_rows,
+                    max_bytes: 64 * 1024 * 1024,
+                    max_writes: max_affected_rows,
+                    max_barrier_downtime_ms,
+                },
+                compatibility_posture: crate::migration::CompatibilityPosture::SuccessorOnly,
+                retained_work_posture: crate::migration::RetainedWorkPosture::Empty,
+                backup: crate::migration::MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                },
+                expected_output: crate::migration::MigrationExpectedOutput {
+                    schema_hash: crate::storage::migration_executor::schema_identity(&successor)?,
+                    projection_generations: Default::default(),
+                },
+                constants: crate::migration::MigrationConstants {
+                    publication_timestamp_ms,
+                    rollback_timestamp_ms,
+                    values: constant_values,
+                },
+                boundaries: Default::default(),
+            };
+            let artifact = crate::migration::MigrationPlanArtifactV1::seal(body)?;
+            crate::migration::validate_plan_artifact(&artifact, &predecessor, &successor)?;
+            let observation = crate::migration::MigrationPreviewObservationV1 {
+                schema_version:
+                    crate::migration::MIGRATION_OBSERVATION_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                target_head_version: head,
+                observed_at_ms: wall_clock_now_ms(),
+                precondition_rows: Default::default(),
+                capability_health: Default::default(),
+            };
+            let file = MigratePreviewFile {
+                artifact,
+                observation,
+                generated_by: local_operator(),
+            };
+            std::fs::write(&out, serde_json::to_string_pretty(&file)?)?;
+            Ok(json!({
+                "planId": file.artifact.plan_id,
+                "planDigest": file.artifact.plan_digest,
+                "steps": file.artifact.body.steps.len(),
+                "out": out.display().to_string(),
+            }))
+        })()),
+        MigrateCommand::Approve {
+            plan,
+            approver,
+            expires_in_ms,
+            db,
+            out,
+        } => migrate_emit("migrate.approve", (|| {
+            let preview: MigratePreviewFile = migrate_read_json(&plan, "preview file")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            let audience = snapback.migrate_resolved_audience()?;
+            let approver = approver.unwrap_or_else(local_operator);
+            let now = wall_clock_now_ms();
+            let approval = crate::migration::MigrationApprovalV1 {
+                schema_version:
+                    crate::migration::MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: preview.artifact.plan_digest.clone(),
+                observation_digest: crate::migration::observation_digest(&preview.observation)?,
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: crate::migration::MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: audience.database_id,
+                    stream_incarnation: audience.stream_incarnation,
+                    activation_generation: audience.activation_generation,
+                    target_profile_id: audience.target_profile_id,
+                },
+                approver: approver.clone(),
+                generator_is_approver: approver == preview.generated_by,
+                issued_at_ms: now,
+                expires_at_ms: now + expires_in_ms,
+                operation_id: crate::migration::new_operation_id(),
+            };
+            crate::migration::validate_approval_shape(&approval)?;
+            let approved = MigrateApprovedFile {
+                artifact: preview.artifact,
+                observation: preview.observation,
+                approval,
+            };
+            std::fs::write(&out, serde_json::to_string_pretty(&approved)?)?;
+            Ok(json!({
+                "operationId": approved.approval.operation_id,
+                "planId": approved.artifact.plan_id,
+                "generatorIsApprover": approved.approval.generator_is_approver,
+                "out": out.display().to_string(),
+            }))
+        })()),
+        MigrateCommand::Apply {
+            approved,
+            schema,
+            db,
+            dry_run,
+        } => migrate_emit("migrate.apply", (|| {
+            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+            let successor: crate::manifest::SchemaManifest =
+                migrate_read_json(&schema, "successor schema")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            if dry_run {
+                let predecessor = snapback.migrate_predecessor_schema();
+                crate::migration::validate_plan_artifact(
+                    &approved.artifact,
+                    &predecessor,
+                    &successor,
+                )?;
+                crate::migration::validate_approval_shape(&approved.approval)?;
+                return Ok(json!({
+                    "dryRun": true,
+                    "operationId": approved.approval.operation_id,
+                    "planId": approved.artifact.plan_id,
+                    "wouldApply": true,
+                }));
+            }
+            let receipt = snapback.migrate_apply_artifact(
+                &approved.artifact,
+                &approved.approval,
+                &successor,
+            )?;
+            Ok(serde_json::to_value(&receipt)?)
+        })()),
+        MigrateCommand::Cancel { approved, db } => migrate_emit("migrate.cancel", (|| {
+            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            snapback.migrate_request_cancel(&approved.approval.operation_id)?;
+            Ok(json!({
+                "operationId": approved.approval.operation_id,
+                "cancelRequested": true,
+            }))
+        })()),
+        MigrateCommand::Verify { operation_id, db } => migrate_emit("migrate.verify", (|| {
+            let snapback = crate::local::LocalSnapback::open(&db)?;
+            Ok(snapback.migrate_verify_receipt(&operation_id)?)
+        })()),
+        MigrateCommand::Rollback { receipt, db } => migrate_emit("migrate.rollback", (|| {
+            // The fast rollback runs under the original operation's
+            // approval, which acknowledged the rollback boundary by
+            // declaring the explicit rollback timestamp — so the input is
+            // the approved migration file (the same authority `apply`
+            // consumed), not a regenerated plan.
+            let approved: MigrateApprovedFile = migrate_read_json(&receipt, "approved file")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            let rollback =
+                snapback.migrate_rollback_artifact(&approved.artifact, &approved.approval)?;
+            Ok(serde_json::to_value(&rollback)?)
+        })()),
     }
 }

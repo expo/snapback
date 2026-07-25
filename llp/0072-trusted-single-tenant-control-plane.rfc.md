@@ -5,7 +5,7 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (same-landing amendment for the acceptance of LLP 0081: the rollback posture set gains the `generationRepublish` row — the maintenance-window predecessor republish defined by LLP 0081 §6, distinct from a data rewind because nothing outside the migration fence observed the successor); 2026-07-20 (initial proposal for LLP 0063's hosted minimum profile)
+**Revised:** 2026-07-25 (hosted-auth admission leg resolved: LLP 0098's `loopback-terminated-single-instance.v1` profile admits on the served origin; partial pass, two attested facts unenforced, 0077 matrix not run); 2026-07-25 (first adapter instantiation recorded: the LLP 0075-pinned Fly.io single-Machine drill target with its region/storage/TLS/supervision/artifact/log/backup/credential/cost facts; claim boundary unchanged — provisioning and the LLP 0076 gate-2 streaming drill only, not this RFC's acceptance corpus); 2026-07-24 (same-landing amendment for the acceptance of LLP 0081: the rollback posture set gains the `generationRepublish` row — the maintenance-window predecessor republish defined by LLP 0081 §6, distinct from a data rewind because nothing outside the migration fence observed the successor); 2026-07-20 (initial proposal for LLP 0063's hosted minimum profile)
 **Related:** LLP 0002, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0041, LLP 0046, LLP 0047, LLP 0057, LLP 0060, LLP 0062, LLP 0063, LLP 0070, LLP 0071
 
 ## Summary
@@ -285,6 +285,86 @@ this RFC, including region, storage, TLS, process supervision, artifact store,
 log sink, backup store, credential backend, cost boundary, and why its drill is
 representative. A local process behind a developer tunnel is not eligible.
 
+### First adapter instantiation — recorded 2026-07-25
+
+The single-instance container/VM path is the chosen first adapter shape (LLP
+0075 protocol amendment v0.6 pinned the provider tuple by author decision;
+Cloudflare remains a narrow proof). The first real provisioning exists as the
+LLP 0075/0076 remote drill target, with these recorded facts:
+
+- **Provider/region:** Fly.io, one Fly Machine, region `sjc` (app
+  `snapback-drill`, org `personal`).
+- **Storage:** SQLite on the machine rootfs (`/data/drill.sqlite3`) — a drill
+  posture, deliberately not a volume; rootfs survives machine stop/start and
+  is reset on image update, and the drill receipt says so.
+- **TLS:** Fly's edge-terminated automatic certificates on the canonical
+  public origin (`https://snapback-drill.fly.dev`); the machine bind itself is
+  plaintext behind the platform edge, which is exactly why the hosted-auth
+  contract refuses on this target (below).
+- **Process supervision:** the Machine's restart policy plus a two-process
+  entrypoint (server + machine-loopback deterministic stream source).
+- **Artifact store:** the Fly registry image built from the repository
+  Dockerfile (`demos/competitive-checkpoint/acceptance/drill/`), with the
+  Linux Hermes runtime as a checksum-pinned prebuilt patched bundle.
+- **Log sink:** Fly's platform log pipeline (drill scope only; no structured
+  log-schema claim is made).
+- **Backup store:** the Tigris S3-compatible bucket `snapback-drill-backups`
+  with an application-consistent SQLite backup and byte-exact read-back
+  witness (`backup-to-tigris.sh`).
+- **Credential backend:** `FLY_API_TOKEN` — a named revocable org token —
+  sourced from the git-ignored machine-local `.agent-local-secrets.md`.
+- **Cost boundary:** one `shared-cpu-1x` machine with auto-stop plus one
+  bucket (single-digit dollars per month at drill duty cycle).
+- **Representativeness:** one isolated container-image deployment owning one
+  data authority behind a platform TLS edge is the smallest honest instance
+  of this profile's shape.
+
+Drill evidence (2026-07-25, protocol amendment v0.7): the LLP 0076 gate-2
+remote instrument passed 7/7 against the served origin, the durable-row
+secret scan over post-run on-machine dumps passed with zero findings, the
+Tigris backup read-back witnessed byte-exact, and the hosted-auth leg
+produced its refusal witness on-machine (exit 1). Receipts:
+`demos/competitive-checkpoint/acceptance/results/{remote-streaming,durable-row-scan,tigris-backup,hosted-auth-refusal}.v0.json`.
+Every receipt records the posture: `SNAPBACK_PROFILE=test` with
+`--allow-insecure-dev-auth` behind Fly's TLS edge — the prod profile refuses
+this exact configuration, and that refusal is part of the shipped fence. The
+drill also caught a serve-path defect the fence's local witnesses could not:
+the CLI validated `--allow-insecure-dev-auth` pre-bind but never installed it
+into request-path state, so every app-data route on a non-loopback bind
+refused regardless of the flag (fixed with a regression test in the same
+landing).
+
+### Hosted-auth leg resolved 2026-07-25 — the loopback-terminated profile
+
+The hosted-auth refusal recorded below is superseded for the admission leg.
+[LLP 0098](./0098-hosted-edge-adapter.spec.md) defines the
+`loopback-terminated-single-instance.v1` profile and the same Fly target now
+runs it: Caddy terminates a Let's Encrypt certificate inside the container
+behind Fly raw-TCP passthrough on 443, and the origin binds `127.0.0.1:4287`.
+`--auth-deployment hosted` **admits** there under a signed, deployment-bound
+attestation, and the served origin publishes the attested five-positive tuple.
+
+The topology change is what resolved it. The plaintext posture below cannot
+attest LLP 0060 D2 because any co-resident workload on the platform's private
+network can address the origin directly; loopback termination removes that
+class by construction rather than assuming the private network is empty.
+
+Receipt: `demos/competitive-checkpoint/acceptance/results/hosted-edge-admission.v0.json`.
+It is a **partial pass**: two attested facts (`operatorSurface: disabled` and
+D2's plaintext-refusal clause) are not yet enforced by the origin, and the LLP
+0077 matrix has not run because the deployment's active auth mode is still
+`dev`. `hostedAuthCapable` stays unclaimed.
+
+Claim boundary, unchanged: this records provisioning, the LLP 0076
+gate-2 streaming drill, and now the hosted admission leg — NOT this RFC's
+acceptance corpus. No control-plane
+adapter operations (release manifests, activation generations, restore locks,
+inspection contract) exist for this target;
+`trusted-single-tenant-app-complete.v1` remains unsupported, and the
+hosted-auth leg on this target refuses with
+`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` because no adapter owns the LLP 0060
+hosted-edge attestation.
+
 ## Acceptance
 
 The chosen hosted adapter must retain executable evidence that:
@@ -333,8 +413,11 @@ local dev, or an API-only deploy is not Step 6 evidence.
 
 ## Open questions
 
-1. Is Cloudflare or a single-instance container/VM the first complete hosted
-   adapter?
+1. *(Narrowed 2026-07-25 — shape chosen, adapter still unbuilt.)* Is
+   Cloudflare or a single-instance container/VM the first complete hosted
+   adapter? The container/VM shape is selected (LLP 0075 amendment v0.6) and
+   first instantiated on Fly.io as the recorded drill target; whether that
+   provisioning grows into this RFC's complete adapter remains open.
 2. Which artifact-signing and external backup stores are mandatory for the base
    profile rather than reported opt-ups?
 3. What measured downtime ceiling should the first profile declare?

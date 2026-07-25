@@ -526,6 +526,7 @@ fn subscribe(
                     query_instance_id: instance,
                 }),
                 supersedes: None,
+                resume_from_token: None,
             },
             session_authority(user, InvocationSource::LiveInitialQuery),
             LiveInvalidationAdmission {
@@ -543,8 +544,8 @@ fn subscribe(
         connection_id,
         subscription_id: output.subscription_id,
         query_instance_id: instance,
-        rows: output.snapshot.rows,
-        version: output.snapshot.version,
+        rows: output.snapshot.clone().unwrap().rows,
+        version: output.snapshot.as_ref().unwrap().version,
     }
 }
 

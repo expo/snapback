@@ -1,0 +1,1311 @@
+{
+  "$defs": {
+    "BinaryOp": {
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Mod",
+        "Eq",
+        "Ne",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte",
+        "And",
+        "Or"
+      ],
+      "type": "string"
+    },
+    "CompatibilityPosture": {
+      "description": "Compatibility posture (LLP 0081 §6). The default is `successor-only`.",
+      "enum": [
+        "successor-only",
+        "dual-compatible",
+        "predeploy-compatible"
+      ],
+      "type": "string"
+    },
+    "FieldType": {
+      "oneOf": [
+        {
+          "enum": [
+            "String",
+            "Boolean",
+            "Integer",
+            "Real",
+            "Json"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "Principal",
+          "description": "`v.principal()` — nominal typing over the auth-principal id string space\n(the same space as `ctx.auth.userId`, including LLP 0055 agent\nprincipals). It stores and compares exactly like [`FieldType::String`];\nthe distinct variant lets the schema surface *name* an axis as a\nprincipal reference. It is validated by **shape**, never by a\nforeign-key existence check, because memberships may outlive a\nprincipal's deactivation and LLP 0055 recovery preserves the id.\n\n@ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal\n  typing over the principal-id string space, not an existence check.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`v.id(\"table\")` — a nominal application-table id. The value remains a\nstring on SQLite and the public wire, while the target table travels in\nthe manifest so membership resource bindings and helper arguments can\nbe checked rather than inferred from a bare string.\n\n@ref LLP 0056#rule-helpers — resource references must name the same\n  declared resource type; a plain string cannot prove that equality.",
+          "properties": {
+            "Id": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MembershipPredicate": {
+      "additionalProperties": false,
+      "description": "A declaration-bound membership semi-join: the structured-filter IR node the\n`eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,\n…)` rule helpers lower to. There is deliberately **no** global\n`memberOf`/`hasRole` resolver — two declarations can target the same\nresource type, and that ambiguity is an authorization bug factory\n(LLP 0056 §Rule helpers), so every predicate names its declaration.\n\nSemantics: the predicate holds for the effective principal iff a membership\nrow exists in the bound declaration whose `principal` axis is that\nprincipal, whose `resource` axis equals the resolved `resource` reference,\nand whose `role` is one of the effective roles. A null effective principal\n(unauthenticated) matches no rows — fail-closed.\n\nThe node is **authoritative-only**: it is evaluated by a non-recursive\nstorage semi-join that deliberately bypasses the membership table's own\nrow-visibility rules (a locked-down roster must not break role evaluation\nfor guests), never by the pure/optimistic `ValueExpr` evaluator — which has\nno storage and no business consulting membership facts.\n\n@ref LLP 0056#rule-helpers — declaration-bound; `memberOf` excludes\n  `pendingRoles`; `hasRole` names roles explicitly; `resourceRef` is a row\n  field of the queried table or a query argument of the declared resource\n  type.\n@ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 —\n  admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,\n  with the pinned empty-result capture.",
+      "properties": {
+        "declaration": {
+          "description": "The stable declaration id this predicate binds to\n(`MembershipManifest::effective_id`).",
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/MembershipResourceRef",
+          "description": "Where the `resource` axis value is read from."
+        },
+        "roles": {
+          "description": "The satisfying roles. `None` is `memberOf` — every **non-pending** role\nof the declaration. `Some(list)` is `hasRole` with exactly the named\nroles (which may name pending roles explicitly).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "declaration",
+        "resource"
+      ],
+      "type": "object"
+    },
+    "MembershipResourceRef": {
+      "description": "Where a [`MembershipPredicate`] reads its `resource` axis value from. Both\nforms are analyzable at subscribe time; anything else — a computed\nexpression, a different resource type, a join through a third table — is a\nload-time error (LLP 0056 §Rule helpers).\n\n@ref LLP 0056#rule-helpers — the two analyzable resource-reference forms.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A column of the queried (primary) table whose type is the declared\nresource reference. The per-row semi-join; v1 captures a **conservative\ntable-level** dependency for it (coarse wake = re-query cost; the\nreverse choice would be a correctness loss).",
+          "properties": {
+            "rowField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "rowField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A query argument (dotted path) of the declared resource type. The\nresource is fixed for the whole query, so v1 captures the fine-grained\n`(principal, resource)` index-range dependency, including the\nempty-result form.",
+          "properties": {
+            "arg": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "description": "Dotted query-argument path evaluated at invocation time.",
+                  "type": "string"
+                },
+                "resourceTable": {
+                  "description": "Nominal resource type proven by codegen. Resource-scoped\ndeclarations require their exact `resourceTable`; app-scoped\ndeclarations require `null` and the closed synthetic path. Carrying\nthis provenance in the installed artifact keeps a hand-written\nmanifest from silently degrading an `Id<table>` to a bare string.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "arg"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MigrationBackupRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpointLabel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "required"
+      ],
+      "type": "object"
+    },
+    "MigrationBoundaries": {
+      "additionalProperties": false,
+      "description": "Cleanup and rollback boundaries as step-ID references (LLP 0081 §2).",
+      "properties": {
+        "cleanupFromStep": {
+          "description": "First step of the separately fenced physical-cleanup tail.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rollbackBoundaryStep": {
+          "description": "Last step still inside the rollback window; absent = the whole plan.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "MigrationCeilings": {
+      "additionalProperties": false,
+      "description": "Approval-relevant resource ceilings — canonical body fields and\nbarrier-time admission preconditions (LLP 0081 §2).",
+      "properties": {
+        "maxAffectedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBarrierDowntimeMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWrites": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxAffectedRows",
+        "maxBytes",
+        "maxWrites",
+        "maxBarrierDowntimeMs"
+      ],
+      "type": "object"
+    },
+    "MigrationConstants": {
+      "additionalProperties": false,
+      "description": "The complete explicit constants object (LLP 0081 §2): migration constants\nare inputs, not ambient values; apply creates none.",
+      "properties": {
+        "publicationTimestampMs": {
+          "description": "The approved publication timestamp; carries the 48 UUIDv7 time bits\nof every synthesized ID. Validation refuses values at or above\n`2^48` ms with `SNAPBACK_MIGRATION_PLAN_INVALID`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rollbackTimestampMs": {
+          "description": "The explicit rollback timestamp (LLP 0081 §6): required to execute\nthe fast rollback; admission requires it to be at least\n`publicationTimestampMs` (and the restamp maximum), the same\nmonotonicity rule as forward publication. Absent bytes keep older\nplan digests stable.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "values": {
+          "additionalProperties": true,
+          "description": "Named literal constants backfill expressions may read via `Arg`.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "publicationTimestampMs"
+      ],
+      "type": "object"
+    },
+    "MigrationExecutionStrategy": {
+      "enum": [
+        "single-transaction",
+        "shadow-generation"
+      ],
+      "type": "string"
+    },
+    "MigrationExpectedOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "projectionGenerations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Expected maintained-projection generation hashes by plan id.",
+          "type": "object"
+        },
+        "schemaHash": {
+          "description": "Expected successor schema hash.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaHash"
+      ],
+      "type": "object"
+    },
+    "MigrationPlanBody": {
+      "additionalProperties": false,
+      "description": "The canonical plan body. Everything approval-relevant lives here, inside\nthe digest; target observations that do not authorize execution live in\nthe separately digested [`MigrationPreviewObservationV1`].",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "backup": {
+          "$ref": "#/$defs/MigrationBackupRequirement"
+        },
+        "boundaries": {
+          "$ref": "#/$defs/MigrationBoundaries",
+          "default": {}
+        },
+        "ceilings": {
+          "$ref": "#/$defs/MigrationCeilings"
+        },
+        "compatibilityPosture": {
+          "$ref": "#/$defs/CompatibilityPosture"
+        },
+        "constants": {
+          "$ref": "#/$defs/MigrationConstants"
+        },
+        "executionStrategy": {
+          "$ref": "#/$defs/MigrationExecutionStrategy"
+        },
+        "expectedOutput": {
+          "$ref": "#/$defs/MigrationExpectedOutput"
+        },
+        "instance": {
+          "type": "string"
+        },
+        "predecessorGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "predecessorSchemaHash": {
+          "type": "string"
+        },
+        "proof": {
+          "$ref": "#/$defs/MigrationProof"
+        },
+        "retainedWorkPosture": {
+          "$ref": "#/$defs/RetainedWorkPosture"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/MigrationStepRecord"
+          },
+          "type": "array"
+        },
+        "successorSchemaHash": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "app",
+        "instance",
+        "targetProfileId",
+        "predecessorSchemaHash",
+        "successorSchemaHash",
+        "predecessorGeneration",
+        "steps",
+        "executionStrategy",
+        "proof",
+        "ceilings",
+        "compatibilityPosture",
+        "retainedWorkPosture",
+        "backup",
+        "expectedOutput",
+        "constants"
+      ],
+      "type": "object"
+    },
+    "MigrationPrecondition": {
+      "description": "The v1-admitted per-step precondition vocabulary of this slice. Closed\nand deliberately small; later waves widen it by version, never by\nloosening.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The step's affected-row estimate must not exceed `max` at barrier\ntime (re-proven under the barrier; drift refuses).",
+          "properties": {
+            "MaxAffectedRows": {
+              "properties": {
+                "max": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "max"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "MaxAffectedRows"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Every source value must be convertible by the declared expression —\nthe bounded preflight for narrowing conversions (LLP 0081 §3).",
+          "properties": {
+            "TotalConversion": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "TotalConversion"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The destination table holds no rows.",
+          "properties": {
+            "TableEmpty": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "TableEmpty"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MigrationProof": {
+      "additionalProperties": false,
+      "properties": {
+        "bound": {
+          "description": "Sample bound for `sampled-audit`; absent for `full`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "method": {
+          "$ref": "#/$defs/MigrationProofMethod"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "type": "object"
+    },
+    "MigrationProofMethod": {
+      "description": "Proof method (LLP 0081 §5): `full` is the only method admissible for a\nsuccessful v1 production migration; `sampled-audit` is a separately named\nlower-assurance class for rehearsal/audit runs and says so on its face.",
+      "enum": [
+        "full",
+        "sampled-audit"
+      ],
+      "type": "string"
+    },
+    "MigrationStep": {
+      "description": "The closed v1 migration step set. Raw SQL, callbacks, shell commands, and\ntarget-specific blocks are portability opt-outs and have no variant here.\nA rename or type change is represented as add/copy/validate/publish/retire,\nnever an in-place cast.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "CreateTable": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CreateTable"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "CreateIndex": {
+              "properties": {
+                "fields": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "index": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "index",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CreateIndex"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add a field with a portable literal or closed backfill expression as\nits value for existing rows (absent expression = optional field\nstarts absent).",
+          "properties": {
+            "AddField": {
+              "properties": {
+                "backfill": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ValueExpr"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "field": {
+                  "type": "string"
+                },
+                "fieldType": {
+                  "$ref": "#/$defs/FieldType"
+                },
+                "optional": {
+                  "type": "boolean"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field",
+                "fieldType",
+                "optional"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AddField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Backfill into a new or nullable destination from the closed\nexpression vocabulary over the source row plus plan constants.",
+          "properties": {
+            "BackfillField": {
+              "properties": {
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "BackfillField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "ValidateRequired": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "ValidateRequired"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "MakeRequired": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "MakeRequired"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "ValidateUnique": {
+              "properties": {
+                "fields": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "ValidateUnique"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "CreateUniqueIndex": {
+              "properties": {
+                "fields": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "index": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "index",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CreateUniqueIndex"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Copy a field into successor storage; the destination is the qualified\ntarget for planner ordering.",
+          "properties": {
+            "CopyField": {
+              "properties": {
+                "expr": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ValueExpr"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "field": {
+                  "type": "string"
+                },
+                "sourceField": {
+                  "type": "string"
+                },
+                "sourceTable": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceTable",
+                "sourceField",
+                "table",
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CopyField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Copy a table into a staged successor generation; each destination\nfield is a closed expression over the source row plus constants.",
+          "properties": {
+            "CopyTable": {
+              "properties": {
+                "fields": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                },
+                "generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sourceTable": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceTable",
+                "table",
+                "generation",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CopyTable"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "StageTableGeneration": {
+              "properties": {
+                "generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "generation"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "StageTableGeneration"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "LLP 0080 §5 shadow rebuild; row identity follows that RFC's\nstored-identity rule, never this module's synthesized namespace.",
+          "properties": {
+            "RebuildMaintainedProjection": {
+              "properties": {
+                "projectionId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "projectionId"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RebuildMaintainedProjection"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Logical retirement; physical cleanup is separately fenced after the\nrollback window.",
+          "properties": {
+            "RetireField": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RetireField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RetireTable": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RetireTable"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RetireGeneration": {
+              "properties": {
+                "generation": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "generation"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RetireGeneration"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MigrationStepBounds": {
+      "additionalProperties": false,
+      "properties": {
+        "maxBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxRows",
+        "maxBytes"
+      ],
+      "type": "object"
+    },
+    "MigrationStepRecord": {
+      "additionalProperties": false,
+      "description": "One planned step with its LLP 0081 §2 per-step facts.",
+      "properties": {
+        "bounds": {
+          "$ref": "#/$defs/MigrationStepBounds"
+        },
+        "id": {
+          "type": "string"
+        },
+        "preconditions": {
+          "items": {
+            "$ref": "#/$defs/MigrationPrecondition"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "step": {
+          "$ref": "#/$defs/MigrationStep"
+        },
+        "verification": {
+          "items": {
+            "$ref": "#/$defs/MigrationVerification"
+          },
+          "type": "array"
+        },
+        "writes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "step",
+        "bounds",
+        "reversible"
+      ],
+      "type": "object"
+    },
+    "MigrationVerification": {
+      "description": "The v1-admitted per-step verification vocabulary of this slice.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Destination row count equals the source table's count.",
+          "properties": {
+            "RowCountMatchesSource": {
+              "properties": {
+                "sourceTable": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceTable",
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RowCountMatchesSource"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The step's table participates in the final `ContentDigestV1` proof.",
+          "properties": {
+            "ContentDigest": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "ContentDigest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RetainedWorkPosture": {
+      "description": "Retained-work posture (LLP 0081 §6). `transformed` is representable so\nits refusal is typed, but v1 validation refuses it as unsupported.",
+      "enum": [
+        "empty",
+        "dual-compatible",
+        "transformed"
+      ],
+      "type": "string"
+    },
+    "UnaryOp": {
+      "enum": [
+        "Not",
+        "Neg"
+      ],
+      "type": "string"
+    },
+    "ValueExpr": {
+      "description": "The data-tier v1 expression profile: a closed set — no arrows, no\nclosures, no free calls, no JS method binding — so every evaluator in\nevery language is finite work. Evaluation semantics live in one shared\nevaluator (`crate::value_expr`) and are pinned by the data-tier corpus.",
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUserId",
+            "RuntimeId",
+            "RuntimeNow"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Strict arg lookup by dotted path; a missing arg is a typed error.",
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "Args",
+          "description": "The whole args object — the null-safe base for optional-arg access\nvia `Field` (missing keys propagate null instead of failing).",
+          "type": "string"
+        },
+        {
+          "const": "AuthKind",
+          "description": "Effective principal kind in the sealed authorization projection.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActorKind",
+          "description": "Actor kind for delegated authority; null for direct and autonomous use.",
+          "type": "string"
+        },
+        {
+          "const": "AuthIsDelegated",
+          "description": "True only when an actor is exercising authority for another principal.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Null-propagating access by arbitrary string key (hyphenated JSON keys\nare first-class; settles the IR half of Exact LLP 0329 EQ8).",
+          "properties": {
+            "Field": {
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "base",
+                "key"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binary": {
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/BinaryOp"
+                },
+                "right": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "op",
+                "left",
+                "right"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Binary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Unary": {
+              "properties": {
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/UnaryOp"
+                }
+              },
+              "required": [
+                "op",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Unary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "If": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "then": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "cond",
+                "then",
+                "else"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "String-template lowering: concatenation of stringified parts.",
+          "properties": {
+            "Concat": {
+              "items": {
+                "$ref": "#/$defs/ValueExpr"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);\nanything else fails closed with a typed rejection.",
+          "properties": {
+            "Call": {
+              "properties": {
+                "args": {
+                  "items": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "array"
+                },
+                "func": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "func",
+                "args"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Call"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Closed record constructor — the same shape as `Insert`'s values map,\nevaluated by the same machinery.",
+          "properties": {
+            "Record": {
+              "properties": {
+                "fields": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A declaration-bound membership semi-join as a composable boolean\nexpression kind — the form the `eventMembers.memberOf(...)` /\n`hasRole(...)` rule helpers and the `ctx.permissions.<decl>.requireRole`\ntwin lower to (LLP 0053 §Agent-auth item 1 admits it as a new\ndeclarative IR expression kind).\n\nIt is **authoritative-only**: unlike every other variant it cannot be\nanswered by the pure `ValueExpr` evaluator, because deciding it requires\na non-recursive storage semi-join over the membership table (bypassing\nthat table's row-visibility rules). The pure evaluator therefore refuses\nit (`SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY`), the query path answers it\nthrough `QueryPlan::membership_filters` / the `ctx.permissions` read, and\nthe derived optimistic overlay refuses rather than mirrors it — so a\nrole check is server-decided, never optimistically forged client-side.\n\n@ref LLP 0056#rule-helpers — the declaration-bound membership predicate.",
+          "properties": {
+            "MembershipExists": {
+              "$ref": "#/$defs/MembershipPredicate"
+            }
+          },
+          "required": [
+            "MembershipExists"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The serialized plan authority (LLP 0081 §2). The outer fields are\nrecomputed from `body` at validation; they never appear inside it.",
+  "properties": {
+    "body": {
+      "$ref": "#/$defs/MigrationPlanBody"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "body",
+    "planDigest",
+    "planId"
+  ],
+  "title": "MigrationPlanArtifactV1",
+  "type": "object"
+}

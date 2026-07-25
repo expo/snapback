@@ -102,6 +102,21 @@ const TARGET_CAPABILITY_IDS = new Set([
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
+  'relational_query_v1',
+]);
+// @ref LLP 0058#capability-maturity — mirror of the Rust registry's
+// non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
+// Codegen derives requirements from the closed capability table above, so it
+// also emits the matching experimental acknowledgment: the generated artifact
+// knowingly binds to the not-yet-Accepted contract, and admission refuses an
+// experimental requirement with no acknowledgment.
+// Remove an id here in the same change that promotes it to stable in Rust
+// (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
+// 2026-07-25).
+const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
+  // LLP 0080 is Accepted (semantics); the id stays experimental until the
+  // coupled suite passes and both RFCs flip to Implemented.
+  'relational_query_v1',
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
@@ -518,11 +533,18 @@ export async function generateInProcess(backendDir, options = {}) {
   // with string/Wasm code generation and nondeterministic globals disabled.
   const schemaBuild = await buildDefinitionBundle(schemaPath, backendRoot, diagnostics, 'schema', 'schema');
   const functionsBuild = await buildDefinitionBundle(functionsPath, backendRoot, diagnostics, 'function', 'functions');
+  // The optional route→query manifest declaration (LLP 0092 §0C.1): compiled
+  // under the same hashed-graph + isolated-evaluation discipline when
+  // `snapback/routes.mjs` exists.
+  const routesPath = join(backendRoot, 'routes.mjs');
+  const routesBuild = existsSync(routesPath)
+    ? await buildDefinitionBundle(routesPath, backendRoot, diagnostics, 'routes', 'routes')
+    : null;
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
 
-  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics);
+  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild);
   if (!evaluated || diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -530,6 +552,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const functionsGraph = functionsBuild.graph;
   const schemaModule = { default: evaluated.schema };
   const functionsModule = evaluated.functions;
+  const routesModule = routesBuild ? evaluated.routes : null;
 
   const schemaDef = schemaModule.default;
   if (!schemaDef || !schemaDef.__schema) {
@@ -923,6 +946,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const contractMutations = dict();
   const cronDefs = [];
   const configDefs = [];
+  const projectionDefs = [];
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
@@ -948,6 +972,10 @@ export async function generateInProcess(backendDir, options = {}) {
     }
     if (isIsolatedDefinition(def, 'config')) {
       configDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'maintained-projection')) {
+      projectionDefs.push({ exportName: name, def });
       continue;
     }
     if (!isIsolatedDefinition(def, 'function')) continue;
@@ -1108,6 +1136,58 @@ export async function generateInProcess(backendDir, options = {}) {
         serverRunnable: true,
         localRunnable: false,
         ...(def.retainable === true ? { retainable: true } : {}),
+        ...contractQueryLivenessFields(def),
+      };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.relationalPlan) {
+      // @ref LLP 0080#1-closed-relational-plan — the authoring surface
+      //   already proved the closed shape against installed builders; this
+      //   branch serializes the normalized plan and nothing else. Activation
+      //   on the server re-proves schema binding and the cardinality claim.
+      const plan = def.relationalPlan;
+      const serializeFilters = (filters) => filters.map((f) => ({
+        field: f.field,
+        op: f.op,
+        value: serializeExpr(f.value),
+      }));
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: {
+          HostPlan: {
+            RelationalQuery: {
+              root: plan.root,
+              rootAlias: plan.rootAlias,
+              joined: plan.joined,
+              joinedAlias: plan.joinedAlias,
+              joinKind: plan.joinKind,
+              joinOn: plan.joinOn,
+              rootFilters: [],
+              rootVisibility: serializeFilters(plan.rootVisibility),
+              joinedVisibility: serializeFilters(plan.joinedVisibility),
+              projection: plan.projection,
+              order: plan.order.map((o) => ({ field: o.field, direction: o.direction })),
+              take: plan.take,
+              rootIndex: plan.rootIndex,
+              joinedIndex: plan.joinedIndex,
+            },
+          },
+        },
+        declaredReads: [plan.root, plan.joined],
+        declaredWrites: [],
+        authScopeField: null,
+        syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        // The implicit continuation-cursor argument (LLP 0080 §2) is part of
+        // the callable contract even though authors declare no args in v1.
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: [plan.root, plan.joined],
+        result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
+        serverRunnable: true,
+        localRunnable: false,
         ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
@@ -1434,6 +1514,7 @@ export async function generateInProcess(backendDir, options = {}) {
 
   validateActionPlans(functions, err);
   const cronJobs = buildCronJobs(cronDefs, functions, err);
+  const projections = buildMaintainedProjections(projectionDefs, functions, err);
   const configEntries = buildConfigEntries(configDefs, functions, err);
 
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -1483,6 +1564,14 @@ export async function generateInProcess(backendDir, options = {}) {
     err,
   );
   const remoteServiceInputs = loadRemoteServiceInputs(backendRoot, appId, targetProfile, err);
+  // Compile the optional route→query manifest (LLP 0092 §0C.1) against the
+  // authored functions: unknown/non-query functions, pattern grammar,
+  // overlap, `params-v1` mapping rules, per-reference arg-schema typing, and
+  // required-arg coverage all refuse at compile time — the same rules the
+  // served instance re-enforces at ensure.
+  const routesManifest = routesModule
+    ? compileRoutesManifest(routesModule, functionsModule, appId, err)
+    : null;
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -1502,6 +1591,7 @@ export async function generateInProcess(backendDir, options = {}) {
   // emits different definitions from identical source under an old hash.
   const schemaEvaluation = stableJson(schemaDef);
   const functionsEvaluation = stableJson(functionsModule);
+  const routesGraphInputs = routesBuild ? moduleGraphIdentity(routesBuild.graph, backendRoot) : null;
   const inputs = [
     'schema-graph',
     ...schemaGraphInputs,
@@ -1511,6 +1601,13 @@ export async function generateInProcess(backendDir, options = {}) {
     ...functionsGraphInputs,
     'functions-isolated-evaluation',
     functionsEvaluation,
+    // Routes participate in the staleness marker only (never in schemaHash /
+    // bundleHash — the manifest has its own canonical routeManifestHash
+    // identity, LLP 0091 §0A.6); apps without routes.mjs hash identically to
+    // before the artifact existed.
+    ...(routesGraphInputs === null
+      ? []
+      : ['routes-graph', ...routesGraphInputs, 'routes-isolated-evaluation', stableJson(routesModule)]),
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     contractCapabilitiesSource,
@@ -1564,6 +1661,19 @@ export async function generateInProcess(backendDir, options = {}) {
     ephemeralCollections,
     tables: Object.values(tables),
   };
+  // @ref LLP 0058#capability-maturity — the artifact pair's experimental
+  // acknowledgments: exactly the experimental ids this pair requires
+  // (functions, cron, and schema-level requirements — schema and functions
+  // are one generated unit). Emitting them is truthful because the same
+  // closed table derived the requirements; admission still refuses any
+  // requirement the served instance does not positively support.
+  const acknowledgedExperimentalCapabilities = [...new Set(
+    [
+      ...decoratedFunctionDefinitions.flatMap((fn) => fn.requiredCapabilities ?? []),
+      ...cronJobs.flatMap((job) => job.requiredCapabilities ?? []),
+      ...schemaRequiredCapabilities,
+    ].filter((capability) => EXPERIMENTAL_TARGET_CAPABILITY_IDS.has(capability)),
+  )].sort();
   const functionManifest = {
     artifactKind: 'functionManifest',
     schemaVersion: artifactVersion,
@@ -1572,9 +1682,13 @@ export async function generateInProcess(backendDir, options = {}) {
     inputsHash,
     generatedAt,
     unsupportedDependencyDiagnostics: infoDiagnostics,
+    ...(acknowledgedExperimentalCapabilities.length > 0
+      ? { acknowledgedExperimentalCapabilities }
+      : {}),
     functions: decoratedFunctionDefinitions,
     cronJobs,
     config: configEntries,
+    ...(projections.length > 0 ? { projections } : {}),
   };
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
@@ -1673,6 +1787,7 @@ export async function generateInProcess(backendDir, options = {}) {
     ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: artifactVersion }],
     ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: artifactVersion }],
     ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
+    ...(routesManifest ? [['routes.manifest.schema.json', routesManifest, {}]] : []),
   ]) {
     const { missing, problems } = validateArtifactAgainstSchema(schemaFile, instance, expected);
     if (missing) {
@@ -1755,6 +1870,7 @@ export async function generateInProcess(backendDir, options = {}) {
         types: './provider-bindings.d.ts',
         default: './provider-bindings.json',
       },
+      ...(routesManifest ? { './routes': './routes.manifest.json' } : {}),
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -1775,7 +1891,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1790,6 +1906,7 @@ export async function generateInProcess(backendDir, options = {}) {
       schemaManifest,
       functionManifest,
       capabilityManifest,
+      routesManifest,
       providerIntrospection,
       providerBindingMetadata,
       providerBindingTypes,
@@ -2872,6 +2989,38 @@ function rowDescriptor(table) {
   return { shape: 'object', fields };
 }
 
+// The projected relational row: declared leaves only — no system fields ride
+// along (LLP 0080 §2's result is the projection, and the opaque cursor, not
+// the row, carries pagination identity). Joined leaves are optional under a
+// left join because an unmatched or invisible joined row nulls them.
+function relationalRowDescriptor(plan, tables) {
+  const primOf = (tableName, fieldName) => {
+    const field = (tables[tableName]?.fields ?? []).find((f) => f.name === fieldName);
+    if (!field) return { shape: 'unknown' };
+    const prim = field.field_type === 'Principal' || idFieldTypeTable(field.field_type) !== null
+      ? 'string'
+      : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[field.field_type];
+    const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    if (field.optional) descriptor.optional = true;
+    return descriptor;
+  };
+  const fields = dict();
+  for (const leaf of plan.projection) {
+    if (leaf.source.RootField) {
+      fields[leaf.name] = primOf(plan.root, leaf.source.RootField);
+    } else if (leaf.source.JoinedField) {
+      const descriptor = primOf(plan.joined, leaf.source.JoinedField);
+      if (plan.joinKind === 'Left') descriptor.optional = true;
+      fields[leaf.name] = descriptor;
+    } else {
+      const literal = leaf.source.Literal;
+      const prim = { string: 'string', number: 'number', boolean: 'boolean' }[typeof literal];
+      fields[leaf.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    }
+  }
+  return { shape: 'object', fields };
+}
+
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // @ref LLP 0055#grants — static authority-creation is best-effort, while the
   // runtime write gate remains authoritative. Declared permission-backing
@@ -2886,6 +3035,7 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+    ...(def.publicInline === true ? { publicInline: true } : {}),
     ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
     ...(Array.isArray(def.authorizationDependence)
@@ -3029,6 +3179,18 @@ function validateFunctionAuthDefinition(name, def, err) {
     err('FUNCTION_AUTHORITY_INDEPENDENT_INVALID', 'auth', `${name}: authorityIndependent must be boolean`, { function: name });
     return;
   }
+  if (def.publicInline === true && def.authorityIndependent !== true) {
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    // the disclosure fact is accepted only beside a valid
+    // authorityIndependent declaration (which entails public); v1 keeps the
+    // narrower rule fail-closed.
+    err(
+      'FUNCTION_PUBLIC_INLINE_INVALID',
+      'auth',
+      `${name}: publicInline requires a valid authorityIndependent: true declaration`,
+      { function: name },
+    );
+  }
   if (def.authorityIndependent !== true) return;
 
   const queryKind = def.__kind === 'Query' || def.__kind === 'LiveQuery';
@@ -3049,6 +3211,153 @@ function validateFunctionAuthDefinition(name, def, err) {
       { function: name, kind: def.__kind, authRequirement: def.auth ?? 'optional-user' },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Route→query manifest compilation (LLP 0092 §0C.1 / §0E.6, ENG-25448).
+// ---------------------------------------------------------------------------
+
+const ROUTE_PARAM_IDENT = /^[A-Za-z0-9_]+$/;
+const ROUTE_PARAM_PRIMITIVES = new Set(['string', 'number', 'boolean']);
+
+/// Parse a v1 route pattern into its param names; null (with a diagnostic)
+/// when the pattern violates the exact grammar: `/`-separated static
+/// segments plus `:name` params, no wildcards/optional/trailing-slash forms.
+function parseRoutePattern(pattern, err) {
+  const invalid = (why) => {
+    err('ROUTES_PATTERN_INVALID', 'routes', `route pattern ${pattern} is invalid: ${why}`, { route: pattern });
+    return null;
+  };
+  if (typeof pattern !== 'string' || !pattern.startsWith('/')) return invalid('must start with /');
+  if (pattern === '/') return [];
+  if (pattern.endsWith('/')) return invalid('no trailing slash');
+  const params = [];
+  for (const segment of pattern.slice(1).split('/')) {
+    if (segment.length === 0) return invalid('empty segment');
+    if (segment.startsWith(':')) {
+      const name = segment.slice(1);
+      if (!ROUTE_PARAM_IDENT.test(name)) return invalid(`bad param name ${segment}`);
+      if (params.includes(name)) return invalid(`duplicate param ${name}`);
+      params.push(name);
+    } else if (segment.includes(':')) {
+      return invalid(`mid-segment colon in ${segment}`);
+    }
+  }
+  return params;
+}
+
+/// Two valid v1 patterns overlap when some concrete path matches both
+/// (LLP 0092 §0C.1's unambiguity rule; mirrors src/bundle.rs).
+function routePatternsOverlap(a, b) {
+  const split = (pattern) => (pattern === '/' ? [] : pattern.slice(1).split('/'));
+  const [left, right] = [split(a), split(b)];
+  if (left.length !== right.length) return false;
+  return left.every((segment, index) => (
+    segment.startsWith(':') || right[index].startsWith(':') || segment === right[index]
+  ));
+}
+
+function routeLiteralMatches(validator, value) {
+  if (!validator || validator.primitive === 'unknown') return true;
+  if (validator.primitive === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const fields = validator.fields ?? {};
+    for (const [name, field] of Object.entries(fields)) {
+      if (value[name] === undefined) {
+        if (!field?.optional) return false;
+      } else if (!routeLiteralMatches(field, value[name])) return false;
+    }
+    return Object.keys(value).every((name) => name in fields);
+  }
+  return typeof value === validator.primitive;
+}
+
+/// Compile the authored routes declaration into the routes.manifest.json
+/// artifact, validating against the authored functions (LLP 0092 §0C.1
+/// admission, run at compile time): function exists and is a query; the
+/// `params-v1` mapping grammar holds (references at top-level arg positions
+/// only, sole-`$param`-key rule, every reference naming a pattern param);
+/// each reference's target arg-schema type is string/number/boolean; literal
+/// portions validate statically; every required arg is covered.
+function compileRoutesManifest(routesModule, functionsModule, appId, err) {
+  if (!isIsolatedDefinition(routesModule, 'routes')) {
+    err('ROUTES_NO_DEFAULT_EXPORT', 'routes', 'snapback/routes.mjs must default-export defineRoutes([...])');
+    return null;
+  }
+  const compiled = [];
+  const seenPatterns = [];
+  for (const entry of routesModule.routes ?? []) {
+    const route = entry.route;
+    const params = parseRoutePattern(route, err);
+    if (params === null) continue;
+    for (const prior of seenPatterns) {
+      if (routePatternsOverlap(prior, route)) {
+        err('ROUTES_PATTERN_OVERLAP', 'routes', `route patterns ${prior} and ${route} can match the same path`, { routes: [prior, route] });
+      }
+    }
+    seenPatterns.push(route);
+    const queries = entry.queries ?? [];
+    if (queries.length === 0 || queries.length > 32) {
+      err('ROUTES_QUERY_COUNT_INVALID', 'routes', `route ${route} must declare 1..32 queries`, { route, count: queries.length });
+      continue;
+    }
+    for (const spec of queries) {
+      const fn = functionsModule[spec.function];
+      const fail = (code, message, extra = {}) =>
+        err(code, 'routes', `route ${route} query ${spec.function}: ${message}`, { route, function: spec.function, ...extra });
+      if (!fn || (fn.__kind !== 'Query' && fn.__kind !== 'LiveQuery')) {
+        fail('ROUTES_FUNCTION_INVALID', 'names an unknown or non-query function');
+        continue;
+      }
+      const fnArgs = fn.args ?? {};
+      const mapping = spec.args ?? {};
+      const assertLiteral = (value, where) => {
+        if (value && typeof value === 'object') {
+          if (!Array.isArray(value) && Object.hasOwn(value, '$param')) {
+            fail('ROUTES_ARGS_INVALID', `a $param reference at ${where} is nested inside a literal; references are typable only at top-level arg positions`);
+            return;
+          }
+          for (const [key, inner] of Object.entries(value)) assertLiteral(inner, `${where}.${key}`);
+        }
+      };
+      if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
+        if (Object.hasOwn(mapping, '$param')) {
+          fail('ROUTES_ARGS_INVALID', 'a bare top-level $param reference has no named arg position');
+          continue;
+        }
+        for (const [key, value] of Object.entries(mapping)) {
+          const validator = fnArgs[key];
+          if (value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, '$param')) {
+            if (Object.keys(value).length !== 1 || typeof value.$param !== 'string') {
+              fail('ROUTES_ARGS_INVALID', `the reference at ${key} must be a sole-key {"$param": name} object`);
+            } else if (!params.includes(value.$param)) {
+              fail('ROUTES_ARGS_INVALID', `references :${value.$param}, which is not in the route pattern`);
+            } else if (!validator || !ROUTE_PARAM_PRIMITIVES.has(validator.primitive)) {
+              fail('ROUTES_ARGS_INVALID', `references param into arg ${key}, whose schema type is not string/number/boolean`);
+            }
+          } else {
+            assertLiteral(value, key);
+            if (validator && !routeLiteralMatches(validator, value)) {
+              fail('ROUTES_ARGS_INVALID', `literal for arg ${key} does not match its arg schema`);
+            }
+          }
+        }
+        for (const [name, validator] of Object.entries(fnArgs)) {
+          if (!validator?.optional && mapping[name] === undefined) {
+            fail('ROUTES_ARGS_INVALID', `required arg ${name} is not covered by the mapping`);
+          }
+        }
+      } else {
+        assertLiteral(mapping, 'args');
+      }
+    }
+    compiled.push({
+      route,
+      queries: queries.map((spec) => ({ function: spec.function, args: spec.args ?? {} })),
+      ...(entry.persist === false ? { persist: false } : {}),
+    });
+  }
+  return { formatVersion: 1, app: appId, routes: compiled };
 }
 
 // The stable function id: a pure function of (appId, exported name), so
@@ -3093,6 +3402,7 @@ function decorateFunctions(appId, functions) {
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
+      ...(fn.publicInline === true ? { publicInline: true } : {}),
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
@@ -3146,6 +3456,13 @@ function writeSummary(fn) {
 
 function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
+  // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
+  //   execute the relational plan refuses at generation with a
+  //   machine-readable capability gap, never at runtime.
+  if (fn.runtime?.HostPlan?.RelationalQuery) {
+    const relational = [runtimeCapability, 'relational_query_v1'];
+    return fn.kind === 'LiveQuery' ? ['live_subscriptions', ...relational] : relational;
+  }
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
   if (fn.kind === 'Action') {
@@ -4936,7 +5253,7 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
       plugins: [{
         name: 'snapback-definition-graph',
         setup(build) {
-          build.onResolve({ filter: /^snapback-definition-(?:schema|functions):entry$/ }, (args) => ({
+          build.onResolve({ filter: /^snapback-definition-(?:schema|functions|routes):entry$/ }, (args) => ({
             path: args.path,
             namespace: facadeNamespace,
           }));
@@ -5037,13 +5354,15 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isTableDef } from ${define};`;
+  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
+  if (isRoutesDef(value)) return 'routes';
+  if (isMaintainedProjectionDef(value)) return 'maintained-projection';
   return null;
 }
 function __snapbackKnownMarkerKind(value) {
@@ -5128,6 +5447,11 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
   if (kind === 'schema') {
     return `${imports}\nimport schema from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(schema));\n`;
   }
+  if (kind === 'routes') {
+    // The route manifest declaration (LLP 0092 §0C.1): one default-exported
+    // defineRoutes(...) value, normalized under the same isolation rules.
+    return `${imports}\nimport routes from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(routes));\n`;
+  }
   return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nconst definitionNames = __snapbackObjectKeys(definitions);\nfor (let nameIndex = 0; nameIndex < definitionNames.length; nameIndex += 1) {\n  const name = definitionNames[nameIndex];\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
 }
 
@@ -5137,7 +5461,7 @@ function definitionLoader(path) {
   return 'js';
 }
 
-function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
+function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild = null) {
   if (!process.allowedNodeEnvironmentFlags.has('--permission')) {
     diagnostics.push({
       code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
@@ -5219,16 +5543,107 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
         fail('isolated definition evaluator returned an invalid result shape');
         return;
       }
-      finish({ schema: response.values.schema, functions: response.values.functions });
+      if (routesBuild && (typeof response.values.routes !== 'object' || response.values.routes === null)) {
+        fail('isolated definition evaluator returned an invalid routes result shape');
+        return;
+      }
+      finish({
+        schema: response.values.schema,
+        functions: response.values.functions,
+        ...(routesBuild ? { routes: response.values.routes } : {}),
+      });
     });
     child.stdin.on('error', (error) => fail(`could not send definition bundles to the isolated evaluator: ${error.message}`));
     child.stdin.end(JSON.stringify({
       items: [
         { label: 'schema', bundle: schemaBuild.bundle, resultKey: schemaBuild.resultKey },
         { label: 'functions', bundle: functionsBuild.bundle, resultKey: functionsBuild.resultKey },
+        ...(routesBuild
+          ? [{ label: 'routes', bundle: routesBuild.bundle, resultKey: routesBuild.resultKey }]
+          : []),
       ],
     }));
   });
+}
+
+/// Cross-plan and cross-function validation for maintained projections
+/// (LLP 0080 §5/§Acceptance): generation refuses chains/diamonds, duplicate
+/// outputs, an unprovable per-source write budget, any function writing an
+/// output table, a raw HostPlan read of an owner-visible output without its
+/// visibility predicate, and opaque handler access to an output table. The
+/// per-plan rules were already proved by defineMaintainedProjection against
+/// the installed table builders; activation re-proves everything server-side.
+function buildMaintainedProjections(projectionDefs, functions, err) {
+  const projections = [];
+  const seenIds = new Set();
+  const outputs = new Map();
+  for (const { exportName, def } of projectionDefs) {
+    const plan = def.plan;
+    if (seenIds.has(plan.id)) {
+      err('PROJECTION_DUPLICATE_ID', 'projection', `${exportName}: duplicate projection id ${plan.id}`, { projection: plan.id });
+      continue;
+    }
+    seenIds.add(plan.id);
+    if (outputs.has(plan.outputTable)) {
+      err('PROJECTION_OUTPUT_SHARED', 'projection', `${exportName}: output table ${plan.outputTable} already belongs to projection ${outputs.get(plan.outputTable)}`, { projection: plan.id, table: plan.outputTable });
+      continue;
+    }
+    outputs.set(plan.outputTable, plan.id);
+    projections.push(plan);
+  }
+  for (const plan of projections) {
+    for (const source of [plan.root, plan.joined]) {
+      if (outputs.has(source)) {
+        err('PROJECTION_CHAIN_REFUSED', 'projection', `projection ${plan.id} sources ${source}, which is projection ${outputs.get(source)}'s output; chains and diamonds are refused at generation`, { projection: plan.id, table: source });
+      }
+    }
+  }
+  // Static per-source write budget: one direct write plus every plan's
+  // worst-case output writes from a single-row non-key-moving mutation.
+  const budget = new Map();
+  for (const plan of projections) {
+    budget.set(plan.root, (budget.get(plan.root) ?? 1) + 1);
+    budget.set(plan.joined, (budget.get(plan.joined) ?? 1) + plan.fanOutLimit);
+  }
+  for (const [source, writes] of budget) {
+    if (writes > 1_024) {
+      err('PROJECTION_WRITE_BUDGET_EXCEEDED', 'projection', `a single-row mutation of ${source} could require ${writes} writes across direct effects and projections; the mutation bound is 1024`, { table: source, writes });
+    }
+  }
+  if (projections.length === 0) return projections;
+  const ownerOutputs = new Map(
+    projections
+      .filter((plan) => plan.outputVisibility !== 'public-read')
+      .map((plan) => [plan.outputTable, plan.outputVisibility.owner.field]),
+  );
+  for (const fn of functions) {
+    const hostPlan = fn.runtime?.HostPlan;
+    const mutationSteps = hostPlan?.Mutation?.steps ?? [];
+    for (const step of mutationSteps) {
+      const target = Object.values(step)[0]?.table;
+      if (target && outputs.has(target) && !('Get' in step) && !('Guard' in step) && !('Let' in step)) {
+        err('PROJECTION_OUTPUT_WRITE_DENIED', 'projection', `${fn.name}: writes projection output table ${target}; outputs are maintained only by their source mutations`, { function: fn.name, table: target });
+      }
+    }
+    const queryPlan = hostPlan?.Query;
+    if (queryPlan && ownerOutputs.has(queryPlan.table)) {
+      const ownerField = ownerOutputs.get(queryPlan.table);
+      const enforced = (queryPlan.filters ?? []).some((filter) => (
+        filter.field === ownerField && filter.op === 'Eq' && filter.value === 'AuthUserId'
+      ));
+      if (!enforced) {
+        err('PROJECTION_OUTPUT_READ_UNENFORCED', 'projection', `${fn.name}: reads owner-visible projection output ${queryPlan.table} without composing its visibility predicate`, { function: fn.name, table: queryPlan.table });
+      }
+    }
+    if (fn.runtime?.IbexModule) {
+      for (const table of [...(fn.declaredReads ?? []), ...(fn.declaredWrites ?? [])]) {
+        if (outputs.has(table)) {
+          err('PROJECTION_OUTPUT_OPAQUE_ACCESS', 'projection', `${fn.name}: declares opaque access to projection output ${table}; nothing proves an opaque handler applies the output visibility predicate`, { function: fn.name, table });
+        }
+      }
+    }
+  }
+  return projections;
 }
 
 function isIsolatedDefinition(value, expectedKind) {
@@ -5321,6 +5736,7 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   capabilityManifest,
+  routesManifest,
   providerIntrospection,
   providerBindingMetadata,
   providerBindingTypes,
@@ -5341,6 +5757,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  if (routesManifest) {
+    writeFileSync(join(outDir, 'routes.manifest.json'), stableJson(routesManifest) + '\n');
+  }
   writeFileSync(join(outDir, 'provider-introspection.json'), serializeProviderIntrospection(providerIntrospection));
   writeFileSync(join(outDir, 'provider-bindings.json'), serializeProviderBindingMetadata(providerBindingMetadata));
   writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);

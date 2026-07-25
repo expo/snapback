@@ -709,7 +709,13 @@ pub enum InvocationSource {
     NestedMutation,
     LiveInitialQuery,
     LiveRerun,
-    StandaloneAcknowledgement,
+    /// `/client-mutations/acknowledge`: settling durable queued-replay
+    /// receipts. Deliberately descriptor-bound (LLP 0059 item 7).
+    MutationSettlementAcknowledgement,
+    /// `/live/authorization-invalidation/acknowledge` and `/manual-retry`:
+    /// discharging live invalidation obligations. Owned by the invalidation
+    /// program (LLP 0059 item 6), independent of the descriptor plane.
+    InvalidationAcknowledgement,
     ConnectionOpen,
     ConnectionClose,
     EphemeralRegister,
@@ -739,7 +745,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -757,7 +763,8 @@ impl InvocationSource {
         Self::NestedMutation,
         Self::LiveInitialQuery,
         Self::LiveRerun,
-        Self::StandaloneAcknowledgement,
+        Self::MutationSettlementAcknowledgement,
+        Self::InvalidationAcknowledgement,
         Self::ConnectionOpen,
         Self::ConnectionClose,
         Self::EphemeralRegister,
@@ -791,7 +798,8 @@ impl InvocationSource {
             | Self::AuthRefresh
             | Self::AuthLogout
             | Self::AgentGrantManagement
-            | Self::StandaloneAcknowledgement
+            | Self::MutationSettlementAcknowledgement
+            | Self::InvalidationAcknowledgement
             | Self::ConnectionOpen
             | Self::ConnectionClose
             | Self::EphemeralRegister
@@ -1455,6 +1463,31 @@ impl InvocationGate {
                 .with_details(serde_json::json!({ "reason": "scope_not_authority_creating" })));
             }
         }
+        // @ref LLP 0065#2-the-v1-visibility-floor — profile-class admission
+        //   runs last, after the target, grant-scope, and authentication
+        //   gates: a generated standard pattern requires a principal that
+        //   projects the canonical user subject. A delegated agent resolves
+        //   to the delegating user and is admitted; a bare servicePrincipal
+        //   or non-delegated autonomous agent reaches this point
+        //   authenticated but subject-less and is refused. A future profile
+        //   may admit such principals explicitly.
+        if function.standard_pattern.is_some() {
+            let projects_user_subject = match &authority.resolved {
+                ResolvedAppAuthority::ServicePrincipal {
+                    effective_user_id, ..
+                } => effective_user_id.is_some(),
+                _ => true,
+            };
+            if !projects_user_subject {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
+                    "auth",
+                    "generated standard patterns require a principal that projects a user \
+                     subject; a bare service principal or non-delegated agent is not \
+                     admitted in v1",
+                ));
+            }
+        }
         Ok(PreparedInvocation {
             authority,
             function_id: function.id.clone(),
@@ -1536,7 +1569,8 @@ fn source_allows_authority(
                     && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
         }
         InvocationSource::LiveInitialQuery
-        | InvocationSource::StandaloneAcknowledgement
+        | InvocationSource::MutationSettlementAcknowledgement
+        | InvocationSource::InvalidationAcknowledgement
         | InvocationSource::ConnectionClose
         | InvocationSource::LiveResume
         | InvocationSource::LiveUnsubscribe
@@ -1929,6 +1963,78 @@ mod tests {
         assert!(autonomous.direct_authorization_projection().is_none());
     }
 
+    // @ref LLP 0065#2-the-v1-visibility-floor — profile-class admission:
+    //   generated standard patterns admit only principals that project the
+    //   canonical user subject. The gate order is pinned — grant scope and
+    //   authentication first, profile class last — and the refusal is
+    //   reserved for authenticated-but-ineligible principals.
+    #[test]
+    fn standard_pattern_profile_class_admits_only_user_subjects() {
+        let mut pattern = function(Some(AuthRequirement::Authenticated));
+        pattern.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
+            helper: "owned-crud.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+        });
+        let scope = |function: &FunctionDefinition| ResolvedGrantScope {
+            function_id: function.id.clone(),
+            kind: function.kind.clone(),
+            basis: 0,
+            authority_creating: false,
+        };
+        let service = |effective: Option<&str>, scoped: &FunctionDefinition| {
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent_1".to_owned(),
+                credential_id: "credential_1".to_owned(),
+                credential_generation: 1,
+                grant_id: "grant_1".to_owned(),
+                token_id: "token_1".to_owned(),
+                effective_user_id: effective.map(str::to_owned),
+                scopes: vec![scope(scoped)],
+                token_expires_at_ms: 20_000,
+            }
+        };
+        let prepare = |resolved| {
+            InvocationGate::prepare_authority(
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                1,
+                1,
+                &WireAuthorityFields::default(),
+                resolved,
+            )
+            .unwrap()
+        };
+
+        // A delegated agent resolves to the delegating user's subject.
+        InvocationGate::prepare_function(prepare(service(Some("user_1"), &pattern)), &pattern)
+            .unwrap();
+        // A bare service principal / autonomous agent is authenticated but
+        // projects no user subject: refused by profile-class admission,
+        // after the scope and authentication gates.
+        let refused =
+            InvocationGate::prepare_function(prepare(service(None, &pattern)), &pattern)
+                .unwrap_err();
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
+        );
+        // Signed-in users are unaffected.
+        InvocationGate::prepare_function(
+            prepared(ResolvedAppAuthority::DevImpersonation {
+                user_id: "user_1".to_owned(),
+                roles: Vec::new(),
+                local_dev_only: true,
+            }),
+            &pattern,
+        )
+        .unwrap();
+        // The same subject-less principal still runs a non-pattern function:
+        // the refusal is scoped to the generated profile, not the principal.
+        let plain = function(Some(AuthRequirement::Authenticated));
+        InvocationGate::prepare_function(prepare(service(None, &plain)), &plain).unwrap();
+    }
+
     #[test]
     fn service_principal_scope_is_checked_before_function_preparation() {
         let function = function(Some(AuthRequirement::Authenticated));
@@ -2104,7 +2210,8 @@ mod tests {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::LiveInitialQuery
-                | InvocationSource::StandaloneAcknowledgement
+                | InvocationSource::MutationSettlementAcknowledgement
+                | InvocationSource::InvalidationAcknowledgement
                 | InvocationSource::ConnectionClose
                 | InvocationSource::LiveResume
                 | InvocationSource::LiveUnsubscribe

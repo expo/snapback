@@ -65,6 +65,12 @@ run scripts/ibex-doctor
 # LLP 0032 P3 artifact gates: regen-and-diff staleness + tsc over generated
 # types (the Rust-derived schema validation gate runs inside cargo test).
 run scripts/check-generated-artifacts
+# @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — recompute the
+# committed Cloudflare deployment-identity manifests here so the commit that
+# changes deploy inputs without regenerating fails, not the next deploy
+# (cf-check-compat refuses at deploy time; on 2026-07-25 main went
+# un-deployable twice this way). Fast-CI twin: .github/workflows/deployment-identity.yml.
+run node cloudflare/scripts/generate-deployment-identity.mjs --check
 run scripts/check-generated-types
 run scripts/check-demo-surfaces
 # ENG-22543 (Diary 0011 flip-condition 2): production-build every REQUIRED demo
@@ -88,6 +94,11 @@ run node demos/_kit/tests/harness-cleanup-failures.mjs
 # acceptance will verify.
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run node tests/ibex_bootstrap_v0.mjs
+# Real-binary identity honesty: the freshly bootstrapped binary's build.rs
+# stamp must refuse (or honestly report unverifiable) a drifted checkout
+# expectation — the comparison the kit's env injection used to self-confirm
+# (issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md).
+run node demos/_kit/tests/binary-provenance-drift.mjs
 run node scripts/check-toolchain-authority.mjs
 stamp_snapback_build_identity
 run cargo clippy --all-targets -- -D warnings
@@ -142,6 +153,11 @@ run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packa
 run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-vite test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
+# LLP 0090 rollout step 7 (ENG-25458): Channel C consumption — the
+# authenticated register-mode boot (todo-v2) and the socket-less widget
+# read-mode surface (graffiti), both wire-instrumented and hermetic.
+run node demos/todo-v2/tests/acceptance/register-boot.mjs
+run node demos/graffiti/tests/acceptance/widget-read-mode.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs
 run node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
 run node demos/_kit/tests/auth-handshake.mjs
@@ -167,6 +183,7 @@ run node demos/_kit/tests/regression-overlay-crossroom.mjs
 run node demos/_kit/tests/regression-mixed-transport.mjs
 run node demos/_kit/tests/regression-multiplexed-lanes.mjs
 run node demos/_kit/tests/regression-midflight-resync.mjs
+run node demos/_kit/tests/regression-durable-bytes-resync.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
 # Package-owned test commands are the inventory authority. The preceding
 # inventory gate proves every maintained test file is declared, so this cannot
@@ -176,6 +193,14 @@ run bun run --cwd packages/snapback-react test
 run bun run --cwd packages/snapback-app-cli test
 run bun run --cwd packages/snapback-contract test
 run bun run --cwd packages/snapback-codegen test
+# LLP 0093 P-2: the clean-room Swift client's fixture-conformance tests run
+# wherever a Swift toolchain exists (macOS dev machines). Absent toolchain is
+# a skip, not a failure — hosts without Swift keep their existing surface.
+if command -v swift >/dev/null 2>&1 && swift --version >/dev/null 2>&1; then
+    run swift test --package-path clients/swift/SnapbackClient
+else
+    printf '\n[snapback-verify] skipping Swift client conformance tests (no Swift toolchain)\n'
+fi
 # LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare
 # regression. The runner pins suite IDs, the expected check count, completion
 # evidence, and a classification for every file so coverage cannot disappear

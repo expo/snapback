@@ -133,7 +133,7 @@ async function main() {
     const current = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : null;
     if (current === next) continue;
     if (checkOnly) {
-      console.error(`STALE: ${app.output}; run node cloudflare/scripts/generate-deployment-identity.mjs`);
+      console.error(`STALE: ${app.output}; run node cloudflare/scripts/generate-deployment-identity.mjs and commit`);
       drift = true;
     } else {
       fs.writeFileSync(outputPath, next);

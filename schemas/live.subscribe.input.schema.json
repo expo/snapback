@@ -100,6 +100,44 @@
       },
       "type": "object"
     },
+    "MembershipWitnessEntry": {
+      "description": "One held row in the witness: the wire row id (the same string\n[`LiveDeltaWireOp::id`] carries) and the base64url (no pad) encoding of\nthe 32-byte LLP 0091 §0A.2 row hash the client holds for it.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "oldRowHash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "oldRowHash"
+      ],
+      "type": "object"
+    },
+    "MembershipWitnessWire": {
+      "description": "The rung-2 membership witness (LLP 0091 rung-2 amendment / LLP 0090 Q7):\nexact `(rowId, oldRowHash)` pairs for every row the client holds at the\ntoken's version, in ascending UTF-16 code-unit order of `id` (the JCS\nmember order), with an explicit `count`. The keyed-leaf aggregate of these\npairs must equal the token's MAC-bound `contentDigest` root before any\nreplay is admitted; any decode ambiguity refuses to rung 3 and can never\nsuppress a removal.",
+      "properties": {
+        "count": {
+          "description": "Must equal `entries.len()` — an explicit count makes truncation a\ndetectable decode failure rather than a silent smaller witness.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/MembershipWitnessEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "count",
+        "entries"
+      ],
+      "type": "object"
+    },
     "QueryNamespace": {
       "additionalProperties": false,
       "properties": {
@@ -144,6 +182,85 @@
         "version"
       ],
       "type": "object"
+    },
+    "ResumeFromToken": {
+      "description": "The optional `resumeFromToken` wrapper on the subscribe input (LLP 0091\n§0B.4): token resume is not a new route. The wrapper carries the rung-2\n`membershipWitness` (LLP 0091 rung-2 amendment, rollout step 5a).",
+      "properties": {
+        "membershipWitness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipWitnessWire"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rung-2 membership witness (LLP 0090 D1.3): present only when the\nclient holds an `mset1` result within the size cap. Its absence never\nrefuses the resume — rung 1 and rung 3 remain available."
+        },
+        "resume": {
+          "$ref": "#/$defs/ResumeWire"
+        }
+      },
+      "required": [
+        "resume"
+      ],
+      "type": "object"
+    },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.input.schema.json",
@@ -175,6 +292,17 @@
         },
         "read_set": []
       }
+    },
+    "resumeFromToken": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResumeFromToken"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "RQS token resume (LLP 0091 §0B.4): not a new route — the token seeds\nthis ordinary subscribe. Admission per LLP 0090 D1.1; every refusal\nanswers with rung 3 (a fresh snapshot), never a subscription failure."
     },
     "supersedes": {
       "default": null,

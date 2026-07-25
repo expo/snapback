@@ -1,0 +1,81 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.rollback-receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The digest-sealed record of one §6 fast rollback (`generationRepublish`):\nthe republished predecessor generation, the new application version `R`,\nwhat was physically restored, and the journal seal. The original forward\nreceipt remains immutable; replaying the completed rollback returns this.",
+  "properties": {
+    "approvalDigest": {
+      "type": "string"
+    },
+    "inPlaceTablesRestored": {
+      "description": "In-place tables whose new columns were cleared and whose unchanged\nrows' system fields were restored from the pre-migration checkpoint.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "journalDigest": {
+      "type": "string"
+    },
+    "journalEntries": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "republishedVersion": {
+      "description": "The one new application version the republish allocated.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "restampedRows": {
+      "description": "Rows restamped to `R` (§6): zero under full restoration — nothing\nuser-visible changed from successor back to predecessor beyond the\nrestoration itself.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "restoredStorageGeneration": {
+      "description": "The advanced predecessor storage generation; re-migrating requires a\nfresh preview bound to it.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rollbackTimestampMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stagedTablesRestored": {
+      "description": "Staged tables restored by physical rename — byte-exact republish.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "operationId",
+    "planDigest",
+    "approvalDigest",
+    "republishedVersion",
+    "rollbackTimestampMs",
+    "restoredStorageGeneration",
+    "stagedTablesRestored",
+    "inPlaceTablesRestored",
+    "restampedRows",
+    "journalEntries",
+    "journalDigest"
+  ],
+  "title": "MigrationRollbackReceiptV1",
+  "type": "object"
+}

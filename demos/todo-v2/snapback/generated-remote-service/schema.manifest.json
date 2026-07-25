@@ -29,9 +29,9 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "1e33990ea1a28518a37228695598e26fcc9f1924dbf3248dd8e405bace29b23b",
+  "inputsHash": "0f50e45d3b6350b4b70fa5574e7e92bf8f33d9f55b3215eb614f63f5d124d910",
   "portabilityFlags": [],
-  "schemaHash": "sha256:64f3c074173809c7",
+  "schemaHash": "sha256:111df146debc77df",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -63,6 +63,13 @@
             "userId"
           ],
           "name": "by_user"
+        },
+        {
+          "fields": [
+            "userId",
+            "priority"
+          ],
+          "name": "by_user_priority"
         }
       ],
       "name": "todos",

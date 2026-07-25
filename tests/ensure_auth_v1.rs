@@ -377,6 +377,7 @@ async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_reje
     snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(schema),
                 functions: Some(functions),
                 seed: None,
@@ -489,6 +490,7 @@ fn equal_hash_invalid_artifact_version_is_rejected_before_match_or_partial_apply
     snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(schema.clone()),
                 functions: Some(functions),
                 seed: None,
@@ -504,6 +506,7 @@ fn equal_hash_invalid_artifact_version_is_rejected_before_match_or_partial_apply
     let error = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(invalid_equal_hash),
                 functions: None,
                 seed: None,
@@ -527,6 +530,7 @@ fn equal_hash_invalid_artifact_version_is_rejected_before_match_or_partial_apply
     let error = fresh
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(schema),
                 functions: Some(invalid_functions),
                 seed: None,

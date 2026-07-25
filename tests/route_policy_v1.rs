@@ -210,6 +210,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/mutation/{name}"),
         ("POST", "/action/{name}"),
+        ("POST", "/app/bundle"),
         ("POST", "/app/ensure"),
         ("POST", "/connection/open"),
         ("POST", "/live/authorization-invalidation/acknowledge"),
@@ -618,7 +619,10 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                 );
                 assert_eq!(sessions.path_policy, RoutePolicy::Public);
                 let expected_resolution = match route.path {
-                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" => {
+                    // Bundle entries are evaluated exactly like /query
+                    // invocations, so the generated app-data route class's
+                    // scoped tokens stay legal (LLP 0092 §0D.7).
+                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
                     }
                     _ => CredentialResolution::OptionalSessionBearer,
@@ -1389,6 +1393,21 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/query/missing_function",
                 base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/app/bundle"),
+            SessionBodyProbe {
+                uri: "/app/bundle",
+                base: json!({
+                    "route": "/policy-probe",
+                    "params": {},
+                    "devManifestEntry": {
+                        "route": "/policy-probe",
+                        "queries": [{ "function": "missingQuery", "args": {} }]
+                    }
+                }),
                 forbidden_fields: handler_fields(),
             },
         ),

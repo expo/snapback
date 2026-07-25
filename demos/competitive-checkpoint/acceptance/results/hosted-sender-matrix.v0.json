@@ -1,0 +1,441 @@
+{
+  "instrument": "demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs",
+  "governedBy": [
+    "LLP 0077#acceptance",
+    "LLP 0098#8-acceptance--the-negative-test-ledger"
+  ],
+  "origin": "http://127.0.0.1:4631",
+  "publicOrigin": "https://s4.example.test",
+  "clientIp": "198.51.100.7",
+  "codeSource": "operator-digest",
+  "runAt": "2026-07-25T16:02:19.351Z",
+  "facts": {
+    "hostedAuth": {
+      "externalTls": "enforced",
+      "effectiveSource": "trusted",
+      "authenticationThrottle": "sharedEnforced",
+      "sessionInvalidation": "globallyFenced",
+      "clientCredentialPosture": "senderConstrainedV2"
+    },
+    "custodyExtractable": false,
+    "grantRoutes": [
+      {
+        "method": "POST",
+        "path": "/live/authorization-invalidation/acknowledge",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/live/authorization-invalidation/manual-retry",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/live/listNotes/subscribe",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/live/listNotes/resume",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/live/listNotes/unsubscribe",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "GET",
+        "path": "/live/conn_caaa5ec45315424885ee74ae108e8d63/stream",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "GET",
+        "path": "/outbox/conn_caaa5ec45315424885ee74ae108e8d63",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/ephemeral/publish",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/ephemeral/subscribe",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      },
+      {
+        "method": "POST",
+        "path": "/ephemeral/delete",
+        "carrier": "header",
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      }
+    ]
+  },
+  "title": "competitive checkpoint / LLP 0077 sender matrix on a served hosted origin",
+  "passed": 41,
+  "skipped": 0,
+  "failed": 1,
+  "total": 42,
+  "ok": false,
+  "results": [
+    {
+      "name": "hosted/operator-surface-mailbox-is-404",
+      "ok": true,
+      "details": {
+        "status": 404,
+        "bodyBytes": 0,
+        "note": "capture mailbox unreachable on a hosted origin"
+      }
+    },
+    {
+      "name": "effective-source/e1-absent-header-fails-closed-on-gated-routes",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SOURCE_UNTRUSTED",
+        "routes": [
+          "/auth/request-code",
+          "/query/listNotes"
+        ]
+      }
+    },
+    {
+      "name": "effective-source/e2-nine-entries-fail-closed",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SOURCE_UNTRUSTED",
+        "entries": 9
+      }
+    },
+    {
+      "name": "effective-source/e3-malformed-entries-fail-closed",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SOURCE_UNTRUSTED",
+        "variants": [
+          "hostname",
+          "ipv4-with-port",
+          "bracketed-ipv6-with-port",
+          "empty-header-value",
+          "trailing-empty-entry"
+        ]
+      }
+    },
+    {
+      "name": "effective-source/e4-other-forwarding-headers-are-ignored",
+      "ok": true,
+      "details": {
+        "status": 200,
+        "sourceBuckets": {
+          "before": 1,
+          "after": 1
+        },
+        "xffWins": true
+      }
+    },
+    {
+      "name": "effective-source/e5-rightmost-entry-is-selected",
+      "ok": true,
+      "details": {
+        "rightmostSelected": true,
+        "sourceBuckets": {
+          "start": 1,
+          "afterBaseline": 2,
+          "afterLeftmostVaried": 2,
+          "afterRightmostVaried": 3
+        }
+      }
+    },
+    {
+      "name": "issuance/exchange-refuses-without-sender-constraint",
+      "ok": true,
+      "details": {
+        "status": 401,
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID"
+      }
+    },
+    {
+      "name": "issuance/refuses-a-proof-bound-to-the-connect-origin",
+      "ok": true,
+      "details": {
+        "status": 401,
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID"
+      }
+    },
+    {
+      "name": "issuance/exchange-succeeds-with-a-sender-constraint",
+      "ok": true,
+      "details": {
+        "status": 200,
+        "nonExtractableCustody": true
+      }
+    },
+    {
+      "name": "issuance/response-installs-a-successor-nonce",
+      "ok": true,
+      "details": {
+        "nonceLength": 43
+      }
+    },
+    {
+      "name": "protected/valid-proof-is-admitted",
+      "ok": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "protected/successor-nonce-arrives-in-the-response-header",
+      "ok": true,
+      "details": {
+        "rotated": true
+      }
+    },
+    {
+      "name": "nonce/missing-proof-yields-a-challenge",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        "currentNonceReturned": true
+      }
+    },
+    {
+      "name": "nonce/wrong-nonce-yields-a-challenge",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      }
+    },
+    {
+      "name": "nonce/an-unauthenticated-challenge-never-rotates-a-live-nonce",
+      "ok": true,
+      "details": {
+        "attempts": 4,
+        "generationUnchanged": true
+      }
+    },
+    {
+      "name": "nonce/the-challenged-generation-still-authorizes-a-fresh-proof",
+      "ok": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "replay/a-byte-identical-proof-is-refused",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        "precedence": "nonce check precedes replay consumption"
+      }
+    },
+    {
+      "name": "replay/a-reused-proof-id-under-a-live-nonce-is-refused-as-replayed",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REPLAYED",
+        "nonceChallenge": null,
+        "liveGenerationSurvived": true
+      }
+    },
+    {
+      "name": "refusal/bad-signature",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/wrong-htm",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/wrong-htu",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/htu-from-the-connect-origin",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/iat-older-than-the-window",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/iat-further-ahead-than-the-window",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/malformed-base64url",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/wrong-alg",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/wrong-typ",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/unknown-jwk",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/unknown-token-is-folded-into-the-anti-oracle-challenge",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        "status": 401
+      }
+    },
+    {
+      "name": "refusal/absent-authorization-yields-AUTH_REQUIRED-not-a-challenge",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_REQUIRED"
+      }
+    },
+    {
+      "name": "refusal/absent-authorization-refuses-before-body-ingestion",
+      "ok": false,
+      "error": "an entirely unauthenticated caller reached the request-body JSON parser on a sender-constrained hosted route: expected SNAPBACK_AUTH_REQUIRED, observed 400 SNAPBACK_REQUEST_JSON_INVALID",
+      "diagnostic": null
+    },
+    {
+      "name": "refusal/every-axis-refused-before-application-body-ingestion",
+      "ok": true,
+      "details": {
+        "controlCode": "SNAPBACK_REQUEST_JSON_INVALID",
+        "controlStatus": 400
+      }
+    },
+    {
+      "name": "grant/connection-open-refuses-a-bare-bearer",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      }
+    },
+    {
+      "name": "grant/connection-open-with-a-proof-mints-a-sender-bound-grant",
+      "ok": true,
+      "details": {
+        "status": 200,
+        "successorNonce": true
+      }
+    },
+    {
+      "name": "grant/no-grant-route-accepts-the-grant-as-a-bare-bearer",
+      "ok": true,
+      "details": {
+        "routes": 10,
+        "codes": [
+          "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+        ]
+      }
+    },
+    {
+      "name": "grant/the-websocket-carrier-also-refuses-without-a-proof",
+      "ok": true,
+      "details": {
+        "opened": false,
+        "detail": "upgrade refused"
+      }
+    },
+    {
+      "name": "grant/a-proof-bound-grant-use-is-admitted-on-the-header-carrier",
+      "ok": true,
+      "details": {
+        "status": 200,
+        "ath": "bound to the grant token, not the session bearer"
+      }
+    },
+    {
+      "name": "grant/every-use-needs-a-fresh-proof-the-consumed-one-is-refused",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
+      }
+    },
+    {
+      "name": "websocket/upgrade-with-the-proof-subprotocol-succeeds",
+      "ok": true,
+      "details": {
+        "opened": true
+      }
+    },
+    {
+      "name": "websocket/the-first-server-frame-is-the-sender_nonce-release",
+      "ok": true,
+      "details": {
+        "kind": "sender_nonce",
+        "nonceLength": 43
+      }
+    },
+    {
+      "name": "websocket/the-proof-subprotocol-is-never-echoed-as-negotiated",
+      "ok": true,
+      "details": {
+        "negotiated": "snapback.v1"
+      }
+    },
+    {
+      "name": "websocket/the-in-band-successor-authorizes-the-next-http-proof",
+      "ok": true,
+      "details": {
+        "status": 200
+      }
+    }
+  ],
+  "expectedChecks": 42,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0,
+  "claimBoundary": "This run executed against a LOCAL hosted origin (127.0.0.1) composed exactly as the deployed one: --auth-deployment hosted under a signed attestation, sessions active, effective-source derivation enforced. 41/42 checks pass. The single failure is LLP 0077 ledger defect D-1 (an unauthenticated caller reaches the JSON parser before the absent-Authorization refusal), left deliberately red. Because D-1 is a genuine defect, hostedAuthCapable CANNOT be claimed regardless of local vs served origin. A served-origin rerun would additionally exercise the real TLS terminator and the platform edge, and remains outstanding."
+}

@@ -1,10 +1,10 @@
 {
   "artifactKind": "acceptanceReceipts",
   "schemaVersion": "snapback.llp0076-acceptance-receipts.v1",
-  "authority": "llp/0076-bounded-streamed-actions.rfc.md §Acceptance (Draft; the ledger remains the living record)",
+  "authority": "llp/0076-bounded-streamed-actions.rfc.md §Acceptance (Accepted 2026-07-25; the ledger remains the living record)",
   "producedAt": "2026-07-24",
   "producedBy": "issues/20260723-llp0076-streaming-program.md — per-bullet receipts pass",
-  "honestyNote": "Each bullet maps to NAMED executable witnesses with the commit that landed them. Coverage is per target: local-dev-sqlite-ibex (the gate-2 substrate arm) and cloudflare-do-sqlite-v8 (a narrow proof, not gate-bearing — LLP 0076 author decision 7). The gate-bearing hosted receipt on single-instance-container-vm.v1 does NOT exist yet and is listed as an explicit gap, not implied.",
+  "honestyNote": "Each bullet maps to NAMED executable witnesses with the commit that landed them. Coverage is per target: local-dev-sqlite-ibex (the gate-2 substrate arm) and cloudflare-do-sqlite-v8 (a narrow proof, not gate-bearing — LLP 0076 author decision 7). The gate-bearing hosted receipt on single-instance-container-vm.v1 exists as of 2026-07-25 (results/remote-streaming.v0.json, 7/7 on the Fly.io drill target under the recorded SNAPBACK_PROFILE=test --allow-insecure-dev-auth posture behind the platform TLS edge — protocol amendment v0.7). That receipt closes the hosted-receipt gap only; it claims no hosted-auth capability and does not by itself close gate 2 while this authority is Draft and the staged-work ledger has open items.",
   "witnessSuites": {
     "instrument": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs (LLP 0075 protocol v0.5; expectedChecks 7; PASS 7/7)",
     "lib": "cargo test --lib (src/server.rs + src/stream_attempt.rs stream tests)",
@@ -90,13 +90,13 @@
     },
     {
       "bullet": "diagnostics and retained receipts pass secret/private-data scans",
-      "status": "witnessed-diagnostics; retained-receipts-scanned; hosted-durable-rows-open",
+      "status": "witnessed-diagnostics; retained-receipts-scanned; hosted-durable-rows-witnessed",
       "witnesses": [
         { "target": "local-dev-sqlite-ibex", "witness": "envelope suite staged_secret_values_are_scrubbed_from_stream_error_envelopes ([REDACTED] witnessed) and untouched_stream_refusals_stay_value_free_with_secrets_in_the_request; lib test bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently (URL path never retained)", "landed": "edaac601 / ef6458e9" },
         { "target": "cloudflare-do-sqlite-v8", "witness": "egress checks 'the resolved stream secret never re-enters the isolate or the action result' and 'status JSON stays key-free after live egress'; opened metadata returns the handler-authored URL, never the substituted one", "landed": "15e1984a" },
-        { "target": "retained-receipts", "witness": "scan performed at receipt production (2026-07-24): demos/competitive-checkpoint/acceptance/results/*.json contain none of the fixture secret values (test-511-key-alpha, test-ors-key-omega, stream-secret-value-7f3a) and no '[snapback secret' markers", "landed": "this pass" }
-      ],
-      "gap": "secret/private-data scans over DURABLE stream rows on the gate-bearing hosted target ride the single-instance-container-vm.v1 receipt below."
+        { "target": "retained-receipts", "witness": "scan performed at receipt production (2026-07-24): demos/competitive-checkpoint/acceptance/results/*.json contain none of the fixture secret values (test-511-key-alpha, test-ors-key-omega, stream-secret-value-7f3a) and no '[snapback secret' markers", "landed": "this pass" },
+        { "target": "single-instance-container-vm.v1", "witness": "durable-row scan over post-drill on-machine SQLite dumps (_snapback_stream_attempts, messages, conversations dumped via fly ssh console on machine 819701c927ee68): PASS, 0 findings across fixture secret corpus, the live machine admin-token class, upstream loopback-source material, and markers — results/durable-row-scan.v0.json (2026-07-25, protocol amendment v0.7)", "landed": "this pass" }
+      ]
     },
     {
       "bullet": "(cross-cutting) the witness must run through the real action, nested mutation, commit, and native live-push path",
@@ -109,11 +109,13 @@
   "explicitGaps": [
     {
       "id": "hosted-gate2-receipt",
-      "detail": "No receipt exists on single-instance-container-vm.v1, the LLP 0075-selected hosted target that gate 2 requires (LLP 0076 author decision 7). Cloudflare remains a narrow proof and is not gate-bearing. LLP 0074 gate 2 stays open until that receipt exists."
+      "detail": "No receipt exists on single-instance-container-vm.v1, the LLP 0075-selected hosted target that gate 2 requires (LLP 0076 author decision 7). Cloudflare remains a narrow proof and is not gate-bearing. LLP 0074 gate 2 stays open until that receipt exists.",
+      "resolved": "2026-07-25 — the receipt exists: results/remote-streaming.v0.json, 7/7 PASS on the Fly.io drill target (app snapback-drill, machine 819701c927ee68, sjc; protocol amendment v0.7), with the durable-row scan (durable-row-scan.v0.json PASS), the Tigris backup read-back witness (tigris-backup.v0.json PASS), and the hosted-auth refusal witness (hosted-auth-refusal.v0.json — SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED; no hosted-auth capability claimed). Posture caveat recorded in the receipt: SNAPBACK_PROFILE=test with --allow-insecure-dev-auth behind Fly's TLS edge. This resolves the receipt gap. Gate 2 closed 2026-07-25: this authority was Accepted (author ratification, Charlie Cheever) and the registry flipped bounded_response_stream_v1 to stable as the acceptance act; the ledger's scoped residues (OQ 6-7, the Workerd arm's narrower witness) stay recorded in the RFC."
     },
     {
       "id": "maturity-marker",
-      "detail": "Whether bounded_response_stream_v1 carries an explicit proposed/experimental maturity marker while LLP 0076 is Draft is the author's open LLP 0058 decision (issues/20260723-llp0076-capability-honesty.md). These receipts do not preempt it."
+      "detail": "Whether bounded_response_stream_v1 carries an explicit proposed/experimental maturity marker while LLP 0076 is Draft is the author's open LLP 0058 decision (issues/20260723-llp0076-capability-honesty.md). These receipts do not preempt it.",
+      "resolved": "2026-07-24 — decided (Charlie Cheever) and implemented: LLP 0058 §Capability maturity adds the code-owned proposed/experimental/stable dimension, served manifests annotate bounded_response_stream_v1 experimental via capabilityMaturity, and admission requires the artifact's acknowledgedExperimentalCapabilities entry on both arms; the honesty ticket is closed (issues/closed/)."
     },
     {
       "id": "workerd-structural-bounds",

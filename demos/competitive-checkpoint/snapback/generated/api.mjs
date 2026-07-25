@@ -66,6 +66,14 @@ export const api = Object.freeze({
     "name": "getConversation",
     "schemaVersion": "snapback.v0"
   },
+  "listConversationCards": {
+    "appId": "competitive-checkpoint",
+    "artifactKind": "functionReference",
+    "id": "competitive-checkpoint:listConversationCards",
+    "kind": "LiveQuery",
+    "name": "listConversationCards",
+    "schemaVersion": "snapback.v0"
+  },
   "listConversations": {
     "appId": "competitive-checkpoint",
     "artifactKind": "functionReference",
@@ -88,6 +96,14 @@ export const api = Object.freeze({
     "id": "competitive-checkpoint:nextConversationPage",
     "kind": "LiveQuery",
     "name": "nextConversationPage",
+    "schemaVersion": "snapback.v0"
+  },
+  "registerModel": {
+    "appId": "competitive-checkpoint",
+    "artifactKind": "functionReference",
+    "id": "competitive-checkpoint:registerModel",
+    "kind": "Mutation",
+    "name": "registerModel",
     "schemaVersion": "snapback.v0"
   },
   "settleReply": {

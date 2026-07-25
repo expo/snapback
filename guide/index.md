@@ -60,6 +60,8 @@ you never build around a feature because you didn't know it existed.
   read-set conflict validation, and structured results.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and server-derived time and IDs.
+- [Relational queries](./backend/relational-queries.md) — bounded two-source
+  equi-joins with explicit visibility and closed projections (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven

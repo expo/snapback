@@ -43,7 +43,8 @@ use crate::live_matcher::{
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
-    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, SubscriptionReceiptEvent,
+    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
+    ResumeWire, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthorityDescriptor,
@@ -66,7 +67,7 @@ use crate::storage::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::Path;
@@ -630,18 +631,49 @@ pub struct LiveSubscribeInput {
     /// coexist — supersession is never inferred from matching identity.
     #[serde(default)]
     pub supersedes: Option<String>,
+    /// RQS token resume (LLP 0091 §0B.4): not a new route — the token seeds
+    /// this ordinary subscribe. Admission per LLP 0090 D1.1; every refusal
+    /// answers with rung 3 (a fresh snapshot), never a subscription failure.
+    #[serde(
+        default,
+        rename = "resumeFromToken",
+        alias = "resume_from_token",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub resume_from_token: Option<ResumeFromToken>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
-    pub snapshot: QueryOutput,
+    /// Absent exactly when the subscribe was answered without rows (LLP 0090
+    /// D1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta
+    /// replay (the witness verified). The answer rides the durable lane —
+    /// the `current_as_of` or replay `live_delta` envelope carries the fresh
+    /// token. Only a resume-capable caller can receive the absent form.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<QueryOutput>,
+    /// Fresh resume token for `rqsEligible` subscriptions answered with rows
+    /// (the "initial `LiveReplace`" mint of LLP 0091 §0A.5 on this arm).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<ResumeWire>,
+    /// Per-cause `SNAPBACK_RESUME_*` code when a presented token was refused
+    /// (LLP 0091 §0B.6) — an observability fact; the subscribe itself
+    /// succeeded with rung 3.
+    #[serde(
+        default,
+        rename = "resumeRefusal",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub resume_refusal: Option<String>,
     #[serde(default)]
     #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
     /// Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478).
+    // @ref LLP 0094#0d--subscription-receipt-typing-implemented — the typed
+    //   Receipt union rides the subscribe output; no longer an untyped seam.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub receipt: Option<Value>,
+    pub receipt: Option<Receipt>,
     #[serde(
         default,
         rename = "authorizationScope",
@@ -740,8 +772,10 @@ pub struct LiveUnsubscribeInput {
 pub struct LiveUnsubscribeOutput {
     pub subscription_id: String,
     pub disposed: bool,
+    // @ref LLP 0094#0d--subscription-receipt-typing-implemented — typed
+    //   Receipt on the unsubscribe output, matching the subscribe half.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub receipt: Option<Value>,
+    pub receipt: Option<Receipt>,
     #[serde(
         default,
         rename = "scopeRetirement",
@@ -801,6 +835,12 @@ pub struct EnsureAppInput {
     pub functions: Option<FunctionManifest>,
     #[serde(default)]
     pub seed: Option<SeedData>,
+    /// The route→query manifest (LLP 0092 §0C.1), ensured beside the
+    /// functions manifest on the local dev loop. Sessions-mode complete-pair
+    /// provisioning of routes rides the Cloudflare/deploy work of LLP 0090
+    /// rollout step 4.
+    #[serde(default)]
+    pub routes: Option<crate::bundle::RoutesManifest>,
 }
 
 /// Auth mode explicitly named by an ensure intent. This is a wire fact, not
@@ -926,6 +966,10 @@ pub struct EnsureAppOutcome {
     pub functions: String,
     /// 'seeded' | 'skipped-nonempty' | 'gated' | 'skipped-absent'
     pub seed: String,
+    /// 'matched' | 'provisioned' | 'gated' — absent when no routes manifest
+    /// was posted (LLP 0092 §0C.1 ensure admission).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routes: Option<String>,
     /// The server profile the decision ran under.
     pub profile: String,
 }
@@ -1140,6 +1184,13 @@ impl EnsureAppInput {
         if let Some(functions) = &self.functions {
             functions.validate_artifact()?;
         }
+        if let Some(routes) = &self.routes {
+            // Shape half only; validation against the served functions
+            // manifest runs at install, after the functions half applies.
+            crate::bundle::validate_routes_manifest_shape(routes).map_err(|message| {
+                SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message)
+            })?;
+        }
         Ok(())
     }
 }
@@ -1172,6 +1223,51 @@ pub struct LiveDeliveryStats {
     ///   quarantine cost measurable before declaration-scoped narrowing.
     #[serde(default)]
     pub authorization_blast_radius: AuthorizationBlastRadiusStats,
+    /// RQS resume/refresh observability (LLP 0090 §Scalability: counters land
+    /// with rollout step 1). Cumulative runtime-epoch counters.
+    #[serde(default)]
+    pub resume: RqsResumeStats,
+}
+
+/// Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),
+/// rung taken, journal distance, and token refresh overhead.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RqsResumeStats {
+    /// Subscribes that presented `resumeFromToken`.
+    pub attempted: u64,
+    /// Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).
+    pub current_as_of_answers: u64,
+    /// Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the
+    /// witness verified and a `live_delta` answered the resume.
+    #[serde(default)]
+    pub delta_replay_answers: u64,
+    /// Total `live_delta` ops replayed by rung-2 answers.
+    #[serde(default)]
+    pub replay_ops: u64,
+    /// Estimated bytes avoided by rung-2 answers versus a rung-3
+    /// replacement: serialized replacement rows minus the serialized delta
+    /// envelope, saturating at zero per answer.
+    #[serde(default)]
+    pub replay_bytes_avoided: u64,
+    /// Token presented, answered with rung 3 (refusal or no available proof).
+    pub fresh_replace_answers: u64,
+    /// Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).
+    pub refused: BTreeMap<String, u64>,
+    /// Rung-1 table-set fall-throughs: journal floor held but no certified
+    /// dependency-summary artifact exists yet (cluster 0C), so the answer is
+    /// rung 3. Not a token refusal — its own telemetry cause.
+    pub no_certified_summary: u64,
+    /// Tokens minted on the live path (subscribe answers + envelope refresh).
+    pub tokens_minted: u64,
+    /// Refreshed tokens attached to `live_replace`/`live_delta` envelopes.
+    pub tokens_refreshed: u64,
+    /// Rows/args the 0A canonicalization refused at mint (`resume` absent).
+    pub mint_refusals: u64,
+    /// Journal distance (head − token version) of the last presented token.
+    pub last_journal_distance: u64,
+    /// Maximum observed journal distance.
+    pub max_journal_distance: u64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2358,6 +2454,27 @@ pub struct LocalSnapback {
     // its ephemeral-only HTTP/WS drain must not enter the global writer lane.
     auth_scoped_live_connections: Arc<RwLock<Arc<BTreeSet<String>>>>,
     receipts: ReceiptLog,
+    // The RQS resume keyring — a dedicated ring and file beside the database,
+    // never the auth keyring (LLP 0091 §0A.1 custody). Surviving restart is
+    // what keeps dev-loop restarts from refusing outstanding tokens. Shared
+    // with the lock-free read lane, which MACs and verifies relational
+    // pagination cursors (LLP 0080 §2) without the global writer mutex.
+    resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
+    // Rung-2 witness caps and the replay-vs-replace threshold (LLP 0090
+    // D1.3; server policy knobs with LLP 0091 rung-2 amendment defaults).
+    rqs_replay_policy: RqsReplayPolicy,
+    // Cached local-arm `generation` digest (LLP 0091 §0A.6): content-derived
+    // from the served manifests; recomputed after every manifest/auth-mode
+    // change (the invalidation sites set this back to `None`), so a no-op
+    // ensure reproduces the identical digest.
+    rqs_generation: Option<String>,
+    // The served route→query manifest and its canonical hash (LLP 0092
+    // §0C.1), installed through ensure beside the functions manifest. The
+    // hash is the `routeManifestHash` component of `resumeConfig` in the
+    // generation digest; while served, the bundle endpoint resolves entries
+    // from it exclusively and refuses the inline `devManifestEntry` form.
+    routes: Option<crate::bundle::RoutesManifest>,
+    routes_manifest_hash: Option<String>,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
@@ -2484,6 +2601,102 @@ struct LiveSubscription {
     read_dependencies: Vec<CapturedReadDependency>,
     authorization: Option<LiveSubscriptionAuthorization>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    /// RQS token-refresh state, present iff the subscription is `rqsEligible`
+    /// (LLP 0090 D1): the server-held digest accumulator plus the query/args
+    /// identity every refreshed token binds. Minting is suppressed entirely
+    /// when absent — auth-scoped subscriptions never carry it.
+    rqs: Option<RqsLiveState>,
+}
+
+/// Server-side RQS refresh state for one eligible live subscription.
+#[derive(Clone, Debug)]
+struct RqsLiveState {
+    query_artifact: String,
+    args_hash: String,
+    digest: crate::rqs::ResultDigest,
+}
+
+/// Rung-2 replay policy (LLP 0090 D1.3 / LLP 0091 rung-2 amendment):
+/// server-side knobs, defaulted from the amendment's pinned values.
+#[derive(Clone, Copy, Debug)]
+pub struct RqsReplayPolicy {
+    /// Witness entry cap (`SNAPBACK_RESUME_WITNESS_OVERSIZE` above it).
+    pub max_witness_entries: usize,
+    /// Witness serialized-bytes cap (same refusal code).
+    pub max_witness_bytes: usize,
+    /// Replay-vs-replace cost heuristic: replay is admitted only while the
+    /// journal-affected distinct id count is at most
+    /// `max(1, witness_count * percent / 100)`; above that the server
+    /// answers rung 3 under `SNAPBACK_RESUME_POLICY_REPLACED`. Default 100:
+    /// once more rows were touched than the client ever held, the delta
+    /// cannot be smaller than the replacement, so replaying only adds
+    /// verification work on top of the same bytes.
+    pub replay_affected_percent: u32,
+}
+
+impl Default for RqsReplayPolicy {
+    fn default() -> Self {
+        Self {
+            max_witness_entries: crate::rqs::RESUME_WITNESS_MAX_ENTRIES,
+            max_witness_bytes: crate::rqs::RESUME_WITNESS_MAX_WIRE_BYTES,
+            replay_affected_percent: 100,
+        }
+    }
+}
+
+/// The `rqsEligible` predicate and digest-kind selector — the derived
+/// served-manifest fact of LLP 0092 §0C.2 (ENG-25448 landed the cluster-0C
+/// derivation, replacing the interim step-1 predicate with the strictly
+/// tighter form that also requires the LLP 0053 closed-inputs proof — the
+/// complete `singleTable` read summary). See
+/// [`crate::manifest::rqs_eligible_digest_kind`].
+fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+    crate::manifest::rqs_eligible_digest_kind(function)
+}
+
+fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message.into())
+}
+
+/// Collect the arg names a plan value expression reads (the AST-derived
+/// required-arg set for LLP 0092 §0E.6 coverage checking).
+fn collect_value_expr_arg_names(value: &ValueExpr, out: &mut BTreeSet<String>) {
+    match value {
+        ValueExpr::Arg(name) => {
+            out.insert(name.clone());
+        }
+        ValueExpr::Args
+        | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::MembershipExists(_) => {}
+        ValueExpr::Field { base, .. } => collect_value_expr_arg_names(base, out),
+        ValueExpr::Binary { left, right, .. } => {
+            collect_value_expr_arg_names(left, out);
+            collect_value_expr_arg_names(right, out);
+        }
+        ValueExpr::Unary { expr, .. } => collect_value_expr_arg_names(expr, out),
+        ValueExpr::If { cond, then, r#else } => {
+            collect_value_expr_arg_names(cond, out);
+            collect_value_expr_arg_names(then, out);
+            collect_value_expr_arg_names(r#else, out);
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
+    }
 }
 
 impl LiveSubscription {
@@ -2505,6 +2718,16 @@ struct LiveSubscriptionAuthorization {
     namespace: QueryNamespace,
     authority_subject: String,
     owner_continuity_id: String,
+}
+
+/// Register-mode target for [`LocalSnapback::evaluate_bundle`]: the freshly
+/// minted pending-registration connection every bundle subscription binds to
+/// (LLP 0031 dated amendment — the one sanctioned socketless-demand owner).
+#[derive(Clone, Debug)]
+pub(crate) struct BundleRegisterTarget {
+    pub(crate) connection_id: String,
+    pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
+    pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -3020,32 +3243,44 @@ impl LocalSnapback {
             self.capability_gaps(),
             crate::runtime::outbound_actions_enabled(),
         );
+        // @ref LLP 0058#capability-maturity — an experimental entry is not
+        // plain support: the requirement admits only when the artifact
+        // acknowledges the experimental contract it binds to.
+        let acknowledged = manifest.acknowledged_capability_ids();
         let mut diagnostics = Vec::new();
-        let mut refuse = |owner: &str, capability: &str| {
-            diagnostics.push(Diagnostic::error(
-                "SNAPBACK_CAPABILITY_UNSUPPORTED",
-                "runtime",
-                format!(
-                    "{owner} requires capability {capability}, which the served instance manifest does not support"
-                ),
-            ));
+        let mut check = |owner: &str, capability: &str| {
+            let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>() else {
+                return;
+            };
+            if !served.supported_capabilities.contains(&id) {
+                diagnostics.push(Diagnostic::error(
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                    "runtime",
+                    format!(
+                        "{owner} requires capability {capability}, which the served instance manifest does not support"
+                    ),
+                ));
+            } else if id.maturity() != crate::manifest::CapabilityMaturity::Stable
+                && !acknowledged.contains(&id)
+            {
+                diagnostics.push(Diagnostic::error(
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                    "runtime",
+                    format!(
+                        "{owner} requires capability {capability}, which this target supports only at {} maturity; the artifact must list it in acknowledgedExperimentalCapabilities",
+                        id.maturity().as_str()
+                    ),
+                ));
+            }
         };
         for function in &manifest.functions {
             for capability in &function.required_capabilities {
-                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
-                    && !served.supported_capabilities.contains(&id)
-                {
-                    refuse(&format!("function {}", function.name), capability);
-                }
+                check(&format!("function {}", function.name), capability);
             }
         }
         for job in &manifest.cron_jobs {
             for capability in &job.required_capabilities {
-                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
-                    && !served.supported_capabilities.contains(&id)
-                {
-                    refuse(&format!("cron job {}", job.name), capability);
-                }
+                check(&format!("cron job {}", job.name), capability);
             }
         }
         diagnostics
@@ -3192,6 +3427,11 @@ impl LocalSnapback {
 
         let deployment = artifacts.deployment_identity(requested_mode)?;
         let target = CapabilityManifest::local_v0_declared();
+        // @ref LLP 0058#capability-maturity — the artifact pair's
+        // experimental acknowledgments (declared on the function manifest,
+        // covering the pair) accompany every requirement, including the
+        // schema-level ones: schema and functions are one generated unit.
+        let acknowledged = artifacts.functions.acknowledged_capability_ids();
         target.require_capabilities(
             artifacts
                 .schema
@@ -3210,6 +3450,7 @@ impl LocalSnapback {
                         .iter()
                         .flat_map(|job| job.required_capabilities.iter().map(String::as_str)),
                 ),
+            &acknowledged,
         )?;
         validate_function_schema_references(&artifacts.functions, &artifacts.schema)?;
         let cron_diagnostics = validate_cron_manifest(&artifacts.functions);
@@ -3363,7 +3604,7 @@ impl LocalSnapback {
             move |snapback| {
                 let ephemeral_collections = manifest.ephemeral_collections.clone();
                 let generation = next_app_generation()?;
-                let diagnostics = snapback.db.apply_schema(manifest)?;
+                let mut diagnostics = snapback.db.apply_schema(manifest)?;
                 let ephemeral = snapback.ephemeral.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
                     ephemeral
@@ -3372,6 +3613,23 @@ impl LocalSnapback {
                 });
                 snapback.install_app_generation(generation);
                 snapback.refresh_read_manifests();
+                // Schema-driven route-param typing depends on the schema
+                // (LLP 0092 §0E.6): a served route manifest that no longer
+                // validates against the new schema drops fail-closed.
+                if let Some(routes) = snapback.routes.clone()
+                    && let Err(error) = snapback.validate_routes_manifest(&routes)
+                {
+                    snapback.routes = None;
+                    snapback.routes_manifest_hash = None;
+                    diagnostics.push(Diagnostic::warning(
+                        "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                        "runtime",
+                        format!(
+                            "served route manifest dropped: it no longer validates against the new schema ({})",
+                            error.diagnostic.message
+                        ),
+                    ));
+                }
                 snapback.record_diagnostics(diagnostics.clone());
                 Ok(diagnostics)
             },
@@ -3414,13 +3672,58 @@ impl LocalSnapback {
             }
         };
 
+        // @ref LLP 0080#5-transactionally-maintained-projections — activation
+        //   materializes: a plan whose digest changed (or never activated)
+        //   rebuilds under the local barrier BEFORE the manifest installs,
+        //   so the §5 oracle holds from the first active commit version. A
+        //   refused rebuild (existing-data fan-out, invariant breach) fails
+        //   the whole activation.
+        for plan in &manifest.projections {
+            match self.db.rebuild_projection_if_stale(plan, "activation") {
+                Ok(Some(receipt)) => preflight.push(Diagnostic::info(
+                    "SNAPBACK_PROJECTION_REBUILT",
+                    "storage",
+                    format!(
+                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                    ),
+                )),
+                Ok(None) => {}
+                Err(error) => {
+                    preflight.push(error.diagnostic);
+                    self.record_diagnostics(preflight.clone());
+                    return preflight;
+                }
+            }
+        }
+
         self.functions = manifest;
         self.functions_loaded = true;
+        self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
         let mut diagnostics = preflight;
+        // A served route manifest that no longer validates against the new
+        // functions manifest is dropped fail-closed (LLP 0092 §0C.1): stale
+        // entries must not keep resolving; Channel A degrades to the shell
+        // and bundles answer ROUTE_UNKNOWN until a coherent manifest is
+        // ensured again.
+        if let Some(routes) = self.routes.clone()
+            && let Err(error) = self.validate_routes_manifest(&routes)
+        {
+            self.routes = None;
+            self.routes_manifest_hash = None;
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                "runtime",
+                format!(
+                    "served route manifest dropped: it no longer validates against the new functions manifest ({})",
+                    error.diagnostic.message
+                ),
+            ));
+        }
 
         if self
             .functions
@@ -3528,11 +3831,30 @@ impl LocalSnapback {
                 .expect("preflighted ephemeral definitions publish infallibly");
         });
 
+        let mut diagnostics = Vec::new();
+        for plan in &manifest.projections {
+            match self.db.rebuild_projection_if_stale(plan, "activation") {
+                Ok(Some(receipt)) => diagnostics.push(Diagnostic::info(
+                    "SNAPBACK_PROJECTION_REBUILT",
+                    "storage",
+                    format!(
+                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                    ),
+                )),
+                Ok(None) => {}
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    self.record_diagnostics(diagnostics.clone());
+                    return diagnostics;
+                }
+            }
+        }
         self.functions = manifest;
         self.functions_loaded = true;
+        self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
         self.warm_vms.clear();
-        let mut diagnostics = Vec::new();
         if self
             .functions
             .functions
@@ -3826,6 +4148,11 @@ impl LocalSnapback {
         self.app_generation = generation;
         self.app_generation_fence
             .store(generation, Ordering::SeqCst);
+        // Loaded code/schema (or the destructive app-state boundary) changed:
+        // recompute the content-derived RQS `generation` lazily. A no-op
+        // ensure recomputes the identical digest, so outstanding resume
+        // tokens keep verifying (LLP 0091 §0A.6).
+        self.rqs_generation = None;
     }
 
     fn resolve_complete_provision_pair(
@@ -4201,6 +4528,25 @@ impl LocalSnapback {
             }
         };
 
+        // Routes install after the functions half so validation runs against
+        // the manifest this same ensure just applied (LLP 0092 §0C.1).
+        let routes_outcome = match input.routes {
+            None => None,
+            Some(manifest) => {
+                let incoming_hash = serde_json::to_value(&manifest)
+                    .ok()
+                    .and_then(|value| crate::rqs::sha256_identity(&value).ok());
+                if incoming_hash.is_some() && incoming_hash == self.routes_manifest_hash {
+                    Some("matched")
+                } else if provisioning_allowed {
+                    self.install_routes_manifest(manifest)?;
+                    Some("provisioned")
+                } else {
+                    Some("gated")
+                }
+            }
+        };
+
         let seed_outcome = match input.seed {
             None => "skipped-absent",
             // Gate BEFORE the emptiness scan (ENG-22527 FIX 2): when
@@ -4234,6 +4580,7 @@ impl LocalSnapback {
             schema: schema_outcome.to_owned(),
             functions: functions_outcome.to_owned(),
             seed: seed_outcome.to_owned(),
+            routes: routes_outcome.map(str::to_owned),
             profile: profile.to_owned(),
         })
     }
@@ -4286,6 +4633,26 @@ impl LocalSnapback {
             bundle_hash: active_deployment.bundle_hash,
             inputs_hash: active_deployment.inputs_hash,
         };
+        // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+        //   posture-aware handshake: a client attesting the predecessor
+        //   artifacts of a successor-only publication receives the stable
+        //   upgrade-required refusal, never a generic mismatch it might
+        //   answer by re-provisioning the predecessor over the successor.
+        if active != requested
+            && let Some(transition) = self.db.latest_schema_transition()?
+            && matches!(
+                transition.body.compatibility_posture,
+                crate::migration::CompatibilityPosture::SuccessorOnly
+            )
+            && requested.schema_hash == transition.body.predecessor_schema_hash
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_UPGRADE_REQUIRED",
+                "runtime",
+                "this application published a successor-only migration; upgrade the client \
+                 artifacts and resync before replaying offline work",
+            ));
+        }
         Ok(EnsureAppAttestOutcome {
             intent: EnsureAppIntent::Attest,
             matched: active == requested,
@@ -4479,6 +4846,17 @@ impl LocalSnapback {
         capability_gaps
     }
 
+    /// The persisted receipt of the last `RebuildMaintainedProjection` of
+    /// `plan_id` (LLP 0080 §5 / the minimal 0081 slice): the verification
+    /// surface the coupled suite consumes; `snapback migrate verify` is its
+    /// operator-facing successor.
+    pub fn projection_rebuild_receipt(
+        &self,
+        plan_id: &str,
+    ) -> SnapbackResult<Option<crate::storage::ProjectionRebuildReceipt>> {
+        self.db.projection_rebuild_receipt(plan_id)
+    }
+
     pub fn invoke_query(&self, name: &str, input: HandlerInput) -> SnapbackResult<QueryOutput> {
         Ok(self
             .invoke_query_with_dependencies_from_source(name, input, InvocationSource::LocalQuery)?
@@ -4518,6 +4896,10 @@ impl LocalSnapback {
             input,
             &prepared,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &self.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )
     }
 
@@ -5869,11 +6251,768 @@ impl LocalSnapback {
         }
     }
 
+    /// The local-arm `generation` digest (LLP 0091 §0A.6): content-derived
+    /// from the served manifests and resume-relevant config, recomputed after
+    /// every ensure (`install_app_generation` clears the cache). A no-op
+    /// ensure reproduces identical components and therefore an identical
+    /// digest, so dev-loop ensures do not needlessly refuse tokens.
+    pub fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
+        if let Some(generation) = &self.rqs_generation {
+            return Ok(generation.clone());
+        }
+        let canonical_identity = |value: &Value| -> SnapbackResult<String> {
+            crate::rqs::sha256_identity(value).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+                    "realtime",
+                    "served manifest could not be canonically hashed for the resume generation",
+                )
+            })
+        };
+        let deployment_identity = format!("local:{}", env!("CARGO_PKG_VERSION"));
+        let schema_identity = self
+            .db
+            .schema()
+            .schema_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let manifest_value = |value: Result<Value, serde_json::Error>| -> SnapbackResult<Value> {
+            value.map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+                    "realtime",
+                    "served manifest could not be serialized for the resume generation",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })
+        };
+        let functions_identity =
+            canonical_identity(&manifest_value(serde_json::to_value(&self.functions))?)?;
+        let mut capability_manifest = CapabilityManifest::local_v0_instance(
+            self.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
+        if self.warm_vms.enabled() {
+            capability_manifest.vm_lifecycle =
+                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
+        }
+        let capability_identity =
+            canonical_identity(&manifest_value(serde_json::to_value(&capability_manifest))?)?;
+        let auth_mode = self.db.auth_mode_snapshot()?.state.active.as_str();
+        // The journal prune policy is a per-call maintenance argument rather
+        // than a named durable policy; its identity stays a pinned literal
+        // until that artifact exists, so changing the model rotates the
+        // generation through this string. `routeManifestHash` is the served
+        // route manifest's canonical hash (LLP 0092 §0C.1), or the pinned
+        // "absent" literal when no route manifest is served.
+        let route_manifest_hash = self
+            .routes_manifest_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let resume_config = crate::rqs::resume_config_identity(
+            "caller-supplied-v0",
+            auth_mode,
+            &route_manifest_hash,
+        );
+        let generation = crate::rqs::generation_digest(
+            &deployment_identity,
+            &schema_identity,
+            &functions_identity,
+            &capability_identity,
+            &resume_config,
+        );
+        self.rqs_generation = Some(generation.clone());
+        Ok(generation)
+    }
+
+    /// Install the served route→query manifest (LLP 0092 §0C.1 admission on
+    /// the local arm's ensure path): shape validation, then validation
+    /// against the served functions manifest. Installing (or replacing) the
+    /// manifest rotates the RQS `generation` through `routeManifestHash`.
+    pub fn install_routes_manifest(
+        &mut self,
+        manifest: crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        self.validate_routes_manifest(&manifest)?;
+        let value = serde_json::to_value(&manifest).map_err(|error| {
+            routes_manifest_error(format!("routes manifest is not serializable: {error}"))
+        })?;
+        let hash = crate::rqs::sha256_identity(&value).map_err(|_| {
+            routes_manifest_error("routes manifest is not canonically hashable".to_owned())
+        })?;
+        self.routes = Some(manifest);
+        self.routes_manifest_hash = Some(hash);
+        // Route-manifest identity is a `generation` component (LLP 0091
+        // §0A.6 resumeConfig): outstanding tokens minted under the previous
+        // route manifest refuse stale rather than resuming across it.
+        self.rqs_generation = None;
+        Ok(())
+    }
+
+    /// The served route manifest, if any (the bundle endpoint and tests).
+    pub fn routes_manifest(&self) -> Option<&crate::bundle::RoutesManifest> {
+        self.routes.as_ref()
+    }
+
+    /// LLP 0092 §0C.1 install-time validation against the served functions
+    /// manifest: every named function exists and is a query; every `$param`
+    /// reference targets a schema-typable top-level arg (the AST-derived
+    /// per-arg decode types of §0E.6); and every arg the query's plan reads
+    /// is covered by the mapping. Failures refuse the manifest with the
+    /// coded load error — per 0090 D1.4, manifest presence authorizes
+    /// preload selection only.
+    fn validate_routes_manifest(
+        &self,
+        manifest: &crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        crate::bundle::validate_routes_manifest_shape(manifest)
+            .map_err(routes_manifest_error)?;
+        if manifest.app != self.functions.app_id {
+            return Err(routes_manifest_error(format!(
+                "routes manifest app {:?} does not match the served functions manifest app {:?}",
+                manifest.app, self.functions.app_id
+            )));
+        }
+        for entry in &manifest.routes {
+            for spec in &entry.queries {
+                let Some(function) = self.functions.function(&spec.function) else {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names unknown function {:?}",
+                        entry.route, spec.function
+                    )));
+                };
+                if !matches!(
+                    function.kind,
+                    crate::manifest::FunctionKind::Query | crate::manifest::FunctionKind::LiveQuery
+                ) {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names non-query function {:?}",
+                        entry.route, spec.function
+                    )));
+                }
+                let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
+                if let Value::Object(map) = &spec.args {
+                    for (key, value) in map {
+                        let Value::Object(inner) = value else { continue };
+                        if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
+                                entry.route, spec.function, key
+                            )));
+                        }
+                    }
+                }
+                // Coverage: every arg the plan's filters read must appear in
+                // the mapping (LLP 0092 §0E.6's required-arg rule, over the
+                // AST-derived required set).
+                if let crate::manifest::FunctionRuntime::HostPlan(
+                    crate::manifest::HandlerPlan::Query(plan),
+                ) = &function.runtime
+                {
+                    let mut required = std::collections::BTreeSet::new();
+                    for filter in &plan.filters {
+                        collect_value_expr_arg_names(&filter.value, &mut required);
+                    }
+                    for name in required {
+                        let covered = matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
+                        if !covered {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} does not cover required arg {:?}",
+                                entry.route, spec.function, name
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Mint one shared resume token at `(queryArtifact, argsHash, version,
+    /// contentDigest)` (LLP 0090 D1: one mint per result-change, shared
+    /// across the fan-out — the optional `cache` carries the sharing within
+    /// one commit frame). Returns `None` on any mint impediment: minting is
+    /// best-effort and its absence only costs a future resume.
+    fn mint_resume_wire(
+        &mut self,
+        query_artifact: &str,
+        args_hash: &str,
+        version: u64,
+        digest_kind: crate::rqs::DigestKind,
+        content_digest: String,
+    ) -> Option<ResumeWire> {
+        let app = self.functions.app_id.clone();
+        let generation = self.rqs_generation_digest().ok()?;
+        let version_stream = self.db.data_version_stream().ok()?;
+        let now = now_millis();
+        let (key_id, key) = self
+            .resume_keyring
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .active(now)?;
+        let body = crate::rqs::ResumeTokenBody {
+            app: app.clone(),
+            generation: generation.clone(),
+            version_stream: version_stream.clone(),
+            version,
+            query_artifact: query_artifact.to_owned(),
+            args_hash: args_hash.to_owned(),
+            digest_kind: digest_kind.as_str().to_owned(),
+            content_digest: content_digest.clone(),
+            issued_at: now,
+            auth_partition: None,
+        };
+        let token = crate::rqs::mint_token_wire(key.as_ref(), &key_id, &body);
+        if token.len() > crate::rqs::RESUME_TOKEN_MAX_WIRE_BYTES {
+            // A token the server itself would refuse must never be minted.
+            return None;
+        }
+        self.live_delivery.resume.tokens_minted += 1;
+        Some(ResumeWire {
+            token,
+            meta: ResumeMeta {
+                app,
+                version,
+                content_digest,
+                generation,
+                version_stream,
+                query_artifact: query_artifact.to_owned(),
+                args_hash: args_hash.to_owned(),
+            },
+        })
+    }
+
+    /// LLP 0090 D1.1 admission for a presented resume token: cryptographic
+    /// verification, then every identity axis against the served instance
+    /// and the subscription being opened. Any `Err` answers with rung 3
+    /// under its per-cause code — never a subscribe failure.
+    fn admit_resume_token(
+        &mut self,
+        presented: &ResumeFromToken,
+        function: &FunctionDefinition,
+        args: &Value,
+        eligibility: Option<crate::rqs::DigestKind>,
+    ) -> Result<crate::rqs::ResumeTokenBody, &'static str> {
+        use crate::rqs::refusal;
+        let now = now_millis();
+        let body = crate::rqs::decode_and_verify(
+            &presented.resume.token,
+            &self
+                .resume_keyring
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+            now,
+            crate::rqs::RESUME_TOKEN_MAX_AGE_MS,
+        )?;
+        if body.auth_partition.is_some() {
+            // Reserved v2 door: absent in v1 (LLP 0091 §0A.1). A partitioned
+            // token cannot be admitted by a v1 server.
+            return Err(refusal::TOKEN_MALFORMED);
+        }
+        if body.app != self.functions.app_id {
+            return Err(refusal::APP_MISMATCH);
+        }
+        let generation = self
+            .rqs_generation_digest()
+            .map_err(|_| refusal::GENERATION_STALE)?;
+        if body.generation != generation {
+            return Err(refusal::GENERATION_STALE);
+        }
+        let version_stream = self
+            .db
+            .data_version_stream()
+            .map_err(|_| refusal::STREAM_MISMATCH)?;
+        if body.version_stream != version_stream {
+            return Err(refusal::STREAM_MISMATCH);
+        }
+        let query_artifact = serde_json::to_value(function)
+            .ok()
+            .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())
+            .ok_or(refusal::QUERY_MISMATCH)?;
+        if body.query_artifact != query_artifact {
+            return Err(refusal::QUERY_MISMATCH);
+        }
+        let args_hash = crate::rqs::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
+        if body.args_hash != args_hash {
+            return Err(refusal::QUERY_MISMATCH);
+        }
+        // Interim eligibility, tightened by ENG-25448 (cluster 0C).
+        let Some(kind) = eligibility else {
+            return Err(refusal::NOT_ELIGIBLE);
+        };
+        if body.digest_kind != kind.as_str()
+            || !body
+                .content_digest
+                .starts_with(&format!("{}:", kind.as_str()))
+        {
+            return Err(refusal::DIGEST_KIND_MISMATCH);
+        }
+        let head = self
+            .db
+            .current_version()
+            .map_err(|_| refusal::VERSION_IMPLAUSIBLE)?;
+        if body.version > head {
+            return Err(refusal::VERSION_IMPLAUSIBLE);
+        }
+        Ok(body)
+    }
+
+    /// Rung-2 delta replay for an admitted `mset1` token with a membership
+    /// witness (LLP 0090 D1.3, rollout steps 5a+6). Preconditions the caller
+    /// established: the token passed D1.1 admission, its `version` is within
+    /// the journal floor, the query is DK-3-analyzable unordered (`mset1`),
+    /// and a fresh token was mintable at head.
+    ///
+    /// Sequence: (1) enforce the witness caps, (2) decode fail-closed, (3)
+    /// verify the witness aggregate equals the MAC-bound `contentDigest`
+    /// root BEFORE any replay — token and witness are jointly verifiable and
+    /// the keyed leaf defeats hash permutation, (4) diff the witnessed old
+    /// membership against the current post-image result over exactly the
+    /// journal-affected row ids (exits are derivable because the witness
+    /// names old hashes), under the replay-vs-replace policy threshold, and
+    /// (5) require the updated accumulator — witnessed leaves subtracted and
+    /// post-image leaves added for affected ids only, untouched leaves kept
+    /// — to reproduce the fresh head digest. Any refusal answers rung 3: a
+    /// full replacement, which by construction can never suppress a removal.
+    ///
+    /// @ref LLP 0090#d13-replay-admission-ladder — rung-2 witness semantics
+    ///   and the accumulator-update rule this implements.
+    fn rqs_attempt_delta_replay(
+        &self,
+        witness: &crate::live_wire::MembershipWitnessWire,
+        body: &crate::rqs::ResumeTokenBody,
+        function: &FunctionDefinition,
+        state: &RqsLiveState,
+        current_rows: &[Value],
+    ) -> Result<Vec<LiveDeltaWireOp>, &'static str> {
+        use crate::rqs::refusal;
+        let wire_bytes = serde_json::to_vec(witness)
+            .map(|bytes| bytes.len())
+            .unwrap_or(usize::MAX);
+        if wire_bytes > self.rqs_replay_policy.max_witness_bytes {
+            return Err(refusal::WITNESS_OVERSIZE);
+        }
+        let pairs =
+            crate::rqs::decode_witness(witness, self.rqs_replay_policy.max_witness_entries)?;
+        let mut accumulator = crate::rqs::witness_state(&pairs);
+        if accumulator.root() != body.content_digest {
+            return Err(refusal::WITNESS_ROOT_MISMATCH);
+        }
+        // The eligibility gate guarantees an analyzable single-table plan.
+        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+            return Err(refusal::WITNESS_INVALID);
+        };
+        let threshold = std::cmp::max(
+            1,
+            (pairs.len() as u64)
+                .saturating_mul(u64::from(self.rqs_replay_policy.replay_affected_percent))
+                / 100,
+        ) as usize;
+        let affected = self
+            .db
+            .changed_row_ids_for_table_since(&plan.table, body.version, threshold)
+            .map_err(|_| refusal::JOURNAL_FLOOR)?;
+        if affected.len() > threshold {
+            return Err(refusal::POLICY_REPLACED);
+        }
+        let witnessed: HashMap<&str, &[u8; 32]> = pairs
+            .iter()
+            .map(|pair| (pair.id.as_str(), &pair.row_hash))
+            .collect();
+        let current_by_id: HashMap<&str, &Value> = current_rows
+            .iter()
+            .filter_map(|row| crate::rqs::row_wire_id(row).map(|id| (id, row)))
+            .collect();
+        let mut ops = Vec::new();
+        for id in &affected {
+            let old_hash = witnessed.get(id.as_str()).copied();
+            let new_hash = state.digest.row_hash_for(id);
+            match (old_hash, new_hash) {
+                // Touched, but in the result on neither side (never matched
+                // the predicate, or entered and left inside the gap).
+                (None, None) => {}
+                // Predicate exit or delete while offline: exactly removed.
+                (Some(old_hash), None) => {
+                    accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Remove,
+                        id: id.clone(),
+                        row: None,
+                    });
+                }
+                // Entered the result while offline.
+                (None, Some(new_hash)) => {
+                    let Some(row) = current_by_id.get(id.as_str()) else {
+                        return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                    };
+                    accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Add,
+                        id: id.clone(),
+                        row: Some((*row).clone()),
+                    });
+                }
+                // Held on both sides: an op only when the content changed
+                // (a touched-but-reverted row stays silent).
+                (Some(old_hash), Some(new_hash)) => {
+                    if old_hash != new_hash {
+                        let Some(row) = current_by_id.get(id.as_str()) else {
+                            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                        };
+                        accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                        accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                        ops.push(LiveDeltaWireOp {
+                            op: LiveDeltaOpKind::Update,
+                            id: id.clone(),
+                            row: Some((*row).clone()),
+                        });
+                    }
+                }
+            }
+        }
+        // The minted root must still contain every untouched witness leaf
+        // and nothing else — any divergence (journal incompleteness, an
+        // impure query, a wrong-but-root-matching witness) refuses to rung 3
+        // instead of ratifying a wrong replay.
+        if accumulator.root() != state.digest.published() {
+            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+        }
+        Ok(ops)
+    }
+
+    /// Resolve a bundle request's route entry (LLP 0092 §0C.1/§0D.1): while
+    /// a route manifest is served it is the ONLY source of entries — the
+    /// endpoint matches the presented pattern by string equality and the
+    /// inline `devManifestEntry` form is refused by design. Without a served
+    /// manifest the clearly-marked inline dev/test form is required.
+    pub fn resolve_bundle_route(
+        &self,
+        route: &str,
+        dev_manifest_entry: Option<&crate::bundle::BundleRouteEntry>,
+    ) -> SnapbackResult<crate::bundle::BundleRouteEntry> {
+        use crate::bundle::code;
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        match &self.routes {
+            Some(manifest) => {
+                if dev_manifest_entry.is_some() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "devManifestEntry is refused while a served route manifest exists (LLP 0092 §0C.1)",
+                    ));
+                }
+                manifest
+                    .routes
+                    .iter()
+                    .find(|entry| entry.route == route)
+                    .cloned()
+                    .ok_or_else(|| {
+                        refuse(
+                            code::ROUTE_UNKNOWN,
+                            "route pattern is absent from the served route manifest",
+                        )
+                    })
+            }
+            None => dev_manifest_entry.cloned().ok_or_else(|| {
+                refuse(
+                    code::ROUTE_UNKNOWN,
+                    "no served route manifest holds this route (inline devManifestEntry required on an instance serving no route manifest)",
+                )
+            }),
+        }
+    }
+
+    /// The anonymous-read admission fact (LLP 0092 §0D.1): every query the
+    /// entry names carries the codegen-compiled `publicInline` disclosure
+    /// fact in the served functions manifest. Checked against the served
+    /// facts, never the route-manifest author's word (0090 Authorization
+    /// scope).
+    pub fn bundle_entry_public_inline(&self, entry: &crate::bundle::BundleRouteEntry) -> bool {
+        !entry.queries.is_empty()
+            && entry.queries.iter().all(|spec| {
+                self.functions
+                    .function(&spec.function)
+                    .is_some_and(|function| function.public_inline)
+            })
+    }
+
+    /// Dev-authority read-mode bundle evaluation (the library/test seam,
+    /// mirroring [`Self::subscribe_live`]). Production HTTP composition
+    /// prepares its authority in the route middleware and calls
+    /// `evaluate_bundle` directly.
+    pub fn app_bundle_read_dev(
+        &mut self,
+        entry: &crate::bundle::BundleRouteEntry,
+        params: &std::collections::BTreeMap<String, String>,
+        request_route: &str,
+        auth: &AuthInput,
+    ) -> SnapbackResult<crate::bundle::BundleResponse> {
+        let admission = self.admission.admit_dev()?;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(auth),
+        )?;
+        self.evaluate_bundle(entry, params, request_route, auth, &authority, None)
+    }
+
+    /// Evaluate one bundle route entry — every query at one commit cut
+    /// (LLP 0090 D1.2's single-commit invariant; LLP 0092 §0D.5). On this
+    /// arm the cut is the instance's exclusive borrow: every mutation path
+    /// requires the same `&mut LocalSnapback` access this method holds, so
+    /// no commit can fall between entry evaluations. Read mode therefore
+    /// runs on the serialized lane rather than the concurrent read lane —
+    /// correctness-identical to §0D.5's pinned-read-snapshot phrasing, with
+    /// the read-lane concurrency left as follow-up work.
+    ///
+    /// Atomic failure: any coded refusal returns with **no** entry results;
+    /// in register mode the caller-supplied connection's topology is purged
+    /// before returning, so a failed bundle strands no server state
+    /// (LLP 0031 dated amendment).
+    ///
+    /// @ref LLP 0092#0d2-atomicity-limits-and-the-snapback_bundle_-registry —
+    ///   limits and per-cause codes; the closed per-entry union of §0D.1.
+    pub(crate) fn evaluate_bundle(
+        &mut self,
+        entry: &crate::bundle::BundleRouteEntry,
+        params: &std::collections::BTreeMap<String, String>,
+        request_route: &str,
+        auth: &AuthInput,
+        authority: &PreparedAuthority,
+        register: Option<crate::local::BundleRegisterTarget>,
+    ) -> SnapbackResult<crate::bundle::BundleResponse> {
+        use crate::bundle::{self, code};
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        let started = std::time::Instant::now();
+        bundle::validate_entry_against_params(entry, request_route, params)
+            .map_err(|code| refuse(code, "bundle route entry refused"))?;
+        let commit_version = self
+            .db
+            .current_version()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle commit version unavailable"))?;
+        let generation = self
+            .rqs_generation_digest()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle generation unavailable"))?;
+        let version_stream = self
+            .db
+            .data_version_stream()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle version stream unavailable"))?;
+
+        let mut entries = Vec::with_capacity(entry.queries.len());
+        let mut total_rows = 0_usize;
+        let mut total_bytes = 0_usize;
+        // Register-mode unwind: purge the freshly minted connection's whole
+        // topology, retiring any auth scopes the partial registration
+        // created. The connection exists only for this bundle, so purging it
+        // is exactly the amendment's "strands no server state".
+        let unwind = |snapback: &mut Self, error: SnapbackError| -> SnapbackError {
+            if let Some(target) = &register {
+                snapback.purge_connection_topology(&target.connection_id, &target.effect_fence);
+            }
+            error
+        };
+        let result = (|snapback: &mut Self| -> SnapbackResult<Vec<crate::bundle::BundleEntry>> {
+            for spec in &entry.queries {
+                if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
+                    return Err(refuse(
+                        code::LIMIT_TIME,
+                        "bundle evaluation wall time exceeded",
+                    ));
+                }
+                let function = snapback
+                    .function(&spec.function)
+                    .map_err(|_| {
+                        refuse(
+                            code::ENTRY_INVALID,
+                            "bundle entry names an unknown function",
+                        )
+                    })?
+                    .clone();
+                let is_query =
+                    matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery);
+                if !is_query {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "bundle entries may name queries only",
+                    ));
+                }
+                if register.is_some() && function.kind != FunctionKind::LiveQuery {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "register mode requires live queries",
+                    ));
+                }
+                // Schema-driven per-arg decode (LLP 0092 §0E.6): references
+                // decode by the AST-derived type of their target arg.
+                let arg_types = bundle::function_route_arg_types(&function, snapback.db.schema());
+                let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
+                    .map_err(|code| refuse(code, "bundle args mapping refused"))?;
+                let (rows, resume, subscription_id, authorization) = match &register {
+                    None => {
+                        let input = HandlerInput {
+                            args: args.clone(),
+                            auth: auth.clone(),
+                            read_set: Vec::new(),
+                            correlation: None,
+                            ctx_ledger: None,
+                        };
+                        let invocation = snapback
+                            .invoke_query_with_dependencies_prepared(
+                                &spec.function,
+                                input,
+                                authority.clone(),
+                            )
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle entry evaluation failed")
+                                    .with_details(json!({
+                                        "function": spec.function,
+                                        "cause": error.diagnostic.code,
+                                    }))
+                            })?;
+                        let rows = invocation.output.rows;
+                        // `resume` presence keys on the interim `rqsEligible`
+                        // predicate and nothing else (LLP 0092 §0D.1).
+                        let resume = rqs_eligibility(&function).and_then(|kind| {
+                            let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
+                            let query_artifact = serde_json::to_value(&function)
+                                .ok()
+                                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())?;
+                            let args_hash = crate::rqs::args_hash(&args).ok()?;
+                            snapback.mint_resume_wire(
+                                &query_artifact,
+                                &args_hash,
+                                commit_version,
+                                kind,
+                                digest.published(),
+                            )
+                        });
+                        (rows, resume, None, None)
+                    }
+                    Some(target) => {
+                        let admission = snapback
+                            .admission
+                            .admit_for_mode(authority.active_mode())
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle admission unavailable")
+                                    .with_details(json!({ "cause": error.diagnostic.code }))
+                            })?;
+                        let sub_authority = InvocationGate::prepare_admitted_authority(
+                            InvocationSource::LiveInitialQuery,
+                            authority.active_mode(),
+                            authority.profile(),
+                            admission,
+                            &WireAuthorityFields::default(),
+                            authority.resolved().clone(),
+                        )
+                        .map_err(|error| {
+                            refuse(code::QUERY_FAILED, "bundle register authority refused")
+                                .with_details(json!({ "cause": error.diagnostic.code }))
+                        })?;
+                        let sub_input = LiveSubscribeInput {
+                            connection_id: target.connection_id.clone(),
+                            input: HandlerInput {
+                                args: args.clone(),
+                                auth: auth.clone(),
+                                read_set: Vec::new(),
+                                correlation: None,
+                                ctx_ledger: None,
+                            },
+                            authorization_namespace: None,
+                            supersedes: None,
+                            resume_from_token: None,
+                        };
+                        let invalidation = LiveInvalidationAdmission {
+                            connection: target.invalidation_connection.clone(),
+                            effect_fence: Some(target.effect_fence.clone()),
+                            #[cfg(test)]
+                            session_mode: false,
+                        };
+                        let output = snapback
+                            .subscribe_live_prepared_with_invalidation(
+                                &spec.function,
+                                sub_input,
+                                sub_authority,
+                                invalidation,
+                            )
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle registration failed")
+                                    .with_details(json!({
+                                        "function": spec.function,
+                                        "cause": error.diagnostic.code,
+                                    }))
+                            })?;
+                        let rows = output
+                            .snapshot
+                            .map(|snapshot| snapshot.rows)
+                            .unwrap_or_default();
+                        let authorization = output.authorization_scope.as_ref().map(|scope| {
+                            json!({
+                                "scope": scope,
+                                "invalidation": output.authorization_invalidation,
+                            })
+                        });
+                        (
+                            rows,
+                            output.resume,
+                            Some(output.subscription_id),
+                            authorization,
+                        )
+                    }
+                };
+                total_rows += rows.len();
+                if total_rows > bundle::BUNDLE_MAX_ROWS {
+                    return Err(refuse(code::LIMIT_ROWS, "bundle row limit exceeded"));
+                }
+                total_bytes += serde_json::to_vec(&rows)
+                    .map(|bytes| bytes.len())
+                    .unwrap_or(0);
+                if total_bytes > bundle::BUNDLE_MAX_BYTES {
+                    return Err(refuse(code::LIMIT_BYTES, "bundle byte limit exceeded"));
+                }
+                if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
+                    return Err(refuse(
+                        code::LIMIT_TIME,
+                        "bundle evaluation wall time exceeded",
+                    ));
+                }
+                entries.push(crate::bundle::BundleEntry {
+                    function: spec.function.clone(),
+                    args,
+                    rows,
+                    resume,
+                    subscription_id,
+                    authorization,
+                });
+            }
+            Ok(entries)
+        })(self);
+        let entries = match result {
+            Ok(entries) => entries,
+            Err(error) => return Err(unwind(self, error)),
+        };
+        Ok(crate::bundle::BundleResponse {
+            commit_version,
+            generation,
+            version_stream,
+            entries,
+            connection: None,
+        })
+    }
+
     pub fn subscribe_live(
         &mut self,
         name: &str,
         input: LiveSubscribeInput,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        // The live-subscribe lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
         let authority = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveInitialQuery,
@@ -6297,6 +7436,34 @@ impl LocalSnapback {
 
         let subscription_input = retained_authority.canonicalize_input(input.input);
 
+        // RQS eligibility + token admission (LLP 0090 D1.1 / rollout step 1).
+        // Eligibility keys minting AND admission alike; auth-scoped
+        // subscriptions can never be eligible, so minting is suppressed for
+        // them by construction. Every token refusal answers with rung 3.
+        let rqs_eligibility = rqs_eligibility(&function);
+        let mut resume_refusal: Option<&'static str> = None;
+        let mut admitted_resume: Option<crate::rqs::ResumeTokenBody> = None;
+        if let Some(presented) = input.resume_from_token.as_ref() {
+            self.live_delivery.resume.attempted += 1;
+            match self.admit_resume_token(
+                presented,
+                &function,
+                &subscription_input.args,
+                rqs_eligibility,
+            ) {
+                Ok(body) => admitted_resume = Some(body),
+                Err(code) => {
+                    resume_refusal = Some(code);
+                    *self
+                        .live_delivery
+                        .resume
+                        .refused
+                        .entry(code.to_owned())
+                        .or_default() += 1;
+                }
+            }
+        }
+
         // A valid explicit supersession is a net-zero replacement. Identify
         // it before admission, but do not remove it until the new snapshot
         // succeeds: a query failure must leave the old live authority intact.
@@ -6358,8 +7525,141 @@ impl LocalSnapback {
             subscription_input.clone(),
             &prepared_invocation,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &self.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+
+        // Server-held RQS digest state for eligible subscriptions, the fresh
+        // token, and the admission-ladder rung (LLP 0090 D1.3, rungs 1 & 3).
+        // Everything from proof to registration happens under this one &mut
+        // cut — the local arm's serialization cut — so no commit can fall
+        // between proof, registration, and the answer (the atomicity rule).
+        let head_version = query.output.version;
+        let rqs_state = rqs_eligibility.and_then(|kind| {
+            let query_artifact = serde_json::to_value(&function)
+                .ok()
+                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok());
+            let args_hash = crate::rqs::args_hash(&subscription_input.args).ok();
+            match (
+                query_artifact,
+                args_hash,
+                crate::rqs::ResultDigest::from_rows(kind, &query.output.rows),
+            ) {
+                (Some(query_artifact), Some(args_hash), Ok(digest)) => Some(RqsLiveState {
+                    query_artifact,
+                    args_hash,
+                    digest,
+                }),
+                _ => {
+                    // Mint-time refusal (LLP 0091 §0A.2): no token, never a
+                    // wrong digest.
+                    self.live_delivery.resume.mint_refusals += 1;
+                    None
+                }
+            }
+        });
+        let mut fresh_resume = rqs_state.as_ref().and_then(|state| {
+            self.mint_resume_wire(
+                &state.query_artifact,
+                &state.args_hash,
+                head_version,
+                state.digest.kind,
+                state.digest.published(),
+            )
+        });
+        let mut answer_current_as_of = false;
+        let mut answer_delta: Option<Vec<LiveDeltaWireOp>> = None;
+        if let Some(body) = admitted_resume.as_ref() {
+            let distance = head_version.saturating_sub(body.version);
+            self.live_delivery.resume.last_journal_distance = distance;
+            self.live_delivery.resume.max_journal_distance =
+                self.live_delivery.resume.max_journal_distance.max(distance);
+            let current_digest = rqs_state.as_ref().map(|state| state.digest.published());
+            let refuse = |stats: &mut LiveDeliveryStats, code: &'static str| {
+                *stats.resume.refused.entry(code.to_owned()).or_default() += 1;
+                Some(code)
+            };
+            if body.version == head_version
+                && current_digest.as_deref() == Some(body.content_digest.as_str())
+                && fresh_resume.is_some()
+            {
+                // Rung 1, global no-commit proof: nothing committed since the
+                // token's version, so the caller's held rows are current.
+                answer_current_as_of = true;
+            } else if body.version == head_version {
+                // Same version, different digest: the result is not a pure
+                // function of (state, args) after all — fail closed to rung 3
+                // (counted under the policy-replacement code; the registry
+                // has no more specific cause).
+                resume_refusal = refuse(
+                    &mut self.live_delivery,
+                    crate::rqs::refusal::POLICY_REPLACED,
+                );
+            } else {
+                match self.journal_resume_requires_resnapshot(body.version) {
+                    Ok(false) => {
+                        // The journal floor holds. Rung 2 (LLP 0090 D1.3,
+                        // steps 5a+6): a DK-3-analyzable unordered (`mset1`)
+                        // query with a client membership witness replays
+                        // exact deltas; without a witness (or for `seq1`)
+                        // the rung-1 table-set arm still always falls
+                        // through to rung 3 — no complete certified
+                        // dependency-summary artifact exists yet (cluster
+                        // 0C) — under its own telemetry cause.
+                        let witness = input
+                            .resume_from_token
+                            .as_ref()
+                            .and_then(|presented| presented.membership_witness.as_ref());
+                        let replay = match (witness, rqs_state.as_ref(), fresh_resume.as_ref()) {
+                            (Some(witness), Some(state), Some(_))
+                                if state.digest.kind == crate::rqs::DigestKind::Mset1 =>
+                            {
+                                Some(self.rqs_attempt_delta_replay(
+                                    witness,
+                                    body,
+                                    &function,
+                                    state,
+                                    &query.output.rows,
+                                ))
+                            }
+                            _ => None,
+                        };
+                        match replay {
+                            Some(Ok(ops)) if ops.is_empty() => {
+                                // Every journal-affected row reverted or
+                                // never intersected the result: the held
+                                // rows are current at head — the verified
+                                // witness upgrades the answer to rung 1.
+                                answer_current_as_of = true;
+                            }
+                            Some(Ok(ops)) => answer_delta = Some(ops),
+                            Some(Err(code)) => {
+                                resume_refusal = refuse(&mut self.live_delivery, code);
+                            }
+                            None => {
+                                self.live_delivery.resume.no_certified_summary += 1;
+                            }
+                        }
+                    }
+                    _ => {
+                        resume_refusal =
+                            refuse(&mut self.live_delivery, crate::rqs::refusal::JOURNAL_FLOOR);
+                    }
+                }
+            }
+        }
+        if input.resume_from_token.is_some() {
+            if answer_current_as_of {
+                self.live_delivery.resume.current_as_of_answers += 1;
+            } else if answer_delta.is_some() {
+                self.live_delivery.resume.delta_replay_answers += 1;
+            } else {
+                self.live_delivery.resume.fresh_replace_answers += 1;
+            }
+        }
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
@@ -6518,6 +7818,7 @@ impl LocalSnapback {
                 read_dependencies: query.read_dependencies,
                 authorization: subscription_authorization,
                 effect_fence,
+                rqs: rqs_state,
             },
         );
         self.refresh_auth_scoped_live_connections();
@@ -6545,14 +7846,69 @@ impl LocalSnapback {
                 capped_correlation(subscription_input.correlation.clone()).unwrap_or(Value::Null),
             ),
             received_at_ms: now_millis(),
-        }
-        .into_value();
+        };
         self.receipts
-            .push_connection(&input.connection_id, receipt.clone());
+            .push_connection(&input.connection_id, receipt.clone().into_value());
+
+        // Rung-1 answer: enqueue the `current_as_of` durable envelope (with
+        // its mandatory fresh token) in the same &mut cut that registered the
+        // subscription, and omit rows from the subscribe output entirely —
+        // the caller's held rows are current as of `head_version`.
+        let answered_without_rows = answer_current_as_of || answer_delta.is_some();
+        if answer_current_as_of {
+            let envelope = LiveEnvelope::CurrentAsOf {
+                subscription_id: subscription_id.clone(),
+                function: name.to_owned(),
+                version: head_version,
+                resume: fresh_resume
+                    .take()
+                    .expect("rung-1 admission requires a minted fresh token"),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+            {
+                self.enqueue_subscription_durable(subscription, payload);
+            }
+        } else if let Some(ops) = answer_delta.take() {
+            // Rung-2 answer (LLP 0090 D1.3): the exact replay frame — with
+            // its mandatory fresh token minted from the updated accumulator
+            // — rides the durable lane inside the same registration cut; the
+            // subscribe output carries no rows.
+            self.live_delivery.resume.replay_ops += ops.len() as u64;
+            // Bytes-avoided estimate compares payload content only (rows vs
+            // ops); envelope overhead and the fresh token are identical
+            // between a rung-2 and a rung-3 answer.
+            let replaced_bytes = serde_json::to_vec(&query.output.rows)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(0);
+            let replay_bytes = serde_json::to_vec(&ops)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(replaced_bytes);
+            self.live_delivery.resume.replay_bytes_avoided +=
+                replaced_bytes.saturating_sub(replay_bytes);
+            let envelope = LiveEnvelope::LiveDelta {
+                subscription_id: subscription_id.clone(),
+                function: name.to_owned(),
+                version: head_version,
+                ops,
+                resume: Some(
+                    fresh_resume
+                        .take()
+                        .expect("rung-2 admission requires a minted fresh token"),
+                ),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+            {
+                self.enqueue_subscription_durable(subscription, payload);
+            }
+        }
 
         Ok(LiveSubscribeOutput {
             subscription_id,
-            snapshot: query.output,
+            snapshot: (!answered_without_rows).then_some(query.output),
+            resume: fresh_resume,
+            resume_refusal: resume_refusal.map(str::to_owned),
             permission_epochs,
             receipt: Some(receipt),
             authorization_scope,
@@ -6749,10 +8105,9 @@ impl LocalSnapback {
             snapshot_version: Some(snapshot_version),
             correlation: None,
             received_at_ms: now_millis(),
-        }
-        .into_value();
+        };
         self.receipts
-            .push_connection(&subscription.connection_id, receipt.clone());
+            .push_connection(&subscription.connection_id, receipt.clone().into_value());
         Ok(LiveUnsubscribeOutput {
             subscription_id: subscription.id,
             disposed: true,
@@ -6897,11 +8252,11 @@ impl LocalSnapback {
         connection: AuthorizationInvalidationConnection,
         authority: PreparedAuthority,
     ) -> SnapbackResult<AuthorizationInvalidationManualRetryOutput> {
-        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+        if authority.source() != InvocationSource::InvalidationAcknowledgement {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
-                "authorization invalidation manual retry requires standalone acknowledgement authority",
+                "authorization invalidation manual retry requires invalidation acknowledgement authority",
             ));
         }
         authority.validate_admission("authorization invalidation manual retry")?;
@@ -7033,11 +8388,11 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<PreparedAuthorizationInvalidationManualRetry> {
-        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+        if authority.source() != InvocationSource::InvalidationAcknowledgement {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
-                "authorization invalidation manual retry requires standalone acknowledgement authority",
+                "authorization invalidation manual retry requires invalidation acknowledgement authority",
             ));
         }
         authority.validate_admission("authorization invalidation manual retry staging")?;
@@ -7086,6 +8441,9 @@ impl LocalSnapback {
         name: &str,
         input: LiveResumeInput,
     ) -> SnapbackResult<LiveResumeOutput> {
+        // The live-resume lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
         let authority = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveResume,
@@ -7928,6 +9286,26 @@ impl LocalSnapback {
         authority: PreparedAuthority,
     ) -> StagedAppAction {
         let started = Instant::now();
+        // The action lane (the only egress-capable class) consults the
+        // persisted migration fence at staging (LLP 0081 §4).
+        if let Err(error) = self.db.ensure_migration_lane_open() {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
+                ok: false,
+                function: name.to_owned(),
+                kind: None,
+                reads: Vec::new(),
+                writes: Vec::new(),
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
+                admin_bypass: false,
+                elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
+                diagnostic: Some(error.diagnostic),
+            }));
+        }
         let Some(definition) = self.functions.function(name).cloned() else {
             return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
@@ -8851,6 +10229,14 @@ impl LocalSnapback {
         request: PublishRequest,
         now_ms: u64,
     ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
+        // The ephemeral-publish lane consults the persisted migration fence
+        // (LLP 0081 §4's lane registry); the typed storage refusal maps to
+        // the lane's own error vocabulary.
+        if let Err(error) = self.db.ensure_migration_lane_open() {
+            return Err(crate::ephemeral::EphemeralError::migration_fenced(
+                error.diagnostic.message,
+            ));
+        }
         self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.publish(request, now_ms)
     }
@@ -9026,6 +10412,9 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
+        // The cron lane consults the persisted migration fence per claim
+        // (LLP 0081 §4's lane registry).
+        self.db.ensure_migration_lane_open()?;
         // Admission precedes the scheduler mutation and its durable claim
         // write. If a close races while a multi-job batch is being assembled,
         // acquisition of any remaining per-claim root fails and the in-memory
@@ -9088,6 +10477,7 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<AdmittedCronClaim> {
+        self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
         let claim = self.cron.claim_manual_run(&self.functions, name, now_ms)?;
@@ -9631,7 +11021,15 @@ impl LocalSnapback {
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
-        let admission = AdmissionController::from_mode_state(&auth_mode)?;
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   persisted migration fence outlives the process: opening over a
+        //   fenced database starts every lane closed until the operation's
+        //   journal reaches a terminal state (resume or explicit exit).
+        let migration_fenced = db.migration_fence()?.is_some();
+        let admission = AdmissionController::from_mode_state_with_migration_fence(
+            &auth_mode,
+            migration_fenced,
+        )?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
@@ -9644,6 +11042,18 @@ impl LocalSnapback {
         })));
 
         let app_generation = next_app_generation()?;
+        // @ref LLP 0091#0a1-token-envelope-mac-keyring-custody-expiry — the
+        // local-arm resume keyring is a `secure_file` sidecar beside the
+        // database, separate from the auth keyring; in-memory instances mint
+        // a per-process ring (their tokens die with the process — fine, key
+        // loss is availability-only).
+        let resume_keyring = Arc::new(RwLock::new(match db.database_path() {
+            Some(path) => crate::rqs::ResumeKeyring::load_or_create(
+                path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                now_millis(),
+            ),
+            None => crate::rqs::ResumeKeyring::in_memory(now_millis()),
+        }));
         static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
@@ -9682,6 +11092,11 @@ impl LocalSnapback {
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
+            resume_keyring,
+            rqs_replay_policy: RqsReplayPolicy::default(),
+            rqs_generation: None,
+            routes: None,
+            routes_manifest_hash: None,
         })
     }
 
@@ -9706,6 +11121,164 @@ impl LocalSnapback {
     /// `None` for in-memory databases — callers fall back to the write lane).
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+    /// CLI accessors for the migrate surface (LLP 0081): the predecessor
+    /// schema, the current head, the app id, and the receipt verifier.
+    pub fn migrate_predecessor_schema(&self) -> SchemaManifest {
+        self.db.schema().clone()
+    }
+
+    pub fn migrate_head_version(&self) -> SnapbackResult<u64> {
+        self.db.current_version()
+    }
+
+    pub fn migrate_app_id(&self) -> String {
+        self.functions.app_id.clone()
+    }
+
+    pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {
+        self.db.migrate_request_cancel(operation_id)
+    }
+
+    pub fn migrate_verify_receipt(&self, operation_id: &str) -> SnapbackResult<Value> {
+        self.db.migration_verify_receipt(operation_id)
+    }
+
+    /// The resolved local audience an LLP 0081 approval must bind
+    /// (LLP 0072 identities as the local profile defines them).
+    pub fn migrate_resolved_audience(
+        &mut self,
+    ) -> SnapbackResult<crate::storage::migration_executor::ResolvedLocalAudience> {
+        Ok(crate::storage::migration_executor::ResolvedLocalAudience {
+            database_id: self.db.data_version_stream()?,
+            stream_incarnation: self
+                .db
+                .ensure_authorization_stream_incarnation()?
+                .as_str()
+                .to_owned(),
+            activation_generation: self.app_generation,
+            target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        })
+    }
+
+    /// Apply one approved migration artifact against this instance
+    /// (LLP 0081 §4). The durable fence closes every registered lane for
+    /// the barrier's duration; after release the serving state adopts the
+    /// successor schema.
+    pub fn migrate_apply_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        successor_schema: &SchemaManifest,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   publication must fire LLP 0053's activation obligations for
+        //   auth-scoped state, not a generic resync. The dev profile below
+        //   fires the unscoped activation consequence; the durable
+        //   auth-scoped disposition integration belongs to the sessions
+        //   activation machinery, so publishing under live auth-scoped
+        //   subscriptions fails closed instead of substituting a resync.
+        if self
+            .subscriptions
+            .values()
+            .any(|subscription| subscription.authorization.is_some())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+                "storage",
+                "migration publication under live auth-scoped subscriptions requires the \
+                 sessions activation-obligation integration; drain those subscriptions first",
+            ));
+        }
+        let audience = self.migrate_resolved_audience()?;
+        let receipt = self.db.migrate_apply(
+            crate::storage::migration_executor::MigrationApplyRequest {
+                artifact,
+                approval,
+                successor_schema,
+                audience: &audience,
+                now_ms: now_millis(),
+            },
+        )?;
+        // The successor is authoritative: refresh every schema projection
+        // the serving process holds, then retire every retained live
+        // subscription with a clear-retained resync — no predecessor
+        // result, retained row, or pre-publication cursor survives the
+        // raised floor.
+        self.refresh_read_manifests();
+        self.retire_live_subscriptions_for_publication()?;
+        Ok(receipt)
+    }
+
+    /// The §6 fast rollback under the original operation's approval —
+    /// available exactly while the journal shows `published-held`.
+    pub fn migrate_rollback_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> {
+        let audience = self.migrate_resolved_audience()?;
+        let receipt = self
+            .db
+            .migrate_rollback(artifact, approval, &audience, now_millis())?;
+        // The republished predecessor is authoritative again.
+        self.refresh_read_manifests();
+        Ok(receipt)
+    }
+
+    /// The dev-profile publication consequence: every retained live
+    /// subscription is disposed and told to resync with retained state
+    /// cleared. Mirrors the activation path's unscoped retirement; the
+    /// auth-scoped durable-disposition variant is the sessions residual
+    /// recorded in the journal-events ticket.
+    fn retire_live_subscriptions_for_publication(&mut self) -> SnapbackResult<()> {
+        let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
+        if subscriptions.is_empty() {
+            return Ok(());
+        }
+        let snapshot_version = Some(self.db.current_version()?);
+        let received_at_ms = now_millis();
+        for subscription in subscriptions {
+            let payload = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                reason: "schema_publication".to_owned(),
+                subscription_id: Some(subscription.id.clone()),
+                scope: Some(String::new()),
+                epoch: Some(0),
+                clear_retained: true,
+            })
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                    "realtime",
+                    "publication resync message could not be serialized",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })?;
+            self.subscriptions.remove(&subscription.id);
+            self.receipts.push_global(
+                Receipt::Subscription {
+                    event: SubscriptionReceiptEvent::Disposed,
+                    reason: Some("schema_publication".to_owned()),
+                    subscription_id: Some(subscription.id.clone()),
+                    superseded_by: None,
+                    lane: None,
+                    binding_id: None,
+                    collection: None,
+                    removed: None,
+                    scope: subscription.input.args.clone(),
+                    snapshot_version,
+                    correlation: None,
+                    received_at_ms,
+                }
+                .into_value(),
+            );
+            self.enqueue_subscription_durable(&subscription, payload);
+            self.live_delivery.total_deliveries += 1;
+            self.live_delivery.last_deliveries += 1;
+        }
+        self.refresh_auth_scoped_live_connections();
+        Ok(())
+    }
+
     pub fn read_lane(&self) -> ReadLane {
         ReadLane {
             manifests: self.read_manifests.clone(),
@@ -9715,6 +11288,7 @@ impl LocalSnapback {
             warm_vms: self.warm_vms.clone(),
             admission: self.admission.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
+            resume_keyring: self.resume_keyring.clone(),
         }
     }
 
@@ -11174,8 +12748,16 @@ impl LocalSnapback {
                 // subscriber's membership predicate excludes or swallows
                 // membership-table-only visibility transitions as `NoChange`
                 // (LLP 0067 §F2a records both directions).
+                // @ref LLP 0065#4-capability-and-llp-0053-composition — generated
+                // standard patterns claim no skip and no live_delta: §4's
+                // conservative resnapshot governs every delivery, so a
+                // pattern-identified function never enters the delta lane
+                // even when its plan shape (unordered, below-cap — the
+                // unique lookup) would otherwise qualify.
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
-                    if !changes.is_empty() && plan.membership_filters.is_empty() =>
+                    if !changes.is_empty()
+                        && plan.membership_filters.is_empty()
+                        && function.standard_pattern.is_none() =>
                 {
                     Some(plan.clone())
                 }
@@ -11186,6 +12768,11 @@ impl LocalSnapback {
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
 
+        // One RQS mint per (queryArtifact, argsHash, version, contentDigest)
+        // is shared across the entire fan-out of this commit frame (LLP 0090
+        // D1: refresh overhead is per result-change, not per subscriber).
+        let mut resume_mint_cache: HashMap<(String, String, u64, String), Option<ResumeWire>> =
+            HashMap::new();
         for (subscription, delta_plan) in affected {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
@@ -11206,6 +12793,7 @@ impl LocalSnapback {
                     changes,
                     frame_version,
                     admission,
+                    &mut resume_mint_cache,
                 ) {
                     Ok(delta) => delta,
                     Err(error) => {
@@ -11309,11 +12897,44 @@ impl LocalSnapback {
                 }
                 continue;
             }
+            // RQS token refresh on the replace lane (LLP 0091 §0A.5): every
+            // result-changing durable envelope for an eligible subscription
+            // carries a fresh token minted at the new (version, digest),
+            // shared per identity tuple across the fan-out via the frame
+            // cache. `seq1` (ordered/replace-only) digests recompute exactly
+            // here — their only refresh boundary.
+            let resume = if let Some(state) = subscription.rqs.as_ref() {
+                match crate::rqs::ResultDigest::from_rows(state.digest.kind, &query.output.rows) {
+                    Ok(digest) => {
+                        let wire = self.refreshed_resume(
+                            &state.query_artifact,
+                            &state.args_hash,
+                            query.output.version,
+                            digest.kind,
+                            digest.published(),
+                            &mut resume_mint_cache,
+                        );
+                        if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                            && let Some(stored_state) = stored.rqs.as_mut()
+                        {
+                            stored_state.digest = digest;
+                        }
+                        wire
+                    }
+                    Err(_) => {
+                        self.live_delivery.resume.mint_refusals += 1;
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: query.output.version,
                 rows: query.output.rows,
+                resume,
             }) {
                 Ok(payload) => payload,
                 Err(error) => {
@@ -11382,6 +13003,39 @@ impl LocalSnapback {
     /// `Failed` (serialization error — reported as a fan-out failure).
     ///
     /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
+    /// Mint (or reuse from the frame cache) the shared refreshed resume
+    /// token for one `(queryArtifact, argsHash, version, contentDigest)`
+    /// tuple (LLP 0091 §0A.5 refresh rule).
+    fn refreshed_resume(
+        &mut self,
+        query_artifact: &str,
+        args_hash: &str,
+        version: u64,
+        kind: crate::rqs::DigestKind,
+        content_digest: String,
+        cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
+    ) -> Option<ResumeWire> {
+        let key = (
+            query_artifact.to_owned(),
+            args_hash.to_owned(),
+            version,
+            content_digest.clone(),
+        );
+        let minted = match cache.get(&key) {
+            Some(shared) => shared.clone(),
+            None => {
+                let minted =
+                    self.mint_resume_wire(query_artifact, args_hash, version, kind, content_digest);
+                cache.insert(key, minted.clone());
+                minted
+            }
+        };
+        if minted.is_some() {
+            self.live_delivery.resume.tokens_refreshed += 1;
+        }
+        minted
+    }
+
     fn try_live_delta_fanout(
         &mut self,
         subscription: &LiveSubscription,
@@ -11389,6 +13043,7 @@ impl LocalSnapback {
         changes: &[ChangedRow],
         frame_version: u64,
         admission: &AdmissionLease,
+        resume_mint_cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
     ) -> SnapbackResult<Option<DeltaFanout>> {
         // The subscription must carry a captured Query dependency (its current
         // result membership); a subscription established before this change, or
@@ -11448,11 +13103,42 @@ impl LocalSnapback {
             })
             .collect();
 
+        // RQS token refresh on the delta lane (LLP 0090 D1): apply the ops
+        // to the held accumulator state — O(changed rows) — and mint the
+        // shared fresh token at the new (version, digest). The updated state
+        // commits into the stored subscription below, in the same guarded
+        // block as the membership update, so digest state and membership
+        // advance together.
+        let mut refreshed_digest = None;
+        let resume = if let Some(state) = subscription.rqs.as_ref() {
+            let mut digest = state.digest.clone();
+            match digest.apply_delta_ops(&wire_ops) {
+                Ok(()) => {
+                    let wire = self.refreshed_resume(
+                        &state.query_artifact,
+                        &state.args_hash,
+                        frame_version,
+                        digest.kind,
+                        digest.published(),
+                        resume_mint_cache,
+                    );
+                    refreshed_digest = Some(digest);
+                    wire
+                }
+                Err(_) => {
+                    self.live_delivery.resume.mint_refusals += 1;
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveDelta {
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
             version: frame_version,
             ops: wire_ops,
+            resume,
         }) {
             Ok(payload) => payload,
             Err(error) => {
@@ -11502,6 +13188,12 @@ impl LocalSnapback {
                     }
                 }
                 dependency.version = Some(frame_version);
+            }
+            if let Some(digest) = refreshed_digest.take()
+                && let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                && let Some(state) = stored.rqs.as_mut()
+            {
+                state.digest = digest;
             }
             if subscription.authorization.is_some() {
                 let authorization = self
@@ -11950,6 +13642,10 @@ pub struct ReadLane {
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
     admission: AdmissionController,
     secret_read_reset_generation: Arc<AtomicU64>,
+    // Shared with the write lane: relational pagination cursors are MAC'd
+    // with the resume keyring, and the read lane serves `/query` (LLP 0080
+    // §2 cursors) without the global mutex.
+    resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
 }
 
 /// What the read lane can serve for `/health` without the global mutex.
@@ -11978,6 +13674,27 @@ impl ReadLane {
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .contains(connection_id)
+    }
+
+    /// The published closed `authRequirement` of one function, resolved with
+    /// exactly the invocation dispatch's name-or-id first-match semantics
+    /// against the post-commit manifest snapshot the write lane publishes.
+    /// `None` means the name resolves to no published function.
+    ///
+    /// @ref LLP 0077#http-binding — the hosted route middleware consults this
+    /// publication-time fact to refuse an absent session carrier before any
+    /// body poll on routes that can never legitimately serve an anonymous
+    /// caller; route policy alone cannot see function-level requirements.
+    pub(crate) fn published_function_auth_requirement(
+        &self,
+        name: &str,
+    ) -> Option<crate::manifest::AuthRequirement> {
+        self.manifests
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .functions
+            .function(name)
+            .map(|function| function.effective_auth_requirement())
     }
 
     /// Resolve one protected ephemeral-room grant without taking the global
@@ -12137,6 +13854,10 @@ impl ReadLane {
             input,
             &prepared,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &manifests.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )?;
         Ok(invocation.output)
     }
@@ -12278,6 +13999,80 @@ fn validate_function_schema_references(
     for function in &manifest.functions {
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            // @ref LLP 0080#1-closed-relational-plan — activation validates
+            //   the root window exactly like a single-table plan (fields,
+            //   membership privacy, Json-order refusal, named root index)
+            //   and proves the joined side: fields exist, the membership
+            //   privacy rule holds, and the named joined index is unique
+            //   with its complete ordered key exactly the joined-field
+            //   sequence — the cardinality proof, checked from declarations,
+            //   never assumed.
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                let mut root_filters = plan.root_visibility.clone();
+                root_filters.extend(plan.root_filters.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.root.clone(),
+                    filters: root_filters,
+                    order: plan.order.clone(),
+                    limit: Some(plan.take as usize),
+                    membership_filters: Vec::new(),
+                    indexed_by: Some(plan.root_index.clone()),
+                })?;
+                for pair in &plan.join_on {
+                    field(&plan.root, &pair.root_field)?;
+                }
+                let mut joined_filters: Vec<crate::manifest::FilterExpr> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| crate::manifest::FilterExpr {
+                        field: pair.joined_field.clone(),
+                        op: crate::manifest::FilterOp::Eq,
+                        value: ValueExpr::Literal(Value::Null),
+                    })
+                    .collect();
+                joined_filters.extend(plan.joined_visibility.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.joined.clone(),
+                    filters: joined_filters,
+                    order: Vec::new(),
+                    limit: Some(1),
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })?;
+                let joined_table = table(&plan.joined)?;
+                let key: Vec<&str> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| pair.joined_field.as_str())
+                    .collect();
+                let proven = joined_table.indexes.iter().any(|candidate| {
+                    candidate.name == plan.joined_index
+                        && candidate.unique
+                        && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == key
+                });
+                if !proven {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                        "runtime",
+                        format!(
+                            "relational plan for {} requires unique index {}.{} whose complete \
+                             ordered key is exactly the joined-field sequence",
+                            function.name, plan.joined, plan.joined_index
+                        ),
+                    ));
+                }
+                for leaf in &plan.projection {
+                    match &leaf.source {
+                        crate::manifest::ProjectionSource::RootField(name) => {
+                            field(&plan.root, name)?;
+                        }
+                        crate::manifest::ProjectionSource::JoinedField(name) => {
+                            field(&plan.joined, name)?;
+                        }
+                        crate::manifest::ProjectionSource::Literal(_) => {}
+                    }
+                }
+            }
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
                 for step in &plan.steps {
                     match step {
@@ -12353,6 +14148,459 @@ fn validate_function_schema_references(
             field(primary_table, auth_scope_field)?;
         }
     }
+    validate_maintained_projections(manifest, schema)?;
+    Ok(())
+}
+
+/// Activation validation for `MaintainedProjectionPlanV1` (LLP 0080 §5):
+/// the closed plan shape, the schema binding, the cardinality and
+/// reverse-index proofs, the §3 visibility/same-subject rules, the
+/// chain/diamond refusal, output-table read/write enforcement over the
+/// whole function set, and the static per-source write-budget proof over
+/// the active plan set. The data-dependent halves (existing reverse-index
+/// counts, per-mutation admission) live in the maintenance engine.
+fn validate_maintained_projections(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    use crate::manifest::{ProjectionOutputKey, ProjectionSource, ProjectionVisibility};
+
+    let table = |name: &str| {
+        schema.table(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("maintained projection references unknown table {name}"),
+            )
+        })
+    };
+    let field = |table_name: &str, field_name: &str| -> SnapbackResult<()> {
+        let table = table(table_name)?;
+        if matches!(field_name, "_id" | "_version" | "_createdAt" | "_updatedAt")
+            || table.field(field_name).is_some()
+        {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!(
+                    "maintained projection references unknown field {table_name}.{field_name}"
+                ),
+            ))
+        }
+    };
+
+    let invalid = |plan_id: &str, message: String| {
+        SnapbackError::error(
+            "SNAPBACK_PROJECTION_PLAN_INVALID",
+            "runtime",
+            format!("maintained projection {plan_id}: {message}"),
+        )
+    };
+
+    let mut plan_ids = BTreeSet::new();
+    let mut output_tables = BTreeSet::new();
+    // Chain/diamond refusal runs before any schema binding so a chained
+    // plan gets the named refusal, not an incidental field error.
+    let all_outputs: BTreeSet<&String> = manifest
+        .projections
+        .iter()
+        .map(|plan| &plan.output_table)
+        .collect();
+    for plan in &manifest.projections {
+        if all_outputs.contains(&plan.root) || all_outputs.contains(&plan.joined) {
+            return Err(invalid(
+                &plan.id,
+                "a projection may not source another projection's output (chains and \
+                 diamonds are refused at generation)"
+                    .into(),
+            ));
+        }
+        if plan.id.is_empty() || !plan_ids.insert(&plan.id) {
+            return Err(invalid(&plan.id, "plan id must be non-empty and unique".into()));
+        }
+        if plan.root == plan.joined
+            || plan.output_table == plan.root
+            || plan.output_table == plan.joined
+        {
+            return Err(invalid(
+                &plan.id,
+                "root, joined, and output tables must be three distinct tables".into(),
+            ));
+        }
+        if plan.root_alias.is_empty()
+            || plan.joined_alias.is_empty()
+            || plan.root_alias == plan.joined_alias
+        {
+            return Err(invalid(&plan.id, "source aliases must be distinct and non-empty".into()));
+        }
+        if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+            return Err(invalid(
+                &plan.id,
+                format!("1..=4 join equality pairs required, got {}", plan.join_on.len()),
+            ));
+        }
+        if plan.fan_out_limit == 0 || plan.fan_out_limit > 1023 {
+            return Err(invalid(
+                &plan.id,
+                format!("fanOutLimit must be 1..=1023, got {}", plan.fan_out_limit),
+            ));
+        }
+        if plan.rebuild_recipe != "rebuild-v1" {
+            return Err(invalid(
+                &plan.id,
+                format!("unknown rebuild recipe {:?}", plan.rebuild_recipe),
+            ));
+        }
+        // The non-security root filter is portable and caller-free in v1:
+        // maintenance runs under internal authority with no argument or
+        // authorization inputs, so only literal predicates are admissible.
+        for filter in &plan.root_filters {
+            if !matches!(filter.value, ValueExpr::Literal(_)) {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "root filter on {:?} must be a literal predicate; maintenance has no caller",
+                        filter.field
+                    ),
+                ));
+            }
+        }
+
+        let root_table = table(&plan.root)?;
+        let joined_table = table(&plan.joined)?;
+        let output_table = table(&plan.output_table)?;
+        if output_table.membership.is_some() {
+            return Err(invalid(
+                &plan.id,
+                "a membership table cannot be a projection output".into(),
+            ));
+        }
+        for filter in &plan.root_filters {
+            field(&plan.root, &filter.field)?;
+        }
+        for pair in &plan.join_on {
+            field(&plan.root, &pair.root_field)?;
+            field(&plan.joined, &pair.joined_field)?;
+        }
+
+        // Cardinality proof: unique joined index whose complete ordered key
+        // is exactly the joined-field sequence (LLP 0080 §1).
+        let joined_key: Vec<&str> = plan
+            .join_on
+            .iter()
+            .map(|pair| pair.joined_field.as_str())
+            .collect();
+        let proven = joined_table.indexes.iter().any(|candidate| {
+            candidate.unique
+                && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == joined_key
+        });
+        if !proven {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                "runtime",
+                format!(
+                    "maintained projection {} requires a unique index on {} whose complete \
+                     ordered key is exactly the joined-field sequence",
+                    plan.id, plan.joined
+                ),
+            ));
+        }
+
+        // Reverse-index proof: a declared root index (not necessarily
+        // unique) whose leading fields are exactly the root join-field
+        // sequence — the bounded lookup for joined-source fan-out; targets
+        // may not discover affected roots through a table scan.
+        let root_key: Vec<&str> = plan
+            .join_on
+            .iter()
+            .map(|pair| pair.root_field.as_str())
+            .collect();
+        let reverse_proven = root_table.indexes.iter().any(|candidate| {
+            candidate.name == plan.root_reverse_index
+                && candidate.fields.len() >= root_key.len()
+                && candidate.fields[..root_key.len()]
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    == root_key
+        });
+        if !reverse_proven {
+            return Err(invalid(
+                &plan.id,
+                format!(
+                    "rootReverseIndex {:?} must be a declared index on {} leading with the \
+                     root join-field sequence",
+                    plan.root_reverse_index, plan.root
+                ),
+            ));
+        }
+
+        // Output key: root `_id`, or the complete tuple of a declared
+        // unique root index the plan marks immutable.
+        if let ProjectionOutputKey::RootUniqueIndex { index, fields } = &plan.output_key {
+            let proven = root_table.indexes.iter().any(|candidate| {
+                candidate.name == *index && candidate.unique && candidate.fields == *fields
+            });
+            if fields.is_empty() || !proven {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "outputKey index {index:?} must be a declared unique root index whose \
+                         fields are restated exactly"
+                    ),
+                ));
+            }
+        }
+
+        // Projection leaves: sources exist, output fields exist, and leaf
+        // names are unique. Output rows are exactly the declared leaves.
+        let mut leaf_names = BTreeSet::new();
+        for leaf in &plan.projection {
+            if leaf.name.is_empty() || !leaf_names.insert(&leaf.name) {
+                return Err(invalid(
+                    &plan.id,
+                    format!("projection field {:?} must be non-empty and unique", leaf.name),
+                ));
+            }
+            field(&plan.output_table, &leaf.name)?;
+            match &leaf.source {
+                ProjectionSource::RootField(name) => field(&plan.root, name)?,
+                ProjectionSource::JoinedField(name) => field(&plan.joined, name)?,
+                ProjectionSource::Literal(_) => {}
+            }
+        }
+
+        // Visibility rules (LLP 0080 §3, applied to the maintained form).
+        let owner_field = |visibility: &ProjectionVisibility,
+                           source: &str|
+         -> SnapbackResult<Option<String>> {
+            match visibility {
+                ProjectionVisibility::PublicRead => Ok(None),
+                ProjectionVisibility::Owner { field: name } => {
+                    field(source, name)?;
+                    Ok(Some(name.clone()))
+                }
+            }
+        };
+        let root_owner = owner_field(&plan.root_visibility, &plan.root)?;
+        let joined_owner = owner_field(&plan.joined_visibility, &plan.joined)?;
+        let any_owner = root_owner.is_some() || joined_owner.is_some();
+        match (&plan.output_visibility, any_owner) {
+            (ProjectionVisibility::PublicRead, true) => {
+                return Err(invalid(
+                    &plan.id,
+                    "public output cannot consume an owner source — no visibility widening".into(),
+                ));
+            }
+            (ProjectionVisibility::Owner { .. }, false) => {
+                return Err(invalid(
+                    &plan.id,
+                    "owner output requires at least one owner source — never silently narrower"
+                        .into(),
+                ));
+            }
+            _ => {}
+        }
+        if let ProjectionVisibility::Owner { field: output_owner } = &plan.output_visibility {
+            field(&plan.output_table, output_owner)?;
+            // The output owner must project directly from a source owner
+            // field on a guaranteed-present source: the root, or the
+            // joined side only under an inner join.
+            let leaf = plan
+                .projection
+                .iter()
+                .find(|leaf| &leaf.name == output_owner)
+                .ok_or_else(|| {
+                    invalid(
+                        &plan.id,
+                        format!("output owner field {output_owner:?} must be a projection leaf"),
+                    )
+                })?;
+            let derivation_proven = match &leaf.source {
+                ProjectionSource::RootField(name) => root_owner.as_deref() == Some(name),
+                ProjectionSource::JoinedField(name) => {
+                    joined_owner.as_deref() == Some(name)
+                        && matches!(plan.join_kind, crate::manifest::JoinKind::Inner)
+                }
+                ProjectionSource::Literal(_) => false,
+            };
+            if !derivation_proven {
+                return Err(invalid(
+                    &plan.id,
+                    "output owner must derive from a declared source owner field on a \
+                     guaranteed-present source (the root, or the joined side under inner)"
+                        .into(),
+                ));
+            }
+            // Same-subject as a static row relation: when both sources are
+            // owner-visible, their owner fields must connect through the
+            // declared join equalities.
+            if let (Some(root_owner), Some(joined_owner)) = (&root_owner, &joined_owner) {
+                let connected = plan.join_on.iter().any(|pair| {
+                    &pair.root_field == root_owner && &pair.joined_field == joined_owner
+                });
+                if !connected {
+                    return Err(invalid(
+                        &plan.id,
+                        "both sources are owner-visible but their owner fields do not connect \
+                         through the declared join equalities — rows owned by different \
+                         principals could combine"
+                            .into(),
+                    ));
+                }
+            }
+            // A mutable shared joined source couples callers through the
+            // shared fanOutLimit; the coupling requires an explicit
+            // acknowledgment (LLP 0080 §3).
+            if joined_owner.is_none() && !plan.shared_fan_out_disclosure {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
+                    "runtime",
+                    format!(
+                        "maintained projection {} joins a shared public source into an owner \
+                         output; declare sharedFanOutDisclosure to acknowledge the \
+                         cross-authority capacity coupling",
+                        plan.id
+                    ),
+                ));
+            }
+        }
+        if !output_tables.insert(&plan.output_table) {
+            return Err(invalid(
+                &plan.id,
+                format!("output table {} already belongs to another projection", plan.output_table),
+            ));
+        }
+    }
+
+    // Chain/diamond refusal and output-table write/read enforcement run
+    // over the whole set: no projection may source another's output, and no
+    // function may write an output table or read it without its visibility
+    // enforcement (opaque handlers are refused outright).
+    for function in &manifest.functions {
+        validate_function_against_projection_outputs(function, manifest, &output_tables)?;
+    }
+    // Static per-source write-budget proof (LLP 0080 §5): for each table in
+    // either role, one direct write plus every active plan's output writes
+    // triggered by a single-row non-key-moving mutation of that table must
+    // stay within the 1,024-write mutation bound.
+    let mut budget: BTreeMap<&str, u64> = BTreeMap::new();
+    for plan in &manifest.projections {
+        *budget.entry(plan.root.as_str()).or_insert(1) += 1;
+        *budget.entry(plan.joined.as_str()).or_insert(1) += u64::from(plan.fan_out_limit);
+    }
+    for (source, writes) in budget {
+        if writes > 1024 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
+                "runtime",
+                format!(
+                    "a single-row mutation of {source} could require {writes} writes across \
+                     direct effects and active projections; the mutation bound is 1024"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The output-table fences over one function (LLP 0080 §5/§Acceptance): no
+/// raw write reaches a projection output, a closed HostPlan read composes
+/// the output visibility (enforced by its own predicate execution), and an
+/// opaque handler's declared read of an output table is refused at
+/// admission because nothing proves it applies the output predicate.
+fn validate_function_against_projection_outputs(
+    function: &FunctionDefinition,
+    manifest: &FunctionManifest,
+    output_tables: &BTreeSet<&String>,
+) -> SnapbackResult<()> {
+    let denied = |message: String| {
+        SnapbackError::error(
+            "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED",
+            "runtime",
+            format!("function {}: {message}", function.name),
+        )
+    };
+    match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+            for step in &plan.steps {
+                let target = match step {
+                    MutationStep::Insert { table, .. }
+                    | MutationStep::Patch { table, .. }
+                    | MutationStep::Delete { table, .. }
+                    | MutationStep::DeleteWhere { table, .. }
+                    | MutationStep::InsertEach { table, .. } => Some(table),
+                    MutationStep::Get { .. }
+                    | MutationStep::Guard { .. }
+                    | MutationStep::Let { .. } => None,
+                };
+                if let Some(target) = target
+                    && output_tables.contains(target)
+                {
+                    return Err(denied(format!(
+                        "writes projection output table {target}; outputs are maintained \
+                         only by their source mutations"
+                    )));
+                }
+            }
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+            if output_tables.contains(&plan.table) {
+                // A closed HostPlan may read the output only with the
+                // output visibility predicate composed; the owner filter is
+                // the executable evidence.
+                let projection = manifest
+                    .projections
+                    .iter()
+                    .find(|projection| projection.output_table == plan.table);
+                if let Some(projection) = projection
+                    && let crate::manifest::ProjectionVisibility::Owner { field } =
+                        &projection.output_visibility
+                {
+                    let enforced = plan.filters.iter().any(|filter| {
+                        &filter.field == field
+                            && matches!(filter.op, crate::manifest::FilterOp::Eq)
+                            && matches!(filter.value, ValueExpr::AuthUserId)
+                    });
+                    if !enforced {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
+                            "runtime",
+                            format!(
+                                "function {} reads owner-visible projection output {} without \
+                                 composing its visibility predicate",
+                                function.name, plan.table
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        FunctionRuntime::HostPlan(_) => {}
+        FunctionRuntime::IbexModule(_) => {
+            for declared in function
+                .read_set_summary
+                .tables
+                .iter()
+                .chain(function.write_set_summary.tables.iter())
+            {
+                if output_tables.contains(declared) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
+                        "runtime",
+                        format!(
+                            "function {} declares opaque access to projection output {declared}; \
+                             nothing proves an opaque handler applies the output visibility \
+                             predicate",
+                            function.name
+                        ),
+                    ));
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -12364,10 +14612,217 @@ fn read_lane_unavailable() -> SnapbackError {
     )
 }
 
+/// What the relational-cursor layer needs from the serving instance: the
+/// app identity the cursor binds and the resume keyring that MACs it.
+/// Possession of a cursor grants no authority — the binding digest re-proves
+/// plan, arguments, and authority partition on every presentation.
+#[derive(Clone, Copy)]
+pub(crate) struct RelationalCursorAuthority<'a> {
+    pub(crate) app_id: &'a str,
+    pub(crate) keyring: &'a RwLock<crate::rqs::ResumeKeyring>,
+}
+
+/// The one uniform cursor refusal (LLP 0080 §2): malformed, cross-plan,
+/// cross-argument-set, cross-authority, stale-authority, and
+/// order-schema-invalid boundaries must stay byte-indistinguishable, so
+/// every class produces this exact error and no per-cause detail.
+fn relational_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "query",
+        "relational cursor is not valid for this plan, argument set, and caller; \
+         request the first page without a cursor",
+    )
+}
+
+fn relational_cursor_mint_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "query",
+        "a full relational page could not mint its continuation cursor; retry the request",
+    )
+}
+
+/// The one uniform standard-pattern cursor refusal (LLP 0065): malformed,
+/// cross-plan, and cross-owner presentations must stay
+/// byte-indistinguishable, so every class produces this exact error.
+fn standard_pattern_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+        "query",
+        "pagination cursor is not valid for this operation and caller; \
+         request the first page again",
+    )
+}
+
+fn standard_pattern_cursor_mint_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
+        "query",
+        "a full page could not mint its continuation cursor; retry the request",
+    )
+}
+
+/// The generated `defineOwnedKeysetPages` facts the runtime recovers from a
+/// standard-pattern function's own plan: the strict continuation filter
+/// names the cursor argument, the (single) order field is the cursor field,
+/// and the plan limit is the page size. Recovered rather than re-declared so
+/// the manifest stays closed and the two can never disagree.
+struct StandardPatternKeysetFacts<'a> {
+    cursor_arg: Option<&'a str>,
+    cursor_field: &'a str,
+    page_limit: usize,
+}
+
+fn standard_pattern_keyset_facts<'a>(
+    function: &'a FunctionDefinition,
+    plan: &'a QueryPlan,
+) -> Option<StandardPatternKeysetFacts<'a>> {
+    let pattern = function.standard_pattern.as_ref()?;
+    if pattern.helper != "owned-keyset-pages.v1" {
+        return None;
+    }
+    let order = plan.order.first()?;
+    let page_limit = plan.limit?;
+    let mut cursor_arg = None;
+    for filter in &plan.filters {
+        let strict = matches!(
+            (&filter.op, &order.direction),
+            (crate::manifest::FilterOp::Gt, crate::manifest::OrderDirection::Asc)
+                | (crate::manifest::FilterOp::Lt, crate::manifest::OrderDirection::Desc)
+        );
+        if filter.field == order.field
+            && strict
+            && let ValueExpr::Arg(name) = &filter.value
+        {
+            cursor_arg = Some(name.as_str());
+        }
+    }
+    Some(StandardPatternKeysetFacts {
+        cursor_arg,
+        cursor_field: &order.field,
+        page_limit,
+    })
+}
+
+/// The standard-pattern cursor binding digest (LLP 0065): app, the *pair*
+/// plan identity, and the caller's authority partition. A keyset pair's
+/// first and next functions share everything except the strict
+/// continuation filter, so the binding covers the plan with that filter
+/// excluded — a cursor minted by `first` continues through `next`, while a
+/// different table, index, order, direction, page size, visibility, or
+/// pattern profile still refuses. The deployment/database axis rides the
+/// per-instance MAC keyring rather than the digest.
+fn standard_pattern_cursor_binding(
+    app_id: &str,
+    function: &FunctionDefinition,
+    plan: &QueryPlan,
+    facts: &StandardPatternKeysetFacts<'_>,
+    input: &HandlerInput,
+    permission_epochs: &BTreeMap<String, u64>,
+) -> Result<String, ()> {
+    let pattern = function.standard_pattern.as_ref().ok_or(())?;
+    let shared_filters: Vec<Value> = plan
+        .filters
+        .iter()
+        .filter(|filter| {
+            !(filter.field == facts.cursor_field
+                && matches!(
+                    filter.op,
+                    crate::manifest::FilterOp::Gt | crate::manifest::FilterOp::Lt
+                )
+                && matches!(&filter.value, ValueExpr::Arg(_)))
+        })
+        .map(|filter| serde_json::to_value(filter).unwrap_or(Value::Null))
+        .collect();
+    let epochs: Value = match input.auth.user_id.as_deref() {
+        Some(user_id) => {
+            let scope = user_permission_scope(user_id);
+            let epoch = permission_epochs.get(&scope).copied().unwrap_or(0);
+            json!({ scope: epoch })
+        }
+        None => json!({}),
+    };
+    let binding = json!({
+        "app": app_id,
+        "helper": pattern.helper,
+        "profile": pattern.profile,
+        "table": plan.table,
+        "index": plan.indexed_by,
+        "order": serde_json::to_value(&plan.order).map_err(|_| ())?,
+        "limit": plan.limit,
+        "filters": shared_filters,
+        "authority": {
+            "fingerprint": crate::manifest::auth_fingerprint(&input.auth),
+            "epochs": epochs,
+        },
+    });
+    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+}
+
+/// The canonical cursor binding digest (LLP 0080 §2): the cursor binds the
+/// app, the plan, the normalized non-cursor arguments, the order schema, and
+/// the caller's authority partition (auth fingerprint plus the caller's
+/// permission-scope epoch, which rolls on authorization change — the
+/// stale-authority refusal).
+fn relational_cursor_binding(
+    app_id: &str,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+    permission_epochs: &BTreeMap<String, u64>,
+    schema: &SchemaManifest,
+) -> Result<String, ()> {
+    let root_table = schema.tables.iter().find(|table| table.name == plan.root);
+    let order_schema: Vec<Value> = plan
+        .order
+        .iter()
+        .map(|order| {
+            let declared = root_table
+                .and_then(|table| table.field(&order.field))
+                .map(|field| {
+                    serde_json::to_value(&field.field_type).unwrap_or(Value::Null)
+                })
+                .unwrap_or_else(|| Value::String("system".to_owned()));
+            json!({
+                "field": order.field,
+                "direction": match order.direction {
+                    crate::manifest::OrderDirection::Asc => "asc",
+                    crate::manifest::OrderDirection::Desc => "desc",
+                },
+                "type": declared,
+            })
+        })
+        .collect();
+    let mut args = input.args.clone();
+    if let Value::Object(map) = &mut args {
+        map.remove("cursor");
+    }
+    let epochs: Value = match input.auth.user_id.as_deref() {
+        Some(user_id) => {
+            let scope = user_permission_scope(user_id);
+            let epoch = permission_epochs.get(&scope).copied().unwrap_or(0);
+            json!({ scope: epoch })
+        }
+        None => json!({}),
+    };
+    let binding = json!({
+        "app": app_id,
+        "plan": serde_json::to_value(plan).map_err(|_| ())?,
+        "args": args,
+        "orderSchema": order_schema,
+        "authority": {
+            "fingerprint": crate::manifest::auth_fingerprint(&input.auth),
+            "epochs": epochs,
+        },
+    });
+    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+}
+
 /// Execute a query-shaped invocation against any read view: the write lane
 /// passes the live connection and its own epoch map; the read lane passes a
 /// pinned reader and its snapshots. One implementation, so the two lanes
 /// cannot drift.
+#[allow(clippy::too_many_arguments)]
 fn execute_query_invocation(
     function: &FunctionDefinition,
     name: &str,
@@ -12376,6 +14831,7 @@ fn execute_query_invocation(
     input: HandlerInput,
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
+    cursor_authority: Option<RelationalCursorAuthority<'_>>,
 ) -> SnapbackResult<QueryInvocation> {
     if let DbRead::Live(live) = db {
         return live.with_pinned_read_view(|db| {
@@ -12387,6 +14843,7 @@ fn execute_query_invocation(
                 input,
                 prepared,
                 warm_vms,
+                cursor_authority,
             )
         });
     }
@@ -12396,8 +14853,217 @@ fn execute_query_invocation(
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
         ) => {
-            let output = db.query(plan, &input)?;
+            // @ref LLP 0065#3-common-pattern-contracts — defineOwnedKeysetPages
+            //   continuation is an opaque versioned cursor: the runtime
+            //   verifies the presented token (MAC + binding over app, plan
+            //   identity, and authority partition), substitutes the bound
+            //   boundary value for the cursor argument, and mints the next
+            //   continuation for a full page. Malformed, cross-plan, and
+            //   cross-owner presentations refuse byte-identically and are
+            //   never repositioned.
+            let keyset = standard_pattern_keyset_facts(function, plan);
+            let mut input = input;
+            if let Some(facts) = &keyset
+                && let Some(arg_name) = facts.cursor_arg
+            {
+                match input.args.get(arg_name).cloned() {
+                    None | Some(Value::Null) => {}
+                    Some(Value::String(token)) => {
+                        let authority =
+                            cursor_authority.ok_or_else(standard_pattern_cursor_invalid)?;
+                        let body = crate::rqs::decode_and_verify_standard_pattern_cursor(
+                            &token,
+                            &authority
+                                .keyring
+                                .read()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+                            now_millis(),
+                            crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                        )
+                        .map_err(|_| standard_pattern_cursor_invalid())?;
+                        let binding = standard_pattern_cursor_binding(
+                            authority.app_id,
+                            function,
+                            plan,
+                            facts,
+                            &input,
+                            permission_epochs,
+                        )
+                        .map_err(|()| standard_pattern_cursor_invalid())?;
+                        if body.app != authority.app_id || body.binding != binding {
+                            return Err(standard_pattern_cursor_invalid());
+                        }
+                        crate::storage::validate_standard_pattern_boundary(
+                            db.schema(),
+                            &plan.table,
+                            facts.cursor_field,
+                            &body.boundary,
+                        )
+                        .map_err(|_| standard_pattern_cursor_invalid())?;
+                        if let Value::Object(args) = &mut input.args {
+                            args.insert(arg_name.to_owned(), body.boundary);
+                        }
+                    }
+                    Some(_) => return Err(standard_pattern_cursor_invalid()),
+                }
+            }
+            let mut output = db.query(plan, &input)?;
+            if let Some(facts) = &keyset
+                && facts.page_limit > 0
+                && output.rows.len() == facts.page_limit
+            {
+                // A full page must carry its continuation (mirrors the
+                // relational rule): mint failure fails the request rather
+                // than misreporting the page as terminal.
+                let boundary = output
+                    .rows
+                    .last()
+                    .and_then(|row| row.get(facts.cursor_field).cloned())
+                    .filter(|value| !value.is_null())
+                    .ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let authority =
+                    cursor_authority.ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let binding = standard_pattern_cursor_binding(
+                    authority.app_id,
+                    function,
+                    plan,
+                    facts,
+                    &input,
+                    permission_epochs,
+                )
+                .map_err(|()| standard_pattern_cursor_mint_unavailable())?;
+                let (key_id, key) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                let body = crate::rqs::StandardPatternCursorBody {
+                    app: authority.app_id.to_owned(),
+                    binding,
+                    boundary,
+                    issued_at: now_millis(),
+                };
+                output.cursor = Some(
+                    crate::rqs::mint_standard_pattern_cursor(key.as_ref(), &key_id, &body)
+                        .ok_or_else(standard_pattern_cursor_mint_unavailable)?,
+                );
+            }
             let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+        ) => {
+            // @ref LLP 0080#2-portable-evaluation-semantics — opaque
+            //   versioned cursor: verify the presented cursor's MAC and
+            //   binding digest, validate its boundary against the order
+            //   schema, execute from that boundary, and mint the
+            //   continuation for a full page. All six refusal classes
+            //   collapse into the one byte-identical refusal and are never
+            //   repositioned.
+            let presented = match input.args.get("cursor") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(token)) => Some(token.clone()),
+                Some(_) => return Err(relational_cursor_invalid()),
+            };
+            let keyset = match presented {
+                None => None,
+                Some(token) => {
+                    let authority = cursor_authority.ok_or_else(relational_cursor_invalid)?;
+                    let body = crate::rqs::decode_and_verify_relational_cursor(
+                        &token,
+                        &authority
+                            .keyring
+                            .read()
+                            .unwrap_or_else(|poisoned| poisoned.into_inner()),
+                        now_millis(),
+                        crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                    )
+                    .map_err(|_| relational_cursor_invalid())?;
+                    let binding = relational_cursor_binding(
+                        authority.app_id,
+                        plan,
+                        &input,
+                        permission_epochs,
+                        db.schema(),
+                    )
+                    .map_err(|()| relational_cursor_invalid())?;
+                    if body.app != authority.app_id || body.binding != binding {
+                        return Err(relational_cursor_invalid());
+                    }
+                    Some(
+                        crate::storage::validate_relational_boundary(
+                            db.schema(),
+                            plan,
+                            &body.boundary,
+                            &body.id,
+                        )
+                        .map_err(|_| relational_cursor_invalid())?,
+                    )
+                }
+            };
+            // @ref LLP 0080#4-live-and-retained-capability — relational reads
+            //   deliberately capture no Query-kind dependency: the matcher
+            //   then falls through to the table-granular runtime arm, so any
+            //   commit touching either declared source resnapshots and no
+            //   proved-disjoint skip is claimed.
+            let (mut output, continuation) =
+                crate::storage::query_relational_on(&db, plan, &input, keyset.as_ref())?;
+            if let Some(boundary) = continuation {
+                // A full page must carry its continuation: silently omitting
+                // it would misreport the page as terminal, so mint failure
+                // fails the request rather than the pagination contract.
+                let authority =
+                    cursor_authority.ok_or_else(relational_cursor_mint_unavailable)?;
+                let binding = relational_cursor_binding(
+                    authority.app_id,
+                    plan,
+                    &input,
+                    permission_epochs,
+                    db.schema(),
+                )
+                .map_err(|()| relational_cursor_mint_unavailable())?;
+                let (key_id, key) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(relational_cursor_mint_unavailable)?;
+                let body = crate::rqs::RelationalCursorBody {
+                    app: authority.app_id.to_owned(),
+                    binding,
+                    boundary: boundary.entries.into_iter().map(|(_, value)| value).collect(),
+                    id: boundary.id,
+                    issued_at: now_millis(),
+                };
+                output.cursor = Some(
+                    crate::rqs::mint_relational_cursor(key.as_ref(), &key_id, &body)
+                        .ok_or_else(relational_cursor_mint_unavailable)?,
+                );
+            }
+            let mut read_dependencies = Vec::new();
+            if let Some(user_id) = input.auth.user_id.as_deref() {
+                read_dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Auth,
+                    table: None,
+                    id: None,
+                    version: None,
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: Some("userId".to_owned()),
+                    value: Some(Value::String(user_id.to_owned())),
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+            }
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
                 output,
@@ -12642,6 +15308,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
             (vec![plan.table.clone()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+            (vec![plan.root.clone(), plan.joined.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
             let mut reads = BTreeSet::new();
@@ -13358,6 +16027,217 @@ mod tests {
         (schema, functions)
     }
 
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
+    //   pre-publication baseline replays through the raised floor: under a
+    //   successor-only publication an offline mutation whose read baseline
+    //   predates the floor receives the stable resync-before-replay
+    //   refusal; a dual-compatible publication keeps the ordinary rules.
+    #[test]
+    fn successor_only_publication_gates_stale_replay_baselines() {
+        let build = |posture: crate::migration::CompatibilityPosture| {
+            let (schema, functions, _plan) = projection_fixture(5);
+            let mut snapback = LocalSnapback::memory().expect("memory replay fixture");
+            snapback.apply_schema(schema).expect("apply schema");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            snapback
+                .invoke_mutation(
+                    "addAuthor",
+                    HandlerInput {
+                        args: json!({ "slug": "ada", "name": "Ada" }),
+                        ..HandlerInput::default()
+                    },
+                )
+                .expect("seed author");
+            let row = snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "authors".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read author")
+                .rows[0]
+                .clone();
+            let baseline = crate::manifest::ReadDependency {
+                table: "authors".to_owned(),
+                id: row["_id"].as_str().expect("id").to_owned(),
+                version: row["_version"].as_u64().expect("version"),
+            };
+            crate::storage::publish_schema_transition_for_test(
+                &mut snapback.db,
+                posture,
+                &"p".repeat(64),
+            );
+            (snapback, baseline, row)
+        };
+
+        // Successor-only: the pre-publication baseline refuses, stable.
+        let (mut snapback, baseline, row) =
+            build(crate::migration::CompatibilityPosture::SuccessorOnly);
+        let error = snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": baseline.id, "name": "Ada Lovelace" }),
+                    read_set: vec![baseline.clone()],
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("stale baseline must refuse under successor-only");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_RESYNC_REQUIRED");
+        assert_eq!(
+            snapback
+                .db
+                .get("authors", row["_id"].as_str().expect("id"))
+                .expect("read back")
+                .expect("row survives")["name"],
+            json!("Ada"),
+            "the refused replay wrote nothing",
+        );
+
+        // Dual-compatible: ordinary conflict rules apply — the unchanged
+        // baseline validates and the replay commits.
+        let (mut snapback, baseline, row) =
+            build(crate::migration::CompatibilityPosture::DualCompatible);
+        snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": baseline.id, "name": "Ada Lovelace" }),
+                    read_set: vec![baseline],
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("dual-compatible replay admits");
+        assert_eq!(
+            snapback
+                .db
+                .get("authors", row["_id"].as_str().expect("id"))
+                .expect("read back")
+                .expect("row survives")["name"],
+            json!("Ada Lovelace"),
+        );
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+    //   publication consequence on retained live state: every subscription
+    //   is disposed with a clear-retained resync; no predecessor result or
+    //   retained row survives the boundary.
+    #[test]
+    fn publication_retires_live_subscriptions_with_clear_retained_resync() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut snapback = LocalSnapback::memory().expect("memory publication fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+        snapback
+            .subscribe_live(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "conn-pub".to_owned(),
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe");
+        assert_eq!(snapback.subscriptions.len(), 1);
+
+        snapback
+            .retire_live_subscriptions_for_publication()
+            .expect("retire for publication");
+        assert!(snapback.subscriptions.is_empty(), "no subscription survives");
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-pub");
+        let resync = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "resync_required")
+            .expect("resync envelope delivered");
+        assert_eq!(resync["reason"], json!("schema_publication"));
+        assert_eq!(resync["clear_retained"], json!(true));
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+    //   posture-aware attest handshake: after a successor-only publication,
+    //   a client attesting the predecessor schema artifact receives the
+    //   stable upgrade-required refusal, while the successor pair still
+    //   attests matched.
+    #[test]
+    fn attest_refuses_predecessor_artifacts_after_successor_only_publication() {
+        let (schema, functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let active = snapback
+            .db
+            .auth_mode_snapshot()
+            .expect("snapshot")
+            .state
+            .active_deployment
+            .expect("active deployment");
+        let pair = |schema_hash: &str| super::EnsureAppPairIdentity {
+            schema: super::EnsureAppSchemaIdentity {
+                artifact_kind: "schemaManifest".to_owned(),
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                schema_hash: schema_hash.to_owned(),
+                inputs_hash: active.inputs_hash.clone(),
+            },
+            functions: super::EnsureAppFunctionIdentity {
+                artifact_kind: "functionManifest".to_owned(),
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                bundle_hash: active.bundle_hash.clone(),
+                inputs_hash: active.inputs_hash.clone(),
+            },
+        };
+        // Craft a format-valid predecessor hash distinct from the active one.
+        let predecessor_hash = {
+            let mut hash = active.schema_hash.clone();
+            let flipped = if hash.ends_with('0') { "1" } else { "0" };
+            hash.truncate(hash.len() - 1);
+            hash.push_str(flipped);
+            hash
+        };
+        crate::storage::publish_schema_transition_for_test(
+            &mut snapback.db,
+            crate::migration::CompatibilityPosture::SuccessorOnly,
+            &predecessor_hash,
+        );
+
+        let error = snapback
+            .attest_app(EnsureAppMode::Sessions, pair(&predecessor_hash))
+            .expect_err("predecessor artifacts must refuse after successor-only publication");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+
+        // The successor (active) pair still attests, matched.
+        let outcome = snapback
+            .attest_app(EnsureAppMode::Sessions, pair(&active.schema_hash))
+            .expect("active pair attests");
+        assert!(outcome.matched, "the successor pair stays matched");
+    }
+
     fn settled_sessions_activation_snapback(
         schema: SchemaManifest,
         predecessor_functions: FunctionManifest,
@@ -13518,6 +16398,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(93)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority.clone(),
                 LiveInvalidationAdmission {
@@ -13548,6 +16429,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority,
                 LiveInvalidationAdmission {
@@ -13670,6 +16552,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(90)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -13678,7 +16561,7 @@ mod tests {
                 },
             )
             .expect("subscribe under predecessor deployment");
-        assert_eq!(subscribed.snapshot.rows.len(), 1);
+        assert_eq!(subscribed.snapshot.as_ref().unwrap().rows.len(), 1);
         assert!(
             drain_live_stream_through_test_sink(&mut snapback, "activation-live").is_empty(),
             "the activation test starts with an empty delivery queue"
@@ -13794,6 +16677,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority,
                 LiveInvalidationAdmission {
@@ -13953,6 +16837,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(91)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -14061,6 +16946,7 @@ mod tests {
                             input: HandlerInput::default(),
                             authorization_namespace: None,
                             supersedes: None,
+                            resume_from_token: None,
                         },
                         LiveInvalidationAdmission {
                             session_mode: true,
@@ -14110,6 +16996,7 @@ mod tests {
                 function: "independentChanged".to_owned(),
                 version: 1,
                 rows: vec![json!({ "value": "queued-predecessor" })],
+                resume: None,
             })
             .expect("serialize queued predecessor frame"),
         );
@@ -14233,6 +17120,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -14241,7 +17129,7 @@ mod tests {
                 },
             )
             .expect("subscribe empty auth-scoped result");
-        assert!(subscribed.snapshot.rows.is_empty());
+        assert!(subscribed.snapshot.as_ref().unwrap().rows.is_empty());
         drain_live_stream_through_test_sink(&mut snapback, "activation-data-seed");
         let predecessor_authorization = snapback
             .auth_invalidation
@@ -14557,6 +17445,2441 @@ globalThis.__snapbackHandlers = {
             "result handoff fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    // @ref LLP 0080#1-closed-relational-plan — end-to-end: activation
+    //   validation admits a proven plan and refuses an unproven cardinality
+    //   claim; invocation routes through the root-window executor with the
+    //   caller's authority.
+    #[test]
+    fn relational_query_validates_and_invokes_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: vec![owner_filter("ownerId")],
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+            ],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 10,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory relational fixture");
+        snapback.apply_schema(schema).expect("apply relational schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "proven relational plan must activate: {diagnostics:?}"
+        );
+
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                            row(json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed relational rows");
+
+        let output = snapback
+            .invoke_query(
+                "booksWithAuthors",
+                HandlerInput {
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("relational invocation");
+        assert_eq!(
+            output.rows,
+            vec![json!({ "authorName": "Ada", "title": "alpha" })],
+            "inner join omits the invisible author's book without refill",
+        );
+
+        // An unproven cardinality claim (non-unique joined index) is refused
+        // at activation, before any invocation exists.
+        let mut unproven_schema_snapback =
+            LocalSnapback::memory().expect("memory unproven fixture");
+        let mut unproven_schema = SchemaManifest {
+            tables: Vec::new(),
+            ..SchemaManifest::default()
+        };
+        // Same schema but the joined index loses uniqueness.
+        unproven_schema.tables = vec![
+            TableManifest {
+                name: "books".to_owned(),
+                fields: vec![
+                    string("title", false),
+                    string("authorSlug", true),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_owner_title".to_owned(),
+                    fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+            TableManifest {
+                name: "authors".to_owned(),
+                fields: vec![
+                    string("slug", false),
+                    string("name", false),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_slug".to_owned(),
+                    fields: vec!["slug".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+        ];
+        unproven_schema_snapback
+            .apply_schema(unproven_schema)
+            .expect("apply unproven schema");
+        let diagnostics = unproven_schema_snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| d
+                .message
+                .contains("SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN")
+                || d.code == "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"),
+            "non-unique joined index must refuse activation: {diagnostics:?}"
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the opaque versioned
+    //   cursor end to end: a full page mints a continuation bound to the
+    //   app, plan, argument set, order schema, and authority partition;
+    //   presenting it resumes from the last consumed root; and the refusal
+    //   classes — malformed, tampered, cross-plan, cross-authority — all
+    //   answer with one byte-identical SNAPBACK_RELATIONAL_CURSOR_INVALID.
+    #[test]
+    fn relational_cursor_pages_and_refuses_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = |join_kind: JoinKind| RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 1,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory cursor fixture");
+        snapback.apply_schema(schema).expect("apply cursor schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "pagedBooks",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(
+                        JoinKind::Inner,
+                    ))),
+                ),
+                FunctionDefinition::new(
+                    "pagedBooksLeft",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Left))),
+                ),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "cursor fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "gamma", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed cursor rows");
+
+        let input = |user: &str, session: &str, args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                session_id: Some(session.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+
+        // Page walk: alpha → beta → gamma → terminal.
+        let page1 = snapback
+            .invoke_query("pagedBooks", input("user-a", "s1", json!({})))
+            .expect("first page");
+        assert_eq!(page1.rows, vec![json!({ "title": "alpha" })]);
+        let cursor1 = page1.cursor.expect("full page mints a continuation");
+        assert!(
+            cursor1.starts_with("sbrc1."),
+            "cursor is versioned wire opaque: {cursor1}"
+        );
+        let page2 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor1 })),
+            )
+            .expect("second page");
+        assert_eq!(page2.rows, vec![json!({ "title": "beta" })]);
+        let cursor2 = page2.cursor.expect("second continuation");
+        let page3 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor2 })),
+            )
+            .expect("third page");
+        assert_eq!(page3.rows, vec![json!({ "title": "gamma" })]);
+        let cursor3 = page3.cursor.expect("third continuation");
+        let page4 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor3.clone() })),
+            )
+            .expect("terminal page");
+        assert!(page4.rows.is_empty());
+        assert!(page4.cursor.is_none(), "a short page is terminal");
+
+        // Refusal classes, each byte-identical to the others.
+        let refusal = |snapback: &LocalSnapback, args: Value, user: &str, session: &str, function: &str| {
+            match snapback.invoke_query(function, input(user, session, args.clone())) {
+                Err(error) => error,
+                Ok(output) => panic!(
+                    "cursor presentation must refuse: {function} {user}/{session} {args} -> {output:?}"
+                ),
+            }
+        };
+        let malformed = refusal(&snapback, json!({ "cursor": "sbrc1.garbage" }), "user-a", "s1", "pagedBooks");
+        assert_eq!(malformed.diagnostic.code, "SNAPBACK_RELATIONAL_CURSOR_INVALID");
+        let non_string = refusal(&snapback, json!({ "cursor": 7 }), "user-a", "s1", "pagedBooks");
+        // Tampered body: flip the boundary bytes, keep the MAC.
+        let mut parts: Vec<String> = cursor3.split('.').map(str::to_owned).collect();
+        parts[2] = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(br#"{"app":"x","binding":"y","boundary":["zz"],"id":"b9","issuedAt":1}"#)
+        };
+        let tampered = refusal(
+            &snapback,
+            json!({ "cursor": parts.join(".") }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        // Cross-plan: the same caller's cursor presented to a different plan.
+        let cross_plan = refusal(
+            &snapback,
+            json!({ "cursor": cursor3.clone() }),
+            "user-a",
+            "s1",
+            "pagedBooksLeft",
+        );
+        // Cross-authority: another user, and the same user after a session
+        // (authority partition) transition.
+        let cross_user = refusal(
+            &snapback,
+            json!({ "cursor": cursor3.clone() }),
+            "user-b",
+            "s1",
+            "pagedBooks",
+        );
+        // Stale authority: an authorization change rolls the caller's
+        // permission-scope epoch (the dev-admitted path canonicalizes the
+        // session away, so the epoch is the partition signal here), and a
+        // cursor minted before the transition is refused after it.
+        snapback
+            .permission_epochs
+            .insert(super::user_permission_scope("user-a"), 7);
+        let stale_authority =
+            refusal(&snapback, json!({ "cursor": cursor3 }), "user-a", "s1", "pagedBooks");
+        for refused in [
+            &non_string,
+            &tampered,
+            &cross_plan,
+            &cross_user,
+            &stale_authority,
+        ] {
+            assert_eq!(
+                (refused.diagnostic.code.as_str(), refused.diagnostic.message.as_str()),
+                (
+                    malformed.diagnostic.code.as_str(),
+                    malformed.diagnostic.message.as_str()
+                ),
+                "every cursor refusal class is byte-indistinguishable",
+            );
+        }
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — evaluator parity on
+    //   the local target: the write lane and the lock-free read lane share
+    //   one relational implementation, so the same plan produces the same
+    //   RelationalResultEncodingV1 bytes on both, and a continuation minted
+    //   by one lane resumes through the other (shared keyring + binding).
+    //   The buffered read-your-writes overlay is witnessed separately as
+    //   unreachable: ctx.db host calls admit only single-table plans.
+    #[test]
+    fn relational_lanes_share_bytes_and_cursors() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let dir =
+            std::env::temp_dir().join(format!("snapback-rel-lanes-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("rel-lanes.sqlite");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
+
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned(), ],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 1,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::open(&path).expect("open file-backed fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "pagedBooks",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "lane fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed lane rows");
+        let lane = snapback.read_lane();
+        assert!(lane.available(), "file-backed fixture has a read lane");
+
+        let input = |args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let field_order = vec!["title".to_owned()];
+        let write_page = snapback
+            .invoke_query("pagedBooks", input(json!({})))
+            .expect("write-lane page");
+        let read_page = lane
+            .invoke_query("pagedBooks", input(json!({})))
+            .expect("read-lane page");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &write_page.rows)
+                .expect("write rows encode"),
+            crate::rqs::relational_result_encoding_v1(&field_order, &read_page.rows)
+                .expect("read rows encode"),
+            "both lanes produce identical RelationalResultEncodingV1 bytes",
+        );
+
+        // Cross-lane continuation: a cursor minted on the read lane resumes
+        // on the write lane, and vice versa — one keyring, one binding.
+        let read_cursor = read_page.cursor.expect("read lane mints");
+        let write_cursor = write_page.cursor.expect("write lane mints");
+        let via_write = snapback
+            .invoke_query("pagedBooks", input(json!({ "cursor": read_cursor })))
+            .expect("read-lane cursor resumes on the write lane");
+        let via_read = lane
+            .invoke_query("pagedBooks", input(json!({ "cursor": write_cursor })))
+            .expect("write-lane cursor resumes on the read lane");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &via_write.rows)
+                .expect("write continuation encodes"),
+            crate::rqs::relational_result_encoding_v1(&field_order, &via_read.rows)
+                .expect("read continuation encodes"),
+        );
+        assert_eq!(via_write.rows[0]["title"], json!("beta"));
+    }
+
+    fn relational_live_fixture_functions(
+        plan_take: u32,
+    ) -> (SchemaManifest, FunctionManifest) {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![FilterExpr {
+                field: "ownerId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::AuthUserId,
+            }],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: plan_take,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+        let insert = |name: &str, table: &str, fields: &[(&str, ValueExpr)]| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: table.to_owned(),
+                        values: fields
+                            .iter()
+                            .map(|(field, value)| ((*field).to_owned(), value.clone()))
+                            .collect(),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                })),
+            )
+        };
+        let functions = FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "booksWithAuthors",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                ),
+                insert(
+                    "addBook",
+                    "books",
+                    &[
+                        ("title", ValueExpr::Arg("title".to_owned())),
+                        ("authorSlug", ValueExpr::Arg("slug".to_owned())),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                insert(
+                    "addAuthor",
+                    "authors",
+                    &[
+                        ("slug", ValueExpr::Arg("slug".to_owned())),
+                        ("name", ValueExpr::Arg("name".to_owned())),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+            ],
+            ..FunctionManifest::default()
+        };
+        (schema, functions)
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — live inheritance is
+    //   deliberately conservative: a commit touching either declared source
+    //   table (including the absent-unique-lookup direction — a joined row
+    //   appearing for a previously missing key) causes an authoritative
+    //   resnapshot delivered as live_replace, and no live_delta is ever
+    //   claimed for a relational subscription.
+    #[test]
+    fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut snapback = LocalSnapback::memory().expect("memory live fixture");
+        snapback.apply_schema(schema).expect("apply live schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "live fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![row(
+                            json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed live rows");
+
+        let subscribed = snapback
+            .subscribe_live(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "conn-rel".to_owned(),
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe relational");
+        let snapshot = subscribed.snapshot.expect("initial snapshot");
+        assert_eq!(snapshot.rows, vec![json!({ "title": "alpha" })]);
+
+        let titles = |envelope: &Value| {
+            envelope["rows"]
+                .as_array()
+                .expect("rows")
+                .iter()
+                .map(|row| row["title"].clone())
+                .collect::<Vec<_>>()
+        };
+
+        // Root-table commit: replacement fires even though the new root is
+        // omitted by the inner join (no author row yet).
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "beta", "slug": "grace" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert root row");
+        let after_root = rqs_drained_envelopes(&mut snapback, "conn-rel");
+        assert!(!after_root.is_empty(), "root commit must replace");
+        for envelope in &after_root {
+            assert_eq!(
+                envelope["kind"], "live_replace",
+                "relational subscriptions never claim live_delta: {envelope}"
+            );
+        }
+        assert_eq!(
+            titles(after_root.last().expect("replacement")),
+            vec![json!("alpha")],
+        );
+
+        // Joined-table commit — the absent unique lookup gains a row, and
+        // the previously omitted root appears in the replacement.
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "grace", "name": "Grace" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert joined row");
+        let after_joined = rqs_drained_envelopes(&mut snapback, "conn-rel");
+        assert!(!after_joined.is_empty(), "joined commit must replace");
+        for envelope in &after_joined {
+            assert_eq!(envelope["kind"], "live_replace");
+        }
+        assert_eq!(
+            titles(after_joined.last().expect("replacement")),
+            vec![json!("alpha"), json!("beta")],
+        );
+    }
+
+    // @ref LLP 0065#1-fact-classes — the runtime checks observed
+    //   operations are a subset of the admitted EffectCeilingV1 and fails
+    //   closed on mismatch: a doctored artifact that under-declares its
+    //   ceiling refuses activation, and the exact generated ceiling passes.
+    #[test]
+    fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
+        use crate::manifest::{EffectCeiling, EffectCeilingRead, EffectCeilingWrite};
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut add_book = functions.functions[1].clone();
+        assert_eq!(add_book.name, "addBook");
+
+        // The exact ceiling the walker would emit for addBook: one insert
+        // into books, no reads, no host ops, no authorization inputs.
+        add_book.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: Vec::new(),
+            writes: vec![EffectCeilingWrite {
+                table: "books".to_owned(),
+                operations: vec!["insert".to_owned()],
+            }],
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory ceiling fixture");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply ceiling schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![add_book.clone()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "the exact ceiling must activate: {diagnostics:?}"
+        );
+
+        // Fault: the same plan with an under-declared ceiling (writes a
+        // table the ceiling does not admit) refuses activation.
+        let mut doctored = add_book;
+        doctored.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: Vec::new(),
+            writes: vec![EffectCeilingWrite {
+                table: "authors".to_owned(),
+                operations: vec!["insert".to_owned()],
+            }],
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory fault fixture");
+        snapback.apply_schema(schema.clone()).expect("apply fault schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![doctored],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                    || d.message
+                        .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+            }),
+            "an out-of-ceiling write must refuse activation: {diagnostics:?}"
+        );
+
+        // The same subset rule covers authorization inputs: an owner-filtered
+        // relational read observing AuthUserId refuses under a ceiling that
+        // omits it.
+        let mut relational = functions.functions[0].clone();
+        relational.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: vec![
+                EffectCeilingRead {
+                    table: "books".to_owned(),
+                    access: "query".to_owned(),
+                    index: Some("by_owner_title".to_owned()),
+                },
+                EffectCeilingRead {
+                    table: "authors".to_owned(),
+                    access: "query".to_owned(),
+                    index: Some("by_slug".to_owned()),
+                },
+            ],
+            writes: Vec::new(),
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory auth-input fixture");
+        snapback.apply_schema(schema).expect("apply auth-input schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![relational],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                    || d.message
+                        .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+            }),
+            "an undeclared authorization input must refuse activation: {diagnostics:?}"
+        );
+    }
+
+    // The Rust subset check and codegen's EffectCeilingV1 walker must stay
+    //   mirror images: every committed generated manifest activates without
+    //   a ceiling-exceeded refusal. A divergence in either direction fails
+    //   here before it ships.
+    #[test]
+    fn generated_demo_manifests_pass_the_effect_ceiling_subset_check() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for demo in [
+            "demos/competitive-checkpoint/snapback/generated",
+            "demos/todo-v2/snapback/generated",
+            "demos/todo/snapback/generated",
+        ] {
+            let read = |file: &str| {
+                std::fs::read_to_string(root.join(demo).join(file))
+                    .unwrap_or_else(|error| panic!("read {demo}/{file}: {error}"))
+            };
+            let schema: SchemaManifest = serde_json::from_str(&read("schema.manifest.json"))
+                .unwrap_or_else(|error| panic!("parse {demo} schema: {error}"));
+            let functions: FunctionManifest =
+                serde_json::from_str(&read("functions.manifest.json"))
+                    .unwrap_or_else(|error| panic!("parse {demo} functions: {error}"));
+            let mut snapback = LocalSnapback::memory().expect("memory demo fixture");
+            let _ = snapback.apply_schema(schema);
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics.iter().all(|d| {
+                    d.code != "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+                        && !d
+                            .message
+                            .contains("SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED")
+                }),
+                "{demo}: generated ceilings must satisfy the runtime subset \
+                 check: {diagnostics:?}"
+            );
+        }
+    }
+
+    // @ref LLP 0065#3-common-pattern-contracts — the same-subject two-app
+    //   domain negative: cursors are bound to the application authority
+    //   domain, so a continuation minted by one app instance is refused by
+    //   another even for the same subject, plan shape, and function name.
+    #[test]
+    fn standard_pattern_cursor_never_crosses_the_app_domain() {
+        let build = |app_id: &str| {
+            let (schema, functions) = relational_live_fixture_functions(1);
+            let mut manifest = FunctionManifest {
+                functions: functions.functions,
+                ..FunctionManifest::default()
+            };
+            manifest.app_id = app_id.to_owned();
+            let mut snapback = LocalSnapback::memory().expect("memory app fixture");
+            snapback.apply_schema(schema).expect("apply app schema");
+            let diagnostics = snapback.load_functions(manifest);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "app fixture must activate: {diagnostics:?}"
+            );
+            let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+            snapback
+                .seed(crate::manifest::SeedData {
+                    tables: BTreeMap::from([
+                        (
+                            "books".to_owned(),
+                            vec![
+                                row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                                row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            ],
+                        ),
+                        (
+                            "authors".to_owned(),
+                            vec![row(
+                                json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                            )],
+                        ),
+                    ]),
+                })
+                .expect("seed app rows");
+            snapback
+        };
+        let input = |args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let app_a = build("app-a");
+        let app_b = build("app-b");
+        let page = app_a
+            .invoke_query("booksWithAuthors", input(json!({})))
+            .expect("app-a first page");
+        let cursor = page.cursor.expect("app-a continuation");
+        // Same subject, same function name, same plan shape — different
+        // application authority domain: refused, never repositioned.
+        let error = app_b
+            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor.clone() })))
+            .expect_err("cross-app cursor must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+        // And the home app still accepts it.
+        let resumed = app_a
+            .invoke_query("booksWithAuthors", input(json!({ "cursor": cursor })))
+            .expect("home app resumes");
+        assert_eq!(resumed.rows, vec![json!({ "title": "beta" })]);
+    }
+
+    fn projection_fixture(
+        fan_out_limit: u32,
+    ) -> (SchemaManifest, FunctionManifest, crate::manifest::MaintainedProjectionPlan) {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind,
+            MaintainedProjectionPlan, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
+            ProjectionVisibility, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let table = |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| {
+            TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                table(
+                    "books",
+                    vec![
+                        string("title", false),
+                        string("slug", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    vec![
+                        IndexManifest {
+                            name: "by_slug".to_owned(),
+                            fields: vec!["slug".to_owned()],
+                            unique: true,
+                        },
+                        IndexManifest {
+                            name: "by_author".to_owned(),
+                            fields: vec!["authorSlug".to_owned()],
+                            unique: false,
+                        },
+                    ],
+                ),
+                table(
+                    "authors",
+                    vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    vec![IndexManifest {
+                        name: "authors_by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                ),
+                table(
+                    "bookSummaries",
+                    vec![
+                        string("title", false),
+                        string("authorName", true),
+                        string("ownerId", false),
+                    ],
+                    Vec::new(),
+                ),
+            ],
+            ..SchemaManifest::default()
+        };
+        let plan = MaintainedProjectionPlan {
+            id: "book-summaries".to_owned(),
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: ProjectionVisibility::Owner {
+                field: "ownerId".to_owned(),
+            },
+            joined_visibility: ProjectionVisibility::PublicRead,
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "ownerId".to_owned(),
+                    source: ProjectionSource::RootField("ownerId".to_owned()),
+                },
+            ],
+            output_table: "bookSummaries".to_owned(),
+            output_key: ProjectionOutputKey::RootUniqueIndex {
+                index: "by_slug".to_owned(),
+                fields: vec!["slug".to_owned()],
+            },
+            output_visibility: ProjectionVisibility::Owner {
+                field: "ownerId".to_owned(),
+            },
+            root_reverse_index: "by_author".to_owned(),
+            fan_out_limit,
+            shared_fan_out_disclosure: true,
+            rebuild_recipe: "rebuild-v1".to_owned(),
+        };
+        let insert = |name: &str, table: &str, fields: &[(&str, ValueExpr)]| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: table.to_owned(),
+                        values: fields
+                            .iter()
+                            .map(|(field, value)| ((*field).to_owned(), value.clone()))
+                            .collect(),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                })),
+            )
+        };
+        let arg = |name: &str| ValueExpr::Arg(name.to_owned());
+        let functions = FunctionManifest {
+            functions: vec![
+                insert(
+                    "addBook",
+                    "books",
+                    &[
+                        ("title", arg("title")),
+                        ("slug", arg("slug")),
+                        ("authorSlug", arg("author")),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                insert(
+                    "addAuthor",
+                    "authors",
+                    &[
+                        ("slug", arg("slug")),
+                        ("name", arg("name")),
+                        ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ],
+                ),
+                FunctionDefinition::new(
+                    "renameAuthor",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Patch {
+                            table: "authors".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                            values: BTreeMap::from([(
+                                "name".to_owned(),
+                                ValueExpr::Arg("name".to_owned()),
+                            )]),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "moveBookSlug",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Patch {
+                            table: "books".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                            values: BTreeMap::from([(
+                                "slug".to_owned(),
+                                ValueExpr::Arg("slug".to_owned()),
+                            )]),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+                FunctionDefinition::new(
+                    "deleteBook",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                        steps: vec![MutationStep::Delete {
+                            table: "books".to_owned(),
+                            id: ValueExpr::Arg("id".to_owned()),
+                        }],
+                        return_value: None,
+                    })),
+                ),
+            ],
+            projections: vec![plan.clone()],
+            ..FunctionManifest::default()
+        };
+        (schema, functions, plan)
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — the
+    //   maintenance engine end to end: source and output commit together
+    //   at one version; the affected-key set closes over pre/post images;
+    //   joined-side fan-out updates every referencing output in the same
+    //   commit; unchanged recomputations issue no write; row identity is
+    //   key-stable across delete/re-insert; fan-out admission refuses the
+    //   whole mutation; and output-key fields are immutable.
+    #[test]
+    fn maintained_projection_engine_end_to_end() {
+        let (schema, functions, _plan) = projection_fixture(2);
+        let mut snapback = LocalSnapback::memory().expect("memory projection fixture");
+        snapback.apply_schema(schema).expect("apply projection schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "projection fixture must activate: {diagnostics:?}"
+        );
+        let mutate = |snapback: &mut LocalSnapback, name: &str, args: Value| {
+            snapback
+                .invoke_mutation(
+                    name,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                )
+                .unwrap_or_else(|error| panic!("{name} {error:?}"))
+        };
+        let summaries = |snapback: &LocalSnapback| -> Vec<Value> {
+            snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "bookSummaries".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: vec![crate::manifest::OrderExpr {
+                            field: "title".to_owned(),
+                            direction: crate::manifest::OrderDirection::Asc,
+                        }],
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read summaries")
+                .rows
+        };
+
+        // Root insert with no matching author: inner join admits no row.
+        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        assert!(summaries(&snapback).is_empty());
+
+        // The joined row appears: the reverse index fans out to the root
+        // and the output materializes in the author's commit.
+        mutate(&mut snapback, "addAuthor", json!({ "slug": "ada", "name": "Ada" }));
+        let rows = summaries(&snapback);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["title"], json!("alpha"));
+        assert_eq!(rows[0]["authorName"], json!("Ada"));
+        assert_eq!(rows[0]["ownerId"], json!("user-a"));
+        let first_id = rows[0]["_id"].clone();
+        let first_created = rows[0]["_createdAt"].clone();
+
+        // Fan-out: a second book by Ada, then a rename updates both
+        // summaries in the rename's own commit.
+        mutate(&mut snapback, "addBook", json!({ "title": "beta", "slug": "s-beta", "author": "ada" }));
+        let author_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "authors".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read authors")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("author id")
+            .to_owned();
+        let rename = mutate(
+            &mut snapback,
+            "renameAuthor",
+            json!({ "id": author_id, "name": "Ada Lovelace" }),
+        );
+        // 1 direct write + 2 changed output rows in one commit.
+        assert_eq!(rename.changed_count, 3);
+        let rows = summaries(&snapback);
+        assert!(rows.iter().all(|row| row["authorName"] == json!("Ada Lovelace")));
+        let versions: BTreeSet<u64> = rows
+            .iter()
+            .map(|row| row["_version"].as_u64().expect("version"))
+            .collect();
+        assert_eq!(versions.len(), 1, "outputs commit at one version");
+
+        // Unchanged recomputation issues no write.
+        let unchanged = mutate(
+            &mut snapback,
+            "renameAuthor",
+            json!({ "id": author_id, "name": "Ada Lovelace" }),
+        );
+        assert_eq!(
+            unchanged.changed_count, 1,
+            "byte-unchanged output rows are not written"
+        );
+
+        // Key stability: delete + re-insert the same slug keeps the output
+        // row identity (the digest covers the stored identity + key bytes,
+        // not the root id), while _createdAt restarts at the new
+        // materialization.
+        let book_id = |snapback: &LocalSnapback, slug: &str| {
+            snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "books".to_owned(),
+                        filters: vec![FilterExpr {
+                            field: "slug".to_owned(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(json!(slug)),
+                        }],
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read book")
+                .rows[0]["_id"]
+                .as_str()
+                .expect("book id")
+                .to_owned()
+        };
+        let alpha_id = book_id(&snapback, "s-alpha");
+        mutate(&mut snapback, "deleteBook", json!({ "id": alpha_id }));
+        assert_eq!(summaries(&snapback).len(), 1, "delete removes the output row");
+        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        let rows = summaries(&snapback);
+        let alpha_row = rows
+            .iter()
+            .find(|row| row["title"] == json!("alpha"))
+            .expect("alpha summary");
+        assert_eq!(alpha_row["_id"], first_id, "output row identity is key-stable");
+        assert_ne!(alpha_row["_createdAt"], first_created);
+
+        // Fan-out admission: fanOutLimit is 2 and Ada already has two
+        // books, so a third refuses the whole mutation — no root row leaks.
+        let error = snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("third reference must exceed fanOutLimit 2");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROJECTION_FANOUT_EXCEEDED");
+        assert!(
+            book_id_missing(&snapback, "s-gamma"),
+            "the refused mutation left no root row behind"
+        );
+
+        // Output-key immutability: moving the marked key field refuses.
+        let beta_id = book_id(&snapback, "s-beta");
+        let error = snapback
+            .invoke_mutation(
+                "moveBookSlug",
+                HandlerInput {
+                    args: json!({ "id": beta_id, "slug": "s-beta-2" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("output-key fields are immutable under maintenance");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_PROJECTION_MAINTENANCE_INVALID"
+        );
+    }
+
+    fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
+        snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: vec![FilterExpr {
+                        field: "slug".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::Literal(json!(slug)),
+                    }],
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read books")
+            .rows
+            .is_empty()
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — activation
+    //   materializes under the local barrier: pre-existing source data
+    //   rebuilds into the output before the manifest installs, the receipt
+    //   pins the plan and streaming content digests, an unchanged plan
+    //   does not rebuild again, a revised plan republished keeps row
+    //   identity, and a pre-activation over-fan-out corpus refuses
+    //   activation whole.
+    #[test]
+    fn projection_activation_rebuild_materializes_and_republishes() {
+        let (schema, functions, _plan) = projection_fixture(5);
+        let mut snapback = LocalSnapback::memory().expect("memory rebuild fixture");
+        snapback.apply_schema(schema.clone()).expect("apply schema");
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed pre-activation data");
+
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "activation must succeed: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            "activation over existing data rebuilds: {diagnostics:?}"
+        );
+        let summaries = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read summaries")
+            .rows;
+        assert_eq!(summaries.len(), 2);
+        assert!(summaries.iter().all(|s| s["authorName"] == json!("Ada")));
+        let alpha_id = summaries[0]["_id"].clone();
+        let receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("read receipt")
+            .expect("receipt exists");
+        assert_eq!(receipt.row_count, 2);
+        assert_eq!(receipt.generation, 1);
+        assert_eq!(receipt.cause, "activation");
+        assert!(receipt.content_digest.starts_with("seq1:"));
+
+        // Reloading the identical plan does not rebuild again.
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(
+            diagnostics.iter().all(|d| d.code != "SNAPBACK_PROJECTION_REBUILT"),
+            "an unchanged plan digest must not rebuild: {diagnostics:?}"
+        );
+
+        // A revised plan (leaf now projects the author's slug) republished:
+        // one rebuild, updated bytes, key-stable row identity, new digest.
+        let mut revised = functions.clone();
+        revised.projections[0].projection[1].source =
+            crate::manifest::ProjectionSource::JoinedField("slug".to_owned());
+        let diagnostics = snapback.load_functions(revised);
+        assert!(
+            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            "{diagnostics:?}"
+        );
+        let revised_receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("read receipt")
+            .expect("receipt exists");
+        assert_eq!(revised_receipt.generation, 2);
+        assert_ne!(revised_receipt.content_digest, receipt.content_digest);
+        let summaries = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read summaries")
+            .rows;
+        assert!(summaries.iter().all(|s| s["authorName"] == json!("ada")));
+        assert_eq!(
+            summaries[0]["_id"], alpha_id,
+            "a plan revision re-materializes without re-keying row identity"
+        );
+
+        // Pre-activation over-fan-out corpus refuses activation whole: the
+        // manifest does not install and no output rows appear.
+        let (schema, functions, _plan) = projection_fixture(1);
+        let mut refused = LocalSnapback::memory().expect("memory refusal fixture");
+        refused.apply_schema(schema).expect("apply schema");
+        refused
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed over-fanout data");
+        let diagnostics = refused.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"),
+            "{diagnostics:?}"
+        );
+        let error = refused
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("a refused activation must not install the manifest");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — activation
+    //   refusals: chains, undeclared disclosure, an unprovable per-source
+    //   write budget, and the output-table write/read fences.
+    #[test]
+    fn maintained_projection_activation_refusals() {
+        let (schema, functions, plan) = projection_fixture(2);
+
+        let load = |schema: &SchemaManifest, functions: FunctionManifest| {
+            let mut snapback = LocalSnapback::memory().expect("memory refusal fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply refusal schema");
+            snapback.load_functions(functions)
+        };
+        let has = |diagnostics: &[crate::diagnostic::Diagnostic], code: &str| {
+            diagnostics
+                .iter()
+                .any(|d| d.code == code || d.message.contains(code))
+        };
+
+        // Undeclared disclosure: a public joined source feeding an owner
+        // output requires the explicit acknowledgment.
+        let mut undisclosed = functions.clone();
+        undisclosed.projections[0].shared_fan_out_disclosure = false;
+        let diagnostics = load(&schema, undisclosed);
+        assert!(
+            has(&diagnostics, "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"),
+            "{diagnostics:?}"
+        );
+
+        // Unprovable write budget: a second plan joined to authors whose
+        // fan-out plus the first plan's exceeds 1024 refuses activation.
+        let mut over_budget = functions.clone();
+        let mut second = plan.clone();
+        second.id = "book-summaries-2".to_owned();
+        second.output_table = "bookSummaries2".to_owned();
+        second.fan_out_limit = 1023;
+        let mut third = plan.clone();
+        third.id = "book-summaries-3".to_owned();
+        third.output_table = "bookSummaries3".to_owned();
+        third.fan_out_limit = 1023;
+        over_budget.projections.push(second);
+        over_budget.projections.push(third);
+        let mut wide_schema = schema.clone();
+        for name in ["bookSummaries2", "bookSummaries3"] {
+            let mut clone = wide_schema
+                .tables
+                .iter()
+                .find(|t| t.name == "bookSummaries")
+                .expect("summary table")
+                .clone();
+            clone.name = name.to_owned();
+            wide_schema.tables.push(clone);
+        }
+        let diagnostics = load(&wide_schema, over_budget);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"),
+            "{diagnostics:?}"
+        );
+
+        // Output write fence: a function writing the output table refuses.
+        let mut writes_output = functions.clone();
+        writes_output.functions.push(FunctionDefinition::new(
+            "forgeSummary",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "bookSummaries".to_owned(),
+                    values: BTreeMap::new(),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        ));
+        let diagnostics = load(&schema, writes_output);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_OUTPUT_WRITE_DENIED"),
+            "{diagnostics:?}"
+        );
+
+        // Output read fence: an owner-visible output read without the
+        // visibility predicate refuses; with it, it activates.
+        let read_plan = |filters: Vec<FilterExpr>| {
+            FunctionDefinition::new(
+                "readSummaries",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters,
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )
+        };
+        let mut raw_read = functions.clone();
+        raw_read.functions.push(read_plan(Vec::new()));
+        let diagnostics = load(&schema, raw_read);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED"),
+            "{diagnostics:?}"
+        );
+        let mut enforced_read = functions.clone();
+        enforced_read.functions.push(read_plan(vec![FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        }]));
+        let diagnostics = load(&schema, enforced_read);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "a visibility-composed read must activate: {diagnostics:?}"
+        );
+
+        // Chain refusal: a projection rooted on another's output.
+        let mut chained = functions;
+        let mut chain = plan;
+        chain.id = "chained".to_owned();
+        chain.root = "bookSummaries".to_owned();
+        chain.output_table = "bookSummaries2".to_owned();
+        chained.projections.push(chain);
+        let diagnostics = load(&wide_schema, chained);
+        assert!(
+            has(&diagnostics, "SNAPBACK_PROJECTION_PLAN_INVALID"),
+            "{diagnostics:?}"
+        );
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — the load-time
+    //   narrowings: an all-public relational plan stays
+    //   authority-partition-scoped (never authorityIndependent), and
+    //   retention is the closed default-deny capability — v1 authoring
+    //   admits only `none`, with its own honest refusal reason.
+    #[test]
+    fn relational_live_narrowings_hold_at_load() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let relational = functions.functions[0].clone();
+
+        let mut independent = relational.clone();
+        independent.authority_independent = true;
+        independent.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        let mut snapback = LocalSnapback::memory().expect("memory narrowing fixture");
+        snapback
+            .apply_schema(schema.clone())
+            .expect("apply narrowing schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![independent],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
+                    || d.message.contains("SNAPBACK_AUTHORITY_INDEPENDENT_INVALID")
+            }),
+            "a relational plan must not claim authorityIndependent: {diagnostics:?}"
+        );
+
+        let mut retainable = relational;
+        retainable.retainable = true;
+        let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
+        snapback.apply_schema(schema).expect("apply retention schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![retainable],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| {
+                (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+                    || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
+                    && d.message.contains("relationalRetentionNone")
+            }),
+            "relational retention is default-deny with an honest reason: {diagnostics:?}"
+        );
+    }
+
+    // @ref LLP 0065#4-capability-and-llp-0053-composition — a generated
+    //   standard pattern claims no skip and no live_delta: the identical
+    //   plan shape rides the delta lane without the pattern identity and
+    //   the conservative live_replace lane with it, and the capability
+    //   artifact records both the conservative delivery and the disabled
+    //   authScopeField disjointness-skip refinement.
+    #[test]
+    fn standard_pattern_live_is_conservative_and_recorded() {
+        use crate::manifest::{FieldManifest, FieldType, StandardPatternIdentity, TableManifest};
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "slug".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let lookup_plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![
+                FilterExpr {
+                    field: "ownerId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                },
+                FilterExpr {
+                    field: "slug".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("slug".to_owned()),
+                },
+            ],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        };
+        let mut pattern = FunctionDefinition::new(
+            "lookupPattern",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan.clone())),
+        );
+        pattern.standard_pattern = Some(StandardPatternIdentity {
+            helper: "owned-unique-lookup.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+        });
+        let control = FunctionDefinition::new(
+            "lookupControl",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan)),
+        );
+        let add = FunctionDefinition::new(
+            "addTodo",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "todos".to_owned(),
+                    values: BTreeMap::from([
+                        (
+                            "ownerId".to_owned(),
+                            ValueExpr::Literal(json!("user-a")),
+                        ),
+                        ("slug".to_owned(), ValueExpr::Arg("slug".to_owned())),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        );
+
+        let mut snapback = LocalSnapback::memory().expect("memory pattern-live fixture");
+        snapback.apply_schema(schema).expect("apply pattern-live schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![pattern, control, add],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "pattern-live fixture must activate: {diagnostics:?}"
+        );
+        let subscribe = |snapback: &mut LocalSnapback, name: &str| {
+            snapback
+                .subscribe_live(
+                    name,
+                    LiveSubscribeInput {
+                        connection_id: "conn-pattern-live".to_owned(),
+                        input: HandlerInput {
+                            args: json!({ "slug": "x" }),
+                            auth: AuthInput {
+                                user_id: Some("user-a".to_owned()),
+                                ..AuthInput::default()
+                            },
+                            ..HandlerInput::default()
+                        },
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .expect("subscribe pattern-live")
+        };
+        subscribe(&mut snapback, "lookupPattern");
+        subscribe(&mut snapback, "lookupControl");
+        snapback
+            .invoke_mutation(
+                "addTodo",
+                HandlerInput {
+                    args: json!({ "slug": "x" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert matching row");
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-pattern-live");
+        let kind_for = |function: &str| {
+            envelopes
+                .iter()
+                .find(|envelope| envelope["function"] == function)
+                .unwrap_or_else(|| panic!("{function} delivery missing: {envelopes:?}"))["kind"]
+                .clone()
+        };
+        assert_eq!(
+            kind_for("lookupControl"),
+            json!("live_delta"),
+            "the identical shape without the identity keeps the delta lane",
+        );
+        assert_eq!(
+            kind_for("lookupPattern"),
+            json!("live_replace"),
+            "a pattern-identified function never claims live_delta",
+        );
+
+        // The capability artifact records the posture (LLP 0065 §4) — and
+        // the narrow Cloudflare proof, which has no pattern runtime,
+        // deliberately claims nothing.
+        let local = crate::manifest::CapabilityManifest::local_v0_declared();
+        let facts = local.standard_patterns.expect("local pattern facts");
+        assert_eq!(facts.live_delivery, "conservative-resnapshot");
+        assert_eq!(facts.auth_scope_disjointness_skip, "disabled");
+        assert!(
+            crate::manifest::CapabilityManifest::cloudflare_do_sqlite_v8_declared()
+                .standard_patterns
+                .is_none()
+        );
+    }
+
+    // @ref LLP 0065#3-common-pattern-contracts — the Sessions-auth-mode
+    //   matrix: with real session identities (not the dev lane, which
+    //   canonicalizes sessions away), a keyset cursor minted under one
+    //   session refuses after a session re-mint for the same user — the
+    //   session-axis authority transition — and under another user's
+    //   session, byte-identically with the other refusal classes; the
+    //   relational family behaves the same.
+    #[test]
+    fn cursor_negatives_hold_under_sessions_authorities() {
+        let (schema, mut functions) = relational_live_fixture_functions(1);
+        // Add a keyset pair alongside the relational fixture so both cursor
+        // families run under the same session matrix.
+        let owner_filter = FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let page_plan = |with_cursor: bool| QueryPlan {
+            table: "books".to_owned(),
+            filters: if with_cursor {
+                vec![
+                    owner_filter.clone(),
+                    FilterExpr {
+                        field: "title".to_owned(),
+                        op: FilterOp::Gt,
+                        value: ValueExpr::Arg("after".to_owned()),
+                    },
+                ]
+            } else {
+                vec![owner_filter.clone()]
+            },
+            membership_filters: Vec::new(),
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            limit: Some(1),
+            indexed_by: Some("by_owner_title".to_owned()),
+        };
+        let pattern = || {
+            Some(crate::manifest::StandardPatternIdentity {
+                helper: "owned-keyset-pages.v1".to_owned(),
+                profile: "owner.v1".to_owned(),
+            })
+        };
+        let mut first_def = FunctionDefinition::new(
+            "firstBookPage",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(false))),
+        );
+        first_def.standard_pattern = pattern();
+        let mut next_def = FunctionDefinition::new(
+            "nextBookPage",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(true))),
+        );
+        next_def.standard_pattern = pattern();
+        functions.functions.push(first_def);
+        functions.functions.push(next_def);
+
+        let mut snapback = LocalSnapback::memory().expect("memory sessions fixture");
+        snapback.apply_schema(schema).expect("apply sessions schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "sessions fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed sessions rows");
+
+        let session = |user: &str, session_id: &str| {
+            crate::auth::invocation::InvocationGate::prepare_authority(
+                crate::auth::invocation::InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                crate::admin::ServerProfile::Test,
+                1,
+                1,
+                &crate::auth::invocation::WireAuthorityFields::default(),
+                crate::auth::invocation::ResolvedAppAuthority::Session {
+                    user_id: user.to_owned(),
+                    session_id: session_id.to_owned(),
+                    provider: "test".to_owned(),
+                    generation: 1,
+                    authority_instance_id: format!("authinst-{session_id}"),
+                    session_not_after_ms: u64::MAX / 2,
+                    provider_not_after_ms: None,
+                },
+            )
+            .expect("prepare session authority")
+        };
+        let invoke = |snapback: &LocalSnapback, name: &str, args: Value, user: &str, sid: &str| {
+            snapback.invoke_query_with_dependencies_prepared(
+                name,
+                HandlerInput {
+                    args,
+                    ..HandlerInput::default()
+                },
+                session(user, sid),
+            )
+        };
+
+        // Keyset family: mint under session s1, continue under s1, refuse
+        // under a re-minted session s2 (same user) and another user's
+        // session — the session axis the dev lane cannot express.
+        let page1 = invoke(&snapback, "firstBookPage", json!({}), "user-a", "s1")
+            .expect("sessions first page")
+            .output;
+        assert_eq!(page1.rows[0]["title"], json!("alpha"));
+        let cursor = page1.cursor.expect("sessions continuation");
+        let page2 = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor.clone() }),
+            "user-a",
+            "s1",
+        )
+        .expect("same-session continuation")
+        .output;
+        assert_eq!(page2.rows[0]["title"], json!("beta"));
+        let rotated = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor.clone() }),
+            "user-a",
+            "s2",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("session re-mint must refuse the cursor");
+        assert_eq!(
+            rotated.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        );
+        let cross_user = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor }),
+            "user-b",
+            "s9",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("another user's session must refuse the cursor");
+        assert_eq!(
+            (
+                cross_user.diagnostic.code.as_str(),
+                cross_user.diagnostic.message.as_str()
+            ),
+            (
+                rotated.diagnostic.code.as_str(),
+                rotated.diagnostic.message.as_str()
+            ),
+            "session-axis refusals stay byte-indistinguishable",
+        );
+
+        // Relational family: same session axis, same posture.
+        let rel1 = invoke(&snapback, "booksWithAuthors", json!({}), "user-a", "s1")
+            .expect("sessions relational page")
+            .output;
+        let rel_cursor = rel1.cursor.expect("relational continuation");
+        invoke(
+            &snapback,
+            "booksWithAuthors",
+            json!({ "cursor": rel_cursor.clone() }),
+            "user-a",
+            "s1",
+        )
+        .expect("same-session relational continuation");
+        let rel_rotated = invoke(
+            &snapback,
+            "booksWithAuthors",
+            json!({ "cursor": rel_cursor }),
+            "user-a",
+            "s2",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("session re-mint must refuse the relational cursor");
+        assert_eq!(
+            rel_rotated.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+    }
+
+    // @ref LLP 0065#3-common-pattern-contracts — defineOwnedKeysetPages'
+    //   continuation is an opaque versioned cursor bound to the app, the
+    //   pair plan identity, and the caller's authority partition: first
+    //   mints, next continues, a short page is terminal, and malformed,
+    //   raw-value, cross-pair, cross-owner, and stale-authority
+    //   presentations refuse byte-identically with
+    //   SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID.
+    #[test]
+    fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, StandardPatternIdentity, TableManifest,
+        };
+        let table = |name: &str, index: &str| TableManifest {
+            name: name.to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "pageKey".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: index.to_owned(),
+                fields: vec!["ownerId".to_owned(), "pageKey".to_owned()],
+                unique: true,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                table("pages", "by_owner_page_key"),
+                table("others", "by_owner_other_key"),
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let keyset_pair = |table: &str, index: &str, first: &str, next: &str| {
+            let base_plan = |with_cursor: bool| QueryPlan {
+                table: table.to_owned(),
+                filters: if with_cursor {
+                    vec![
+                        owner_filter.clone(),
+                        FilterExpr {
+                            field: "pageKey".to_owned(),
+                            op: FilterOp::Gt,
+                            value: ValueExpr::Arg("after".to_owned()),
+                        },
+                    ]
+                } else {
+                    vec![owner_filter.clone()]
+                },
+                membership_filters: Vec::new(),
+                order: vec![crate::manifest::OrderExpr {
+                    field: "pageKey".to_owned(),
+                    direction: crate::manifest::OrderDirection::Asc,
+                }],
+                limit: Some(2),
+                indexed_by: Some(index.to_owned()),
+            };
+            let pattern = || {
+                Some(StandardPatternIdentity {
+                    helper: "owned-keyset-pages.v1".to_owned(),
+                    profile: "owner.v1".to_owned(),
+                })
+            };
+            let mut first_def = FunctionDefinition::new(
+                first,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(base_plan(false))),
+            );
+            first_def.standard_pattern = pattern();
+            let mut next_def = FunctionDefinition::new(
+                next,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(base_plan(true))),
+            );
+            next_def.standard_pattern = pattern();
+            [first_def, next_def]
+        };
+        let [first_pages, next_pages] =
+            keyset_pair("pages", "by_owner_page_key", "firstPages", "nextPages");
+        let [first_other, next_other] =
+            keyset_pair("others", "by_owner_other_key", "firstOther", "nextOther");
+
+        let mut snapback = LocalSnapback::memory().expect("memory keyset fixture");
+        snapback.apply_schema(schema).expect("apply keyset schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![first_pages, next_pages, first_other, next_other],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "keyset fixture must activate: {diagnostics:?}"
+        );
+        let row = |owner: &str, key: i64| {
+            json!({ "ownerId": owner, "pageKey": key })
+                .as_object()
+                .cloned()
+                .expect("seed row")
+        };
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "pages".to_owned(),
+                        (1..=5).map(|key| row("user-a", key)).collect(),
+                    ),
+                    ("others".to_owned(), vec![row("user-a", 1)]),
+                ]),
+            })
+            .expect("seed keyset rows");
+
+        let input = |user: &str, args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let keys = |output: &crate::manifest::QueryOutput| {
+            output
+                .rows
+                .iter()
+                .map(|row| row["pageKey"].as_i64().expect("page key"))
+                .collect::<Vec<_>>()
+        };
+
+        // first → [1,2] + cursor; next → [3,4] + cursor; next → [5] terminal.
+        let page1 = snapback
+            .invoke_query("firstPages", input("user-a", json!({})))
+            .expect("first page");
+        assert_eq!(keys(&page1), vec![1, 2]);
+        let cursor1 = page1.cursor.expect("full first page mints a continuation");
+        assert!(
+            cursor1.starts_with("sbpc1."),
+            "cursor is versioned wire opaque: {cursor1}"
+        );
+        let page2 = snapback
+            .invoke_query("nextPages", input("user-a", json!({ "after": cursor1.clone() })))
+            .expect("second page");
+        assert_eq!(keys(&page2), vec![3, 4]);
+        let cursor2 = page2.cursor.expect("full next page mints a continuation");
+        let page3 = snapback
+            .invoke_query("nextPages", input("user-a", json!({ "after": cursor2 })))
+            .expect("terminal page");
+        assert_eq!(keys(&page3), vec![5]);
+        assert!(page3.cursor.is_none(), "a short page is terminal");
+
+        // Refusal classes, byte-identical to one another.
+        let refusal = |snapback: &LocalSnapback, user: &str, args: Value, function: &str| {
+            match snapback.invoke_query(function, input(user, args.clone())) {
+                Err(error) => error,
+                Ok(output) => panic!(
+                    "cursor presentation must refuse: {function} {user} {args} -> {output:?}"
+                ),
+            }
+        };
+        let malformed = refusal(
+            &snapback,
+            "user-a",
+            json!({ "after": "sbpc1.garbage" }),
+            "nextPages",
+        );
+        assert_eq!(
+            malformed.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        );
+        // A raw boundary value — the pre-opaque wire shape — is refused, not
+        // silently honored: pagination is cursor-in, cursor-out only.
+        let raw_value = refusal(&snapback, "user-a", json!({ "after": 2 }), "nextPages");
+        // Cross-pair: a pages cursor presented to the others pair.
+        let cross_pair = refusal(
+            &snapback,
+            "user-a",
+            json!({ "after": cursor1.clone() }),
+            "nextOther",
+        );
+        // Cross-owner: another caller presents the cursor.
+        let cross_owner = refusal(
+            &snapback,
+            "user-b",
+            json!({ "after": cursor1.clone() }),
+            "nextPages",
+        );
+        // Stale authority: the caller's permission-scope epoch rolled.
+        snapback
+            .permission_epochs
+            .insert(super::user_permission_scope("user-a"), 3);
+        let stale = refusal(&snapback, "user-a", json!({ "after": cursor1 }), "nextPages");
+        for refused in [&raw_value, &cross_pair, &cross_owner, &stale] {
+            assert_eq!(
+                (
+                    refused.diagnostic.code.as_str(),
+                    refused.diagnostic.message.as_str()
+                ),
+                (
+                    malformed.diagnostic.code.as_str(),
+                    malformed.diagnostic.message.as_str()
+                ),
+                "every standard-pattern cursor refusal class is byte-indistinguishable",
+            );
+        }
     }
 
     #[test]
@@ -15357,6 +20680,7 @@ globalThis.__snapbackHandlers = {
             },
             authorization_namespace: None,
             supersedes: None,
+            resume_from_token: None,
         }
     }
 
@@ -15517,6 +20841,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -15546,6 +20871,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(1)),
             supersedes: None,
+            resume_from_token: None,
         };
         let unavailable = snapback
             .subscribe_live_with_invalidation(
@@ -15624,6 +20950,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(2)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -15753,6 +21080,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -15966,6 +21294,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(20)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -16107,6 +21436,7 @@ globalThis.__snapbackHandlers = {
                         query_instance_id: 30,
                     }),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -16720,6 +22050,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -16980,6 +22311,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: None,
                     supersedes: None,
+                    resume_from_token: None,
                 },
             )
             .expect("subscribe");
@@ -17631,9 +22963,9 @@ globalThis.__snapbackHandlers = {
         let publication = snapback
             .finalize_subscribe_live_for_transport(&staged)
             .expect("post-act query and publication");
-        assert_eq!(publication.output.snapshot.rows.len(), 1);
+        assert_eq!(publication.output.snapshot.as_ref().unwrap().rows.len(), 1);
         assert_eq!(
-            publication.output.snapshot.rows[0]["value"],
+            publication.output.snapshot.as_ref().unwrap().rows[0]["value"],
             json!("after-prepare")
         );
     }
@@ -17941,6 +23273,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(instance)),
             supersedes,
+            resume_from_token: None,
         };
         let invalidation = || LiveInvalidationAdmission {
             connection: Some(connection.clone()),
@@ -18066,6 +23399,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(91)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18119,6 +23453,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(200)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18192,6 +23527,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(201)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18261,6 +23597,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(202)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 test_live_session_authority(
                     InvocationSource::LiveInitialQuery,
@@ -18371,6 +23708,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(202)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18384,6 +23722,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(instance)),
             supersedes: Some(subscribed.subscription_id.clone()),
+            resume_from_token: None,
         };
 
         let error = snapback
@@ -18448,6 +23787,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18498,6 +23838,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18611,6 +23952,7 @@ globalThis.__snapbackHandlers = {
                     },
                     authorization_namespace: Some(test_authorization_namespace(93)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(predecessor_connection.clone()),
@@ -18748,6 +24090,7 @@ globalThis.__snapbackHandlers = {
                     },
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18806,5 +24149,1291 @@ globalThis.__snapbackHandlers = {
                 .is_empty(),
             "the retained predecessor fence receives the fail-closed hint",
         );
+    }
+
+    // ------------------------------------------------------------------
+    // RQS resumeFromToken admission, rungs 1 & 3, token refresh (LLP 0090
+    // rollout step 1; contract LLP 0091). Acceptance list: LLP 0090
+    // "Rollout sketch" step 1.
+    // ------------------------------------------------------------------
+
+    fn rqs_schema() -> SchemaManifest {
+        SchemaManifest {
+            schema_hash: Some("rqs-schema-v0".to_owned()),
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "rank".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn rqs_public_live_query(name: &str, ordered: bool) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "todos".to_owned(),
+                filters: Vec::new(),
+                order: if ordered {
+                    vec![crate::manifest::OrderExpr {
+                        field: "rank".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        function.authority_independent = true;
+        function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        // The LLP 0092 §0C.2 closed-inputs proof: eligibility derivation
+        // requires the complete `singleTable` summary codegen always emits.
+        function.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("todos".to_owned()),
+            tables: vec!["todos".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
+        function
+    }
+
+    fn rqs_functions() -> FunctionManifest {
+        let create = FunctionDefinition::new(
+            "createTodo",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "todos".to_owned(),
+                    values: BTreeMap::from([
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        (
+                            "rank".to_owned(),
+                            ValueExpr::Literal(Value::Number(1.into())),
+                        ),
+                    ]),
+                    bind_id_as: Some("todoId".to_owned()),
+                }],
+                return_value: Some(crate::manifest::ReturnValue::Binding("todoId".to_owned())),
+            })),
+        );
+        let mut scoped = FunctionDefinition::new(
+            "listMineOnly",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "todos".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "title".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        scoped.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        // Predicate-scoped public query for the rung-2 exit fixtures: only
+        // rank == 1 rows are in the result, so a rank change is a predicate
+        // exit (the row still exists, but left the result while offline).
+        let mut visible = rqs_public_live_query("listVisibleTodos", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut visible.runtime {
+            plan.filters.push(FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::Number(1.into())),
+            });
+        }
+        let set_rank = FunctionDefinition::new(
+            "setRank",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([("rank".to_owned(), ValueExpr::Arg("rank".to_owned()))]),
+                }],
+                return_value: None,
+            })),
+        );
+        let set_title = FunctionDefinition::new(
+            "setTitle",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Arg("title".to_owned()),
+                    )]),
+                }],
+                return_value: None,
+            })),
+        );
+        FunctionManifest {
+            bundle_hash: Some("rqs-functions-v0".to_owned()),
+            functions: vec![
+                rqs_public_live_query("listPublicTodos", false),
+                rqs_public_live_query("listRankedTodos", true),
+                visible,
+                scoped,
+                create,
+                set_rank,
+                set_title,
+            ],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn rqs_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.apply_schema(rqs_schema()).expect("apply schema");
+        let diagnostics = snapback.load_functions(rqs_functions());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+            "unexpected load diagnostics: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    fn rqs_subscribe_input(
+        connection_id: &str,
+        resume: Option<crate::live_wire::ResumeFromToken>,
+    ) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: None,
+            supersedes: None,
+            resume_from_token: resume,
+        }
+    }
+
+    fn rqs_wrap(resume: crate::live_wire::ResumeWire) -> Option<crate::live_wire::ResumeFromToken> {
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: None,
+        })
+    }
+
+    fn rqs_wrap_with_witness(
+        resume: crate::live_wire::ResumeWire,
+        witness: crate::live_wire::MembershipWitnessWire,
+    ) -> Option<crate::live_wire::ResumeFromToken> {
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: Some(witness),
+        })
+    }
+
+    /// The witness a well-behaved client derives from held wire rows: exact
+    /// `(rowId, oldRowHash)` pairs in ascending id order with an explicit
+    /// count (LLP 0091 rung-2 amendment).
+    fn rqs_witness_of_rows(rows: &[Value]) -> crate::live_wire::MembershipWitnessWire {
+        use base64::Engine as _;
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
+            .iter()
+            .map(|row| crate::live_wire::MembershipWitnessEntry {
+                id: crate::rqs::row_wire_id(row).expect("wire row id").to_owned(),
+                old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
+            })
+            .collect();
+        entries.sort_by(|a, b| a.id.encode_utf16().cmp(b.id.encode_utf16()));
+        crate::live_wire::MembershipWitnessWire {
+            count: entries.len() as u32,
+            entries,
+        }
+    }
+
+    fn rqs_user_input(user_id: &str) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: Some(user_id.to_owned()),
+                user_id: Some(user_id.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn rqs_drained_envelopes(snapback: &mut LocalSnapback, connection_id: &str) -> Vec<Value> {
+        snapback
+            .drain_live_stream(connection_id)
+            .into_iter()
+            .map(|text| serde_json::from_str(&text).expect("durable envelope json"))
+            .collect()
+    }
+
+    fn rqs_resume_from_value(value: &Value) -> crate::live_wire::ResumeWire {
+        serde_json::from_value(value.clone()).expect("resume wire decodes")
+    }
+
+    #[test]
+    fn rqs_interim_eligibility_fails_closed_on_opaque_and_ambient_plans() {
+        // Opaque runtime declared authority-independent: no journal proof or
+        // replay is sound, so eligibility must refuse even though the
+        // declaration claims independence (LLP 0090 Authorization scope).
+        let mut opaque = FunctionDefinition::new(
+            "opaqueDeclared",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "opaqueDeclared".to_owned(),
+            }),
+        );
+        opaque.authority_independent = true;
+        opaque.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        assert!(super::rqs_eligibility(&opaque).is_none());
+
+        // Time-dependent filter (RuntimeNow): not a pure function of
+        // (database state, args) — fail closed.
+        let mut time_dependent = rqs_public_live_query("timeDependent", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut time_dependent.runtime {
+            plan.filters.push(FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Lt,
+                value: ValueExpr::RuntimeNow,
+            });
+        }
+        assert!(super::rqs_eligibility(&time_dependent).is_none());
+
+        // Undeclared queries stay ineligible; declared unordered takes mset1
+        // and ordered takes seq1 (the LLP 0091 §0A.4 kind selector).
+        assert!(
+            super::rqs_eligibility(&FunctionDefinition::new(
+                "undeclared",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "todos".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            ))
+            .is_none()
+        );
+        assert_eq!(
+            super::rqs_eligibility(&rqs_public_live_query("u", false)),
+            Some(crate::rqs::DigestKind::Mset1)
+        );
+        assert_eq!(
+            super::rqs_eligibility(&rqs_public_live_query("o", true)),
+            Some(crate::rqs::DigestKind::Seq1)
+        );
+    }
+
+    #[test]
+    fn rqs_idle_resume_answers_current_as_of_with_zero_rows_and_token_advance() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("fresh subscribe");
+        let minted = first
+            .resume
+            .clone()
+            .expect("eligible subscribe mints a token");
+        assert!(minted.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(
+            minted.meta.version,
+            first.snapshot.as_ref().unwrap().version
+        );
+        assert!(minted.meta.content_digest.starts_with("mset1:"));
+
+        // Idle resume: nothing committed since the token — rung 1.
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted.clone())),
+            )
+            .expect("token resume subscribe");
+        assert!(resumed.snapshot.is_none(), "rung 1 sends zero rows");
+        assert!(
+            resumed.resume.is_none(),
+            "the fresh token rides CurrentAsOf"
+        );
+        assert_eq!(resumed.resume_refusal, None);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        assert_eq!(
+            envelopes[0]["subscription_id"],
+            json!(resumed.subscription_id)
+        );
+        assert_eq!(envelopes[0]["version"], minted.meta.version);
+        // The fresh token is minted at the same (version, digest) — its
+        // bytes differ only by issuedAt, so two mints inside one millisecond
+        // are legitimately identical (the shared-mint rule). Assert the
+        // advance semantics, not byte inequality.
+        let advanced = rqs_resume_from_value(&envelopes[0]["resume"]);
+        assert!(advanced.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(advanced.meta.version, minted.meta.version);
+        assert_eq!(advanced.meta.content_digest, minted.meta.content_digest);
+
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.attempted, 1);
+        assert_eq!(stats.current_as_of_answers, 1);
+        assert_eq!(stats.fresh_replace_answers, 0);
+        assert_eq!(stats.last_journal_distance, 0);
+    }
+
+    #[test]
+    fn rqs_tokens_refresh_across_delta_replace_and_current_as_of() {
+        let mut snapback = rqs_snapback();
+        // Unordered (mset1) subscription refreshes through live_delta.
+        let unordered = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe unordered");
+        let initial = unordered.resume.clone().expect("initial mint");
+        // Ordered (seq1) subscription refreshes through live_replace.
+        let ordered = snapback
+            .subscribe_live("listRankedTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe ordered");
+        let ordered_initial = ordered.resume.clone().expect("ordered initial mint");
+        assert!(ordered_initial.meta.content_digest.starts_with("seq1:"));
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "one" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("create todo");
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-a");
+        assert_eq!(envelopes.len(), 2);
+        let delta = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_delta")
+            .expect("unordered subscription refreshes via delta");
+        let replace = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_replace")
+            .expect("ordered subscription refreshes via replace");
+        let refreshed = rqs_resume_from_value(&delta["resume"]);
+        assert_eq!(refreshed.meta.version, delta["version"].as_u64().unwrap());
+        assert_ne!(refreshed.meta.content_digest, initial.meta.content_digest);
+        let ordered_refreshed = rqs_resume_from_value(&replace["resume"]);
+        assert!(ordered_refreshed.meta.content_digest.starts_with("seq1:"));
+        assert_ne!(
+            ordered_refreshed.meta.content_digest,
+            ordered_initial.meta.content_digest
+        );
+
+        // The refreshed delta token resumes rung-1 — and CurrentAsOf itself
+        // carries the next fresh token (the third refresh boundary).
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(refreshed.clone())),
+            )
+            .expect("resume at refreshed token");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        let advanced = rqs_resume_from_value(&envelopes[0]["resume"]);
+        assert!(advanced.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(advanced.meta.content_digest, refreshed.meta.content_digest);
+    }
+
+    #[test]
+    fn rqs_stale_token_takes_rung3_and_table_set_falls_through_without_summary() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let stale = first.resume.clone().expect("initial mint");
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "advance" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("advance head");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(stale.clone())),
+            )
+            .expect("stale resume subscribe");
+        // Journal floor holds, but no certified dependency summary exists
+        // (cluster 0C), so the table-set arm always falls through to rung 3.
+        let snapshot = resumed.snapshot.as_ref().expect("rung 3 sends rows");
+        assert_eq!(snapshot.rows.len(), 1);
+        assert!(resumed.resume.is_some(), "rung 3 still refreshes the token");
+        assert_eq!(
+            resumed.resume_refusal, None,
+            "fall-through is not a refusal"
+        );
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.no_certified_summary, 1);
+        assert_eq!(stats.fresh_replace_answers, 1);
+        assert_eq!(stats.current_as_of_answers, 0);
+        assert_eq!(stats.last_journal_distance, 1);
+
+        // Journal floor miss: prune everything, then the same stale token
+        // refuses with the floor code (still answered with rows).
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "advance again" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("advance head again");
+        snapback
+            .prune_change_journal(now_millis() + 60_000, 0, 0)
+            .expect("prune journal");
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-c", rqs_wrap(stale)),
+            )
+            .expect("floor-refused resume subscribe");
+        assert!(refused.snapshot.is_some());
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_JOURNAL_FLOOR")
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_JOURNAL_FLOOR"],
+            1
+        );
+    }
+
+    #[test]
+    fn rqs_refusals_are_per_cause_and_never_fail_the_subscribe() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let good = first.resume.clone().expect("mint");
+
+        // Malformed garbage.
+        let mut garbage = good.clone();
+        garbage.token = "not-a-token".to_owned();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(garbage)),
+            )
+            .expect("malformed token still subscribes");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_TOKEN_MALFORMED")
+        );
+        assert!(refused.snapshot.is_some());
+
+        // Args mismatch: the token binds the exact canonical args.
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                LiveSubscribeInput {
+                    connection_id: "conn-c".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "cursor": 5 }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: rqs_wrap(good.clone()),
+                },
+            )
+            .expect("args-mismatch subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_QUERY_MISMATCH")
+        );
+
+        // Hand-crafted bodies signed by the live keyring exercise the
+        // remaining per-cause codes admission can reach. The base body
+        // mirrors the genuinely minted token's identity axes exactly, so
+        // each case's single perturbed field is the refusing axis.
+        let now = now_millis();
+        let base_body = crate::rqs::ResumeTokenBody {
+            app: good.meta.app.clone(),
+            generation: good.meta.generation.clone(),
+            version_stream: good.meta.version_stream.clone(),
+            version: good.meta.version,
+            query_artifact: good.meta.query_artifact.clone(),
+            args_hash: good.meta.args_hash.clone(),
+            digest_kind: "mset1".to_owned(),
+            content_digest: good.meta.content_digest.clone(),
+            issued_at: now,
+            auth_partition: None,
+        };
+        let (key_id, key) = snapback
+            .resume_keyring
+            .write()
+            .expect("keyring lock")
+            .active(now)
+            .expect("active key");
+        let mint = |body: &crate::rqs::ResumeTokenBody| crate::live_wire::ResumeWire {
+            token: crate::rqs::mint_token_wire(key.as_ref(), &key_id, body),
+            meta: crate::live_wire::ResumeMeta {
+                app: body.app.clone(),
+                version: body.version,
+                content_digest: body.content_digest.clone(),
+                generation: body.generation.clone(),
+                version_stream: body.version_stream.clone(),
+                query_artifact: body.query_artifact.clone(),
+                args_hash: body.args_hash.clone(),
+            },
+        };
+
+        let cases: Vec<(crate::rqs::ResumeTokenBody, &str)> = vec![
+            (
+                crate::rqs::ResumeTokenBody {
+                    app: "someone-elses-app".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_APP_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    generation: "gen1:0000".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_GENERATION_STALE",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    version_stream: "not-the-stream".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_STREAM_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    digest_kind: "seq1".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_DIGEST_KIND_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    version: 40_000,
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_VERSION_IMPLAUSIBLE",
+            ),
+        ];
+        for (index, (body, expected)) in cases.into_iter().enumerate() {
+            let wire = mint(&body);
+            let refused = snapback
+                .subscribe_live(
+                    "listPublicTodos",
+                    rqs_subscribe_input(&format!("conn-case-{index}"), rqs_wrap(wire)),
+                )
+                .expect("refused token still subscribes");
+            assert_eq!(refused.resume_refusal.as_deref(), Some(expected));
+            assert!(refused.snapshot.is_some(), "every refusal answers rung 3");
+            assert_eq!(snapback.live_delivery.resume.refused[expected], 1);
+        }
+
+        // Eligibility: a well-formed token naming an auth-dependent query is
+        // NOT_ELIGIBLE (its artifact/args must match that query for the
+        // eligibility check to be the refusing axis).
+        let scoped = snapback.function("listMineOnly").expect("function").clone();
+        let scoped_artifact =
+            crate::rqs::query_artifact_hash(&serde_json::to_value(&scoped).unwrap()).unwrap();
+        let ineligible = crate::rqs::ResumeTokenBody {
+            query_artifact: scoped_artifact,
+            ..base_body.clone()
+        };
+        let wire = mint(&ineligible);
+        let refused = snapback
+            .subscribe_live(
+                "listMineOnly",
+                LiveSubscribeInput {
+                    connection_id: "conn-ineligible".to_owned(),
+                    input: rqs_user_input("user_1"),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: rqs_wrap(wire),
+                },
+            )
+            .expect("ineligible subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_NOT_ELIGIBLE")
+        );
+        assert!(refused.resume.is_none(), "no token is ever minted for it");
+    }
+
+    #[test]
+    fn rqs_auth_dependent_subscriptions_never_mint() {
+        let mut snapback = rqs_snapback();
+        let scoped = snapback
+            .subscribe_live(
+                "listMineOnly",
+                LiveSubscribeInput {
+                    connection_id: "conn-a".to_owned(),
+                    input: rqs_user_input("user_1"),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe auth-dependent query");
+        assert!(scoped.resume.is_none());
+        assert!(scoped.snapshot.is_some());
+        // And its fan-out envelopes carry no resume either.
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "x" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("mutate");
+        for envelope in rqs_drained_envelopes(&mut snapback, "conn-a") {
+            assert!(envelope.get("resume").is_none());
+        }
+        assert_eq!(snapback.live_delivery.resume.tokens_minted, 0);
+    }
+
+    #[test]
+    fn rqs_mutation_after_answer_and_register_loses_no_ops() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let minted = first.resume.clone().expect("mint");
+
+        // Answer-and-register happens under one &mut cut; the next mutation
+        // must fan out to the resumed subscription with nothing skipped.
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted)),
+            )
+            .expect("resume");
+        assert!(resumed.snapshot.is_none(), "rung-1 answer");
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "raced" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("mutate after registration");
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        let delta = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_delta")
+            .expect("the racing mutation reaches the resumed subscription");
+        let ops = delta["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0]["op"], "add");
+        assert_eq!(ops[0]["row"]["title"], "raced");
+        // The delta also refreshed the token past the CurrentAsOf version.
+        let refreshed = rqs_resume_from_value(&delta["resume"]);
+        assert!(refreshed.meta.version > 0);
+    }
+
+    fn rqs_create_todo(snapback: &mut LocalSnapback, title: &str) {
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": title }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("create todo");
+    }
+
+    fn rqs_row_id_by_title(rows: &[Value], title: &str) -> String {
+        rows.iter()
+            .find(|row| row["title"] == json!(title))
+            .and_then(|row| row["_id"].as_str())
+            .expect("row id by title")
+            .to_owned()
+    }
+
+    #[test]
+    fn rqs_delta_replay_resumes_including_predicate_exit_rows() {
+        // LLP 0090 rollout step 6: a DK-3-eligible fixture resumes via
+        // deltas, including a row that left the result while offline via a
+        // predicate exit — exactly removed, never silently retained.
+        let mut snapback = rqs_snapback();
+        // The untouched row carries real weight so the bytes-avoided
+        // estimate is visibly positive: replay never resends it.
+        let keep_title = format!("keep-{}", "x".repeat(400));
+        rqs_create_todo(&mut snapback, &keep_title);
+        rqs_create_todo(&mut snapback, "exit");
+        rqs_create_todo(&mut snapback, "change");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        assert_eq!(held.len(), 3);
+        let token = first.resume.clone().expect("mint");
+        let id_exit = rqs_row_id_by_title(&held, "exit");
+        let id_change = rqs_row_id_by_title(&held, "change");
+
+        // Offline gap: one predicate exit, one content change, one enter.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_exit, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_change, "title": "changed" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("content change");
+        rqs_create_todo(&mut snapback, "entered");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none(), "rung 2 sends no rows inline");
+        assert!(resumed.resume.is_none(), "the fresh token rides the delta");
+        assert_eq!(resumed.resume_refusal, None);
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 3);
+        let op_for = |id: &str| {
+            ops.iter()
+                .find(|op| op["id"] == json!(id))
+                .unwrap_or_else(|| panic!("op for {id}"))
+        };
+        let exit_op = op_for(&id_exit);
+        assert_eq!(exit_op["op"], "remove");
+        assert!(exit_op.get("row").is_none(), "removals carry no row");
+        assert_eq!(op_for(&id_change)["op"], "update");
+        assert_eq!(op_for(&id_change)["row"]["title"], "changed");
+        let enter_op = ops
+            .iter()
+            .find(|op| op["op"] == "add")
+            .expect("enter op");
+        assert_eq!(enter_op["row"]["title"], "entered");
+
+        // The fresh token was minted from the updated accumulator and
+        // matches the exact current result (client post-replay verification
+        // target, T8).
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let current = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-c", None))
+            .expect("current snapshot");
+        let expected = crate::rqs::ResultDigest::from_rows(
+            crate::rqs::DigestKind::Mset1,
+            &current.snapshot.as_ref().unwrap().rows,
+        )
+        .unwrap();
+        assert_eq!(fresh.meta.content_digest, expected.published());
+        assert_eq!(
+            fresh.meta.version,
+            envelopes[0]["version"].as_u64().unwrap()
+        );
+
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.attempted, 1);
+        assert_eq!(stats.delta_replay_answers, 1);
+        assert_eq!(stats.replay_ops, 3);
+        assert!(stats.replay_bytes_avoided > 0, "3 ops beat a 3-row replace");
+        assert_eq!(stats.current_as_of_answers, 0);
+        assert_eq!(stats.fresh_replace_answers, 0);
+    }
+
+    #[test]
+    fn rqs_delta_replay_strict_subset_mints_root_with_untouched_leaves() {
+        // The accumulator-update rule (LLP 0090 D1.3, v0.6 correction): only
+        // journal-affected ids are touched, so the minted root still
+        // contains the untouched rows' leaves.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_b = rqs_row_id_by_title(&held, "b");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_b, "title": "b2" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("strict-subset change");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1, "only the changed row is replayed");
+        assert_eq!(ops[0]["id"], json!(id_b));
+        assert_eq!(ops[0]["op"], "update");
+
+        // Applying the op to the held rows client-side reproduces the fresh
+        // root: the untouched a/c leaves are still in it.
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let replayed: Vec<Value> = held
+            .iter()
+            .map(|row| {
+                if row["_id"] == json!(id_b) {
+                    ops[0]["row"].clone()
+                } else {
+                    row.clone()
+                }
+            })
+            .collect();
+        let recomputed =
+            crate::rqs::ResultDigest::from_rows(crate::rqs::DigestKind::Mset1, &replayed).unwrap();
+        assert_eq!(fresh.meta.content_digest, recomputed.published());
+    }
+
+    #[test]
+    fn rqs_replay_with_no_result_intersection_upgrades_to_current_as_of() {
+        // Journal-affected rows that never intersected the result (created
+        // outside the predicate) yield an empty replay: the verified witness
+        // proves the held rows current — a CurrentAsOf answer, zero ops.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "held");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // A new row that immediately leaves the predicate: journal-affected,
+        // in the result on neither side of the gap.
+        rqs_create_todo(&mut snapback, "outside");
+        let outside = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-x", None))
+            .expect("lookup");
+        let id_outside =
+            rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_outside, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("leave predicate");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        assert_eq!(snapback.live_delivery.resume.current_as_of_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_witness_over_cap_or_ambiguous_refuses_to_rung3() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        rqs_create_todo(&mut snapback, "advance");
+
+        // Entry cap (server policy knob): over the cap refuses OVERSIZE and
+        // answers rung 3 with full rows.
+        snapback.rqs_replay_policy.max_witness_entries = 2;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-cap subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        assert_eq!(refused.snapshot.as_ref().unwrap().rows.len(), 4);
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Byte cap independently refuses.
+        snapback.rqs_replay_policy.max_witness_bytes = 16;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-byte subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Decode ambiguity: an explicit count that disagrees with the
+        // entries (truncation) refuses INVALID — never a best-guess replay.
+        let mut truncated = rqs_witness_of_rows(&held);
+        truncated.count += 1;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-d", rqs_wrap_with_witness(token.clone(), truncated)),
+            )
+            .expect("count-mismatch subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert!(refused.snapshot.is_some());
+
+        // Out-of-order entries (which also catches duplicates) are ambiguity.
+        let mut unordered = rqs_witness_of_rows(&held);
+        unordered.entries.reverse();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-e", rqs_wrap_with_witness(token.clone(), unordered)),
+            )
+            .expect("out-of-order subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+
+        // Duplicate id.
+        let mut duplicated = rqs_witness_of_rows(&held);
+        duplicated.entries[1] = duplicated.entries[0].clone();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-f", rqs_wrap_with_witness(token, duplicated)),
+            )
+            .expect("duplicate-id subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_OVERSIZE"],
+            2
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_INVALID"],
+            3
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_adversarial_witnesses_never_suppress_a_removal() {
+        // Rollout step 6's adversarial fixtures: omitted, extra,
+        // substituted, correct-id/wrong-hash, and hash-permutation witnesses
+        // all fail the MAC-bound root check before any replay is admitted —
+        // and every refusal answers with the full fresh snapshot, so the
+        // offline removal is delivered regardless.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_removed = rqs_row_id_by_title(&held, "b");
+        // The offline removal a lying witness must not be able to suppress.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_removed, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+
+        let honest = rqs_witness_of_rows(&held);
+        let mut cases: Vec<(&str, crate::live_wire::MembershipWitnessWire)> = Vec::new();
+        // Omitted: the removed row's entry is missing (a witness that never
+        // admits having held it).
+        let mut omitted = honest.clone();
+        omitted
+            .entries
+            .retain(|entry| entry.id != id_removed);
+        omitted.count = omitted.entries.len() as u32;
+        cases.push(("omitted", omitted));
+        // Extra: a fabricated held row.
+        let mut extra = honest.clone();
+        extra.entries.push(crate::live_wire::MembershipWitnessEntry {
+            id: "zzz-fabricated".to_owned(),
+            old_row_hash: {
+                use base64::Engine as _;
+                base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+            },
+        });
+        extra.count = extra.entries.len() as u32;
+        cases.push(("extra", extra));
+        // Substituted: one entry's hash replaced with a hash of different
+        // content (correct id, wrong hash).
+        let mut substituted = honest.clone();
+        let target = substituted
+            .entries
+            .iter_mut()
+            .find(|entry| entry.id == id_removed)
+            .unwrap();
+        target.old_row_hash = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+        };
+        cases.push(("correct-id-wrong-hash", substituted));
+        // Hash permutation: two valid hashes swapped between valid ids — the
+        // keyed leaf makes this fail even though the hash multiset matches.
+        let mut permuted = honest.clone();
+        let swap = permuted.entries[0].old_row_hash.clone();
+        permuted.entries[0].old_row_hash = permuted.entries[2].old_row_hash.clone();
+        permuted.entries[2].old_row_hash = swap;
+        cases.push(("hash-permutation", permuted));
+
+        for (index, (label, witness)) in cases.into_iter().enumerate() {
+            let refused = snapback
+                .subscribe_live(
+                    "listVisibleTodos",
+                    rqs_subscribe_input(
+                        &format!("conn-adv-{index}"),
+                        rqs_wrap_with_witness(token.clone(), witness),
+                    ),
+                )
+                .unwrap_or_else(|_| panic!("adversarial witness {label} still subscribes"));
+            assert_eq!(
+                refused.resume_refusal.as_deref(),
+                Some("SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"),
+                "{label} must fail the joint root check"
+            );
+            let rows = &refused.snapshot.as_ref().expect("rung 3 rows").rows;
+            assert!(
+                rows.iter().all(|row| row["_id"] != json!(id_removed.as_str())),
+                "{label}: the removal is delivered by replacement, never suppressed"
+            );
+        }
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"],
+            4
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_replay_vs_replace_policy_knob_is_honored() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "one");
+        rqs_create_todo(&mut snapback, "two");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // Three journal-affected rows against a 2-entry witness: over the
+        // default 100% threshold (max(1, 2*100/100) = 2), so the server
+        // chooses replacement — the delta could not be smaller than the
+        // replacement.
+        rqs_create_todo(&mut snapback, "three");
+        rqs_create_todo(&mut snapback, "four");
+        rqs_create_todo(&mut snapback, "five");
+        let replaced = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-replaced subscribe");
+        assert_eq!(
+            replaced.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_POLICY_REPLACED")
+        );
+        assert_eq!(replaced.snapshot.as_ref().unwrap().rows.len(), 5);
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_POLICY_REPLACED"],
+            1
+        );
+
+        // Raising the knob admits the same replay: 3 affected ≤ max(1,
+        // 2*300/100) = 6.
+        snapback.rqs_replay_policy.replay_affected_percent = 300;
+        let replayed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-admitted subscribe");
+        assert!(replayed.snapshot.is_none());
+        assert_eq!(replayed.resume_refusal, None);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-c");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        assert_eq!(envelopes[0]["ops"].as_array().unwrap().len(), 3);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.replay_ops, 3);
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a crash
+    //   between predecessor reopen and resume: the persisted fence closes
+    //   admission on every lane at process open, from durable state alone.
+    #[test]
+    fn migration_fence_survives_process_reopen() {
+        let dir =
+            std::env::temp_dir().join(format!("snapback-mig-fence-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("mig-fence.sqlite");
+        let _ = std::fs::remove_file(&path);
+        {
+            let mut snapback = LocalSnapback::open(&path).expect("open");
+            assert!(snapback.admission.snapshot().accepting, "unfenced open accepts");
+            snapback
+                .db
+                .install_migration_fence_for_test("operation-v1:reopen")
+                .expect("install fence");
+        }
+        // Fresh process state over the same database: still fenced.
+        let reopened = LocalSnapback::open(&path).expect("reopen");
+        assert!(
+            !reopened.admission.snapshot().accepting,
+            "a fenced database must reopen with admission closed on every lane"
+        );
+        assert!(reopened.db.migration_fence().expect("fence").is_some());
+    }
+
+    #[test]
+    fn rqs_resume_keyring_survives_restart_on_disk() {
+        let dir = std::env::temp_dir().join(format!("snapback-rqs-restart-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("rqs-restart.sqlite");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
+
+        let minted = {
+            let mut snapback = LocalSnapback::open(&path).expect("open snapback");
+            snapback.apply_schema(rqs_schema()).expect("apply schema");
+            let diagnostics = snapback.load_functions(rqs_functions());
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
+            );
+            snapback
+                .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+                .expect("subscribe")
+                .resume
+                .expect("mint")
+        };
+
+        // Dev-loop restart: same database, fresh process state. The
+        // resume-keyring file (and the content-derived generation) keep the
+        // outstanding token admissible — rung 1.
+        let mut reopened = LocalSnapback::open(&path).expect("reopen snapback");
+        reopened.apply_schema(rqs_schema()).expect("reapply schema");
+        let diagnostics = reopened.load_functions(rqs_functions());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
+        );
+        let resumed = reopened
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted)),
+            )
+            .expect("resume after restart");
+        assert!(
+            resumed.snapshot.is_none(),
+            "restart preserves the ring and generation: {:?}",
+            resumed.resume_refusal
+        );
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
     }
 }

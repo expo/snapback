@@ -1,0 +1,48 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.observation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Target observations that do **not** authorize execution: preview-observed\nhead, time, bounded precondition summaries, and capability health.\nSeparately digested; approval and the receipt retain the digest for\nreview context, but apply never mistakes a changing observation for plan\nauthority.",
+  "properties": {
+    "capabilityHealth": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Dynamic capability-health facts, distinct from the static capability\ndigest the plan binds.",
+      "type": "object"
+    },
+    "observedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "preconditionRows": {
+      "additionalProperties": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Bounded precondition summaries keyed by step ID (row counts observed\nat preview).",
+      "type": "object"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetHeadVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planDigest",
+    "targetHeadVersion",
+    "observedAtMs"
+  ],
+  "title": "MigrationPreviewObservationV1",
+  "type": "object"
+}

@@ -15,14 +15,52 @@
 // (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
 import { classifyPlatformError, platformFailureResponse } from './platform-errors.js';
-import { appMeta, capabilityManifest } from 'snapback-app';
+import { appMeta, capabilityManifest, functions, routesManifest } from 'snapback-app';
+// Channel A on the Cloudflare arm (LLP 0090 rollout step 4 / LLP 0092 §0E):
+// the gateway owns the HTML response, so it owns the serving seam. The route
+// matcher, publicInline gate, and payload embed are the SAME modules the
+// local-arm Vite seam uses (packages/snapback-vite), bundled by relative
+// import — reuse, never a fork — and the serializer is the byte-pinned
+// tests/fixtures/rqs-serializer implementation.
+import {
+  entryIsPublicInline,
+  injectBootPayload,
+  matchManifestRoute,
+} from '../../packages/snapback-vite/channel-a-core.mjs';
+import { serializeBootPayload } from '../../packages/snapback-vite/rqs-serializer.mjs';
 
 export { Coordinator };
 
 const APP_OBJECT_NAME = appMeta.objectName;
 
 // Exact-path API routes forwarded to the coordinator with a fresh POST body.
-const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-meta', '/connection/open', '/app/ensure']);
+// /app/bundle is the RQS bundle endpoint (LLP 0092 §0D.1) — forwarded like
+// the other app-data JSON routes; the coordinator owns admission and limits.
+// Testing seams live under the reserved system namespace
+// (/_snapback/test/*, LLP 0094 §0A.3); the corrupt-meta seam is enumerated
+// here because it must stay reachable during a startup refusal.
+const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/_snapback/test/corrupt-meta', '/connection/open', '/app/ensure', '/app/bundle']);
+
+// §0E.5 pinned Channel A budgets (seam policy knobs). The anonymous
+// per-client-address rate window is in-memory per gateway isolate — a
+// best-effort degrade budget (degrade over the cap, never refuse), not an
+// admission control; the coordinator holds the authoritative bundle limits.
+const CHANNEL_A_BUDGET_MS = 500;
+const CHANNEL_A_MAX_PAYLOAD_BYTES = 256 * 1024;
+const CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE = 60;
+const channelARateWindows = new Map();
+
+function channelAAdmitRate(key, nowMs) {
+  const window = channelARateWindows.get(key) ?? [];
+  while (window.length > 0 && nowMs - window[0] >= 60_000) window.shift();
+  if (window.length >= CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE) {
+    channelARateWindows.set(key, window);
+    return false;
+  }
+  window.push(nowMs);
+  channelARateWindows.set(key, window);
+  return true;
+}
 
 // Kit wire-protocol prefixes (LLP 0049 Phase 0): the generated Contract
 // surface speaks the local server's protocol; these are its routes.
@@ -66,10 +104,12 @@ async function gatewayFetch(request, env) {
 
     // Re-entrant host calls from the handler isolate. The coordinator id rides
     // x-snapback-do-id so the call reaches the object holding the invocation.
-    if (path === '/host-call') {
+    // @ref LLP 0031#the-invariant — no system operation lives at the root;
+    //   the hosted system surface migrated under /_snapback/* (LLP 0094 §0A.3).
+    if (path === '/_snapback/host-call') {
       const doId = request.headers.get('x-snapback-do-id');
       const stub = coordinatorStub(env, doId);
-      return stub.fetch('http://coordinator/host-call', {
+      return stub.fetch('http://coordinator/_snapback/host-call', {
         method: 'POST',
         headers: request.headers,
         body: request.body,
@@ -81,8 +121,8 @@ async function gatewayFetch(request, env) {
     if (path === '/health') return stub.fetch('http://coordinator/health');
     // Operator config diagnosis (LLP 0049 Phase 1): names, set/missing
     // state, grants, generation — never values.
-    if (path === '/config/status') {
-      return stub.fetch('http://coordinator/config/status', {
+    if (path === '/_snapback/api/config/status') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
       });
@@ -90,20 +130,20 @@ async function gatewayFetch(request, env) {
     // Cron ledger/activation status (public bounded projection, with scrubbed
     // detail for an authenticated operator), and the admin-gated manual run
     // trigger — forward method/headers so the coordinator owns both decisions.
-    if (path === '/cron/status') {
-      return stub.fetch('http://coordinator/cron/status', {
+    if (path === '/_snapback/api/cron/status') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
       });
     }
-    if (path === '/cron/run') {
-      return stub.fetch('http://coordinator/cron/run', {
+    if (path === '/_snapback/api/cron/run') {
+      return stub.fetch(`http://coordinator${path}`, {
         method: request.method,
         headers: request.headers,
         body: request.method === 'GET' ? undefined : request.body,
       });
     }
-    if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/__test/')) {
+    if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
         return json(405, {
           diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires POST` },
@@ -114,8 +154,14 @@ async function gatewayFetch(request, env) {
     // Destructive admin endpoints: forwarded with the caller's method and
     // headers so the coordinator can enforce the POST-only, token-gated admin
     // surface (ENG-23587). The gateway itself never mints admin authority.
-    if (path === '/reset' || path === '/evict') {
+    if (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict') {
       return stub.fetch(`http://coordinator${path}`, { method: request.method, headers: request.headers });
+    }
+    // Anything else under the reserved system namespace is an explicit JSON
+    // 404: /_snapback/* never falls through to the SPA asset lane, so a
+    // proxy's "forward the root, refuse /_snapback/*" rule stays exhaustive.
+    if (path === '/_snapback' || path.startsWith('/_snapback/')) {
+      return json(404, { error: 'not found', path });
     }
     if (KIT_ROUTE.test(path)) {
       const expectedMethod = path.startsWith('/outbox/') ? 'GET' : 'POST';
@@ -169,9 +215,80 @@ async function gatewayFetch(request, env) {
         }
         return json(404, { error: 'not found', path });
       }
+      // Channel A (LLP 0090 D2 / LLP 0092 §0E): when the pageload's route is
+      // manifested and every named query carries the compiled publicInline
+      // fact, compose the static shell with ONE coordinator bundle
+      // subrequest and embed the snapshots. Any failure, timeout, budget
+      // breach, or ineligibility serves the untransformed shell — degrade,
+      // never fail the pageload.
+      if (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html')) {
+        const match = matchManifestRoute(routesManifest, `${url.pathname}${url.search}`, '/');
+        if (match && entryIsPublicInline({ functions }, match.entry)) {
+          const clientKey = request.headers.get('cf-connecting-ip') || 'unknown';
+          if (channelAAdmitRate(clientKey, Date.now())) {
+            const inlined = await channelAInline(request, env, stub, match);
+            if (inlined) return inlined;
+          }
+        }
+      }
       return env.ASSETS.fetch(request);
     }
     return json(404, { error: 'not found', path });
+}
+
+// Assemble the transformed Channel A document, or null to degrade to the
+// untransformed shell. Response mechanics per LLP 0092 §0E.4: the transformed
+// document is `Cache-Control: no-store` with a recomputed Content-Length,
+// the static shell's validators dropped, compression left to the runtime
+// (the body handed over is identity bytes), and any CSP header carried
+// through untouched — the boot payload is a non-executable data block.
+async function channelAInline(request, env, stub, match) {
+  try {
+    const asset = await env.ASSETS.fetch(request);
+    const contentType = asset.headers.get('content-type') || '';
+    if (asset.status !== 200 || !contentType.includes('text/html')) return null;
+    const html = await asset.text();
+    // One coordinator subrequest per pageload, under the §0E.5 wall budget.
+    // The subrequest is raced rather than aborted — a late bundle is simply
+    // unused and the shell serves.
+    const bundleResponse = await Promise.race([
+      stub.fetch('http://coordinator/app/bundle', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ route: match.route, params: match.params, mode: 'read' }),
+      }),
+      new Promise((resolve) => setTimeout(() => resolve(null), CHANNEL_A_BUDGET_MS)),
+    ]);
+    if (!bundleResponse || !bundleResponse.ok) return null;
+    const bundle = await bundleResponse.json();
+    // Embedded payload (§0E.1): exactly the read-mode bundle response body
+    // plus the matched route pattern; generation/versionStream attestation
+    // facts already ride the body. No absolute backend origin appears.
+    const serialized = serializeBootPayload({ route: match.route, ...bundle });
+    const encoder = new TextEncoder();
+    if (encoder.encode(serialized).byteLength > CHANNEL_A_MAX_PAYLOAD_BYTES) return null;
+    const body = encoder.encode(injectBootPayload(html, serialized));
+    const headers = new Headers();
+    for (const [name, value] of asset.headers) {
+      const lower = name.toLowerCase();
+      if (
+        lower === 'etag'
+        || lower === 'last-modified'
+        || lower === 'content-length'
+        || lower === 'content-encoding'
+        || lower === 'cache-control'
+      ) continue;
+      headers.set(name, value);
+    }
+    headers.set('content-type', 'text/html; charset=utf-8');
+    headers.set('cache-control', 'no-store');
+    headers.set('content-length', String(body.byteLength));
+    return new Response(body, { status: 200, headers });
+  } catch (_) {
+    // Serializer property-check failure, subrequest failure, or anything
+    // else: degrade to the unhydrated shell (LLP 0092 §0E.5).
+    return null;
+  }
 }
 
 async function forward(stub, target, request) {

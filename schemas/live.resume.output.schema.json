@@ -140,6 +140,13 @@
     },
     "QueryOutput": {
       "properties": {
+        "cursor": {
+          "description": "Relational continuation cursor (LLP 0080 §2): present exactly when a\n`root-window-v1` page consumed its full `take` of authorized roots.\nOpaque and versioned; presenting it back as the `cursor` argument\nresumes from the last consumed root. Absent for every non-relational\nquery and for terminal pages.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rows": {
           "items": true,
           "type": "array"

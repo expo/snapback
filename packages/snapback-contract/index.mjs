@@ -537,6 +537,22 @@ export async function createSnapbackContractSurface({
   // deduplication, refcounts, and fencing. Legacy name-keyed/preopened mode
   // remains the default until published Exact packages carry that runtime.
   keyedQueryScopes = false,
+  // Channel A preload lookup (LLP 0090 D2 rollout step 3): a
+  // `(name, args) => ({ rows, resume } | null)` function over the inlined
+  // boot payload (see @snapback/client rqs-preload.mjs). Each multi-live
+  // subscription passes its candidate to the kit's `preloadedResume` seam,
+  // which verifies, arbitrates against Channel B state, renders the winner
+  // retained-first, and subscribes with `resumeFromToken`.
+  rqsPreload = null,
+  // Channel C register-mode lookup (LLP 0090 D4 rollout step 7): a
+  // `(name, args) => ({ subscriptionId, rows, version, resume } | null)`
+  // function over a register-mode bundle response (see @snapback/client
+  // rqs-preload.mjs createRqsRegisteredRegistry). A hit is adopted through
+  // the kit's `registeredSubscription` seam — the bundle snapshot is the
+  // authoritative first state and NO fresh snapshot-with-subscribe is
+  // opened; pass the bundle's `connection.connectionId` as `connectionId`
+  // so the shared socket attaches under the bundle-minted grant.
+  rqsRegistered = null,
 }) {
   const lifecycleGenerationSeeds = normalizeTestLifecycleGenerationSeeds(
     testLifecycleGenerationSeeds,
@@ -844,6 +860,8 @@ export async function createSnapbackContractSurface({
         diagnostics,
         pending,
         mountedHandles,
+        rqsPreload,
+        rqsRegistered,
       });
     }
     if (!queryName || !boundaryKey) {
@@ -1530,11 +1548,23 @@ export async function createSnapbackContractSurface({
 
     const openLive = async (capture = operationCapture()) => {
       if (coordinator) await preflightDurable(capture);
+      // Channel C register-mode adoption (LLP 0090 D4 step 7): a bundle
+      // registration for the bound query is adopted instead of opening a
+      // fresh snapshot-with-subscribe; best-effort, never boot-fatal.
+      let registeredSubscription = null;
+      if (typeof rqsRegistered === 'function') {
+        try {
+          registeredSubscription = rqsRegistered(queryName, queryArgs) ?? null;
+        } catch {
+          registeredSubscription = null;
+        }
+      }
       const handle = await client.liveQuery(queryName, {
         connectionId: surfaceConnectionId,
         args: queryArgs,
         userId: activeUserId,
         authorityCapture: capture,
+        registeredSubscription,
         transport: 'stream',
         fallbackToPoll: liveFallbackToPoll,
         stream: liveStreamOptions,
@@ -3876,6 +3906,8 @@ async function createMultiLiveContractSurface({
   diagnostics,
   pending,
   mountedHandles,
+  rqsPreload = null,
+  rqsRegistered = null,
 }) {
   const liveHandles = new Map(); // query name -> kit live handle
   const authorizationHidden = new Set();
@@ -4137,11 +4169,36 @@ async function createMultiLiveContractSurface({
 
     const openMultiLiveHandle = async ({ name, args }, capture) => {
       if (coordinator) await preflightDurable(capture);
+      // Channel A alias-key consumption (LLP 0092 §0C.5): the preload was
+      // minted anonymously; this (possibly authenticated) subscription
+      // adopts it as its own store seed — one store, one subscription, the
+      // kit verifies and arbitrates before rendering it retained.
+      let preloadedResume = null;
+      if (typeof rqsPreload === 'function') {
+        try {
+          preloadedResume = rqsPreload(name, args) ?? null;
+        } catch {
+          preloadedResume = null; // preload is best-effort, never boot-fatal
+        }
+      }
+      // Channel C register-mode adoption (LLP 0090 D4 step 7): a bundle
+      // registration for this (name, args) is adopted instead of opening a
+      // fresh snapshot-with-subscribe; best-effort like the preload seam.
+      let registeredSubscription = null;
+      if (typeof rqsRegistered === 'function') {
+        try {
+          registeredSubscription = rqsRegistered(name, args) ?? null;
+        } catch {
+          registeredSubscription = null;
+        }
+      }
       const handle = await client.liveQuery(name, {
         connectionId: sharedConnectionId,
         args,
         userId: activeUserId,
         authorityCapture: capture,
+        preloadedResume,
+        registeredSubscription,
         transport: 'stream',
         fallbackToPoll: liveFallbackToPoll,
         stream: liveStreamOptions,

@@ -6,7 +6,9 @@
 //   - next-north/next-south predictions are exact, deterministic minutes-away;
 //   - applying a recorded feed tick (the refresh mutation) pushes a live-query
 //     delta that shifts minutes-away, and advances the durable storage version;
-//   - the read-through freshness marker (feedRefreshState) tracks the refresh.
+//   - the read-through freshness marker (feedRefreshState) tracks the refresh;
+//   - resetFeed is seed-true: the post-reset feed tables are byte-equivalent
+//     to the committed seed.json fixture (no admin reseed needed between cases).
 //
 // Run: TZ=America/Los_Angeles node demos/all-aboard/tests/acceptance/headless.mjs
 //
@@ -153,9 +155,43 @@ await runAcceptance(suite, async () => {
     return { tickIndex: state.tickIndex };
   });
 
-  await suite.check('resetFeed returns to tick 0 / all on-time', async () => {
+  await suite.check('resetFeed restores the literal seed state (byte-equivalent to seed.json)', async () => {
+    // Dirty every handler-mutable feed field first: the tick above moved
+    // tickIndex/lastSource/fetchedAt, and a claimFeedPoll stamps the optional
+    // lastUpstreamPollAt (the ENG-23642 budget) that a seed-true reset must
+    // clear back to "absent".
+    await db.mutate('claimFeedPoll', { args: { trigger: 'test' } });
     await db.mutate('resetFeed', {});
     assertEqual((await snapshotDelays())['sb-limited'], 0, 'delays cleared');
+
+    // Byte-equivalence against the seed fixture. No subscription exists yet,
+    // so the warm-poll cron is unarmed and nothing can commit a tick between
+    // the reset and these one-shot snapshots. Excluded fields, with cause:
+    //   - underscore-prefixed system columns other than the seeded _id
+    //     (_createdAt/_updatedAt/_version) are Snapback-managed bookkeeping
+    //     stamped on every commit — runtime-only, not seeded app state;
+    //   - a null column is the storage representation of an optional field the
+    //     fixture omits (lastUpstreamPollAt on a fresh seed).
+    const fixtureView = (row) => Object.fromEntries(
+      Object.entries(row).filter(([key, value]) => (!key.startsWith('_') || key === '_id') && value !== null),
+    );
+    const canonical = (value) => (Array.isArray(value)
+      ? value.map(canonical)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+        : value);
+    const sortById = (rows) => [...rows].sort((a, b) => String(a._id).localeCompare(String(b._id)));
+    const bytes = (rows) => JSON.stringify(canonical(sortById(rows)));
+
+    const trainStatus = (await db.query('liveTrainStatus', {})).rows.map(fixtureView);
+    const feedState = (await db.query('feedState', {})).rows.map(fixtureView);
+    const departures = (await db.query('liveDepartures', {})).rows;
+    assertEqual(bytes(trainStatus), bytes(seed.tables.trainStatus),
+      'trainStatus rows byte-equivalent to the seed fixture (all on-time, observedAt 0)');
+    assertEqual(bytes(feedState), bytes(seed.tables.feedRefreshState),
+      'feedRefreshState byte-equivalent to the seed fixture (lastSource seed, tickIndex 0, no poll claim)');
+    assertEqual(departures.length, 0, 'liveDepartures empty, as seeded');
+    return { lastSource: feedState[0]?.lastSource, tickIndex: feedState[0]?.tickIndex };
   });
 
   // Realtime delta — the one subscription. Arming the warm-poll job means the

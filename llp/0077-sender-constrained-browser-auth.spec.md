@@ -5,7 +5,19 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (implementation re-land + defect-fix pass — the full
+**Revised:** 2026-07-25 (D-1 fixed — the served-origin matrix's ordering
+defect, an unauthenticated caller reaching the JSON parser on
+function-authenticated invocation routes, is closed by hoisting the
+function-level closed `authRequirement` into the hosted route-policy
+decision: the middleware consults the post-commit published function
+manifest before the absent-carrier bailout and refuses
+`SNAPBACK_AUTH_REQUIRED` before any body poll unless the named function is
+statically `public` or `optional-user`; unknown names fail closed,
+indistinguishable from `authenticated` (no function-existence oracle), and
+anonymous-capable routes are unchanged. §HTTP binding records the
+normative rule; the hosted matrix passes 42/42 against the local hosted
+origin. The capability gate still requires the served-origin rerun — no
+positive claim advances). 2026-07-24 (implementation re-land + defect-fix pass — the full
 sender-constrained server/client implementation, previously stranded as
 uncommitted work on a ~130-commit-stale base in the primary checkout, was
 ported onto current main, adapted to the landed LLP 0076 surface, and
@@ -591,6 +603,28 @@ the forbidden-field check keeps its precedence over the bearer. LLP 0058
 carries a Revised note recording this route-scoped reorder. (The shipped code
 resolves `SessionAuth` before the forbidden-field check rather than in this
 order; that divergence is tracked as defect 12.)
+
+Route-level policy alone cannot see a function-level requirement: the
+generated invocation routes (`/query/{name}`, its authorized-lease path,
+`/mutation/{name}`, `/action/{name}`) share one registration whose
+session-mode credential resolution is optional, while the authentication
+requirement lives in the function's closed `authRequirement`. The
+absent-carrier refusal therefore hoists the published function manifest into
+the route-policy decision (fixed 2026-07-25; found as served-matrix defect
+D-1): on a hosted origin, an absent credential carrier on an invocation route
+refuses `SNAPBACK_AUTH_REQUIRED` before any body poll unless the named
+function is statically declared `public` or `optional-user` in the
+post-commit manifest snapshot the write lane publishes. The derivation fails
+closed — a name the published manifest does not contain, which no caller can
+ever invoke successfully, refuses identically to an `authenticated` function,
+so the pre-body refusal is not a function-existence oracle. The signal is
+deliberately the closed `authRequirement` and not `authUserId` use, which
+`optional-user` functions read legitimately; it is exactly the requirement
+the post-parse function-authority gate enforces, so the hoist can never
+refuse a caller the function itself would have served. The canonical-URI
+rejection above (`%`-encoding, backslash, doubled slash, dot segments)
+precedes this decision, so the raw path segment cannot name one function for
+the middleware and a different one for the handler's decoded path parameter.
 
 Diagnostic precedence composes with LLP 0057 rather than overriding it. A
 genuinely absent `Authorization` header yields `SNAPBACK_AUTH_REQUIRED` as

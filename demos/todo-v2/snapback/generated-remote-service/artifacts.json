@@ -12,10 +12,12 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "routes.manifest.json",
     "operations/createTodo.args.schema.json",
     "operations/deleteTodo.args.schema.json",
     "operations/editTitle.args.schema.json",
     "operations/listTodos.args.schema.json",
+    "operations/listTodosByPriority.args.schema.json",
     "operations/listTodosOnce.args.schema.json",
     "operations/setCompleted.args.schema.json",
     "operations/setPriority.args.schema.json",
@@ -35,6 +37,8 @@
     "contract/editTitle.mutation.contract-meta.ts",
     "contract/listTodos.query.ts",
     "contract/listTodos.query.contract-meta.ts",
+    "contract/listTodosByPriority.query.ts",
+    "contract/listTodosByPriority.query.contract-meta.ts",
     "contract/listTodosOnce.query.ts",
     "contract/listTodosOnce.query.contract-meta.ts",
     "contract/setCompleted.mutation.ts",
@@ -42,7 +46,7 @@
     "contract/setPriority.mutation.ts",
     "contract/setPriority.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:a86d4500dfda4078",
+  "bundleHash": "sha256:0208d3a01c3babda",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -70,6 +74,11 @@
       "name": "listTodos"
     },
     {
+      "id": "todo-v2:listTodosByPriority",
+      "kind": "LiveQuery",
+      "name": "listTodosByPriority"
+    },
+    {
       "id": "todo-v2:listTodosOnce",
       "kind": "Query",
       "name": "listTodosOnce"
@@ -86,8 +95,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "1e33990ea1a28518a37228695598e26fcc9f1924dbf3248dd8e405bace29b23b",
-  "schemaHash": "sha256:64f3c074173809c7",
+  "inputsHash": "0f50e45d3b6350b4b70fa5574e7e92bf8f33d9f55b3215eb614f63f5d124d910",
+  "schemaHash": "sha256:111df146debc77df",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

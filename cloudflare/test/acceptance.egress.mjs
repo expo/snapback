@@ -31,7 +31,7 @@ const SECRET_BINDINGS = {
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 28;
+const EXPECTED_CHECKS = 29;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -361,6 +361,17 @@ async function main() {
         unsupported.status === 503 &&
         unsupported.diagnostic?.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
     );
+    // @ref LLP 0058#capability-maturity — since LLP 0076's acceptance
+    // (2026-07-25) the stream capability is stable: the served manifest
+    // claims plain support and must NOT annotate the id in the maturity map
+    // (an entry there would re-demand acknowledgment the contract no longer
+    // requires).
+    const servedManifest = await (await fetch(`${base}/capability`)).json();
+    check(
+      'the served manifest claims plain stable support for bounded_response_stream_v1',
+      servedManifest.supportedCapabilities?.includes('bounded_response_stream_v1') === true &&
+        servedManifest.capabilityMaturity?.bounded_response_stream_v1 === undefined
+    );
 
     // --- query/mutation ambient fetch remains denied -----------------------
     const probe = await client.query('probeAmbient', {});
@@ -412,7 +423,7 @@ async function main() {
     );
 
     // --- config status still carries no key material after egress ---------
-    const status = await (await fetch(`${base}/config/status`, {
+    const status = await (await fetch(`${base}/_snapback/api/config/status`, {
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     })).json();
     check(

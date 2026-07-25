@@ -16,12 +16,14 @@
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
+import { SnapbackClient, readRqsPreloadRegistry } from '../../../_kit/client.mjs';
 import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
 import { BOARD_ID, randomPainter } from './board.mjs';
+import { wallCells } from './data';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
+import routesManifest from '../../snapback/generated/routes.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import app from './graffiti.contract';
@@ -102,7 +104,54 @@ function showIdentity(name: string, color: string): void {
   chip.append(dot, label);
 }
 
+// Synchronous first paint from the Channel A payload: the same
+// last-writer-wins grid the Contract wall renders, as plain DOM, before any
+// client construction or network. Removed at mount; returns null when no
+// preload is embedded (degraded pageloads keep today's boot).
+function prePaintWall(entry: { rows: unknown[] } | null): HTMLElement | null {
+  if (!entry || typeof document === 'undefined') return null;
+  const cells = wallCells(entry.rows as never);
+  if (cells.length === 0) return null;
+  const host = document.createElement('div');
+  host.id = 'wall-prepaint';
+  host.style.cssText = 'display:flex;justify-content:center;padding:64px 16px 16px;';
+  const grid = document.createElement('div');
+  grid.style.cssText =
+    'display:grid;grid-template-columns:repeat(24, 22px);grid-auto-rows:22px;'
+    + 'border:1px solid #e4e4e9;border-radius:10px;overflow:hidden;background:#ffffff;';
+  for (const cell of cells) {
+    const el = document.createElement('div');
+    // The same testId scheme as the mounted wall so acceptance measures the
+    // painted rows uniformly; the pre-paint is gone before the wall mounts.
+    el.dataset.testid = `cell-${cell.x}-${cell.y}`;
+    el.style.cssText = `width:22px;height:22px;background:${cell.color};box-shadow:inset 0 0 0 0.5px #00000010;`;
+    grid.append(el);
+  }
+  host.append(grid);
+  document.body.append(host);
+  return host;
+}
+
 async function boot(): Promise<void> {
+  // Channel A preload registry (LLP 0090 D2 rollout step 3): read the
+  // inlined boot payload BEFORE any network round trip. Entries are keyed by
+  // the authority-independent alias key, so the anonymously minted preload
+  // seeds this (identity-carrying) session's stores without a duplicate
+  // store or subscription; each subscription verifies its candidate and
+  // renders it retained-first while resuming from the embedded token.
+  const rqsPreload = readRqsPreloadRegistry();
+  (globalThis as { graffitiRqs?: unknown }).graffitiRqs = {
+    preloadEntries: rqsPreload.size,
+    generation: rqsPreload.generation,
+  };
+  // First rows visible before ANY WebSocket frame or HTTP round trip
+  // (0090 rollout step 3 acceptance; the "first rows visible" metric of
+  // §Scalability): paint the inlined wall synchronously from the payload,
+  // then let the mounted Contract surface replace it. Purely local — the
+  // preloaded rows are retained/pending until the resumed subscription's
+  // authoritative answer, and the pre-paint is torn down at mount.
+  const prePaint = prePaintWall(rqsPreload.lookup('listCells', { boardId: BOARD_ID }));
+
   status('Connecting to Snapback…');
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
@@ -110,8 +159,15 @@ async function boot(): Promise<void> {
   // Single idempotent mount-lifecycle ensure (LLP 0034 §5): provisions only
   // what is missing, seeds only when the cells table is empty, never resets —
   // so opening a second tab neither wipes the wall nor the presence rooms.
+  // The routes manifest rides along (LLP 0092 §0C.1) so the served instance
+  // can answer Channel A bundle evaluations for the next pageload.
   status('Ensuring backend provisioning…');
-  await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  await client.ensureApp({
+    schema: schemaManifest,
+    functions: functionsManifest,
+    seed,
+    routes: routesManifest,
+  });
 
   const identity = randomPainter();
 
@@ -127,6 +183,9 @@ async function boot(): Promise<void> {
     // The board-scoped live query binds with its args over the shared stream.
     liveQueries: [{ name: 'listCells', args: { boardId: BOARD_ID } }],
     requiredQueries: ['listCells'],
+    // Channel A: each live query consumes its inlined preload (one-shot) and
+    // subscribes with resumeFromToken instead of paying a fresh LiveReplace.
+    rqsPreload: (name: string, args: Record<string, unknown>) => rqsPreload.consume(name, args),
     // SECURITY — DEMO ONLY, DO NOT COPY THIS AUTH PATTERN INTO A REAL APP.
     // boardCursors publish/subscribe require the board's `boardMember` room
     // permission (schema.mjs enforces it server-side via
@@ -150,6 +209,7 @@ async function boot(): Promise<void> {
   configureSnapbackContractLinks(surface.links as never);
 
   status('Mounting the wall…');
+  prePaint?.remove();
   installContractWebHost();
   mount(app, { props: { painterName: identity.name, painterColor: identity.color } });
   // After mount so the Contract web host's body handling doesn't clear the chip.

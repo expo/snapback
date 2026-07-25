@@ -350,6 +350,46 @@
           },
           "type": "array"
         },
+        "capabilityMaturity": {
+          "additionalProperties": false,
+          "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
+          "properties": {
+            "auth.sessions.v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "bounded_response_stream_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron_action_run_mutation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "host_plan_runtime": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "ibex_ctx_db_host_bridge": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "live_subscriptions": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "migration_keyset_scan_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "mutation_read_set_validation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "permission_epoch_resync": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "relational_query_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            }
+          },
+          "type": "object"
+        },
         "cron": {
           "type": "boolean"
         },
@@ -386,6 +426,17 @@
         "localServerLifecycle": {
           "type": "boolean"
         },
+        "migration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MigrationTargetFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Migration-executor facts (LLP 0081 §4): the executor profile and\nthe closed fence lane registry. Present exactly when the target has\na migration executor; absent targets refuse with\n`SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`."
+        },
         "mutationIsolationMode": {
           "type": "string"
         },
@@ -413,6 +464,17 @@
           },
           "type": "array"
         },
+        "relationalQueries": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationalQueryFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Relational-query facts (LLP 0080 §4): the live delivery class and\nthe closed set of admitted retention classes. Present exactly when\nthe target supports `relational_query_v1`; a target without the\nexecutor reports the capability gap instead."
+        },
         "replaceOnlyQueries": {
           "type": "boolean"
         },
@@ -431,6 +493,17 @@
         "schemaVersion": {
           "default": "snapback.v0",
           "type": "string"
+        },
+        "standardPatterns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StandardPatternFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Generated standard-pattern facts (LLP 0065 §4): live delivery is the\nconservative resnapshot, and the `authScopeField`-enabled\ndisjointness-skip refinement of LLP 0053 is disabled — the field is\ninvalidation-routing metadata, never a skip enabler or enforcement.\nPresent exactly when the target runs generated standard patterns."
         },
         "storageEngine": {
           "type": "string"
@@ -505,6 +578,15 @@
         "capabilityGaps"
       ],
       "type": "object"
+    },
+    "CapabilityMaturity": {
+      "description": "The closed maturity vocabulary for registry capability ids (LLP 0058\n§Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule\nfor Draft authorities).\n\n- `proposed`: the contract exists in a proposal document but no\n  implementation is registered; a proposed id is never emitted in\n  `supportedCapabilities` at all.\n- `experimental`: the implementation is registered and the id's positive\n  instance predicate holds, but the governing contract is not Accepted —\n  the entry asserts current-contract compatibility only, and admission\n  refuses requirements on it unless the requiring artifact explicitly\n  acknowledges the experimental contract.\n- `stable`: the original LLP 0058 reading — positive presence is the\n  plain compatibility assertion.",
+      "enum": [
+        "proposed",
+        "experimental",
+        "stable"
+      ],
+      "type": "string"
     },
     "CapabilityState": {
       "enum": [
@@ -1734,7 +1816,7 @@
             }
           ],
           "default": null,
-          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check.\n@ref LLP 0065#1-fact-classes — EffectCeilingV1."
+          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check."
         },
         "exportedName": {
           "default": null,
@@ -1760,6 +1842,10 @@
             "$ref": "#/$defs/PermissionScopeExpr"
           },
           "type": "array"
+        },
+        "publicInline": {
+          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\n@ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —\n  authored on the function definition, compiled by codegen, re-enforced\n  at manifest load; never route-manifest authored.",
+          "type": "boolean"
         },
         "readSetSummary": {
           "$ref": "#/$defs/DependencySummary",
@@ -1850,6 +1936,13 @@
     },
     "FunctionManifest": {
       "properties": {
+        "acknowledgedExperimentalCapabilities": {
+          "description": "Experimental-capability acknowledgments for the generated artifact\npair (LLP 0058 §Capability maturity, amendment 2026-07-24): the\nregistry ids this artifact knowingly requires at experimental\nmaturity. Emitted by codegen from the same closed capability table it\nderives requirements from; admission refuses an experimental\nrequirement the artifact does not acknowledge. Acknowledging a stable\nid is a no-op, so promotion to stable never breaks the artifact, and\nan acknowledgment can never make an unsupported capability supported.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "appId": {
           "default": "local-app",
           "type": "string"
@@ -1902,6 +1995,13 @@
             "string",
             "null"
           ]
+        },
+        "projections": {
+          "description": "Transactionally maintained projections (LLP 0080 §5). Activation\nvalidates each plan against the schema and the whole active set (the\nper-source write-budget proof), and every source mutation maintains\nthe output in its own commit.",
+          "items": {
+            "$ref": "#/$defs/MaintainedProjectionPlan"
+          },
+          "type": "array"
         },
         "schemaVersion": {
           "default": "snapback.v0",
@@ -1980,6 +2080,19 @@
           },
           "required": [
             "Action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "LLP 0080 §1 — the closed bounded-join profile. Callable and\n`live_replace`-capable only; targets that cannot execute it report a\nmachine-readable capability gap before invocation.",
+          "properties": {
+            "RelationalQuery": {
+              "$ref": "#/$defs/RelationalQueryPlan"
+            }
+          },
+          "required": [
+            "RelationalQuery"
           ],
           "type": "object"
         }
@@ -2091,6 +2204,29 @@
       ],
       "type": "object"
     },
+    "JoinEquality": {
+      "additionalProperties": false,
+      "properties": {
+        "joinedField": {
+          "type": "string"
+        },
+        "rootField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootField",
+        "joinedField"
+      ],
+      "type": "object"
+    },
+    "JoinKind": {
+      "enum": [
+        "Inner",
+        "Left"
+      ],
+      "type": "string"
+    },
     "KeyMode": {
       "enum": [
         "Connection",
@@ -2133,6 +2269,25 @@
           "format": "uint",
           "minimum": 0,
           "type": "integer"
+        },
+        "resume": {
+          "$ref": "#/$defs/RqsResumeStats",
+          "default": {
+            "attempted": 0,
+            "currentAsOfAnswers": 0,
+            "deltaReplayAnswers": 0,
+            "freshReplaceAnswers": 0,
+            "lastJournalDistance": 0,
+            "maxJournalDistance": 0,
+            "mintRefusals": 0,
+            "noCertifiedSummary": 0,
+            "refused": {},
+            "replayBytesAvoided": 0,
+            "replayOps": 0,
+            "tokensMinted": 0,
+            "tokensRefreshed": 0
+          },
+          "description": "RQS resume/refresh observability (LLP 0090 §Scalability: counters land\nwith rollout step 1). Cumulative runtime-epoch counters."
         },
         "totalDeliveries": {
           "format": "uint64",
@@ -2183,6 +2338,105 @@
         "id",
         "connectionId",
         "function"
+      ],
+      "type": "object"
+    },
+    "MaintainedProjectionPlan": {
+      "additionalProperties": false,
+      "description": "`MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a\nstable output key expression, per-source and output visibility\ndeclarations, the declared root reverse index (the bounded lookup and\nadmission proof for joined-source fan-out), and a static `fanOutLimit`.\nIt deliberately has no caller-relative ordering, cursor, or `take`.",
+      "properties": {
+        "fanOutLimit": {
+          "description": "Static per-joined-key reference bound, `1..=1023`. Counts every\nreverse-index entry for the joined key, not only filter-admitted\nroots.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Stable plan identity (publication metadata). The stored projection\nidentity assigned at first activation derives from this and is\nrevision-stable — it names the row-identity domain, never re-keys.",
+          "type": "string"
+        },
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "outputKey": {
+          "$ref": "#/$defs/ProjectionOutputKey"
+        },
+        "outputTable": {
+          "type": "string"
+        },
+        "outputVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "projection": {
+          "description": "Projection leaves; declaration order is the output field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "rebuildRecipe": {
+          "description": "The versioned rebuild recipe this plan declares (LLP 0080 §5);\n`\"rebuild-v1\"` is the only admitted value until the 0081 slice.",
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "The non-security root filter `materializeAll` enumerates under —\nportable literal-only predicates in v1 (no caller, no auth exprs).",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootReverseIndex": {
+          "description": "Declared root reverse index whose leading fields are exactly the\nroot join-field sequence — targets may not discover affected roots\nthrough a table scan.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "$ref": "#/$defs/ProjectionVisibility"
+        },
+        "sharedFanOutDisclosure": {
+          "default": false,
+          "description": "Explicit acknowledgment of the cross-authority capacity coupling\nwhen a mutable shared joined source feeds an owner output\n(LLP 0080 §3); absent otherwise.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "rootVisibility",
+        "joinedVisibility",
+        "projection",
+        "outputTable",
+        "outputKey",
+        "outputVisibility",
+        "rootReverseIndex",
+        "fanOutLimit",
+        "rebuildRecipe"
       ],
       "type": "object"
     },
@@ -2548,6 +2802,28 @@
       ],
       "type": "object"
     },
+    "MigrationTargetFacts": {
+      "additionalProperties": false,
+      "description": "The migration-executor posture and the closed lane registry the\npersisted migration fence covers (LLP 0081 §4): a lane the fence does\nnot name cannot be admitted at all, so the registry is a capability\nfact, not prose.",
+      "properties": {
+        "executor": {
+          "description": "The executor profile: `\"local-exclusive-single-writer\"` on the\nlocal target (one IMMEDIATE transaction per durable transition).",
+          "type": "string"
+        },
+        "fenceLanes": {
+          "description": "The closed, enumerated lane registry the durable fence closes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "executor",
+        "fenceLanes"
+      ],
+      "type": "object"
+    },
     "MutationPlan": {
       "properties": {
         "return_value": {
@@ -2868,6 +3144,130 @@
         }
       ]
     },
+    "ProjectionLeaf": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ProjectionSource"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "ProjectionOutputKey": {
+      "description": "The closed root-to-output key expression of a maintained projection\n(LLP 0080 §5): the root `_id`, or the complete ordered tuple of a\ndeclared unique root index whose fields the plan marks immutable, so an\noutput key cannot move under maintenance. Either form is injective over\nroots by the uniqueness proof.",
+      "oneOf": [
+        {
+          "enum": [
+            "RootId"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootUniqueIndex": {
+              "properties": {
+                "fields": {
+                  "description": "The exact index fields, restated so the plan is self-describing\nand validation can prove the restatement matches the schema.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "index": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RootUniqueIndex"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProjectionSource": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "RootField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "RootField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "JoinedField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "JoinedField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProjectionVisibility": {
+      "description": "Source/output visibility declaration for a maintained projection —\ndeclarative (unlike the callable plan's executable filter lists) because\nmaintenance runs under internal projection-maintenance authority and the\ndeclarations constrain information flow and the output's read\nenforcement, not a caller (LLP 0080 §3/§5).",
+      "oneOf": [
+        {
+          "enum": [
+            "public-read"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "owner"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "QueryPlan": {
       "properties": {
         "filters": {
@@ -2911,6 +3311,122 @@
       },
       "required": [
         "table"
+      ],
+      "type": "object"
+    },
+    "RelationalQueryFacts": {
+      "additionalProperties": false,
+      "description": "The declared relational live/retention posture (LLP 0080 §4).",
+      "properties": {
+        "liveDelivery": {
+          "description": "Always `\"live_replace\"` in v1: relational subscriptions inherit\nLLP 0053 with table-granular invalidation and no proved-disjoint\nskip, and no incremental delta matcher is admitted.",
+          "type": "string"
+        },
+        "retention": {
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans. V1 is exactly `[\"none\"]`;\n`opaque-authorized-snapshot-v1` (the authenticated lease class) is\nspecified but not yet admitted by authoring, and anonymous results\nhave no admissible retention.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "retention"
+      ],
+      "type": "object"
+    },
+    "RelationalQueryPlan": {
+      "additionalProperties": false,
+      "description": "LLP 0080 §1 — the closed first relational profile: one root table, exactly\none unique-joined table, at most four equality pairs, explicit\nvisibility on both sources, index-served root access, deterministic\nroot ordering, and a bounded `take`. Evaluation follows the normative\n`root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor\nboundary → root order → take N roots → join + joined visibility →\nprojection. `take` bounds consumed authorized roots, not emitted rows.",
+      "properties": {
+        "joinKind": {
+          "$ref": "#/$defs/JoinKind"
+        },
+        "joinOn": {
+          "description": "1..=4 equality pairs; declaration order preserved. A null in any\njoin-key position never matches (LLP 0080 §2).",
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "joined": {
+          "type": "string"
+        },
+        "joinedAlias": {
+          "type": "string"
+        },
+        "joinedIndex": {
+          "description": "The declared unique joined index whose complete ordered key is\nexactly the joined-field sequence — the cardinality proof.",
+          "type": "string"
+        },
+        "joinedVisibility": {
+          "default": [],
+          "description": "The joined-source visibility predicate, executed per joined row\nbefore projection: an invisible joined row behaves as absent.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "order": {
+          "default": [],
+          "description": "Root scalar order fields; the storage layer's `_id` tie-break\ntotalizes it exactly as for single-table queries.",
+          "items": {
+            "$ref": "#/$defs/OrderExpr"
+          },
+          "type": "array"
+        },
+        "projection": {
+          "description": "Explicit projection whose leaves are literals or qualified source\nfields; declaration order is the result field order.",
+          "items": {
+            "$ref": "#/$defs/ProjectionLeaf"
+          },
+          "type": "array"
+        },
+        "root": {
+          "type": "string"
+        },
+        "rootAlias": {
+          "type": "string"
+        },
+        "rootFilters": {
+          "default": [],
+          "description": "Non-security root filters from the portable vocabulary, index-served.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "rootIndex": {
+          "description": "The declared root access index proving bounded, index-served access.",
+          "type": "string"
+        },
+        "rootVisibility": {
+          "default": [],
+          "description": "The root visibility predicate, composed before ordering and `take`\nso an invisible root cannot occupy a bounded-result slot. Empty for\nan explicitly declared `public-read` root.",
+          "items": {
+            "$ref": "#/$defs/FilterExpr"
+          },
+          "type": "array"
+        },
+        "take": {
+          "description": "Consumed-authorized-roots bound, `0..=1024`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "root",
+        "rootAlias",
+        "joined",
+        "joinedAlias",
+        "joinKind",
+        "joinOn",
+        "projection",
+        "take",
+        "rootIndex",
+        "joinedIndex"
       ],
       "type": "object"
     },
@@ -3027,6 +3543,108 @@
         "table",
         "subjectField",
         "scopeFields"
+      ],
+      "type": "object"
+    },
+    "RqsResumeStats": {
+      "description": "Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),\nrung taken, journal distance, and token refresh overhead.",
+      "properties": {
+        "attempted": {
+          "description": "Subscribes that presented `resumeFromToken`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currentAsOfAnswers": {
+          "description": "Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deltaReplayAnswers": {
+          "default": 0,
+          "description": "Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the\nwitness verified and a `live_delta` answered the resume.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "freshReplaceAnswers": {
+          "description": "Token presented, answered with rung 3 (refusal or no available proof).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastJournalDistance": {
+          "description": "Journal distance (head − token version) of the last presented token.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxJournalDistance": {
+          "description": "Maximum observed journal distance.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mintRefusals": {
+          "description": "Rows/args the 0A canonicalization refused at mint (`resume` absent).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "noCertifiedSummary": {
+          "description": "Rung-1 table-set fall-throughs: journal floor held but no certified\ndependency-summary artifact exists yet (cluster 0C), so the answer is\nrung 3. Not a token refusal — its own telemetry cause.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "refused": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).",
+          "type": "object"
+        },
+        "replayBytesAvoided": {
+          "default": 0,
+          "description": "Estimated bytes avoided by rung-2 answers versus a rung-3\nreplacement: serialized replacement rows minus the serialized delta\nenvelope, saturating at zero per answer.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "replayOps": {
+          "default": 0,
+          "description": "Total `live_delta` ops replayed by rung-2 answers.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokensMinted": {
+          "description": "Tokens minted on the live path (subscribe answers + envelope refresh).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokensRefreshed": {
+          "description": "Refreshed tokens attached to `live_replace`/`live_delta` envelopes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempted",
+        "currentAsOfAnswers",
+        "freshReplaceAnswers",
+        "refused",
+        "noCertifiedSummary",
+        "tokensMinted",
+        "tokensRefreshed",
+        "mintRefusals",
+        "lastJournalDistance",
+        "maxJournalDistance"
       ],
       "type": "object"
     },
@@ -3212,6 +3830,25 @@
       ],
       "type": "object"
     },
+    "StandardPatternFacts": {
+      "additionalProperties": false,
+      "description": "The declared standard-pattern live posture (LLP 0065 §4).",
+      "properties": {
+        "authScopeDisjointnessSkip": {
+          "description": "Always `\"disabled\"` in v1: `authScopeField` routes invalidation and\nnever enables LLP 0053's disjointness-skip refinement, so no\nconvergence fixture is owed until a future profile claims the skip.",
+          "type": "string"
+        },
+        "liveDelivery": {
+          "description": "Always `\"conservative-resnapshot\"` in v1: a generated live query\nresnapshots on a dependency commit and never claims `live_delta` —\nthe runtime excludes pattern-identified functions from the delta\nlane even when the plan shape would otherwise qualify.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "authScopeDisjointnessSkip"
+      ],
+      "type": "object"
+    },
     "StandardPatternIdentity": {
       "additionalProperties": false,
       "description": "The versioned helper/profile identity a standard-pattern function carries\n(LLP 0065 §3).",
@@ -3343,7 +3980,9 @@
         "ibex_ctx_db_host_bridge",
         "live_subscriptions",
         "mutation_read_set_validation",
-        "permission_epoch_resync"
+        "permission_epoch_resync",
+        "relational_query_v1",
+        "migration_keyset_scan_v1"
       ],
       "type": "string"
     },

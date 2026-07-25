@@ -1294,6 +1294,7 @@ pub fn admit_sender_constrained_bound_request(
 ///
 /// @ref LLP 0077#nonce-protocol — only the current custody generation may
 /// publish a successor nonce; replay-store or nonce-state failure refuses work.
+#[allow(clippy::too_many_arguments)]
 pub fn consume_sender_proof_and_rotate_nonce(
     connection: &mut Connection,
     admission_epoch: u64,
