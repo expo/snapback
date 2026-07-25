@@ -170,7 +170,10 @@ export const claimFeedPoll = defineJsMutation({
   writes: ['feedRefreshState'],
 });
 
-// Reset the feed to tick 0 / all on-time (resettable for tests).
+// Seed-true reset: restores the feed tables to the literal seed state
+// (lastSource 'seed', tickIndex 0, all on-time, no live departures) so tests
+// and app surfaces can return to the honest boot state without an admin
+// reseed. The headless suite asserts the result byte-equivalent to seed.json.
 export const resetFeed = defineJsMutation({
   args: {},
   source: 'handlers.mjs',
