@@ -40,6 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility and closed projections (`defineRelationalQuery`, experimental capability) | joins, relational queries, denormalized reads | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
@@ -51,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a route entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner | bundle, preload, resumable snapshots, boot, RQS | local | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
@@ -260,6 +261,8 @@ you never build around a feature because you didn't know it existed.
   read-set conflict validation, and structured results.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and server-derived time and IDs.
+- [Relational queries](./backend/relational-queries.md) — bounded two-source
+  equi-joins with explicit visibility and closed projections (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
@@ -2116,6 +2119,96 @@ can prove structure; it cannot prove who may see or mutate a row.
 - Do not infer visibility from field names such as `ownerId` or `userId`.
 - Do not stretch these helpers over joins, ACLs, or migrations; leave the
   profile and state those semantics explicitly.
+
+---
+
+<!-- snapback-guide-source: guide/backend/relational-queries.md -->
+---
+title: Relational queries (bounded joins)
+id: backend.relational-queries
+order: 26
+audience: agent-first
+capabilities: [backend.relational-queries]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/relational-authoring.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-24
+reviewed-commit: 52fba7049c1f3a44f2d13238494b03d611b53879
+---
+
+# Relational queries (bounded joins)
+
+> **Local target only, experimental capability.** Relational queries require
+> the `relational_query_v1` target capability, which is **experimental**
+> until LLP 0080's coupled acceptance suite passes: generated artifacts
+> acknowledge the experimental contract automatically, and a target without
+> the executor (for example the Cloudflare path) refuses at generation with
+> a machine-readable capability gap, never at runtime.
+
+Use `defineRelationalQuery` for the common "each row plus its one related
+row" read: a bounded two-source equi-join with an explicit projection. It is
+a closed plan — no SQL text, no callbacks — and every visibility fact is
+declared, never inferred from field names or read sets.
+
+```js source=packages/snapback-codegen/relational-authoring.test.mjs
+export const booksWithAuthors = defineRelationalQuery({
+  root: schema.tables.books,
+  joined: schema.tables.authors,
+  join: [{ root: 'authorSlug', joined: 'slug' }],
+  kind: 'inner',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'owner', field: 'ownerId' },
+    output: 'owner',
+  },
+  projection: {
+    title: { root: 'title' },
+    authorName: { joined: 'name' },
+    shelf: { literal: 'fiction' },
+  },
+  take: 50,
+  rootIndex: 'by_owner_title',
+  joinedIndex: 'by_slug',
+});
+```
+
+The shape is closed and proven at authoring time:
+
+- **Exactly two sources.** One root table and one joined table, with 1–4
+  equality pairs. Join keys must share one admitted type — string,
+  principal, reference id (same target table), integer, or boolean. A null
+  key never matches.
+- **The joined side must be provably unique.** `joinedIndex` names a
+  declared `unique` index whose complete ordered key is exactly the joined
+  field sequence — that declaration is the cardinality proof. Two joined
+  rows under one key at runtime is a storage-invariant refusal, never a
+  silent first-row pick.
+- **Root access is index-served.** `rootIndex` names a declared index; for
+  an owner-visible root its leading field is the owner field. Results order
+  by the index's field sequence (ties broken deterministically by `_id`),
+  and `take` (0–1024) bounds consumed authorized roots. v1 does not accept
+  extra root filters yet.
+- **Visibility is explicit on both sources and the output.** Each source
+  declares `{ kind: 'owner', field }` or `{ kind: 'public-read' }`. The
+  output must be declared too, and it can never be broader than a
+  contributing source: owner sources force `output: 'owner'` (the generated
+  function requires authentication), and only all-public sources may
+  declare `output: 'public-read'`. A `left` join is refused when the only
+  owner evidence sits on the omissible joined side.
+- **Invisible means absent.** A joined row the caller cannot see behaves
+  exactly like a missing row: `inner` omits that root (the page may come
+  back short — it is not refilled), and `left` returns the root with null
+  joined leaves. Callers cannot distinguish the two cases.
+
+Live subscriptions deliver whole-result replacement (`live_replace`): a
+commit touching either source re-runs the query. No incremental delta or
+skip proof is claimed, matching LLP 0080's deliberately conservative v1.
+
+Maintained projections (`defineMaintainedProjection`), opaque pagination
+cursors, and author-supplied root filters are specified by LLP 0080 but not
+yet implemented — see the Step 5 implementation program under `issues/`.
 
 ---
 

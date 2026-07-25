@@ -29,12 +29,23 @@ import {
 // Syncable-live query: every mark on a shared board, oldest first, via by_board.
 // Unlike the todo demos this is NOT user-scoped — a graffiti wall is shared, so
 // the filter is the board id (an arg), not authUserId().
+//
+// The declaration triple below is LLP 0090 rollout step 3's Channel A gate,
+// and it is sound in fact, not just declared: the wall is world-readable by
+// design (auth: 'public'), the plan reads only `cells` filtered by an arg —
+// no authUserId(), membership, config, clock, or randomness input — so every
+// authorized caller sees identical rows (authorityIndependent), and painting
+// those public rows into tokenless HTML is exactly the product intent
+// (publicInline, the LLP 0092 §0C.3 disclosure permission).
 export const listCells = defineLiveQuery({
   table: 'cells',
   args: { boardId: v.string() },
   filter: [eq('boardId', arg('boardId'))],
   order: [asc('_createdAt')],
   index: 'by_board',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
 });
 
 // Paint one pixel: append a mark owned by the authenticated painter. The client

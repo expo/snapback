@@ -15885,31 +15885,37 @@ async fn app_bundle(
         .bundle_pending
         .admit_rate(&authority_key, epoch_now_ms)
         .map_err(|code| bundle_refusal(code, "per-authority bundle request rate exceeded"))?;
-    // Cluster 0C's routes-manifest authoring surface (`snapback/routes.mjs` →
-    // `routes.manifest.json`) has not landed, so no served route manifest
-    // exists to match against; requests must inline the route entry in the
-    // clearly-marked dev/test form. TODO(ENG-25448): route-manifest lookup.
-    let Some(entry) = request.dev_manifest_entry.clone() else {
-        return Err(bundle_refusal(
-            code::ROUTE_UNKNOWN,
-            "no served route manifest holds this route (inline devManifestEntry required until the cluster-0C authoring surface lands)",
-        ));
+    // Route resolution (LLP 0092 §0C.1, ENG-25448 landed): while a route
+    // manifest is served it is the only source of entries and the inline
+    // `devManifestEntry` dev/test form refuses by design; without one the
+    // inline form is required. Anonymous reads additionally require every
+    // named query to carry the codegen-compiled `publicInline` fact in the
+    // served functions manifest (§0D.1's NOT_PUBLIC gate — the fact check is
+    // server-side, never the route-manifest author's word).
+    let anonymous_read =
+        mode == BundleMode::Read && matches!(authority.resolved(), ResolvedAppAuthority::Anonymous);
+    let entry = {
+        let route = request.route.clone();
+        let dev_entry = request.dev_manifest_entry.clone();
+        with_snapback(&state, move |snapback| {
+            let entry = snapback.resolve_bundle_route(&route, dev_entry.as_ref())?;
+            if anonymous_read && !snapback.bundle_entry_public_inline(&entry) {
+                return Err(SnapbackError::error(
+                    code::NOT_PUBLIC,
+                    "realtime",
+                    "anonymous bundle reads require a publicInline-class route".to_owned(),
+                ));
+            }
+            Ok(entry)
+        })
+        .await
+        .map_err(ApiError::from)?
     };
     let route = request.route.clone();
     let params = request.params.clone();
     let auth = request.auth.clone();
     match mode {
         BundleMode::Read => {
-            // Interim fail-closed `publicInline`: the codegen-compiled fact
-            // is cluster-0C work, so no route is publicInline-class yet and
-            // every anonymous read refuses (LLP 0092 §0D.1's NOT_PUBLIC gate
-            // with an empty publicInline set). TODO(ENG-25448).
-            if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
-                return Err(bundle_refusal(
-                    code::NOT_PUBLIC,
-                    "anonymous bundle reads require a publicInline-class route (none are served yet)",
-                ));
-            }
             let response = with_snapback(&state, move |snapback| {
                 snapback.evaluate_bundle(&entry, &params, &route, &auth, &authority, None)
             })
@@ -19821,6 +19827,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_ACTION_STREAM_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
+        | "SNAPBACK_PUBLIC_INLINE_INVALID"
+        | "SNAPBACK_ROUTES_MANIFEST_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE"
@@ -20016,6 +20024,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_QUERY_LIMIT_INVALID"
         | "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_UNKNOWN_INDEX"
+        | "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
@@ -31951,11 +31960,19 @@ globalThis.__snapbackHandlers = {
         ),
         (
             "SNAPBACK_RESUME_WITNESS_INVALID",
-            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RESUME_WITNESS_OVERSIZE",
-            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RESUME_BUDGET_EXCEEDED",
@@ -32009,6 +32026,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+        "SNAPBACK_PUBLIC_INLINE_INVALID",
+        "SNAPBACK_ROUTES_MANIFEST_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_INVALID",
         "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE",
@@ -32196,6 +32215,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_QUERY_LIMIT_INVALID",
         "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_UNKNOWN_INDEX",
+        "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",

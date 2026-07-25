@@ -1,0 +1,30 @@
+{
+  "app": "graffiti",
+  "formatVersion": 1,
+  "routes": [
+    {
+      "queries": [
+        {
+          "args": {
+            "boardId": "wall"
+          },
+          "function": "listCells"
+        }
+      ],
+      "route": "/"
+    },
+    {
+      "queries": [
+        {
+          "args": {
+            "boardId": {
+              "$param": "boardId"
+            }
+          },
+          "function": "listCells"
+        }
+      ],
+      "route": "/board/:boardId"
+    }
+  ]
+}

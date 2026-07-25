@@ -19,7 +19,8 @@
     "ephemeral_multi_instance_sticky_routing"
   ],
   "capabilityMaturity": {
-    "bounded_response_stream_v1": "experimental"
+    "bounded_response_stream_v1": "experimental",
+    "relational_query_v1": "experimental"
   },
   "cron": true,
   "ephemeralHostedAdapter": false,
@@ -136,7 +137,8 @@
     "ibex_ctx_db_host_bridge",
     "live_subscriptions",
     "mutation_read_set_validation",
-    "permission_epoch_resync"
+    "permission_epoch_resync",
+    "relational_query_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

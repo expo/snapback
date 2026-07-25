@@ -371,6 +371,27 @@ export declare function defineQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineJsQuery(spec: JsQuerySpec): unknown;
 export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;
+
+export interface RelationalVisibilitySpec {
+  root: { kind: 'owner'; field: string } | { kind: 'public-read' };
+  joined: { kind: 'owner'; field: string } | { kind: 'public-read' };
+  output: 'owner' | 'public-read';
+}
+export interface RelationalQuerySpec {
+  root: unknown;
+  rootAlias?: string;
+  joined: unknown;
+  joinedAlias?: string;
+  join: Array<{ root: string; joined: string }>;
+  kind?: 'inner' | 'left';
+  visibility: RelationalVisibilitySpec;
+  projection: Record<string, { root: string } | { joined: string } | { literal: unknown }>;
+  take: number;
+  rootIndex: string;
+  joinedIndex: string;
+  defaultLive?: boolean;
+}
+export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
 export declare function defineMutation(spec: HostPlanMutationSpec): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
 export declare function defineJsMutation(spec: JsMutationSpec): unknown;
 export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): unknown;

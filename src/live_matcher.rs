@@ -167,6 +167,13 @@ pub(crate) fn live_subscription_may_be_affected(
             }
             true
         }
+        // @ref LLP 0080#4-live-and-retained-capability — v1 invalidation is
+        //   deliberately table-granular: a commit touching either declared
+        //   source causes an authoritative resnapshot; no proved-disjoint
+        //   skip path is claimed for relational plans.
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => changes
+            .iter()
+            .any(|change| change.table == plan.root || change.table == plan.joined),
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
         | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,
     }

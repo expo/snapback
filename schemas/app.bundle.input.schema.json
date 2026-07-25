@@ -90,7 +90,7 @@
           "type": "null"
         }
       ],
-      "description": "Dev/test-only inline manifest entry. The cluster-0C authoring surface\n(`snapback/routes.mjs` → `routes.manifest.json`, LLP 0092 §0C.1) has\nnot landed; until it does, the local arm accepts the route entry\ninline in this clearly-marked form. It is refused whenever a served\nroute manifest exists for the app.\nTODO(ENG-25448): retire once the routes-manifest authoring path lands."
+      "description": "Dev/test-only inline manifest entry, refused by design whenever a\nserved route manifest exists for the app (ENG-25448/ENG-25454): with\nthe cluster-0C authoring surface landed (`snapback/routes.mjs` →\n`routes.manifest.json`, LLP 0092 §0C.1), the served manifest is the\nonly source of route entries; this inline form remains a\nlibrary/test seam for instances that serve no route manifest."
     },
     "idempotencyKey": {
       "description": "Register mode only, required there: client-minted per boot attempt,\n22-char base64url (16 random bytes).",

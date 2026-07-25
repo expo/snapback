@@ -73,12 +73,12 @@ pub struct BundleRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub idempotency_key: Option<String>,
-    /// Dev/test-only inline manifest entry. The cluster-0C authoring surface
-    /// (`snapback/routes.mjs` → `routes.manifest.json`, LLP 0092 §0C.1) has
-    /// not landed; until it does, the local arm accepts the route entry
-    /// inline in this clearly-marked form. It is refused whenever a served
-    /// route manifest exists for the app.
-    /// TODO(ENG-25448): retire once the routes-manifest authoring path lands.
+    /// Dev/test-only inline manifest entry, refused by design whenever a
+    /// served route manifest exists for the app (ENG-25448/ENG-25454): with
+    /// the cluster-0C authoring surface landed (`snapback/routes.mjs` →
+    /// `routes.manifest.json`, LLP 0092 §0C.1), the served manifest is the
+    /// only source of route entries; this inline form remains a
+    /// library/test seam for instances that serve no route manifest.
     #[serde(
         default,
         rename = "devManifestEntry",
@@ -170,6 +170,99 @@ pub struct BundleConnection {
     pub attach_deadline: u64,
 }
 
+/// The served route→query manifest (LLP 0092 §0C.1): a schema-adjacent
+/// declaration compiled by codegen (`snapback/routes.mjs` →
+/// `snapback/generated/routes.manifest.json`) and admitted beside the
+/// functions manifest through the same ensure machinery. Its canonical hash
+/// is the `routeManifestHash` component of `resumeConfig` in `generation`
+/// (LLP 0091 §0A.6).
+///
+/// @ref LLP 0092#0c1-routequery-manifest-artifact — the pinned artifact
+///   schema, exact-pattern grammar, and admission obligations; a
+///   route-manifest author selects queries for preload and can never widen
+///   disclosure (`publicInline` is a function-level codegen fact, §0C.3).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RoutesManifest {
+    /// Pinned `1`; implies the `params-v1` mapping grammar (LLP 0092 §0E.6).
+    #[serde(rename = "formatVersion", alias = "format_version")]
+    pub format_version: u32,
+    pub app: String,
+    pub routes: Vec<BundleRouteEntry>,
+}
+
+pub const ROUTES_MANIFEST_FORMAT_VERSION: u32 = 1;
+
+/// Two v1 route patterns overlap when some concrete path matches both: same
+/// segment count, and at every position the segments are equal statics or at
+/// least one side is a `:param`. Both patterns must already be valid
+/// (`route_pattern_params`).
+pub fn route_patterns_overlap(a: &str, b: &str) -> bool {
+    let split = |pattern: &str| -> Vec<String> {
+        if pattern == "/" {
+            Vec::new()
+        } else {
+            pattern[1..].split('/').map(str::to_owned).collect()
+        }
+    };
+    let (a, b) = (split(a), split(b));
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b.iter()).all(|(left, right)| {
+        left.starts_with(':') || right.starts_with(':') || left == right
+    })
+}
+
+/// Structural validation of a routes manifest (LLP 0092 §0C.1): format
+/// version, pattern grammar, per-entry query count, unambiguous patterns
+/// (two entries that can match one path refuse), and the `params-v1` mapping
+/// shape with every reference naming a pattern param. Validation against the
+/// served functions manifest (function exists, is a query, references are
+/// schema-typable) is the install-time half in `LocalSnapback`.
+pub fn validate_routes_manifest_shape(manifest: &RoutesManifest) -> Result<(), String> {
+    if manifest.format_version != ROUTES_MANIFEST_FORMAT_VERSION {
+        return Err(format!(
+            "unsupported routes manifest formatVersion {} (params-v1 is formatVersion 1)",
+            manifest.format_version
+        ));
+    }
+    if manifest.app.is_empty() {
+        return Err("routes manifest app must be non-empty".to_owned());
+    }
+    for (index, entry) in manifest.routes.iter().enumerate() {
+        let pattern_params = route_pattern_params(&entry.route)
+            .map_err(|_| format!("route pattern {:?} is not a valid v1 pattern", entry.route))?;
+        if entry.queries.is_empty() {
+            return Err(format!("route {:?} declares no queries", entry.route));
+        }
+        if entry.queries.len() > BUNDLE_MAX_QUERIES {
+            return Err(format!(
+                "route {:?} declares {} queries; the limit is {BUNDLE_MAX_QUERIES}",
+                entry.route,
+                entry.queries.len()
+            ));
+        }
+        for spec in &entry.queries {
+            validate_mapping_references(&spec.args, &pattern_params).map_err(|_| {
+                format!(
+                    "route {:?} query {:?} has an invalid params-v1 args mapping",
+                    entry.route, spec.function
+                )
+            })?;
+        }
+        for other in &manifest.routes[..index] {
+            if route_patterns_overlap(&entry.route, &other.route) {
+                return Err(format!(
+                    "route patterns {:?} and {:?} can match the same path",
+                    other.route, entry.route
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Requested bundle mode after coded validation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BundleMode {
@@ -245,46 +338,185 @@ pub fn route_pattern_params(pattern: &str) -> Result<Vec<String>, &'static str> 
     Ok(params)
 }
 
+/// The decode type a `$param` reference's target arg takes (LLP 0092 §0E.6:
+/// `string`, `number` — integer or float — or `boolean`; any other referenced
+/// type refuses the entry).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RouteParamType {
+    String,
+    /// A `number` target backed by an integer-typed schema field: strict
+    /// decimal integer decode within the ±(2^53 − 1) safe band.
+    Integer,
+    /// A `number` target backed by a real-typed schema field: strict decimal
+    /// decode refused unless the value round-trips under the JCS number rules
+    /// (LLP 0091 §0A.2), so `argsHash` stays well-defined.
+    Number,
+    Boolean,
+}
+
+/// AST-derived per-arg decode types for a query's route params (the
+/// schema-driven typing LLP 0092 §0E.6 requires, derived like LLP 0076's
+/// capability inference rather than carried as a manifest field): every plan
+/// filter comparing a schema field against `ValueExpr::Arg(name)` types that
+/// arg by the field's schema type. Conflicting inferences and untypable
+/// fields (`Json`) yield no entry — a `$param` reference to an arg without an
+/// inferred type refuses at admission (fail closed).
+pub fn function_route_arg_types(
+    function: &crate::manifest::FunctionDefinition,
+    schema: &crate::manifest::SchemaManifest,
+) -> BTreeMap<String, RouteParamType> {
+    use crate::manifest::{FieldType, FunctionRuntime, HandlerPlan, ValueExpr};
+    let mut types: BTreeMap<String, Option<RouteParamType>> = BTreeMap::new();
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return BTreeMap::new();
+    };
+    let Some(table) = schema.tables.iter().find(|table| table.name == plan.table) else {
+        return BTreeMap::new();
+    };
+    for filter in &plan.filters {
+        let ValueExpr::Arg(name) = &filter.value else {
+            continue;
+        };
+        let Some(field) = table.fields.iter().find(|field| field.name == filter.field) else {
+            continue;
+        };
+        let inferred = match &field.field_type {
+            FieldType::String | FieldType::Principal | FieldType::Id { .. } => {
+                Some(RouteParamType::String)
+            }
+            FieldType::Integer => Some(RouteParamType::Integer),
+            FieldType::Real => Some(RouteParamType::Number),
+            FieldType::Boolean => Some(RouteParamType::Boolean),
+            FieldType::Json => None,
+        };
+        match types.get(name.as_str()) {
+            None => {
+                types.insert(name.clone(), inferred);
+            }
+            Some(existing) if *existing == inferred => {}
+            Some(_) => {
+                // Conflicting inference: drop the arg from the typable set.
+                types.insert(name.clone(), None);
+            }
+        }
+    }
+    types
+        .into_iter()
+        .filter_map(|(name, inferred)| inferred.map(|inferred| (name, inferred)))
+        .collect()
+}
+
+/// Decode one percent-decoded route-param segment string by its target type
+/// (LLP 0092 §0E.6 per-request substitution): `string` as-is; `number` by
+/// strict decimal parse refused unless the value round-trips under the JCS
+/// number rules; `boolean` by exact `"true"`/`"false"`.
+pub fn decode_route_param(
+    value: &str,
+    target: RouteParamType,
+) -> Result<Value, &'static str> {
+    match target {
+        RouteParamType::String => Ok(Value::String(value.to_owned())),
+        RouteParamType::Boolean => match value {
+            "true" => Ok(Value::Bool(true)),
+            "false" => Ok(Value::Bool(false)),
+            _ => Err(code::PARAMS_INVALID),
+        },
+        RouteParamType::Integer => {
+            let parsed: i64 = value.parse().map_err(|_| code::PARAMS_INVALID)?;
+            if parsed.abs() > 9_007_199_254_740_991 || parsed.to_string() != value {
+                return Err(code::PARAMS_INVALID);
+            }
+            Ok(Value::Number(parsed.into()))
+        }
+        RouteParamType::Number => {
+            let parsed: f64 = value.parse().map_err(|_| code::PARAMS_INVALID)?;
+            let number =
+                serde_json::Number::from_f64(parsed).ok_or(code::PARAMS_INVALID)?;
+            let canonical = Value::Number(number);
+            // JCS round-trip rule: the decoded value's canonical serialization
+            // must reproduce the presented segment exactly, so `argsHash` is
+            // well-defined (LLP 0091 §0A.2).
+            match crate::rqs::jcs(&canonical) {
+                Ok(serialized) if serialized == value => Ok(canonical),
+                _ => Err(code::PARAMS_INVALID),
+            }
+        }
+    }
+}
+
 /// `params-v1` substitution (LLP 0092 §0E.6): the mapping is a JSON value
 /// mirroring the args shape where every node is either a literal or a
-/// `{"$param": "name"}` reference. References decode as strings in this
-/// interim step — the schema-driven number/boolean decode requires the
-/// per-arg schema the cluster-0C manifest work carries.
-/// TODO(ENG-25448): type-directed decode once manifest arg schemas land.
+/// `{"$param": "name"}` reference. References decode by their target arg's
+/// schema-driven type ([`function_route_arg_types`]); a reference whose
+/// target arg has no inferred type refuses (fail closed — §0E.6's "any other
+/// referenced type refuses the entry"). References are typable only at
+/// top-level arg positions in v1; a reference nested inside an array or
+/// object literal has no schema-typed target and refuses.
 ///
 /// Request params must exactly cover the pattern's names: a request naming
 /// a missing or extra param refuses `SNAPBACK_BUNDLE_PARAMS_INVALID`.
 pub fn substitute_params_v1(
     mapping: &Value,
     params: &BTreeMap<String, String>,
+    arg_types: &BTreeMap<String, RouteParamType>,
 ) -> Result<Value, &'static str> {
-    match mapping {
-        Value::Object(map) => {
-            if let Some(reference) = map.get("$param") {
-                // A `$param` key alongside other keys, or with a non-string
-                // value, is refused (LLP 0092 §0E.6's unambiguity rule).
-                if map.len() != 1 {
+    let decode_reference =
+        |map: &serde_json::Map<String, Value>,
+         target: Option<RouteParamType>|
+         -> Result<Value, &'static str> {
+            // A `$param` key alongside other keys, or with a non-string
+            // value, is refused (LLP 0092 §0E.6's unambiguity rule).
+            if map.len() != 1 {
+                return Err(code::PARAMS_INVALID);
+            }
+            let Some(Value::String(name)) = map.get("$param") else {
+                return Err(code::PARAMS_INVALID);
+            };
+            let value = params.get(name).ok_or(code::PARAMS_INVALID)?;
+            let target = target.ok_or(code::PARAMS_INVALID)?;
+            decode_route_param(value, target)
+        };
+    fn substitute_literal(mapping: &Value) -> Result<Value, &'static str> {
+        match mapping {
+            Value::Object(map) => {
+                if map.contains_key("$param") {
+                    // Nested references have no schema-typed target in v1.
                     return Err(code::PARAMS_INVALID);
                 }
-                let Value::String(name) = reference else {
-                    return Err(code::PARAMS_INVALID);
-                };
-                let value = params.get(name).ok_or(code::PARAMS_INVALID)?;
-                return Ok(Value::String(value.clone()));
+                let mut substituted = serde_json::Map::new();
+                for (key, inner) in map {
+                    substituted.insert(key.clone(), substitute_literal(inner)?);
+                }
+                Ok(Value::Object(substituted))
+            }
+            Value::Array(items) => Ok(Value::Array(
+                items
+                    .iter()
+                    .map(substitute_literal)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            literal => Ok(literal.clone()),
+        }
+    }
+    match mapping {
+        Value::Object(map) => {
+            if map.contains_key("$param") {
+                // A bare top-level reference has no named arg to type against.
+                return Err(code::PARAMS_INVALID);
             }
             let mut substituted = serde_json::Map::new();
             for (key, inner) in map {
-                substituted.insert(key.clone(), substitute_params_v1(inner, params)?);
+                let value = match inner {
+                    Value::Object(inner_map) if inner_map.contains_key("$param") => {
+                        decode_reference(inner_map, arg_types.get(key.as_str()).copied())?
+                    }
+                    other => substitute_literal(other)?,
+                };
+                substituted.insert(key.clone(), value);
             }
             Ok(Value::Object(substituted))
         }
-        Value::Array(items) => Ok(Value::Array(
-            items
-                .iter()
-                .map(|item| substitute_params_v1(item, params))
-                .collect::<Result<Vec<_>, _>>()?,
-        )),
-        literal => Ok(literal.clone()),
+        other => substitute_literal(other),
     }
 }
 
@@ -326,32 +558,55 @@ fn validate_mapping_references(
     mapping: &Value,
     pattern_params: &[String],
 ) -> Result<(), &'static str> {
+    // Literal portions may not contain `$param` anywhere: references are
+    // typable only at top-level arg positions in v1 (schema-driven decode has
+    // no target type for a reference nested inside a literal), so a nested
+    // reference refuses at admission rather than substituting untyped.
+    fn assert_literal(value: &Value) -> Result<(), &'static str> {
+        match value {
+            Value::Object(map) => {
+                if map.contains_key("$param") {
+                    return Err(code::PARAMS_INVALID);
+                }
+                for inner in map.values() {
+                    assert_literal(inner)?;
+                }
+                Ok(())
+            }
+            Value::Array(items) => {
+                for item in items {
+                    assert_literal(item)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
     match mapping {
         Value::Object(map) => {
-            if let Some(reference) = map.get("$param") {
-                if map.len() != 1 {
-                    return Err(code::PARAMS_INVALID);
-                }
-                let Value::String(name) = reference else {
-                    return Err(code::PARAMS_INVALID);
-                };
-                if !pattern_params.iter().any(|param| param == name) {
-                    return Err(code::PARAMS_INVALID);
-                }
-                return Ok(());
+            if map.contains_key("$param") {
+                // A bare top-level reference has no named arg position.
+                return Err(code::PARAMS_INVALID);
             }
             for inner in map.values() {
-                validate_mapping_references(inner, pattern_params)?;
+                match inner {
+                    Value::Object(inner_map) if inner_map.contains_key("$param") => {
+                        if inner_map.len() != 1 {
+                            return Err(code::PARAMS_INVALID);
+                        }
+                        let Some(Value::String(name)) = inner_map.get("$param") else {
+                            return Err(code::PARAMS_INVALID);
+                        };
+                        if !pattern_params.iter().any(|param| param == name) {
+                            return Err(code::PARAMS_INVALID);
+                        }
+                    }
+                    other => assert_literal(other)?,
+                }
             }
             Ok(())
         }
-        Value::Array(items) => {
-            for item in items {
-                validate_mapping_references(item, pattern_params)?;
-            }
-            Ok(())
-        }
-        _ => Ok(()),
+        other => assert_literal(other),
     }
 }
 
@@ -684,24 +939,122 @@ mod tests {
         let params: BTreeMap<String, String> = [("boardId".to_owned(), "b-7".to_owned())]
             .into_iter()
             .collect();
-        let mapping = json!({ "board": { "$param": "boardId" }, "limit": 5, "tags": ["a", { "$param": "boardId" }] });
+        let types: BTreeMap<String, RouteParamType> =
+            [("board".to_owned(), RouteParamType::String)]
+                .into_iter()
+                .collect();
+        let mapping = json!({ "board": { "$param": "boardId" }, "limit": 5, "tags": ["a", "b"] });
         assert_eq!(
-            substitute_params_v1(&mapping, &params).unwrap(),
-            json!({ "board": "b-7", "limit": 5, "tags": ["a", "b-7"] })
+            substitute_params_v1(&mapping, &params, &types).unwrap(),
+            json!({ "board": "b-7", "limit": 5, "tags": ["a", "b"] })
         );
-        // $param alongside other keys / non-string reference / unknown param.
+        // A reference nested inside a literal has no schema-typed target.
         assert_eq!(
-            substitute_params_v1(&json!({ "$param": "boardId", "x": 1 }), &params),
+            substitute_params_v1(
+                &json!({ "tags": ["a", { "$param": "boardId" }] }),
+                &params,
+                &types
+            ),
+            Err(code::PARAMS_INVALID)
+        );
+        // $param alongside other keys / non-string reference / unknown param /
+        // untyped target arg.
+        assert_eq!(
+            substitute_params_v1(&json!({ "$param": "boardId", "x": 1 }), &params, &types),
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
-            substitute_params_v1(&json!({ "$param": 3 }), &params),
+            substitute_params_v1(&json!({ "board": { "$param": 3 } }), &params, &types),
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
-            substitute_params_v1(&json!({ "$param": "missing" }), &params),
+            substitute_params_v1(&json!({ "board": { "$param": "missing" } }), &params, &types),
             Err(code::PARAMS_INVALID)
         );
+        assert_eq!(
+            substitute_params_v1(
+                &json!({ "untyped": { "$param": "boardId" } }),
+                &params,
+                &types
+            ),
+            Err(code::PARAMS_INVALID)
+        );
+    }
+
+    #[test]
+    fn typed_route_param_decode_is_strict() {
+        use super::RouteParamType as T;
+        assert_eq!(decode_route_param("b-7", T::String), Ok(json!("b-7")));
+        assert_eq!(decode_route_param("true", T::Boolean), Ok(json!(true)));
+        assert_eq!(decode_route_param("false", T::Boolean), Ok(json!(false)));
+        for bad in ["True", "1", "", "yes"] {
+            assert_eq!(decode_route_param(bad, T::Boolean), Err(code::PARAMS_INVALID));
+        }
+        assert_eq!(decode_route_param("42", T::Integer), Ok(json!(42)));
+        assert_eq!(decode_route_param("-7", T::Integer), Ok(json!(-7)));
+        // Non-canonical, non-integral, over-band, or junk decimal forms refuse
+        // (the JCS round-trip rule keeps argsHash well-defined).
+        for bad in ["042", "1.5", "+1", "1e3", "9007199254740992", ""] {
+            assert_eq!(decode_route_param(bad, T::Integer), Err(code::PARAMS_INVALID));
+        }
+        assert_eq!(decode_route_param("1.5", T::Number), Ok(json!(1.5)));
+        assert_eq!(decode_route_param("42", T::Number), Ok(json!(42.0)));
+        for bad in ["1.50", "NaN", "Infinity", "0.10000000000000000001x", ""] {
+            assert_eq!(decode_route_param(bad, T::Number), Err(code::PARAMS_INVALID));
+        }
+    }
+
+    #[test]
+    fn routes_manifest_shape_validation() {
+        let entry = |route: &str| BundleRouteEntry {
+            route: route.to_owned(),
+            queries: vec![BundleQuerySpec {
+                function: "listCells".to_owned(),
+                args: json!({ "boardId": { "$param": "boardId" } }),
+            }],
+            persist: None,
+        };
+        let manifest = RoutesManifest {
+            format_version: 1,
+            app: "graffiti".to_owned(),
+            routes: vec![entry("/board/:boardId")],
+        };
+        assert!(validate_routes_manifest_shape(&manifest).is_ok());
+        // Unknown format version fails closed.
+        let mut wrong_version = manifest.clone();
+        wrong_version.format_version = 2;
+        assert!(validate_routes_manifest_shape(&wrong_version).is_err());
+        // Overlapping patterns refuse: a static and a param segment at the
+        // same position can match the same path.
+        let mut overlapping = manifest.clone();
+        overlapping.routes.push(BundleRouteEntry {
+            route: "/board/wall".to_owned(),
+            queries: vec![BundleQuerySpec {
+                function: "listCells".to_owned(),
+                args: json!({ "boardId": "wall" }),
+            }],
+            persist: None,
+        });
+        assert!(validate_routes_manifest_shape(&overlapping).is_err());
+        // Distinct static routes are fine.
+        let mut disjoint = manifest.clone();
+        disjoint.routes.push(BundleRouteEntry {
+            route: "/about".to_owned(),
+            queries: vec![BundleQuerySpec {
+                function: "listCells".to_owned(),
+                args: json!({ "boardId": "wall" }),
+            }],
+            persist: None,
+        });
+        assert!(validate_routes_manifest_shape(&disjoint).is_ok());
+        // A dangling reference refuses at shape validation.
+        let mut dangling = manifest.clone();
+        dangling.routes[0].queries[0].args = json!({ "boardId": { "$param": "missing" } });
+        assert!(validate_routes_manifest_shape(&dangling).is_err());
+        assert!(route_patterns_overlap("/", "/"));
+        assert!(route_patterns_overlap("/a/:x", "/:y/b"));
+        assert!(!route_patterns_overlap("/a/:x", "/b/:y"));
+        assert!(!route_patterns_overlap("/a", "/a/b"));
     }
 
     #[test]

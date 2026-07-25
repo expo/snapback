@@ -583,6 +583,102 @@ globalThis.__snapbackHandlers = { async probe() { return {}; } };
   else process.env.SNAPBACK_OUTBOUND_ACTIONS = previousOutboundActions;
 }
 
+// ---------------------------------------------------------------------------
+// publicInline + routes manifest authoring (LLP 0092 §0C, ENG-25448/25454).
+// ---------------------------------------------------------------------------
+
+const publicInlineFunctions = `
+import { arg, defineLiveQuery, eq, v } from '${defineUrl}';
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  args: { title: v.string() },
+  filter: [eq('title', arg('title'))],
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+`;
+
+{
+  // publicInline without a valid authorityIndependent declaration refuses.
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineLiveQuery, v } from '${defineUrl}';
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  args: {},
+  publicInline: true,
+});
+`,
+  });
+  assert(
+    diagnostics.some((diagnostic) => diagnostic.code === 'FUNCTION_PUBLIC_INLINE_INVALID'),
+    `expected FUNCTION_PUBLIC_INLINE_INVALID: ${JSON.stringify(diagnostics)}`,
+  );
+}
+
+{
+  // A valid publicInline declaration compiles into the functions manifest,
+  // and defineRoutes compiles into routes.manifest.json with params-v1
+  // references validated against the arg schema.
+  const result = await validCase({
+    functions: publicInlineFunctions,
+    handlers: {
+      'routes.mjs': `
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([
+  { route: '/', queries: [{ function: 'listTodos', args: { title: 'hello' } }] },
+  { route: '/t/:title', queries: [{ function: 'listTodos', args: { title: routeParam('title') } }] },
+]);
+`,
+    },
+  });
+  const fn = result.functionManifest.functions.find((entry) => entry.name === 'listTodos');
+  assert.equal(fn.publicInline, true, 'publicInline compiles into the manifest');
+  const routes = JSON.parse(readFileSync(join(result.outDir, 'routes.manifest.json'), 'utf8'));
+  assert.equal(routes.formatVersion, 1);
+  assert.equal(routes.routes.length, 2);
+  assert.deepEqual(routes.routes[1].queries[0].args, { title: { $param: 'title' } });
+  const index = JSON.parse(readFileSync(join(result.outDir, 'artifacts.json'), 'utf8'));
+  assert(index.artifacts.includes('routes.manifest.json'), 'artifact index lists the routes manifest');
+}
+
+{
+  // Routes refusals are compile errors: unknown function, dangling params,
+  // overlapping patterns, uncovered required args, nested references.
+  const routesCase = (routesSource) => invalidCase({
+    functions: publicInlineFunctions,
+    handlers: { 'routes.mjs': routesSource },
+  });
+  const expectCode = (diagnostics, code) => assert(
+    diagnostics.some((diagnostic) => diagnostic.code === code),
+    `expected ${code}: ${JSON.stringify(diagnostics)}`,
+  );
+  expectCode(await routesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{ route: '/', queries: [{ function: 'nope', args: {} }] }]);
+`), 'ROUTES_FUNCTION_INVALID');
+  expectCode(await routesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{ route: '/', queries: [{ function: 'listTodos', args: { title: routeParam('missing') } }] }]);
+`), 'ROUTES_ARGS_INVALID');
+  expectCode(await routesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([
+  { route: '/t/:title', queries: [{ function: 'listTodos', args: { title: 'a' } }] },
+  { route: '/t/fixed', queries: [{ function: 'listTodos', args: { title: 'b' } }] },
+]);
+`), 'ROUTES_PATTERN_OVERLAP');
+  expectCode(await routesCase(`
+import { defineRoutes } from '${defineUrl}';
+export default defineRoutes([{ route: '/', queries: [{ function: 'listTodos', args: {} }] }]);
+`), 'ROUTES_ARGS_INVALID');
+  expectCode(await routesCase(`
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([{ route: '/t/:title', queries: [{ function: 'listTodos', args: { title: 'x', extra: [routeParam('title')] } }] }]);
+`), 'ROUTES_ARGS_INVALID');
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('authoring-validation.test.mjs: all cases passed');

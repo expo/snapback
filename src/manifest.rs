@@ -901,6 +901,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
                 ) => validate_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+                ) => validate_relational_query_plan_shape(plan)?,
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -922,6 +926,7 @@ impl FunctionManifest {
 
             validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
+            validate_public_inline(function)?;
             validate_retainable_query(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
@@ -1123,6 +1128,93 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         "authScopeField": function.read_set_summary.auth_scope_field.as_deref(),
         "authorizationDependence": &function.authorization_dependence,
     })))
+}
+
+/// LLP 0092 §0C.3: `publicInline` is a disclosure permission accepted only on
+/// a query that also carries a *valid* `authorityIndependent: true`
+/// declaration (which entails `public` under the existing invariant —
+/// [`validate_authority_independent`] runs first, so reaching this check with
+/// `authority_independent` set means the declaration validated). v1 keeps the
+/// narrower rule fail-closed: no consumer exists for a
+/// public-but-authority-dependent inline query.
+fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.public_inline || function.authority_independent {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_PUBLIC_INLINE_INVALID",
+        "auth",
+        format!(
+            "function {} declares publicInline without a valid authorityIndependent declaration",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "authRequirement": function.effective_auth_requirement().as_str(),
+    })))
+}
+
+/// The derived, never-authored `rqsEligible` served-manifest predicate
+/// (LLP 0090 Authorization scope; LLP 0092 §0C.2): declared
+/// `authorityIndependent` (entailing `public`) AND the LLP 0053
+/// closed-inputs/retainable proof — HostPlan query runtime, no ambient or
+/// membership dependency, and a complete `singleTable` read summary whose
+/// table set equals the plan's. Evaluated non-erroringly: a query failing the
+/// proof is simply not eligible, never a load error. Returns the digest kind
+/// the eligible query's `contentDigest` takes (LLP 0091 §0A.4's selector:
+/// DK-3-analyzable unordered → `mset1`; ordered/limited replace-only →
+/// `seq1`).
+///
+/// Everything keyed on the predicate — token minting, bundle `resume`
+/// presence, Channel B persistence, D1.1 admission — reads this one derived
+/// fact; there is no authored `rqsEligible` field anywhere (an authored field
+/// of that name refuses at load via `deny_unknown_fields`).
+pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+    if !function.authority_independent {
+        return None;
+    }
+    if function.kind != FunctionKind::LiveQuery {
+        return None;
+    }
+    if function.effective_auth_requirement() != AuthRequirement::Public {
+        return None;
+    }
+    if !function.uses.is_empty()
+        || function.read_set_summary.auth_scope_field.is_some()
+        || !function.authorization_dependence.is_empty()
+    {
+        return None;
+    }
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return None;
+    };
+    if plan
+        .filters
+        .iter()
+        .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value))
+    {
+        return None;
+    }
+    if !plan.membership_filters.is_empty() {
+        return None;
+    }
+    // Closed-inputs proof (the `validate_retainable_query` obligations for the
+    // retainable class, reused as a measurement): a complete `singleTable`
+    // read summary whose table set equals the plan's.
+    let summary = &function.read_set_summary;
+    let summary_complete = summary.mode.as_deref() == Some("singleTable")
+        && summary.primary_table.as_deref() == Some(plan.table.as_str())
+        && summary.tables.len() == 1
+        && summary.tables.first() == Some(&plan.table);
+    if !summary_complete {
+        return None;
+    }
+    Some(if plan.order.is_empty() && plan.limit.is_none() {
+        crate::rqs::DigestKind::Mset1
+    } else {
+        crate::rqs::DigestKind::Seq1
+    })
 }
 
 pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
@@ -1428,6 +1520,58 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
     Err(undeclarable_retention(function, "notUserIdOnly"))
 }
 
+/// Structural admission of the closed relational plan (LLP 0080 §1); schema
+/// binding (tables, fields, indexes, the cardinality proof) is validated at
+/// artifact load, and the load-bearing bounds are re-checked at execution.
+pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_RELATIONAL_PLAN_INVALID", "runtime", message)
+    };
+    if plan.root.is_empty() || plan.joined.is_empty() || plan.root == plan.joined {
+        return Err(invalid(
+            "relational plan requires two distinct named source tables".to_owned(),
+        ));
+    }
+    if plan.root_alias.is_empty()
+        || plan.joined_alias.is_empty()
+        || plan.root_alias == plan.joined_alias
+    {
+        return Err(invalid(
+            "relational plan requires distinct non-empty source aliases".to_owned(),
+        ));
+    }
+    if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+        return Err(invalid(format!(
+            "relational plan requires 1..=4 join equality pairs, got {}",
+            plan.join_on.len()
+        )));
+    }
+    if plan.take > 1024 {
+        return Err(invalid(format!(
+            "relational take must be 0..=1024, got {}",
+            plan.take
+        )));
+    }
+    if plan.projection.is_empty() {
+        return Err(invalid("relational projection must be non-empty".to_owned()));
+    }
+    let mut names = std::collections::BTreeSet::new();
+    for leaf in &plan.projection {
+        if leaf.name.is_empty() || !names.insert(&leaf.name) {
+            return Err(invalid(format!(
+                "relational projection field {:?} must be non-empty and unique",
+                leaf.name
+            )));
+        }
+    }
+    if plan.root_index.is_empty() || plan.joined_index.is_empty() {
+        return Err(invalid(
+            "relational plan requires named root and joined indexes".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
     // @ref LLP 0007#query-semantics — every direct artifact must enter the
     // same bounded portable expression profile before it can be installed.
@@ -1527,6 +1671,21 @@ pub struct FunctionDefinition {
         skip_serializing_if = "is_false"
     )]
     pub authority_independent: bool,
+    /// Disclosure permission for Channel A / read-mode public bundles: this
+    /// already-public query's rows may be embedded in a tokenless HTML
+    /// response. Grants no invocation authority; accepted only beside a valid
+    /// `authorityIndependent` declaration.
+    ///
+    /// @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    ///   authored on the function definition, compiled by codegen, re-enforced
+    ///   at manifest load; never route-manifest authored.
+    #[serde(
+        default,
+        rename = "publicInline",
+        alias = "public_inline",
+        skip_serializing_if = "is_false"
+    )]
+    pub public_inline: bool,
     /// This entry point may reach a durable permission-backing write. The
     /// marker is part of delegated consent: changing it terminally invalidates
     /// scopes minted against the prior function basis.
@@ -1568,7 +1727,8 @@ pub struct FunctionDefinition {
     /// HostPlans (`basis: "static"`) and records author declarations for
     /// opaque handlers (`basis: "declared"`). Optional so pre-ceiling
     /// manifests keep loading; enforcement remains the runtime subset check.
-    /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
+    // @ref LLP 0065#1-fact-classes — EffectCeilingV1. (Plain comment: doc
+    //   text flows into generated schemas.)
     #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
     pub effect_ceiling: Option<EffectCeiling>,
     /// Stable versioned standard-pattern identity — which generated helper
@@ -1611,6 +1771,7 @@ impl FunctionDefinition {
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
+            public_inline: false,
             authority_creating: false,
             retainable: false,
             authorization_dependence: Vec::new(),
@@ -1945,6 +2106,14 @@ pub struct PublicFunctionDefinition {
     pub auth_requirement: Option<AuthRequirement>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
+    /// LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it
+    /// authorizes, so it rides the public projection.
+    #[serde(rename = "publicInline", skip_serializing_if = "is_false")]
+    pub public_inline: bool,
+    /// LLP 0092 §0C.2 derived predicate — never authored; clients key the
+    /// alias-key promotion check and token expectations on it.
+    #[serde(rename = "rqsEligible", skip_serializing_if = "is_false")]
+    pub rqs_eligible: bool,
     #[serde(rename = "authorityCreating", skip_serializing_if = "is_false")]
     pub authority_creating: bool,
     #[serde(skip_serializing_if = "is_false")]
@@ -1982,6 +2151,7 @@ pub enum PublicHostPlanKind {
     Query,
     Mutation,
     Action,
+    RelationalQuery,
 }
 
 /// Public projection of [`IbexModule`]: the export name, never the source.
@@ -2088,6 +2258,9 @@ impl From<ConfigEntryDefinition> for PublicConfigEntryDefinition {
 
 impl From<FunctionDefinition> for PublicFunctionDefinition {
     fn from(definition: FunctionDefinition) -> Self {
+        // Derived before the destructure: the served-manifest `rqsEligible`
+        // fact (LLP 0092 §0C.2) is computed, never carried.
+        let rqs_eligible = rqs_eligible_digest_kind(&definition).is_some();
         let FunctionDefinition {
             id,
             name,
@@ -2097,6 +2270,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
             authority_creating,
             retainable,
             authorization_dependence,
@@ -2118,6 +2292,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
+            rqs_eligible,
             authority_creating,
             retainable,
             authorization_dependence,
@@ -2139,6 +2315,9 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
+                // Plan-level kind only: per-row facts stay off the ordinary
+                // inspection surface (LLP 0080 §7).
+                HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
             }),
             // `source: _` is the redaction this projection exists for.
             FunctionRuntime::IbexModule(IbexModule { source: _, export }) => {
@@ -2153,6 +2332,10 @@ pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
+    /// LLP 0080 §1 — the closed bounded-join profile. Callable and
+    /// `live_replace`-capable only; targets that cannot execute it report a
+    /// machine-readable capability gap before invocation.
+    RelationalQuery(RelationalQueryPlan),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3186,10 +3369,12 @@ pub enum TargetCapabilityId {
     MutationReadSetValidation,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
+    #[serde(rename = "relational_query_v1")]
+    RelationalQueryV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
@@ -3199,6 +3384,7 @@ impl TargetCapabilityId {
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
+        Self::RelationalQueryV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -3212,6 +3398,7 @@ impl TargetCapabilityId {
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
+            Self::RelationalQueryV1 => "relational_query_v1",
         }
     }
 
@@ -3233,6 +3420,11 @@ impl TargetCapabilityId {
             // 0076 reaches Accepted (LLP 0074's honesty rule for Draft-backed
             // capabilities). Flipping this to `Stable` is the acceptance act.
             Self::BoundedResponseStreamV1 => CapabilityMaturity::Experimental,
+            // LLP 0080 is Accepted (semantics), but its executable witnesses
+            // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
+            // relational profile's id stays `experimental`; flipping it to
+            // `Stable` is the Implemented act.
+            Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -3272,6 +3464,10 @@ impl TargetCapabilityId {
                         .any(|form| form == "cron-action-run-mutation")
             }
             Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
+            // Fail-closed dedicated fact: a target implementing host plans
+            // (e.g. the Cloudflare host-ops path) does not thereby implement
+            // the relational executor (LLP 0080 §2's capability-gap rule).
+            Self::RelationalQueryV1 => facts.relational_query_v1_registered,
         }
     }
 }
@@ -3335,6 +3531,7 @@ impl CapabilityMaturity {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
     bounded_response_stream_v1_registered: bool,
+    relational_query_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3348,6 +3545,7 @@ impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
         Self {
             bounded_response_stream_v1_registered: true,
+            relational_query_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -4148,7 +4346,16 @@ mod membership_manifest_grammar_tests {
         // with `experimental` exactly when it is supported, and stable ids
         // never appear.
         let disabled = CapabilityManifest::local_v0_declared();
-        assert!(disabled.capability_maturity.is_empty());
+        // The relational profile is supported by the local runtime and its
+        // id is experimental until the coupled suite passes, so even the
+        // outbound-disabled declared manifest carries that one entry.
+        assert_eq!(
+            disabled
+                .capability_maturity
+                .get(&TargetCapabilityId::RelationalQueryV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        assert_eq!(disabled.capability_maturity.len(), 1);
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert_eq!(
             enabled
@@ -4156,7 +4363,7 @@ mod membership_manifest_grammar_tests {
                 .get(&TargetCapabilityId::BoundedResponseStreamV1),
             Some(&CapabilityMaturity::Experimental)
         );
-        assert_eq!(enabled.capability_maturity.len(), 1);
+        assert_eq!(enabled.capability_maturity.len(), 2);
 
         // Serialization: the annotated manifest carries the field; the
         // all-stable manifest omits it, and an omitted field round-trips to
@@ -4164,9 +4371,20 @@ mod membership_manifest_grammar_tests {
         let serialized = serde_json::to_value(&enabled).expect("serialize");
         assert_eq!(
             serialized["capabilityMaturity"],
-            json!({ "bounded_response_stream_v1": "experimental" })
+            json!({
+                "bounded_response_stream_v1": "experimental",
+                "relational_query_v1": "experimental",
+            })
         );
-        let plain = serde_json::to_value(&disabled).expect("serialize");
+        // An all-stable manifest omits the field, and an omitted field
+        // round-trips to an empty map (older manifests predate the
+        // dimension).
+        let mut all_stable = CapabilityManifest::local_v0_declared();
+        all_stable
+            .supported_capabilities
+            .retain(|id| id.maturity() == CapabilityMaturity::Stable);
+        all_stable.capability_maturity.clear();
+        let plain = serde_json::to_value(&all_stable).expect("serialize");
         assert!(plain.get("capabilityMaturity").is_none());
         let round_tripped: CapabilityManifest =
             serde_json::from_value(plain).expect("deserialize without the field");

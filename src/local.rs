@@ -646,11 +646,11 @@ pub struct LiveSubscribeInput {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
-    /// Absent exactly when the subscribe was answered with rung-1
-    /// `CurrentAsOf` (LLP 0090 D1.3): the caller presented `resumeFromToken`
-    /// and its held rows are current, so no rows ride the answer — the
-    /// `current_as_of` durable envelope (with the fresh token) does. Only a
-    /// resume-capable caller can receive the absent form.
+    /// Absent exactly when the subscribe was answered without rows (LLP 0090
+    /// D1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta
+    /// replay (the witness verified). The answer rides the durable lane —
+    /// the `current_as_of` or replay `live_delta` envelope carries the fresh
+    /// token. Only a resume-capable caller can receive the absent form.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<QueryOutput>,
     /// Fresh resume token for `rqsEligible` subscriptions answered with rows
@@ -831,6 +831,12 @@ pub struct EnsureAppInput {
     pub functions: Option<FunctionManifest>,
     #[serde(default)]
     pub seed: Option<SeedData>,
+    /// The route→query manifest (LLP 0092 §0C.1), ensured beside the
+    /// functions manifest on the local dev loop. Sessions-mode complete-pair
+    /// provisioning of routes rides the Cloudflare/deploy work of LLP 0090
+    /// rollout step 4.
+    #[serde(default)]
+    pub routes: Option<crate::bundle::RoutesManifest>,
 }
 
 /// Auth mode explicitly named by an ensure intent. This is a wire fact, not
@@ -956,6 +962,10 @@ pub struct EnsureAppOutcome {
     pub functions: String,
     /// 'seeded' | 'skipped-nonempty' | 'gated' | 'skipped-absent'
     pub seed: String,
+    /// 'matched' | 'provisioned' | 'gated' — absent when no routes manifest
+    /// was posted (LLP 0092 §0C.1 ensure admission).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routes: Option<String>,
     /// The server profile the decision ran under.
     pub profile: String,
 }
@@ -1170,6 +1180,13 @@ impl EnsureAppInput {
         if let Some(functions) = &self.functions {
             functions.validate_artifact()?;
         }
+        if let Some(routes) = &self.routes {
+            // Shape half only; validation against the served functions
+            // manifest runs at install, after the functions half applies.
+            crate::bundle::validate_routes_manifest_shape(routes).map_err(|message| {
+                SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message)
+            })?;
+        }
         Ok(())
     }
 }
@@ -1217,6 +1234,18 @@ pub struct RqsResumeStats {
     pub attempted: u64,
     /// Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).
     pub current_as_of_answers: u64,
+    /// Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the
+    /// witness verified and a `live_delta` answered the resume.
+    #[serde(default)]
+    pub delta_replay_answers: u64,
+    /// Total `live_delta` ops replayed by rung-2 answers.
+    #[serde(default)]
+    pub replay_ops: u64,
+    /// Estimated bytes avoided by rung-2 answers versus a rung-3
+    /// replacement: serialized replacement rows minus the serialized delta
+    /// envelope, saturating at zero per answer.
+    #[serde(default)]
+    pub replay_bytes_avoided: u64,
     /// Token presented, answered with rung 3 (refusal or no available proof).
     pub fresh_replace_answers: u64,
     /// Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).
@@ -2425,11 +2454,21 @@ pub struct LocalSnapback {
     // never the auth keyring (LLP 0091 §0A.1 custody). Surviving restart is
     // what keeps dev-loop restarts from refusing outstanding tokens.
     resume_keyring: crate::rqs::ResumeKeyring,
+    // Rung-2 witness caps and the replay-vs-replace threshold (LLP 0090
+    // D1.3; server policy knobs with LLP 0091 rung-2 amendment defaults).
+    rqs_replay_policy: RqsReplayPolicy,
     // Cached local-arm `generation` digest (LLP 0091 §0A.6): content-derived
     // from the served manifests; recomputed after every manifest/auth-mode
     // change (the invalidation sites set this back to `None`), so a no-op
     // ensure reproduces the identical digest.
     rqs_generation: Option<String>,
+    // The served route→query manifest and its canonical hash (LLP 0092
+    // §0C.1), installed through ensure beside the functions manifest. The
+    // hash is the `routeManifestHash` component of `resumeConfig` in the
+    // generation digest; while served, the bundle endpoint resolves entries
+    // from it exclusively and refuses the inline `devManifestEntry` form.
+    routes: Option<crate::bundle::RoutesManifest>,
+    routes_manifest_hash: Option<String>,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
@@ -2571,57 +2610,87 @@ struct RqsLiveState {
     digest: crate::rqs::ResultDigest,
 }
 
-/// Interim `rqsEligible` predicate and digest-kind selector.
-///
-/// @ref LLP 0090#authorization-scope-v1 — interim eligibility, tightened by
-/// ENG-25448: LLP 0090's `rqsEligible` is `authorityIndependent` AND the LLP
-/// 0053 closed-inputs proof, but the closed-inputs fact is cluster-0C work
-/// that has not landed. Until it does, this gates on the declared
-/// `authorityIndependent` manifest fact AND a conservative closed-inputs
-/// check derived from the analyzable plan: only a `HostPlan` query none of
-/// whose filter values read authority or ambient inputs (`RuntimeNow`,
-/// `RuntimeId`, auth axes) qualifies. Opaque (`IbexModule`) plans fail
-/// closed even if declared authority-independent — no journal proof or
-/// replay is sound for them. TODO(ENG-25448): replace the derived check with
-/// the served manifest's closed-inputs fact once cluster 0C lands.
-///
-/// The digest kind is the manifest delta class (LLP 0091 §0A.4): the
-/// DK-3-analyzable unordered shape takes `mset1`; ordered/limited
-/// (replace-only) shapes take `seq1`.
+/// Rung-2 replay policy (LLP 0090 D1.3 / LLP 0091 rung-2 amendment):
+/// server-side knobs, defaulted from the amendment's pinned values.
+#[derive(Clone, Copy, Debug)]
+pub struct RqsReplayPolicy {
+    /// Witness entry cap (`SNAPBACK_RESUME_WITNESS_OVERSIZE` above it).
+    pub max_witness_entries: usize,
+    /// Witness serialized-bytes cap (same refusal code).
+    pub max_witness_bytes: usize,
+    /// Replay-vs-replace cost heuristic: replay is admitted only while the
+    /// journal-affected distinct id count is at most
+    /// `max(1, witness_count * percent / 100)`; above that the server
+    /// answers rung 3 under `SNAPBACK_RESUME_POLICY_REPLACED`. Default 100:
+    /// once more rows were touched than the client ever held, the delta
+    /// cannot be smaller than the replacement, so replaying only adds
+    /// verification work on top of the same bytes.
+    pub replay_affected_percent: u32,
+}
+
+impl Default for RqsReplayPolicy {
+    fn default() -> Self {
+        Self {
+            max_witness_entries: crate::rqs::RESUME_WITNESS_MAX_ENTRIES,
+            max_witness_bytes: crate::rqs::RESUME_WITNESS_MAX_WIRE_BYTES,
+            replay_affected_percent: 100,
+        }
+    }
+}
+
+/// The `rqsEligible` predicate and digest-kind selector — the derived
+/// served-manifest fact of LLP 0092 §0C.2 (ENG-25448 landed the cluster-0C
+/// derivation, replacing the interim step-1 predicate with the strictly
+/// tighter form that also requires the LLP 0053 closed-inputs proof — the
+/// complete `singleTable` read summary). See
+/// [`crate::manifest::rqs_eligible_digest_kind`].
 fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
-    if !function.authority_independent {
-        return None;
+    crate::manifest::rqs_eligible_digest_kind(function)
+}
+
+fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message.into())
+}
+
+/// Collect the arg names a plan value expression reads (the AST-derived
+/// required-arg set for LLP 0092 §0E.6 coverage checking).
+fn collect_value_expr_arg_names(value: &ValueExpr, out: &mut BTreeSet<String>) {
+    match value {
+        ValueExpr::Arg(name) => {
+            out.insert(name.clone());
+        }
+        ValueExpr::Args
+        | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::MembershipExists(_) => {}
+        ValueExpr::Field { base, .. } => collect_value_expr_arg_names(base, out),
+        ValueExpr::Binary { left, right, .. } => {
+            collect_value_expr_arg_names(left, out);
+            collect_value_expr_arg_names(right, out);
+        }
+        ValueExpr::Unary { expr, .. } => collect_value_expr_arg_names(expr, out),
+        ValueExpr::If { cond, then, r#else } => {
+            collect_value_expr_arg_names(cond, out);
+            collect_value_expr_arg_names(then, out);
+            collect_value_expr_arg_names(r#else, out);
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
     }
-    if function.kind != FunctionKind::LiveQuery {
-        return None;
-    }
-    if function.effective_auth_requirement() != crate::manifest::AuthRequirement::Public {
-        return None;
-    }
-    if !function.uses.is_empty()
-        || function.read_set_summary.auth_scope_field.is_some()
-        || !function.authorization_dependence.is_empty()
-    {
-        return None;
-    }
-    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
-        return None;
-    };
-    if plan
-        .filters
-        .iter()
-        .any(|filter| crate::manifest::value_expr_uses_authority_or_ambient_input(&filter.value))
-    {
-        return None;
-    }
-    if !plan.membership_filters.is_empty() {
-        return None;
-    }
-    Some(if plan.order.is_empty() && plan.limit.is_none() {
-        crate::rqs::DigestKind::Mset1
-    } else {
-        crate::rqs::DigestKind::Seq1
-    })
 }
 
 impl LiveSubscription {
@@ -3529,7 +3598,7 @@ impl LocalSnapback {
             move |snapback| {
                 let ephemeral_collections = manifest.ephemeral_collections.clone();
                 let generation = next_app_generation()?;
-                let diagnostics = snapback.db.apply_schema(manifest)?;
+                let mut diagnostics = snapback.db.apply_schema(manifest)?;
                 let ephemeral = snapback.ephemeral.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
                     ephemeral
@@ -3538,6 +3607,23 @@ impl LocalSnapback {
                 });
                 snapback.install_app_generation(generation);
                 snapback.refresh_read_manifests();
+                // Schema-driven route-param typing depends on the schema
+                // (LLP 0092 §0E.6): a served route manifest that no longer
+                // validates against the new schema drops fail-closed.
+                if let Some(routes) = snapback.routes.clone()
+                    && let Err(error) = snapback.validate_routes_manifest(&routes)
+                {
+                    snapback.routes = None;
+                    snapback.routes_manifest_hash = None;
+                    diagnostics.push(Diagnostic::warning(
+                        "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                        "runtime",
+                        format!(
+                            "served route manifest dropped: it no longer validates against the new schema ({})",
+                            error.diagnostic.message
+                        ),
+                    ));
+                }
                 snapback.record_diagnostics(diagnostics.clone());
                 Ok(diagnostics)
             },
@@ -3587,6 +3673,25 @@ impl LocalSnapback {
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
         let mut diagnostics = preflight;
+        // A served route manifest that no longer validates against the new
+        // functions manifest is dropped fail-closed (LLP 0092 §0C.1): stale
+        // entries must not keep resolving; Channel A degrades to the shell
+        // and bundles answer ROUTE_UNKNOWN until a coherent manifest is
+        // ensured again.
+        if let Some(routes) = self.routes.clone()
+            && let Err(error) = self.validate_routes_manifest(&routes)
+        {
+            self.routes = None;
+            self.routes_manifest_hash = None;
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                "runtime",
+                format!(
+                    "served route manifest dropped: it no longer validates against the new functions manifest ({})",
+                    error.diagnostic.message
+                ),
+            ));
+        }
 
         if self
             .functions
@@ -4372,6 +4477,25 @@ impl LocalSnapback {
             }
         };
 
+        // Routes install after the functions half so validation runs against
+        // the manifest this same ensure just applied (LLP 0092 §0C.1).
+        let routes_outcome = match input.routes {
+            None => None,
+            Some(manifest) => {
+                let incoming_hash = serde_json::to_value(&manifest)
+                    .ok()
+                    .and_then(|value| crate::rqs::sha256_identity(&value).ok());
+                if incoming_hash.is_some() && incoming_hash == self.routes_manifest_hash {
+                    Some("matched")
+                } else if provisioning_allowed {
+                    self.install_routes_manifest(manifest)?;
+                    Some("provisioned")
+                } else {
+                    Some("gated")
+                }
+            }
+        };
+
         let seed_outcome = match input.seed {
             None => "skipped-absent",
             // Gate BEFORE the emptiness scan (ENG-22527 FIX 2): when
@@ -4405,6 +4529,7 @@ impl LocalSnapback {
             schema: schema_outcome.to_owned(),
             functions: functions_outcome.to_owned(),
             seed: seed_outcome.to_owned(),
+            routes: routes_outcome.map(str::to_owned),
             profile: profile.to_owned(),
         })
     }
@@ -6045,7 +6170,7 @@ impl LocalSnapback {
     /// every ensure (`install_app_generation` clears the cache). A no-op
     /// ensure reproduces identical components and therefore an identical
     /// digest, so dev-loop ensures do not needlessly refuse tokens.
-    pub(crate) fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
+    pub fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
         if let Some(generation) = &self.rqs_generation {
             return Ok(generation.clone());
         }
@@ -6088,13 +6213,21 @@ impl LocalSnapback {
         let capability_identity =
             canonical_identity(&manifest_value(serde_json::to_value(&capability_manifest))?)?;
         let auth_mode = self.db.auth_mode_snapshot()?.state.active.as_str();
-        // The local arm has no route manifest yet (cluster 0C / LLP 0090 Q1)
-        // and its journal prune policy is a per-call maintenance argument
-        // rather than a named durable policy; both identities are pinned
-        // literals until those artifacts exist, so changing either model
-        // rotates the generation through this string.
-        let resume_config =
-            crate::rqs::resume_config_identity("caller-supplied-v0", auth_mode, "absent");
+        // The journal prune policy is a per-call maintenance argument rather
+        // than a named durable policy; its identity stays a pinned literal
+        // until that artifact exists, so changing the model rotates the
+        // generation through this string. `routeManifestHash` is the served
+        // route manifest's canonical hash (LLP 0092 §0C.1), or the pinned
+        // "absent" literal when no route manifest is served.
+        let route_manifest_hash = self
+            .routes_manifest_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let resume_config = crate::rqs::resume_config_identity(
+            "caller-supplied-v0",
+            auth_mode,
+            &route_manifest_hash,
+        );
         let generation = crate::rqs::generation_digest(
             &deployment_identity,
             &schema_identity,
@@ -6104,6 +6237,109 @@ impl LocalSnapback {
         );
         self.rqs_generation = Some(generation.clone());
         Ok(generation)
+    }
+
+    /// Install the served route→query manifest (LLP 0092 §0C.1 admission on
+    /// the local arm's ensure path): shape validation, then validation
+    /// against the served functions manifest. Installing (or replacing) the
+    /// manifest rotates the RQS `generation` through `routeManifestHash`.
+    pub fn install_routes_manifest(
+        &mut self,
+        manifest: crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        self.validate_routes_manifest(&manifest)?;
+        let value = serde_json::to_value(&manifest).map_err(|error| {
+            routes_manifest_error(format!("routes manifest is not serializable: {error}"))
+        })?;
+        let hash = crate::rqs::sha256_identity(&value).map_err(|_| {
+            routes_manifest_error("routes manifest is not canonically hashable".to_owned())
+        })?;
+        self.routes = Some(manifest);
+        self.routes_manifest_hash = Some(hash);
+        // Route-manifest identity is a `generation` component (LLP 0091
+        // §0A.6 resumeConfig): outstanding tokens minted under the previous
+        // route manifest refuse stale rather than resuming across it.
+        self.rqs_generation = None;
+        Ok(())
+    }
+
+    /// The served route manifest, if any (the bundle endpoint and tests).
+    pub fn routes_manifest(&self) -> Option<&crate::bundle::RoutesManifest> {
+        self.routes.as_ref()
+    }
+
+    /// LLP 0092 §0C.1 install-time validation against the served functions
+    /// manifest: every named function exists and is a query; every `$param`
+    /// reference targets a schema-typable top-level arg (the AST-derived
+    /// per-arg decode types of §0E.6); and every arg the query's plan reads
+    /// is covered by the mapping. Failures refuse the manifest with the
+    /// coded load error — per 0090 D1.4, manifest presence authorizes
+    /// preload selection only.
+    fn validate_routes_manifest(
+        &self,
+        manifest: &crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        crate::bundle::validate_routes_manifest_shape(manifest)
+            .map_err(routes_manifest_error)?;
+        if manifest.app != self.functions.app_id {
+            return Err(routes_manifest_error(format!(
+                "routes manifest app {:?} does not match the served functions manifest app {:?}",
+                manifest.app, self.functions.app_id
+            )));
+        }
+        for entry in &manifest.routes {
+            for spec in &entry.queries {
+                let Some(function) = self.functions.function(&spec.function) else {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names unknown function {:?}",
+                        entry.route, spec.function
+                    )));
+                };
+                if !matches!(
+                    function.kind,
+                    crate::manifest::FunctionKind::Query | crate::manifest::FunctionKind::LiveQuery
+                ) {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names non-query function {:?}",
+                        entry.route, spec.function
+                    )));
+                }
+                let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
+                if let Value::Object(map) = &spec.args {
+                    for (key, value) in map {
+                        let Value::Object(inner) = value else { continue };
+                        if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
+                                entry.route, spec.function, key
+                            )));
+                        }
+                    }
+                }
+                // Coverage: every arg the plan's filters read must appear in
+                // the mapping (LLP 0092 §0E.6's required-arg rule, over the
+                // AST-derived required set).
+                if let crate::manifest::FunctionRuntime::HostPlan(
+                    crate::manifest::HandlerPlan::Query(plan),
+                ) = &function.runtime
+                {
+                    let mut required = std::collections::BTreeSet::new();
+                    for filter in &plan.filters {
+                        collect_value_expr_arg_names(&filter.value, &mut required);
+                    }
+                    for name in required {
+                        let covered = matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
+                        if !covered {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} does not cover required arg {:?}",
+                                entry.route, spec.function, name
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Mint one shared resume token at `(queryArtifact, argsHash, version,
@@ -6228,6 +6464,186 @@ impl LocalSnapback {
         Ok(body)
     }
 
+    /// Rung-2 delta replay for an admitted `mset1` token with a membership
+    /// witness (LLP 0090 D1.3, rollout steps 5a+6). Preconditions the caller
+    /// established: the token passed D1.1 admission, its `version` is within
+    /// the journal floor, the query is DK-3-analyzable unordered (`mset1`),
+    /// and a fresh token was mintable at head.
+    ///
+    /// Sequence: (1) enforce the witness caps, (2) decode fail-closed, (3)
+    /// verify the witness aggregate equals the MAC-bound `contentDigest`
+    /// root BEFORE any replay — token and witness are jointly verifiable and
+    /// the keyed leaf defeats hash permutation, (4) diff the witnessed old
+    /// membership against the current post-image result over exactly the
+    /// journal-affected row ids (exits are derivable because the witness
+    /// names old hashes), under the replay-vs-replace policy threshold, and
+    /// (5) require the updated accumulator — witnessed leaves subtracted and
+    /// post-image leaves added for affected ids only, untouched leaves kept
+    /// — to reproduce the fresh head digest. Any refusal answers rung 3: a
+    /// full replacement, which by construction can never suppress a removal.
+    ///
+    /// @ref LLP 0090#d13-replay-admission-ladder — rung-2 witness semantics
+    ///   and the accumulator-update rule this implements.
+    fn rqs_attempt_delta_replay(
+        &self,
+        witness: &crate::live_wire::MembershipWitnessWire,
+        body: &crate::rqs::ResumeTokenBody,
+        function: &FunctionDefinition,
+        state: &RqsLiveState,
+        current_rows: &[Value],
+    ) -> Result<Vec<LiveDeltaWireOp>, &'static str> {
+        use crate::rqs::refusal;
+        let wire_bytes = serde_json::to_vec(witness)
+            .map(|bytes| bytes.len())
+            .unwrap_or(usize::MAX);
+        if wire_bytes > self.rqs_replay_policy.max_witness_bytes {
+            return Err(refusal::WITNESS_OVERSIZE);
+        }
+        let pairs =
+            crate::rqs::decode_witness(witness, self.rqs_replay_policy.max_witness_entries)?;
+        let mut accumulator = crate::rqs::witness_state(&pairs);
+        if accumulator.root() != body.content_digest {
+            return Err(refusal::WITNESS_ROOT_MISMATCH);
+        }
+        // The eligibility gate guarantees an analyzable single-table plan.
+        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+            return Err(refusal::WITNESS_INVALID);
+        };
+        let threshold = std::cmp::max(
+            1,
+            (pairs.len() as u64)
+                .saturating_mul(u64::from(self.rqs_replay_policy.replay_affected_percent))
+                / 100,
+        ) as usize;
+        let affected = self
+            .db
+            .changed_row_ids_for_table_since(&plan.table, body.version, threshold)
+            .map_err(|_| refusal::JOURNAL_FLOOR)?;
+        if affected.len() > threshold {
+            return Err(refusal::POLICY_REPLACED);
+        }
+        let witnessed: HashMap<&str, &[u8; 32]> = pairs
+            .iter()
+            .map(|pair| (pair.id.as_str(), &pair.row_hash))
+            .collect();
+        let current_by_id: HashMap<&str, &Value> = current_rows
+            .iter()
+            .filter_map(|row| crate::rqs::row_wire_id(row).map(|id| (id, row)))
+            .collect();
+        let mut ops = Vec::new();
+        for id in &affected {
+            let old_hash = witnessed.get(id.as_str()).copied();
+            let new_hash = state.digest.row_hash_for(id);
+            match (old_hash, new_hash) {
+                // Touched, but in the result on neither side (never matched
+                // the predicate, or entered and left inside the gap).
+                (None, None) => {}
+                // Predicate exit or delete while offline: exactly removed.
+                (Some(old_hash), None) => {
+                    accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Remove,
+                        id: id.clone(),
+                        row: None,
+                    });
+                }
+                // Entered the result while offline.
+                (None, Some(new_hash)) => {
+                    let Some(row) = current_by_id.get(id.as_str()) else {
+                        return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                    };
+                    accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Add,
+                        id: id.clone(),
+                        row: Some((*row).clone()),
+                    });
+                }
+                // Held on both sides: an op only when the content changed
+                // (a touched-but-reverted row stays silent).
+                (Some(old_hash), Some(new_hash)) => {
+                    if old_hash != new_hash {
+                        let Some(row) = current_by_id.get(id.as_str()) else {
+                            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                        };
+                        accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                        accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                        ops.push(LiveDeltaWireOp {
+                            op: LiveDeltaOpKind::Update,
+                            id: id.clone(),
+                            row: Some((*row).clone()),
+                        });
+                    }
+                }
+            }
+        }
+        // The minted root must still contain every untouched witness leaf
+        // and nothing else — any divergence (journal incompleteness, an
+        // impure query, a wrong-but-root-matching witness) refuses to rung 3
+        // instead of ratifying a wrong replay.
+        if accumulator.root() != state.digest.published() {
+            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+        }
+        Ok(ops)
+    }
+
+    /// Resolve a bundle request's route entry (LLP 0092 §0C.1/§0D.1): while
+    /// a route manifest is served it is the ONLY source of entries — the
+    /// endpoint matches the presented pattern by string equality and the
+    /// inline `devManifestEntry` form is refused by design. Without a served
+    /// manifest the clearly-marked inline dev/test form is required.
+    pub fn resolve_bundle_route(
+        &self,
+        route: &str,
+        dev_manifest_entry: Option<&crate::bundle::BundleRouteEntry>,
+    ) -> SnapbackResult<crate::bundle::BundleRouteEntry> {
+        use crate::bundle::code;
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        match &self.routes {
+            Some(manifest) => {
+                if dev_manifest_entry.is_some() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "devManifestEntry is refused while a served route manifest exists (LLP 0092 §0C.1)",
+                    ));
+                }
+                manifest
+                    .routes
+                    .iter()
+                    .find(|entry| entry.route == route)
+                    .cloned()
+                    .ok_or_else(|| {
+                        refuse(
+                            code::ROUTE_UNKNOWN,
+                            "route pattern is absent from the served route manifest",
+                        )
+                    })
+            }
+            None => dev_manifest_entry.cloned().ok_or_else(|| {
+                refuse(
+                    code::ROUTE_UNKNOWN,
+                    "no served route manifest holds this route (inline devManifestEntry required on an instance serving no route manifest)",
+                )
+            }),
+        }
+    }
+
+    /// The anonymous-read admission fact (LLP 0092 §0D.1): every query the
+    /// entry names carries the codegen-compiled `publicInline` disclosure
+    /// fact in the served functions manifest. Checked against the served
+    /// facts, never the route-manifest author's word (0090 Authorization
+    /// scope).
+    pub fn bundle_entry_public_inline(&self, entry: &crate::bundle::BundleRouteEntry) -> bool {
+        !entry.queries.is_empty()
+            && entry.queries.iter().all(|spec| {
+                self.functions
+                    .function(&spec.function)
+                    .is_some_and(|function| function.public_inline)
+            })
+    }
+
     /// Dev-authority read-mode bundle evaluation (the library/test seam,
     /// mirroring [`Self::subscribe_live`]). Production HTTP composition
     /// prepares its authority in the route middleware and calls
@@ -6339,7 +6755,10 @@ impl LocalSnapback {
                         "register mode requires live queries",
                     ));
                 }
-                let args = bundle::substitute_params_v1(&spec.args, params)
+                // Schema-driven per-arg decode (LLP 0092 §0E.6): references
+                // decode by the AST-derived type of their target arg.
+                let arg_types = bundle::function_route_arg_types(&function, snapback.db.schema());
+                let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
                     .map_err(|code| refuse(code, "bundle args mapping refused"))?;
                 let (rows, resume, subscription_id, authorization) = match &register {
                     None => {
@@ -7052,6 +7471,7 @@ impl LocalSnapback {
             )
         });
         let mut answer_current_as_of = false;
+        let mut answer_delta: Option<Vec<LiveDeltaWireOp>> = None;
         if let Some(body) = admitted_resume.as_ref() {
             let distance = head_version.saturating_sub(body.version);
             self.live_delivery.resume.last_journal_distance = distance;
@@ -7081,13 +7501,48 @@ impl LocalSnapback {
             } else {
                 match self.journal_resume_requires_resnapshot(body.version) {
                     Ok(false) => {
-                        // Rung-1 table-set proof: the journal floor holds,
-                        // but no complete certified dependency-summary
-                        // artifact exists for this generation yet (cluster
-                        // 0C), so the table-set arm is structurally present
-                        // and always falls through to rung 3 under its own
-                        // telemetry cause (LLP 0090 D1.3 proof obligations).
-                        self.live_delivery.resume.no_certified_summary += 1;
+                        // The journal floor holds. Rung 2 (LLP 0090 D1.3,
+                        // steps 5a+6): a DK-3-analyzable unordered (`mset1`)
+                        // query with a client membership witness replays
+                        // exact deltas; without a witness (or for `seq1`)
+                        // the rung-1 table-set arm still always falls
+                        // through to rung 3 — no complete certified
+                        // dependency-summary artifact exists yet (cluster
+                        // 0C) — under its own telemetry cause.
+                        let witness = input
+                            .resume_from_token
+                            .as_ref()
+                            .and_then(|presented| presented.membership_witness.as_ref());
+                        let replay = match (witness, rqs_state.as_ref(), fresh_resume.as_ref()) {
+                            (Some(witness), Some(state), Some(_))
+                                if state.digest.kind == crate::rqs::DigestKind::Mset1 =>
+                            {
+                                Some(self.rqs_attempt_delta_replay(
+                                    witness,
+                                    body,
+                                    &function,
+                                    state,
+                                    &query.output.rows,
+                                ))
+                            }
+                            _ => None,
+                        };
+                        match replay {
+                            Some(Ok(ops)) if ops.is_empty() => {
+                                // Every journal-affected row reverted or
+                                // never intersected the result: the held
+                                // rows are current at head — the verified
+                                // witness upgrades the answer to rung 1.
+                                answer_current_as_of = true;
+                            }
+                            Some(Ok(ops)) => answer_delta = Some(ops),
+                            Some(Err(code)) => {
+                                resume_refusal = refuse(&mut self.live_delivery, code);
+                            }
+                            None => {
+                                self.live_delivery.resume.no_certified_summary += 1;
+                            }
+                        }
                     }
                     _ => {
                         resume_refusal =
@@ -7099,6 +7554,8 @@ impl LocalSnapback {
         if input.resume_from_token.is_some() {
             if answer_current_as_of {
                 self.live_delivery.resume.current_as_of_answers += 1;
+            } else if answer_delta.is_some() {
+                self.live_delivery.resume.delta_replay_answers += 1;
             } else {
                 self.live_delivery.resume.fresh_replace_answers += 1;
             }
@@ -7298,6 +7755,7 @@ impl LocalSnapback {
         // its mandatory fresh token) in the same &mut cut that registered the
         // subscription, and omit rows from the subscribe output entirely —
         // the caller's held rows are current as of `head_version`.
+        let answered_without_rows = answer_current_as_of || answer_delta.is_some();
         if answer_current_as_of {
             let envelope = LiveEnvelope::CurrentAsOf {
                 subscription_id: subscription_id.clone(),
@@ -7312,11 +7770,44 @@ impl LocalSnapback {
             {
                 self.enqueue_subscription_durable(subscription, payload);
             }
+        } else if let Some(ops) = answer_delta.take() {
+            // Rung-2 answer (LLP 0090 D1.3): the exact replay frame — with
+            // its mandatory fresh token minted from the updated accumulator
+            // — rides the durable lane inside the same registration cut; the
+            // subscribe output carries no rows.
+            self.live_delivery.resume.replay_ops += ops.len() as u64;
+            // Bytes-avoided estimate compares payload content only (rows vs
+            // ops); envelope overhead and the fresh token are identical
+            // between a rung-2 and a rung-3 answer.
+            let replaced_bytes = serde_json::to_vec(&query.output.rows)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(0);
+            let replay_bytes = serde_json::to_vec(&ops)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(replaced_bytes);
+            self.live_delivery.resume.replay_bytes_avoided +=
+                replaced_bytes.saturating_sub(replay_bytes);
+            let envelope = LiveEnvelope::LiveDelta {
+                subscription_id: subscription_id.clone(),
+                function: name.to_owned(),
+                version: head_version,
+                ops,
+                resume: Some(
+                    fresh_resume
+                        .take()
+                        .expect("rung-2 admission requires a minted fresh token"),
+                ),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+            {
+                self.enqueue_subscription_durable(subscription, payload);
+            }
         }
 
         Ok(LiveSubscribeOutput {
             subscription_id,
-            snapshot: (!answer_current_as_of).then_some(query.output),
+            snapshot: (!answered_without_rows).then_some(query.output),
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
             permission_epochs,
@@ -10461,7 +10952,10 @@ impl LocalSnapback {
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
             resume_keyring,
+            rqs_replay_policy: RqsReplayPolicy::default(),
             rqs_generation: None,
+            routes: None,
+            routes_manifest_hash: None,
         })
     }
 
@@ -13168,6 +13662,80 @@ fn validate_function_schema_references(
     for function in &manifest.functions {
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            // @ref LLP 0080#1-closed-relational-plan — activation validates
+            //   the root window exactly like a single-table plan (fields,
+            //   membership privacy, Json-order refusal, named root index)
+            //   and proves the joined side: fields exist, the membership
+            //   privacy rule holds, and the named joined index is unique
+            //   with its complete ordered key exactly the joined-field
+            //   sequence — the cardinality proof, checked from declarations,
+            //   never assumed.
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                let mut root_filters = plan.root_visibility.clone();
+                root_filters.extend(plan.root_filters.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.root.clone(),
+                    filters: root_filters,
+                    order: plan.order.clone(),
+                    limit: Some(plan.take as usize),
+                    membership_filters: Vec::new(),
+                    indexed_by: Some(plan.root_index.clone()),
+                })?;
+                for pair in &plan.join_on {
+                    field(&plan.root, &pair.root_field)?;
+                }
+                let mut joined_filters: Vec<crate::manifest::FilterExpr> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| crate::manifest::FilterExpr {
+                        field: pair.joined_field.clone(),
+                        op: crate::manifest::FilterOp::Eq,
+                        value: ValueExpr::Literal(Value::Null),
+                    })
+                    .collect();
+                joined_filters.extend(plan.joined_visibility.iter().cloned());
+                query(&QueryPlan {
+                    table: plan.joined.clone(),
+                    filters: joined_filters,
+                    order: Vec::new(),
+                    limit: Some(1),
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })?;
+                let joined_table = table(&plan.joined)?;
+                let key: Vec<&str> = plan
+                    .join_on
+                    .iter()
+                    .map(|pair| pair.joined_field.as_str())
+                    .collect();
+                let proven = joined_table.indexes.iter().any(|candidate| {
+                    candidate.name == plan.joined_index
+                        && candidate.unique
+                        && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == key
+                });
+                if !proven {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                        "runtime",
+                        format!(
+                            "relational plan for {} requires unique index {}.{} whose complete \
+                             ordered key is exactly the joined-field sequence",
+                            function.name, plan.joined, plan.joined_index
+                        ),
+                    ));
+                }
+                for leaf in &plan.projection {
+                    match &leaf.source {
+                        crate::manifest::ProjectionSource::RootField(name) => {
+                            field(&plan.root, name)?;
+                        }
+                        crate::manifest::ProjectionSource::JoinedField(name) => {
+                            field(&plan.joined, name)?;
+                        }
+                        crate::manifest::ProjectionSource::Literal(_) => {}
+                    }
+                }
+            }
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
                 for step in &plan.steps {
                     match step {
@@ -13288,6 +13856,39 @@ fn execute_query_invocation(
         ) => {
             let output = db.query(plan, &input)?;
             let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+        ) => {
+            // @ref LLP 0080#4-live-and-retained-capability — relational reads
+            //   deliberately capture no Query-kind dependency: the matcher
+            //   then falls through to the table-granular runtime arm, so any
+            //   commit touching either declared source resnapshots and no
+            //   proved-disjoint skip is claimed.
+            let output = crate::storage::query_relational_on(&db, plan, &input)?;
+            let mut read_dependencies = Vec::new();
+            if let Some(user_id) = input.auth.user_id.as_deref() {
+                read_dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Auth,
+                    table: None,
+                    id: None,
+                    version: None,
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: Some("userId".to_owned()),
+                    value: Some(Value::String(user_id.to_owned())),
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+            }
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
                 output,
@@ -13532,6 +14133,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     match &definition.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
             (vec![plan.table.clone()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+            (vec![plan.root.clone(), plan.joined.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
             let mut reads = BTreeSet::new();
@@ -15455,6 +16059,219 @@ globalThis.__snapbackHandlers = {
             "result handoff fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    // @ref LLP 0080#1-closed-relational-plan — end-to-end: activation
+    //   validation admits a proven plan and refuses an unproven cardinality
+    //   claim; invocation routes through the root-window executor with the
+    //   caller's authority.
+    #[test]
+    fn relational_query_validates_and_invokes_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: vec![owner_filter("ownerId")],
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+            ],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 10,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory relational fixture");
+        snapback.apply_schema(schema).expect("apply relational schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan.clone())),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "proven relational plan must activate: {diagnostics:?}"
+        );
+
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                            row(json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed relational rows");
+
+        let output = snapback
+            .invoke_query(
+                "booksWithAuthors",
+                HandlerInput {
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("relational invocation");
+        assert_eq!(
+            output.rows,
+            vec![json!({ "authorName": "Ada", "title": "alpha" })],
+            "inner join omits the invisible author's book without refill",
+        );
+
+        // An unproven cardinality claim (non-unique joined index) is refused
+        // at activation, before any invocation exists.
+        let mut unproven_schema_snapback =
+            LocalSnapback::memory().expect("memory unproven fixture");
+        let mut unproven_schema = SchemaManifest {
+            tables: Vec::new(),
+            ..SchemaManifest::default()
+        };
+        // Same schema but the joined index loses uniqueness.
+        unproven_schema.tables = vec![
+            TableManifest {
+                name: "books".to_owned(),
+                fields: vec![
+                    string("title", false),
+                    string("authorSlug", true),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_owner_title".to_owned(),
+                    fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+            TableManifest {
+                name: "authors".to_owned(),
+                fields: vec![
+                    string("slug", false),
+                    string("name", false),
+                    string("ownerId", false),
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_slug".to_owned(),
+                    fields: vec!["slug".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+        ];
+        unproven_schema_snapback
+            .apply_schema(unproven_schema)
+            .expect("apply unproven schema");
+        let diagnostics = unproven_schema_snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "booksWithAuthors",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|d| d
+                .message
+                .contains("SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN")
+                || d.code == "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"),
+            "non-unique joined index must refuse activation: {diagnostics:?}"
+        );
     }
 
     #[test]
@@ -19781,6 +20598,14 @@ globalThis.__snapbackHandlers = {
         );
         function.authority_independent = true;
         function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        // The LLP 0092 §0C.2 closed-inputs proof: eligibility derivation
+        // requires the complete `singleTable` summary codegen always emits.
+        function.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("todos".to_owned()),
+            tables: vec!["todos".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
         function
     }
 
@@ -19821,13 +20646,54 @@ globalThis.__snapbackHandlers = {
         );
         scoped.authorization_dependence =
             vec![crate::manifest::AuthorizationInputDimension::UserId];
+        // Predicate-scoped public query for the rung-2 exit fixtures: only
+        // rank == 1 rows are in the result, so a rank change is a predicate
+        // exit (the row still exists, but left the result while offline).
+        let mut visible = rqs_public_live_query("listVisibleTodos", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut visible.runtime {
+            plan.filters.push(FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::Number(1.into())),
+            });
+        }
+        let set_rank = FunctionDefinition::new(
+            "setRank",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([("rank".to_owned(), ValueExpr::Arg("rank".to_owned()))]),
+                }],
+                return_value: None,
+            })),
+        );
+        let set_title = FunctionDefinition::new(
+            "setTitle",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Arg("title".to_owned()),
+                    )]),
+                }],
+                return_value: None,
+            })),
+        );
         FunctionManifest {
             bundle_hash: Some("rqs-functions-v0".to_owned()),
             functions: vec![
                 rqs_public_live_query("listPublicTodos", false),
                 rqs_public_live_query("listRankedTodos", true),
+                visible,
                 scoped,
                 create,
+                set_rank,
+                set_title,
             ],
             ..FunctionManifest::default()
         }
@@ -19860,7 +20726,40 @@ globalThis.__snapbackHandlers = {
     }
 
     fn rqs_wrap(resume: crate::live_wire::ResumeWire) -> Option<crate::live_wire::ResumeFromToken> {
-        Some(crate::live_wire::ResumeFromToken { resume })
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: None,
+        })
+    }
+
+    fn rqs_wrap_with_witness(
+        resume: crate::live_wire::ResumeWire,
+        witness: crate::live_wire::MembershipWitnessWire,
+    ) -> Option<crate::live_wire::ResumeFromToken> {
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: Some(witness),
+        })
+    }
+
+    /// The witness a well-behaved client derives from held wire rows: exact
+    /// `(rowId, oldRowHash)` pairs in ascending id order with an explicit
+    /// count (LLP 0091 rung-2 amendment).
+    fn rqs_witness_of_rows(rows: &[Value]) -> crate::live_wire::MembershipWitnessWire {
+        use base64::Engine as _;
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
+            .iter()
+            .map(|row| crate::live_wire::MembershipWitnessEntry {
+                id: crate::rqs::row_wire_id(row).expect("wire row id").to_owned(),
+                old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
+            })
+            .collect();
+        entries.sort_by(|a, b| a.id.encode_utf16().cmp(b.id.encode_utf16()));
+        crate::live_wire::MembershipWitnessWire {
+            count: entries.len() as u32,
+            entries,
+        }
     }
 
     fn rqs_user_input(user_id: &str) -> HandlerInput {
@@ -20356,6 +21255,495 @@ globalThis.__snapbackHandlers = {
         // The delta also refreshed the token past the CurrentAsOf version.
         let refreshed = rqs_resume_from_value(&delta["resume"]);
         assert!(refreshed.meta.version > 0);
+    }
+
+    fn rqs_create_todo(snapback: &mut LocalSnapback, title: &str) {
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": title }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("create todo");
+    }
+
+    fn rqs_row_id_by_title(rows: &[Value], title: &str) -> String {
+        rows.iter()
+            .find(|row| row["title"] == json!(title))
+            .and_then(|row| row["_id"].as_str())
+            .expect("row id by title")
+            .to_owned()
+    }
+
+    #[test]
+    fn rqs_delta_replay_resumes_including_predicate_exit_rows() {
+        // LLP 0090 rollout step 6: a DK-3-eligible fixture resumes via
+        // deltas, including a row that left the result while offline via a
+        // predicate exit — exactly removed, never silently retained.
+        let mut snapback = rqs_snapback();
+        // The untouched row carries real weight so the bytes-avoided
+        // estimate is visibly positive: replay never resends it.
+        let keep_title = format!("keep-{}", "x".repeat(400));
+        rqs_create_todo(&mut snapback, &keep_title);
+        rqs_create_todo(&mut snapback, "exit");
+        rqs_create_todo(&mut snapback, "change");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        assert_eq!(held.len(), 3);
+        let token = first.resume.clone().expect("mint");
+        let id_exit = rqs_row_id_by_title(&held, "exit");
+        let id_change = rqs_row_id_by_title(&held, "change");
+
+        // Offline gap: one predicate exit, one content change, one enter.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_exit, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_change, "title": "changed" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("content change");
+        rqs_create_todo(&mut snapback, "entered");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none(), "rung 2 sends no rows inline");
+        assert!(resumed.resume.is_none(), "the fresh token rides the delta");
+        assert_eq!(resumed.resume_refusal, None);
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 3);
+        let op_for = |id: &str| {
+            ops.iter()
+                .find(|op| op["id"] == json!(id))
+                .unwrap_or_else(|| panic!("op for {id}"))
+        };
+        let exit_op = op_for(&id_exit);
+        assert_eq!(exit_op["op"], "remove");
+        assert!(exit_op.get("row").is_none(), "removals carry no row");
+        assert_eq!(op_for(&id_change)["op"], "update");
+        assert_eq!(op_for(&id_change)["row"]["title"], "changed");
+        let enter_op = ops
+            .iter()
+            .find(|op| op["op"] == "add")
+            .expect("enter op");
+        assert_eq!(enter_op["row"]["title"], "entered");
+
+        // The fresh token was minted from the updated accumulator and
+        // matches the exact current result (client post-replay verification
+        // target, T8).
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let current = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-c", None))
+            .expect("current snapshot");
+        let expected = crate::rqs::ResultDigest::from_rows(
+            crate::rqs::DigestKind::Mset1,
+            &current.snapshot.as_ref().unwrap().rows,
+        )
+        .unwrap();
+        assert_eq!(fresh.meta.content_digest, expected.published());
+        assert_eq!(
+            fresh.meta.version,
+            envelopes[0]["version"].as_u64().unwrap()
+        );
+
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.attempted, 1);
+        assert_eq!(stats.delta_replay_answers, 1);
+        assert_eq!(stats.replay_ops, 3);
+        assert!(stats.replay_bytes_avoided > 0, "3 ops beat a 3-row replace");
+        assert_eq!(stats.current_as_of_answers, 0);
+        assert_eq!(stats.fresh_replace_answers, 0);
+    }
+
+    #[test]
+    fn rqs_delta_replay_strict_subset_mints_root_with_untouched_leaves() {
+        // The accumulator-update rule (LLP 0090 D1.3, v0.6 correction): only
+        // journal-affected ids are touched, so the minted root still
+        // contains the untouched rows' leaves.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_b = rqs_row_id_by_title(&held, "b");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_b, "title": "b2" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("strict-subset change");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1, "only the changed row is replayed");
+        assert_eq!(ops[0]["id"], json!(id_b));
+        assert_eq!(ops[0]["op"], "update");
+
+        // Applying the op to the held rows client-side reproduces the fresh
+        // root: the untouched a/c leaves are still in it.
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let replayed: Vec<Value> = held
+            .iter()
+            .map(|row| {
+                if row["_id"] == json!(id_b) {
+                    ops[0]["row"].clone()
+                } else {
+                    row.clone()
+                }
+            })
+            .collect();
+        let recomputed =
+            crate::rqs::ResultDigest::from_rows(crate::rqs::DigestKind::Mset1, &replayed).unwrap();
+        assert_eq!(fresh.meta.content_digest, recomputed.published());
+    }
+
+    #[test]
+    fn rqs_replay_with_no_result_intersection_upgrades_to_current_as_of() {
+        // Journal-affected rows that never intersected the result (created
+        // outside the predicate) yield an empty replay: the verified witness
+        // proves the held rows current — a CurrentAsOf answer, zero ops.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "held");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // A new row that immediately leaves the predicate: journal-affected,
+        // in the result on neither side of the gap.
+        rqs_create_todo(&mut snapback, "outside");
+        let outside = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-x", None))
+            .expect("lookup");
+        let id_outside =
+            rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_outside, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("leave predicate");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        assert_eq!(snapback.live_delivery.resume.current_as_of_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_witness_over_cap_or_ambiguous_refuses_to_rung3() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        rqs_create_todo(&mut snapback, "advance");
+
+        // Entry cap (server policy knob): over the cap refuses OVERSIZE and
+        // answers rung 3 with full rows.
+        snapback.rqs_replay_policy.max_witness_entries = 2;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-cap subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        assert_eq!(refused.snapshot.as_ref().unwrap().rows.len(), 4);
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Byte cap independently refuses.
+        snapback.rqs_replay_policy.max_witness_bytes = 16;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-byte subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Decode ambiguity: an explicit count that disagrees with the
+        // entries (truncation) refuses INVALID — never a best-guess replay.
+        let mut truncated = rqs_witness_of_rows(&held);
+        truncated.count += 1;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-d", rqs_wrap_with_witness(token.clone(), truncated)),
+            )
+            .expect("count-mismatch subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert!(refused.snapshot.is_some());
+
+        // Out-of-order entries (which also catches duplicates) are ambiguity.
+        let mut unordered = rqs_witness_of_rows(&held);
+        unordered.entries.reverse();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-e", rqs_wrap_with_witness(token.clone(), unordered)),
+            )
+            .expect("out-of-order subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+
+        // Duplicate id.
+        let mut duplicated = rqs_witness_of_rows(&held);
+        duplicated.entries[1] = duplicated.entries[0].clone();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-f", rqs_wrap_with_witness(token, duplicated)),
+            )
+            .expect("duplicate-id subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_OVERSIZE"],
+            2
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_INVALID"],
+            3
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_adversarial_witnesses_never_suppress_a_removal() {
+        // Rollout step 6's adversarial fixtures: omitted, extra,
+        // substituted, correct-id/wrong-hash, and hash-permutation witnesses
+        // all fail the MAC-bound root check before any replay is admitted —
+        // and every refusal answers with the full fresh snapshot, so the
+        // offline removal is delivered regardless.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_removed = rqs_row_id_by_title(&held, "b");
+        // The offline removal a lying witness must not be able to suppress.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_removed, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+
+        let honest = rqs_witness_of_rows(&held);
+        let mut cases: Vec<(&str, crate::live_wire::MembershipWitnessWire)> = Vec::new();
+        // Omitted: the removed row's entry is missing (a witness that never
+        // admits having held it).
+        let mut omitted = honest.clone();
+        omitted
+            .entries
+            .retain(|entry| entry.id != id_removed);
+        omitted.count = omitted.entries.len() as u32;
+        cases.push(("omitted", omitted));
+        // Extra: a fabricated held row.
+        let mut extra = honest.clone();
+        extra.entries.push(crate::live_wire::MembershipWitnessEntry {
+            id: "zzz-fabricated".to_owned(),
+            old_row_hash: {
+                use base64::Engine as _;
+                base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+            },
+        });
+        extra.count = extra.entries.len() as u32;
+        cases.push(("extra", extra));
+        // Substituted: one entry's hash replaced with a hash of different
+        // content (correct id, wrong hash).
+        let mut substituted = honest.clone();
+        let target = substituted
+            .entries
+            .iter_mut()
+            .find(|entry| entry.id == id_removed)
+            .unwrap();
+        target.old_row_hash = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+        };
+        cases.push(("correct-id-wrong-hash", substituted));
+        // Hash permutation: two valid hashes swapped between valid ids — the
+        // keyed leaf makes this fail even though the hash multiset matches.
+        let mut permuted = honest.clone();
+        let swap = permuted.entries[0].old_row_hash.clone();
+        permuted.entries[0].old_row_hash = permuted.entries[2].old_row_hash.clone();
+        permuted.entries[2].old_row_hash = swap;
+        cases.push(("hash-permutation", permuted));
+
+        for (index, (label, witness)) in cases.into_iter().enumerate() {
+            let refused = snapback
+                .subscribe_live(
+                    "listVisibleTodos",
+                    rqs_subscribe_input(
+                        &format!("conn-adv-{index}"),
+                        rqs_wrap_with_witness(token.clone(), witness),
+                    ),
+                )
+                .unwrap_or_else(|_| panic!("adversarial witness {label} still subscribes"));
+            assert_eq!(
+                refused.resume_refusal.as_deref(),
+                Some("SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"),
+                "{label} must fail the joint root check"
+            );
+            let rows = &refused.snapshot.as_ref().expect("rung 3 rows").rows;
+            assert!(
+                rows.iter().all(|row| row["_id"] != json!(id_removed.as_str())),
+                "{label}: the removal is delivered by replacement, never suppressed"
+            );
+        }
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"],
+            4
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_replay_vs_replace_policy_knob_is_honored() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "one");
+        rqs_create_todo(&mut snapback, "two");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // Three journal-affected rows against a 2-entry witness: over the
+        // default 100% threshold (max(1, 2*100/100) = 2), so the server
+        // chooses replacement — the delta could not be smaller than the
+        // replacement.
+        rqs_create_todo(&mut snapback, "three");
+        rqs_create_todo(&mut snapback, "four");
+        rqs_create_todo(&mut snapback, "five");
+        let replaced = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-replaced subscribe");
+        assert_eq!(
+            replaced.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_POLICY_REPLACED")
+        );
+        assert_eq!(replaced.snapshot.as_ref().unwrap().rows.len(), 5);
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_POLICY_REPLACED"],
+            1
+        );
+
+        // Raising the knob admits the same replay: 3 affected ≤ max(1,
+        // 2*300/100) = 6.
+        snapback.rqs_replay_policy.replay_affected_percent = 300;
+        let replayed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-admitted subscribe");
+        assert!(replayed.snapshot.is_none());
+        assert_eq!(replayed.resume_refusal, None);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-c");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        assert_eq!(envelopes[0]["ops"].as_array().unwrap().len(), 3);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.replay_ops, 3);
     }
 
     #[test]

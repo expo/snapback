@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "76e8dd52f65a99603db8d203f88e2e04279cb04e"
+    "commit": "bb98a78dc0e6acdc4585716f924db123c2cd41b4"
   },
   "nav": {
     ".": [
@@ -79,6 +79,11 @@
         "id": "backend.standard-patterns",
         "order": 25,
         "title": "Safe standard data patterns"
+      },
+      {
+        "id": "backend.relational-queries",
+        "order": 26,
+        "title": "Relational queries (bounded joins)"
       },
       {
         "id": "backend.streamed-actions",
@@ -614,6 +619,37 @@
         }
       ]
     },
+    "backend.relational-queries": {
+      "path": "guide/backend/relational-queries.md",
+      "title": "Relational queries (bounded joins)",
+      "order": 26,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.relational-queries"
+      ],
+      "authorities": [
+        "llp/0080-portable-relational-queries-and-projections.rfc.md",
+        "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "packages/snapback-codegen/define.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/relational-authoring.test.mjs"
+      ],
+      "reviewed": "2026-07-24",
+      "reviewedCommit": "52fba7049c1f3a44f2d13238494b03d611b53879",
+      "sha256": "24ac391821c58d32a74828bd3a450d741c00c71dc6f38a0e7b560e05dd8b6ff0",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/relational-authoring.test.mjs"
+        }
+      ]
+    },
     "backend.standard-patterns": {
       "path": "guide/backend/standard-patterns.md",
       "title": "Safe standard data patterns",
@@ -729,7 +765,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "1672bc73173851a3403e8b6f2c214bd9e667b03ae3770a4fde0e260088120d5f",
+      "sha256": "e59aa1b4df95a7b8d46cf82841f1c3478fe3d4357f2281dab4b7c596a7d3ec26",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1189,7 +1225,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "bde718df5b3fb2c1e8dc2bd9f39c2aded5d8d9bb9ade5716180a009c83c9c181",
+      "sha256": "d10863aea89f7c2c84aac094bba2d37eacd42c49c83ed88304e0b38722c368dd",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1653,6 +1689,7 @@
       "backend.functions",
       "backend.provisioning",
       "backend.query-semantics",
+      "backend.relational-queries",
       "backend.schema",
       "backend.seed",
       "backend.standard-patterns",
@@ -1693,5 +1730,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "de27eb27c07aedb264da50240d4285c08bff977344a61ad1b56d77c1b9211043"
+  "contentHash": "0c21cce2d92d5f53c92f20789f39028bd0b34dd025f269d755ad051e764d8520"
 }

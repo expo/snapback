@@ -14,7 +14,13 @@ import { test } from 'node:test';
 import { IDBFactory } from 'fake-indexeddb';
 
 import { SnapbackClient } from './index.mjs';
-import { argsHash, digestOfRows } from './rqs.mjs';
+import {
+  argsHash,
+  base64UrlNoPad,
+  digestOfRows,
+  membershipWitnessOfRows,
+  rowHash,
+} from './rqs.mjs';
 import { createIndexedDbRqsResumeStore, rqsEntryKey } from './rqs-store.mjs';
 
 // --- Web Locks double (queued exclusive, AbortSignal-aware) -----------------
@@ -290,6 +296,154 @@ test('relaunch AFTER live deltas resumes from the refreshed token without discar
   await handle2.poll();
   assert.equal(handle2.freshness, 'current');
   handle2.dispose();
+  await store2.close();
+});
+
+test('membershipWitnessOfRows is exact, sorted, capped, and fail-closed (unit)', () => {
+  const rows = [{ _id: 'b', v: 2 }, { _id: 'a', v: 1 }];
+  const digest = digestOfRows('mset1', rows);
+  const witness = membershipWitnessOfRows(rows, digest);
+  assert.equal(witness.count, 2);
+  assert.deepEqual(witness.entries.map((entry) => entry.id), ['a', 'b'], 'ascending UTF-16 id order');
+  assert.deepEqual(
+    witness.entries.map((entry) => entry.oldRowHash),
+    [base64UrlNoPad(rowHash(rows[1])), base64UrlNoPad(rowHash(rows[0]))],
+    'exact (rowId, oldRowHash) pairs',
+  );
+  // seq1 results are never witnessable.
+  assert.equal(membershipWitnessOfRows(rows, digestOfRows('seq1', rows)), null);
+  // Over the entry cap: not sent (the server would refuse it to rung 3).
+  assert.equal(membershipWitnessOfRows(rows, digest, { maxEntries: 1 }), null);
+  // Held rows that no longer reproduce the digest are never witnessed.
+  assert.equal(membershipWitnessOfRows([rows[0]], digest), null);
+  // Mint-refusable rows (missing id) fail closed to null.
+  assert.equal(membershipWitnessOfRows([{ v: 1 }], digestOfRows('mset1', [])), null);
+});
+
+test('relaunch with an mset1 entry sends the membership witness and rung-2 delta replay applies a predicate exit', async () => {
+  const indexedDB = new IDBFactory();
+  const store1 = await makeStore({ indexedDB });
+  const resume = await populateStore(store1); // ROWS_V5 = [a, b] at v5
+  await store1.close();
+
+  const store2 = await makeStore({ indexedDB });
+  const server = createFakeServer();
+  const addedRow = { _id: 'c', title: 'entered while offline' };
+  const rowsV7 = [ROWS_V5[1], addedRow]; // a exited, c entered
+  const freshResume = makeResume(rowsV7, 7);
+  server.answer = (body) => {
+    assert.equal(body.resumeFromToken?.resume?.token, resume.token);
+    // The witness names the exact held pairs, sorted, with a count (LLP
+    // 0091 rung-2 amendment).
+    assert.deepEqual(body.resumeFromToken?.membershipWitness, {
+      count: 2,
+      entries: [
+        { id: 'a', oldRowHash: base64UrlNoPad(rowHash(ROWS_V5[0])) },
+        { id: 'b', oldRowHash: base64UrlNoPad(rowHash(ROWS_V5[1])) },
+      ],
+    });
+    return { subscription_id: 'sub-2' }; // rung 2: no rows ride the answer
+  };
+  server.outbox.push({
+    kind: 'live_delta',
+    subscription_id: 'sub-2',
+    function: QUERY,
+    version: 7,
+    ops: [
+      { op: 'remove', id: 'a' },
+      { op: 'add', id: 'c', row: addedRow },
+    ],
+    resume: freshResume,
+  });
+
+  const client = makeClient(store2);
+  const { handle, updates } = await openQuery(client);
+  assert.equal(updates[0].detail.kind, 'persisted');
+  assert.equal(handle.freshness, 'retained');
+  await handle.poll(); // drain the replay delta
+  assert.equal(handle.freshness, 'current', 'post-replay digest verified (T8) before authority');
+  assert.equal(handle.version, 7);
+  assert.deepEqual(handle.rows, rowsV7, 'the offline predicate exit is exactly removed');
+  assert.equal(server.subscribeCalls.length, 1, 'no refetch, no resubscribe');
+
+  await handle.flushResumeState();
+  const persisted = await store2.load(rqsEntryKey(QUERY, {}));
+  assert.equal(persisted.meta.version, 7);
+  assert.equal(persisted.token, freshResume.token);
+  assert.ok(persisted.resumedAt > 0, 'rung-2 completion is a successful authoritative resume');
+  handle.dispose();
+  await store2.close();
+});
+
+test('a seq1 persisted entry sends no membership witness', async () => {
+  const indexedDB = new IDBFactory();
+  const orderedRows = [{ _id: 'z', rank: 1 }, { _id: 'y', rank: 2 }];
+  const store1 = await makeStore({ indexedDB });
+  const staleResume = await populateStore(store1, { rows: orderedRows, kind: 'seq1' });
+  await store1.close();
+
+  const store2 = await makeStore({ indexedDB });
+  const server = createFakeServer();
+  server.answer = (body) => {
+    assert.equal(body.resumeFromToken?.resume?.token, staleResume.token);
+    assert.equal(body.resumeFromToken?.membershipWitness, undefined, 'seq1 is never witnessed');
+    return {
+      subscription_id: 'sub-2',
+      snapshot: { rows: orderedRows, version: 9 },
+      resume: makeResume(orderedRows, 9, { kind: 'seq1' }),
+    };
+  };
+  const client = makeClient(store2);
+  const { handle } = await openQuery(client);
+  assert.equal(handle.freshness, 'current');
+  handle.dispose();
+  await store2.close();
+});
+
+test('a rung-2 delta whose post-replay digest mismatches is discarded: client-side rung 3 (T8 failure)', async () => {
+  const indexedDB = new IDBFactory();
+  const store1 = await makeStore({ indexedDB });
+  const resume = await populateStore(store1);
+  await store1.close();
+
+  const store2 = await makeStore({ indexedDB });
+  const server = createFakeServer();
+  const freshRows = [{ _id: 'fresh', title: 'replaced' }];
+  server.answer = (body, call) => {
+    if (server.subscribeCalls.length === 1) {
+      assert.ok(body.resumeFromToken?.membershipWitness, 'first attempt carries the witness');
+      return { subscription_id: 'sub-2' };
+    }
+    // The client-side rung 3: fresh subscribe with no token after the
+    // failed verification.
+    assert.equal(body.resumeFromToken, undefined, 'discarded state seeds nothing');
+    return {
+      subscription_id: `sub-${call ? server.subscribeCalls.length : 0}`,
+      snapshot: { rows: freshRows, version: 9 },
+      resume: makeResume(freshRows, 9),
+    };
+  };
+  // A replay frame whose refreshed token does NOT match the post-apply rows.
+  server.outbox.push({
+    kind: 'live_delta',
+    subscription_id: 'sub-2',
+    function: QUERY,
+    version: 7,
+    ops: [{ op: 'remove', id: 'a' }],
+    resume: makeResume([{ _id: 'not-what-you-hold' }], 7),
+  });
+
+  const client = makeClient(store2);
+  const { handle } = await openQuery(client);
+  await handle.poll(); // triggers the mismatch and the fresh resubscribe
+  for (let i = 0; i < 50 && handle.version !== 9; i += 1) await tick();
+  assert.equal(server.subscribeCalls.length, 2, 'verification failure resubscribes fresh');
+  assert.deepEqual(handle.rows, freshRows);
+  assert.equal(handle.freshness, 'current');
+  await handle.flushResumeState();
+  const persisted = await store2.load(rqsEntryKey(QUERY, {}));
+  assert.equal(persisted.meta.version, 9, 'the discarded entry was replaced by post-rung-3 state');
+  handle.dispose();
   await store2.close();
 });
 

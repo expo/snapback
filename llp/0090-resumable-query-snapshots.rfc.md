@@ -866,12 +866,17 @@ the others, and the gates must see all three.
   invalidation — the Electric-style story and LLP 0008's bookmarkable-versions
   thread. Deferred to the D5 follow-on unless a cheap subset falls out of
   step 4; v1 explicitly ships `no-store`.
-- **Q7 — Membership witness format.** Rung 2's witness must be an exact,
+- **Q7 — Membership witness format.** ~~Rung 2's witness must be an exact,
   bounded, recoverable representation of held row identity (D1.3); raw key
   set vs recoverable encoding, the reconciliation rule, and the default size
-  cap are open. The v1 preference for client-supplied witness over a
-  server-held CVR is decided (D1.3). Belongs to the rung-2 prerequisite
-  (rollout step 5a).
+  cap are open.~~ **Decided** (2026-07-24, rollout steps 5a+6, ENG-25457)
+  in LLP 0091's dated rung-2 membership-witness amendment: raw
+  `(rowId, oldRowHash)` pairs in ascending UTF-16 id order with an explicit
+  count; caps of 4096 entries / 1 MiB (server policy knobs); a fail-closed
+  per-cause reconciliation rule (any ambiguity → rung 3, never suppressing
+  a removal); and a replay-vs-replace knob defaulting to
+  affected ≤ held-count. The v1 preference for client-supplied witness over
+  a server-held CVR was already decided (D1.3).
 
 (Former Q3 — resume-miss policy — is resolved in D1.1: short-circuit with a
 fresh `LiveReplace`. Former Q5 — bundle consistency — is a prerequisite in

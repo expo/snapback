@@ -24,6 +24,7 @@
       "import": "./external-store.mjs"
     },
     "./rqs": "./rqs.mjs",
+    "./rqs-preload": "./rqs-preload.mjs",
     "./rqs-store": "./rqs-store.mjs",
     "./package.json": "./package.json"
   },

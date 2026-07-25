@@ -164,12 +164,45 @@ pub struct ResumeMeta {
 }
 
 /// The optional `resumeFromToken` wrapper on the subscribe input (LLP 0091
-/// §0B.4): token resume is not a new route. The wrapper object reserves room
-/// for the rung-2 `membershipWitness` field (rollout step 5a), so unknown
-/// fields are deliberately tolerated.
+/// §0B.4): token resume is not a new route. The wrapper carries the rung-2
+/// `membershipWitness` (LLP 0091 rung-2 amendment, rollout step 5a).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct ResumeFromToken {
     pub resume: ResumeWire,
+    /// Rung-2 membership witness (LLP 0090 D1.3): present only when the
+    /// client holds an `mset1` result within the size cap. Its absence never
+    /// refuses the resume — rung 1 and rung 3 remain available.
+    #[serde(
+        default,
+        rename = "membershipWitness",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub membership_witness: Option<MembershipWitnessWire>,
+}
+
+/// The rung-2 membership witness (LLP 0091 rung-2 amendment / LLP 0090 Q7):
+/// exact `(rowId, oldRowHash)` pairs for every row the client holds at the
+/// token's version, in ascending UTF-16 code-unit order of `id` (the JCS
+/// member order), with an explicit `count`. The keyed-leaf aggregate of these
+/// pairs must equal the token's MAC-bound `contentDigest` root before any
+/// replay is admitted; any decode ambiguity refuses to rung 3 and can never
+/// suppress a removal.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MembershipWitnessWire {
+    /// Must equal `entries.len()` — an explicit count makes truncation a
+    /// detectable decode failure rather than a silent smaller witness.
+    pub count: u32,
+    pub entries: Vec<MembershipWitnessEntry>,
+}
+
+/// One held row in the witness: the wire row id (the same string
+/// [`LiveDeltaWireOp::id`] carries) and the base64url (no pad) encoding of
+/// the 32-byte LLP 0091 §0A.2 row hash the client holds for it.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MembershipWitnessEntry {
+    pub id: String,
+    #[serde(rename = "oldRowHash")]
+    pub old_row_hash: String,
 }
 
 /// One `live_delta` op: the row is present for add/update and absent for
@@ -595,6 +628,57 @@ mod tests {
                 "reason": "outbox_overflow",
                 "clear_retained": true,
             })
+        );
+    }
+
+    #[test]
+    fn resume_from_token_witness_wire_shape_is_preserved() {
+        let with_witness = ResumeFromToken {
+            resume: ResumeWire {
+                token: "sbrt1.sbrq_x.e30.e30".into(),
+                meta: ResumeMeta {
+                    app: "app_1".into(),
+                    version: 5,
+                    content_digest: "mset1:aa".into(),
+                    generation: "gen1:bb".into(),
+                    version_stream: "stream-1".into(),
+                    query_artifact: "sha256:cc".into(),
+                    args_hash: "sha256:dd".into(),
+                },
+            },
+            membership_witness: Some(MembershipWitnessWire {
+                count: 1,
+                entries: vec![MembershipWitnessEntry {
+                    id: "a".into(),
+                    old_row_hash: "h".repeat(43),
+                }],
+            }),
+        };
+        let encoded = serde_json::to_value(&with_witness).unwrap();
+        assert_eq!(encoded["membershipWitness"]["count"], 1);
+        assert_eq!(encoded["membershipWitness"]["entries"][0]["id"], "a");
+        assert!(
+            encoded["membershipWitness"]["entries"][0]["oldRowHash"]
+                .as_str()
+                .is_some()
+        );
+        assert_eq!(
+            serde_json::from_value::<ResumeFromToken>(encoded).unwrap(),
+            with_witness
+        );
+        // Witness-less wrappers (rung 1/3 resumes, pre-5a clients) omit the
+        // field entirely and still decode.
+        let without: ResumeFromToken = serde_json::from_value(json!({
+            "resume": serde_json::to_value(&with_witness.resume).unwrap(),
+        }))
+        .unwrap();
+        assert!(without.membership_witness.is_none());
+        assert!(
+            !serde_json::to_value(&without)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .contains_key("membershipWitness")
         );
     }
 

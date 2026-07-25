@@ -43,7 +43,7 @@ const inventories = [
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
   },
   {
     id: '@snapback/client',
@@ -96,6 +96,7 @@ const inventories = [
       'protected-query-profile.test.mjs',
       'rbac-authoring.test.mjs',
       'receipt-capability.test.mjs',
+      'relational-authoring.test.mjs',
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
       'standard-patterns.test.mjs',
@@ -209,7 +210,9 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 79, 'reviewed package/admin test count changed');
+// 79 -> 82 (2026-07-24 merge): current main adds the two LLP 0092 Vite
+// tests and the LLP 0080 relational-authoring codegen test.
+assert.equal(total, 82, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -350,6 +350,13 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "app.bundle.output.schema.json",
             schemars::schema_for!(crate::bundle::BundleResponse),
         ),
+        // The route→query manifest artifact (LLP 0092 §0C.1): compiled by
+        // codegen from `snapback/routes.mjs`, admitted through ensure, and
+        // hashed into `generation` as `routeManifestHash`.
+        finish(
+            "routes.manifest.schema.json",
+            schemars::schema_for!(crate::bundle::RoutesManifest),
+        ),
         finish(
             "app.ensure.input.schema.json",
             schemars::schema_for!(EnsureAppRequest),
