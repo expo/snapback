@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "1300fbdb952b583baf60908582e7f885664150ab762a994229b576525822168b",
+  "inputsHash": "2fc3f6b7c4b58f52600b3bdc2de00a31e941e65d512f4e7a996703121d7fb47f",
   "manifestVersion": 2,
   "mutations": {
     "applyFeedTick": {

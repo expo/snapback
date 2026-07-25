@@ -2209,6 +2209,12 @@ The shape is closed and proven at authoring time:
 Live subscriptions deliver whole-result replacement (`live_replace`): a
 commit touching either source re-runs the query. No incremental delta or
 skip proof is claimed, matching LLP 0080's deliberately conservative v1.
+A relational plan is never `authorityIndependent` — public plans stay
+authority-partition-scoped — and retention is default-deny: v1 admits only
+`retention: none` (declaring a relational query retainable is a load
+error), with the authenticated-lease snapshot class specified as the
+successor. The capability manifest records both facts under
+`relationalQueries`.
 
 ## Pagination
 

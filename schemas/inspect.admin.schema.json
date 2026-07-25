@@ -543,6 +543,17 @@
           },
           "type": "array"
         },
+        "relationalQueries": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationalQueryFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Relational-query facts (LLP 0080 §4): the live delivery class and\nthe closed set of admitted retention classes. Present exactly when\nthe target supports `relational_query_v1`; a target without the\nexecutor reports the capability gap instead."
+        },
         "replaceOnlyQueries": {
           "type": "boolean"
         },
@@ -3170,6 +3181,28 @@
       },
       "required": [
         "table"
+      ],
+      "type": "object"
+    },
+    "RelationalQueryFacts": {
+      "additionalProperties": false,
+      "description": "The declared relational live/retention posture (LLP 0080 §4).",
+      "properties": {
+        "liveDelivery": {
+          "description": "Always `\"live_replace\"` in v1: relational subscriptions inherit\nLLP 0053 with table-granular invalidation and no proved-disjoint\nskip, and no incremental delta matcher is admitted.",
+          "type": "string"
+        },
+        "retention": {
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans. V1 is exactly `[\"none\"]`;\n`opaque-authorized-snapshot-v1` (the authenticated lease class) is\nspecified but not yet admitted by authoring, and anonymous results\nhave no admissible retention.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "retention"
       ],
       "type": "object"
     },
