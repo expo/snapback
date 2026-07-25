@@ -25,3 +25,21 @@ path into `#dispatch`, and extend the regression test with a third half:
 registry (and, per the Round-7 suggestion, an assertion that the
 sentinel carries the propagated authority capture). Alternatively fold
 into LLP 0093 P-1's fixture work if that lands first.
+
+## Resolution (2026-07-25) — RESOLVED with the LLP 0095 (P-1) landing
+
+Exactly as prescribed. The live `message` listener's post-parse tail was
+extracted into `LiveStreamManager.#receiveFrame(ws, frame)` (auth-error
+short-circuit + authority-fence commit into `#dispatch`), shared verbatim
+by the listener and the new `debugInjectFrame(frame)` seam — so the seam
+exercises the REAL wiring, not a replica.
+`demos/_kit/tests/regression-durable-bytes-resync.mjs` gained a third
+section (suite is now 4 checks): a `durable_bytes` frame injected at the
+seam on a `transport: 'stream'` handle surfaces exactly one connection-wide
+clear-retained poison sentinel in the lane registry, carrying a
+synthetically-set stream authority capture (asserted via
+`db.authorityCaptureFor(sentinel)`, non-vacuous on the fenceless dev arm),
+and drives the real registry consumer to `resubscribed`. Suite passes 4/4;
+`provider-live-conformance` (14/14) and the socket-path regressions
+(handshake-loss, multiplexed-lanes, midflight-resync) confirm the listener
+refactor changed no behavior.

@@ -649,6 +649,10 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   destructive-drain comments the 0059 change left behind
   (`packages/snapback-client/index.mjs:3846`,
   `src/server.rs:19004`).
+  *Status (2026-07-25): landed as LLP 0095 (Draft) — state machine, corpus
+  contract + seeded generator (`src/wire_fixtures.rs`), dispatch seam,
+  comment retirement; remaining coverage tracked by
+  `issues/20260725-0093-p1-*`.*
 - **P-2 — Swift client** (`poll/local` → `live/local` → `live/hosted`),
   with its own plan/diary and the
   spec-defect ledger from D4's discipline.

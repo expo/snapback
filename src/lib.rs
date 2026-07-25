@@ -38,5 +38,6 @@ pub mod service_profile;
 pub mod storage;
 pub mod stream_attempt;
 pub mod value_expr;
+pub mod wire_fixtures;
 pub(crate) mod warm_vm;
 pub mod workerd_exec;

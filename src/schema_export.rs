@@ -350,6 +350,15 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             file: "relational.result-encoding-v1.json",
             schema: sorted_keys(crate::rqs::relational_result_encoding_artifact()),
         },
+        // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
+        // canonical frames + expected state-machine transitions, generated
+        // through the live-wire serde types so fixtures cannot drift from
+        // the wire. tests/wire_fixtures_v1.rs proves each fixture's
+        // schemaValid claim against the committed family schema.
+        SchemaArtifact {
+            file: crate::wire_fixtures::WIRE_FIXTURES_FILE,
+            schema: sorted_keys(crate::wire_fixtures::wire_fixture_corpus()),
+        },
     ]
 }
 

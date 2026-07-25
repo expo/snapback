@@ -18,10 +18,16 @@
 // The server cannot be induced to emit durable_bytes through real flows
 // (durable payloads are serialized JSON, always valid UTF-8), so — like
 // regression-midflight-resync.mjs's registry-injected overflow sentinel —
-// this harness tests the two halves deterministically: the dispatch
+// this harness tests three sections deterministically: (1) the dispatch
 // transformation as a unit (the exported production function against a
-// stream-shaped fixture), and sentinel-driven recovery through the REAL
-// lane registry of a live handle against a real server.
+// stream-shaped fixture); (2) sentinel-driven recovery through the REAL
+// lane registry of a live handle against a real server; and (3) the
+// #dispatch WIRING itself — a durable_bytes frame injected at the stream
+// manager's debugInjectFrame seam (the real receive path: authority-fence
+// commit into #dispatch) must surface the poison sentinel, carrying the
+// propagated authority capture, in the lane registry
+// (issues/closed/20260725-durable-bytes-dispatch-test-seam.md; LLP 0093
+// Round-7 Fable Concern 1).
 //
 // Run: node demos/_kit/tests/regression-durable-bytes-resync.mjs
 
@@ -48,7 +54,7 @@ const {
 
 const server = await startServer({ port: 4439, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
-const suite = createSuite('_kit regression / durable_bytes forced resync', { expectedChecks: 3 });
+const suite = createSuite('_kit regression / durable_bytes forced resync', { expectedChecks: 4 });
 const ADA = 'user_ada';
 const CONN = 'durable_bytes_conn';
 
@@ -142,6 +148,60 @@ try {
   } finally {
     handle.dispose();
   }
+
+  // Section 3 — the dispatch WIRING (Round-7 Fable Concern 1): sections 1-2
+  // both enter BELOW the four-line #dispatch interception, so a refactor
+  // that reordered #dispatch's branches or dropped the interception would
+  // pass them while the silent-staleness defect returned. Injecting at the
+  // debugInjectFrame seam drives the frame through the real receive path
+  // (authority-fence commit → #dispatch → dispatchDurableBytesFrame).
+  await suite.check('dispatch wiring: durable_bytes at the socket seam surfaces the sentinel in the registry', async () => {
+    const SEAM_CONN = 'durable_bytes_seam_conn';
+    const seamEvents = [];
+    const seen = [];
+    const seamHandle = await db.liveQuery('listTodos', {
+      connectionId: SEAM_CONN,
+      userId: ADA,
+      transport: 'stream',
+      fallbackToPoll: false,
+      onSubscriptionEvent: (e) => seamEvents.push(`${e.event}${e.reason ? `:${e.reason}` : ''}`),
+    });
+    try {
+      const stream = db.liveStreamManager(SEAM_CONN);
+      await waitFor(() => stream.open, 'live socket open for the seam connection');
+      const unregister = db.registerDurableConsumer(SEAM_CONN, (f) => seen.push(f));
+      // The dev arm runs without an authority fence, so a synthetic capture
+      // rides the real markAuthorityCapture path and proves the propagation
+      // assertion end to end instead of vacuously comparing null to null.
+      const priorCapture = stream.authorityCapture;
+      const capture = { fence: 'seam-capture' };
+      stream.authorityCapture = capture;
+      try {
+        await stream.debugInjectFrame({ kind: LIVE_SOCKET_KINDS.DURABLE_BYTES, payload: [0xff] });
+      } finally {
+        stream.authorityCapture = priorCapture;
+        unregister();
+      }
+      // The registered consumer also hears the handle's own subscription
+      // traffic; the wiring claim is about the synthesized sentinel.
+      const sentinels = seen.filter((f) => f.reason === DURABLE_BYTES_RESYNC_REASON);
+      assert(sentinels.length === 1, `expected exactly one poison sentinel at the registry, got ${sentinels.length}`);
+      const sentinel = sentinels[0];
+      assert(sentinel.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED, 'seam sentinel is resync_required');
+      assert(sentinel.clear_retained === true, 'seam sentinel clears retained state');
+      assert(sentinel.subscription_id == null && sentinel.subscriptionId == null,
+        'seam sentinel is connection-wide');
+      assert(db.authorityCaptureFor(sentinel) === capture,
+        'the sentinel carries the propagated stream authority capture');
+      await waitFor(
+        () => seamEvents.some((e) => e.startsWith('resubscribed')),
+        'seam-driven resubscribe through the real registry consumer',
+      );
+      return { events: [...seamEvents], registryFrames: seen.length };
+    } finally {
+      seamHandle.dispose();
+    }
+  });
 
   const report = suite.finish();
   console.log('\n--- machine-readable report ---');

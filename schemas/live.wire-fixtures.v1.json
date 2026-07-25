@@ -1,0 +1,716 @@
+{
+  "artifactKind": "liveWireFixtureCorpus",
+  "coverage": "seed — the durable-envelope families, durable_bytes, connection-wide resync, wrapper framing, and first negatives; the remaining LLP 0093 negative-fixture inventory is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+  "fixtures": [
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "replace_rows"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 41
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "live_replace",
+        "rows": [
+          {
+            "id": "todo_1",
+            "title": "current row"
+          }
+        ],
+        "subscription_id": "sub_fixture_1",
+        "version": 41
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 40
+        }
+      },
+      "lane": "core",
+      "name": "durable.live_replace.basic",
+      "notes": "Whole-result refresh; the wire default. Version guard admits 41 > 40.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "apply_delta_by_id"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 42
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "live_delta",
+        "ops": [
+          {
+            "id": "todo_2",
+            "op": "add",
+            "row": {
+              "id": "todo_2",
+              "title": "added row"
+            }
+          },
+          {
+            "id": "todo_1",
+            "op": "update",
+            "row": {
+              "id": "todo_1",
+              "title": "updated row"
+            }
+          },
+          {
+            "id": "todo_0",
+            "op": "remove"
+          }
+        ],
+        "subscription_id": "sub_fixture_1",
+        "version": 42
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 41
+        }
+      },
+      "lane": "core",
+      "name": "durable.live_delta.apply_by_id",
+      "notes": "Delta-vs-replace is the server's choice (D3 fact 4): a conformant client implements both and never infers query shape from which arrives.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "drop_stale"
+        ],
+        "transitions": []
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "live_delta",
+        "ops": [
+          {
+            "id": "todo_2",
+            "op": "add",
+            "row": {
+              "id": "todo_2",
+              "title": "added row"
+            }
+          },
+          {
+            "id": "todo_1",
+            "op": "update",
+            "row": {
+              "id": "todo_1",
+              "title": "updated row"
+            }
+          },
+          {
+            "id": "todo_0",
+            "op": "remove"
+          }
+        ],
+        "subscription_id": "sub_fixture_1",
+        "version": 42
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "durable.live_delta.stale_version_dropped",
+      "notes": "Version guard: a frame at or below the held version is dropped without effect (LLP 0095 §1.3).",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "resubscribe_subscription"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "clear_retained": false,
+        "kind": "resync_required",
+        "reason": "live_refresh_failed",
+        "subscription_id": "sub_fixture_1"
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "durable.resync_required.subscription_scoped",
+      "notes": "Reason strings are an open set: recovery is identical for every reason, and an unknown reason must not change the transition.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "resubscribe_all",
+          "clear_retained_overlays"
+        ],
+        "transitions": [
+          {
+            "connection": "all_subscriptions",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "clear_retained": true,
+        "kind": "resync_required",
+        "reason": "outbox_overflow"
+      },
+      "given": {
+        "connection": {
+          "state": "attached"
+        }
+      },
+      "lane": "core",
+      "name": "durable.resync_required.connection_wide_clear_retained",
+      "notes": "No subscription_id + clear_retained: the whole outbox is untrusted (overflow class). The frame crosses the lane boundary: retained ephemeral overlays blank too (LLP 0059 cross-lane rule).",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "resubscribe_all",
+          "clear_retained_overlays"
+        ],
+        "equivalenceClass": {
+          "permittedEquivalent": "socket close/reconnect with fresh subscribe achieving the same transitions",
+          "reference": "in-place synthesized connection-wide clear-retained resync sentinel (reason durable_bytes_undecodable, client-synthesized, never wire-emitted)"
+        },
+        "transitions": [
+          {
+            "connection": "all_subscriptions",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.socket-server.schema.json",
+      "frame": {
+        "kind": "durable_bytes",
+        "payload": [
+          255,
+          254
+        ]
+      },
+      "given": {
+        "connection": {
+          "state": "attached"
+        }
+      },
+      "lane": "live",
+      "name": "socket.durable_bytes.forced_resync",
+      "notes": "D3 fact 2b: a KNOWN kind with a REQUIRED recovery action. The payload's outbox lease was released at socket handoff; ignoring this frame is non-conformant (silent permanent staleness).",
+      "schemaValid": true,
+      "tuples": [
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "ignore_frame"
+        ],
+        "transitions": []
+      },
+      "family": null,
+      "frame": {
+        "kind": "hologram_snapshot_v9",
+        "payload": {
+          "future": true
+        }
+      },
+      "given": {
+        "connection": {
+          "state": "attached"
+        }
+      },
+      "lane": "core",
+      "name": "negative.unknown_kind.skipped",
+      "notes": "Unknown kinds are skip-not-crash defense-in-depth (new kinds are always offer-gated, so a conformant server never sends one ungated). Contrast socket.durable_bytes.forced_resync: KNOWN kind, required action.",
+      "schemaValid": false,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "replace_rows",
+          "ignore_unknown_fields"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 43
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "live_replace",
+        "rows": [],
+        "sparkle_hint": {
+          "unknown": true
+        },
+        "subscription_id": "sub_fixture_1",
+        "version": 43
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "negative.unknown_field.tolerated",
+      "notes": "Unknown fields on known kinds are ignored, never fatal (the acceptance grammar wins over schema closure where they diverge — LLP 0093 D1).",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "unwrap_durable",
+          "replace_rows"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 41
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            123,
+            34,
+            107,
+            105,
+            110,
+            100,
+            34,
+            58,
+            34,
+            108,
+            105,
+            118,
+            101,
+            95,
+            114,
+            101,
+            112,
+            108,
+            97,
+            99,
+            101,
+            34,
+            44,
+            34,
+            115,
+            117,
+            98,
+            115,
+            99,
+            114,
+            105,
+            112,
+            116,
+            105,
+            111,
+            110,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            115,
+            117,
+            98,
+            95,
+            102,
+            105,
+            120,
+            116,
+            117,
+            114,
+            101,
+            95,
+            49,
+            34,
+            44,
+            34,
+            102,
+            117,
+            110,
+            99,
+            116,
+            105,
+            111,
+            110,
+            34,
+            58,
+            34,
+            108,
+            105,
+            115,
+            116,
+            84,
+            111,
+            100,
+            111,
+            115,
+            34,
+            44,
+            34,
+            118,
+            101,
+            114,
+            115,
+            105,
+            111,
+            110,
+            34,
+            58,
+            52,
+            49,
+            44,
+            34,
+            114,
+            111,
+            119,
+            115,
+            34,
+            58,
+            91,
+            123,
+            34,
+            105,
+            100,
+            34,
+            58,
+            34,
+            116,
+            111,
+            100,
+            111,
+            95,
+            49,
+            34,
+            44,
+            34,
+            116,
+            105,
+            116,
+            108,
+            101,
+            34,
+            58,
+            34,
+            99,
+            117,
+            114,
+            114,
+            101,
+            110,
+            116,
+            32,
+            114,
+            111,
+            119,
+            34,
+            125,
+            93,
+            125
+          ]
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 40
+        }
+      },
+      "lane": "poll",
+      "name": "poll.wrapped_durable.unwrap",
+      "notes": "Lane-P framing: durable envelopes arrive wrapped ({\"Durable\":{\"payload\":[u8…]}}) over the HTTP drain and unwrapped over the socket. Wrapper handling is a lane obligation, not core.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    },
+    {
+      "batchContext": [
+        {
+          "Durable": {
+            "payload": [
+              123,
+              34,
+              107,
+              105,
+              110,
+              100,
+              34,
+              58,
+              34,
+              108,
+              105,
+              118,
+              101,
+              95,
+              114,
+              101,
+              112,
+              108,
+              97,
+              99,
+              101,
+              34,
+              44,
+              34,
+              115,
+              117,
+              98,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              95,
+              105,
+              100,
+              34,
+              58,
+              34,
+              115,
+              117,
+              98,
+              95,
+              102,
+              105,
+              120,
+              116,
+              117,
+              114,
+              101,
+              95,
+              49,
+              34,
+              44,
+              34,
+              102,
+              117,
+              110,
+              99,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              34,
+              108,
+              105,
+              115,
+              116,
+              84,
+              111,
+              100,
+              111,
+              115,
+              34,
+              44,
+              34,
+              118,
+              101,
+              114,
+              115,
+              105,
+              111,
+              110,
+              34,
+              58,
+              52,
+              49,
+              44,
+              34,
+              114,
+              111,
+              119,
+              115,
+              34,
+              58,
+              91,
+              123,
+              34,
+              105,
+              100,
+              34,
+              58,
+              34,
+              116,
+              111,
+              100,
+              111,
+              95,
+              49,
+              34,
+              44,
+              34,
+              116,
+              105,
+              116,
+              108,
+              101,
+              34,
+              58,
+              34,
+              99,
+              117,
+              114,
+              114,
+              101,
+              110,
+              116,
+              32,
+              114,
+              111,
+              119,
+              34,
+              125,
+              93,
+              125
+            ]
+          }
+        }
+      ],
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "deliver_batch_remainder",
+          "surface_decode_diagnostic",
+          "resubscribe_all",
+          "clear_retained_overlays"
+        ],
+        "transitions": [
+          {
+            "connection": "all_subscriptions",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "realtime.envelope.schema.json",
+      "frame": {
+        "Durable": {
+          "payload": [
+            255,
+            254,
+            0
+          ]
+        }
+      },
+      "given": {
+        "connection": {
+          "state": "attached"
+        }
+      },
+      "lane": "poll",
+      "name": "poll.acknowledged_batch.malformed_item_forces_resync",
+      "notes": "The poll-lane analogue of fact 2b (LLP 0095 §1.4 T-DB-P): after the ownership cut the malformed item is lost exactly like a durable_bytes payload, so it forces the same connection-wide resync class — and must never abort the remainder of the acknowledged batch.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local"
+      ]
+    }
+  ],
+  "formatVersion": 1,
+  "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
+  "wireVersion": "snapback.v1"
+}

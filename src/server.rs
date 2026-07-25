@@ -19030,10 +19030,18 @@ fn socket_error(request_id: Option<String>, operation: &str, diagnostic: Diagnos
 }
 
 /// Outbox drain reaches the room authority directly — no global mutex (L9).
-/// The drain is destructive (a bearerless drain was the ENG-23442 data-theft
-/// vector), so it demands the connection token like every connection-scoped
-/// operation; polling clients may pass it as `?connection_token=` when headers
-/// are inconvenient.
+/// The drain is a leased batch with an ownership-transfer cut (LLP 0059):
+/// entries are selected without removal, removed only once ownership transfer
+/// is accepted, and released — possibly redelivered — when a drain is
+/// cancelled before the cut. Because an accepted drain hands the batch over
+/// permanently (a bearerless drain was the ENG-23442 data-theft vector), it
+/// demands the connection token like every connection-scoped operation.
+/// Decision (LLP 0095 §4, the LLP 0093 P-1 pin): the `?connection_token=`
+/// query carrier is RETAINED as a constrained dev-arm affordance — rejected
+/// under sessions mode, header/subprotocol carriage is the conformant path.
+///
+/// @ref LLP 0059#durable-and-ephemeral-outboxes — leased selection,
+///   acknowledged removal at the ownership cut, redelivery on cancellation.
 async fn drain_outbox(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
