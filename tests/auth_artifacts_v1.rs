@@ -3,10 +3,10 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CronJobDefinition, FilterExpr,
-    FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerPlan,
-    IbexModule, QueryPlan, SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION,
-    SchemaManifest, TargetCapabilityId, ValueExpr,
+    AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
+    CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionRuntime, HandlerPlan, IbexModule, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
 
 fn host_query(name: &str) -> FunctionDefinition {
@@ -227,23 +227,32 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "live_subscriptions",
             "mutation_read_set_validation",
             "permission_epoch_resync",
+            "relational_query_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 9);
+    assert_eq!(TargetCapabilityId::ALL.len(), 10);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
             Ok(capability)
         );
-        if capability == TargetCapabilityId::BoundedResponseStreamV1 {
+        if capability.maturity() != CapabilityMaturity::Stable {
             assert_eq!(
                 local
                     .require_capability(capability.as_str())
-                    .expect_err("the static target declaration keeps process-live egress disabled")
+                    .expect_err("experimental capabilities are not plain support")
                     .diagnostic
                     .code,
                 "SNAPBACK_CAPABILITY_UNSUPPORTED"
             );
+            if local.supported_capabilities.contains(&capability) {
+                local
+                    .require_capability_acknowledging(
+                        capability.as_str(),
+                        &std::collections::BTreeSet::from([capability]),
+                    )
+                    .expect("acknowledged experimental capability");
+            }
         } else {
             local
                 .require_capability(capability.as_str())

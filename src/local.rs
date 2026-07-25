@@ -2452,8 +2452,10 @@ pub struct LocalSnapback {
     receipts: ReceiptLog,
     // The RQS resume keyring — a dedicated ring and file beside the database,
     // never the auth keyring (LLP 0091 §0A.1 custody). Surviving restart is
-    // what keeps dev-loop restarts from refusing outstanding tokens.
-    resume_keyring: crate::rqs::ResumeKeyring,
+    // what keeps dev-loop restarts from refusing outstanding tokens. Shared
+    // with the lock-free read lane, which MACs and verifies relational
+    // pagination cursors (LLP 0080 §2) without the global writer mutex.
+    resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
     // Rung-2 witness caps and the replay-vs-replace threshold (LLP 0090
     // D1.3; server policy knobs with LLP 0091 rung-2 amendment defaults).
     rqs_replay_policy: RqsReplayPolicy,
@@ -2649,7 +2651,11 @@ fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKi
 }
 
 fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message.into())
+    SnapbackError::error(
+        "SNAPBACK_ROUTES_MANIFEST_INVALID",
+        "runtime",
+        message.into(),
+    )
 }
 
 /// Collect the arg names a plan value expression reads (the AST-derived
@@ -4814,6 +4820,10 @@ impl LocalSnapback {
             input,
             &prepared,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &self.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )
     }
 
@@ -6279,8 +6289,7 @@ impl LocalSnapback {
         &self,
         manifest: &crate::bundle::RoutesManifest,
     ) -> SnapbackResult<()> {
-        crate::bundle::validate_routes_manifest_shape(manifest)
-            .map_err(routes_manifest_error)?;
+        crate::bundle::validate_routes_manifest_shape(manifest).map_err(routes_manifest_error)?;
         if manifest.app != self.functions.app_id {
             return Err(routes_manifest_error(format!(
                 "routes manifest app {:?} does not match the served functions manifest app {:?}",
@@ -6307,7 +6316,9 @@ impl LocalSnapback {
                 let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
                 if let Value::Object(map) = &spec.args {
                     for (key, value) in map {
-                        let Value::Object(inner) = value else { continue };
+                        let Value::Object(inner) = value else {
+                            continue;
+                        };
                         if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
@@ -6328,7 +6339,8 @@ impl LocalSnapback {
                         collect_value_expr_arg_names(&filter.value, &mut required);
                     }
                     for name in required {
-                        let covered = matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
+                        let covered =
+                            matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
                         if !covered {
                             return Err(routes_manifest_error(format!(
                                 "route {:?} query {:?} does not cover required arg {:?}",
@@ -6359,7 +6371,11 @@ impl LocalSnapback {
         let generation = self.rqs_generation_digest().ok()?;
         let version_stream = self.db.data_version_stream().ok()?;
         let now = now_millis();
-        let (key_id, key) = self.resume_keyring.active(now)?;
+        let (key_id, key) = self
+            .resume_keyring
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .active(now)?;
         let body = crate::rqs::ResumeTokenBody {
             app: app.clone(),
             generation: generation.clone(),
@@ -6407,7 +6423,10 @@ impl LocalSnapback {
         let now = now_millis();
         let body = crate::rqs::decode_and_verify(
             &presented.resume.token,
-            &self.resume_keyring,
+            &self
+                .resume_keyring
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
             now,
             crate::rqs::RESUME_TOKEN_MAX_AGE_MS,
         )?;
@@ -7429,6 +7448,10 @@ impl LocalSnapback {
             subscription_input.clone(),
             &prepared_invocation,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &self.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
@@ -10906,13 +10929,13 @@ impl LocalSnapback {
         // database, separate from the auth keyring; in-memory instances mint
         // a per-process ring (their tokens die with the process — fine, key
         // loss is availability-only).
-        let resume_keyring = match db.database_path() {
+        let resume_keyring = Arc::new(RwLock::new(match db.database_path() {
             Some(path) => crate::rqs::ResumeKeyring::load_or_create(
                 path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME),
                 now_millis(),
             ),
             None => crate::rqs::ResumeKeyring::in_memory(now_millis()),
-        };
+        }));
         static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
@@ -10989,6 +11012,7 @@ impl LocalSnapback {
             warm_vms: self.warm_vms.clone(),
             admission: self.admission.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
+            resume_keyring: self.resume_keyring.clone(),
         }
     }
 
@@ -13334,6 +13358,10 @@ pub struct ReadLane {
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
     admission: AdmissionController,
     secret_read_reset_generation: Arc<AtomicU64>,
+    // Shared with the write lane: relational pagination cursors are MAC'd
+    // with the resume keyring, and the read lane serves `/query` (LLP 0080
+    // §2 cursors) without the global mutex.
+    resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
 }
 
 /// What the read lane can serve for `/health` without the global mutex.
@@ -13521,6 +13549,10 @@ impl ReadLane {
             input,
             &prepared,
             Some(&self.warm_vms),
+            Some(RelationalCursorAuthority {
+                app_id: &manifests.functions.app_id,
+                keyring: &self.resume_keyring,
+            }),
         )?;
         Ok(invocation.output)
     }
@@ -13711,7 +13743,12 @@ fn validate_function_schema_references(
                 let proven = joined_table.indexes.iter().any(|candidate| {
                     candidate.name == plan.joined_index
                         && candidate.unique
-                        && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == key
+                        && candidate
+                            .fields
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                            == key
                 });
                 if !proven {
                     return Err(SnapbackError::error(
@@ -13822,10 +13859,98 @@ fn read_lane_unavailable() -> SnapbackError {
     )
 }
 
+/// What the relational-cursor layer needs from the serving instance: the
+/// app identity the cursor binds and the resume keyring that MACs it.
+/// Possession of a cursor grants no authority — the binding digest re-proves
+/// plan, arguments, and authority partition on every presentation.
+#[derive(Clone, Copy)]
+pub(crate) struct RelationalCursorAuthority<'a> {
+    pub(crate) app_id: &'a str,
+    pub(crate) keyring: &'a RwLock<crate::rqs::ResumeKeyring>,
+}
+
+/// The one uniform cursor refusal (LLP 0080 §2): malformed, cross-plan,
+/// cross-argument-set, cross-authority, stale-authority, and
+/// order-schema-invalid boundaries must stay byte-indistinguishable, so
+/// every class produces this exact error and no per-cause detail.
+fn relational_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "query",
+        "relational cursor is not valid for this plan, argument set, and caller; \
+         request the first page without a cursor",
+    )
+}
+
+fn relational_cursor_mint_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "query",
+        "a full relational page could not mint its continuation cursor; retry the request",
+    )
+}
+
+/// The canonical cursor binding digest (LLP 0080 §2): the cursor binds the
+/// app, the plan, the normalized non-cursor arguments, the order schema, and
+/// the caller's authority partition (auth fingerprint plus the caller's
+/// permission-scope epoch, which rolls on authorization change — the
+/// stale-authority refusal).
+fn relational_cursor_binding(
+    app_id: &str,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+    permission_epochs: &BTreeMap<String, u64>,
+    schema: &SchemaManifest,
+) -> Result<String, ()> {
+    let root_table = schema.tables.iter().find(|table| table.name == plan.root);
+    let order_schema: Vec<Value> = plan
+        .order
+        .iter()
+        .map(|order| {
+            let declared = root_table
+                .and_then(|table| table.field(&order.field))
+                .map(|field| serde_json::to_value(&field.field_type).unwrap_or(Value::Null))
+                .unwrap_or_else(|| Value::String("system".to_owned()));
+            json!({
+                "field": order.field,
+                "direction": match order.direction {
+                    crate::manifest::OrderDirection::Asc => "asc",
+                    crate::manifest::OrderDirection::Desc => "desc",
+                },
+                "type": declared,
+            })
+        })
+        .collect();
+    let mut args = input.args.clone();
+    if let Value::Object(map) = &mut args {
+        map.remove("cursor");
+    }
+    let epochs: Value = match input.auth.user_id.as_deref() {
+        Some(user_id) => {
+            let scope = user_permission_scope(user_id);
+            let epoch = permission_epochs.get(&scope).copied().unwrap_or(0);
+            json!({ scope: epoch })
+        }
+        None => json!({}),
+    };
+    let binding = json!({
+        "app": app_id,
+        "plan": serde_json::to_value(plan).map_err(|_| ())?,
+        "args": args,
+        "orderSchema": order_schema,
+        "authority": {
+            "fingerprint": crate::manifest::auth_fingerprint(&input.auth),
+            "epochs": epochs,
+        },
+    });
+    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+}
+
 /// Execute a query-shaped invocation against any read view: the write lane
 /// passes the live connection and its own epoch map; the read lane passes a
 /// pinned reader and its snapshots. One implementation, so the two lanes
 /// cannot drift.
+#[allow(clippy::too_many_arguments)]
 fn execute_query_invocation(
     function: &FunctionDefinition,
     name: &str,
@@ -13834,6 +13959,7 @@ fn execute_query_invocation(
     input: HandlerInput,
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
+    cursor_authority: Option<RelationalCursorAuthority<'_>>,
 ) -> SnapbackResult<QueryInvocation> {
     if let DbRead::Live(live) = db {
         return live.with_pinned_read_view(|db| {
@@ -13845,6 +13971,7 @@ fn execute_query_invocation(
                 input,
                 prepared,
                 warm_vms,
+                cursor_authority,
             )
         });
     }
@@ -13866,12 +13993,96 @@ fn execute_query_invocation(
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
         ) => {
+            // @ref LLP 0080#2-portable-evaluation-semantics — opaque
+            //   versioned cursor: verify the presented cursor's MAC and
+            //   binding digest, validate its boundary against the order
+            //   schema, execute from that boundary, and mint the
+            //   continuation for a full page. All six refusal classes
+            //   collapse into the one byte-identical refusal and are never
+            //   repositioned.
+            let presented = match input.args.get("cursor") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(token)) => Some(token.clone()),
+                Some(_) => return Err(relational_cursor_invalid()),
+            };
+            let keyset = match presented {
+                None => None,
+                Some(token) => {
+                    let authority = cursor_authority.ok_or_else(relational_cursor_invalid)?;
+                    let body = crate::rqs::decode_and_verify_relational_cursor(
+                        &token,
+                        &authority
+                            .keyring
+                            .read()
+                            .unwrap_or_else(|poisoned| poisoned.into_inner()),
+                        now_millis(),
+                        crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                    )
+                    .map_err(|_| relational_cursor_invalid())?;
+                    let binding = relational_cursor_binding(
+                        authority.app_id,
+                        plan,
+                        &input,
+                        permission_epochs,
+                        db.schema(),
+                    )
+                    .map_err(|()| relational_cursor_invalid())?;
+                    if body.app != authority.app_id || body.binding != binding {
+                        return Err(relational_cursor_invalid());
+                    }
+                    Some(
+                        crate::storage::validate_relational_boundary(
+                            db.schema(),
+                            plan,
+                            &body.boundary,
+                            &body.id,
+                        )
+                        .map_err(|_| relational_cursor_invalid())?,
+                    )
+                }
+            };
             // @ref LLP 0080#4-live-and-retained-capability — relational reads
             //   deliberately capture no Query-kind dependency: the matcher
             //   then falls through to the table-granular runtime arm, so any
             //   commit touching either declared source resnapshots and no
             //   proved-disjoint skip is claimed.
-            let output = crate::storage::query_relational_on(&db, plan, &input)?;
+            let (mut output, continuation) =
+                crate::storage::query_relational_on(&db, plan, &input, keyset.as_ref())?;
+            if let Some(boundary) = continuation {
+                // A full page must carry its continuation: silently omitting
+                // it would misreport the page as terminal, so mint failure
+                // fails the request rather than the pagination contract.
+                let authority = cursor_authority.ok_or_else(relational_cursor_mint_unavailable)?;
+                let binding = relational_cursor_binding(
+                    authority.app_id,
+                    plan,
+                    &input,
+                    permission_epochs,
+                    db.schema(),
+                )
+                .map_err(|()| relational_cursor_mint_unavailable())?;
+                let (key_id, key) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(relational_cursor_mint_unavailable)?;
+                let body = crate::rqs::RelationalCursorBody {
+                    app: authority.app_id.to_owned(),
+                    binding,
+                    boundary: boundary
+                        .entries
+                        .into_iter()
+                        .map(|(_, value)| value)
+                        .collect(),
+                    id: boundary.id,
+                    issued_at: now_millis(),
+                };
+                output.cursor = Some(
+                    crate::rqs::mint_relational_cursor(key.as_ref(), &key_id, &body)
+                        .ok_or_else(relational_cursor_mint_unavailable)?,
+                );
+            }
             let mut read_dependencies = Vec::new();
             if let Some(user_id) = input.auth.user_id.as_deref() {
                 read_dependencies.push(CapturedReadDependency {
@@ -16153,7 +16364,9 @@ globalThis.__snapbackHandlers = {
         };
 
         let mut snapback = LocalSnapback::memory().expect("memory relational fixture");
-        snapback.apply_schema(schema).expect("apply relational schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply relational schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![FunctionDefinition::new(
                 "booksWithAuthors",
@@ -16272,6 +16485,280 @@ globalThis.__snapbackHandlers = {
                 || d.code == "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN"),
             "non-unique joined index must refuse activation: {diagnostics:?}"
         );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the opaque versioned
+    //   cursor end to end: a full page mints a continuation bound to the
+    //   app, plan, argument set, order schema, and authority partition;
+    //   presenting it resumes from the last consumed root; and the refusal
+    //   classes — malformed, tampered, cross-plan, cross-authority — all
+    //   answer with one byte-identical SNAPBACK_RELATIONAL_CURSOR_INVALID.
+    #[test]
+    fn relational_cursor_pages_and_refuses_end_to_end() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = |join_kind: JoinKind| RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 1,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::memory().expect("memory cursor fixture");
+        snapback.apply_schema(schema).expect("apply cursor schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "pagedBooks",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Inner))),
+                ),
+                FunctionDefinition::new(
+                    "pagedBooksLeft",
+                    FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan(JoinKind::Left))),
+                ),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "cursor fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "gamma", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed cursor rows");
+
+        let input = |user: &str, session: &str, args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                session_id: Some(session.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+
+        // Page walk: alpha → beta → gamma → terminal.
+        let page1 = snapback
+            .invoke_query("pagedBooks", input("user-a", "s1", json!({})))
+            .expect("first page");
+        assert_eq!(page1.rows, vec![json!({ "title": "alpha" })]);
+        let cursor1 = page1.cursor.expect("full page mints a continuation");
+        assert!(
+            cursor1.starts_with("sbrc1."),
+            "cursor is versioned wire opaque: {cursor1}"
+        );
+        let page2 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor1 })),
+            )
+            .expect("second page");
+        assert_eq!(page2.rows, vec![json!({ "title": "beta" })]);
+        let cursor2 = page2.cursor.expect("second continuation");
+        let page3 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor2 })),
+            )
+            .expect("third page");
+        assert_eq!(page3.rows, vec![json!({ "title": "gamma" })]);
+        let cursor3 = page3.cursor.expect("third continuation");
+        let page4 = snapback
+            .invoke_query(
+                "pagedBooks",
+                input("user-a", "s1", json!({ "cursor": cursor3.clone() })),
+            )
+            .expect("terminal page");
+        assert!(page4.rows.is_empty());
+        assert!(page4.cursor.is_none(), "a short page is terminal");
+
+        // Refusal classes, each byte-identical to the others.
+        let refusal = |snapback: &LocalSnapback,
+                       args: Value,
+                       user: &str,
+                       session: &str,
+                       function: &str| {
+            match snapback.invoke_query(function, input(user, session, args.clone())) {
+                Err(error) => error,
+                Ok(output) => panic!(
+                    "cursor presentation must refuse: {function} {user}/{session} {args} -> {output:?}"
+                ),
+            }
+        };
+        let malformed = refusal(
+            &snapback,
+            json!({ "cursor": "sbrc1.garbage" }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        assert_eq!(
+            malformed.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+        let non_string = refusal(
+            &snapback,
+            json!({ "cursor": 7 }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        // Tampered body: flip the boundary bytes, keep the MAC.
+        let mut parts: Vec<String> = cursor3.split('.').map(str::to_owned).collect();
+        parts[2] = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(br#"{"app":"x","binding":"y","boundary":["zz"],"id":"b9","issuedAt":1}"#)
+        };
+        let tampered = refusal(
+            &snapback,
+            json!({ "cursor": parts.join(".") }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        // Cross-plan: the same caller's cursor presented to a different plan.
+        let cross_plan = refusal(
+            &snapback,
+            json!({ "cursor": cursor3.clone() }),
+            "user-a",
+            "s1",
+            "pagedBooksLeft",
+        );
+        // Cross-authority: another user, and the same user after a session
+        // (authority partition) transition.
+        let cross_user = refusal(
+            &snapback,
+            json!({ "cursor": cursor3.clone() }),
+            "user-b",
+            "s1",
+            "pagedBooks",
+        );
+        // Stale authority: an authorization change rolls the caller's
+        // permission-scope epoch (the dev-admitted path canonicalizes the
+        // session away, so the epoch is the partition signal here), and a
+        // cursor minted before the transition is refused after it.
+        snapback
+            .permission_epochs
+            .insert(super::user_permission_scope("user-a"), 7);
+        let stale_authority = refusal(
+            &snapback,
+            json!({ "cursor": cursor3 }),
+            "user-a",
+            "s1",
+            "pagedBooks",
+        );
+        for refused in [
+            &non_string,
+            &tampered,
+            &cross_plan,
+            &cross_user,
+            &stale_authority,
+        ] {
+            assert_eq!(
+                (
+                    refused.diagnostic.code.as_str(),
+                    refused.diagnostic.message.as_str()
+                ),
+                (
+                    malformed.diagnostic.code.as_str(),
+                    malformed.diagnostic.message.as_str()
+                ),
+                "every cursor refusal class is byte-indistinguishable",
+            );
+        }
     }
 
     #[test]
@@ -20664,7 +21151,10 @@ globalThis.__snapbackHandlers = {
                 steps: vec![MutationStep::Patch {
                     table: "todos".to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
-                    values: BTreeMap::from([("rank".to_owned(), ValueExpr::Arg("rank".to_owned()))]),
+                    values: BTreeMap::from([(
+                        "rank".to_owned(),
+                        ValueExpr::Arg("rank".to_owned()),
+                    )]),
                 }],
                 return_value: None,
             })),
@@ -20751,7 +21241,9 @@ globalThis.__snapbackHandlers = {
         let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
             .iter()
             .map(|row| crate::live_wire::MembershipWitnessEntry {
-                id: crate::rqs::row_wire_id(row).expect("wire row id").to_owned(),
+                id: crate::rqs::row_wire_id(row)
+                    .expect("wire row id")
+                    .to_owned(),
                 old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
             })
             .collect();
@@ -21087,7 +21579,12 @@ globalThis.__snapbackHandlers = {
             issued_at: now,
             auth_partition: None,
         };
-        let (key_id, key) = snapback.resume_keyring.active(now).expect("active key");
+        let (key_id, key) = snapback
+            .resume_keyring
+            .write()
+            .expect("keyring lock")
+            .active(now)
+            .expect("active key");
         let mint = |body: &crate::rqs::ResumeTokenBody| crate::live_wire::ResumeWire {
             token: crate::rqs::mint_token_wire(key.as_ref(), &key_id, body),
             meta: crate::live_wire::ResumeMeta {
@@ -21347,10 +21844,7 @@ globalThis.__snapbackHandlers = {
         assert!(exit_op.get("row").is_none(), "removals carry no row");
         assert_eq!(op_for(&id_change)["op"], "update");
         assert_eq!(op_for(&id_change)["row"]["title"], "changed");
-        let enter_op = ops
-            .iter()
-            .find(|op| op["op"] == "add")
-            .expect("enter op");
+        let enter_op = ops.iter().find(|op| op["op"] == "add").expect("enter op");
         assert_eq!(enter_op["row"]["title"], "entered");
 
         // The fresh token was minted from the updated accumulator and
@@ -21458,8 +21952,7 @@ globalThis.__snapbackHandlers = {
         let outside = snapback
             .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-x", None))
             .expect("lookup");
-        let id_outside =
-            rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
+        let id_outside = rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
         snapback
             .invoke_mutation(
                 "setRank",
@@ -21622,21 +22115,21 @@ globalThis.__snapbackHandlers = {
         // Omitted: the removed row's entry is missing (a witness that never
         // admits having held it).
         let mut omitted = honest.clone();
-        omitted
-            .entries
-            .retain(|entry| entry.id != id_removed);
+        omitted.entries.retain(|entry| entry.id != id_removed);
         omitted.count = omitted.entries.len() as u32;
         cases.push(("omitted", omitted));
         // Extra: a fabricated held row.
         let mut extra = honest.clone();
-        extra.entries.push(crate::live_wire::MembershipWitnessEntry {
-            id: "zzz-fabricated".to_owned(),
-            old_row_hash: {
-                use base64::Engine as _;
-                base64::engine::general_purpose::URL_SAFE_NO_PAD
-                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
-            },
-        });
+        extra
+            .entries
+            .push(crate::live_wire::MembershipWitnessEntry {
+                id: "zzz-fabricated".to_owned(),
+                old_row_hash: {
+                    use base64::Engine as _;
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD
+                        .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+                },
+            });
         extra.count = extra.entries.len() as u32;
         cases.push(("extra", extra));
         // Substituted: one entry's hash replaced with a hash of different
@@ -21649,8 +22142,9 @@ globalThis.__snapbackHandlers = {
             .unwrap();
         target.old_row_hash = {
             use base64::Engine as _;
-            base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+                crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap(),
+            )
         };
         cases.push(("correct-id-wrong-hash", substituted));
         // Hash permutation: two valid hashes swapped between valid ids — the
@@ -21678,7 +22172,8 @@ globalThis.__snapbackHandlers = {
             );
             let rows = &refused.snapshot.as_ref().expect("rung 3 rows").rows;
             assert!(
-                rows.iter().all(|row| row["_id"] != json!(id_removed.as_str())),
+                rows.iter()
+                    .all(|row| row["_id"] != json!(id_removed.as_str())),
                 "{label}: the removal is delivered by replacement, never suppressed"
             );
         }

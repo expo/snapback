@@ -2812,6 +2812,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     let snapshot = QueryOutput {
         version: 7,
         rows: vec![json!({ "_id": "a" })],
+        cursor: None,
     };
     assert_validates(
         "live.subscribe.output.schema.json",

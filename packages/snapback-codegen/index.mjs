@@ -1174,8 +1174,10 @@ export async function generateInProcess(backendDir, options = {}) {
       });
       contractQueries[name] = {
         name,
-        args: {},
-        argOrder: [],
+        // The implicit continuation-cursor argument (LLP 0080 §2) is part of
+        // the callable contract even though authors declare no args in v1.
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
         reads: [plan.root, plan.joined],
         result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
         serverRunnable: true,
