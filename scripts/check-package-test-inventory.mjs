@@ -93,6 +93,7 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'identifier-validation.test.mjs',
+      'maintained-projections.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
@@ -222,7 +223,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // canonical inventory.
 // 82 -> 84 (LLP 0074 integration): retain the Linux runtime package proof
 // and the CLI hosted-admission producer suite alongside current main.
-assert.equal(total, 84, 'reviewed package/admin test count changed');
+// 84 -> 85 (LLP 0080 Phase B): inventory the maintained-projection codegen
+// suite introduced with the transactionally maintained projection surface.
+assert.equal(total, 85, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
