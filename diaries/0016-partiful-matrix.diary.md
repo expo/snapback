@@ -1819,3 +1819,23 @@ directly, and stop retaining the duplicate production view tree while keeping
 fine-grained effects, compiled expressions, source attribution, and on-demand
 authorized editable IR. Until that larger S2 slice is implemented and
 remeasured, the memory claim remains red.
+
+## 2026-07-25 — visual rejection is per cell; remediation is per cause
+
+Human review of the complete 156-cell matrix approved 118 cells and rejected
+38. The reviewer correctly rejected every screenshot in which a shared broken
+component made the cell unacceptable, rather than approving repeated failures
+because they had one common cause. The retained review is fail-closed per cell;
+remediation is clustered by shared implementation cause, and only images whose
+bytes change require replacement review.
+
+The first remediation pass addresses four repeated causes without changing the
+visual specification or using React as the Contract oracle. Contract's event
+hero no longer supplies sub-pixel line-height multipliers that collapsed its
+title stack; its wall composer now has a visible label, aligned input and
+submitter, and a visible live status; its sheet preserves trigger context with
+an inset, end-aligned panel; and its RSVP confirmation is centered by the
+typed overlay layout. React's night variant now gives menus, error recovery,
+and overlay controls explicit readable foregrounds and surfaces. The Contract
+and React Snapback production builds pass; replacement capture and human
+review remain required before any visual claim can pass.

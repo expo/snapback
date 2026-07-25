@@ -97,11 +97,11 @@ component PartifulEvent
           button press=closeOptions role="menuitem" label="Mute updates" padding=11 background="transparent"
             text "Mute updates" size=12 color=textFor(visualVariant)
       when eventFailed
-        section role="alert" label="Event failed to load" testId="event-error" gap=12 padding=30 borderWidth=1 borderColor="#c43b2f" background="#fff3ef"
-          text "We couldn't load this plan." headingLevel=1 size=28 weight=800 color="#171512"
-          text "The event route is still here. Try the event query again." size=13 color="#625b52"
-          button press=retryEvent label="Try again" testId="event-retry" padding=11 background="#171512"
-            text "Try again" size=12 color="#ffffff"
+        section role="alert" label="Event failed to load" testId="event-error" gap=12 padding=30 borderWidth=1 borderColor="#c43b2f" style=surfaceStyle(visualVariant, "panel")
+          text "We couldn't load this plan." headingLevel=1 size=28 weight=800 color=textFor(visualVariant)
+          text "The event route is still here. Try the event query again." size=13 color=mutedFor(visualVariant)
+          button press=retryEvent label="Try again" testId="event-retry" padding=11 background=textFor(visualVariant)
+            text "Try again" size=12 color=backgroundFor(visualVariant)
       async event
         loading
           text "Loading the plan…" size=14 color="#5f594f"
@@ -115,16 +115,16 @@ component PartifulEvent
               case "expanded"
                 row gap=34 align="center" padding=42 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
                   text ev.emoji size=66 background="rgba(255,255,255,0.22)" padding=30 radius=999
-                  column gap=10 flex=1
+                  column gap=14 flex=1
                     text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                    text ev.title headingLevel=1 size=52 weight=800 color="#171512" lineHeight=0.9
+                    text ev.title headingLevel=1 size=52 weight=800 color="#171512"
                     text ev.description size=14 color="#473b31"
                   ConnectionBadge(value=event.connection)
               else
                 column gap=18 padding=28 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
                   text ev.emoji size=48 background="rgba(255,255,255,0.22)" padding=20 radius=999
                   text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                  text ev.title headingLevel=1 size=40 weight=800 color="#171512" lineHeight=0.95
+                  text ev.title headingLevel=1 size=40 weight=800 color="#171512"
                   text ev.description size=14 color="#473b31"
                   ConnectionBadge(value=event.connection)
             column gap=8 padding=32 borderWidth=1 borderColor="rgba(23,21,18,0.25)"
@@ -152,10 +152,13 @@ component PartifulEvent
               text userName size=12 weight=800 color=textFor(visualVariant) width=90
               text pendingMessage size=13 color=textFor(visualVariant) flex=1
               text "Sending…" role="status" live="polite" testId="wall-pending-status" size=10 color=mutedFor(visualVariant)
-          section role="form" label="Post to the event wall" gap=8 testId="wall-composer"
-            input label=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-message" padding=12 flex=1 borderWidth=1 style=fieldStyle(visualVariant, false)
-            button press=post label="Post message" testId="wall-submit" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background=textFor(visualVariant)
-              text "Send ↗" size=12 color=backgroundFor(visualVariant)
+          section role="form" label="Post to the event wall" gap=8 paddingTop=8 testId="wall-composer"
+            text "POST TO THE WALL" size=10 color=mutedFor(visualVariant)
+            row gap=8 align="center"
+              input label=`Message from ${userName}` placeholder=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-message" padding=12 flex=1 borderWidth=1 style=fieldStyle(visualVariant, false)
+              button press=post label="Post message" testId="wall-submit" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background=textFor(visualVariant)
+                text "Send ↗" size=12 color=backgroundFor(visualVariant)
+            text canPost ? "Ready to post" : "Write a message to enable Send" role="status" live="polite" testId="wall-composer-status" size=10 color=mutedFor(visualVariant)
         column gap=14 padding=32 flex=1 minWidth=280 testId="guest-list"
           async guests
             loading
@@ -188,12 +191,12 @@ component PartifulEvent
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when guestSheetOpen
-        stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=110 testId="guest-sheet-overlay"
+        stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" align="end" justify="center" zIndex=110 testId="guest-sheet-overlay"
           button press=closeGuestSheet label="Close guest list" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="guest-list-sheet-backdrop"
-          section role="dialog" label="Guest list" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeGuestSheet presence="entered" testId="guest-list-sheet" zIndex=1 width="100%" maxWidth=620 padding=30 gap=16 style=surfaceStyle(visualVariant, "panel")
+          section role="dialog" label="Guest list" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeGuestSheet presence="entered" testId="guest-list-sheet" zIndex=1 width="72%" maxWidth=360 maxHeight="100%" padding=30 gap=16 style=surfaceStyle(visualVariant, "panel")
             row align="center"
-              text "Guest list" headingLevel=2 size=27 weight=800 color=textFor(visualVariant) flex=1
-              button press=closeGuestSheet label="Close guest list" testId="guest-sheet-close" background="transparent" padding=10
+              text "Guest list" headingLevel=2 size=22 weight=800 color=textFor(visualVariant) flex=1
+              button press=closeGuestSheet label="Close guest list" testId="guest-sheet-close" width=64 background="transparent" padding=8
                 text "Close" size=12 color=textFor(visualVariant)
             async guests
               loading
@@ -208,7 +211,7 @@ component PartifulEvent
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""
-        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 testId="rsvp-confirm-overlay"
+        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" align="center" justify="center" zIndex=120 testId="rsvp-confirm-overlay"
           button press=cancelRespond label="Cancel RSVP change" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="rsvp-confirm-backdrop"
           section role="dialog" label="Confirm RSVP" accessibilityModal=true focusTrap=true focusRestore=true dismiss=cancelRespond presence="entered" testId="rsvp-confirm-dialog" zIndex=1 width="100%" maxWidth=460 padding=30 gap=18 style=surfaceStyle(visualVariant, "panel")
             text "Confirm RSVP" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)
