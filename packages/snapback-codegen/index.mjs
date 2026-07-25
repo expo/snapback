@@ -103,6 +103,16 @@ const TARGET_CAPABILITY_IDS = new Set([
   'mutation_read_set_validation',
   'permission_epoch_resync',
 ]);
+// @ref LLP 0058#capability-maturity — mirror of the Rust registry's
+// non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
+// Codegen derives requirements from the closed capability table above, so it
+// also emits the matching experimental acknowledgment: the generated artifact
+// knowingly binds to the current (Draft LLP 0076) stream contract, and
+// admission refuses an experimental requirement with no acknowledgment.
+// Remove an id here in the same change that promotes it to stable in Rust.
+const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
+  'bounded_response_stream_v1',
+]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
 const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';
@@ -1564,6 +1574,19 @@ export async function generateInProcess(backendDir, options = {}) {
     ephemeralCollections,
     tables: Object.values(tables),
   };
+  // @ref LLP 0058#capability-maturity — the artifact pair's experimental
+  // acknowledgments: exactly the experimental ids this pair requires
+  // (functions, cron, and schema-level requirements — schema and functions
+  // are one generated unit). Emitting them is truthful because the same
+  // closed table derived the requirements; admission still refuses any
+  // requirement the served instance does not positively support.
+  const acknowledgedExperimentalCapabilities = [...new Set(
+    [
+      ...decoratedFunctionDefinitions.flatMap((fn) => fn.requiredCapabilities ?? []),
+      ...cronJobs.flatMap((job) => job.requiredCapabilities ?? []),
+      ...schemaRequiredCapabilities,
+    ].filter((capability) => EXPERIMENTAL_TARGET_CAPABILITY_IDS.has(capability)),
+  )].sort();
   const functionManifest = {
     artifactKind: 'functionManifest',
     schemaVersion: artifactVersion,
@@ -1572,6 +1595,9 @@ export async function generateInProcess(backendDir, options = {}) {
     inputsHash,
     generatedAt,
     unsupportedDependencyDiagnostics: infoDiagnostics,
+    ...(acknowledgedExperimentalCapabilities.length > 0
+      ? { acknowledgedExperimentalCapabilities }
+      : {}),
     functions: decoratedFunctionDefinitions,
     cronJobs,
     config: configEntries,

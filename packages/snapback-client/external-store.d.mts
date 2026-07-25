@@ -1,7 +1,9 @@
 export type ExternalConnection = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;
 export type ExternalStoreStatus = 'pending' | 'ready' | 'refreshing' | 'error';
+export type ExternalStoreFreshness = 'unknown' | 'retained' | 'current';
 export type ExternalProviderDelivery =
   | { kind: 'authoritative' }
+  | { kind: 'retained' }
   | { kind: 'connection' }
   | { kind: 'error'; error?: unknown };
 
@@ -12,6 +14,7 @@ export interface ExternalStoreSnapshot<Row = unknown> {
   readonly rows: readonly Row[];
   readonly connection: ExternalConnection;
   readonly error: Readonly<{ name: string; message: string; code?: string; diagnostic?: unknown }> | null;
+  readonly freshness: ExternalStoreFreshness;
   readonly generation: number;
   readonly mutation: Readonly<{
     status: 'idle' | 'pending' | 'confirmed' | 'rejected';
@@ -31,6 +34,7 @@ export interface ExternalStoreSnapshot<Row = unknown> {
 
 export interface ExternalStoreController<Row = unknown> {
   pending(connection?: ExternalConnection, previous?: readonly Row[]): void;
+  retained(rows: readonly Row[], connection?: ExternalConnection): void;
   ready(rows: readonly Row[], connection?: ExternalConnection): void;
   refreshing(rows?: readonly Row[], connection?: ExternalConnection): void;
   error(error: unknown, options?: { previous?: readonly Row[]; connection?: ExternalConnection }): void;

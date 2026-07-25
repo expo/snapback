@@ -35,6 +35,10 @@ export const cron = [];
 
 export { capabilityManifest };
 
+// @ref LLP 0058#capability-maturity — the conformance fixture requires no
+// experimental capability, so it acknowledges none.
+export const acknowledgedExperimentalCapabilities = [];
+
 // The coordinator consumes one uniform identity contract from every module
 // selected through the `snapback-app` alias. Production apps import generated
 // deployment identities; this never-deployed, fresh-state conformance fixture

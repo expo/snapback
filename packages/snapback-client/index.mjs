@@ -45,6 +45,19 @@ export {
   SNAPBACK_EXTERNAL_STORE_PROTOCOL,
 } from './external-store.mjs';
 import { rowsMatchDigest } from './rqs.mjs';
+import {
+  arbitrateResumeCandidates,
+  rqsEntryKey,
+  verifyPersistedResumeEntry,
+} from './rqs-store.mjs';
+export {
+  arbitrateResumeCandidates,
+  createIndexedDbRqsResumeStore,
+  rqsEntryKey,
+  verifyPersistedResumeEntry,
+  RQS_STORE_MAX_BYTES,
+  RQS_STORE_MAX_ENTRIES,
+} from './rqs-store.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -145,6 +158,11 @@ const EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP = 1_024;
 // privileged system namespace.
 const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
+// Channel B persistence cadence (LLP 0091 §0A.5): trailing debounce after the
+// last result-changing envelope, hard cap under continuous change, immediate
+// flush on pagehide / visibility-hidden.
+const RQS_PERSIST_DEBOUNCE_MS = 1_000;
+const RQS_PERSIST_MAX_DELAY_MS = 10_000;
 
 // The live wire kinds this kit dispatches on, pinned to the committed
 // Rust-generated schemas (LLP 0051 D4 / ENG-23891):
@@ -1076,6 +1094,10 @@ export class SnapbackClient {
     senderConstrained = false,
     clientStoreId = processClientStoreId,
     authCounterCeiling = Number.MAX_SAFE_INTEGER,
+    // Channel B persisted RQS resume store (LLP 0090 D3 / rollout step 5):
+    // when present, rqsEligible subscriptions persist {rows, meta, token}
+    // and relaunches render-first + resume. Absent = today's behavior.
+    rqsStore = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1108,6 +1130,7 @@ export class SnapbackClient {
     this.agentAuthority = agentAuthority;
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
+    this.rqsStore = rqsStore;
     this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
@@ -1202,7 +1225,20 @@ export class SnapbackClient {
         this.__liveStreamManagers?.clear?.();
         if (firstError) throw firstError;
       },
-      commitDurable: async () => {},
+      commitDurable: async (context = {}) => {
+        // User-switch wipe of the persisted RQS resume store (LLP 0090 D3):
+        // v1 entries are authority-independent, so the wipe is layout
+        // hygiene for the v2 door rather than a data-exposure gate — a
+        // failed wipe is availability-only and must not fail the barrier.
+        if (!this.rqsStore) return;
+        const principal = (authority) => (authority && typeof authority === 'object'
+          ? `${authority.kind ?? ''}:${authority.userId ?? ''}`
+          : null);
+        const previous = principal(context.previousAuthority);
+        const next = principal(context.nextAuthority);
+        if (previous === next) return;
+        try { await this.rqsStore.wipe(); } catch { /* availability-only */ }
+      },
       resume: async (context) => {
         if (!this.authCoordinator) {
           // Agent custody has no refresh/session bearer to stage during its
@@ -4045,6 +4081,13 @@ export class SnapbackClient {
     authorityCapture: expectedAuthorityCapture = null,
     correlation = null,
     stream: streamOptions = {},
+    // Channel B (LLP 0090 D3): per-subscription persist opt-out — the
+    // client-option stand-in for the per-manifest-entry `persist: false`
+    // until rollout cluster 0C carries it in the manifest.
+    persistResume = true,
+    // Channel A seam: an inlined/preloaded candidate ({ rows, resume }) to
+    // arbitrate against the persisted entry per LLP 0090 D3.
+    preloadedResume = null,
   } = {}) {
     const name = functionName(ref);
     const client = this;
@@ -4127,11 +4170,18 @@ export class SnapbackClient {
       subscriptionId: null,
       version: 0,
       rows: [],
-      // Latest RQS resume object ({ token, meta }) for this subscription —
-      // in-memory only in rollout step 1 (persistence is step 5). Adopted
-      // from subscribe outputs and refreshed envelopes per the LLP 0091
-      // §0B.3 transition table; cleared on digest mismatch.
-      resumeToken: null,
+      // Latest RQS resume object ({ token, meta }) for this subscription.
+      // Adopted from subscribe outputs and refreshed envelopes per the LLP
+      // 0091 §0B.3 transition table; cleared on digest mismatch. (Named
+      // rqsResume because handle.resume is the pause/resume lifecycle
+      // method — step 1 stored this under handle.resume, where the method
+      // assignment clobbered it before the first subscribe ever read it.)
+      rqsResume: null,
+      // Channel B freshness state (LLP 0090 D1): rows delivered from
+      // persistence/preload surface 'retained' until the first authoritative
+      // answer (CurrentAsOf, replay completion, or fresh LiveReplace) makes
+      // them 'current'; null while nothing authoritative-or-retained is held.
+      freshness: null,
       authorizationDisposition: 'retain',
       get connection() {
         return connection;
@@ -4150,6 +4200,163 @@ export class SnapbackClient {
         return;
       }
       void client.commitAuthorityPublication(capture, effect).catch(() => {});
+    };
+
+    // -----------------------------------------------------------------
+    // Channel B persisted resume state (LLP 0090 D3, LLP 0091 §0A.5/§0B.3,
+    // rollout step 5 — web/IndexedDB arm; native/DK-9 is a later pass).
+    // -----------------------------------------------------------------
+    const resumeStore = persistResume ? client.rqsStore : null;
+    const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;
+    let persistTimer = null;
+    let persistFirstDirtyAt = null;
+    // Store writes are serialized so an in-progress marker can never land
+    // after the commit that should clear it.
+    let persistChain = Promise.resolve();
+    // True between a subscribe seeded from PERSISTED state and the rung-1
+    // CurrentAsOf that confirms it — the "last successful authoritative
+    // resume" recency bookkeeping (LLP 0091 §0A.5 eviction rule).
+    let pendingResumeConfirmation = false;
+    let seededFromResumeState = false;
+
+    const chainStoreWrite = (write) => {
+      if (!resumeStore || !resumeStoreKey) return Promise.resolve();
+      persistChain = persistChain.then(write).catch(() => {});
+      return persistChain;
+    };
+
+    const removePersistedEntry = () => chainStoreWrite(() => resumeStore.remove(resumeStoreKey));
+
+    const persistResumeStateNow = () => {
+      if (persistTimer) {
+        clearTimeout(persistTimer);
+        persistTimer = null;
+      }
+      persistFirstDirtyAt = null;
+      if (!resumeStore || !resumeStoreKey) return Promise.resolve();
+      return chainStoreWrite(async () => {
+        if (resumeStore.isWriter?.() !== true) return;
+        const held = handle.rqsResume;
+        // Write-time eligibility gate (LLP 0090 Authorization scope): only a
+        // server-minted token proves rqsEligible — auth-scoped subscriptions
+        // never hold one — and the digest recompute keeps every persisted
+        // entry self-consistent (an authority-blanked or partially applied
+        // row set simply refuses to persist).
+        if (!held || authorizationFence || authorizationFaulted) return;
+        if (handle.freshness !== 'current') return;
+        if (!rowsMatchDigest(handle.rows, held.meta?.contentDigest)) return;
+        try {
+          await resumeStore.commit(resumeStoreKey, {
+            rows: handle.rows,
+            meta: held.meta,
+            token: held.token,
+          });
+        } catch {
+          // §0B.3 T9: a failed persistence write never blocks rendering or
+          // the live subscription — invalidate best-effort so the next
+          // relaunch takes the fresh path, and never surface the failure.
+          try { await resumeStore.remove(resumeStoreKey); } catch { /* best effort */ }
+        }
+      });
+    };
+
+    const schedulePersist = () => {
+      if (!resumeStore || !resumeStoreKey || disposed) return;
+      const nowMs = Date.now();
+      if (persistFirstDirtyAt === null) persistFirstDirtyAt = nowMs;
+      // Trailing 1 s debounce with a 10 s continuous-change cap (§0A.5).
+      const delay = Math.max(0, Math.min(
+        RQS_PERSIST_DEBOUNCE_MS,
+        persistFirstDirtyAt + RQS_PERSIST_MAX_DELAY_MS - nowMs,
+      ));
+      if (persistTimer) clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => {
+        persistTimer = null;
+        persistFirstDirtyAt = null;
+        void persistResumeStateNow();
+      }, delay);
+      persistTimer.unref?.();
+    };
+
+    const flushPersistOnHide = () => { void persistResumeStateNow(); };
+    const onVisibilityHidden = () => {
+      if (globalThis.document?.visibilityState === 'hidden') flushPersistOnHide();
+    };
+    if (resumeStore && resumeStoreKey && typeof globalThis.addEventListener === 'function') {
+      globalThis.addEventListener('pagehide', flushPersistOnHide);
+      globalThis.document?.addEventListener?.('visibilitychange', onVisibilityHidden);
+    }
+    const detachResumePersistence = () => {
+      if (persistTimer) {
+        clearTimeout(persistTimer);
+        persistTimer = null;
+      }
+      if (resumeStore && resumeStoreKey && typeof globalThis.removeEventListener === 'function') {
+        globalThis.removeEventListener('pagehide', flushPersistOnHide);
+        globalThis.document?.removeEventListener?.('visibilitychange', onVisibilityHidden);
+      }
+    };
+
+    // Relaunch seeding (§0B.3 T1/T2 + the LLP 0090 D3 outbox rule and A-vs-B
+    // arbitration): verify, render-first as retained, and let the ordinary
+    // fresh subscribe carry the token (§0B.4 dispatch rule 2).
+    const seedFromResumeState = async () => {
+      let persisted = null;
+      if (resumeStore && resumeStoreKey) {
+        let entry = null;
+        try { entry = await resumeStore.load(resumeStoreKey); } catch { entry = null; }
+        if (entry) {
+          if (verifyPersistedResumeEntry(entry, { args }).ok) {
+            persisted = { rows: entry.rows, resume: { token: entry.token, meta: entry.meta } };
+          } else {
+            // Corrupt, truncated, digest-mismatched, or in-progress persisted
+            // state fails closed to a fresh subscribe (T2).
+            void removePersistedEntry();
+          }
+        }
+        if (persisted) {
+          let outboxEmpty = false;
+          try { outboxEmpty = (await resumeStore.outboxEmpty()) === true; } catch { outboxEmpty = false; }
+          if (!outboxEmpty) {
+            // LLP 0090 D3 outbox rule (LLP 0043 milestone boundary): a
+            // relaunching client with a non-empty mutation outbox sends no
+            // resumeFromToken and renders nothing ahead of the full resync.
+            persisted = null;
+          }
+        }
+      }
+      let preloaded = null;
+      if (preloadedResume?.resume) {
+        const candidateRows = Array.isArray(preloadedResume.rows) ? preloadedResume.rows : [];
+        const verdict = verifyPersistedResumeEntry({
+          rows: candidateRows,
+          meta: preloadedResume.resume.meta,
+          token: preloadedResume.resume.token,
+          inProgress: false,
+        }, { args });
+        if (verdict.ok) preloaded = { rows: candidateRows, resume: preloadedResume.resume };
+      }
+      let winner = null;
+      if (persisted && preloaded) {
+        winner = arbitrateResumeCandidates(preloaded, persisted);
+        // Identity mismatch discards BOTH candidates (LLP 0090 D3).
+        if (winner === null) void removePersistedEntry();
+      } else {
+        winner = persisted ?? preloaded;
+      }
+      if (!winner || disposed) return;
+      handle.rows = winner.rows;
+      handle.version = winner.resume.meta.version;
+      handle.rqsResume = winner.resume;
+      handle.freshness = 'retained';
+      seededFromResumeState = winner === persisted;
+      deliverAuthorityObservation(() => {
+        onUpdate?.(handle.rows, {
+          version: handle.version,
+          kind: 'persisted',
+          freshness: 'retained',
+        });
+      });
     };
 
     const setConnection = (next) => {
@@ -4687,6 +4894,10 @@ export class SnapbackClient {
         && (!updateCapture || !client.authorityFence.isCurrent(updateCapture))
       ) return;
       if (update.kind === LIVE_DURABLE_KINDS.AUTHORIZATION_INVALIDATION) {
+        // Purge the persisted RQS copy, not just in-memory state (LLP 0090
+        // D3 storage lifecycle). Auth-scoped data is never in the store, so
+        // this is belt-and-braces for a query whose declaration changed.
+        void removePersistedEntry();
         const reportingState = authorizationTaskState(updateCapture);
         void receiveAuthorizationProjection({
             obligation: update.obligation,
@@ -4719,8 +4930,11 @@ export class SnapbackClient {
           handle.rows = update.rows;
           handle.version = update.version;
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
-          // replacement rows it was minted from.
-          if (update.resume) handle.resumeToken = update.resume;
+          // replacement rows it was minted from. A replacement is always
+          // authoritative — retained/pending state ends here.
+          if (update.resume) handle.rqsResume = update.resume;
+          handle.freshness = 'current';
+          schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
               version: handle.version,
@@ -4739,7 +4953,17 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
-        if (update.resume) handle.resumeToken = update.resume;
+        if (update.resume) handle.rqsResume = update.resume;
+        // The rung-1 authoritative answer: held (persisted-seeded) rows are
+        // proved current without touching them.
+        handle.freshness = 'current';
+        if (pendingResumeConfirmation) {
+          // Least-recently-resumed bookkeeping (LLP 0091 §0A.5): recency is
+          // the last SUCCESSFUL authoritative resume of the persisted entry.
+          pendingResumeConfirmation = false;
+          void chainStoreWrite(() => resumeStore.markResumed(resumeStoreKey));
+        }
+        schedulePersist();
         deliverAuthorityObservation(() => {
           onUpdate?.(handle.rows, {
             version: handle.version,
@@ -4778,6 +5002,12 @@ export class SnapbackClient {
             reportAuthorizationError(error);
           }
         } else {
+          // Mark the persisted entry in-progress before mutating the held
+          // rows (LLP 0091 §0A.5): a crash between this application and the
+          // debounced commit leaves the marker set, and the relaunch
+          // verifier refuses the entry instead of resuming from a base the
+          // server no longer recognizes.
+          void chainStoreWrite(() => resumeStore.markInProgress(resumeStoreKey));
           handle.rows = nextRows;
           handle.version = update.version;
           // T7 (LLP 0091 §0B.3): verify the post-apply digest against the
@@ -4787,13 +5017,16 @@ export class SnapbackClient {
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
             if (digest && rowsMatchDigest(handle.rows, digest)) {
-              handle.resumeToken = update.resume;
+              handle.rqsResume = update.resume;
             } else {
-              handle.resumeToken = null;
+              handle.rqsResume = null;
+              void removePersistedEntry();
               void resubscribe('rqs_digest_mismatch');
               return;
             }
           }
+          handle.freshness = 'current';
+          schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
               version: handle.version,
@@ -4809,6 +5042,12 @@ export class SnapbackClient {
         // resyncs (permission epoch changes, fan-out failures) do. Either
         // way the recovery is the same: fresh snapshot-with-subscribe.
         if (update.subscription_id && update.subscription_id !== handle.subscriptionId) return;
+        // clear_retained purges the persisted RQS copy too (LLP 0090 D3):
+        // retained continuity is gone, so relaunch must not resume from it.
+        if (update.clear_retained === true || update.clearRetained === true) {
+          handle.rqsResume = null;
+          void removePersistedEntry();
+        }
         void resubscribe(resyncReason(update.reason));
       }
     };
@@ -4830,9 +5069,10 @@ export class SnapbackClient {
           // verified rows + a resume token seeds the request with it —
           // reconnect still ALWAYS re-enters through this fresh subscribe
           // (the LLP 0034 §2.4 amendment: maybe-CurrentAsOf-with-subscribe).
-          // In-memory only in rollout step 1; auth-scoped handles never hold
-          // a token (the server never mints one for them).
-          const heldResume = handle.resumeToken;
+          // Auth-scoped handles never hold a token (the server never mints
+          // one for them); on relaunch the token comes from the persisted
+          // Channel B entry seeded above.
+          const heldResume = handle.rqsResume;
           const sub = await client.subscribeLive(name, {
             connectionId,
             args,
@@ -4851,7 +5091,7 @@ export class SnapbackClient {
             bestEffortUnsubscribeLive(sub?.subscription_id);
             throw error;
           }
-          attempt = { sub, epochAtStart, demandEpochAtStart };
+          attempt = { sub, epochAtStart, demandEpochAtStart, heldResume };
           break;
         } catch (error) {
           const code = error?.diagnostic?.code;
@@ -4881,7 +5121,7 @@ export class SnapbackClient {
           assertSubscribeLifecycle(lifecycle);
         }
       }
-      const { sub, epochAtStart, demandEpochAtStart } = attempt;
+      const { sub, epochAtStart, demandEpochAtStart, heldResume } = attempt;
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
       try {
@@ -4893,10 +5133,15 @@ export class SnapbackClient {
             if (sub.snapshot) {
               handle.version = sub.snapshot.version;
               handle.rows = sub.snapshot.rows;
+              // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
+              // authoritative (LLP 0090 D1 freshness rule).
+              handle.freshness = 'current';
+            } else if (heldResume) {
+              // Rung-1 answer pending: held rows stay retained until the
+              // current_as_of durable envelope advances version + token.
+              pendingResumeConfirmation = seededFromResumeState;
             }
-            // else: the rung-1 CurrentAsOf answer — held rows are current;
-            // the current_as_of durable envelope advances version + token.
-            if (sub.resume) handle.resumeToken = sub.resume;
+            if (sub.resume) handle.rqsResume = sub.resume;
             markAuthorityCapture(handle.rows, handleAuthorityCapture);
           }
           return true;
@@ -4904,6 +5149,25 @@ export class SnapbackClient {
         if (!installed.committed) throw staleAuthorityError();
         if (sub.authorizationScope) {
           await installAuthorizationSubscription(sub);
+          // Eligibility gate at write time (LLP 0090 Authorization scope): an
+          // auth-scoped subscription persists no RQS resume state, and any
+          // stale persisted entry for it (a query whose declaration changed)
+          // is invalidated rather than trusted on the next relaunch.
+          if (seededFromResumeState) void removePersistedEntry();
+        } else if (sub.snapshot) {
+          if (sub.resume) {
+            // Fresh authoritative state with a fresh token: persist at the
+            // §0A.5 cadence. When the subscribe was seeded with a stale token
+            // (refused generation/versionStream/expiry -> rung 3), this
+            // commit is what discards the refused persisted state.
+            schedulePersist();
+          } else if (seededFromResumeState || handle.rqsResume) {
+            // The server minted no token for this subscription (no longer —
+            // or never — rqsEligible): drop the held token and the persisted
+            // entry so relaunches subscribe fresh.
+            handle.rqsResume = null;
+            void removePersistedEntry();
+          }
         }
         assertSubscribeLifecycle(lifecycle);
       } catch (error) {
@@ -5237,6 +5501,7 @@ export class SnapbackClient {
         detachStream?.();
         detachStream = null;
         handle.rows = [];
+        handle.freshness = null;
         handle.authorizationDisposition = 'delete';
         markAuthorityCapture(handle.rows, handleAuthorityCapture);
         const detail = {
@@ -5262,6 +5527,12 @@ export class SnapbackClient {
     // liveQuery() fails loudly and leaves nothing running.
     const establish = async () => {
       setConnection('connecting');
+      // Channel B relaunch flow (LLP 0090 D3): load + verify the persisted
+      // entry, render-first as retained, and let the fresh subscribe below
+      // carry the seeded token. Seeding failures leave today's cold boot.
+      if ((resumeStore && resumeStoreKey) || preloadedResume) {
+        try { await seedFromResumeState(); } catch { /* cold boot */ }
+      }
       if (transport === 'stream') {
         detachStream = attachStream();
       }
@@ -5309,6 +5580,10 @@ export class SnapbackClient {
       return drainOnce();
     };
 
+    // Immediate Channel B flush — the pagehide/visibility-hidden path made
+    // callable (embedders with their own lifecycle events, and tests).
+    handle.flushResumeState = () => persistResumeStateNow();
+
     // Host lifecycle is provider/kit policy, not view logic (Exact LLP 0284
     // §2.1 rule 4): pause quiesces this handle's transports (no retry is
     // scheduled -> 'disconnected'); resume re-enters through a fresh
@@ -5316,6 +5591,8 @@ export class SnapbackClient {
     handle.pause = () => {
       if (disposed || paused) return;
       paused = true;
+      // Backgrounding analog of the visibility-hidden flush (§0A.5).
+      void persistResumeStateNow();
       invalidateSubscribeLifecycle('paused');
       stopFallback();
       clearResubscribeRetry();
@@ -5401,6 +5678,10 @@ export class SnapbackClient {
         //   — app observation never owns transport/resource lifetime. Attempt
         //   every cleanup even if an internal teardown step itself fails.
         disposed = true;
+        // Final Channel B flush (dispose is the SPA-navigation analog of
+        // pagehide), then stop observing lifecycle events.
+        attempt(() => { void persistResumeStateNow(); });
+        attempt(detachResumePersistence);
         attempt(() => invalidateSubscribeLifecycle('disposed'));
         attempt(stopFallback);
         attempt(clearResubscribeRetry);

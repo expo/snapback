@@ -18,6 +18,9 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
+  "capabilityMaturity": {
+    "bounded_response_stream_v1": "experimental"
+  },
   "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,

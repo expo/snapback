@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "92797fd2160e60915762de99f7bb12eec60e4ed6a98b4963c9eff23a9ab18403",
+  "inputsHash": "5cd799b42f5e287c84b39ccd9dce4598e70d896501f146fbc3ccce8841db27b4",
   "manifestVersion": 2,
   "mutations": {
     "applyAssistantDelta": {

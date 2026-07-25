@@ -2171,6 +2171,16 @@ function manifest; every loader then resolves it against the live `/inspect`
 manifest before any handler runs. An egress-disabled instance refuses the
 artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED` at load, not at first use.
 
+While LLP 0076 is Draft, the served manifest additionally marks the
+capability `experimental` in its `capabilityMaturity` map (LLP 0058
+§Capability maturity): the entry is not the plain compatibility assertion a
+stable capability makes, and admission also requires the artifact to list
+the id in `acknowledgedExperimentalCapabilities`. Codegen emits that
+acknowledgment automatically alongside the requirement, so generated
+backends need no extra authoring step — but a hand-authored manifest that
+requires the capability without acknowledging it is refused with the same
+`SNAPBACK_CAPABILITY_UNSUPPORTED` code naming the maturity.
+
 ## Consume the body with one pull-driven reader
 
 One reader owns the body. Each `read()` pulls at most one host-bounded chunk

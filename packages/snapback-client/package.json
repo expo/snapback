@@ -12,6 +12,7 @@
     "hosted-browser.mjs",
     "index.mjs",
     "rqs.mjs",
+    "rqs-store.mjs",
     "sender-proof.mjs"
   ],
   "exports": {
@@ -23,6 +24,7 @@
       "import": "./external-store.mjs"
     },
     "./rqs": "./rqs.mjs",
+    "./rqs-store": "./rqs-store.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -32,6 +34,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node rqs-digest-parity.test.mjs"
+    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-resume.test.mjs"
   }
 }

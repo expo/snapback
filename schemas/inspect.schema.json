@@ -350,6 +350,40 @@
           },
           "type": "array"
         },
+        "capabilityMaturity": {
+          "additionalProperties": false,
+          "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
+          "properties": {
+            "auth.sessions.v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "bounded_response_stream_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "cron_action_run_mutation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "host_plan_runtime": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "ibex_ctx_db_host_bridge": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "live_subscriptions": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "mutation_read_set_validation": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "permission_epoch_resync": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            }
+          },
+          "type": "object"
+        },
         "cron": {
           "type": "boolean"
         },
@@ -505,6 +539,15 @@
         "capabilityGaps"
       ],
       "type": "object"
+    },
+    "CapabilityMaturity": {
+      "description": "The closed maturity vocabulary for registry capability ids (LLP 0058\n§Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule\nfor Draft authorities).\n\n- `proposed`: the contract exists in a proposal document but no\n  implementation is registered; a proposed id is never emitted in\n  `supportedCapabilities` at all.\n- `experimental`: the implementation is registered and the id's positive\n  instance predicate holds, but the governing contract is not Accepted —\n  the entry asserts current-contract compatibility only, and admission\n  refuses requirements on it unless the requiring artifact explicitly\n  acknowledges the experimental contract.\n- `stable`: the original LLP 0058 reading — positive presence is the\n  plain compatibility assertion.",
+      "enum": [
+        "proposed",
+        "experimental",
+        "stable"
+      ],
+      "type": "string"
     },
     "CapabilityState": {
       "enum": [
@@ -1850,6 +1893,13 @@
     },
     "FunctionManifest": {
       "properties": {
+        "acknowledgedExperimentalCapabilities": {
+          "description": "Experimental-capability acknowledgments for the generated artifact\npair (LLP 0058 §Capability maturity, amendment 2026-07-24): the\nregistry ids this artifact knowingly requires at experimental\nmaturity. Emitted by codegen from the same closed capability table it\nderives requirements from; admission refuses an experimental\nrequirement the artifact does not acknowledge. Acknowledging a stable\nid is a no-op, so promotion to stable never breaks the artifact, and\nan acknowledgment can never make an unsupported capability supported.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "appId": {
           "default": "local-app",
           "type": "string"

@@ -781,6 +781,21 @@ pub struct FunctionManifest {
         alias = "unsupported_dependency_diagnostics"
     )]
     pub unsupported_dependency_diagnostics: Vec<Diagnostic>,
+    /// Experimental-capability acknowledgments for the generated artifact
+    /// pair (LLP 0058 §Capability maturity, amendment 2026-07-24): the
+    /// registry ids this artifact knowingly requires at experimental
+    /// maturity. Emitted by codegen from the same closed capability table it
+    /// derives requirements from; admission refuses an experimental
+    /// requirement the artifact does not acknowledge. Acknowledging a stable
+    /// id is a no-op, so promotion to stable never breaks the artifact, and
+    /// an acknowledgment can never make an unsupported capability supported.
+    #[serde(
+        default,
+        rename = "acknowledgedExperimentalCapabilities",
+        alias = "acknowledged_experimental_capabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub acknowledged_experimental_capabilities: Vec<String>,
     #[serde(default)]
     pub functions: Vec<FunctionDefinition>,
     #[serde(default, rename = "cronJobs", alias = "cron_jobs")]
@@ -801,6 +816,7 @@ impl Default for FunctionManifest {
             inputs_hash: None,
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
+            acknowledged_experimental_capabilities: Vec::new(),
             functions: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),
@@ -809,6 +825,16 @@ impl Default for FunctionManifest {
 }
 
 impl FunctionManifest {
+    /// The artifact's experimental acknowledgments parsed to registry ids
+    /// (unknown strings are inert; see `parse_acknowledged_capabilities`).
+    pub fn acknowledged_capability_ids(&self) -> BTreeSet<TargetCapabilityId> {
+        CapabilityManifest::parse_acknowledged_capabilities(
+            self.acknowledged_experimental_capabilities
+                .iter()
+                .map(String::as_str),
+        )
+    }
+
     pub fn function(&self, name: &str) -> Option<&FunctionDefinition> {
         self.functions
             .iter()
@@ -903,6 +929,17 @@ impl FunctionManifest {
                     function.required_capabilities.iter().map(String::as_str),
                 )?;
             }
+        }
+
+        if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
+            // v1 grammar symmetry (LLP 0058 §Capability maturity): a sessions
+            // artifact's acknowledgments must spell known registry ids, the
+            // same closed-vocabulary rule its requirements obey.
+            validate_known_v1_capabilities(
+                self.acknowledged_experimental_capabilities
+                    .iter()
+                    .map(String::as_str),
+            )?;
         }
 
         let by_name = self
@@ -1832,6 +1869,12 @@ pub struct PublicFunctionManifest {
     pub generated_at: Option<u64>,
     #[serde(rename = "unsupportedDependencyDiagnostics")]
     pub unsupported_dependency_diagnostics: Vec<PublicDiagnostic>,
+    #[serde(
+        rename = "acknowledgedExperimentalCapabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(default)]
+    pub acknowledged_experimental_capabilities: Vec<String>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
     pub cron_jobs: Vec<PublicCronJobDefinition>,
@@ -1954,6 +1997,7 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             inputs_hash,
             generated_at,
             unsupported_dependency_diagnostics,
+            acknowledged_experimental_capabilities,
             functions,
             cron_jobs,
             config,
@@ -1969,6 +2013,7 @@ impl From<FunctionManifest> for PublicFunctionManifest {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
+            acknowledged_experimental_capabilities,
             functions: functions.into_iter().map(Into::into).collect(),
             cron_jobs: cron_jobs.into_iter().map(Into::into).collect(),
             config: config.into_iter().map(Into::into).collect(),
@@ -3165,6 +3210,28 @@ impl TargetCapabilityId {
         }
     }
 
+    /// The registry-owned maturity of this capability id (LLP 0058
+    /// §Capability maturity, amendment 2026-07-24). Maturity is a fact about
+    /// the id's governing contract, not about any one runtime instance, so it
+    /// lives on the closed registry next to the id itself: candidate
+    /// artifacts can neither assert nor upgrade it.
+    ///
+    /// @ref LLP 0058#capability-maturity — an `experimental` entry in
+    /// `supportedCapabilities` is not the plain 0058 compatibility assertion;
+    /// admission refuses it unless the requiring artifact acknowledges the
+    /// experimental contract.
+    pub const fn maturity(self) -> CapabilityMaturity {
+        match self {
+            // LLP 0076 is Draft: the bounded stream implementation is
+            // registered and witnessed, but the governing contract may still
+            // change incompatibly, so the id stays `experimental` until LLP
+            // 0076 reaches Accepted (LLP 0074's honesty rule for Draft-backed
+            // capabilities). Flipping this to `Stable` is the acceptance act.
+            Self::BoundedResponseStreamV1 => CapabilityMaturity::Experimental,
+            _ => CapabilityMaturity::Stable,
+        }
+    }
+
     /// Evaluate the id's named positive predicate for one exact target/runtime
     /// instance. Missing facts are false; capability gaps are never consulted.
     pub fn is_supported_by(
@@ -3218,6 +3285,42 @@ impl FromStr for TargetCapabilityId {
             .into_iter()
             .find(|capability| capability.as_str() == value)
             .ok_or(())
+    }
+}
+
+/// The closed maturity vocabulary for registry capability ids (LLP 0058
+/// §Capability maturity, amendment 2026-07-24; LLP 0074's no-overclaim rule
+/// for Draft authorities).
+///
+/// - `proposed`: the contract exists in a proposal document but no
+///   implementation is registered; a proposed id is never emitted in
+///   `supportedCapabilities` at all.
+/// - `experimental`: the implementation is registered and the id's positive
+///   instance predicate holds, but the governing contract is not Accepted —
+///   the entry asserts current-contract compatibility only, and admission
+///   refuses requirements on it unless the requiring artifact explicitly
+///   acknowledges the experimental contract.
+/// - `stable`: the original LLP 0058 reading — positive presence is the
+///   plain compatibility assertion.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+pub enum CapabilityMaturity {
+    #[serde(rename = "proposed")]
+    Proposed,
+    #[serde(rename = "experimental")]
+    Experimental,
+    #[serde(rename = "stable")]
+    Stable,
+}
+
+impl CapabilityMaturity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Experimental => "experimental",
+            Self::Stable => "stable",
+        }
     }
 }
 
@@ -3314,6 +3417,20 @@ pub struct CapabilityManifest {
         alias = "supported_capabilities"
     )]
     pub supported_capabilities: Vec<TargetCapabilityId>,
+    /// Maturity annotations over `supportedCapabilities` (LLP 0058
+    /// §Capability maturity, amendment 2026-07-24). Only emitted ids whose
+    /// registry maturity is not `stable` appear here; an id absent from this
+    /// map is stable, and a manifest omitting the field predates the maturity
+    /// dimension. The map is derived from the same closed Rust registry as
+    /// `supportedCapabilities` — it is reporting, never accepted as authority
+    /// from a posted artifact.
+    #[serde(
+        default,
+        rename = "capabilityMaturity",
+        alias = "capability_maturity",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pub capability_maturity: BTreeMap<TargetCapabilityId, CapabilityMaturity>,
     #[serde(
         default,
         rename = "authProtocols",
@@ -3480,6 +3597,7 @@ impl CapabilityManifest {
                 },
             ],
             supported_capabilities: Vec::new(),
+            capability_maturity: BTreeMap::new(),
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -3814,12 +3932,39 @@ impl CapabilityManifest {
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
             .collect();
+        // @ref LLP 0058#capability-maturity — the maturity map annotates
+        // exactly the emitted support set; stable ids are omitted, so a
+        // manifest with only stable support serializes without the field.
+        self.capability_maturity = self
+            .supported_capabilities
+            .iter()
+            .filter(|capability| capability.maturity() != CapabilityMaturity::Stable)
+            .map(|capability| (*capability, capability.maturity()))
+            .collect();
     }
 
     /// Validate one app-artifact requirement against the closed registry and
     /// this target's positive support set. Candidate claims and missing gaps
-    /// are deliberately irrelevant.
+    /// are deliberately irrelevant. Callers with no acknowledgment channel
+    /// get stable-only semantics: an experimental capability is refused
+    /// exactly like unsupported one, because an experimental entry is not the
+    /// plain 0058 compatibility assertion (LLP 0058 §Capability maturity).
     pub fn require_capability(&self, required: &str) -> SnapbackResult<TargetCapabilityId> {
+        self.require_capability_acknowledging(required, &BTreeSet::new())
+    }
+
+    /// Requirement resolution with the artifact's experimental
+    /// acknowledgments (LLP 0058 §Capability maturity, amendment 2026-07-24).
+    /// A required id whose registry maturity is not `stable` admits only when
+    /// the requiring artifact lists it in
+    /// `acknowledgedExperimentalCapabilities`; acknowledging a stable id is a
+    /// harmless no-op, so acknowledgments survive the capability's later
+    /// promotion to stable unchanged.
+    pub fn require_capability_acknowledging(
+        &self,
+        required: &str,
+        acknowledged: &BTreeSet<TargetCapabilityId>,
+    ) -> SnapbackResult<TargetCapabilityId> {
         let capability = required.parse::<TargetCapabilityId>().map_err(|()| {
             SnapbackError::error(
                 "SNAPBACK_CAPABILITY_UNSUPPORTED",
@@ -3836,17 +3981,49 @@ impl CapabilityManifest {
             )
             .with_details(serde_json::json!({ "capability": required })));
         }
+        let maturity = capability.maturity();
+        if maturity != CapabilityMaturity::Stable && !acknowledged.contains(&capability) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "capability",
+                format!(
+                    "target supports required capability {required} only at {} maturity, \
+                     which is not plain support; the requiring artifact must list it in \
+                     acknowledgedExperimentalCapabilities",
+                    maturity.as_str()
+                ),
+            )
+            .with_details(serde_json::json!({
+                "capability": required,
+                "maturity": maturity.as_str(),
+                "acknowledged": false,
+            })));
+        }
         Ok(capability)
     }
 
     pub fn require_capabilities<'a>(
         &self,
         required: impl IntoIterator<Item = &'a str>,
+        acknowledged: &BTreeSet<TargetCapabilityId>,
     ) -> SnapbackResult<()> {
         for capability in required {
-            self.require_capability(capability)?;
+            self.require_capability_acknowledging(capability, acknowledged)?;
         }
         Ok(())
+    }
+
+    /// Parse an artifact's acknowledgment list into registry ids. Unknown
+    /// strings are ignored — an acknowledgment can only ever narrow a refusal
+    /// for a known id, never mint authority, so lenient parsing is
+    /// fail-closed (a typo simply leaves the experimental refusal in place).
+    pub fn parse_acknowledged_capabilities<'a>(
+        acknowledged: impl IntoIterator<Item = &'a str>,
+    ) -> BTreeSet<TargetCapabilityId> {
+        acknowledged
+            .into_iter()
+            .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
+            .collect()
     }
 }
 
@@ -3954,6 +4131,72 @@ mod membership_manifest_grammar_tests {
             enabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+    }
+
+    // @ref LLP 0058#capability-maturity — the maturity map annotates exactly
+    // the emitted support set, and an experimental entry is not plain
+    // support: admission requires the artifact's explicit acknowledgment.
+    #[test]
+    fn experimental_maturity_is_published_and_gates_admission() {
+        // The maturity map annotates the emitted set: the stream id appears
+        // with `experimental` exactly when it is supported, and stable ids
+        // never appear.
+        let disabled = CapabilityManifest::local_v0_declared();
+        assert!(disabled.capability_maturity.is_empty());
+        let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
+        assert_eq!(
+            enabled
+                .capability_maturity
+                .get(&TargetCapabilityId::BoundedResponseStreamV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        assert_eq!(enabled.capability_maturity.len(), 1);
+
+        // Serialization: the annotated manifest carries the field; the
+        // all-stable manifest omits it, and an omitted field round-trips to
+        // an empty map (older manifests predate the dimension).
+        let serialized = serde_json::to_value(&enabled).expect("serialize");
+        assert_eq!(
+            serialized["capabilityMaturity"],
+            json!({ "bounded_response_stream_v1": "experimental" })
+        );
+        let plain = serde_json::to_value(&disabled).expect("serialize");
+        assert!(plain.get("capabilityMaturity").is_none());
+        let round_tripped: CapabilityManifest =
+            serde_json::from_value(plain).expect("deserialize without the field");
+        assert!(round_tripped.capability_maturity.is_empty());
+
+        // Admission: unacknowledged experimental support is refused exactly
+        // like unsupported (with the maturity named in the details) …
+        let refusal = enabled
+            .require_capability("bounded_response_stream_v1")
+            .expect_err("experimental support is not plain support");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(refusal.diagnostic.details["maturity"], "experimental");
+        assert_eq!(refusal.diagnostic.details["acknowledged"], false);
+
+        // … while the acknowledging artifact admits, a stable acknowledgment
+        // is a harmless no-op, and an acknowledgment can never make an
+        // unsupported capability supported.
+        let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
+            "bounded_response_stream_v1",
+            "live_subscriptions",
+            "not.a.known.capability",
+        ]);
+        enabled
+            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+            .expect("acknowledged experimental requirement admits");
+        enabled
+            .require_capability_acknowledging("live_subscriptions", &acknowledged)
+            .expect("acknowledging a stable id is a no-op");
+        assert_eq!(
+            disabled
+                .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+                .expect_err("acknowledgment cannot mint support")
+                .diagnostic
+                .code,
+            "SNAPBACK_CAPABILITY_UNSUPPORTED"
         );
     }
 

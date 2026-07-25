@@ -1,6 +1,25 @@
 # DECISION: long-lived program owner and the first container/VM remote drill target
 
-**Status:** Open (author decision)
+**Status:** Open — narrowed 2026-07-24 to a one-line owner-confirmation
+residue. Both decision halves were made by Charlie Cheever on 2026-07-24
+and recorded in LLP 0075 protocol amendment v0.6 (plus dated notes in LLP
+0075 and LLP 0063): the drill tuple is fly.io / region sjc / Tigris
+S3-compatible backup store / `FLY_API_TOKEN` via the machine-local
+`.agent-local-secrets.md`, and Charlie Cheever is the named long-lived
+program owner/operator and ratifier. Deliberately NOT closed, for two
+honest reasons: (1) the owner half was recorded as a session-directed
+default subject to Charlie's own amendment — the residue is exactly his
+one-line confirmation (or substitution) of that recording; (2) the
+Resolved-when bullet asks for pinned package identities, credential
+health, and instrument version — the amendment records credential health
+honestly as pending-not-provisioned and marks package identities and the
+drill instrument version unpinned-blocks-drill (no Fly.io account or
+credential exists, nothing was installed, no live drill target is
+claimed), so those pins now live in the protocol's own
+unpinned-blocks-drill machinery and complete at first provisioning, not
+in this ticket.
+
+**Original status:** Open (author decision)
 **Severity:** P2
 **Systems:** Competitive evaluation, Deployment, Control plane
 **Author:** Claude (Fable 5), directed by Charlie Cheever

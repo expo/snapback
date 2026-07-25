@@ -19,6 +19,9 @@
     "cron",
     "live_subscriptions"
   ],
+  "capabilityMaturity": {
+    "bounded_response_stream_v1": "experimental"
+  },
   "hostedAuth": {
     "externalTls": "unavailable",
     "effectiveSource": "unavailable",

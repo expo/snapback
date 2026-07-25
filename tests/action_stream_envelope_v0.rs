@@ -84,9 +84,12 @@ fn functions() -> FunctionManifest {
     // Positive admission witness: with egress enabled in this process, the
     // served instance manifest supports the stream capability and the loader
     // admits a stream-requiring artifact (the lib suite carries the
-    // egress-disabled negative twin).
+    // egress-disabled negative twin). The artifact must also acknowledge the
+    // capability's experimental maturity (LLP 0058 §Capability maturity) —
+    // the unacknowledged twin below witnesses the refusal.
     refusal_probe.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
     FunctionManifest {
+        acknowledged_experimental_capabilities: vec!["bounded_response_stream_v1".to_owned()],
         functions: vec![
             define("streamInvalidProbe", FunctionKind::Action),
             define("forgedStreamCodeProbe", FunctionKind::Action),
@@ -276,5 +279,34 @@ async fn mutations_cannot_open_streams_as_an_executed_negative() {
     assert_eq!(
         body["diagnostic"]["code"], "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
         "queries and mutations cannot open streams: {body}"
+    );
+}
+
+#[tokio::test]
+async fn unacknowledged_experimental_requirement_is_refused_even_with_live_egress() {
+    // @ref LLP 0058#capability-maturity — an experimental entry in the served
+    // manifest is not plain support: with egress ENABLED (the capability is
+    // positively supported by this exact instance), a stream-requiring
+    // artifact that does not acknowledge the experimental contract is still
+    // refused before any handler can run.
+    let diagnostics = tokio::task::spawn_blocking(|| {
+        // SAFETY: same value every test in this binary wants; see stream_app.
+        unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+        let _sanction = snapback::exec_guard::BlockingSanction::acquire();
+        let mut unacknowledged = functions();
+        unacknowledged
+            .acknowledged_experimental_capabilities
+            .clear();
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.load_functions(unacknowledged)
+    })
+    .await
+    .expect("unacknowledged fixture");
+    assert!(
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CAPABILITY_UNSUPPORTED"
+                && diagnostic.message.contains("experimental")
+        }),
+        "unacknowledged experimental admission must refuse: {diagnostics:?}"
     );
 }

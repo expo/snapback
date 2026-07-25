@@ -113,7 +113,8 @@
     },
     {
       "id": "maturity-marker",
-      "detail": "Whether bounded_response_stream_v1 carries an explicit proposed/experimental maturity marker while LLP 0076 is Draft is the author's open LLP 0058 decision (issues/20260723-llp0076-capability-honesty.md). These receipts do not preempt it."
+      "detail": "Whether bounded_response_stream_v1 carries an explicit proposed/experimental maturity marker while LLP 0076 is Draft is the author's open LLP 0058 decision (issues/20260723-llp0076-capability-honesty.md). These receipts do not preempt it.",
+      "resolved": "2026-07-24 — decided (Charlie Cheever) and implemented: LLP 0058 §Capability maturity adds the code-owned proposed/experimental/stable dimension, served manifests annotate bounded_response_stream_v1 experimental via capabilityMaturity, and admission requires the artifact's acknowledgedExperimentalCapabilities entry on both arms; the honesty ticket is closed (issues/closed/)."
     },
     {
       "id": "workerd-structural-bounds",

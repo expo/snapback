@@ -31,7 +31,7 @@ const SECRET_BINDINGS = {
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 28;
+const EXPECTED_CHECKS = 29;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -360,6 +360,16 @@ async function main() {
       unsupported !== null &&
         unsupported.status === 503 &&
         unsupported.diagnostic?.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+    );
+    // @ref LLP 0058#capability-maturity — the served manifest must not claim
+    // plain support for the Draft-backed stream capability: the instance
+    // publishes it as experimental, and the stream probes above ran only
+    // because this deploy-time bundle explicitly acknowledges that maturity.
+    const servedManifest = await (await fetch(`${base}/capability`)).json();
+    check(
+      'the served manifest marks bounded_response_stream_v1 experimental, not plain support',
+      servedManifest.supportedCapabilities?.includes('bounded_response_stream_v1') === true &&
+        servedManifest.capabilityMaturity?.bounded_response_stream_v1 === 'experimental'
     );
 
     // --- query/mutation ambient fetch remains denied -----------------------

@@ -42,10 +42,11 @@ Boundedness, authority, and honesty:
   `issues/closed/`)
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
   capability admission resolved against the served instance manifest —
-  admission landed on BOTH targets 2026-07-24 (local loaders + Workerd
-  function-resolution seam, positive and negative witnesses); open SOLELY
-  as the tracking handle for the author's LLP 0058 maturity-marker
-  decision, which is deliberately not made on his behalf
+  RESOLVED 2026-07-24 (admission on BOTH targets landed earlier; the final
+  residue, the LLP 0058 maturity marker, was decided by Charlie 2026-07-24
+  and implemented the same day: registry maturity dimension, additive
+  `capabilityMaturity` manifest map, and acknowledgment-gated admission of
+  experimental capabilities on both arms; see `issues/closed/`)
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction
   on `ctx.fetchStream` — RESOLVED 2026-07-24 (local value-mode + hosted
   descriptor seam, both witnessed; retained-receipt scans reassigned; see
@@ -106,6 +107,28 @@ LLP 0075 amendment reconciling the frozen fixture's authored pattern with
 receipts, and the `single-instance-container-vm.v1` hosted receipt
 (decision 7). The guide gap for the `#stream-a-response` repair anchor is
 filed as ENG-25423.
+
+Update 2026-07-24 (author-decision implementation pass): ALL SEVEN
+implementation tickets are now RESOLVED. Charlie's two 2026-07-24
+decisions are implemented: (1) the LLP 0058 capability-maturity amendment
+(registry `proposed`/`experimental`/`stable` dimension; served
+`capabilityMaturity` map; acknowledgment-gated admission of experimental
+capabilities on both arms; `bounded_response_stream_v1` experimental until
+LLP 0076 is Accepted) — capability-honesty closes and the RFC's
+capability-overclaim ledger row closes; (2) the first
+`single-instance-container-vm.v1` remote-drill provider is pinned by
+protocol amendment v0.6 (Fly.io, region sjc, Tigris object store,
+`FLY_API_TOKEN` credential backend — credential health pending, no live
+drill target claimed) with Charlie Cheever recorded as the long-lived
+program owner, narrowing `20260723-llp0075-program-ownership.md` to an
+owner-confirmation residue. Evidence baseline this pass: `cargo test
+--lib` 1180, `action_stream_envelope_v0` 6/6 (new unacknowledged-negative),
+capability_v0 3/3, auth_artifacts_v1 3/3, codegen suite 17/17, egress
+acceptance 29/29 (new served-maturity check), LLP 0075 local-streaming
+instrument 7/7, check-generated-artifacts clean, guide check ok. Gate 2 now
+waits on exactly: the `single-instance-container-vm.v1` hosted receipt
+(provider pinned, credentials not yet provisioned) and LLP 0076 acceptance
+itself.
 
 ## Workerd arm re-land (2026-07-24)
 

@@ -55,6 +55,8 @@ const inventories = [
       'hosted-browser.test.mjs',
       'package.test.mjs',
       'rqs-digest-parity.test.mjs',
+      'rqs-resume.test.mjs',
+      'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
     ],
@@ -206,7 +208,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 76, 'reviewed package/admin test count changed');
+assert.equal(total, 78, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

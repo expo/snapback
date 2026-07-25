@@ -38,6 +38,10 @@ export const cron = [];
 export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
+// @ref LLP 0058#capability-maturity — this bundle requires no experimental
+// capability, so it acknowledges none.
+export const acknowledgedExperimentalCapabilities = [];
+
 export const schema = {
   schemaHash: deploymentIdentity.schemaHash,
   tables: [

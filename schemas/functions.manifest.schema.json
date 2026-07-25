@@ -1635,6 +1635,13 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/functions.manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "acknowledgedExperimentalCapabilities": {
+      "description": "Experimental-capability acknowledgments for the generated artifact\npair (LLP 0058 §Capability maturity, amendment 2026-07-24): the\nregistry ids this artifact knowingly requires at experimental\nmaturity. Emitted by codegen from the same closed capability table it\nderives requirements from; admission refuses an experimental\nrequirement the artifact does not acknowledge. Acknowledging a stable\nid is a no-op, so promotion to stable never breaks the artifact, and\nan acknowledgment can never make an unsupported capability supported.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "appId": {
       "default": "local-app",
       "type": "string"
