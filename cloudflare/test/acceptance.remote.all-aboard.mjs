@@ -136,7 +136,7 @@ async function main() {
     ensured.seed === 'seeded' || ensured.seed === 'skipped-nonempty',
     ensured.seed
   );
-  const config = await (await fetch(`${BASE}/config/status`, {
+  const config = await (await fetch(`${BASE}/_snapback/api/config/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json();
   const feedDecl = config.declarations.find((entry) => entry.name === 'caltrainFeed');
@@ -154,7 +154,7 @@ async function main() {
   // host) may hold live demand of their own the whole run. Record it before
   // this suite subscribes, so the disarm check at the end asserts only what
   // the suite controls — that ITS demand is released (ENG-23643).
-  const cronStatus = async () => (await (await fetch(`${BASE}/cron/status`, {
+  const cronStatus = async () => (await (await fetch(`${BASE}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json()).jobs[0];
   const baselineDemand = (await cronStatus()).activation.demand;
@@ -301,7 +301,7 @@ async function main() {
   );
 
   // --- eviction surrogate + rehydration ------------------------------------
-  const evict = await fetch(`${BASE}/evict`, { method: 'POST', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } });
+  const evict = await fetch(`${BASE}/_snapback/api/object/evict`, { method: 'POST', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } });
   const postEvict = await cronStatus();
   check(
     'the eviction surrogate preserves activation, armed alarm, and ledger',

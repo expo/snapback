@@ -50,7 +50,7 @@ Workers + Durable Objects-scoped API token:
 bun install --frozen-lockfile           # installs the exact committed Wrangler
 export CLOUDFLARE_API_TOKEN=...        # do NOT commit this
 export CLOUDFLARE_ACCOUNT_ID=...
-export SNAPBACK_ADMIN_TOKEN=...        # gates /reset + /evict on the deploy
+export SNAPBACK_ADMIN_TOKEN=...        # gates /_snapback/api/app/reset + /_snapback/api/object/evict on the deploy
 ./cloudflare/deploy.sh
 SNAPBACK_PROOF_URL=https://snapback-notes-proof.<subdomain>.workers.dev \
   node cloudflare/test/acceptance.remote.mjs
@@ -76,7 +76,7 @@ SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
 ```
 
 The remote runner holds a connected-hibernating idle window
-(`SNAPBACK_IDLE_WINDOW_MS`, default 60s), drives the `/evict` rehydration leg,
+(`SNAPBACK_IDLE_WINDOW_MS`, default 60s), drives the `/_snapback/api/object/evict` rehydration leg,
 watches `/health`'s `objectBoot` marker for a genuine platform eviction, and
 reads the billing counters for the window through
 `cloudflare/test/billing-windows.mjs` (which also works standalone for any

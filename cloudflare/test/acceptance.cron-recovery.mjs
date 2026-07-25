@@ -42,10 +42,10 @@ try {
     const response = await fetch(`${base}${path}`, { method: 'POST' });
     return response.json();
   };
-  const claims = () => post('/__test/cron-claims');
+  const claims = () => post('/_snapback/test/cron-claims');
   const retry = async () => {
-    await post('/__test/expire-cron-claims');
-    await post('/__test/alarm');
+    await post('/_snapback/test/expire-cron-claims');
+    await post('/_snapback/test/alarm');
     return claims();
   };
 
@@ -56,7 +56,7 @@ try {
   // The initial due alarm claims and stops before action execution.
   let state = await claims();
   if (state.claims.length === 0) {
-    await post('/__test/alarm');
+    await post('/_snapback/test/alarm');
     state = await claims();
   }
   if (Number(state.claims[0]?.attempt) !== 1 || fetches !== 0) {
@@ -66,8 +66,8 @@ try {
   // Retention is terminal-only. Even after its ownership lease expires and
   // the simulated pruning clock crosses the full retention window, a claimed
   // slot is recoverable work and must survive for the next attempt.
-  await post('/__test/expire-cron-claims');
-  await post('/__test/prune-cron-claims');
+  await post('/_snapback/test/expire-cron-claims');
+  await post('/_snapback/test/prune-cron-claims');
   state = await claims();
   if (
     state.claims.length !== 1 ||
@@ -101,7 +101,7 @@ try {
   // The replay rows are part of the active claim's recoverable authority, not
   // terminal history. Crossing the retention horizon after commit but before
   // claim finish must preserve both the claim and every recorded nested result.
-  await post('/__test/prune-cron-claims');
+  await post('/_snapback/test/prune-cron-claims');
   state = await claims();
   if (
     state.claims.length !== 1 ||
@@ -118,7 +118,7 @@ try {
   // the absent run summary and nominal advance.
   state = await retry();
   const afterTerminalFault = await client.query('feedState', {});
-  const statusAfterTerminalFault = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  const statusAfterTerminalFault = (await (await fetch(`${base}/_snapback/api/cron/status`)).json()).jobs[0];
   if (
     state.claims[0]?.state !== 'claimed' ||
     Number(state.claims[0]?.attempt) !== 4 ||
@@ -140,7 +140,7 @@ try {
   // one observable last-run summary exists for the one terminal claim.
   state = await retry();
   const finished = await client.query('feedState', {});
-  const finishedStatus = (await (await fetch(`${base}/cron/status`, {
+  const finishedStatus = (await (await fetch(`${base}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json()).jobs[0];
   if (state.claims[0]?.state !== 'done' || Number(state.claims[0]?.attempt) !== 5) {
@@ -159,7 +159,7 @@ try {
 
   // Once the same slot is terminal, crossing the retention window removes
   // both the claim and its commit-coupled nested-mutation replay rows.
-  await post('/__test/prune-cron-claims');
+  await post('/_snapback/test/prune-cron-claims');
   state = await claims();
   if (state.claims.length !== 0 || state.mutationResults !== 0) {
     throw new Error(`terminal claim retention did not prune claim and replay rows together: ${JSON.stringify(state)}`);
@@ -195,15 +195,15 @@ try {
   await client.ensureApp({ seed });
   const before = await client.query('feedState', {});
   const scheduledAtMs = Date.now();
-  const first = await postJson('/__test/run-cron', {
+  const first = await postJson('/_snapback/test/run-cron', {
     job: 'warmPoll',
     trigger: 'scheduled',
     scheduledAtMs,
     actionOverride: 'probeNestedTimeout',
   });
   const afterFirst = await client.query('feedState', {});
-  let recovery = await postJson('/__test/cron-claims');
-  const statusAfterFault = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  let recovery = await postJson('/_snapback/test/cron-claims');
+  const statusAfterFault = (await (await fetch(`${base}/_snapback/api/cron/status`)).json()).jobs[0];
   if (
     first.interruptedAfterTerminalUpdate !== true ||
     afterFirst.version !== before.version + 1 ||
@@ -218,16 +218,16 @@ try {
     );
   }
 
-  await postJson('/__test/expire-cron-claims');
-  const second = await postJson('/__test/run-cron', {
+  await postJson('/_snapback/test/expire-cron-claims');
+  const second = await postJson('/_snapback/test/run-cron', {
     job: 'warmPoll',
     trigger: 'scheduled',
     scheduledAtMs,
     actionOverride: 'probeNestedTimeout',
   });
   const afterRetry = await client.query('feedState', {});
-  recovery = await postJson('/__test/cron-claims');
-  const statusAfterRetry = (await (await fetch(`${base}/cron/status`, {
+  recovery = await postJson('/_snapback/test/cron-claims');
+  const statusAfterRetry = (await (await fetch(`${base}/_snapback/api/cron/status`, {
     headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
   })).json()).jobs[0];
   const stored = recovery.cronState[0];
@@ -292,15 +292,15 @@ try {
     return response.json();
   };
   for (const [index, trigger] of ['scheduled', 'manual'].entries()) {
-    const run = postJson('/__test/run-cron', { job: 'warmPoll', trigger });
+    const run = postJson('/_snapback/test/run-cron', { job: 'warmPoll', trigger });
     await waitForArrival(index + 1);
     const reset = await resetRace.reset();
     const outcome = await run;
     if (!reset.reset || outcome.resetAbandoned !== true || outcome.outcome !== 'reset') {
       throw new Error(`${trigger} cron/reset race did not abandon cleanly: ${JSON.stringify({ reset, outcome })}`);
     }
-    const status = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
-    const recovery = await postJson('/__test/cron-claims');
+    const status = (await (await fetch(`${base}/_snapback/api/cron/status`)).json()).jobs[0];
+    const recovery = await postJson('/_snapback/test/cron-claims');
     if (
       status.lastRun !== null ||
       status.nextRun !== null ||

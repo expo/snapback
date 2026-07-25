@@ -638,6 +638,10 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   version (none is known; the check makes it a fact). The absent-offer
   deprecation gate audits **all** `/connection/open` consumers, not just
   the socket population.
+  *Status (2026-07-25):* spec authored as LLP 0094; hosted root
+  system-route migration done; receipt typing done; negotiation server
+  changes and marker-frame gates ticketed
+  (`issues/20260725-0093-p0-*.md`).
 - **P-1 — Lifecycle and conformance**: D3's facts plus the core/lane and
   demand-ownership definitions, the abstract client state machine, and the
   fixture corpus with its negative fixtures — including arm-mismatch

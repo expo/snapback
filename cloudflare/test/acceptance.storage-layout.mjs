@@ -15,7 +15,7 @@ try {
     return response.json();
   };
 
-  const plan = await post('/__test/index-plan', { table: 'notes', index: 'by_board', value: 'board-1' });
+  const plan = await post('/_snapback/test/index-plan', { table: 'notes', index: 'by_board', value: 'board-1' });
   if (!plan.details?.some((detail) => detail.includes('idx_app_notes_by_board'))) {
     throw new Error(`declared index was not selected by EXPLAIN QUERY PLAN: ${JSON.stringify(plan)}`);
   }
@@ -29,7 +29,7 @@ try {
     socket.send({ type: 'subscribe', name: 'listNotes', args: { boardId: `layout-${index}` } });
     await socket.waitFor('snapshot');
   }
-  const initial = await post('/__test/storage-layout');
+  const initial = await post('/_snapback/test/storage-layout');
   if (initial.subscriptionCount !== subscriptionCount) {
     throw new Error(`expected ${subscriptionCount} subscriptions, got ${JSON.stringify(initial)}`);
   }
@@ -44,8 +44,8 @@ try {
     'after-version',
   ];
   for (const failAt of boundaries) {
-    const before = await post('/__test/storage-layout');
-    const failed = await post('/__test/subscription-migration', { failAt });
+    const before = await post('/_snapback/test/storage-layout');
+    const failed = await post('/_snapback/test/subscription-migration', { failAt });
     if (failed.ok !== false || failed.error?.code !== 'SNAPBACK_TEST_SUBSCRIPTION_MIGRATION_FAILURE') {
       throw new Error(`migration fault ${failAt} did not fire: ${JSON.stringify(failed)}`);
     }
@@ -58,13 +58,13 @@ try {
     }
   }
 
-  await post('/__test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
-  const withOrphan = await post('/__test/storage-layout');
+  await post('/_snapback/test/schema-hardening', { operation: 'create-socketless-kit-orphan' });
+  const withOrphan = await post('/_snapback/test/storage-layout');
   if (withOrphan.subscriptionCount !== subscriptionCount + 1) {
     throw new Error(`socketless kit orphan fixture was not installed: ${JSON.stringify(withOrphan)}`);
   }
-  const migrated = await post('/__test/subscription-migration', {});
-  const orphanAfterMigration = await post('/__test/schema-hardening', {});
+  const migrated = await post('/_snapback/test/subscription-migration', {});
+  const orphanAfterMigration = await post('/_snapback/test/schema-hardening', {});
   if (
     !migrated.ok ||
     migrated.layout.subscriptionSchemaVersion !== 3 ||
@@ -74,7 +74,7 @@ try {
     throw new Error(`successful migration lost state: ${JSON.stringify(migrated)}`);
   }
   const currentRootPage = migrated.layout.subscriptionRootPage;
-  const current = await post('/__test/subscription-migration', { forceLegacy: false });
+  const current = await post('/_snapback/test/subscription-migration', { forceLegacy: false });
   if (!current.ok || current.layout.subscriptionRootPage !== currentRootPage || current.layout.subscriptionCount !== subscriptionCount) {
     throw new Error(`current schema was rewritten: ${JSON.stringify({ migrated, current })}`);
   }
@@ -84,19 +84,19 @@ try {
 
   for (const socket of sockets) socket.close();
 
-  const corrupt = await post('/__test/schema-hardening', { operation: 'corrupt-index' });
+  const corrupt = await post('/_snapback/test/schema-hardening', { operation: 'corrupt-index' });
   if (!/CREATE UNIQUE INDEX/i.test(corrupt.indexSql) || !/\(id,/.test(corrupt.indexSql)) {
     throw new Error(`index corruption fixture did not change uniqueness/field order: ${JSON.stringify(corrupt)}`);
   }
-  const reconciled = await post('/__test/schema-hardening', { operation: 'reconcile-index' });
+  const reconciled = await post('/_snapback/test/schema-hardening', { operation: 'reconcile-index' });
   if (/CREATE UNIQUE INDEX/i.test(reconciled.indexSql) || !/json_extract\(row_json/i.test(reconciled.indexSql) || /\(id,/.test(reconciled.indexSql)) {
     throw new Error(`same-name changed index definition survived reconciliation: ${JSON.stringify(reconciled)}`);
   }
 
-  await post('/__test/schema-hardening', { operation: 'create-retired-table' });
-  await post('/__test/schema-hardening', { operation: 'corrupt-index' });
+  await post('/_snapback/test/schema-hardening', { operation: 'create-retired-table' });
+  await post('/_snapback/test/schema-hardening', { operation: 'corrupt-index' });
   await proof.corruptMeta({ schemaHash: 'stale-before-ddl' });
-  const refused = await post('/__test/schema-hardening', { operation: 'reinitialize' });
+  const refused = await post('/_snapback/test/schema-hardening', { operation: 'reinitialize' });
   if (refused.startupError?.code !== 'SNAPBACK_STALE_CLOUDFLARE_SCHEMA_HASH' || !/CREATE UNIQUE INDEX/i.test(refused.indexSql)) {
     throw new Error(`startup performed app DDL before identity refusal: ${JSON.stringify(refused)}`);
   }
@@ -106,25 +106,25 @@ try {
   }
   const recovered = await proof.reset();
   if (!recovered.reset) throw new Error(`stale startup was not recoverable through reset: ${JSON.stringify(recovered)}`);
-  const rebuilt = await post('/__test/schema-hardening', {});
+  const rebuilt = await post('/_snapback/test/schema-hardening', {});
   if (rebuilt.ownedTables.includes('app_retired_fixture') || /CREATE UNIQUE INDEX/i.test(rebuilt.indexSql)) {
     throw new Error(`reset retained retired data or a stale index: ${JSON.stringify(rebuilt)}`);
   }
 
-  await post('/__test/schema-hardening', { operation: 'future-subscriptions' });
+  await post('/_snapback/test/schema-hardening', { operation: 'future-subscriptions' });
   const futureHealth = await fetch(`${base}/health`);
   const futureBody = await futureHealth.json();
   if (futureHealth.status !== 409 || futureBody.code !== 'SNAPBACK_SUBSCRIPTION_SCHEMA_UNSUPPORTED') {
     throw new Error(`future subscription schema was interpreted instead of refused: ${JSON.stringify(futureBody)}`);
   }
   const futureReset = await proof.reset();
-  const postFuture = await post('/__test/storage-layout');
+  const postFuture = await post('/_snapback/test/storage-layout');
   if (!futureReset.reset || postFuture.subscriptionSchemaVersion !== 3) {
     throw new Error(`reset did not rebuild a future subscription schema: ${JSON.stringify({ futureReset, postFuture })}`);
   }
 
   for (const operation of ['corrupt-foundation-meta', 'corrupt-foundation-version']) {
-    const corrupted = await post('/__test/schema-hardening', { operation });
+    const corrupted = await post('/_snapback/test/schema-hardening', { operation });
     if (corrupted.startupError?.code !== 'SNAPBACK_CLOUDFLARE_FOUNDATION_SCHEMA_INVALID') {
       throw new Error(`${operation} did not become a recoverable startup refusal: ${JSON.stringify(corrupted)}`);
     }

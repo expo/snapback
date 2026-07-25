@@ -21,7 +21,7 @@
 // handler executes, commits, and fans out at a time; captured read sets are
 // recorded but not yet validated, so serialization is what enforces the
 // isolation the manifest declares (`coordinator-serialized-invocations`,
-// ENG-23575). The re-entrant /host-call path deliberately stays OUTSIDE the
+// ENG-23575). The re-entrant /_snapback/host-call path deliberately stays OUTSIDE the
 // mutex: it is how the invocation holding the mutex makes progress.
 //
 // Handler code runs in a SEPARATE, globally stripped isolate — the
@@ -179,7 +179,7 @@ export class Coordinator {
     this.ctx = ctx;
     this.env = env;
     this.sql = ctx.storage.sql;
-    // Live invocations keyed by host-call token, so a re-entrant /host-call
+    // Live invocations keyed by host-call token, so a re-entrant /_snapback/host-call
     // (routed back from the handler isolate) finds its HostContext. Purely
     // in-memory and request-scoped: nothing across eviction depends on it.
     this.activeInvocations = new Map();
@@ -1309,31 +1309,33 @@ export class Coordinator {
     const startupRefusal = this.startupError || this.socketLimitError;
 
     // A deployment/state mismatch refuses the data plane (fail closed) but
-    // leaves /health for diagnosis, /reset for recovery, and /config/status
+    // leaves /health for diagnosis, app/reset for recovery, and config/status
     // for operator config diagnosis (deployment config, not app data).
+    // System paths live under /_snapback/* (LLP 0031 invariant; the hosted
+    // migration is LLP 0094 §0A.3).
     if (
       startupRefusal &&
       path !== '/health' &&
-      path !== '/reset' &&
-      path !== '/__test/corrupt-meta' &&
-      path !== '/__test/schema-hardening' &&
-      path !== '/__test/connection-state' &&
-      path !== '/__test/socket-limit-upgrade' &&
-      path !== '/config/status'
+      path !== '/_snapback/api/app/reset' &&
+      path !== '/_snapback/test/corrupt-meta' &&
+      path !== '/_snapback/test/schema-hardening' &&
+      path !== '/_snapback/test/connection-state' &&
+      path !== '/_snapback/test/socket-limit-upgrade' &&
+      path !== '/_snapback/api/config/status'
     ) {
       return json(409, startupRefusal);
     }
-    if (path === '/config/status') {
+    if (path === '/_snapback/api/config/status') {
       return this.adminReadGated(request, () => this.configStatus());
     }
-    if (path === '/cron/status') {
+    if (path === '/_snapback/api/cron/status') {
       return this.cronStatus(request);
     }
     // Admin-gated manual run trigger on the existing SNAPBACK_ADMIN_TOKEN
     // POST surface (LLP 0049 §Warm Polling / ENG-23587) — never a public
     // run-now route. Manual runs are ordinary one-shot actions: they neither
     // consume a scheduled slot nor allocate recoverable claim/replay rows.
-    if (path === '/cron/run') {
+    if (path === '/_snapback/api/cron/run') {
       return this.adminGated(request, () => this.withJsonObject(request, async (payload) => {
         const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || ''));
         if (!job) {
@@ -1343,7 +1345,7 @@ export class Coordinator {
         return json(200, { ok: true, ...outcome });
       }));
     }
-    if (path === '/host-call') {
+    if (path === '/_snapback/host-call') {
       return this.serveHostCall(request);
     }
     if (path === '/health') {
@@ -1378,7 +1380,7 @@ export class Coordinator {
         workerVersion: workerVersionMetadata(this.env),
       });
     }
-    if (path === '/reset') {
+    if (path === '/_snapback/api/app/reset') {
       // Destructive admin surface: token-gated and POST-only (ENG-23587),
       // and under the invocation mutex — a reset interleaving with an
       // in-flight mutation would let pre-reset buffered writes commit into
@@ -1400,7 +1402,7 @@ export class Coordinator {
         })
       );
     }
-    if (path === '/__test/corrupt-meta') {
+    if (path === '/_snapback/test/corrupt-meta') {
       return this.testingGated(request, () =>
         this.withJsonObject(request, (payload) => this.corruptMetaForTest(payload))
       );
@@ -1411,7 +1413,7 @@ export class Coordinator {
     // route with host-mediated egress. Never available without
     // SNAPBACK_TESTING=1; the capability manifest keeps outbound_actions as
     // a declared gap.
-    if (path === '/__test/action') {
+    if (path === '/_snapback/test/action') {
       return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const outcome = await this.executeAction(payload.name, payload.args || {}, 'test');
         if (!outcome.ok) return json(200, { ok: false, code: outcome.diagnostic.code, message: outcome.diagnostic.message });
@@ -1421,13 +1423,13 @@ export class Coordinator {
     // Testing-only alarm trigger: fires the dispatcher exactly as a DO alarm
     // wakeup would, so the Miniflare acceptance can exercise duplicate-slot
     // claims and no-demand early-outs deterministically.
-    if (path === '/__test/alarm') {
+    if (path === '/_snapback/test/alarm') {
       return this.testingGated(request, async () => {
         await this.alarm();
         return json(200, { fired: true });
       });
     }
-    if (path === '/__test/run-cron') {
+    if (path === '/_snapback/test/run-cron') {
       return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const job = this.alarmJobs().find((entry) => entry.name === String(payload.job || 'warmPoll'));
         if (!job) return json(404, { ok: false, code: 'SNAPBACK_CRON_JOB_UNKNOWN' });
@@ -1450,7 +1452,7 @@ export class Coordinator {
         return json(200, { ok: true, ...outcome });
       }, { allowEmpty: true }));
     }
-    if (path === '/__test/cron-claims') {
+    if (path === '/_snapback/test/cron-claims') {
       return this.testingGated(request, () => {
         const claims = [...this.sql.exec('SELECT * FROM _snapback_cron_claims ORDER BY scheduled_at_ms, idempotency_key')];
         let mutationResults = 0;
@@ -1461,7 +1463,7 @@ export class Coordinator {
         return json(200, { claims, mutationResults, cronState });
       });
     }
-    if (path === '/__test/migrate-legacy-cron-diagnostic') {
+    if (path === '/_snapback/test/migrate-legacy-cron-diagnostic') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
         const job = this.alarmJobs()[0];
         if (!job) return json(404, { ok: false, code: 'SNAPBACK_TEST_CRON_JOB_MISSING' });
@@ -1479,18 +1481,18 @@ export class Coordinator {
         return json(200, { ok: true, state: this.readCronState(job.name) });
       }));
     }
-    if (path === '/__test/fanout-diagnostics') {
+    if (path === '/_snapback/test/fanout-diagnostics') {
       return this.testingGated(request, () => json(200, this.fanOutDiagnostics()));
     }
     // @ref LLP 0028#scheduler-state-and-run-ledger — deterministic test
     // evidence must cross the durable nominal-state and DO-alarm seam, not
     // stop at the pure next-slot arithmetic helper.
-    if (path === '/__test/cron-nominal-reconciliation') {
+    if (path === '/_snapback/test/cron-nominal-reconciliation') {
       return this.testingGated(request, () =>
         this.withJsonObject(request, (payload) => this.cronNominalReconciliationForTest(payload))
       );
     }
-    if (path === '/__test/expire-cron-claims') {
+    if (path === '/_snapback/test/expire-cron-claims') {
       return this.testingGated(request, () => {
         this.sql.exec("UPDATE _snapback_cron_claims SET lease_expires_at_ms = 0 WHERE state = 'claimed'");
         return json(200, { expired: true });
@@ -1500,20 +1502,20 @@ export class Coordinator {
     // terminal claims and their replay rows, never a stale lease that still
     // represents recoverable work. Advance only the pruning clock so the
     // acceptance can prove both sides without a seven-day sleep.
-    if (path === '/__test/prune-cron-claims') {
+    if (path === '/_snapback/test/prune-cron-claims') {
       return this.testingGated(request, () => {
         const simulatedNowMs = Date.now() + CRON_CLAIM_RETENTION_MS + 1_000;
         this.pruneCronClaims(simulatedNowMs);
         return json(200, { pruned: true, simulatedNowMs });
       });
     }
-    if (path === '/__test/storage-layout') {
+    if (path === '/_snapback/test/storage-layout') {
       return this.testingGated(request, () => json(200, this.storageLayoutForTest()));
     }
-    if (path === '/__test/schema-hardening') {
+    if (path === '/_snapback/test/schema-hardening') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.schemaHardeningForTest(payload)));
     }
-    if (path === '/__test/connection-state') {
+    if (path === '/_snapback/test/connection-state') {
       return this.testingGated(request, () => json(200, {
         connections: [...this.sql.exec('SELECT connection_id, opened_at_ms, socket_session_id FROM _snapback_connections ORDER BY connection_id')],
         subscriptions: [...this.sql.exec(
@@ -1523,7 +1525,7 @@ export class Coordinator {
         acceptedSocketCount: this.ctx.getWebSockets().length,
       }));
     }
-    if (path === '/__test/socket-limit-upgrade') {
+    if (path === '/_snapback/test/socket-limit-upgrade') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
         const requested = {
           acceptedSockets: Number(payload.acceptedSockets),
@@ -1544,7 +1546,7 @@ export class Coordinator {
         });
       }));
     }
-    if (path === '/__test/subscription-linearization') {
+    if (path === '/_snapback/test/subscription-linearization') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
         const functionName = String(
           payload.functionName || functions.find((fn) => fn.kind === 'LiveQuery')?.name || 'missing'
@@ -1574,7 +1576,7 @@ export class Coordinator {
         return json(200, { ok: true, stagedAdmission, persisted, rows });
       }, { allowEmpty: true }));
     }
-    if (path === '/__test/expire-connections') {
+    if (path === '/_snapback/test/expire-connections') {
       return this.testingGated(request, async () => {
         this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = 0 WHERE socket_session_id IS NULL');
         const reaped = this.reapExpiredConnections();
@@ -1582,16 +1584,16 @@ export class Coordinator {
         return json(200, { reaped, remaining: this.connectionCount() });
       });
     }
-    if (path === '/__test/age-connections') {
+    if (path === '/_snapback/test/age-connections') {
       return this.testingGated(request, () => {
         this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = 0 WHERE socket_session_id IS NULL');
         return json(200, { aged: true });
       });
     }
-    if (path === '/__test/index-plan') {
+    if (path === '/_snapback/test/index-plan') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.indexPlanForTest(payload)));
     }
-    if (path === '/__test/subscription-migration') {
+    if (path === '/_snapback/test/subscription-migration') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
         if (payload.forceLegacy !== false) {
           this.writeMeta('subscriptions_schema_version', String(SUBSCRIPTION_SCHEMA_VERSION - 1));
@@ -1614,7 +1616,7 @@ export class Coordinator {
     // Testing-only payload echo: the exact secretsJson the coordinator would
     // attach for a function — the descriptors-only fact is asserted by test,
     // not by convention (LLP 0049 Phase 1 exit evidence).
-    if (path === '/__test/secrets-payload') {
+    if (path === '/_snapback/test/secrets-payload') {
       return this.testingGated(request, () => this.withJsonObject(request, async (payload) => {
         const fn = this.functionByName(payload.name);
         if (!fn) return json(404, { error: `no function ${payload.name}` });
@@ -1627,7 +1629,7 @@ export class Coordinator {
     // MAC'd token with overridden identity fields (negative admission
     // fixtures — stale generation, rotated stream, expired issuedAt), and a
     // bounded stats/facts projection.
-    if (path === '/__test/rqs-mint') {
+    if (path === '/_snapback/test/rqs-mint') {
       return this.testingGated(request, () => this.withJsonObject(request, (payload) => this.runExclusive(async () => {
         const fn = this.functionByName(String(payload.function || ''));
         if (!fn) return json(404, { error: `no function ${payload.function}` });
@@ -1666,7 +1668,7 @@ export class Coordinator {
         return json(200, { token: mintTokenWire(key.secret, key.keyId, body), body });
       })));
     }
-    if (path === '/__test/rqs-stats') {
+    if (path === '/_snapback/test/rqs-stats') {
       return this.testingGated(request, () => {
         this.rqsRoutes();
         let keyCount = 0;
@@ -1766,7 +1768,7 @@ export class Coordinator {
         return json(200, []);
       }
     }
-    if (path === '/evict') {
+    if (path === '/_snapback/api/object/evict') {
       // CI surrogate for real eviction (LLP 0040 §Acceptance): discard all
       // in-memory state so the next commit must rehydrate from storage.
       // Admin-gated: an open /evict lets any client invalidate a
@@ -1782,7 +1784,7 @@ export class Coordinator {
   }
 
   // The shared-secret gate for the destructive admin endpoints, the same
-  // pattern /host-call uses for its per-invocation token (ENG-23587). Fails
+  // pattern /_snapback/host-call uses for its per-invocation token (ENG-23587). Fails
   // closed: no configured token means no admin surface at all.
   adminGated(request, run) {
     if (request.method !== 'POST') {
@@ -1968,7 +1970,7 @@ export class Coordinator {
     return members[index];
   }
 
-  // GET /config/status — declarations, set/missing state, grant
+  // GET /_snapback/api/config/status — declarations, set/missing state, grant
   // relationships, pool member counts, rotation cursors, the active config
   // generation (the SNAPBACK_CONFIG_GENERATION attestation carrier), and the
   // declaration hash. Values never appear here (asserted by acceptance).
@@ -2028,7 +2030,7 @@ export class Coordinator {
   // Execute one action: stage under the serialization mutex (the fn/state
   // checks), run the handler OFF it, reacquire per host call — runMutation
   // re-enters through runExclusive, and host fetch rides the un-chained
-  // /host-call path — with wall-clock watchdog parity to the local
+  // /_snapback/host-call path — with wall-clock watchdog parity to the local
   // SNAPBACK_ACTION_TIMEOUT posture. No Durable Object transaction is ever
   // held across the external fetch: transactionSync appears only inside
   // commit(), which runs under the mutex after the fetch settled.
@@ -3349,7 +3351,7 @@ export class Coordinator {
     });
   }
 
-  // GET /cron/status has a public operational projection and a more useful
+  // GET /_snapback/api/cron/status has a public operational projection and a more useful
   // admin-token projection. Public callers see only bounded classifications;
   // the gateway forwards the original headers so an operator can see the
   // scrubbed, bounded detail retained here.

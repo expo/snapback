@@ -430,7 +430,7 @@ if ! node -e "
   exit 1
 fi
 
-# The destructive admin endpoints (/reset, /evict) are token-gated and fail
+# The destructive admin endpoints (/_snapback/api/app/reset, /_snapback/api/object/evict) are token-gated and fail
 # closed when no token is configured (ENG-23587). Set the secret from the
 # environment so the acceptance/measurement suites can drive them.
 gateway_secret_mutated=0
@@ -466,7 +466,7 @@ elif [[ "${SNAPBACK_ADMIN_TOKEN_REMOVE:-0}" == "1" ]]; then
     const rows = JSON.parse(process.argv[1]);
     process.exit(rows.some((row) => row && row.name === 'SNAPBACK_ADMIN_TOKEN') ? 1 : 0);
   " "$remaining_secrets"; then
-    echo "==> verified SNAPBACK_ADMIN_TOKEN absent; /reset, /evict, and /config/status are disabled"
+    echo "==> verified SNAPBACK_ADMIN_TOKEN absent; /_snapback/api/app/reset, /_snapback/api/object/evict, and /_snapback/api/config/status are disabled"
   else
     echo "!!> SNAPBACK_ADMIN_TOKEN removal did not attest absent" >&2
     exit 1

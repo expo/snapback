@@ -422,7 +422,7 @@ async function main() {
     );
 
     // --- config status still carries no key material after egress ---------
-    const status = await (await fetch(`${base}/config/status`, {
+    const status = await (await fetch(`${base}/_snapback/api/config/status`, {
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     })).json();
     check(
