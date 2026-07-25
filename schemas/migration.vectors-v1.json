@@ -1,0 +1,339 @@
+{
+  "admission": {
+    "admittedAtMs": 1784000000000,
+    "approvalDigest": "60f8a54603a91d9eaa58abdc1ad6588b40dee97005d3943449abc80120774e8e",
+    "enforced": {
+      "maxAffectedRows": 10000,
+      "maxBarrierDowntimeMs": 5000,
+      "maxBytes": 1048576,
+      "maxWrites": 20000
+    },
+    "operationId": "operation-v1:vector0000000000000000000000000001",
+    "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+    "predecessorHeadVersion": 42,
+    "schemaVersion": "migration-admission-v1"
+  },
+  "admissionDigest": "273768966a0c199042b7bd7410b09c7962f0c2789ac3dcd796ddff9df9f53fc4",
+  "approval": {
+    "approver": "operator:vector",
+    "audience": {
+      "activationGeneration": 3,
+      "databaseId": "db-vector",
+      "streamIncarnation": "stream-vector-1",
+      "targetProfileId": "local-dev-sqlite-ibex"
+    },
+    "expiresAtMs": 1784000600000,
+    "generatorIsApprover": false,
+    "issuedAtMs": 1783999995000,
+    "observationDigest": "ac5d93cef453f09c306a6d2c4eb7284c46819b32b98575d4af0882fb56f50600",
+    "operationId": "operation-v1:vector0000000000000000000000000001",
+    "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+    "policyDigest": "sha256:2222222222222222",
+    "schemaVersion": "migration-approval-v1"
+  },
+  "approvalDigest": "60f8a54603a91d9eaa58abdc1ad6588b40dee97005d3943449abc80120774e8e",
+  "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md#2-canonical-plan-and-approval",
+  "decisions": {
+    "admissionDigestPreimage": "snapback:migration-admission:v1\\n<JCS bytes>",
+    "approvalDigestPreimage": "snapback:migration-approval:v1\\n<JCS bytes>",
+    "observationDigestPreimage": "snapback:migration-observation:v1\\n<JCS bytes>",
+    "operationIdForm": "operation-v1:<fresh uuid, never plan-derived>",
+    "planDigestPreimage": "snapback:migration-plan:v1\\n<JCS body bytes>",
+    "planDigestRepresentation": "64 lowercase hex characters, no algorithm prefix",
+    "planIdForm": "migration-v1:<planDigest>"
+  },
+  "observation": {
+    "capabilityHealth": {
+      "migration_keyset_scan_v1": "available"
+    },
+    "observedAtMs": 1783999990000,
+    "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+    "preconditionRows": {
+      "s1:AddField:accounts.region": 7
+    },
+    "schemaVersion": "migration-observation-v1",
+    "targetHeadVersion": 42
+  },
+  "observationDigest": "ac5d93cef453f09c306a6d2c4eb7284c46819b32b98575d4af0882fb56f50600",
+  "plan": {
+    "body": {
+      "app": "vector-app",
+      "backup": {
+        "checkpointLabel": "pre-vector",
+        "required": true
+      },
+      "boundaries": {},
+      "ceilings": {
+        "maxAffectedRows": 10000,
+        "maxBarrierDowntimeMs": 5000,
+        "maxBytes": 1048576,
+        "maxWrites": 20000
+      },
+      "compatibilityPosture": "successor-only",
+      "constants": {
+        "publicationTimestampMs": 1784000000000,
+        "values": {
+          "defaultDisplayName": "Unnamed",
+          "defaultRegion": "us-east-1"
+        }
+      },
+      "executionStrategy": "single-transaction",
+      "expectedOutput": {
+        "schemaHash": "sha256:1111111111111111"
+      },
+      "instance": "vector-instance",
+      "predecessorGeneration": 1,
+      "predecessorSchemaHash": "sha256:0000000000000000",
+      "proof": {
+        "method": "full"
+      },
+      "retainedWorkPosture": "empty",
+      "schemaVersion": "migration-plan-v1",
+      "steps": [
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s1:AddField:accounts.region",
+          "reversible": true,
+          "step": {
+            "AddField": {
+              "field": "region",
+              "fieldType": "String",
+              "optional": true,
+              "table": "accounts"
+            }
+          },
+          "writes": [
+            "accounts"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s2:BackfillField:accounts.region",
+          "reads": [
+            "accounts"
+          ],
+          "reversible": false,
+          "step": {
+            "BackfillField": {
+              "expr": {
+                "Arg": "defaultRegion"
+              },
+              "field": "region",
+              "table": "accounts"
+            }
+          },
+          "writes": [
+            "accounts"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s3:ValidateRequired:accounts.region",
+          "reads": [
+            "accounts"
+          ],
+          "reversible": true,
+          "step": {
+            "ValidateRequired": {
+              "field": "region",
+              "table": "accounts"
+            }
+          }
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s4:MakeRequired:accounts.region",
+          "reversible": false,
+          "step": {
+            "MakeRequired": {
+              "field": "region",
+              "table": "accounts"
+            }
+          },
+          "writes": [
+            "accounts"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s5:AddField:users.displayName",
+          "reversible": true,
+          "step": {
+            "AddField": {
+              "field": "displayName",
+              "fieldType": "String",
+              "optional": true,
+              "table": "users"
+            }
+          },
+          "writes": [
+            "users"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s6:BackfillField:users.displayName",
+          "reads": [
+            "users"
+          ],
+          "reversible": false,
+          "step": {
+            "BackfillField": {
+              "expr": {
+                "Arg": "defaultDisplayName"
+              },
+              "field": "displayName",
+              "table": "users"
+            }
+          },
+          "writes": [
+            "users"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s7:ValidateRequired:users.displayName",
+          "reads": [
+            "users"
+          ],
+          "reversible": true,
+          "step": {
+            "ValidateRequired": {
+              "field": "displayName",
+              "table": "users"
+            }
+          }
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s8:MakeRequired:users.displayName",
+          "reversible": false,
+          "step": {
+            "MakeRequired": {
+              "field": "displayName",
+              "table": "users"
+            }
+          },
+          "writes": [
+            "users"
+          ]
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s9:ValidateUnique:users#unique(email)",
+          "reads": [
+            "users"
+          ],
+          "reversible": true,
+          "step": {
+            "ValidateUnique": {
+              "fields": [
+                "email"
+              ],
+              "table": "users"
+            }
+          }
+        },
+        {
+          "bounds": {
+            "maxBytes": 0,
+            "maxRows": 0
+          },
+          "id": "s10:CreateUniqueIndex:users#by_email",
+          "reversible": true,
+          "step": {
+            "CreateUniqueIndex": {
+              "fields": [
+                "email"
+              ],
+              "index": "by_email",
+              "table": "users"
+            }
+          },
+          "writes": [
+            "users"
+          ]
+        }
+      ],
+      "successorSchemaHash": "sha256:1111111111111111",
+      "targetProfileId": "local-dev-sqlite-ibex"
+    },
+    "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+    "planId": "migration-v1:7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d"
+  },
+  "stepIds": [
+    "s1:AddField:accounts.region",
+    "s2:BackfillField:accounts.region",
+    "s3:ValidateRequired:accounts.region",
+    "s4:MakeRequired:accounts.region",
+    "s5:AddField:users.displayName",
+    "s6:BackfillField:users.displayName",
+    "s7:ValidateRequired:users.displayName",
+    "s8:MakeRequired:users.displayName",
+    "s9:ValidateUnique:users#unique(email)",
+    "s10:CreateUniqueIndex:users#by_email"
+  ],
+  "synthesizedIds": [
+    {
+      "destinationGeneration": 2,
+      "destinationTable": "users",
+      "id": "019f5eaf-b000-7d11-a5a0-cc0daeef61c3",
+      "outputOrdinal": 0,
+      "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+      "publicationTimestampMs": 1784000000000,
+      "sourceRowKey": "row-1",
+      "sourceTable": "users",
+      "stepId": "s1:AddField:accounts.region"
+    },
+    {
+      "destinationGeneration": 2,
+      "destinationTable": "users",
+      "id": "019f5eaf-b000-7d38-b681-c0208c676065",
+      "outputOrdinal": 1,
+      "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+      "publicationTimestampMs": 1784000000000,
+      "sourceRowKey": "row-1",
+      "sourceTable": "users",
+      "stepId": "s1:AddField:accounts.region"
+    },
+    {
+      "destinationGeneration": 2,
+      "destinationTable": "users",
+      "id": "019f5eaf-b000-7cd8-b65f-8b7b2412e108",
+      "outputOrdinal": 0,
+      "planDigest": "7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d",
+      "publicationTimestampMs": 1784000000000,
+      "sourceRowKey": "row-2",
+      "sourceTable": "users",
+      "stepId": "s1:AddField:accounts.region"
+    }
+  ],
+  "version": "migration-vectors-v1"
+}

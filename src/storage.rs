@@ -2270,6 +2270,25 @@ impl LocalDatabase {
         query_on(&self.conn, &self.schema, plan, input)
     }
 
+    /// One ceiling-bounded batch of the privileged migration scan against a
+    /// pinned read snapshot (LLP 0081 §3). The Wave-2 executor instead calls
+    /// [`migration_keyset_scan_batch_on`] inside its own batch transaction.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn migration_keyset_scan_batch(
+        &self,
+        request: &MigrationKeysetScanRequestV1,
+        checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
+    ) -> SnapbackResult<MigrationKeysetScanBatch> {
+        self.with_pinned_read_view(|db| match db {
+            DbRead::Pinned { conn, schema } => {
+                migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
+            }
+            DbRead::Live(db) => {
+                migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
+            }
+        })
+    }
+
     /// Install the active maintained-projection set (LLP 0080 §5). Called by
     /// function-manifest activation after validation; every mutation path on
     /// this database maintains these outputs in its own commit.
@@ -4073,10 +4092,488 @@ pub(crate) fn query_on(
 ///   root order key from the last consumed root, including roots omitted by
 ///   an inner join; boundary keys may include fields the projection does not
 ///   expose.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct KeysetAfter {
     pub entries: Vec<(String, Value)>,
     pub id: String,
+}
+
+// ---------------------------------------------------------------------------
+// MigrationKeysetScanV1 (LLP 0081 §3)
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_plan_invalid(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "storage",
+        format!("migration keyset scan refused: {detail}"),
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_precondition_failed(detail: String) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+        "storage",
+        format!("migration keyset scan precondition failed: {detail}"),
+    )
+}
+
+/// The closed per-batch ceilings a target enforces on the privileged scan
+/// (LLP 0081 §3). These are the scan's OWN bounds — the scan is not the
+/// application query surface and neither relaxes nor consumes LLP 0007's
+/// 1,024-row query or 500-binding limits.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationScanCeilingsV1 {
+    pub max_batch_rows: u32,
+    pub max_batch_bytes: u64,
+    pub max_batch_millis: u64,
+}
+
+/// Hard caps the local target enforces over any requested ceiling.
+pub const MIGRATION_SCAN_MAX_BATCH_ROWS: u32 = 16_384;
+pub const MIGRATION_SCAN_MAX_BATCH_BYTES: u64 = 64 * 1024 * 1024;
+pub const MIGRATION_SCAN_MAX_BATCH_MILLIS: u64 = 60_000;
+
+/// The closed validator facts a plan may request from the scan (LLP 0081
+/// §3): the scan emits facts, never application rows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MigrationScanValidatorV1 {
+    /// Count rows whose field is null or absent (`ValidateRequired`).
+    NonNull { field: String },
+    /// Count adjacent duplicate non-null values (`ValidateUnique`). Sound
+    /// only in that field's own order, so the scan requires the field to
+    /// lead the scan index.
+    Unique { field: String },
+}
+
+/// Resumable per-validator state, persisted with the batch checkpoint.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum MigrationScanValidatorStateV1 {
+    NonNull {
+        field: String,
+        violations: u64,
+        /// First offending row ids (bounded sample for actionability).
+        samples: Vec<String>,
+    },
+    Unique {
+        field: String,
+        duplicates: u64,
+        samples: Vec<String>,
+        /// The previous non-null value at the batch boundary — adjacency
+        /// carries across batches through this.
+        last: Option<Value>,
+    },
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+const MIGRATION_SCAN_SAMPLE_CAP: usize = 8;
+
+/// One scan request: one declared table, an optional declared index (the
+/// stable key order; `_id` order when absent), the requested closed facts,
+/// optional `ContentDigestV1` streaming, and the batch ceilings.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationKeysetScanRequestV1 {
+    pub table: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validators: Vec<MigrationScanValidatorV1>,
+    /// When present, the scan streams both `ContentDigestV1` stages —
+    /// logical rows under the logical domain and system fields under the
+    /// system domain — with this shared header.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub digest: Option<crate::rqs::ContentDigestHeaderV1>,
+    pub ceilings: MigrationScanCeilingsV1,
+}
+
+/// The serializable batch checkpoint the Wave-2 executor persists in its
+/// journal: identity of the scan, the keyset boundary, cumulative
+/// counters, resumable validator states, and the digest accumulators
+/// (SHA-256 chaining state + counters, LLP 0081 §5).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationKeysetScanCheckpointV1 {
+    pub version: String,
+    pub table: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary: Option<KeysetAfter>,
+    pub rows_scanned: u64,
+    pub bytes_scanned: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub validators: Vec<MigrationScanValidatorStateV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logical_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+}
+
+pub const MIGRATION_SCAN_CHECKPOINT_VERSION: &str = "migration-keyset-scan-checkpoint-v1";
+
+/// One batch's outcome: the ceiling-bounded work done, whether the table
+/// is exhausted, and the checkpoint to persist. Sealed digests are only
+/// available once `done` (the trailer binds the total row count).
+#[derive(Clone, Debug)]
+pub struct MigrationKeysetScanBatch {
+    pub batch_rows: u64,
+    pub batch_bytes: u64,
+    pub done: bool,
+    pub checkpoint: MigrationKeysetScanCheckpointV1,
+    /// `Some((logical, system))` exactly when `done` and the request
+    /// streamed digests.
+    pub sealed_digests: Option<(String, String)>,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_scan_order(
+    table: &TableManifest,
+    index: Option<&str>,
+) -> SnapbackResult<Vec<OrderExpr>> {
+    let Some(index_name) = index else {
+        return Ok(Vec::new());
+    };
+    let declared = table
+        .indexes
+        .iter()
+        .find(|candidate| candidate.name == index_name)
+        .ok_or_else(|| {
+            migration_plan_invalid(format!(
+                "index {index_name:?} is not declared on {}",
+                table.name
+            ))
+        })?;
+    for field in &declared.fields {
+        ensure_orderable_field(table, field)?;
+    }
+    Ok(declared
+        .fields
+        .iter()
+        .map(|field| OrderExpr {
+            field: field.clone(),
+            direction: OrderDirection::Asc,
+        })
+        .collect())
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn migration_scan_initial_state(
+    request: &MigrationKeysetScanRequestV1,
+) -> SnapbackResult<MigrationKeysetScanCheckpointV1> {
+    let header = request.digest.as_ref();
+    Ok(MigrationKeysetScanCheckpointV1 {
+        version: MIGRATION_SCAN_CHECKPOINT_VERSION.to_owned(),
+        table: request.table.clone(),
+        index: request.index.clone(),
+        boundary: None,
+        rows_scanned: 0,
+        bytes_scanned: 0,
+        validators: request
+            .validators
+            .iter()
+            .map(|validator| match validator {
+                MigrationScanValidatorV1::NonNull { field } => {
+                    MigrationScanValidatorStateV1::NonNull {
+                        field: field.clone(),
+                        violations: 0,
+                        samples: Vec::new(),
+                    }
+                }
+                MigrationScanValidatorV1::Unique { field } => {
+                    MigrationScanValidatorStateV1::Unique {
+                        field: field.clone(),
+                        duplicates: 0,
+                        samples: Vec::new(),
+                        last: None,
+                    }
+                }
+            })
+            .collect(),
+        logical_digest: header.map(|header| {
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, header)
+                .checkpoint()
+        }),
+        system_digest: header.map(|header| {
+            crate::rqs::ContentDigestStream::new(
+                crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
+                header,
+            )
+            .checkpoint()
+        }),
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn validate_migration_scan_request(
+    schema: &SchemaManifest,
+    request: &MigrationKeysetScanRequestV1,
+) -> SnapbackResult<()> {
+    let table = schema_table(schema, &request.table)?;
+    let ceilings = &request.ceilings;
+    if ceilings.max_batch_rows == 0
+        || ceilings.max_batch_rows > MIGRATION_SCAN_MAX_BATCH_ROWS
+        || ceilings.max_batch_bytes == 0
+        || ceilings.max_batch_bytes > MIGRATION_SCAN_MAX_BATCH_BYTES
+        || ceilings.max_batch_millis == 0
+        || ceilings.max_batch_millis > MIGRATION_SCAN_MAX_BATCH_MILLIS
+    {
+        return Err(migration_plan_invalid(format!(
+            "batch ceilings must be positive and within the target caps \
+             (rows <= {MIGRATION_SCAN_MAX_BATCH_ROWS}, bytes <= \
+             {MIGRATION_SCAN_MAX_BATCH_BYTES}, millis <= {MIGRATION_SCAN_MAX_BATCH_MILLIS})"
+        )));
+    }
+    let order = migration_scan_order(table, request.index.as_deref())?;
+    for validator in &request.validators {
+        match validator {
+            MigrationScanValidatorV1::NonNull { field } => {
+                ensure_field_or_system(table, field)?;
+            }
+            MigrationScanValidatorV1::Unique { field } => {
+                ensure_field_or_system(table, field)?;
+                let leads = order.first().is_some_and(|first| &first.field == field);
+                if !leads {
+                    return Err(migration_plan_invalid(format!(
+                        "uniqueness over {field:?} requires scanning an index that \
+                         leads with that field; adjacency is only sound in the \
+                         field's own order"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// One ceiling-bounded batch of the privileged migration scan (LLP 0081
+/// §3): stable total key order (`index fields ASC NULLS LAST, _id ASC` —
+/// the same totalization as every keyset surface), a checkpointed cursor,
+/// closed validator facts, and optional `ContentDigestV1` streaming. Runs
+/// against whatever connection the caller pins — the Wave-2 executor calls
+/// it inside its own batch transaction.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn migration_keyset_scan_batch_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    request: &MigrationKeysetScanRequestV1,
+    checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
+) -> SnapbackResult<MigrationKeysetScanBatch> {
+    validate_migration_scan_request(schema, request)?;
+    let table = schema_table(schema, &request.table)?;
+    let order = migration_scan_order(table, request.index.as_deref())?;
+
+    let mut state = match checkpoint {
+        None => migration_scan_initial_state(request)?,
+        Some(checkpoint) => {
+            if checkpoint.version != MIGRATION_SCAN_CHECKPOINT_VERSION
+                || checkpoint.table != request.table
+                || checkpoint.index != request.index
+            {
+                return Err(migration_precondition_failed(
+                    "checkpoint does not belong to this scan request".to_owned(),
+                ));
+            }
+            checkpoint.clone()
+        }
+    };
+    let mut logical_stream = state
+        .logical_digest
+        .as_ref()
+        .map(|accumulator| {
+            crate::rqs::ContentDigestStream::resume(accumulator)
+                .map_err(|reason| migration_precondition_failed(reason.to_owned()))
+        })
+        .transpose()?;
+    let mut system_stream = state
+        .system_digest
+        .as_ref()
+        .map(|accumulator| {
+            crate::rqs::ContentDigestStream::resume(accumulator)
+                .map_err(|reason| migration_precondition_failed(reason.to_owned()))
+        })
+        .transpose()?;
+
+    // Privileged SQL: the scan bypasses the application query surface (and
+    // its membership-privacy fence) deliberately — it emits closed facts,
+    // never application rows, and only the migration executor can reach it.
+    let outer = quote_ident("__snapback_migration_scan")?;
+    let mut sql = format!(
+        "SELECT {outer}.* FROM {} AS {outer}",
+        quote_ident(&table.name)?
+    );
+    let mut values: Vec<SqlValue> = Vec::new();
+    if let Some(boundary) = &state.boundary {
+        let mut bindings = 0_usize;
+        let (clause, keyset_values) =
+            build_keyset_after_sql(table, &order, boundary, &mut bindings)?;
+        sql.push_str(" WHERE ");
+        sql.push_str(&clause);
+        values.extend(keyset_values);
+    }
+    let mut order_parts: Vec<String> = Vec::new();
+    for expr in &order {
+        order_parts.push(format!("{} ASC NULLS LAST", quote_ident(&expr.field)?));
+    }
+    order_parts.push("\"_id\" ASC".to_owned());
+    sql.push_str(" ORDER BY ");
+    sql.push_str(&order_parts.join(", "));
+    sql.push_str(&format!(" LIMIT {}", request.ceilings.max_batch_rows));
+
+    let started = std::time::Instant::now();
+    let mut statement = conn.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params_from_iter(values.iter()))?;
+
+    let mut batch_rows = 0_u64;
+    let mut batch_bytes = 0_u64;
+    let mut fetched = 0_u32;
+    let mut ceiling_stop = false;
+    let mut last_row: Option<Value> = None;
+    while let Some(row) = rows.next()? {
+        fetched += 1;
+        let document = row_to_document(row, table, &columns)?;
+        let id = document
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| migration_plan_invalid("scanned row without _id".to_owned()))?
+            .to_owned();
+
+        // Facts.
+        for validator in &mut state.validators {
+            match validator {
+                MigrationScanValidatorStateV1::NonNull {
+                    field,
+                    violations,
+                    samples,
+                } => {
+                    let value = document.get(field.as_str());
+                    if value.is_none() || value.is_some_and(Value::is_null) {
+                        *violations += 1;
+                        if samples.len() < MIGRATION_SCAN_SAMPLE_CAP {
+                            samples.push(id.clone());
+                        }
+                    }
+                }
+                MigrationScanValidatorStateV1::Unique {
+                    field,
+                    duplicates,
+                    samples,
+                    last,
+                } => {
+                    let value = document.get(field.as_str()).filter(|v| !v.is_null());
+                    match (last.as_ref(), value) {
+                        (Some(previous), Some(current)) if previous == current => {
+                            *duplicates += 1;
+                            if samples.len() < MIGRATION_SCAN_SAMPLE_CAP {
+                                samples.push(id.clone());
+                            }
+                        }
+                        _ => {}
+                    }
+                    *last = value.cloned();
+                }
+            }
+        }
+
+        // Digest streams: logical rows exclude the four system fields;
+        // system fields stream separately under their own domain
+        // (LLP 0081 §5). A value outside the canonical proof domain fails
+        // closed rather than digesting approximately.
+        if logical_stream.is_some() || system_stream.is_some() {
+            let object = document
+                .as_object()
+                .ok_or_else(|| migration_plan_invalid("scanned row is not an object".to_owned()))?;
+            let mut logical = Map::new();
+            let mut system = Map::new();
+            for (key, value) in object {
+                if matches!(key.as_str(), "_id" | "_version" | "_createdAt" | "_updatedAt") {
+                    system.insert(key.clone(), value.clone());
+                } else {
+                    logical.insert(key.clone(), value.clone());
+                }
+            }
+            if let Some(stream) = logical_stream.as_mut() {
+                stream.absorb_row(&Value::Object(logical)).map_err(|_| {
+                    migration_plan_invalid(format!(
+                        "row {id} of {} is outside the canonical proof domain",
+                        table.name
+                    ))
+                })?;
+            }
+            if let Some(stream) = system_stream.as_mut() {
+                stream.absorb_row(&Value::Object(system)).map_err(|_| {
+                    migration_plan_invalid(format!(
+                        "system fields of row {id} in {} are outside the canonical proof domain",
+                        table.name
+                    ))
+                })?;
+            }
+        }
+
+        batch_rows += 1;
+        batch_bytes += serde_json::to_string(&document)
+            .map(|serialized| serialized.len() as u64)
+            .unwrap_or(0);
+        last_row = Some(document);
+
+        // Ceilings: every batch makes progress (at least one row) and then
+        // stops at whichever ceiling trips first.
+        if batch_bytes >= request.ceilings.max_batch_bytes
+            || started.elapsed().as_millis() as u64 >= request.ceilings.max_batch_millis
+        {
+            ceiling_stop = true;
+            break;
+        }
+    }
+
+    if let Some(last) = &last_row {
+        let entries = order
+            .iter()
+            .map(|expr| {
+                (
+                    expr.field.clone(),
+                    last.get(&expr.field).cloned().unwrap_or(Value::Null),
+                )
+            })
+            .collect();
+        let id = last
+            .get("_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        state.boundary = Some(KeysetAfter { entries, id });
+    }
+    state.rows_scanned += batch_rows;
+    state.bytes_scanned += batch_bytes;
+    state.logical_digest = logical_stream.as_ref().map(|stream| stream.checkpoint());
+    state.system_digest = system_stream.as_ref().map(|stream| stream.checkpoint());
+
+    let done = !ceiling_stop && fetched < request.ceilings.max_batch_rows;
+    let sealed_digests = if done {
+        match (logical_stream, system_stream) {
+            (Some(logical), Some(system)) => Some((logical.finalize(), system.finalize())),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    Ok(MigrationKeysetScanBatch {
+        batch_rows,
+        batch_bytes,
+        done,
+        checkpoint: state,
+        sealed_digests,
+    })
 }
 
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
@@ -12595,6 +13092,228 @@ mod guarded_commit_tests {
     use super::*;
     use std::cell::Cell;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    fn migration_scan_database() -> LocalDatabase {
+        use crate::manifest::IndexManifest;
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "scanned".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "k".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "v".to_owned(),
+                        field_type: FieldType::String,
+                        optional: true,
+                    },
+                ],
+                indexes: vec![IndexManifest {
+                    name: "by_k".to_owned(),
+                    fields: vec!["k".to_owned()],
+                    unique: false,
+                }],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply scan schema");
+        let row = |id: &str, k: &str, v: Option<&str>| {
+            let mut object = Map::new();
+            object.insert("_id".to_owned(), json!(id));
+            object.insert("k".to_owned(), json!(k));
+            if let Some(v) = v {
+                object.insert("v".to_owned(), json!(v));
+            }
+            object
+        };
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "scanned".to_owned(),
+                vec![
+                    row("r1", "alpha", Some("1")),
+                    row("r2", "alpha", Some("2")),
+                    row("r3", "beta", None),
+                    row("r4", "beta", Some("4")),
+                    row("r5", "beta", Some("5")),
+                    row("r6", "gamma", None),
+                    row("r7", "delta", Some("7")),
+                ],
+            )]),
+        })
+        .expect("seed scan rows");
+        db
+    }
+
+    fn migration_scan_request(max_batch_rows: u32) -> MigrationKeysetScanRequestV1 {
+        MigrationKeysetScanRequestV1 {
+            table: "scanned".to_owned(),
+            index: Some("by_k".to_owned()),
+            validators: vec![
+                MigrationScanValidatorV1::NonNull {
+                    field: "v".to_owned(),
+                },
+                MigrationScanValidatorV1::Unique {
+                    field: "k".to_owned(),
+                },
+            ],
+            digest: Some(crate::rqs::ContentDigestHeaderV1 {
+                algorithm_version: 1,
+                plan_digest: "sha256:test".to_owned(),
+                schema_hash: "sha256:schema".to_owned(),
+                qualified_table: "app.scanned".to_owned(),
+                generation: "gen-1".to_owned(),
+                barrier_head: 7,
+                publication_version: 8,
+                publication_timestamp: 1_784_000_000_000,
+            }),
+            ceilings: MigrationScanCeilingsV1 {
+                max_batch_rows,
+                max_batch_bytes: 1024 * 1024,
+                max_batch_millis: 10_000,
+            },
+        }
+    }
+
+    fn run_scan_to_completion(
+        db: &LocalDatabase,
+        request: &MigrationKeysetScanRequestV1,
+    ) -> MigrationKeysetScanBatch {
+        let mut checkpoint: Option<MigrationKeysetScanCheckpointV1> = None;
+        for _ in 0..64 {
+            let batch = db
+                .migration_keyset_scan_batch(request, checkpoint.as_ref())
+                .expect("scan batch");
+            if batch.done {
+                return batch;
+            }
+            // The checkpoint round-trips through serialization exactly as
+            // the executor journal will persist it.
+            let serialized =
+                serde_json::to_string(&batch.checkpoint).expect("checkpoint serializes");
+            checkpoint = Some(serde_json::from_str(&serialized).expect("checkpoint parses"));
+        }
+        panic!("scan did not complete within 64 batches");
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps — the privileged scan reads in
+    //   stable key order with checkpointed cursors and emits only closed
+    //   facts: interrupting it at every batch size yields byte-identical
+    //   facts and sealed ContentDigestV1 values to the one-shot scan.
+    #[test]
+    fn migration_keyset_scan_is_batch_invariant() {
+        let db = migration_scan_database();
+        let one_shot = run_scan_to_completion(&db, &migration_scan_request(1024));
+        assert_eq!(one_shot.checkpoint.rows_scanned, 7);
+        let (logical, system) = one_shot.sealed_digests.clone().expect("sealed digests");
+        assert!(logical.starts_with("cdv1:") && system.starts_with("cdv1:"));
+        // Facts: two null/absent v rows (r3, r6); duplicates within k:
+        // alpha x2 -> 1, beta x3 -> 2 (adjacent in by_k order).
+        let non_null = one_shot
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::NonNull {
+                    violations,
+                    samples,
+                    ..
+                } => Some((*violations, samples.clone())),
+                _ => None,
+            })
+            .expect("non-null facts");
+        assert_eq!(non_null.0, 2);
+        assert_eq!(non_null.1, vec!["r3".to_owned(), "r6".to_owned()]);
+        let unique = one_shot
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::Unique { duplicates, .. } => Some(*duplicates),
+                _ => None,
+            })
+            .expect("unique facts");
+        assert_eq!(unique, 3, "alpha contributes one duplicate, beta two");
+
+        for batch_rows in 1..=8 {
+            let resumed = run_scan_to_completion(&db, &migration_scan_request(batch_rows));
+            assert_eq!(
+                resumed.checkpoint.rows_scanned, one_shot.checkpoint.rows_scanned,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.checkpoint.bytes_scanned, one_shot.checkpoint.bytes_scanned,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.checkpoint.validators, one_shot.checkpoint.validators,
+                "batch size {batch_rows}"
+            );
+            assert_eq!(
+                resumed.sealed_digests,
+                one_shot.sealed_digests,
+                "batch size {batch_rows}: resumed digests must equal one-shot"
+            );
+        }
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps — scan refusals are typed and
+    //   fail closed: ceilings outside the target caps, a checkpoint from a
+    //   different scan, uniqueness without its leading index, and sealed
+    //   digests withheld until the table is exhausted.
+    #[test]
+    fn migration_keyset_scan_refusals_and_sealing() {
+        let db = migration_scan_database();
+
+        let mut zero = migration_scan_request(0);
+        zero.ceilings.max_batch_rows = 0;
+        let error = db
+            .migration_keyset_scan_batch(&zero, None)
+            .expect_err("zero ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        let mut oversized = migration_scan_request(4);
+        oversized.ceilings.max_batch_bytes = MIGRATION_SCAN_MAX_BATCH_BYTES + 1;
+        let error = db
+            .migration_keyset_scan_batch(&oversized, None)
+            .expect_err("oversized ceiling");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        // Uniqueness demands its own order: `v` does not lead `by_k`.
+        let mut misordered = migration_scan_request(4);
+        misordered.validators = vec![MigrationScanValidatorV1::Unique {
+            field: "v".to_owned(),
+        }];
+        let error = db
+            .migration_keyset_scan_batch(&misordered, None)
+            .expect_err("uniqueness without leading index");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+
+        // A partial batch seals nothing and its checkpoint refuses to
+        // resume a different request.
+        let request = migration_scan_request(3);
+        let partial = db
+            .migration_keyset_scan_batch(&request, None)
+            .expect("first batch");
+        assert!(!partial.done);
+        assert!(partial.sealed_digests.is_none());
+        let other = migration_scan_request(3);
+        let mut foreign = partial.checkpoint.clone();
+        foreign.table = "items".to_owned();
+        let error = db
+            .migration_keyset_scan_batch(&other, Some(&foreign))
+            .expect_err("foreign checkpoint");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+    }
 
     fn schema() -> SchemaManifest {
         SchemaManifest {

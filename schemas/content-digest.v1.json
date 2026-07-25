@@ -1,0 +1,61 @@
+{
+  "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md#5-verification-and-data-proof",
+  "domains": {
+    "logical": "snapback:content-digest:v1",
+    "system": "snapback:content-digest:v1:system",
+    "trailer": "snapback:content-digest:v1:trailer"
+  },
+  "frameRule": "every frame is u64-be(length) || bytes; numeric header fields are u64/u32 big-endian; rows are RFC 8785 re-canonicalizations of LLP 0051 JSON-transport values; the trailer binds the row count",
+  "vectors": [
+    {
+      "header": {
+        "algorithmVersion": 1,
+        "barrierHead": 41,
+        "generation": "gen-1",
+        "planDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "publicationTimestamp": 1784000000000,
+        "publicationVersion": 42,
+        "qualifiedTable": "app.todos",
+        "schemaHash": "sha256:1111111111111111"
+      },
+      "logicalDigest": "cdv1:43f9ecd79943ea7f2329809e66593f5a422543e8f03e11fbd31d8f499173b582",
+      "logicalRows": [
+        {
+          "rank": 1,
+          "title": "alpha"
+        },
+        {
+          "note": null,
+          "title": "beta"
+        },
+        {
+          "title": "café"
+        }
+      ],
+      "name": "three-row-fixture",
+      "resumeEquality": "verified at every row boundary during generation",
+      "systemDigest": "cdv1:6cce3920c1f36d17cd436574037a605eda7950df09f8072fcddcdfc404432f38",
+      "systemRows": [
+        {
+          "_createdAt": 1,
+          "_id": "a",
+          "_updatedAt": 2,
+          "_version": 42
+        },
+        {
+          "_createdAt": 1,
+          "_id": "b",
+          "_updatedAt": 2,
+          "_version": 42
+        },
+        {
+          "_createdAt": 3,
+          "_id": "c",
+          "_updatedAt": 3,
+          "_version": 42
+        }
+      ]
+    }
+  ],
+  "version": "content-digest-v1"
+}

@@ -8235,11 +8235,11 @@ impl LocalSnapback {
         connection: AuthorizationInvalidationConnection,
         authority: PreparedAuthority,
     ) -> SnapbackResult<AuthorizationInvalidationManualRetryOutput> {
-        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+        if authority.source() != InvocationSource::InvalidationAcknowledgement {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
-                "authorization invalidation manual retry requires standalone acknowledgement authority",
+                "authorization invalidation manual retry requires invalidation acknowledgement authority",
             ));
         }
         authority.validate_admission("authorization invalidation manual retry")?;
@@ -8371,11 +8371,11 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<PreparedAuthorizationInvalidationManualRetry> {
-        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+        if authority.source() != InvocationSource::InvalidationAcknowledgement {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
-                "authorization invalidation manual retry requires standalone acknowledgement authority",
+                "authorization invalidation manual retry requires invalidation acknowledgement authority",
             ));
         }
         authority.validate_admission("authorization invalidation manual retry staging")?;

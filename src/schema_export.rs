@@ -54,6 +54,10 @@ use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
+use crate::migration::{
+    MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
+    MigrationPreviewObservationV1,
+};
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
     MutationResponse, OpenConnectionRequest,
@@ -102,6 +106,29 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
+        ),
+        // LLP 0081 canonical migration artifacts (the Phase C wave-1 types).
+        finish(
+            "migration.plan.schema.json",
+            schemars::schema_for!(MigrationPlanArtifactV1),
+        ),
+        finish(
+            "migration.observation.schema.json",
+            schemars::schema_for!(MigrationPreviewObservationV1),
+        ),
+        finish(
+            "migration.approval.schema.json",
+            schemars::schema_for!(MigrationApprovalV1),
+        ),
+        finish(
+            "migration.admission.schema.json",
+            schemars::schema_for!(MigrationAdmissionV1),
+        ),
+        // The migration scan's journal-persisted batch checkpoint
+        // (LLP 0081 §3/§5) — the Wave-2 executor's durable contract.
+        finish(
+            "migration.keyset-scan.checkpoint.schema.json",
+            schemars::schema_for!(crate::storage::MigrationKeysetScanCheckpointV1),
         ),
         finish(
             "auth.hosted-capabilities.schema.json",
@@ -457,6 +484,21 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: "relational.result-encoding-v1.json",
             schema: sorted_keys(crate::rqs::relational_result_encoding_artifact()),
+        },
+        // LLP 0081 §2/§3 golden vectors: plan digest/id, canonical step
+        // IDs, observation/approval/admission digests, and the synthesized
+        // UUIDv7 conformance vectors — generated through the
+        // implementation, byte-pinned in migration::tests.
+        SchemaArtifact {
+            file: "migration.vectors-v1.json",
+            schema: sorted_keys(crate::migration::migration_vectors_artifact()),
+        },
+        // ContentDigestV1 golden vectors (LLP 0081 §5), generated through
+        // the streaming implementation (resume-equality is asserted during
+        // generation, so a committed file implies the property).
+        SchemaArtifact {
+            file: "content-digest.v1.json",
+            schema: sorted_keys(crate::rqs::content_digest_artifact()),
         },
         // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
         // canonical frames + expected state-machine transitions, generated

@@ -27,6 +27,7 @@ pub mod identity;
 pub mod instance_lock;
 pub(crate) mod live_matcher;
 pub mod live_wire;
+pub mod migration;
 pub mod local;
 pub mod manifest;
 pub(crate) mod membership_rules;

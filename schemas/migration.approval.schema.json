@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "MigrationAudienceV1": {
+      "additionalProperties": false,
+      "description": "The complete LLP 0072 target audience. Deployment-class-defined fields\nare optional at the type level; profile validation decides which are\nrequired. The local profile binds the resolved local target identity —\ndatabase, stream incarnation, activation generation, and profile.",
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "environmentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "databaseId",
+        "streamIncarnation",
+        "activationGeneration",
+        "targetProfileId"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.approval.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed, authenticated approval (LLP 0081 §2). Local development approval\nis a local authenticated operator record; hosted approval is an LLP 0072\ncontrol-plane operation. `generatorIsApprover` records whether generator\nand approver are distinct for the receipt.",
+  "properties": {
+    "approver": {
+      "type": "string"
+    },
+    "audience": {
+      "$ref": "#/$defs/MigrationAudienceV1"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "generatorIsApprover": {
+      "type": "boolean"
+    },
+    "issuedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "observationDigest": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planDigest": {
+      "type": "string"
+    },
+    "policyDigest": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planDigest",
+    "observationDigest",
+    "policyDigest",
+    "audience",
+    "approver",
+    "generatorIsApprover",
+    "issuedAtMs",
+    "expiresAtMs",
+    "operationId"
+  ],
+  "title": "MigrationApprovalV1",
+  "type": "object"
+}

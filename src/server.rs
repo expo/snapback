@@ -7990,10 +7990,12 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/app/bundle" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge"
-        | "/live/authorization-invalidation/acknowledge"
+        "/client-mutations/acknowledge" => {
+            Some(InvocationSource::MutationSettlementAcknowledgement)
+        }
+        "/live/authorization-invalidation/acknowledge"
         | "/live/authorization-invalidation/manual-retry" => {
-            Some(InvocationSource::StandaloneAcknowledgement)
+            Some(InvocationSource::InvalidationAcknowledgement)
         }
         "/connection/open" => Some(InvocationSource::ConnectionOpen),
         "/live/{name}/subscribe" => Some(InvocationSource::LiveInitialQuery),
@@ -8083,7 +8085,11 @@ fn dev_host_operation_authority(value: Option<&Value>) -> ResolvedAppAuthority {
 
 fn queued_replay_requested(source: InvocationSource, body: Option<&Value>) -> bool {
     match source {
-        InvocationSource::StandaloneAcknowledgement => true,
+        // @ref LLP 0096#81-the-acknowledge-routes-demand-the-authreplay-offer-coupling —
+        // invalidation acks are item-6-owned; only mutation settlement is
+        // descriptor-bound, so `InvalidationAcknowledgement` falls through to
+        // the `false` arm.
+        InvocationSource::MutationSettlementAcknowledgement => true,
         InvocationSource::HttpMutation => body.and_then(Value::as_object).is_some_and(|object| {
             object.contains_key("clientMutationId")
                 || object.contains_key("client_mutation_id")
@@ -19700,6 +19706,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
+        | "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
         | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -20065,9 +20072,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0065 §1: a HostPlan whose observed operations exceed its
         // admitted EffectCeilingV1 is a doctored/under-declared artifact.
         | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+        // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
+        // deferred retained-work posture are author input.
+        | "SNAPBACK_MIGRATION_PLAN_INVALID"
+        | "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED"
         // LLP 0080 §5: maintained-projection artifact and mutation
         // refusals — malformed plans, unprovable write budgets, output
         // fences, and maintenance invariants (null/moved output keys).
+        // (The privileged scan's plan refusals share the LLP 0081 §2/§3
+        // SNAPBACK_MIGRATION_PLAN_INVALID arm above.)
         | "SNAPBACK_PROJECTION_PLAN_INVALID"
         | "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"
         | "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"
@@ -23432,7 +23445,7 @@ globalThis.__snapbackHandlers = {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
         let prepared = |user_id: &str| {
             InvocationGate::prepare_admitted_authority(
-                InvocationSource::StandaloneAcknowledgement,
+                InvocationSource::MutationSettlementAcknowledgement,
                 AuthMode::Dev,
                 ServerProfile::Test,
                 state.auth_admission_controller().admit_dev().unwrap(),
@@ -25062,6 +25075,123 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         );
         assert_eq!(body["diagnostic"]["details"]["capability"], "queuedReplay");
+    }
+
+    /// LLP 0096 §8.1 P-3 regression: the invalidation-ack routes are owned by
+    /// the authorization-invalidation program (LLP 0059 item 6). In the
+    /// readiness interval where item 6 is ready but the authority-descriptor
+    /// program (item 7) is not, a client offering only the invalidation
+    /// protocol — no `x-snapback-authority-descriptor-protocol` header — must
+    /// still discharge invalidation obligations; only mutation settlement
+    /// remains descriptor-bound.
+    #[tokio::test]
+    async fn invalidation_ack_routes_do_not_require_the_authority_descriptor_plane() {
+        let state = sessions_activation_server_fixture_async().await;
+        let settled = state.auth_mode_state().as_ref().clone();
+        let state = state
+            .with_auth_runtime_facts(
+                settled,
+                AuthProgramReadiness::new(true, true, true, true, true, false, false),
+            )
+            .expect("install item-6 sessions posture");
+        let credential = mint_test_credential(&state, "invalidation-ack-item6@example.com").await;
+        let bearer = credential["token"].as_str().expect("bearer").to_owned();
+        let router = app(state.clone());
+
+        let opened = router
+            .clone()
+            .oneshot(connection_open_request(
+                Some(&bearer),
+                json!({ "authInvalidationProtocol": 1 }),
+            ))
+            .await
+            .expect("open invalidation-negotiated connection");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"].as_str().expect("connection id");
+        let connection_token = opened["connectionToken"]
+            .as_str()
+            .expect("connection token");
+        assert_eq!(opened["authorizationInvalidation"]["protocolVersion"], 1);
+
+        let invalidation_only_request = |uri: &str, body: Value| {
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header("x-snapback-auth-invalidation-protocol", "1")
+                .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                .body(Body::from(serde_json::to_vec(&body).expect("body")))
+                .expect("invalidation-only request")
+        };
+
+        let acknowledged = router
+            .clone()
+            .oneshot(invalidation_only_request(
+                "/live/authorization-invalidation/acknowledge",
+                json!({ "connectionId": connection_id, "ackToken": "no_pending_obligation" }),
+            ))
+            .await
+            .expect("acknowledge without descriptor offer");
+        let acknowledged_status = acknowledged.status();
+        let acknowledged = response_json(acknowledged).await;
+        assert_eq!(
+            acknowledged_status,
+            StatusCode::OK,
+            "item-6 clients must reach the acknowledge handler without the \
+             descriptor plane: {acknowledged}"
+        );
+        assert_eq!(acknowledged["outcome"], "stale");
+
+        let retried = router
+            .clone()
+            .oneshot(invalidation_only_request(
+                "/live/authorization-invalidation/manual-retry",
+                json!({
+                    "connectionId": connection_id,
+                    "subscriptionId": "missing_subscription",
+                    "manualRetryId": "item6_retry",
+                }),
+            ))
+            .await
+            .expect("manual retry without descriptor offer");
+        let retried = response_json(retried).await;
+        assert_eq!(
+            retried["diagnostic"]["code"], "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
+            "manual retry must pass the policy gate and fail only on the \
+             unknown subscription: {retried}"
+        );
+
+        // Mutation settlement stays descriptor-bound: the same
+        // invalidation-only client is refused on the queued-replay plane.
+        let settlement = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/client-mutations/acknowledge")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-auth-invalidation-protocol", "1")
+                    .body(Body::from(
+                        serde_json::to_vec(&json!({ "clientMutationIds": [] })).expect("body"),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("settlement acknowledgement without descriptor offer");
+        assert_eq!(settlement.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let settlement = response_json(settlement).await;
+        assert_eq!(
+            settlement["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            settlement["diagnostic"]["details"]["capability"],
+            "queuedReplay"
+        );
     }
 
     #[tokio::test]
@@ -32276,6 +32406,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
         "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
         "SNAPBACK_PROJECTION_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
         "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
@@ -32391,6 +32523,7 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
+        "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         // LLP 0092 §0D.3 idempotency replay-validity conflicts.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",

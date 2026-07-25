@@ -42,3 +42,14 @@ Acceptance: offer-matrix fixtures on both arms (known/unknown/absent ×
 open/socket), refusal-style tests mirroring `src/auth/handshake.rs`,
 schema regen for the new `connection.open.input` member, and the JS gate
 staying green.
+
+**Amended 2026-07-25 (LLP 0094 v0.2, review round 1):** B1 additionally
+ships (a) the `wireVersion` **response echo** as an additive
+`ConnectionGrant` member (§0B.3 — the hosted arm's only runtime version
+witness), (b) the **present-offer socket refusals**
+(`MISMATCH`/`UNSUPPORTED` per the §0B.4 classification matrix; B3 keeps
+only the absent-class `REQUIRED` refusal), and (c) **re-open binding
+immutability**: a changed offer under `previousToken` refuses
+`SNAPBACK_WIRE_VERSION_MISMATCH`; absent on re-open leaves the binding
+untouched. Fixtures extend accordingly (changed-offer re-open, unknown
+socket token, duplicate tokens, multi-token offer sets, echo presence).

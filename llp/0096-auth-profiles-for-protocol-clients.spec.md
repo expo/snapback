@@ -6,7 +6,9 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
 **Revised:** 2026-07-25 (initial draft; §7 hosted floor decided —
-LLP 0093 OQ5 ratified as recommended)
+LLP 0093 OQ5 ratified as recommended; §8.1 decided as defect and fixed —
+the invalidation-ack routes no longer demand the `auth/replay` offer, and
+§2.2's interop instruction is retired)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
 LLP 0094, LLP 0095
@@ -230,12 +232,16 @@ all**, so no profile is negotiable there.
   `auth.live.quarantine_blocks_reads_until_superseding_snapshot`,
   `auth.live.terminal_auth_disposition` (extends the seeded
   T-AUTH-TERM coverage).
-- **Verified coupling flag:** in shipped code the two acknowledge routes
-  *also* demand the `auth/replay` header offer — §8.1. Until the author
-  decides that finding, a claiming client in sessions mode MUST send
-  `x-snapback-authority-descriptor-protocol: 1` on the acknowledge
-  routes to interoperate with shipped servers; this spec records the
-  requirement as **observed behavior, not ratified contract**.
+- **Descriptor independence (ratified 2026-07-25):** the acknowledge
+  routes require **only** this profile's offers — they never demand the
+  `auth/replay` (`x-snapback-authority-descriptor-protocol`) offer. The
+  shipped coupling this spec originally flagged was decided a defect and
+  fixed (§8.1): the routes now classify as
+  `InvocationSource::InvalidationAcknowledgement`, outside the
+  queued-replay fence. A descriptor offer sent on these routes is
+  ignored, not required; clients written against the earlier interop
+  instruction may keep sending it harmlessly, but new clients should
+  not.
 
 ### 2.3 `auth/replay` — authority descriptors / queued replay
 
@@ -598,6 +604,21 @@ it and this spec's §2.2 flag becomes ratified contract) or an
 axis-independence defect (then the invalidation acks need their own
 `queued_replay_requested` classification). Author decision;
 ticket: `issues/20260725-0093-p3-invalidation-ack-descriptor-coupling.md`.
+
+**Decided 2026-07-25 (Charlie Cheever): defect — fixed.** An
+investigation pass found no rationale in the introducing commit
+(`73772836`), the descriptor unused downstream of the gate on these
+routes, no security invariant depending on the coupling, and LLP
+0053/0058/0059 axis-ownership text contradicting it.
+`InvocationSource::StandaloneAcknowledgement` is split into
+`MutationSettlementAcknowledgement` (`/client-mutations/acknowledge`,
+still queued-replay fenced — that coupling is deliberate) and
+`InvalidationAcknowledgement` (the two invalidation-ack routes,
+`queued_replay_requested` → `false`), with a server-level regression test
+(`invalidation_ack_routes_do_not_require_the_authority_descriptor_plane`)
+covering the item-6-ready/item-7-not interval. §2.2's interop
+instruction is retired in the same change; the ticket is closed. Fixed
+in the commit carrying this amendment.
 
 ### 8.2 The lease route parses offers with the upgrade grammar
 
