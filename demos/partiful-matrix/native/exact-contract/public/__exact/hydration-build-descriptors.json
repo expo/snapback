@@ -1,0 +1,15 @@
+{
+  "kind": "exact-hydration-build-descriptors",
+  "version": 1,
+  "descriptors": [
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/index.contract",
+      "routeGraphDigest": "sha256:4f385180c1e31b26ff9088d06c8cc99874f320fc7087b7b5a629bec1ec8a5f93",
+      "sourceVersion": "sha256:4f385180c1e31b26ff9088d06c8cc99874f320fc7087b7b5a629bec1ec8a5f93",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    }
+  ]
+}
