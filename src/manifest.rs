@@ -1727,7 +1727,8 @@ pub struct FunctionDefinition {
     /// HostPlans (`basis: "static"`) and records author declarations for
     /// opaque handlers (`basis: "declared"`). Optional so pre-ceiling
     /// manifests keep loading; enforcement remains the runtime subset check.
-    /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
+    // @ref LLP 0065#1-fact-classes — EffectCeilingV1. (Plain comment: doc
+    //   text flows into generated schemas.)
     #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
     pub effect_ceiling: Option<EffectCeiling>,
     /// Stable versioned standard-pattern identity — which generated helper

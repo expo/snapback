@@ -1873,7 +1873,7 @@
             }
           ],
           "default": null,
-          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check.\n@ref LLP 0065#1-fact-classes — EffectCeilingV1."
+          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check."
         },
         "exportedName": {
           "default": null,
