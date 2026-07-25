@@ -12,6 +12,37 @@ Working plan for implementing [LLP 0097](../llp/0097-ephemeral-data-branches-and
 - **Effects/egress:** `host_ops.rs`, `cron.rs` (actions/egress), notifications outbox, payments, the `uses`/LLP 0036 boundary — where P1 interception sits.
 - **Invariant density:** ordering facts are `@ref LLP 0007#commit-version-graduation` and **fail closed**. Touching the journal/version path requires preserving these. Hence slices, not a big-bang edit.
 
+## Implementation status (2026-07-25)
+
+Landed on branch `eng/llp-0097-ephemeral-branches` in `src/branches.rs` as
+verifiable, tested slices (26 unit tests, all green). Each phase is a mechanism
+built and tested at the `Connection` level; the remaining work is **wiring these
+seams into the live `LocalSnapback`/`host_ops` execution path** (integration),
+after which the `tests/` black-box + `schemas/` drift-gate corpus and any target
+capability advertisement can move off `Missing`.
+
+| Slice | Commit | What landed |
+|-------|--------|-------------|
+| P0.1 | `d6042395` | Branch registry + lifecycle (`_snapback_branches`, create/get/list/mark_teardown) |
+| P0.2 | `f9061c5a` | Typed ephemeral child version-stream (`_snapback_branch_versions`): gap-free, independent replay floor, never comparable to canonical |
+| P0.3 | `3de5612f` | Materialized branch base via backup snapshot; `base_version` read back from the snapshot (atomically consistent); idempotent teardown |
+| P0.4 | `859a0e20` | COW overlay ledger (`_snapback_branch_overlay`) + cross-branch isolation conformance |
+| P1 | `11d21c99` | Effect isolation: capture-don't-fire ledger (`_snapback_captured_effects`), closed `EffectClass` fail-closed classification, simulated outcomes, HostMediated-only v1 |
+| P2+P3 | `83d0111e` | Promotion: `branch_op_log`, revalidated authority, v1 base-equality, single-version commit, provisional/pending reconciliation ledger, branch-tagged receipts, `reconcile_effect` |
+| Corpus | `f9938acb` | Transitive-dependence + never-rolled-back-after-initiation fixtures |
+
+**Deliberate simplifications (integration refinements, not gaps in the contract):**
+- Effect-dependence is a **conservative transitive over-approximation** (any write
+  at/after the first captured effect is provisional). Precise per-op read-set
+  tracking is a refinement; the over-approximation is sound (never marks a
+  truly-dependent write unconditional).
+- `promote()` takes an **injected physical applier** so it stays schema-generic;
+  the live path supplies the real journal/apply function.
+- The captured-effect ledger is a mechanism ready for the egress boundary to call;
+  it is **not yet invoked from `host_ops`/`cron`/`uses`** — that interception is
+  the P1 integration step.
+- Postgres/Cloudflare mappings (OQ1/OQ2) still follow the local reference.
+
 ## Phases
 
 ### P0 — The branch primitive (local SQLite), additive first
