@@ -30,9 +30,9 @@
       {
         "repository": "ccheever/snapback",
         "path": "llp/0063-partitime-platform-roadmap.plan.md",
-        "revision": "081a9c7c443d786badc16613adb14976ae829a0f",
-        "sha256": "1a660a54d2a49df01473cb8092a81c1e274d44e494bdf11ca24be44788399b3c",
-        "amendment": "A2"
+        "revision": "2e0b01e68cc37bed3e166f05ad8f1fbb5a6b8463",
+        "sha256": "49f5ea83f3664fe768ce1953dc30d46c11bee8b5c6cf0142fedfa0a583839237",
+        "amendment": "A3"
       }
     ],
     "preservedV1": {
@@ -63,7 +63,7 @@
     "fixtureTrees": [
       {
         "path": "demos/partiful-matrix/surfaces/react",
-        "gitTree": "c83f40e40cce07883f9a8c54c1ea8711322c7772"
+        "gitTree": "11dc982e0556daea68c1e5fc890fc92d37e1fd95"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract",
@@ -272,7 +272,7 @@
   "phaseRules": {
     "P0a": {
       "entry": "the three authority amendments are content-bound and v1 remains unchanged",
-      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, immutable pre-fix correctness evidence, and the A2 prospective instrument-recovery identity; the replacement P0a correctness witnesses must exercise both react:snapback and contract:snapback through reset, eight independently retained live subscriptions, and one canonical update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
+      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, immutable pre-fix correctness evidence, and the A3 prospective asynchronous-readiness recovery identity; the replacement P0a correctness witnesses must exercise both react:snapback and contract:snapback through a complete literal growth/shrinkage/zero subscription schedule and one canonical eight-subscription update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
       "exit": "protocol/schema/collector digests and the P0a entry receipt are committed and mirrored before the P0b repair merge"
     },
     "P0b": {

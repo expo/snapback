@@ -637,6 +637,7 @@
             "required": [
               "arm",
               "activeSubscriptions",
+              "settledSchedule",
               "apiMethods",
               "beforeGraceStatus",
               "afterGraceStatus",
@@ -653,6 +654,23 @@
               },
               "activeSubscriptions": {
                 "const": 8
+              },
+              "settledSchedule": {
+                "type": "array",
+                "minItems": 7,
+                "maxItems": 7,
+                "items": {
+                  "type": "integer",
+                  "enum": [
+                    0,
+                    1,
+                    2,
+                    4,
+                    8,
+                    16,
+                    32
+                  ]
+                }
               },
               "apiMethods": {
                 "type": "array",
