@@ -88,6 +88,11 @@ run node demos/_kit/tests/harness-cleanup-failures.mjs
 # acceptance will verify.
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run node tests/ibex_bootstrap_v0.mjs
+# Real-binary identity honesty: the freshly bootstrapped binary's build.rs
+# stamp must refuse (or honestly report unverifiable) a drifted checkout
+# expectation — the comparison the kit's env injection used to self-confirm
+# (issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md).
+run node demos/_kit/tests/binary-provenance-drift.mjs
 run node scripts/check-toolchain-authority.mjs
 stamp_snapback_build_identity
 run cargo clippy --all-targets -- -D warnings

@@ -88,6 +88,13 @@ What it guarantees:
   reused only when its loaded bundle identity matches the declared
   `provenance` (or `binaryProvenance`); any mismatch — or no declared
   identity — refuses reuse and spawns a fresh isolated server instead.
+- **Launch by the LLP 0030 resolver ladder.** A fresh spawn resolves its
+  command in order: a caller-configured binary (`serverBinary` option or
+  `SNAPBACK_SERVER_BINARY`), then an existing `target/debug/snapback` whose
+  `/health` build stamp verifies against the pinned checkout, then
+  `cargo run` as the source-tree fallback. The handle reports which rung won
+  (`server.launch.rung`) and an honest build-identity verdict
+  (`server.identity.verdict`); see `demos/_kit/README.md` for the verdicts.
 - **Owned teardown.** The returned handle's `.stop()` tears down the whole
   process tree the harness itself started (SIGTERM then SIGKILL, attested
   group exit). Nothing else is ever killed.

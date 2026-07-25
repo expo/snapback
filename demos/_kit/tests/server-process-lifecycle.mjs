@@ -5,7 +5,7 @@
 import { strict as assert } from 'node:assert';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,8 +26,19 @@ const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
-const readyFile = process.argv[2];
-const bindPort = Number(process.argv[3] || 0);
+// Positional (legacy launchSpec style: <readyFile> [port]) or flag style
+// (real server-arg style: --ready-file F --port N), so the same fixture can
+// stand in for a prebuilt/configured binary on the LLP 0030 ladder rungs.
+let readyFile = process.argv[2];
+let bindPort = Number(process.argv[3] || 0);
+if (typeof readyFile === 'string' && readyFile.startsWith('--')) {
+  const flag = (name) => {
+    const at = process.argv.indexOf(name);
+    return at === -1 ? null : process.argv[at + 1];
+  };
+  readyFile = flag('--ready-file');
+  bindPort = Number(flag('--port') || 0);
+}
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
 const nonce = randomUUID();
 let resistantDescendant = null;
@@ -251,6 +262,15 @@ function forceKillProcessGroup(pid) {
 
 const previousToken = process.env.SNAPBACK_ADMIN_TOKEN;
 delete process.env.SNAPBACK_ADMIN_TOKEN;
+// The injection-tautology assertions below inspect the child environment; an
+// inherited deterministic stamp (e.g. exported by scripts/verify-local-proof)
+// must not masquerade as kit injection or flip verdicts to env-stamped.
+const previousBuildEnv = {
+  SNAPBACK_BUILD_GIT_COMMIT: process.env.SNAPBACK_BUILD_GIT_COMMIT,
+  SNAPBACK_BUILD_GIT_DIRTY: process.env.SNAPBACK_BUILD_GIT_DIRTY,
+  SNAPBACK_SERVER_BINARY: process.env.SNAPBACK_SERVER_BINARY,
+};
+for (const key of Object.keys(previousBuildEnv)) delete process.env[key];
 const running = [];
 
 function captureConsoleError() {
@@ -286,6 +306,8 @@ try {
   );
   assert.equal(first.exit, null, 'live handle reports no child exit');
   assert.match(first.startupNonce, /^[0-9a-f-]+$/i);
+  assert.equal(first.launch.rung, 'cargo', 'no prebuilt binary means the ladder lands on the cargo rung');
+  assert.equal(first.identity.verdict, 'verified');
   assert.equal(first.credentials.adminToken, first.adminToken);
   assert.equal(first.clientOptions.adminToken, first.adminToken);
   assert.equal(process.env.SNAPBACK_ADMIN_TOKEN, undefined, 'startup does not contaminate global credentials');
@@ -449,6 +471,82 @@ try {
     'pre-readiness exit waits boundedly for inherited stdio before snapshotting diagnostics',
   );
 
+  // ── Identity honesty (issues/20260724-kit-identity-stamp-env-injection-tautology) ──
+
+  // The kit must not inject checkout-derived stamp values into children: the
+  // child's build stamp has to stay an independent build.rs probe for the
+  // comparisons below to carry information.
+  {
+    let observedEnv = null;
+    const injectionProbe = await __startServerForTests(
+      { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+      {
+        ...deps,
+        launchSpec: ({ args, readyFile, cwd, env }) => {
+          observedEnv = env;
+          return {
+            command: process.execPath,
+            args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
+            cwd,
+            env: { ...env, FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+          };
+        },
+      },
+    );
+    running.push(injectionProbe);
+    assert.equal('SNAPBACK_BUILD_GIT_COMMIT' in observedEnv, false, 'no checkout commit is injected into the child env');
+    assert.equal('SNAPBACK_BUILD_GIT_DIRTY' in observedEnv, false, 'no checkout dirty marker is injected into the child env');
+    assert.equal(injectionProbe.identity.verdict, 'verified');
+    await injectionProbe.stop();
+    running.splice(running.indexOf(injectionProbe), 1);
+  }
+
+  // Drift detection: a child stamped at commit A while the checkout reads
+  // commit B is a hard verification failure on the cargo rung — the case the
+  // env injection used to make silently invisible.
+  const DRIFTED = { ...EXPECTED, gitCommit: 'feedfacefeedfacefeedfacefeedfacefeedface' };
+  await assert.rejects(
+    __startServerForTests(
+      { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+      { ...deps, expectedIdentity: DRIFTED },
+    ),
+    /spawned server identity verification failed: health commit 0123[0-9a-f]* does not match checkout feedface/,
+    'stamp/checkout commit drift is detected instead of self-confirming',
+  );
+
+  // Dirty divergence is honest, not fatal: dirt outside the binary's tracked
+  // build inputs legitimately does not re-stamp it, so the verdict downgrades
+  // to `unpinned` instead of failing (or silently passing as verified).
+  {
+    const dirtyCheckout = await __startServerForTests(
+      { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+      { ...deps, expectedIdentity: { ...EXPECTED, gitDirty: true } },
+    );
+    running.push(dirtyCheckout);
+    assert.equal(dirtyCheckout.identity.verdict, 'unpinned');
+    await dirtyCheckout.stop();
+    running.splice(running.indexOf(dirtyCheckout), 1);
+  }
+
+  // Deterministic CI stamps ride the reserved env seam and classify as
+  // `env-stamped` — attested by the caller, never presented as verified
+  // against the checkout (and never a spurious hard failure).
+  {
+    const envStamped = await __startServerForTests(
+      {
+        port: 0,
+        cwd: scratch,
+        startupTimeoutMs: 2_000,
+        env: { SNAPBACK_BUILD_GIT_COMMIT: EXPECTED.gitCommit },
+      },
+      { ...deps, expectedIdentity: DRIFTED },
+    );
+    running.push(envStamped);
+    assert.equal(envStamped.identity.verdict, 'env-stamped');
+    await envStamped.stop();
+    running.splice(running.indexOf(envStamped), 1);
+  }
+
   // Same requested port, simultaneous helpers: every child asks the OS to
   // bind port zero and proves its own nonce, so probe-to-bind races disappear.
   const parallel = await Promise.all(Array.from({ length: 4 }, () =>
@@ -513,6 +611,127 @@ try {
         'stop() on an already-dead child reports the death instead of attesting a clean teardown',
       );
     }
+
+    // ── LLP 0030 resolver ladder (issues/20260724-kit-prebuilt-binary-boot-path) ──
+    // A fake repo whose `target/debug/snapback` is a wrapper around the same
+    // ready+/health fixture, so the prebuilt/configured rungs are exercised
+    // against real spawns without any cargo involvement.
+    const fakeRepo = mkdtempSync(join(tmpdir(), 'server-process-ladder-'));
+    const prebuilt = join(fakeRepo, 'target', 'debug', 'snapback');
+    mkdirSync(join(fakeRepo, 'target', 'debug'), { recursive: true });
+    writeFileSync(prebuilt, `#!/bin/sh\nexec "${process.execPath}" "${fixture}" "$@"\n`);
+    chmodSync(prebuilt, 0o755);
+    const DRIFTED_LADDER = { ...EXPECTED, gitCommit: 'feedfacefeedfacefeedfacefeedfacefeedface' };
+    const ladderDeps = (onCargoRung) => ({
+      expectedIdentity: EXPECTED,
+      preflight: () => ({}),
+      launchSpec: ({ args, readyFile, cwd, env }) => {
+        onCargoRung?.();
+        return {
+          command: process.execPath,
+          args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
+          cwd,
+          env: { ...env, FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+        };
+      },
+    });
+
+    // Rung 2: a pinned checkout with a stamp-verified prebuilt binary boots
+    // it directly — the cargo rung is never touched.
+    {
+      let cargoRungUsed = false;
+      const viaPrebuilt = await __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          startupTimeoutMs: 10_000,
+          env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+        },
+        ladderDeps(() => { cargoRungUsed = true; }),
+      );
+      running.push(viaPrebuilt);
+      assert.equal(viaPrebuilt.launch.rung, 'prebuilt');
+      assert.equal(viaPrebuilt.launch.command, prebuilt);
+      assert.equal(viaPrebuilt.identity.verdict, 'verified');
+      assert.equal(cargoRungUsed, false, 'a verified prebuilt binary boots without the cargo rung');
+      await viaPrebuilt.stop();
+      running.splice(running.indexOf(viaPrebuilt), 1);
+    }
+
+    // A drifted prebuilt binary (stamped at another commit) is torn down and
+    // the ladder falls back to the cargo rung.
+    {
+      let fellBack = false;
+      const fallback = await __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          startupTimeoutMs: 10_000,
+          // The prebuilt child stamps the drifted commit; the cargo-rung
+          // fixture (launchSpec override below) stamps the checkout's.
+          env: { FIXTURE_EXPECTED: JSON.stringify(DRIFTED_LADDER) },
+        },
+        ladderDeps(() => { fellBack = true; }),
+      );
+      running.push(fallback);
+      assert.equal(fallback.launch.rung, 'cargo');
+      assert.equal(fellBack, true, 'a drifted prebuilt binary falls back to the cargo rung');
+      assert.equal(fallback.identity.verdict, 'verified');
+      await fallback.stop();
+      running.splice(running.indexOf(fallback), 1);
+    }
+
+    // A dirty checkout skips the prebuilt rung entirely: only a rebuild can
+    // contain the local edits.
+    {
+      const dirtySkip = await __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          startupTimeoutMs: 10_000,
+          env: { FIXTURE_EXPECTED: JSON.stringify(EXPECTED) },
+        },
+        { ...ladderDeps(null), expectedIdentity: { ...EXPECTED, gitDirty: true } },
+      );
+      running.push(dirtySkip);
+      assert.equal(dirtySkip.launch.rung, 'cargo', 'a dirty checkout goes straight to the cargo rung');
+      assert.equal(dirtySkip.identity.verdict, 'unpinned');
+      await dirtySkip.stop();
+      running.splice(running.indexOf(dirtySkip), 1);
+    }
+
+    // Rung 1: an explicitly configured binary boots even when its stamp does
+    // not match the checkout — the paved escape for a broken/drifted HEAD —
+    // and the drift is reported honestly on the handle.
+    {
+      const configured = await __startServerForTests(
+        {
+          port: 0,
+          cwd: fakeRepo,
+          serverBinary: prebuilt,
+          startupTimeoutMs: 10_000,
+          env: { FIXTURE_EXPECTED: JSON.stringify(DRIFTED_LADDER) },
+        },
+        { expectedIdentity: EXPECTED, preflight: () => ({}) },
+      );
+      running.push(configured);
+      assert.equal(configured.launch.rung, 'configured');
+      assert.equal(configured.identity.verdict, 'stamp-mismatch');
+      assert.match(configured.identity.mismatches[0], /health commit feedface/);
+      await configured.stop();
+      running.splice(running.indexOf(configured), 1);
+    }
+
+    // A configured binary that does not exist is a hard, named error — never
+    // a silent fall-through to another rung.
+    await assert.rejects(
+      __startServerForTests(
+        { port: 0, cwd: fakeRepo, serverBinary: join(fakeRepo, 'no-such-binary'), startupTimeoutMs: 10_000 },
+        { expectedIdentity: EXPECTED, preflight: () => ({}) },
+      ),
+      /configured snapback server binary does not exist/,
+    );
+    rmSync(fakeRepo, { recursive: true, force: true });
 
     const resistant = await __startServerForTests(
       { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
@@ -799,5 +1018,9 @@ try {
   await Promise.allSettled(running.map((server) => server.stop()));
   if (previousToken === undefined) delete process.env.SNAPBACK_ADMIN_TOKEN;
   else process.env.SNAPBACK_ADMIN_TOKEN = previousToken;
+  for (const [key, value] of Object.entries(previousBuildEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
   rmSync(scratch, { recursive: true, force: true });
 }
