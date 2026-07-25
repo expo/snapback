@@ -4338,6 +4338,476 @@ fn projection_key_bytes(key: &[Value]) -> SnapbackResult<String> {
     })
 }
 
+/// Receipt of one `RebuildMaintainedProjection` operation (the LLP 0081
+/// minimal slice, local profile): the deterministic operation id, the plan
+/// and streaming content digests, and the publication facts. Persisted in
+/// `_snapback_meta` and consumed by verification witnesses.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionRebuildReceipt {
+    pub operation_id: String,
+    pub plan_digest: String,
+    pub content_digest: String,
+    pub row_count: usize,
+    pub generation: u64,
+    pub published_version: u64,
+    pub cause: String,
+    pub at_ms: u64,
+}
+
+impl LocalDatabase {
+    /// Rebuild a maintained projection when its plan digest changed or it
+    /// has never materialized; `Ok(None)` when the stored generation is
+    /// already current. Activation calls this for every declared plan, so
+    /// the §5 oracle holds from the first commit version a plan is active.
+    pub(crate) fn rebuild_projection_if_stale(
+        &mut self,
+        plan: &crate::manifest::MaintainedProjectionPlan,
+        cause: &str,
+    ) -> SnapbackResult<Option<ProjectionRebuildReceipt>> {
+        let plan_digest =
+            crate::rqs::sha256_identity(&serde_json::to_value(plan).map_err(|_| {
+                projection_invariant("projection plan does not serialize".to_owned())
+            })?)
+            .map_err(|_| {
+                projection_invariant("projection plan is not canonicalizable".to_owned())
+            })?;
+        let digest_key = format!("projection_plan_digest:{}", plan.id);
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![digest_key],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if stored.as_deref() == Some(plan_digest.as_str()) {
+            return Ok(None);
+        }
+        self.rebuild_projection(plan, &plan_digest, cause).map(Some)
+    }
+
+    /// `RebuildMaintainedProjection` under the local exclusive barrier
+    /// (LLP 0080 §5 / LLP 0081 minimal slice): one IMMEDIATE transaction is
+    /// the barrier — the serialized writer fences every source write for
+    /// the rebuild's duration, a crash at any point rolls back to the
+    /// predecessor generation whole, and publication is the commit. The
+    /// durable batch-cursor state machine, approval records with the full
+    /// LLP 0072 audience, and the downtime ceiling land with the complete
+    /// 0081 lane; this slice records a typed admission/receipt row and the
+    /// streaming content digest under the split oracle.
+    fn rebuild_projection(
+        &mut self,
+        plan: &crate::manifest::MaintainedProjectionPlan,
+        plan_digest: &str,
+        cause: &str,
+    ) -> SnapbackResult<ProjectionRebuildReceipt> {
+        crate::exec_guard::debug_assert_off_async_worker("a projection rebuild");
+        let schema = self.schema.clone();
+        let now_ms = now_millis();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
+        let root_table = schema_table(&schema, &plan.root)?;
+        let output_table = schema_table(&schema, &plan.output_table)?;
+        let (identity, activated_at_ms) = ensure_projection_identity(&tx, &plan.id, now_ms)?;
+
+        // --- Enumerate every root; prove existing-data fan-out. -----------
+        let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
+        let mut references: BTreeMap<String, u32> = BTreeMap::new();
+        let scan = QueryPlan {
+            table: plan.root.clone(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let (sql, values) = build_query_sql(
+            root_table,
+            &schema,
+            &scan,
+            &HandlerInput::default(),
+            &BTreeMap::new(),
+            None,
+            now_ms,
+            None,
+            None,
+            None,
+            false,
+        )?;
+        let mut statement = tx.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params_from_iter(values.iter()))?;
+        let mut roots: Vec<Value> = Vec::new();
+        while let Some(row) = rows.next()? {
+            roots.push(row_to_document(row, root_table, &columns)?);
+        }
+        drop(rows);
+        drop(statement);
+        for root in &roots {
+            // Pre-activation fan-out proof: every reverse-index entry for a
+            // joined key consumes limit, admitted or not, so an existing
+            // over-limit population refuses activation instead of leaving
+            // the joined row permanently un-updatable.
+            let joined_key = plan
+                .join_on
+                .iter()
+                .map(|pair| match root.get(&pair.root_field) {
+                    Some(value) if !value.is_null() => Some(value.clone()),
+                    _ => None,
+                })
+                .collect::<Option<Vec<Value>>>();
+            if let Some(joined_key) = joined_key {
+                let count = references
+                    .entry(projection_key_bytes(&joined_key)?)
+                    .or_insert(0);
+                *count += 1;
+                if *count > plan.fan_out_limit {
+                    return Err(projection_fanout_exceeded(format!(
+                        "existing data holds more than fanOutLimit {} references to one \
+                         joined key of projection {}; activation is refused",
+                        plan.fan_out_limit, plan.id
+                    )));
+                }
+            }
+            let id = root
+                .get("_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
+            let filter_plan = QueryPlan {
+                table: plan.root.clone(),
+                filters: plan.root_filters.clone(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            };
+            if crate::live_matcher::row_matches_query_filters(
+                &filter_plan,
+                &HandlerInput::default(),
+                root,
+            ) != Some(true)
+            {
+                continue;
+            }
+            let Some(key) = projection_root_key(plan, id, root.as_object())? else {
+                continue;
+            };
+            let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)?
+            else {
+                continue;
+            };
+            desired.insert(projection_key_bytes(&key)?, (key, logical));
+        }
+
+        // --- Converge the output table; stream the content digest. --------
+        let existing = {
+            let scan = QueryPlan {
+                table: plan.output_table.clone(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            };
+            let (sql, values) = build_query_sql(
+                output_table,
+                &schema,
+                &scan,
+                &HandlerInput::default(),
+                &BTreeMap::new(),
+                None,
+                now_ms,
+                None,
+                None,
+                None,
+                false,
+            )?;
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query(params_from_iter(values.iter()))?;
+            let mut existing = Vec::new();
+            while let Some(row) = rows.next()? {
+                existing.push(row_to_document(row, output_table, &columns)?);
+            }
+            existing
+        };
+        let mut pending: BTreeMap<String, (&Vec<Value>, &Map<String, Value>)> = desired
+            .iter()
+            .map(|(bytes, (key, logical))| {
+                let output_id = projection_row_id(&identity, activated_at_ms, bytes);
+                (output_id, (key, logical))
+            })
+            .collect();
+        let mut changed = false;
+        for row in &existing {
+            let Some(id) = row.get("_id").and_then(Value::as_str) else {
+                continue;
+            };
+            match pending.remove(id) {
+                None => {
+                    // Not in the rebuilt generation: remove.
+                    if delete_document(&tx, output_table, id)? {
+                        record_change(
+                            &tx,
+                            next_version,
+                            &output_table.name,
+                            id,
+                            ChangeOp::Delete,
+                            None,
+                            now_ms,
+                        )?;
+                        changed = true;
+                    }
+                }
+                Some((_, logical)) => {
+                    let unchanged = plan.projection.iter().all(|leaf| {
+                        row.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                            == logical.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                    });
+                    if !unchanged {
+                        patch_document(&tx, output_table, id, logical, next_version, now_ms)?;
+                        let document =
+                            get_document_from_tx(&tx, output_table, id, next_version)?;
+                        record_change(
+                            &tx,
+                            next_version,
+                            &output_table.name,
+                            id,
+                            ChangeOp::Update,
+                            document.as_ref(),
+                            now_ms,
+                        )?;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        for (output_id, (_, logical)) in &pending {
+            let document =
+                insert_document(&tx, output_table, output_id, logical, next_version, now_ms)?;
+            record_change(
+                &tx,
+                next_version,
+                &output_table.name,
+                output_id,
+                ChangeOp::Insert,
+                Some(&document),
+                now_ms,
+            )?;
+            changed = true;
+        }
+
+        // The streaming content digest under the split oracle: logical rows
+        // (key + declared leaves) in canonical output-key byte order.
+        // System fields are checked against their own deterministic rule by
+        // the verification witnesses, never folded into this digest.
+        let digest_rows: Vec<Value> = desired
+            .iter()
+            .map(|(_, (key, logical))| {
+                json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
+            })
+            .collect();
+        let content_digest = crate::rqs::seq1_digest(&digest_rows).map_err(|_| {
+            projection_invariant("rebuilt rows are not canonicalizable".to_owned())
+        })?;
+
+        // --- Publication: admission/receipt row + digest pin + commit. ----
+        let generation_key = format!("projection_generation:{}", plan.id);
+        let generation: u64 = tx
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![generation_key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0)
+            + 1;
+        // The minimal deterministic operation-id namespace: digest over the
+        // plan digest and generation. The full LLP 0081 §3 UUIDv7 namespace
+        // with conformance vectors lands with the plan-artifact ticket.
+        let operation_digest =
+            crate::rqs::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
+        let operation_id = format!(
+            "rebuild_{}",
+            operation_digest[..8]
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        let receipt = ProjectionRebuildReceipt {
+            operation_id,
+            plan_digest: plan_digest.to_owned(),
+            content_digest,
+            row_count: desired.len(),
+            generation,
+            published_version: if changed { next_version } else { current_version },
+            cause: cause.to_owned(),
+            at_ms: now_ms,
+        };
+        let upsert = |key: String, value: String| -> SnapbackResult<()> {
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, value],
+            )?;
+            Ok(())
+        };
+        upsert(digest_key_for_projection(&plan.id), plan_digest.to_owned())?;
+        upsert(generation_key, generation.to_string())?;
+        upsert(
+            format!("projection_rebuild_receipt:{}", plan.id),
+            serde_json::to_string(&receipt).map_err(|_| {
+                projection_invariant("rebuild receipt does not serialize".to_owned())
+            })?,
+        )?;
+        if changed {
+            set_version(&tx, next_version)?;
+        }
+        tx.commit()?;
+        Ok(receipt)
+    }
+
+    /// The persisted receipt of the last rebuild of `plan_id`, if any.
+    pub(crate) fn projection_rebuild_receipt(
+        &self,
+        plan_id: &str,
+    ) -> SnapbackResult<Option<ProjectionRebuildReceipt>> {
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta WHERE key = ?1",
+                params![format!("projection_rebuild_receipt:{plan_id}")],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(match stored {
+            Some(raw) => Some(serde_json::from_str(&raw).map_err(|_| {
+                projection_invariant("stored rebuild receipt is corrupt".to_owned())
+            })?),
+            None => None,
+        })
+    }
+}
+
+fn digest_key_for_projection(plan_id: &str) -> String {
+    format!("projection_plan_digest:{plan_id}")
+}
+
+/// The logical output row of one admitted root under a maintained
+/// projection (LLP 0080 §5): perform the declared unique join against the
+/// current transaction state and project the declared leaves. `None` means
+/// the plan admits no output row for this root (an inner join with a
+/// missing or null-keyed joined row). Shared by same-transaction
+/// maintenance and barrier rebuild so the two evaluators cannot drift.
+fn projection_logical_row(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    plan: &crate::manifest::MaintainedProjectionPlan,
+    root: &Value,
+    now_ms: u64,
+) -> SnapbackResult<Option<Map<String, Value>>> {
+    use crate::manifest::{JoinKind, ProjectionSource};
+    let root_join_key = plan
+        .join_on
+        .iter()
+        .map(|pair| match root.get(&pair.root_field) {
+            Some(value) if !value.is_null() => Some(value.clone()),
+            _ => None,
+        })
+        .collect::<Option<Vec<Value>>>();
+    let joined_row: Option<Value> = match root_join_key {
+        None => None,
+        Some(joined_key) => {
+            let joined_table = schema_table(schema, &plan.joined)?;
+            let filters: Vec<crate::manifest::FilterExpr> = plan
+                .join_on
+                .iter()
+                .zip(&joined_key)
+                .map(|(pair, value)| crate::manifest::FilterExpr {
+                    field: pair.joined_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(value.clone()),
+                })
+                .collect();
+            let lookup = QueryPlan {
+                table: plan.joined.clone(),
+                filters,
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: Some(2),
+                indexed_by: None,
+            };
+            let (sql, values) = build_query_sql(
+                joined_table,
+                schema,
+                &lookup,
+                &HandlerInput::default(),
+                &BTreeMap::new(),
+                None,
+                now_ms,
+                None,
+                Some(2),
+                None,
+                false,
+            )?;
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut matched = statement.query(params_from_iter(values.iter()))?;
+            let mut found: Vec<Value> = Vec::new();
+            while let Some(row) = matched.next()? {
+                found.push(row_to_document(row, joined_table, &columns)?);
+            }
+            if found.len() > 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
+                    "storage",
+                    format!(
+                        "two joined rows in {} share the unique key during maintenance of \
+                         projection {}",
+                        plan.joined, plan.id
+                    ),
+                ));
+            }
+            found.into_iter().next()
+        }
+    };
+    if joined_row.is_none() && matches!(plan.join_kind, JoinKind::Inner) {
+        return Ok(None);
+    }
+    let mut fields = Map::new();
+    for leaf in &plan.projection {
+        let value = match &leaf.source {
+            ProjectionSource::Literal(value) => value.clone(),
+            ProjectionSource::RootField(field) => {
+                root.get(field).cloned().unwrap_or(Value::Null)
+            }
+            ProjectionSource::JoinedField(field) => joined_row
+                .as_ref()
+                .and_then(|row| row.get(field).cloned())
+                .unwrap_or(Value::Null),
+        };
+        fields.insert(leaf.name.clone(), value);
+    }
+    Ok(Some(fields))
+}
+
 /// Same-transaction projection maintenance (LLP 0080 §5): close the
 /// affected-key set over pre/post images, prove the reverse-index and
 /// write-budget bounds, evaluate each affected output row exactly once
@@ -4354,7 +4824,7 @@ fn maintain_projections_in_tx(
     next_version: u64,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    use crate::manifest::{JoinKind, ProjectionOutputKey, ProjectionSource};
+    use crate::manifest::ProjectionOutputKey;
 
     let direct_writes = changes.len();
     let mut projection_writes = 0_usize;
@@ -4573,98 +5043,9 @@ fn maintain_projections_in_tx(
                 ) == Some(true)
             });
 
-            let joined_row: Option<Value> = match admitted_root {
-                None => None,
-                Some(root) => {
-                    let joined_key = root.as_object().and_then(&root_join_key_of);
-                    match joined_key {
-                        None => None,
-                        Some(joined_key) => {
-                            let filters: Vec<crate::manifest::FilterExpr> = plan
-                                .join_on
-                                .iter()
-                                .zip(&joined_key)
-                                .map(|(pair, value)| crate::manifest::FilterExpr {
-                                    field: pair.joined_field.clone(),
-                                    op: FilterOp::Eq,
-                                    value: ValueExpr::Literal(value.clone()),
-                                })
-                                .collect();
-                            let joined_table = schema_table(schema, &plan.joined)?;
-                            let lookup = QueryPlan {
-                                table: plan.joined.clone(),
-                                filters,
-                                membership_filters: Vec::new(),
-                                order: Vec::new(),
-                                limit: Some(2),
-                                indexed_by: None,
-                            };
-                            let (sql, values) = build_query_sql(
-                                joined_table,
-                                schema,
-                                &lookup,
-                                &HandlerInput::default(),
-                                &BTreeMap::new(),
-                                None,
-                                now_ms,
-                                None,
-                                Some(2),
-                                None,
-                                false,
-                            )?;
-                            let mut statement = tx.prepare(&sql)?;
-                            let columns = statement
-                                .column_names()
-                                .into_iter()
-                                .map(ToOwned::to_owned)
-                                .collect::<Vec<_>>();
-                            let mut matched = statement.query(params_from_iter(values.iter()))?;
-                            let mut found: Vec<Value> = Vec::new();
-                            while let Some(row) = matched.next()? {
-                                found.push(row_to_document(row, joined_table, &columns)?);
-                            }
-                            if found.len() > 1 {
-                                return Err(SnapbackError::error(
-                                    "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
-                                    "storage",
-                                    format!(
-                                        "two joined rows in {} share the unique key during \
-                                         maintenance of projection {}",
-                                        plan.joined, plan.id
-                                    ),
-                                ));
-                            }
-                            found.into_iter().next()
-                        }
-                    }
-                }
-            };
-
-            // Logical output row: the declared leaves; an inner join with a
-            // missing/nonmatching joined row admits no output row.
             let logical: Option<Map<String, Value>> = match admitted_root {
                 None => None,
-                Some(root) => {
-                    if joined_row.is_none() && matches!(plan.join_kind, JoinKind::Inner) {
-                        None
-                    } else {
-                        let mut fields = Map::new();
-                        for leaf in &plan.projection {
-                            let value = match &leaf.source {
-                                ProjectionSource::Literal(value) => value.clone(),
-                                ProjectionSource::RootField(field) => {
-                                    root.get(field).cloned().unwrap_or(Value::Null)
-                                }
-                                ProjectionSource::JoinedField(field) => joined_row
-                                    .as_ref()
-                                    .and_then(|row| row.get(field).cloned())
-                                    .unwrap_or(Value::Null),
-                            };
-                            fields.insert(leaf.name.clone(), value);
-                        }
-                        Some(fields)
-                    }
-                }
+                Some(root) => projection_logical_row(tx, schema, plan, root, now_ms)?,
             };
 
             let output_id = projection_row_id(&identity, activated_at_ms, &key_bytes);

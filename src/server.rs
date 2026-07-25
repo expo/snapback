@@ -32560,6 +32560,9 @@ globalThis.__snapbackHandlers = {
         // from validated cursors, so a field/order mismatch reaching storage
         // is a server bug, never a client class.
         "SNAPBACK_QUERY_KEYSET_INVALID",
+        // LLP 0080 §5: informational activation-rebuild diagnostic; never an
+        // ApiError.
+        "SNAPBACK_PROJECTION_REBUILT",
         // LLP 0092 §0D.2 atomic entry-evaluation failure.
         "SNAPBACK_BUNDLE_QUERY_FAILED",
         "SNAPBACK_ACTION_HOST_MISSING",

@@ -3672,6 +3672,31 @@ impl LocalSnapback {
             }
         };
 
+        // @ref LLP 0080#5-transactionally-maintained-projections — activation
+        //   materializes: a plan whose digest changed (or never activated)
+        //   rebuilds under the local barrier BEFORE the manifest installs,
+        //   so the §5 oracle holds from the first active commit version. A
+        //   refused rebuild (existing-data fan-out, invariant breach) fails
+        //   the whole activation.
+        for plan in &manifest.projections {
+            match self.db.rebuild_projection_if_stale(plan, "activation") {
+                Ok(Some(receipt)) => preflight.push(Diagnostic::info(
+                    "SNAPBACK_PROJECTION_REBUILT",
+                    "storage",
+                    format!(
+                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                    ),
+                )),
+                Ok(None) => {}
+                Err(error) => {
+                    preflight.push(error.diagnostic);
+                    self.record_diagnostics(preflight.clone());
+                    return preflight;
+                }
+            }
+        }
+
         self.functions = manifest;
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
@@ -3806,12 +3831,30 @@ impl LocalSnapback {
                 .expect("preflighted ephemeral definitions publish infallibly");
         });
 
+        let mut diagnostics = Vec::new();
+        for plan in &manifest.projections {
+            match self.db.rebuild_projection_if_stale(plan, "activation") {
+                Ok(Some(receipt)) => diagnostics.push(Diagnostic::info(
+                    "SNAPBACK_PROJECTION_REBUILT",
+                    "storage",
+                    format!(
+                        "projection {} rebuilt at activation: {} rows, generation {}, {}",
+                        plan.id, receipt.row_count, receipt.generation, receipt.content_digest
+                    ),
+                )),
+                Ok(None) => {}
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    self.record_diagnostics(diagnostics.clone());
+                    return diagnostics;
+                }
+            }
+        }
         self.functions = manifest;
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
         self.warm_vms.clear();
-        let mut diagnostics = Vec::new();
         if self
             .functions
             .functions
@@ -18445,6 +18488,172 @@ globalThis.__snapbackHandlers = {
             .expect("read books")
             .rows
             .is_empty()
+    }
+
+    // @ref LLP 0080#5-transactionally-maintained-projections — activation
+    //   materializes under the local barrier: pre-existing source data
+    //   rebuilds into the output before the manifest installs, the receipt
+    //   pins the plan and streaming content digests, an unchanged plan
+    //   does not rebuild again, a revised plan republished keeps row
+    //   identity, and a pre-activation over-fan-out corpus refuses
+    //   activation whole.
+    #[test]
+    fn projection_activation_rebuild_materializes_and_republishes() {
+        let (schema, functions, _plan) = projection_fixture(5);
+        let mut snapback = LocalSnapback::memory().expect("memory rebuild fixture");
+        snapback.apply_schema(schema.clone()).expect("apply schema");
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed pre-activation data");
+
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "activation must succeed: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            "activation over existing data rebuilds: {diagnostics:?}"
+        );
+        let summaries = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read summaries")
+            .rows;
+        assert_eq!(summaries.len(), 2);
+        assert!(summaries.iter().all(|s| s["authorName"] == json!("Ada")));
+        let alpha_id = summaries[0]["_id"].clone();
+        let receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("read receipt")
+            .expect("receipt exists");
+        assert_eq!(receipt.row_count, 2);
+        assert_eq!(receipt.generation, 1);
+        assert_eq!(receipt.cause, "activation");
+        assert!(receipt.content_digest.starts_with("seq1:"));
+
+        // Reloading the identical plan does not rebuild again.
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(
+            diagnostics.iter().all(|d| d.code != "SNAPBACK_PROJECTION_REBUILT"),
+            "an unchanged plan digest must not rebuild: {diagnostics:?}"
+        );
+
+        // A revised plan (leaf now projects the author's slug) republished:
+        // one rebuild, updated bytes, key-stable row identity, new digest.
+        let mut revised = functions.clone();
+        revised.projections[0].projection[1].source =
+            crate::manifest::ProjectionSource::JoinedField("slug".to_owned());
+        let diagnostics = snapback.load_functions(revised);
+        assert!(
+            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            "{diagnostics:?}"
+        );
+        let revised_receipt = snapback
+            .db
+            .projection_rebuild_receipt("book-summaries")
+            .expect("read receipt")
+            .expect("receipt exists");
+        assert_eq!(revised_receipt.generation, 2);
+        assert_ne!(revised_receipt.content_digest, receipt.content_digest);
+        let summaries = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "bookSummaries".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read summaries")
+            .rows;
+        assert!(summaries.iter().all(|s| s["authorName"] == json!("ada")));
+        assert_eq!(
+            summaries[0]["_id"], alpha_id,
+            "a plan revision re-materializes without re-keying row identity"
+        );
+
+        // Pre-activation over-fan-out corpus refuses activation whole: the
+        // manifest does not install and no output rows appear.
+        let (schema, functions, _plan) = projection_fixture(1);
+        let mut refused = LocalSnapback::memory().expect("memory refusal fixture");
+        refused.apply_schema(schema).expect("apply schema");
+        refused
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed over-fanout data");
+        let diagnostics = refused.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"),
+            "{diagnostics:?}"
+        );
+        let error = refused
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("a refused activation must not install the manifest");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
     }
 
     // @ref LLP 0080#5-transactionally-maintained-projections — activation
