@@ -59,7 +59,8 @@ validateRetainedWebReceipt(webReceipt);
 const productUiReceipt = readJson(productUiReceiptPath);
 const agentSession = readJson(agentSessionPath);
 assert.equal(productUiReceipt.ok, true);
-assert.equal(productUiReceipt.passed, 19);
+assert.equal(productUiReceipt.expectedChecks, 32);
+assert.equal(productUiReceipt.passed, productUiReceipt.expectedChecks);
 assert.equal(productUiReceipt.failed, 0);
 assert.equal(productUiReceipt.skipped, 0);
 for (const entry of productUiReceipt.testInventory ?? []) {

@@ -241,7 +241,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "bdc684c2b597484c9a3d4c9ebb7d0f38e13b9ea82ad867b91b47e048a43fd0e3"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#sequence",
@@ -269,7 +269,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "bdc684c2b597484c9a3d4c9ebb7d0f38e13b9ea82ad867b91b47e048a43fd0e3"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#evidence-and-limits",
@@ -288,7 +288,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "bdc684c2b597484c9a3d4c9ebb7d0f38e13b9ea82ad867b91b47e048a43fd0e3"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#evidence-and-limits",
@@ -308,7 +308,7 @@
         "sha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a"
       },
       "skip": "forbidden",
-      "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes; Exact counterpart \u00a72.4",
+      "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes; Exact counterpart §2.4",
       "status": "passing",
       "supersededBy": null
     },
@@ -324,10 +324,10 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "bdc684c2b597484c9a3d4c9ebb7d0f38e13b9ea82ad867b91b47e048a43fd0e3"
       },
       "skip": "forbidden",
-      "owner": "LLP 0063#sequence; Exact counterpart \u00a75.1",
+      "owner": "LLP 0063#sequence; Exact counterpart §5.1",
       "status": "passing",
       "supersededBy": null
     },
@@ -378,7 +378,7 @@
         "sha256": "41b94401888396345f8013a4ec694dbc35fd73cb08081aa3da18737474c1e254"
       },
       "skip": "forbidden",
-      "owner": "LLP 0063#evidence-and-limits; Exact counterpart \u00a75.1",
+      "owner": "LLP 0063#evidence-and-limits; Exact counterpart §5.1",
       "status": "passing",
       "supersededBy": null
     },
@@ -413,7 +413,7 @@
         "sha256": "88ea260ee9d9f519209d8aaf9841cf1f8fd2913a21fb19e4babd50b7853e0110"
       },
       "skip": "forbidden",
-      "owner": "LLP 0063#sequence; Exact counterpart \u00a75.1",
+      "owner": "LLP 0063#sequence; Exact counterpart §5.1",
       "status": "passing",
       "supersededBy": null
     },
@@ -427,7 +427,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-        "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
+        "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#product-choice-at-the-start-of-the-program",
@@ -672,7 +672,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-product-ui.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-product-ui.json",
-        "sha256": "2cbd2e9828670cc79a315e2eccce631d1d4dae5a0dce83af92b669a214bb4dec"
+        "sha256": "f39111b1b331653b35ddb946e256366dc26d7cbe75919dba0b8fc5f31a46c3e1"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language",

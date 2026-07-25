@@ -1,7 +1,7 @@
 {
   "schemaVersion": "partitime.step4-agent-session.v1",
   "ok": true,
-  "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540",
+  "exactRevision": "b4d8d6ac60ab0bd5c3447e53e6cdd9f6601f3c0c",
   "question": "Why did the bound Partitime event list not update after createEvent?",
   "answer": {
     "state": "ready",
@@ -59,14 +59,14 @@
       {
         "component": "PartifulFeed",
         "instanceId": "mount_1/ci_1",
-        "sourcePath": "/Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
+        "sourcePath": "/private/tmp/llp0063-phase4-integration-20260725.8YvL6f/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
         "queries": [
           {
             "name": "events",
             "span": {
-              "line": 24,
+              "line": 28,
               "col": 3,
-              "offset": 840,
+              "offset": 1029,
               "len": 29
             },
             "slot": {
@@ -79,9 +79,9 @@
           {
             "name": "createMut",
             "span": {
-              "line": 25,
+              "line": 29,
               "col": 3,
-              "offset": 872,
+              "offset": 1061,
               "len": 32
             }
           }
@@ -97,7 +97,7 @@
       {
         "component": "PartifulFeed",
         "instanceId": "mount_1/ci_1",
-        "sourcePath": "/Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
+        "sourcePath": "/private/tmp/llp0063-phase4-integration-20260725.8YvL6f/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
         "contractId": "contract/PartifulFeed",
         "clauseCount": 9,
         "ok": true,
@@ -437,15 +437,15 @@
   "inputs": [
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+      "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-      "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+      "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
     },
     {
       "path": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
-      "sha256": "3842e1a893857db6a348f80ee1c38c9827e462944732f93c9fad58742577d98d"
+      "sha256": "dff2a9b893b510addf3942ca67be8f5340f938dc29b55ce5e98d72402fe181e1"
     }
   ]
 }

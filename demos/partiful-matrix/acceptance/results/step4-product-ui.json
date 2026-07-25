@@ -7,52 +7,52 @@
   "outcome": "pass",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:14:32.350Z",
+  "recordedAt": "2026-07-25T20:45:11.161Z",
   "repository": {
-    "snapbackRevision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
-    "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
+    "snapbackRevision": "7b9283d6fd96c0143435c90d35f1083d69468da1",
+    "exactRevision": "b4d8d6ac60ab0bd5c3447e53e6cdd9f6601f3c0c"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+      "sha256": "bdc684c2b597484c9a3d4c9ebb7d0f38e13b9ea82ad867b91b47e048a43fd0e3"
     },
     "productUiBrowserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+      "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
     },
     "agentSession": {
       "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
-      "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
+      "sha256": "436aae606e2487a3b61ae0feb06596fdfdb9a673ad46f7235b99872d5476be49"
     },
     "surfaces": [
       {
         "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-        "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+        "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
       },
       {
         "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
-        "sha256": "481472460c5d3066978616cdf86dbd8eec487a2328c9cfe2e4e7094ca7388bab"
+        "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-        "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+        "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-        "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+        "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-        "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+        "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
-        "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
+        "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
@@ -60,7 +60,7 @@
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-        "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+        "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
       }
     ]
   },
@@ -78,13 +78,13 @@
       "evidence": {
         "reactStylesheet": {
           "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
-          "sha256": "481472460c5d3066978616cdf86dbd8eec487a2328c9cfe2e4e7094ca7388bab"
+          "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
         },
         "recipes": {
           "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
           "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
         },
-        "recipeUsages": 11,
+        "recipeUsages": 15,
         "paletteHelpers": [
           "backgroundFor",
           "textFor",
@@ -100,7 +100,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -109,12 +109,12 @@
             "details": {
               "expanded": {
                 "fontSize": 98.56,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 1280
               },
               "compact": {
                 "fontSize": 54,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 390,
                 "identity": "retained"
               },
@@ -158,7 +158,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -183,7 +183,7 @@
           }
         ],
         "reactReducedMotionRules": 1,
-        "contractPresenceDeclarations": 2
+        "contractPresenceDeclarations": 7
       }
     },
     {
@@ -193,7 +193,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -209,25 +209,25 @@
                 "portalDetached": true,
                 "overlayPosition": "fixed",
                 "descriptionTag": "TEXTAREA",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "validation": {
                 "titleInvalid": "true",
                 "locationInvalid": "true",
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           },
@@ -249,20 +249,20 @@
               "validation": {
                 "titleInvalid": null,
                 "locationInvalid": null,
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
                 "activeTestId": "create-close"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           }
@@ -282,7 +282,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -298,25 +298,25 @@
                 "portalDetached": true,
                 "overlayPosition": "fixed",
                 "descriptionTag": "TEXTAREA",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "validation": {
                 "titleInvalid": "true",
                 "locationInvalid": "true",
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           },
@@ -338,20 +338,20 @@
               "validation": {
                 "titleInvalid": null,
                 "locationInvalid": null,
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
                 "activeTestId": "create-close"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           }
@@ -376,7 +376,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -394,7 +394,7 @@
             "name": "contract × snapback mounts a bounded virtual guest window",
             "ok": true,
             "details": {
-              "tag": "DIV",
+              "tag": "UL",
               "mounted": 3,
               "totalText": "AdaHostingGraceGoingEveGoing",
               "height": 150,
@@ -432,7 +432,7 @@
             "name": "contract × snapback mounts a bounded virtual guest window",
             "ok": true,
             "details": {
-              "tag": "DIV",
+              "tag": "UL",
               "mounted": 3,
               "totalText": "AdaHostingGraceGoingEveGoing",
               "height": 150,
@@ -449,7 +449,7 @@
       "evidence": {
         "component": {
           "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-          "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+          "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
         },
         "typedProp": "value: string",
         "consumers": [
@@ -470,7 +470,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "dimensions": [
           "responsive",
@@ -486,12 +486,12 @@
             "details": {
               "expanded": {
                 "fontSize": 98.56,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 1280
               },
               "compact": {
                 "fontSize": 54,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 390,
                 "identity": "retained"
               },
@@ -537,25 +537,25 @@
                 "portalDetached": true,
                 "overlayPosition": "fixed",
                 "descriptionTag": "TEXTAREA",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "validation": {
                 "titleInvalid": "true",
                 "locationInvalid": "true",
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
-                "activeTestId": "create-title"
+                "activeTestId": "event-title"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           },
@@ -577,20 +577,20 @@
               "validation": {
                 "titleInvalid": null,
                 "locationInvalid": null,
-                "titleDescribedBy": "create-title-error",
-                "locationDescribedBy": "create-location-error",
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
                 "titleErrorRole": "alert",
                 "locationErrorRole": "alert",
                 "activeTestId": "create-close"
               },
               "trapped": {
-                "last": "create-submit",
-                "count": 6
+                "last": "create-event-submit",
+                "count": 7
               },
               "wrappedTo": "create-close",
               "restored": {
                 "overlay": false,
-                "activeTestId": "new-event"
+                "activeTestId": "create-event"
               }
             }
           },
@@ -638,7 +638,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "checks": [
           {
@@ -647,12 +647,12 @@
             "details": {
               "expanded": {
                 "fontSize": 98.56,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 1280
               },
               "compact": {
                 "fontSize": 54,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 390,
                 "identity": "retained"
               },
@@ -704,12 +704,12 @@
             "details": {
               "expanded": {
                 "fontSize": 98.56,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 1280
               },
               "compact": {
                 "fontSize": 54,
-                "background": "rgba(0, 0, 0, 0)",
+                "background": "rgb(244, 240, 232)",
                 "width": 390,
                 "identity": "retained"
               },
@@ -744,7 +744,7 @@
           }
         ],
         "nativeRecipeAuthority": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/docs/contract-web-paved-road.md",
+          "path": "../exact/docs/contract-web-paved-road.md",
           "sha256": "ece4aafc4d65c2d78a5b12ba026a214d2d3b7be718556681bac542908418487d"
         }
       }
@@ -755,15 +755,15 @@
       "reasonCode": "STEP4_UI_EXACT_AGENT_ORACLE_PASSED",
       "evidence": {
         "registry": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/packages/exact-devtools/src/agent/operations/registry.ts",
-          "sha256": "5bf1c8cada360268eb41f93b8c046122a3d2dde7772a3fa380c788d3a5b3b384"
+          "path": "../exact/packages/exact-devtools/src/agent/operations/registry.ts",
+          "sha256": "bdc296011974706cf75988cc36be6686ec0a980daca0ad0fac0af3279ab16490"
         },
         "implementation": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/packages/exact-devtools/src/agent/contract-inspection.ts",
+          "path": "../exact/packages/exact-devtools/src/agent/contract-inspection.ts",
           "sha256": "b22a15353658e2320afe41ed51fd1d509e8d3cb3aec21ec2dca829952cdf24f8"
         },
         "oracle": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/packages/exact-devtools/src/agent/contract-inspection.test.ts",
+          "path": "../exact/packages/exact-devtools/src/agent/contract-inspection.test.ts",
           "sha256": "6bb8a0ab8ce2e66c11a6bc000c9a7d546d049083a6b80be4e617c0a6f28abeac"
         },
         "execution": {
@@ -772,11 +772,11 @@
             "test",
             "packages/exact-devtools/src/agent/contract-inspection.test.ts"
           ],
-          "cwd": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721",
+          "cwd": "../exact",
           "status": 0,
           "signal": null,
           "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
-          "stderrSha256": "2bb4a9f0eee95e99046335f05805d82587d9370e17fea80fc77faac1fae72265",
+          "stderrSha256": "6be36b1f210867d4aa9c615ed2368f7a14e639d0a7b00a8a21e71cdc07398abb",
           "stdoutTail": [
             "bun test v1.3.12 (700fc117)"
           ],
@@ -792,7 +792,7 @@
             " 8 pass",
             " 0 fail",
             " 102 expect() calls",
-            "Ran 8 tests across 1 file. [557.00ms]"
+            "Ran 8 tests across 1 file. [3.22s]"
           ]
         },
         "operations": [
@@ -808,10 +808,10 @@
       "status": "pass",
       "reasonCode": "STEP4_UI_PARTITIME_FORCED_DATA_STATES_PASSED",
       "evidence": {
-        "declaredAsyncBranches": 16,
+        "declaredAsyncBranches": 20,
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece"
         },
         "check": {
           "name": "contract × snapback forces loading error empty and ready through its provider",
@@ -832,7 +832,7 @@
               {
                 "state": "empty",
                 "testId": "feed-empty",
-                "observed": "No plans yet. Make something happen."
+                "observed": "No plans yet.Make something happen when the group chat needs a destination."
               },
               {
                 "state": "ready",
@@ -852,7 +852,7 @@
         "upstreamOperation": "exact_contract_bindings",
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
-          "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
+          "sha256": "436aae606e2487a3b61ae0feb06596fdfdb9a673ad46f7235b99872d5476be49"
         },
         "question": "Why did the bound Partitime event list not update after createEvent?",
         "answer": {
@@ -887,7 +887,7 @@
               {
                 "state": "empty",
                 "testId": "feed-empty",
-                "observed": "No plans yet. Make something happen."
+                "observed": "No plans yet.Make something happen when the group chat needs a destination."
               },
               {
                 "state": "ready",
@@ -1036,27 +1036,27 @@
           "files": [
             {
               "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-              "lines": 120,
-              "bytes": 9073,
-              "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+              "lines": 184,
+              "bytes": 12295,
+              "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-              "lines": 131,
-              "bytes": 7216,
-              "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+              "lines": 220,
+              "bytes": 15740,
+              "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-              "lines": 346,
-              "bytes": 15025,
-              "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+              "lines": 439,
+              "bytes": 18295,
+              "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
               "lines": 55,
               "bytes": 1536,
-              "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
+              "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
@@ -1066,38 +1066,38 @@
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-              "lines": 11,
-              "bytes": 323,
-              "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+              "lines": 14,
+              "bytes": 399,
+              "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-              "lines": 85,
-              "bytes": 4550,
-              "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+              "lines": 77,
+              "bytes": 4085,
+              "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-              "lines": 36,
-              "bytes": 1631,
-              "sha256": "4916bc5b635171f46f583d01292ee16646a55549d18ab73f2213068c2a8da44a"
+              "lines": 99,
+              "bytes": 4180,
+              "sha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
-              "lines": 9,
-              "bytes": 613,
-              "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
+              "lines": 12,
+              "bytes": 866,
+              "sha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1"
             }
           ],
-          "totalLines": 821
+          "totalLines": 1128
         },
         "reactSource": {
           "files": [
             {
               "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-              "lines": 276,
-              "bytes": 15965,
-              "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+              "lines": 411,
+              "bytes": 26361,
+              "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
             },
             {
               "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
@@ -1112,31 +1112,73 @@
               "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
             }
           ],
-          "totalLines": 449
+          "totalLines": 584
         },
         "contractSnapbackBundle": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CwGZKwL6.js",
-              "minifiedBytes": 659515,
-              "deterministicGzipBytes": 165844,
-              "sha256": "b081fbd3df493c298894c40799a140a7e324e5bd3f36a3771c52550f0133c8e6"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/artifacts-DDhUto6a.js",
+              "minifiedBytes": 2133,
+              "deterministicGzipBytes": 718,
+              "sha256": "a03abad601917ae92c416c0de630c2f13d1c0b5e324f2932410366296981f22f"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/contract-data.manifest-CpmP9-5I.js",
+              "minifiedBytes": 6889,
+              "deterministicGzipBytes": 1499,
+              "sha256": "c53d278fef80eb3d8d476491a3d7316f308fcd3f89f93a173a731e247b3e76b4"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-BnLXbTbT.js",
+              "minifiedBytes": 29847,
+              "deterministicGzipBytes": 7044,
+              "sha256": "884bd404b3c66ce83e0e58d9c7f605c3de57fec560ec6226fe5cca062a843af7"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/functions.manifest-ocST1uw7.js",
+              "minifiedBytes": 7505,
+              "deterministicGzipBytes": 1587,
+              "sha256": "16e9df2703e7937bbea861cb9b1cdcbca9c55451aa8c2ed5f37e0d0e49edc874"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-Bv9AoB3T.js",
+              "minifiedBytes": 213254,
+              "deterministicGzipBytes": 65109,
+              "sha256": "e79c4461caceac1aa3d68bc9ea20700586a9836b479dd680c75eb9915e58afc2"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-BFcOh5Ky.js",
+              "minifiedBytes": 143224,
+              "deterministicGzipBytes": 38266,
+              "sha256": "d9600a1308e4d0f79ce4c6fe6af2dbd45f3c6d3d56e99ad64e8ad9fd892ab8fe"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-surface-BDBwyVJU.js",
+              "minifiedBytes": 12342,
+              "deterministicGzipBytes": 4070,
+              "sha256": "5d29de2a5179856429d002bb7a8d88f4f0a8968b9fbfa0b27d9db0d0dcae5ed9"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/schema.manifest-DnGb2sBa.js",
+              "minifiedBytes": 2106,
+              "deterministicGzipBytes": 825,
+              "sha256": "caa1ed98b5db12004d66ff6c5d01012c030a8e65f31862f6f165d17f827599f2"
             }
           ],
-          "minifiedBytes": 659515,
-          "deterministicGzipBytes": 165844
+          "minifiedBytes": 417300,
+          "deterministicGzipBytes": 119118
         },
         "reactSnapbackBundle": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BawSjTKa.js",
-              "minifiedBytes": 343880,
-              "deterministicGzipBytes": 101189,
-              "sha256": "266742e30b3620e6801d6129becbac63232761f17785f959366865821406de34"
+              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-CNcB5XyI.js",
+              "minifiedBytes": 380729,
+              "deterministicGzipBytes": 112315,
+              "sha256": "8d5563ebc4401a8cbbc9e649024ce1e82184e96a50fc3a891b81bc7a51c257a7"
             }
           ],
-          "minifiedBytes": 343880,
-          "deterministicGzipBytes": 101189
+          "minifiedBytes": 380729,
+          "deterministicGzipBytes": 112315
         }
       }
     }
