@@ -18,7 +18,47 @@ const receipt = {
   transientRetries: [],
   actionReceipts: [],
   scrollReceipts: [],
+  targetStatusHistory: [],
 };
+
+const lastTargetStatusKey = new Map();
+
+function recordTargetStatuses(targets) {
+  for (const target of targets) {
+    if (
+      target.live !== true ||
+      target.platform !== platform ||
+      target.tokenFingerprint !== expectedTokenFingerprint
+    ) {
+      continue;
+    }
+    const status = target.hostStatus ?? null;
+    const key = JSON.stringify({
+      generation: target.generation ?? null,
+      sequence: status?.sequence ?? null,
+      phase: status?.phase ?? null,
+      statusText: status?.statusText ?? null,
+      loadState: status?.load?.state ?? null,
+      loadLabel: status?.load?.label ?? null,
+      directPresenterApplyCount:
+        status?.presenter?.delivery?.directPresenterApplyCount ?? null,
+    });
+    if (lastTargetStatusKey.get(target.targetId) === key) continue;
+    lastTargetStatusKey.set(target.targetId, key);
+    receipt.targetStatusHistory.push({
+      observedAt: new Date().toISOString(),
+      targetId: target.targetId ?? null,
+      generation: target.generation ?? null,
+      sequence: status?.sequence ?? null,
+      phase: status?.phase ?? null,
+      statusText: status?.statusText ?? null,
+      loadState: status?.load?.state ?? null,
+      loadLabel: status?.load?.label ?? null,
+      directPresenterApplyCount:
+        status?.presenter?.delivery?.directPresenterApplyCount ?? null,
+    });
+  }
+}
 
 function checked(name, predicate, message) {
   assert.ok(predicate, message);
@@ -81,6 +121,7 @@ try {
     try {
       const targets = await json('/targets');
       lastTargets = targets.targets ?? [];
+      recordTargetStatuses(lastTargets);
       candidates = lastTargets.filter((target) =>
         target.live &&
         target.platform === platform &&
@@ -186,6 +227,7 @@ try {
     let stableObservations = 0;
     while (Date.now() < deadline) {
       const targets = await json('/targets');
+      recordTargetStatuses(targets.targets ?? []);
       const matches = (targets.targets ?? []).filter((candidate) =>
         candidate.live &&
         candidate.targetId === target.targetId &&
