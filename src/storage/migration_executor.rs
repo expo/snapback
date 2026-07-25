@@ -21,7 +21,9 @@ use super::{
     set_version, sqlite_type, timestamp_to_sql_millis, version_to_sql_integer,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{HandlerInput, SchemaManifest};
+use crate::manifest::{HandlerInput, SchemaManifest, TableManifest};
+use rusqlite::types::Value as SqlValue;
+use serde_json::Map;
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
@@ -30,7 +32,7 @@ use crate::migration::{
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
 
@@ -134,6 +136,7 @@ pub fn migration_transition_relation() -> &'static [(&'static str, &'static str)
         ("executing", "cancel_requested"),
         ("executing", "aborting"),
         ("executing", "abandoned"),
+        ("verifying", "verifying"),
         ("verifying", "published-held"),
         ("verifying", "cancel_requested"),
         ("verifying", "aborting"),
@@ -240,12 +243,126 @@ pub struct MigrationReceiptV1 {
 
 pub const MIGRATION_RECEIPT_SCHEMA_VERSION: &str = "migration-receipt-v1";
 
+/// The digest-sealed record of one §6 fast rollback (`generationRepublish`):
+/// the republished predecessor generation, the new application version `R`,
+/// what was physically restored, and the journal seal. The original forward
+/// receipt remains immutable; replaying the completed rollback returns this.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationRollbackReceiptV1 {
+    pub version: String,
+    pub operation_id: String,
+    pub plan_digest: String,
+    pub approval_digest: String,
+    /// The one new application version the republish allocated.
+    pub republished_version: u64,
+    pub rollback_timestamp_ms: u64,
+    /// The advanced predecessor storage generation; re-migrating requires a
+    /// fresh preview bound to it.
+    pub restored_storage_generation: u64,
+    /// Staged tables restored by physical rename — byte-exact republish.
+    pub staged_tables_restored: Vec<String>,
+    /// In-place tables whose new columns were cleared and whose unchanged
+    /// rows' system fields were restored from the pre-migration checkpoint.
+    pub in_place_tables_restored: Vec<String>,
+    /// Rows restamped to `R` (§6): zero under full restoration — nothing
+    /// user-visible changed from successor back to predecessor beyond the
+    /// restoration itself.
+    pub restamped_rows: u64,
+    pub journal_entries: u64,
+    pub journal_digest: String,
+}
+
+pub const MIGRATION_ROLLBACK_RECEIPT_SCHEMA_VERSION: &str = "migration-rollback-receipt-v1";
+
 // ---------------------------------------------------------------------------
 // Durable fence + lease
 // ---------------------------------------------------------------------------
 
 const META_MIGRATION_FENCE: &str = "migration_fence";
 const META_MIGRATION_LEASE_EPOCH: &str = "migration_lease_epoch";
+const META_STORAGE_GENERATION: &str = "migration_storage_generation";
+
+/// Tables any plan step writes in place (as opposed to a staged
+/// generation): the pre-migration checkpoint and the fast rollback's
+/// restoration both key on this set.
+fn in_place_written_tables(artifact: &MigrationPlanArtifactV1) -> BTreeSet<String> {
+    let mut tables = BTreeSet::new();
+    for record in &artifact.body.steps {
+        match &record.step {
+            MigrationStep::AddField { table, .. }
+            | MigrationStep::BackfillField { table, .. }
+            | MigrationStep::CopyField { table, .. } => {
+                tables.insert(table.clone());
+            }
+            _ => {}
+        }
+    }
+    tables
+}
+
+/// In-place destination columns per table — the fast rollback nulls exactly
+/// these (they are NEW columns; the §5 proof domain enforces that).
+fn in_place_written_columns(artifact: &MigrationPlanArtifactV1) -> Vec<(String, String)> {
+    let mut columns = Vec::new();
+    for record in &artifact.body.steps {
+        match &record.step {
+            MigrationStep::AddField { table, field, .. }
+            | MigrationStep::BackfillField { table, field, .. }
+            | MigrationStep::CopyField { table, field, .. } => {
+                columns.push((table.clone(), field.clone()));
+            }
+            _ => {}
+        }
+    }
+    columns
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Armed kill point: (state kind, remaining matching appends before the
+    /// simulated crash). The panic unwinds through the open transaction —
+    /// exactly a process death at that durable transition's interior.
+    static MIGRATION_KILL_POINT: std::cell::RefCell<Option<(String, u32)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn arm_migration_kill_point(state_kind: &str, nth: u32) {
+    MIGRATION_KILL_POINT.with(|slot| {
+        *slot.borrow_mut() = Some((state_kind.to_owned(), nth));
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn disarm_migration_kill_point() {
+    MIGRATION_KILL_POINT.with(|slot| *slot.borrow_mut() = None);
+}
+
+#[cfg(test)]
+fn kill_point_check(state_kind: &str) {
+    let fire = MIGRATION_KILL_POINT.with(|slot| {
+        let mut armed = slot.borrow_mut();
+        match armed.as_mut() {
+            Some((kind, remaining)) if kind == state_kind => {
+                if *remaining == 0 {
+                    *armed = None;
+                    true
+                } else {
+                    *remaining -= 1;
+                    false
+                }
+            }
+            _ => false,
+        }
+    });
+    if fire {
+        panic!("migration kill point: simulated crash inside the {state_kind} transition");
+    }
+}
+
+#[cfg(not(test))]
+fn kill_point_check(_state_kind: &str) {}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -337,9 +454,28 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
            state_json TEXT NOT NULL,
            lease_epoch INTEGER NOT NULL,
            cancel_requested INTEGER NOT NULL DEFAULT 0,
-           receipt_json TEXT
+           receipt_json TEXT,
+           rollback_receipt_json TEXT
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_migration_checkpoint (
+           operation_id TEXT NOT NULL,
+           table_name TEXT NOT NULL,
+           row_id TEXT NOT NULL,
+           version INTEGER NOT NULL,
+           updated_at INTEGER NOT NULL,
+           PRIMARY KEY (operation_id, table_name, row_id)
          );",
     )?;
+    // A Wave-2 journal predates the rollback-receipt column; additive and
+    // idempotent, tolerated as already-present.
+    match tx.execute(
+        "ALTER TABLE _snapback_migration_ops ADD COLUMN rollback_receipt_json TEXT",
+        [],
+    ) {
+        Ok(_) => {}
+        Err(error) if error.to_string().contains("duplicate column name") => {}
+        Err(error) => return Err(error.into()),
+    }
     Ok(())
 }
 
@@ -389,6 +525,7 @@ impl JournalHandle<'_> {
     /// the stored lease epoch and the transition against the closed
     /// relation before writing anything.
     fn append(&self, entry_fields: JournalAppend<'_>) -> SnapbackResult<()> {
+        kill_point_check(entry_fields.state.kind());
         let stored_epoch = current_lease_epoch(self.tx)?;
         if stored_epoch != self.lease_epoch {
             return Err(executor_stale(format!(
@@ -513,6 +650,47 @@ fn journal_entries_on(
         entries.push(
             serde_json::from_str(&row?)
                 .map_err(|_| journal_corrupt("journal entry does not parse".to_owned()))?,
+        );
+    }
+    Ok(entries)
+}
+
+fn stored_rollback_receipt_on(
+    conn: &Connection,
+    operation_id: &str,
+) -> SnapbackResult<Option<MigrationRollbackReceiptV1>> {
+    if !super::sqlite_table_exists(conn, "_snapback_migration_ops")? {
+        return Ok(None);
+    }
+    let stored: Option<Option<String>> = conn
+        .query_row(
+            "SELECT rollback_receipt_json FROM _snapback_migration_ops WHERE operation_id = ?1",
+            params![operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(match stored.flatten() {
+        Some(raw) => Some(serde_json::from_str(&raw).map_err(|_| {
+            journal_corrupt("stored rollback receipt is corrupt".to_owned())
+        })?),
+        None => None,
+    })
+}
+
+fn journal_entries_in_tx(
+    tx: &Transaction<'_>,
+    operation_id: &str,
+) -> SnapbackResult<Vec<MigrationJournalEntryV1>> {
+    let mut statement = tx.prepare(
+        "SELECT entry_json FROM _snapback_migration_journal WHERE operation_id = ?1 ORDER BY seq",
+    )?;
+    let mut rows = statement.query(params![operation_id])?;
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next()? {
+        let raw: String = row.get(0)?;
+        entries.push(
+            serde_json::from_str(&raw)
+                .map_err(|_| journal_corrupt("journal entry is corrupt".to_owned()))?,
         );
     }
     Ok(entries)
@@ -754,6 +932,48 @@ impl LocalDatabase {
             // reviewed bounds refuses and requires a new preview/approval.
             enforce_admission_ceilings(&tx, &predecessor_schema, artifact)?;
             enforce_publication_timestamp_floor(&tx, &predecessor_schema, artifact)?;
+            // A republished predecessor advanced its storage generation
+            // (LLP 0081 §6): a plan bound to the pre-rollback generation is
+            // stale and requires a fresh preview.
+            let stored_generation: Option<u64> = tx
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key = ?1",
+                    params![META_STORAGE_GENERATION],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+                .and_then(|value| value.parse().ok());
+            if let Some(stored) = stored_generation
+                && stored != artifact.body.predecessor_generation
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PLAN_STALE",
+                    "storage",
+                    format!(
+                        "plan binds predecessor storage generation {} but the target holds \
+                         {stored}; re-preview against the republished generation",
+                        artifact.body.predecessor_generation
+                    ),
+                ));
+            }
+            // Pre-migration system-field checkpoint for every table written
+            // in place: the §6 rollback expected-value evaluation restores
+            // unchanged rows' system fields from exactly this record.
+            if !resuming {
+                for table in in_place_written_tables(artifact) {
+                    if predecessor_schema.table(&table).is_some() {
+                        tx.execute(
+                            &format!(
+                                "INSERT OR IGNORE INTO _snapback_migration_checkpoint \
+                                 (operation_id, table_name, row_id, version, updated_at) \
+                                 SELECT ?1, ?2, _id, _version, _updatedAt FROM {}",
+                                quote_ident(&table)?
+                            ),
+                            params![approval.operation_id, table],
+                        )?;
+                    }
+                }
+            }
             let lease_epoch = current_lease_epoch(&tx)? + 1;
             upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
             let fence = MigrationFenceV1 {
@@ -908,7 +1128,8 @@ impl LocalDatabase {
         input_version: u64,
         now_ms: u64,
     ) -> SnapbackResult<MigrationReceiptV1> {
-        let barrier_started_ms = journal_entries_on(&self.conn, &approval.operation_id)?
+        let journal_so_far = journal_entries_on(&self.conn, &approval.operation_id)?;
+        let barrier_started_ms = journal_so_far
             .iter()
             .find(|entry| matches!(entry.state, MigrationExecState::Barriered))
             .map(|entry| entry.at_ms)
@@ -916,6 +1137,26 @@ impl LocalDatabase {
         let ceiling_ms = artifact.body.ceilings.max_barrier_downtime_ms;
         let publication_version = next_storage_version(input_version)?;
         let mut step_results: BTreeMap<String, Value> = BTreeMap::new();
+        // Crash-resume phase skip: a journaled `verifying` means every step
+        // completed (re-verify and publish); a journaled `executing(step)`
+        // means earlier steps completed (recover their journaled results,
+        // resume at that step's own boundary). Replaying a completed step's
+        // writes would double effects; replaying its transition would leave
+        // the closed relation.
+        let mut resume_at_step: Option<String> = None;
+        let mut steps_complete = false;
+        match journal_so_far.last().map(|entry| &entry.state) {
+            Some(MigrationExecState::Executing { step, .. }) => {
+                resume_at_step = Some(step.clone());
+            }
+            Some(MigrationExecState::Verifying) => steps_complete = true,
+            _ => {}
+        }
+        for entry in &journal_so_far {
+            if let (Some(step_id), Some(verification)) = (&entry.step_id, &entry.verification) {
+                step_results.insert(step_id.clone(), verification.clone());
+            }
+        }
 
         let elapsed = |at: u64| at.saturating_sub(barrier_started_ms);
         let check_ceiling = |at: u64| -> SnapbackResult<()> {
@@ -935,8 +1176,25 @@ impl LocalDatabase {
             }
         };
 
+        let mut reached_resume_point = resume_at_step.is_none();
         for (ordinal, record) in artifact.body.steps.iter().enumerate() {
             let step_id = &record.id;
+            if steps_complete {
+                break;
+            }
+            if !reached_resume_point {
+                if resume_at_step.as_deref() == Some(step_id.as_str()) {
+                    reached_resume_point = true;
+                } else {
+                    // Completed before the crash; its journaled result was
+                    // recovered above (batch steps re-derive a resumed
+                    // marker when no structural verification was journaled).
+                    step_results
+                        .entry(step_id.clone())
+                        .or_insert_with(|| json!({ "resumed": true }));
+                    continue;
+                }
+            }
             let at = now_millis();
             check_ceiling(at)?;
             self.check_cancellation(&approval.operation_id)?;
@@ -955,10 +1213,12 @@ impl LocalDatabase {
             step_results.insert(step_id.clone(), verification);
         }
 
-        // Verifying: the wave-2 verification face is the per-step validator
-        // results; the §5 expected-value/content-digest proof harness is the
-        // Wave 3 verification lane.
-        {
+        // Verifying (LLP 0081 §5): the expected-value evaluator recomputes
+        // every proof table's successor content independently from
+        // predecessor-derived rows plus the closed plan, and the actual
+        // successor digests must match before publication. A digest with no
+        // independent expected value is inventory, not proof.
+        let data_proof = {
             let at = now_millis();
             check_ceiling(at)?;
             let tx = self
@@ -971,13 +1231,24 @@ impl LocalDatabase {
                 lease_epoch,
                 input_version,
             };
+            let proof = run_data_proof(
+                &tx,
+                &self.schema,
+                successor_schema,
+                artifact,
+                input_version,
+                publication_version,
+            )?;
             journal.append(JournalAppend {
+                verification: Some(&proof),
                 at_ms: at,
                 barrier_elapsed_ms: Some(elapsed(at)),
                 ..JournalAppend::of(&MigrationExecState::Verifying)
             })?;
             tx.commit()?;
-        }
+            proof
+        };
+        step_results.insert("§5-data-proof".to_owned(), data_proof);
 
         // ---- Publication: one transaction, entering published-held. -------
         {
@@ -987,6 +1258,33 @@ impl LocalDatabase {
             let tx = self
                 .conn
                 .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            // Swap staged generations into place first: the predecessor
+            // table parks under its retired name for the rollback window,
+            // and the staged successor takes the live name, so the DDL
+            // below applies to the published generation.
+            for record in &artifact.body.steps {
+                if let MigrationStep::StageTableGeneration { table, generation } = &record.step {
+                    let retired = retired_table_name(table, artifact.body.predecessor_generation);
+                    if super::sqlite_table_exists(&tx, table)? {
+                        tx.execute(
+                            &format!(
+                                "ALTER TABLE {} RENAME TO {}",
+                                quote_ident(table)?,
+                                quote_ident(&retired)?
+                            ),
+                            [],
+                        )?;
+                    }
+                    tx.execute(
+                        &format!(
+                            "ALTER TABLE {} RENAME TO {}",
+                            quote_ident(&staged_table_name(table, *generation))?,
+                            quote_ident(table)?
+                        ),
+                        [],
+                    )?;
+                }
+            }
             // Publish the successor schema manifest and its additive DDL.
             for table in &successor_schema.tables {
                 create_or_update_table(&tx, table)?;
@@ -1210,6 +1508,274 @@ impl LocalDatabase {
 
     /// Request cancellation at the next admitted boundary (pre-publication
     /// only). Never leaves the machine outside a named state.
+    /// The §6 fast rollback (`generationRepublish`): available exactly
+    /// while the journal shows `published-held` — the fence has kept every
+    /// lane closed, so nothing outside it observed the successor. One
+    /// transaction republishes the retained predecessor generation,
+    /// allocates exactly one new application version `R`, appends the
+    /// rollback-resync row, raises the retention floor to `R`, advances the
+    /// predecessor storage generation, and seals the rollback receipt. The
+    /// rollback command runs under the original operation's approval, which
+    /// acknowledged the rollback boundary by declaring the explicit
+    /// rollback timestamp.
+    pub fn migrate_rollback(
+        &mut self,
+        artifact: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+        audience: &ResolvedLocalAudience,
+        now_ms: u64,
+    ) -> SnapbackResult<MigrationRollbackReceiptV1> {
+        validate_approval_shape(approval)?;
+        if approval.plan_digest != artifact.plan_digest {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
+                "storage",
+                "the approval binds a different plan digest",
+            ));
+        }
+        validate_local_audience(&approval.audience, audience)?;
+        // Completed-rollback replay returns the sealed rollback receipt.
+        if let Some(receipt) = stored_rollback_receipt_on(&self.conn, &approval.operation_id)? {
+            return Ok(receipt);
+        }
+        let rollback_timestamp_ms = artifact
+            .body
+            .constants
+            .rollback_timestamp_ms
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
+                    "storage",
+                    "the plan declares no rollbackTimestampMs; the approval never acknowledged \
+                     a fast-rollback boundary — rollback requires a separately approved reverse \
+                     plan or restore",
+                )
+            })?;
+        match latest_state_on(&self.conn, &approval.operation_id)? {
+            Some(MigrationExecState::PublishedHeld) => {}
+            other => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
+                    "storage",
+                    format!(
+                        "fast rollback is available exactly while published-held (found \
+                         {:?}); after release, traffic and workers may have issued external \
+                         effects, so rollback requires a separately approved reverse plan or \
+                         restore from the pre-migration backup",
+                        other.map(|state| state.kind().to_owned())
+                    ),
+                ));
+            }
+        }
+
+        let predecessor_schema = self.schema.clone();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        ensure_migration_tables(&tx)?;
+        let lease_epoch = current_lease_epoch(&tx)? + 1;
+        upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
+        let head = current_version_on(&tx)?;
+        let republished_version = next_storage_version(head)?;
+        let journal = JournalHandle {
+            tx: &tx,
+            operation_id: approval.operation_id.clone(),
+            plan_id: artifact.plan_id.clone(),
+            lease_epoch,
+            input_version: head,
+        };
+        journal.append(JournalAppend {
+            at_ms: now_ms,
+            ..JournalAppend::of(&MigrationExecState::RollingBack)
+        })?;
+
+        // Staged generations: physical rename restores byte-exact bytes.
+        let mut staged_restored = Vec::new();
+        for record in &artifact.body.steps {
+            if let MigrationStep::StageTableGeneration { table, generation } = &record.step {
+                tx.execute(
+                    &format!(
+                        "ALTER TABLE {} RENAME TO {}",
+                        quote_ident(table)?,
+                        quote_ident(&staged_table_name(table, *generation))?
+                    ),
+                    [],
+                )?;
+                let retired = retired_table_name(table, artifact.body.predecessor_generation);
+                if super::sqlite_table_exists(&tx, &retired)? {
+                    tx.execute(
+                        &format!(
+                            "ALTER TABLE {} RENAME TO {}",
+                            quote_ident(&retired)?,
+                            quote_ident(table)?
+                        ),
+                        [],
+                    )?;
+                }
+                staged_restored.push(table.clone());
+            }
+        }
+
+        // In-place tables: clear the new columns and restore unchanged
+        // rows' system fields from the pre-migration checkpoint — the §6
+        // rollback expected-value evaluation (predecessor-visible content
+        // never changed in place, so zero rows restamp to R).
+        let mut in_place_restored = BTreeSet::new();
+        for (table, column) in in_place_written_columns(artifact) {
+            if predecessor_schema.table(&table).is_none() {
+                continue;
+            }
+            tx.execute(
+                &format!(
+                    "UPDATE {} SET {} = NULL",
+                    quote_ident(&table)?,
+                    quote_ident(&column)?
+                ),
+                [],
+            )?;
+            in_place_restored.insert(table);
+        }
+        for table in &in_place_restored {
+            tx.execute(
+                &format!(
+                    "UPDATE {} SET _version = checkpoint.version, _updatedAt = \
+                     checkpoint.updated_at FROM _snapback_migration_checkpoint AS checkpoint \
+                     WHERE checkpoint.operation_id = ?1 AND checkpoint.table_name = ?2 AND \
+                     checkpoint.row_id = {}._id",
+                    quote_ident(table)?,
+                    quote_ident(table)?
+                ),
+                params![approval.operation_id, table],
+            )?;
+        }
+
+        // Republish the predecessor: schema manifest, one new version R,
+        // the rollback-resync row, the raised floor, and the advanced
+        // storage generation — atomically.
+        upsert_meta(
+            &tx,
+            META_SCHEMA_MANIFEST,
+            &serde_json::to_string(&predecessor_schema)
+                .map_err(|_| journal_corrupt("predecessor schema serialize".to_owned()))?,
+        )?;
+        set_version(&tx, republished_version)?;
+        save_retention_floor_on(&tx, republished_version)?;
+        let restored_storage_generation = artifact.body.predecessor_generation + 1;
+        upsert_meta(
+            &tx,
+            META_STORAGE_GENERATION,
+            &restored_storage_generation.to_string(),
+        )?;
+        // The typed rollback-resync event (the LLP 0007 grammar amendment,
+        // first-class like schema-resync). Body fields stay in PLAN
+        // orientation — predecessor/successor name the plan's two schemas —
+        // and the kind carries the direction: the plan's predecessor was
+        // republished, its storage generation advanced to
+        // `restored_storage_generation`.
+        crate::storage::record_schema_transition_event(
+            &tx,
+            republished_version,
+            crate::storage::SchemaTransitionKind::RollbackResync,
+            &crate::storage::SchemaTransitionEventBodyV1 {
+                operation_id: approval.operation_id.clone(),
+                plan_id: artifact.plan_id.clone(),
+                predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+                successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+                predecessor_generation: artifact.body.predecessor_generation,
+                successor_generation: restored_storage_generation,
+                retention_floor: republished_version,
+                compatibility_posture: artifact.body.compatibility_posture,
+            },
+            rollback_timestamp_ms,
+        )?;
+
+        journal.append(JournalAppend {
+            output_version: Some(republished_version),
+            at_ms: now_ms,
+            ..JournalAppend::of(&MigrationExecState::RolledBack)
+        })?;
+        let cleanup = MigrationExecState::CleanupPending {
+            terminal: CleanupTerminal::RolledBack,
+        };
+        journal.append(JournalAppend {
+            at_ms: now_ms,
+            ..JournalAppend::of(&cleanup)
+        })?;
+        journal.append(JournalAppend {
+            at_ms: now_ms,
+            ..JournalAppend::of(&MigrationExecState::RolledBack)
+        })?;
+        delete_meta(&tx, META_MIGRATION_FENCE)?;
+
+        // Seal both faces: the rollback receipt, and a terminal forward
+        // receipt so replaying the completed forward operation answers with
+        // its terminal state instead of re-executing.
+        let entries = journal_entries_in_tx(&tx, &approval.operation_id)?;
+        let entries_value = serde_json::to_value(&entries)
+            .map_err(|_| journal_corrupt("journal serialize".to_owned()))?;
+        let journal_jcs = crate::rqs::jcs(&entries_value)
+            .map_err(|_| journal_corrupt("journal canonicalize".to_owned()))?;
+        let journal_digest: String = {
+            use sha2::{Digest, Sha256};
+            Sha256::digest(journal_jcs.as_bytes())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect()
+        };
+        let rollback_receipt = MigrationRollbackReceiptV1 {
+            version: MIGRATION_ROLLBACK_RECEIPT_SCHEMA_VERSION.to_owned(),
+            operation_id: approval.operation_id.clone(),
+            plan_digest: artifact.plan_digest.clone(),
+            approval_digest: approval_digest(approval)?,
+            republished_version,
+            rollback_timestamp_ms,
+            restored_storage_generation,
+            staged_tables_restored: staged_restored,
+            in_place_tables_restored: in_place_restored.into_iter().collect(),
+            restamped_rows: 0,
+            journal_entries: entries.len() as u64,
+            journal_digest,
+        };
+        tx.execute(
+            "UPDATE _snapback_migration_ops SET rollback_receipt_json = ?2, state_json = ?3 \
+             WHERE operation_id = ?1",
+            params![
+                approval.operation_id,
+                serde_json::to_string(&rollback_receipt)
+                    .map_err(|_| journal_corrupt("rollback receipt serialize".to_owned()))?,
+                serde_json::to_string(&MigrationExecState::RolledBack)
+                    .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
+            ],
+        )?;
+        let forward = seal_receipt(
+            &tx,
+            &approval.operation_id,
+            artifact,
+            approval,
+            &MigrationAdmissionV1 {
+                schema_version: crate::migration::MIGRATION_ADMISSION_SCHEMA_VERSION.to_owned(),
+                operation_id: approval.operation_id.clone(),
+                plan_digest: artifact.plan_digest.clone(),
+                approval_digest: approval_digest(approval)?,
+                predecessor_head_version: head,
+                enforced: artifact.body.ceilings.clone(),
+                admitted_at_ms: now_ms,
+            },
+            BTreeMap::new(),
+            None,
+        )?;
+        store_receipt(&tx, &approval.operation_id, &forward)?;
+        tx.commit()?;
+        Ok(rollback_receipt)
+    }
+
+    pub fn migration_rollback_receipt(
+        &self,
+        operation_id: &str,
+    ) -> SnapbackResult<Option<MigrationRollbackReceiptV1>> {
+        stored_rollback_receipt_on(&self.conn, operation_id)
+    }
+
     pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {
         match latest_state_on(&self.conn, operation_id)? {
             None => Err(SnapbackError::error(
@@ -1403,9 +1969,28 @@ impl LocalDatabase {
                 expr,
             } => {
                 if source_table != table {
-                    return Err(profile_unsupported(
-                        "cross-table CopyField is not admitted by this wave's local profile",
-                    ));
+                    // Cross-table copy corresponds rows by `_id`: the closed
+                    // expression evaluates over the SOURCE row and writes the
+                    // destination row sharing its id; a destination row with
+                    // no source counterpart keeps its value.
+                    return self.run_cross_table_copy_batches(
+                        source_table,
+                        source_field,
+                        table,
+                        field,
+                        expr.as_ref(),
+                        successor_schema,
+                        constants,
+                        publication_version,
+                        &journal_step_wrapper(
+                            &operation_id,
+                            &plan_id,
+                            step_id,
+                            lease_epoch,
+                            input_version,
+                            barrier_started_ms,
+                        ),
+                    );
                 }
                 let copy_expr = expr.clone().unwrap_or(crate::manifest::ValueExpr::Field {
                     base: Box::new(crate::manifest::ValueExpr::Binding("row".to_owned())),
@@ -1515,13 +2100,77 @@ impl LocalDatabase {
                 tx.commit()?;
                 Ok(verification)
             }
-            MigrationStep::CopyTable { .. }
-            | MigrationStep::StageTableGeneration { .. }
-            | MigrationStep::RetireGeneration { .. } => Err(profile_unsupported(
-                "staged-generation steps are not admitted by this wave's local profile",
-            )),
+            // Staged-generation steps (LLP 0081 §3/§4): the staged table is
+            // migration-private — a physical table no schema manifest names,
+            // invisible to every fenced application lane — and the swap into
+            // place happens only inside the publication transaction.
+            MigrationStep::StageTableGeneration { table, generation } => {
+                let tx = self
+                    .conn
+                    .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                let successor_table = successor_schema
+                    .table(table)
+                    .ok_or_else(|| step_failed(step_id, "staged table undeclared on successor"))?;
+                let mut staged = successor_table.clone();
+                staged.name = staged_table_name(table, *generation);
+                create_or_update_table(&tx, &staged)?;
+                journal_step(&tx, 0, None, None, Some(&json!({ "staged": staged.name })))?;
+                tx.commit()?;
+                Ok(json!({ "staged": true }))
+            }
+            MigrationStep::CopyTable {
+                source_table,
+                table,
+                generation,
+                fields,
+            } => self.run_staged_copy_batches(
+                &operation_id,
+                source_table,
+                table,
+                *generation,
+                fields,
+                successor_schema,
+                constants,
+                publication_version,
+                step_id,
+                &journal_step_wrapper(
+                    &operation_id,
+                    &plan_id,
+                    step_id,
+                    lease_epoch,
+                    input_version,
+                    barrier_started_ms,
+                ),
+            ),
+            MigrationStep::RetireGeneration { table, generation } => {
+                // Logical retirement only: the physical predecessor bytes
+                // survive through the rollback window; the cleanup-pending
+                // tail names them for the separately fenced physical drop.
+                let tx = self
+                    .conn
+                    .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                let verification = json!({
+                    "retired": { "table": table, "generation": generation },
+                    "physicalCleanup": "fenced behind the rollback window",
+                });
+                journal_step(&tx, 0, None, None, Some(&verification))?;
+                tx.commit()?;
+                Ok(verification)
+            }
         }
     }
+}
+
+/// Physical name of a staged successor generation: no schema manifest ever
+/// names it, so every fenced application lane is structurally blind to it.
+fn staged_table_name(table: &str, generation: u64) -> String {
+    format!("{table}__g{generation}")
+}
+
+/// Physical name a replaced predecessor generation parks under between
+/// publication and cleanup — the rollback window's restore source.
+fn retired_table_name(table: &str, generation: u64) -> String {
+    format!("{table}__retired_g{generation}")
 }
 
 type JournalStepFn<'a> = dyn Fn(
@@ -1700,6 +2349,197 @@ impl LocalDatabase {
         Ok(json!({ "rowsWritten": rows_written }))
     }
 
+    /// Staged copy (LLP 0081 §3 CopyTable): deterministic keyset batches
+    /// from the source table into the migration-private staged generation.
+    /// Inherited rows preserve `_id`/`_createdAt`; a row whose produced
+    /// user-visible content differs from its source receives the
+    /// publication version and `publicationTimestampMs`; unchanged rows
+    /// preserve all four system fields (§4's identity rules).
+    #[allow(clippy::too_many_arguments)]
+    fn run_staged_copy_batches(
+        &mut self,
+        operation_id: &str,
+        source_table: &str,
+        table: &str,
+        generation: u64,
+        fields: &BTreeMap<String, crate::manifest::ValueExpr>,
+        successor_schema: &SchemaManifest,
+        constants: &crate::migration::MigrationConstants,
+        publication_version: u64,
+        step_id: &str,
+        journal_step: &JournalStepFn<'_>,
+    ) -> SnapbackResult<Value> {
+        let staged_name = staged_table_name(table, generation);
+        let successor_table = successor_schema
+            .table(table)
+            .ok_or_else(|| step_failed(step_id, "CopyTable destination undeclared"))?;
+        let mut staged_manifest = successor_table.clone();
+        staged_manifest.name = staged_name.clone();
+        let source_schema = self.schema.clone();
+        let mut after: Option<String> =
+            resume_backfill_boundary(&self.conn, operation_id, step_id)?;
+        let mut batch: u64 = 0;
+        let mut rows_copied: u64 = 0;
+        let mut rows_restamped: u64 = 0;
+        let input = HandlerInput {
+            args: Value::Object(constants.values.clone().into_iter().collect()),
+            ..HandlerInput::default()
+        };
+        loop {
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let page_rows = read_id_page(&tx, &source_schema, source_table, after.as_deref())?;
+            let mut last_id: Option<String> = None;
+            for row in &page_rows {
+                let id = row
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| journal_corrupt("source row without _id".to_owned()))?
+                    .to_owned();
+                last_id = Some(id.clone());
+                let mut bindings = BTreeMap::new();
+                bindings.insert("row".to_owned(), row.clone());
+                let mut produced = Map::new();
+                let mut content_changed = false;
+                for (dest_field, expr) in fields {
+                    let value = eval_expr(
+                        expr,
+                        &input,
+                        &bindings,
+                        constants.publication_timestamp_ms,
+                        None,
+                    )?;
+                    if row.get(dest_field).cloned().unwrap_or(Value::Null) != value {
+                        content_changed = true;
+                    }
+                    produced.insert(dest_field.clone(), value);
+                }
+                let (version, updated_at) = if content_changed {
+                    rows_restamped += 1;
+                    (publication_version, constants.publication_timestamp_ms)
+                } else {
+                    (
+                        row.get("_version").and_then(Value::as_u64).unwrap_or(0),
+                        row.get("_updatedAt").and_then(Value::as_u64).unwrap_or(0),
+                    )
+                };
+                let created_at = row.get("_createdAt").and_then(Value::as_u64).unwrap_or(0);
+                insert_staged_row(
+                    &tx,
+                    &staged_manifest,
+                    &id,
+                    &produced,
+                    version,
+                    created_at,
+                    updated_at,
+                )?;
+                rows_copied += 1;
+            }
+            let done = page_rows.len() < BACKFILL_BATCH_ROWS;
+            if let Some(id) = &last_id {
+                after = Some(id.clone());
+            }
+            journal_step(&tx, batch, None, after.as_deref(), None)?;
+            tx.commit()?;
+            batch += 1;
+            if done {
+                break;
+            }
+        }
+        Ok(json!({
+            "rowsCopied": rows_copied,
+            "rowsRestamped": rows_restamped,
+            "staged": staged_name,
+        }))
+    }
+
+    /// Cross-table CopyField: rows correspond by `_id`; the expression
+    /// evaluates over the source row; destination rows without a source
+    /// counterpart are untouched.
+    #[allow(clippy::too_many_arguments)]
+    fn run_cross_table_copy_batches(
+        &mut self,
+        source_table: &str,
+        source_field: &str,
+        table: &str,
+        field: &str,
+        expr: Option<&crate::manifest::ValueExpr>,
+        successor_schema: &SchemaManifest,
+        constants: &crate::migration::MigrationConstants,
+        publication_version: u64,
+        journal_step: &JournalStepFn<'_>,
+    ) -> SnapbackResult<Value> {
+        let source_schema = self.schema.clone();
+        let dest_schema = effective_barrier_schema(&self.schema, successor_schema, table);
+        let copy_expr = expr.cloned().unwrap_or(crate::manifest::ValueExpr::Field {
+            base: Box::new(crate::manifest::ValueExpr::Binding("row".to_owned())),
+            key: source_field.to_owned(),
+        });
+        let mut after: Option<String> = None;
+        let mut batch: u64 = 0;
+        let mut rows_written: u64 = 0;
+        let input = HandlerInput {
+            args: Value::Object(constants.values.clone().into_iter().collect()),
+            ..HandlerInput::default()
+        };
+        loop {
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let page_rows = read_id_page(&tx, &source_schema, source_table, after.as_deref())?;
+            let dest_table = schema_table(&dest_schema, table)?;
+            let mut last_id: Option<String> = None;
+            for row in &page_rows {
+                let id = row
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| journal_corrupt("source row without _id".to_owned()))?
+                    .to_owned();
+                last_id = Some(id.clone());
+                let mut bindings = BTreeMap::new();
+                bindings.insert("row".to_owned(), row.clone());
+                let value = eval_expr(
+                    &copy_expr,
+                    &input,
+                    &bindings,
+                    constants.publication_timestamp_ms,
+                    None,
+                )?;
+                let field_manifest = dest_table.field(field);
+                let sql_value =
+                    super::json_to_sql_value(&value, field_manifest.map(|f| &f.field_type))?;
+                let written = tx.execute(
+                    &format!(
+                        "UPDATE {} SET {} = ?1, _version = ?2, _updatedAt = ?3 \
+                         WHERE _id = ?4 AND {} IS NOT ?1",
+                        quote_ident(&dest_table.name)?,
+                        quote_ident(field)?,
+                        quote_ident(field)?
+                    ),
+                    params![
+                        sql_value,
+                        version_to_sql_integer(publication_version)?,
+                        timestamp_to_sql_millis(constants.publication_timestamp_ms)?,
+                        id
+                    ],
+                )?;
+                rows_written += written as u64;
+            }
+            let done = page_rows.len() < BACKFILL_BATCH_ROWS;
+            if let Some(id) = &last_id {
+                after = Some(id.clone());
+            }
+            journal_step(&tx, batch, None, after.as_deref(), None)?;
+            tx.commit()?;
+            batch += 1;
+            if done {
+                break;
+            }
+        }
+        Ok(json!({ "rowsWritten": rows_written }))
+    }
+
     fn run_validation_scan(
         &mut self,
         successor_schema: &SchemaManifest,
@@ -1779,6 +2619,538 @@ impl LocalDatabase {
         }
         Ok(verification)
     }
+}
+
+/// How one proof table's successor content derives from predecessor rows.
+enum ProofTransform<'a> {
+    /// Staged CopyTable: pristine predecessor rows still exist in the
+    /// source table; the expected evaluator maps them through the closed
+    /// field expressions — fully independent of the executor's writes.
+    Staged {
+        source_table: &'a str,
+        staged_table: String,
+        fields: &'a BTreeMap<String, crate::manifest::ValueExpr>,
+    },
+    /// In-place writes into NEW columns: the predecessor-visible row is the
+    /// actual row minus the destination columns, so the expected value
+    /// recomputes from expression semantics. Destinations that existed on
+    /// the predecessor are outside this proof domain (fail-closed).
+    InPlace {
+        writes: Vec<(&'a str, &'a crate::manifest::ValueExpr)>,
+    },
+}
+
+/// The LLP 0081 §5 data proof: for every table the plan marks with
+/// `ContentDigest` verification, compute expected logical/system
+/// `ContentDigestV1` streams from predecessor-derived rows plus the closed
+/// plan, compare with the actual successor streams, and check declared
+/// `RowCountMatchesSource` facts. `sampled-audit` bounds the row stream and
+/// says so on its face; it is never a proof.
+fn run_data_proof(
+    tx: &Transaction<'_>,
+    predecessor_schema: &SchemaManifest,
+    successor_schema: &SchemaManifest,
+    artifact: &MigrationPlanArtifactV1,
+    barrier_head: u64,
+    publication_version: u64,
+) -> SnapbackResult<Value> {
+    use crate::migration::{MigrationProofMethod, MigrationVerification};
+    let constants = &artifact.body.constants;
+    let proof_method = artifact.body.proof.method;
+    let sample_bound = match proof_method {
+        MigrationProofMethod::Full => None,
+        MigrationProofMethod::SampledAudit => Some(artifact.body.proof.bound.unwrap_or(0)),
+    };
+
+    // Collect proof tables and row-count facts from the per-step
+    // verification declarations.
+    let mut digest_tables: BTreeSet<String> = BTreeSet::new();
+    let mut row_count_facts: Vec<(String, String)> = Vec::new();
+    for record in &artifact.body.steps {
+        for verification in &record.verification {
+            match verification {
+                MigrationVerification::ContentDigest { table } => {
+                    digest_tables.insert(table.clone());
+                }
+                MigrationVerification::RowCountMatchesSource {
+                    source_table,
+                    table,
+                } => row_count_facts.push((source_table.clone(), table.clone())),
+            }
+        }
+    }
+
+    let mut tables_proof = serde_json::Map::new();
+    for table in &digest_tables {
+        // Resolve the transform for this table from the plan's steps.
+        let staged = artifact.body.steps.iter().find_map(|record| {
+            if let MigrationStep::CopyTable {
+                source_table,
+                table: dest,
+                generation,
+                fields,
+            } = &record.step
+                && dest == table
+            {
+                Some(ProofTransform::Staged {
+                    source_table,
+                    staged_table: staged_table_name(dest, *generation),
+                    fields,
+                })
+            } else {
+                None
+            }
+        });
+        let transform = match staged {
+            Some(transform) => transform,
+            None => {
+                let mut writes = Vec::new();
+                for record in &artifact.body.steps {
+                    match &record.step {
+                        MigrationStep::AddField {
+                            table: dest,
+                            field,
+                            backfill: Some(expr),
+                            ..
+                        }
+                        | MigrationStep::BackfillField {
+                            table: dest,
+                            field,
+                            expr,
+                        } if dest == table => writes.push((field.as_str(), expr)),
+                        MigrationStep::CopyField {
+                            source_table,
+                            table: dest,
+                            field,
+                            expr: Some(expr),
+                            ..
+                        } if dest == table && source_table == table => {
+                            writes.push((field.as_str(), expr));
+                        }
+                        _ => {}
+                    }
+                }
+                // Fail-closed proof domain: every in-place destination must
+                // be NEW on the successor — a predecessor column's prior
+                // bytes are unrecoverable in place, so its digest would be
+                // approximate, which §5 refuses.
+                if let Some(predecessor_table) = predecessor_schema.table(table) {
+                    for (field, _) in &writes {
+                        if predecessor_table.field(field).is_some() {
+                            return Err(profile_unsupported(
+                                "ContentDigest proof over an in-place write to a predecessor \
+                                 column is outside v1's proof domain; stage a generation instead",
+                            ));
+                        }
+                    }
+                }
+                ProofTransform::InPlace { writes }
+            }
+        };
+
+        let successor_table = successor_schema
+            .table(table)
+            .ok_or_else(|| profile_unsupported("proof table undeclared on the successor"))?;
+        let header = crate::rqs::ContentDigestHeaderV1 {
+            algorithm_version: 1,
+            plan_digest: artifact.plan_digest.clone(),
+            schema_hash: artifact.body.successor_schema_hash.clone(),
+            qualified_table: (*table).clone(),
+            generation: format!("g{}", artifact.body.predecessor_generation + 1),
+            barrier_head,
+            publication_version,
+            publication_timestamp: constants.publication_timestamp_ms,
+        };
+        let mut expected_logical =
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
+        let mut expected_system = crate::rqs::ContentDigestStream::new(
+            crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
+            &header,
+        );
+        let mut actual_logical =
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
+        let mut actual_system = crate::rqs::ContentDigestStream::new(
+            crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
+            &header,
+        );
+        let input = HandlerInput {
+            args: Value::Object(constants.values.clone().into_iter().collect()),
+            ..HandlerInput::default()
+        };
+        let digest_refused = |_: crate::rqs::MintRefusal| {
+            profile_unsupported(
+                "a row value is outside the canonical proof domain; refused, never digested \
+                 approximately",
+            )
+        };
+        let logical_value = |row: &Value| -> Value {
+            let mut fields = serde_json::Map::new();
+            for field in &successor_table.fields {
+                if let Some(value) = row.get(&field.name)
+                    && !value.is_null()
+                {
+                    fields.insert(field.name.clone(), value.clone());
+                }
+            }
+            if let Some(id) = row.get("_id") {
+                fields.insert("_id".to_owned(), id.clone());
+            }
+            Value::Object(fields)
+        };
+        let system_value = |row: &Value| -> Value {
+            json!({
+                "_id": row.get("_id").cloned().unwrap_or(Value::Null),
+                "_version": row.get("_version").cloned().unwrap_or(Value::Null),
+                "_createdAt": row.get("_createdAt").cloned().unwrap_or(Value::Null),
+                "_updatedAt": row.get("_updatedAt").cloned().unwrap_or(Value::Null),
+            })
+        };
+
+        let mut rows_proven: u64 = 0;
+        match &transform {
+            ProofTransform::Staged {
+                source_table,
+                staged_table,
+                fields,
+            } => {
+                // Expected: map pristine source rows through the closed plan.
+                let mut after: Option<String> = None;
+                'expected: loop {
+                    let page = read_id_page(tx, predecessor_schema, source_table, after.as_deref())?;
+                    for row in &page {
+                        if sample_bound.is_some_and(|bound| rows_proven >= bound) {
+                            break 'expected;
+                        }
+                        let mut bindings = BTreeMap::new();
+                        bindings.insert("row".to_owned(), row.clone());
+                        let mut produced = serde_json::Map::new();
+                        let mut content_changed = false;
+                        for (dest, expr) in fields.iter() {
+                            let value = eval_expr(
+                                expr,
+                                &input,
+                                &bindings,
+                                constants.publication_timestamp_ms,
+                                None,
+                            )?;
+                            if row.get(dest).cloned().unwrap_or(Value::Null) != value {
+                                content_changed = true;
+                            }
+                            if !value.is_null() {
+                                produced.insert(dest.clone(), value);
+                            }
+                        }
+                        produced.insert(
+                            "_id".to_owned(),
+                            row.get("_id").cloned().unwrap_or(Value::Null),
+                        );
+                        expected_logical
+                            .absorb_row(&Value::Object(produced))
+                            .map_err(digest_refused)?;
+                        let (version, updated) = if content_changed {
+                            (
+                                json!(publication_version),
+                                json!(constants.publication_timestamp_ms),
+                            )
+                        } else {
+                            (
+                                row.get("_version").cloned().unwrap_or(Value::Null),
+                                row.get("_updatedAt").cloned().unwrap_or(Value::Null),
+                            )
+                        };
+                        expected_system
+                            .absorb_row(&json!({
+                                "_id": row.get("_id").cloned().unwrap_or(Value::Null),
+                                "_version": version,
+                                "_createdAt": row.get("_createdAt").cloned().unwrap_or(Value::Null),
+                                "_updatedAt": updated,
+                            }))
+                            .map_err(digest_refused)?;
+                        rows_proven += 1;
+                        after = row.get("_id").and_then(Value::as_str).map(str::to_owned);
+                    }
+                    if page.len() < BACKFILL_BATCH_ROWS {
+                        break;
+                    }
+                }
+                // Actual: the staged generation's stored bytes.
+                let mut staged_manifest = successor_table.clone();
+                staged_manifest.name = staged_table.clone();
+                let mut staged_schema = successor_schema.clone();
+                staged_schema.tables.push(staged_manifest);
+                let mut after: Option<String> = None;
+                let mut actual_rows: u64 = 0;
+                'actual: loop {
+                    let page = read_id_page(tx, &staged_schema, staged_table, after.as_deref())?;
+                    for row in &page {
+                        if sample_bound.is_some_and(|bound| actual_rows >= bound) {
+                            break 'actual;
+                        }
+                        actual_logical
+                            .absorb_row(&logical_value(row))
+                            .map_err(digest_refused)?;
+                        actual_system
+                            .absorb_row(&system_value(row))
+                            .map_err(digest_refused)?;
+                        actual_rows += 1;
+                        after = row.get("_id").and_then(Value::as_str).map(str::to_owned);
+                    }
+                    if page.len() < BACKFILL_BATCH_ROWS {
+                        break;
+                    }
+                }
+            }
+            ProofTransform::InPlace { writes } => {
+                // One pass: each actual row also yields its expected form —
+                // the predecessor-visible reconstruction (actual minus the
+                // new destination columns) pushed through the expressions.
+                let schema = effective_barrier_schema(predecessor_schema, successor_schema, table);
+                let mut after: Option<String> = None;
+                'inplace: loop {
+                    let page = read_id_page(tx, &schema, table, after.as_deref())?;
+                    for row in &page {
+                        if sample_bound.is_some_and(|bound| rows_proven >= bound) {
+                            break 'inplace;
+                        }
+                        let mut predecessor_row = row
+                            .as_object()
+                            .cloned()
+                            .ok_or_else(|| journal_corrupt("row is not an object".to_owned()))?;
+                        for (dest, _) in writes {
+                            predecessor_row.remove(*dest);
+                        }
+                        let predecessor_value = Value::Object(predecessor_row);
+                        let mut bindings = BTreeMap::new();
+                        bindings.insert("row".to_owned(), predecessor_value.clone());
+                        let mut expected_row = predecessor_value
+                            .as_object()
+                            .cloned()
+                            .unwrap_or_default();
+                        let mut content_changed = false;
+                        for (dest, expr) in writes {
+                            let value = eval_expr(
+                                expr,
+                                &input,
+                                &bindings,
+                                constants.publication_timestamp_ms,
+                                None,
+                            )?;
+                            if !value.is_null() {
+                                content_changed = true;
+                                expected_row.insert((*dest).to_owned(), value);
+                            }
+                        }
+                        let expected_value = Value::Object(expected_row);
+                        expected_logical
+                            .absorb_row(&logical_value(&expected_value))
+                            .map_err(digest_refused)?;
+                        actual_logical
+                            .absorb_row(&logical_value(row))
+                            .map_err(digest_refused)?;
+                        let (version, updated) = if content_changed {
+                            (
+                                json!(publication_version),
+                                json!(constants.publication_timestamp_ms),
+                            )
+                        } else {
+                            (
+                                row.get("_version").cloned().unwrap_or(Value::Null),
+                                row.get("_updatedAt").cloned().unwrap_or(Value::Null),
+                            )
+                        };
+                        expected_system
+                            .absorb_row(&json!({
+                                "_id": row.get("_id").cloned().unwrap_or(Value::Null),
+                                "_version": version,
+                                "_createdAt": row.get("_createdAt").cloned().unwrap_or(Value::Null),
+                                "_updatedAt": updated,
+                            }))
+                            .map_err(digest_refused)?;
+                        actual_system
+                            .absorb_row(&system_value(row))
+                            .map_err(digest_refused)?;
+                        rows_proven += 1;
+                        after = row.get("_id").and_then(Value::as_str).map(str::to_owned);
+                    }
+                    if page.len() < BACKFILL_BATCH_ROWS {
+                        break;
+                    }
+                }
+            }
+        }
+
+        let expected_logical = expected_logical.finalize();
+        let actual_logical = actual_logical.finalize();
+        let expected_system = expected_system.finalize();
+        let actual_system = actual_system.finalize();
+        if expected_logical != actual_logical || expected_system != actual_system {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_VERIFICATION_FAILED",
+                "storage",
+                format!(
+                    "the successor content of {table} does not match the expected-value \
+                     evaluation: logical {expected_logical} vs {actual_logical}, system \
+                     {expected_system} vs {actual_system}"
+                ),
+            ));
+        }
+        tables_proof.insert(
+            (*table).clone(),
+            json!({
+                "logicalDigest": actual_logical,
+                "systemDigest": actual_system,
+                "rows": rows_proven,
+                "rejects": 0,
+            }),
+        );
+    }
+
+    for (source_table, table) in &row_count_facts {
+        let staged = artifact.body.steps.iter().find_map(|record| {
+            if let MigrationStep::CopyTable {
+                table: dest,
+                generation,
+                ..
+            } = &record.step
+                && dest == table
+            {
+                Some(staged_table_name(dest, *generation))
+            } else {
+                None
+            }
+        });
+        let physical = staged.unwrap_or_else(|| table.clone());
+        let count = |name: &str| -> SnapbackResult<u64> {
+            Ok(tx.query_row(
+                &format!("SELECT COUNT(*) FROM {}", quote_ident(name)?),
+                [],
+                |row| row.get::<_, i64>(0),
+            )? as u64)
+        };
+        let source = count(source_table)?;
+        let destination = count(&physical)?;
+        if source != destination {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_VERIFICATION_FAILED",
+                "storage",
+                format!(
+                    "row count of {table} ({destination}) does not match source \
+                     {source_table} ({source})"
+                ),
+            ));
+        }
+    }
+
+    Ok(json!({
+        "proofMethod": match proof_method {
+            MigrationProofMethod::Full => "full",
+            MigrationProofMethod::SampledAudit => "sampled-audit",
+        },
+        // §5: a sampled-audit receipt says so on its face — it is a
+        // rehearsal/audit label, never a substitute for proof.
+        "proofLabel": match proof_method {
+            MigrationProofMethod::Full => "full-table proof",
+            MigrationProofMethod::SampledAudit =>
+                "sampled-audit — lower-assurance rehearsal/audit run, NOT a proof",
+        },
+        "sampleBound": sample_bound,
+        "tables": Value::Object(tables_proof),
+        "rowCountFacts": row_count_facts.len(),
+        "schemaBinding": "predecessor and successor hashes proven at admission",
+    }))
+}
+
+/// One `_id`-ordered keyset page read inside the executor's transaction.
+fn read_id_page(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    table_name: &str,
+    after: Option<&str>,
+) -> SnapbackResult<Vec<Value>> {
+    let table = schema_table(schema, table_name)?;
+    let page_plan = QueryPlan {
+        table: table_name.to_owned(),
+        filters: Vec::new(),
+        membership_filters: Vec::new(),
+        order: Vec::new(),
+        limit: Some(BACKFILL_BATCH_ROWS),
+        indexed_by: None,
+    };
+    let boundary = after.map(|id| KeysetAfter {
+        entries: Vec::new(),
+        id: id.to_owned(),
+    });
+    let (sql, values) = super::build_query_sql(
+        table,
+        schema,
+        &page_plan,
+        &HandlerInput::default(),
+        &BTreeMap::new(),
+        None,
+        0,
+        None,
+        Some(BACKFILL_BATCH_ROWS),
+        boundary.as_ref(),
+        true,
+    )?;
+    let mut statement = tx.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(super::params_from_iter(values.iter()))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next()? {
+        out.push(super::row_to_document(row, table, &columns)?);
+    }
+    Ok(out)
+}
+
+/// Insert one row into a staged generation with EXPLICIT system fields —
+/// §4's identity rules, never the application insert path's fresh stamps.
+fn insert_staged_row(
+    tx: &Transaction<'_>,
+    staged: &TableManifest,
+    id: &str,
+    fields: &Map<String, Value>,
+    version: u64,
+    created_at_ms: u64,
+    updated_at_ms: u64,
+) -> SnapbackResult<()> {
+    let mut columns = vec![
+        "_id".to_owned(),
+        "_version".to_owned(),
+        "_createdAt".to_owned(),
+        "_updatedAt".to_owned(),
+    ];
+    let mut placeholders = vec!["?1".to_owned(), "?2".to_owned(), "?3".to_owned(), "?4".to_owned()];
+    let mut values: Vec<SqlValue> = vec![
+        SqlValue::Text(id.to_owned()),
+        SqlValue::Integer(version_to_sql_integer(version)?),
+        SqlValue::Integer(timestamp_to_sql_millis(created_at_ms)?),
+        SqlValue::Integer(timestamp_to_sql_millis(updated_at_ms)?),
+    ];
+    for (name, value) in fields {
+        let manifest = staged.field(name);
+        columns.push(name.clone());
+        placeholders.push(format!("?{}", values.len() + 1));
+        values.push(super::json_to_sql_value(value, manifest.map(|f| &f.field_type))?);
+    }
+    let column_sql = columns
+        .iter()
+        .map(|column| quote_ident(column))
+        .collect::<SnapbackResult<Vec<_>>>()?
+        .join(", ");
+    tx.execute(
+        &format!(
+            "INSERT INTO {} ({column_sql}) VALUES ({})",
+            quote_ident(&staged.name)?,
+            placeholders.join(", ")
+        ),
+        super::params_from_iter(values.iter()),
+    )?;
+    Ok(())
 }
 
 /// The effective schema during the barrier: the predecessor's tables with
@@ -1898,37 +3270,38 @@ fn validate_local_audience(
 }
 
 fn validate_supported_steps(artifact: &MigrationPlanArtifactV1) -> SnapbackResult<()> {
-    if matches!(
-        artifact.body.execution_strategy,
-        MigrationExecutionStrategy::ShadowGeneration
-    ) {
-        return Err(profile_unsupported(
-            "the shadow-generation strategy is not admitted by this wave's local profile; \
-             single-transaction plans with batched in-place backfill are",
-        ));
-    }
-    for record in &artifact.body.steps {
-        if matches!(
+    // Shadow-generation plans stage successor tables beside the live ones
+    // and swap at publication; a staged step therefore requires the
+    // matching strategy declaration, and vice versa, so the approver's
+    // review saw the strategy the executor runs.
+    let has_staged = artifact.body.steps.iter().any(|record| {
+        matches!(
             record.step,
             MigrationStep::CopyTable { .. }
                 | MigrationStep::StageTableGeneration { .. }
                 | MigrationStep::RetireGeneration { .. }
-        ) {
-            return Err(profile_unsupported(
-                "staged-generation steps are not admitted by this wave's local profile",
-            ));
-        }
-        if let MigrationStep::CopyField {
-            source_table,
-            table,
-            ..
-        } = &record.step
-            && source_table != table
-        {
-            return Err(profile_unsupported(
-                "cross-table CopyField is not admitted by this wave's local profile",
-            ));
-        }
+        )
+    });
+    let shadow = matches!(
+        artifact.body.execution_strategy,
+        MigrationExecutionStrategy::ShadowGeneration
+    );
+    if has_staged != shadow {
+        return Err(profile_unsupported(
+            "staged-generation steps and the shadow-generation strategy declaration must \
+             appear together",
+        ));
+    }
+    // Rollback requires its explicit timestamp constant at plan time so the
+    // approver acknowledged the rollback boundary (LLP 0081 §6).
+    if let Some(rollback_ms) = artifact.body.constants.rollback_timestamp_ms
+        && rollback_ms < artifact.body.constants.publication_timestamp_ms
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MIGRATION_PLAN_INVALID",
+            "storage",
+            "rollbackTimestampMs must be at least publicationTimestampMs",
+        ));
     }
     Ok(())
 }
@@ -1978,16 +3351,16 @@ fn enforce_publication_timestamp_floor(
     // rows the plan changes.
     let mut checked = std::collections::BTreeSet::new();
     for record in &artifact.body.steps {
-        let writes_rows = matches!(
-            record.step,
+        // A staged CopyTable restamps content-changed rows exactly like an
+        // in-place write; its floor is the SOURCE table's maximum, since
+        // those are the rows whose successor forms carry the new stamp.
+        let table = match &record.step {
             MigrationStep::AddField { backfill: Some(_), .. }
-                | MigrationStep::BackfillField { .. }
-                | MigrationStep::CopyField { .. }
-        );
-        if !writes_rows {
-            continue;
-        }
-        let table = record.step.anchor_table().to_owned();
+            | MigrationStep::BackfillField { .. }
+            | MigrationStep::CopyField { .. } => record.step.anchor_table().to_owned(),
+            MigrationStep::CopyTable { source_table, .. } => source_table.clone(),
+            _ => continue,
+        };
         if !checked.insert(table.clone()) || schema.table(&table).is_none() {
             continue;
         }
@@ -2119,12 +3492,21 @@ impl LocalDatabase {
                 "the stored receipt does not equal its journal projection",
             ));
         }
+        // The §5 data proof rode the Verifying journal entry and the sealed
+        // receipt's step results; verify re-presents the recorded proof
+        // after re-proving the receipt≡journal seal. Post-release data has
+        // legitimately advanced under application traffic, so verify never
+        // re-digests live tables against a receipt — the proof is
+        // per-migration, at-publication evidence (LLP 0081 §5).
+        let data_proof = receipt.step_results.get("§5-data-proof").cloned();
         Ok(json!({
             "operationId": operation_id,
             "journalDigest": recomputed,
             "journalEntries": entries.len(),
             "state": receipt.state.kind(),
-            "dataProof": "the §5 expected-value/content-digest proof lands with Wave 3",
+            "dataProof": data_proof,
+            "rollbackReceipt": stored_rollback_receipt_on(&self.conn, operation_id)?
+                .map(|receipt| serde_json::to_value(&receipt).unwrap_or(Value::Null)),
         }))
     }
 }
@@ -2286,6 +3668,7 @@ mod tests {
             },
             constants: MigrationConstants {
                 publication_timestamp_ms: PUBLICATION_TS,
+                rollback_timestamp_ms: None,
                 values: BTreeMap::from([("noteDefault".to_owned(), json!("n/a"))]),
             },
             boundaries: Default::default(),
@@ -2930,4 +4313,410 @@ mod tests {
         assert_eq!(released.state.kind(), "released");
         assert!(db.migration_fence().expect("fence").is_none());
     }
+
+    fn staged_successor_schema() -> SchemaManifest {
+        // Successor items: title + a new required note, staged as g2.
+        let mut schema = predecessor_schema();
+        if let Some(items) = schema.tables.iter_mut().find(|t| t.name == "items") {
+            items.fields.push(crate::manifest::FieldManifest {
+                name: "note".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            });
+        }
+        schema
+    }
+
+    fn staged_plan(rollback_ts: Option<u64>) -> MigrationPlanArtifactV1 {
+        use crate::migration::MigrationVerification;
+        let predecessor = predecessor_schema();
+        let successor = staged_successor_schema();
+        let intents = vec![MigrationIntent::CopyTableToGeneration {
+            table: "items".to_owned(),
+            generation: 2,
+            source_table: "items".to_owned(),
+            fields: BTreeMap::from([
+                (
+                    "title".to_owned(),
+                    ValueExpr::Field {
+                        base: Box::new(ValueExpr::Binding("row".to_owned())),
+                        key: "title".to_owned(),
+                    },
+                ),
+                ("note".to_owned(), ValueExpr::Arg("noteDefault".to_owned())),
+            ]),
+        }];
+        let mut steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        for record in &mut steps {
+            if matches!(record.step, MigrationStep::CopyTable { .. }) {
+                record.verification = vec![
+                    MigrationVerification::RowCountMatchesSource {
+                        source_table: "items".to_owned(),
+                        table: "items".to_owned(),
+                    },
+                    MigrationVerification::ContentDigest {
+                        table: "items".to_owned(),
+                    },
+                ];
+            }
+        }
+        let body = MigrationPlanBody {
+            schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+            app: "test-app".to_owned(),
+            instance: "memory".to_owned(),
+            target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            predecessor_schema_hash: schema_identity(&predecessor).expect("predecessor id"),
+            successor_schema_hash: schema_identity(&successor).expect("successor id"),
+            predecessor_generation: 1,
+            steps,
+            execution_strategy: crate::migration::MigrationExecutionStrategy::ShadowGeneration,
+            proof: MigrationProof {
+                method: MigrationProofMethod::Full,
+                bound: None,
+            },
+            ceilings: default_ceilings(),
+            compatibility_posture: CompatibilityPosture::SuccessorOnly,
+            retained_work_posture: RetainedWorkPosture::Empty,
+            backup: MigrationBackupRequirement {
+                required: false,
+                checkpoint_label: None,
+            },
+            expected_output: MigrationExpectedOutput {
+                schema_hash: schema_identity(&successor).expect("successor id"),
+                projection_generations: BTreeMap::new(),
+            },
+            constants: MigrationConstants {
+                publication_timestamp_ms: PUBLICATION_TS,
+                rollback_timestamp_ms: rollback_ts,
+                values: BTreeMap::from([("noteDefault".to_owned(), json!("n/a"))]),
+            },
+            boundaries: Default::default(),
+        };
+        MigrationPlanArtifactV1::seal(body).expect("seal staged plan")
+    }
+
+    fn staged_apply(
+        db: &mut LocalDatabase,
+        plan: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+    ) -> SnapbackResult<MigrationReceiptV1> {
+        let (_, resolved) = audience();
+        let successor = staged_successor_schema();
+        db.migrate_apply(MigrationApplyRequest {
+            artifact: plan,
+            approval,
+            successor_schema: &successor,
+            audience: &resolved,
+            now_ms: now_millis(),
+        })
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps / #5-verification-and-data-proof
+    //   — the staged-generation path end to end: stage, copy through closed
+    //   expressions, prove content against the independent expected-value
+    //   evaluation, publish by swap, park the predecessor for the rollback
+    //   window, and restamp exactly the content-changed rows.
+    #[test]
+    fn staged_generation_migration_proves_and_publishes() {
+        let mut db = seeded_db();
+        let before: Vec<Value> = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read predecessor rows")
+            .rows;
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        let receipt = staged_apply(&mut db, &plan, &approval).expect("staged apply");
+        assert_eq!(receipt.state.kind(), "released");
+
+        // The §5 proof rode the receipt: real digests, zero rejects, full
+        // method on its face.
+        let proof = receipt
+            .step_results
+            .get("§5-data-proof")
+            .expect("data proof on the receipt");
+        assert_eq!(proof["proofMethod"], json!("full"));
+        assert!(
+            proof["tables"]["items"]["logicalDigest"]
+                .as_str()
+                .is_some_and(|digest| digest.starts_with("cdv1:")),
+            "{proof}"
+        );
+        assert_eq!(proof["tables"]["items"]["rejects"], json!(0));
+
+        // Published by swap: live rows carry the transform; every row's
+        // content changed (the new note), so §4 restamps all of them.
+        let after: Vec<Value> = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read successor rows")
+            .rows;
+        assert_eq!(after.len(), before.len());
+        for row in &after {
+            assert_eq!(row["note"], json!("n/a"));
+            assert_eq!(row["_updatedAt"].as_u64(), Some(PUBLICATION_TS));
+        }
+        // Inherited identities: _id and _createdAt survive the copy.
+        for (pre, post) in before.iter().zip(after.iter()) {
+            assert_eq!(pre["_id"], post["_id"]);
+            assert_eq!(pre["_createdAt"], post["_createdAt"]);
+        }
+        // The predecessor generation parks under its retired name for the
+        // rollback window.
+        assert!(
+            super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
+                .expect("retired lookup"),
+        );
+    }
+
+    // §5: sampled-audit is a separately named lower-assurance class and its
+    // receipt says so on its face.
+    #[test]
+    fn sampled_audit_labels_its_receipt_face() {
+        let mut db = seeded_db();
+        let mut plan = staged_plan(None);
+        let mut body = plan.body.clone();
+        body.proof = MigrationProof {
+            method: MigrationProofMethod::SampledAudit,
+            bound: Some(1),
+        };
+        plan = MigrationPlanArtifactV1::seal(body).expect("reseal");
+        let approval = approval_for(&plan, now_millis());
+        let receipt = staged_apply(&mut db, &plan, &approval).expect("sampled apply");
+        let proof = receipt.step_results.get("§5-data-proof").expect("proof");
+        assert_eq!(proof["proofMethod"], json!("sampled-audit"));
+        assert!(
+            proof["proofLabel"]
+                .as_str()
+                .is_some_and(|label| label.contains("NOT a proof")),
+            "{proof}"
+        );
+        assert_eq!(proof["sampleBound"], json!(1));
+    }
+
+    // §5: a successor whose stored bytes diverge from the expected-value
+    // evaluation refuses publication.
+    #[test]
+    fn verification_failure_blocks_publication() {
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        // Run the staged steps via the real executor path up to Verifying,
+        // then corrupt the staged generation and prove the §5 harness
+        // catches it.
+        let approval = approval_for(&plan, now_millis());
+        // Stage + copy via the real executor path, killed before verifying
+        // commits its entry: arm the verifying kill point so apply crashes
+        // after the copy batches committed.
+        arm_migration_kill_point("verifying", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "the armed kill point must fire");
+        // Corrupt one staged row.
+        db.conn
+            .execute("UPDATE items__g2 SET note = 'tampered' WHERE rowid = 1", [])
+            .expect("tamper staged row");
+        let error = staged_apply(&mut db, &plan, &approval)
+            .expect_err("tampered successor bytes must refuse publication");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_VERIFICATION_FAILED"
+        );
+        // The predecessor remains authoritative.
+        assert!(
+            !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
+                .expect("retired lookup"),
+        );
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the fast
+    //   rollback: available exactly while published-held, republishes the
+    //   retained predecessor byte-exactly, allocates one new version R,
+    //   raises the floor, advances the storage generation (so re-migrating
+    //   needs a fresh preview), seals the rollback receipt, and replays
+    //   idempotently.
+    #[test]
+    fn fast_rollback_republishes_the_predecessor() {
+        let mut db = seeded_db();
+        let before: Vec<Value> = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read predecessor rows")
+            .rows;
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        let (_, resolved) = audience();
+
+        // Rollback before published-held refuses.
+        let premature = db
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect_err("rollback needs published-held");
+        assert_eq!(
+            premature.diagnostic.code,
+            "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE"
+        );
+
+        // Reach published-held: kill the released transition's interior.
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "the armed kill point must fire");
+        assert_eq!(
+            latest_state_for_test(&db, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "published-held",
+        );
+        // The fence is still closed while held.
+        assert!(db.migration_fence().expect("fence").is_some());
+
+        // A kill inside rolling-back leaves published-held intact (the
+        // transaction rolled back whole); the retry then succeeds.
+        arm_migration_kill_point("rolling-back", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        let rollback = db
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("fast rollback");
+        assert_eq!(rollback.staged_tables_restored, vec!["items".to_owned()]);
+        assert_eq!(rollback.restored_storage_generation, 2);
+        assert_eq!(rollback.restamped_rows, 0);
+
+        // Byte-exact republish: the predecessor rows are back, system
+        // fields untouched; the successor generation is parked staged.
+        let after: Vec<Value> = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read republished rows")
+            .rows;
+        assert_eq!(before, after, "the republish is byte-exact");
+        assert!(db.migration_fence().expect("fence").is_none());
+
+        // Replays: rollback returns the sealed rollback receipt; apply
+        // returns the terminal forward receipt.
+        let replay = db
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("rollback replay");
+        assert_eq!(replay, rollback);
+        let forward = staged_apply(&mut db, &plan, &approval).expect("apply replay");
+        assert_eq!(forward.state.kind(), "rolled-back");
+
+        // Re-migrating the republished generation requires a fresh preview:
+        // the same plan under a NEW approval is stale against the advanced
+        // storage generation.
+        let fresh = approval_for(&plan, now_millis());
+        let error = staged_apply(&mut db, &plan, &fresh)
+            .expect_err("republished generation requires a new preview");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_STALE");
+    }
+
+    // §4: fault injection exercises the interior of every durable
+    // transition on the happy path — a simulated crash before each journal
+    // append leaves a resumable journal, and resume completes with correct,
+    // unduplicated effects.
+    #[test]
+    fn kill_points_recover_at_every_transition_interior() {
+        for (kind, nth) in [
+            ("admitted", 0),
+            ("barriered", 0),
+            ("executing", 0),
+            ("executing", 1),
+            ("verifying", 0),
+            ("published-held", 0),
+            ("released", 0),
+            ("cleanup-pending", 0),
+        ] {
+            let mut db = seeded_db();
+            let plan = fixture_plan(
+                &predecessor_schema(),
+                &successor_schema(),
+                default_ceilings(),
+            );
+            let approval = approval_for(&plan, now_millis());
+            arm_migration_kill_point(kind, nth);
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                apply_fixture(&mut db, &plan, &approval)
+            }));
+            disarm_migration_kill_point();
+            assert!(
+                outcome.is_err(),
+                "kill point {kind}#{nth} must fire on the happy path"
+            );
+            let receipt = apply_fixture(&mut db, &plan, &approval)
+                .unwrap_or_else(|error| panic!("resume after {kind}#{nth}: {error:?}"));
+            assert_eq!(receipt.state.kind(), "released", "after {kind}#{nth}");
+            // Effects exactly once: every row backfilled with the constant,
+            // none double-stamped past the publication version.
+            let rows = db
+                .query(
+                    &QueryPlan {
+                        table: "items".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read rows")
+                .rows;
+            for row in &rows {
+                assert_eq!(row["note"], json!("n/a"), "after {kind}#{nth}");
+                assert_eq!(
+                    row["_updatedAt"].as_u64(),
+                    Some(PUBLICATION_TS),
+                    "after {kind}#{nth}"
+                );
+            }
+            assert!(
+                db.migration_fence().expect("fence").is_none(),
+                "fence clear after {kind}#{nth}"
+            );
+        }
+    }
 }
+

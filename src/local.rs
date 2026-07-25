@@ -11166,6 +11166,22 @@ impl LocalSnapback {
         Ok(receipt)
     }
 
+    /// The §6 fast rollback under the original operation's approval —
+    /// available exactly while the journal shows `published-held`.
+    pub fn migrate_rollback_artifact(
+        &mut self,
+        artifact: &crate::migration::MigrationPlanArtifactV1,
+        approval: &crate::migration::MigrationApprovalV1,
+    ) -> SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> {
+        let audience = self.migrate_resolved_audience()?;
+        let receipt = self
+            .db
+            .migrate_rollback(artifact, approval, &audience, now_millis())?;
+        // The republished predecessor is authoritative again.
+        self.refresh_read_manifests();
+        Ok(receipt)
+    }
+
     pub fn read_lane(&self) -> ReadLane {
         ReadLane {
             manifests: self.read_manifests.clone(),

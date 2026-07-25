@@ -81,3 +81,14 @@ Per the phasing, the maturity flip for `relational_query_v1` and the
 Implemented statuses of LLP 0080/0081 are author decisions to take once
 the residuals above close; this ticket records the suite's state and does
 not flip either.
+
+**0081 half (2026-07-25, Wave 3b):** the migration side of
+`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` now has its executable map in
+`20260724-step5-impl-0081-acceptance-corpus.md` (artifact vectors,
+admission matrix, transition-interior fault matrix, §5 independent
+proof, §6 fast rollback, receipts/replay). The RebuildMaintainedProjection
+step already bridges the two lanes (a migration step delegating to the
+0080 rebuild engine, witnessed in Wave 2). Remaining before the suite can
+claim completion: Wave 3a's journal-grammar/client-handshake conformance,
+retained-work postures, hosted arms, and the LLP status/maturity flips —
+which stay author decisions.

@@ -226,6 +226,15 @@
           "minimum": 0,
           "type": "integer"
         },
+        "rollbackTimestampMs": {
+          "description": "The explicit rollback timestamp (LLP 0081 §6): required to execute\nthe fast rollback; admission requires it to be at least\n`publicationTimestampMs` (and the restamp maximum), the same\nmonotonicity rule as forward publication. Absent bytes keep older\nplan digests stable.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "values": {
           "additionalProperties": true,
           "description": "Named literal constants backfill expressions may read via `Arg`.",
