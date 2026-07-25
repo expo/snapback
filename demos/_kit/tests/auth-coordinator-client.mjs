@@ -130,16 +130,19 @@ const credential = (token, authority, refreshAfter = 20_000) => ({
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: new Headers(),
   text: async () => JSON.stringify(body),
 });
 const emptyResponse = (status = 204) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: new Headers(),
   text: async () => '',
 });
 const rawResponse = (body, status = 204) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: new Headers(),
   text: async () => String(body),
 });
 
@@ -190,6 +193,7 @@ const finalOwnerReadFailureSeam = (baseStorage, code) => {
 const poisonedReadResponse = (secret) => ({
   ok: true,
   status: 200,
+  headers: new Headers(),
   async text() {
     throw new Error(`body reader exposed ${secret}`);
   },
@@ -374,6 +378,7 @@ globalThis.fetch = async (url, init = {}) => {
       return {
         ok: true,
         status: 204,
+        headers: new Headers(),
         async text() {
           await logoutReadFailureHook?.();
           const error = new Error(`body reader exposed ${READ_FAILURE_SECRET} and ${bearer}`);
@@ -391,6 +396,7 @@ globalThis.fetch = async (url, init = {}) => {
       return {
         ok: true,
         status: 204,
+        headers: new Headers(),
         async text() {
           await logoutTerminalHook?.();
           return '';
