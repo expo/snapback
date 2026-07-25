@@ -10,6 +10,8 @@ pub mod crypto;
 pub mod deployment;
 pub mod descriptor;
 pub mod handshake;
+#[allow(dead_code)] // Composed by the hosted-edge adapter startup lane (LLP 0098).
+pub mod hosted_edge;
 pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
 pub(crate) mod invocation;
