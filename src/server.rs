@@ -9526,10 +9526,45 @@ async fn enforce_registered_route_policy(
         .get::<SenderNonceResponse>()
         .cloned()
         .unwrap_or_default();
-    let hosted_effective_source = request
+    // @ref LLP 0098#6-effective-source-under-this-topology — on a hosted
+    // deployment the immediate peer is ALWAYS the in-namespace terminator, so
+    // using it as the effective source would collapse LLP 0060 D3's five-bucket
+    // set onto one bucket and make per-source throttling a fiction. The
+    // derivation is the enforcing code behind the attested
+    // `effectiveSource: trusted`; a local target keeps the raw peer.
+    let peer_ip = request
         .extensions()
         .get::<ConnectInfo<std::net::SocketAddr>>()
         .map(|ConnectInfo(address)| address.ip());
+    let hosted_effective_source = if runtime.hosted_serving.is_some() {
+        let forwarded = {
+            let values = request
+                .headers()
+                .get_all(crate::auth::effective_source::FORWARDED_HEADER)
+                .iter()
+                .collect::<Vec<_>>();
+            // Two headers are a conflict, and a conflict fails closed rather
+            // than letting a caller pick which one the origin believes.
+            match values.as_slice() {
+                [single] => single.to_str().ok().map(str::to_owned),
+                _ => None,
+            }
+        };
+        match crate::auth::effective_source::derive_effective_source(
+            peer_ip,
+            forwarded.as_deref(),
+        ) {
+            Ok(source) => Some(source),
+            Err(error) => {
+                return apply_registered_response_controls(
+                    effective,
+                    ApiError::from(error).into_response(),
+                );
+            }
+        }
+    } else {
+        peer_ip
+    };
     let hosted_sender_admission = match admit_hosted_sender_request(
         spec,
         effective,
@@ -21238,6 +21273,7 @@ globalThis.__snapbackHandlers = {
                 .method(method)
                 .uri(uri)
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .header("x-snapback-auth-invalidation-protocol", "1")
                 .header("x-snapback-connection-token", &connection_token);
             let body = if let Some(body) = body {
@@ -22321,6 +22357,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .body(body)
                 .expect("matrix finite bearer request")
         };
@@ -22350,6 +22387,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::empty())
                     .expect("matrix auth/session request"),
@@ -22422,6 +22460,7 @@ globalThis.__snapbackHandlers = {
                         .uri(format!("/outbox/{connection_id}"))
                         .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                         .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .expect("matrix connection act request"),
                     None,
@@ -23381,7 +23420,15 @@ globalThis.__snapbackHandlers = {
         if let Some(impersonation) = impersonation {
             builder = builder.header(IMPERSONATION_CAPABILITY_HEADER, impersonation);
         }
-        builder.body(Body::from(body)).expect("auth HTTP request")
+        // Every auth-surface test request is stamped with the terminator
+        // facts. A hosted target requires them (see `via_hosted_terminator`);
+        // a local target derives its source from the peer and ignores the
+        // forwarded header, so for local tests this doubles as proof that a
+        // client-spoofed header carries no authority.
+        via_hosted_terminator(
+            builder.body(Body::from(body)).expect("auth HTTP request"),
+            TEST_HOSTED_CLIENT_SOURCE,
+        )
     }
 
     fn offer_auth_client_protocol(request: &mut Request<Body>) {
@@ -23389,6 +23436,57 @@ globalThis.__snapbackHandlers = {
             HeaderName::from_static("x-snapback-auth-client-protocol"),
             HeaderValue::from_static("1"),
         );
+    }
+
+    /// The one simulated end-client address for hosted tests whose intent is
+    /// a single source. Tests about per-source bucket identity pass their own
+    /// distinct-or-shared addresses instead.
+    const TEST_HOSTED_CLIENT_SOURCE: &str = "198.51.100.7";
+
+    /// Stamp onto a request the two facts the in-namespace TLS terminator
+    /// supplies on every real hosted request: a loopback immediate peer and
+    /// exactly one `x-forwarded-for` naming the end client.
+    ///
+    /// @ref LLP 0098#6-effective-source-under-this-topology — under loopback
+    /// termination the immediate peer is ALWAYS the terminator, so a hosted
+    /// request without the terminator-supplied header fails closed
+    /// (SNAPBACK_AUTH_SOURCE_UNTRUSTED); falling back to the peer instead
+    /// would collapse LLP 0060 D3's five throttle buckets onto one source.
+    /// Tests must therefore supply what the terminator supplies, choosing one
+    /// source per simulated client.
+    fn via_hosted_terminator(mut request: Request<Body>, client_source: &str) -> Request<Body> {
+        request.headers_mut().insert(
+            HeaderName::from_static(crate::auth::effective_source::FORWARDED_HEADER),
+            HeaderValue::from_str(client_source).expect("hosted client source header"),
+        );
+        request.extensions_mut().insert(ConnectInfo(
+            "127.0.0.1:443"
+                .parse::<std::net::SocketAddr>()
+                .expect("loopback terminator peer"),
+        ));
+        request
+    }
+
+    /// Builder-chain form of [`via_hosted_terminator`]. Unlike the request
+    /// form (whose `insert` replaces), the builder form *appends* the header,
+    /// so apply it exactly once per chain — a duplicated header is a conflict
+    /// and fails closed by design.
+    trait ViaHostedTerminator {
+        fn via_hosted_terminator(self, client_source: &str) -> Self;
+    }
+
+    impl ViaHostedTerminator for axum::http::request::Builder {
+        fn via_hosted_terminator(self, client_source: &str) -> Self {
+            self.header(
+                crate::auth::effective_source::FORWARDED_HEADER,
+                client_source,
+            )
+            .extension(ConnectInfo(
+                "127.0.0.1:443"
+                    .parse::<std::net::SocketAddr>()
+                    .expect("loopback terminator peer"),
+            ))
+        }
     }
 
     fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<Body> {
@@ -23620,6 +23718,7 @@ globalThis.__snapbackHandlers = {
                 Request::builder()
                     .uri("/auth/session")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -23813,6 +23912,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "99")
                     .body(Body::empty())
                     .unwrap(),
@@ -24181,6 +24281,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{}}"#))
                     .expect("predecessor bearer query"),
             )
@@ -24827,6 +24928,7 @@ globalThis.__snapbackHandlers = {
                         })
                         .uri(uri)
                         .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -24861,6 +24963,7 @@ globalThis.__snapbackHandlers = {
                 Request::builder()
                     .uri("/inspect")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -25136,6 +25239,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/mutation/does-not-exist")
                     .header(header::CONTENT_TYPE, "application/json")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{},"clientMutationId":"queued-1"}"#))
                     .unwrap(),
             )
@@ -25193,6 +25297,7 @@ globalThis.__snapbackHandlers = {
                 .uri(uri)
                 .header(header::CONTENT_TYPE, "application/json")
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .header("x-snapback-auth-invalidation-protocol", "1")
                 .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                 .body(Body::from(serde_json::to_vec(&body).expect("body")))
@@ -25247,6 +25352,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .body(Body::from(
                         serde_json::to_vec(&json!({ "clientMutationIds": [] })).expect("body"),
@@ -25279,6 +25385,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .header("x-snapback-auth-invalidation-protocol", "1");
             if let Some(lease_protocol) = lease_protocol {
                 builder = builder.header("x-snapback-authorized-lease-protocol", lease_protocol);
@@ -25644,14 +25751,15 @@ globalThis.__snapbackHandlers = {
         ] {
             let disabled = router
                 .clone()
-                .oneshot(
+                .oneshot(via_hosted_terminator(
                     Request::builder()
                         .method(method)
                         .uri(path)
                         .header("x-snapback-admin-token", "auth-http-admin")
                         .body(Body::empty())
                         .unwrap(),
-                )
+                    TEST_HOSTED_CLIENT_SOURCE,
+                ))
                 .await
                 .unwrap();
             assert_eq!(
@@ -25670,13 +25778,14 @@ globalThis.__snapbackHandlers = {
         // publishes about itself.
         let inspect = router
             .clone()
-            .oneshot(
+            .oneshot(via_hosted_terminator(
                 Request::builder()
                     .uri("/inspect")
                     .header("x-snapback-admin-token", "auth-http-admin")
                     .body(Body::empty())
                     .unwrap(),
-            )
+                TEST_HOSTED_CLIENT_SOURCE,
+            ))
             .await
             .unwrap();
         assert_eq!(inspect.status(), StatusCode::OK);
@@ -25772,6 +25881,7 @@ globalThis.__snapbackHandlers = {
                     .method("POST")
                     .uri("/auth/refresh")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("absent sender carrier request"),
             )
@@ -25792,6 +25902,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh?attacker=query")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("hosted sender challenge request"),
             )
@@ -25823,6 +25934,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, "not-a-compact-proof")
                     .body(Body::new(PanicOnPollBody))
                     .expect("malformed sender proof request"),
@@ -25850,6 +25962,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/refresh")
                     .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, "one")
                     .header(super::SENDER_PROOF_HEADER, "two")
                     .body(Body::new(PanicOnPollBody))
@@ -25905,20 +26018,17 @@ globalThis.__snapbackHandlers = {
             .expect("install hosted throttle authority");
         let router = app(state.clone());
         let request = || {
-            let mut request = Request::builder()
+            // One client, one source: the denial debt charged here must land
+            // in the GLOBAL bucket (the per-source policy is generous).
+            Request::builder()
                 .method("POST")
                 .uri("/auth/refresh")
                 .header(header::AUTHORIZATION, "Bearer malformed-session-carrier")
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator("192.0.2.10")
                 .header(super::SENDER_PROOF_HEADER, "not-a-compact-proof")
                 .body(Body::new(PanicOnPollBody))
-                .expect("hosted throttled sender request");
-            request.extensions_mut().insert(ConnectInfo(
-                "192.0.2.10:443"
-                    .parse::<std::net::SocketAddr>()
-                    .expect("test effective source"),
-            ));
-            request
+                .expect("hosted throttled sender request")
         };
 
         let first = router
@@ -26013,11 +26123,9 @@ globalThis.__snapbackHandlers = {
             None,
         );
         offer_auth_client_protocol(&mut request_code);
-        request_code.extensions_mut().insert(ConnectInfo(
-            "192.0.2.20:443"
-                .parse::<std::net::SocketAddr>()
-                .expect("request-code effective source"),
-        ));
+        // Distinct from the exchange sources below: the assertion is that the
+        // SUBJECT bucket keys on the challenge id across different sources.
+        let request_code = via_hosted_terminator(request_code, "192.0.2.20");
         let request_code = router
             .clone()
             .oneshot(request_code)
@@ -26054,17 +26162,12 @@ globalThis.__snapbackHandlers = {
                 None,
             );
             offer_auth_client_protocol(&mut request);
-            request.extensions_mut().insert(ConnectInfo(
-                source
-                    .parse::<std::net::SocketAddr>()
-                    .expect("exchange effective source"),
-            ));
-            request
+            via_hosted_terminator(request, source)
         };
 
         let invalid_proof = router
             .clone()
-            .oneshot(exchange("192.0.2.21:443"))
+            .oneshot(exchange("192.0.2.21"))
             .await
             .expect("first exchange reaches sender proof verification");
         assert_eq!(invalid_proof.status(), StatusCode::UNAUTHORIZED);
@@ -26074,7 +26177,9 @@ globalThis.__snapbackHandlers = {
         );
 
         let denied = router
-            .oneshot(exchange("192.0.2.22:443"))
+            // A different source again: only the shared subject key can carry
+            // the denial debt from the first exchange to this one.
+            .oneshot(exchange("192.0.2.22"))
             .await
             .expect("second exchange denied by shared subject bucket");
         assert_eq!(denied.status(), StatusCode::TOO_MANY_REQUESTS);
@@ -26125,13 +26230,9 @@ globalThis.__snapbackHandlers = {
             .expect("install hosted source throttle authority");
         let router = app(state);
         let request = || {
-            let mut request = connection_open_request(None, json!({}));
-            request.extensions_mut().insert(ConnectInfo(
-                "192.0.2.30:443"
-                    .parse::<std::net::SocketAddr>()
-                    .expect("connection-open effective source"),
-            ));
-            request
+            // The SAME source both times: the second open must be denied by
+            // the per-source admission bucket the first one consumed.
+            via_hosted_terminator(connection_open_request(None, json!({})), "192.0.2.30")
         };
 
         let admitted = router
@@ -26510,6 +26611,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("hosted sender session request");
         offer_auth_client_protocol(&mut session_request);
+        let session_request = via_hosted_terminator(session_request, TEST_HOSTED_CLIENT_SOURCE);
         let session = router
             .clone()
             .oneshot(session_request)
@@ -26638,6 +26740,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("sender replay-authority failure request");
         offer_auth_client_protocol(&mut unavailable_request);
+        let unavailable_request =
+            via_hosted_terminator(unavailable_request, TEST_HOSTED_CLIENT_SOURCE);
         let unavailable = router
             .clone()
             .oneshot(unavailable_request)
@@ -26673,6 +26777,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("retry sender session request");
         offer_auth_client_protocol(&mut retried_session_request);
+        let retried_session_request =
+            via_hosted_terminator(retried_session_request, TEST_HOSTED_CLIENT_SOURCE);
         let retried_session = router
             .clone()
             .oneshot(retried_session_request)
@@ -26760,7 +26866,8 @@ globalThis.__snapbackHandlers = {
                 let mut builder = Request::builder()
                     .method(*method)
                     .uri(path)
-                    .header("x-snapback-auth-client-protocol", "1");
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
                 if *websocket_carrier {
                     let mut protocols = format!(
                         "{}, {}{}",
@@ -26906,7 +27013,8 @@ globalThis.__snapbackHandlers = {
             let mut builder = Request::builder()
                 .method(*method)
                 .uri(path)
-                .header("x-snapback-auth-client-protocol", "1");
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
             if *websocket_carrier {
                 builder = builder.header(
                     header::SEC_WEBSOCKET_PROTOCOL,
@@ -26960,6 +27068,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("bare sender-bound grant request"),
             )
@@ -26994,6 +27103,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::SENDER_PROOF_HEADER, outbox_proof)
                     .body(Body::empty())
                     .expect("proof-gated sender-bound grant request"),
@@ -27035,6 +27145,14 @@ globalThis.__snapbackHandlers = {
         let mut websocket_request = format!("ws://{address}/live/{connection_id}/stream")
             .into_client_request()
             .expect("hosted sender websocket request");
+        // Over the real listener the immediate peer IS loopback, so unlike
+        // the oneshot sites only the terminator's forwarded header is needed.
+        websocket_request.headers_mut().insert(
+            crate::auth::effective_source::FORWARDED_HEADER,
+            TEST_HOSTED_CLIENT_SOURCE
+                .parse()
+                .expect("hosted websocket client source"),
+        );
         websocket_request.headers_mut().insert(
             header::SEC_WEBSOCKET_PROTOCOL,
             format!(
@@ -27117,6 +27235,8 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("stale post-reset sender request");
         offer_auth_client_protocol(&mut stale_post_reset_request);
+        let stale_post_reset_request =
+            via_hosted_terminator(stale_post_reset_request, TEST_HOSTED_CLIENT_SOURCE);
         let stale_post_reset = app(reset_state)
             .oneshot(stale_post_reset_request)
             .await
@@ -27252,6 +27372,7 @@ globalThis.__snapbackHandlers = {
                     .uri(format!("/outbox/{connection_id}"))
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::new(PanicOnPollBody))
                     .expect("stale-epoch grant request"),
             )
@@ -27274,6 +27395,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("post-advance nonce challenge request");
         offer_auth_client_protocol(&mut challenge_request);
+        let challenge_request = via_hosted_terminator(challenge_request, TEST_HOSTED_CLIENT_SOURCE);
         let challenge = router
             .clone()
             .oneshot(challenge_request)
@@ -27393,6 +27515,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("post-logout signed request");
         offer_auth_client_protocol(&mut terminal_request);
+        let terminal_request = via_hosted_terminator(terminal_request, TEST_HOSTED_CLIENT_SOURCE);
         let terminal = router
             .clone()
             .oneshot(terminal_request)
@@ -27423,6 +27546,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::new(PanicOnPollBody))
             .expect("replayed post-logout request");
         offer_auth_client_protocol(&mut replay_request);
+        let replay_request = via_hosted_terminator(replay_request, TEST_HOSTED_CLIENT_SOURCE);
         let replayed = router
             .clone()
             .oneshot(replay_request)
@@ -27443,6 +27567,7 @@ globalThis.__snapbackHandlers = {
             .body(Body::empty())
             .expect("bare post-logout request");
         offer_auth_client_protocol(&mut bare_request);
+        let bare_request = via_hosted_terminator(bare_request, TEST_HOSTED_CLIENT_SOURCE);
         let bare = router
             .clone()
             .oneshot(bare_request)
@@ -27684,6 +27809,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .body(Body::from(r#"{"args":{}}"#))
                     .unwrap(),
             )
@@ -27817,6 +27943,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::empty())
                     .unwrap(),
@@ -27850,6 +27977,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {token}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .body(Body::from(
                         serde_json::to_vec(&json!({
@@ -27914,6 +28042,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .body(Body::from(
                         serde_json::to_vec(&json!({
@@ -27965,6 +28094,7 @@ globalThis.__snapbackHandlers = {
                     .method("GET")
                     .uri(format!("/live/{connection_id}/stream"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                     .body(Body::empty())
                     .unwrap(),
@@ -27998,6 +28128,7 @@ globalThis.__snapbackHandlers = {
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                 .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                 .body(Body::from(r#"{"args":{}}"#))
                 .unwrap()
         };
@@ -37184,7 +37315,8 @@ globalThis.__snapbackHandlers = {
             .method("POST")
             .uri("/connection/open")
             .header(header::CONTENT_TYPE, "application/json")
-            .header("x-snapback-auth-client-protocol", "1");
+            .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE);
         if let Some(bearer) = bearer {
             builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
         }
@@ -37773,6 +37905,7 @@ globalThis.__snapbackHandlers = {
                         .header(header::CONTENT_TYPE, "application/json")
                         .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
                         .header("x-snapback-auth-client-protocol", "1")
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .header("x-snapback-auth-invalidation-protocol", "1")
                         .body(Body::from(
                             serde_json::to_vec(&json!({
@@ -37818,6 +37951,7 @@ globalThis.__snapbackHandlers = {
             .header(header::CONTENT_TYPE, "application/json")
             .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
             .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
             .body(Body::from(
                 r#"{"args":{"value":"must-not-cross-grant-expiry"}}"#,
             ))
@@ -38245,6 +38379,7 @@ globalThis.__snapbackHandlers = {
                     .uri("/auth/session")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .header("x-snapback-authority-descriptor-protocol", "1")
                     .header("x-snapback-authorized-lease-protocol", "1")
@@ -38271,6 +38406,7 @@ globalThis.__snapbackHandlers = {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
                     .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                     .header("x-snapback-auth-invalidation-protocol", "1")
                     .header("x-snapback-authorized-lease-protocol", "1")
                     .body(Body::from(

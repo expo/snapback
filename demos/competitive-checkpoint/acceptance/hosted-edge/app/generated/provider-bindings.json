@@ -1,0 +1,119 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"body\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "createNote",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "deleteNote",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "updateNote",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"id\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes"
+          ]
+        },
+        "name": "getNote",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"body\": string; \"createdAt\": number; \"ownerId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes"
+          ]
+        },
+        "name": "listNotes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"body\": string; \"createdAt\": number; \"ownerId\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:4134630afaf3da4eb1875895d7f09327d921e7e64627e3e0c4a1fa0aa0b27b42",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

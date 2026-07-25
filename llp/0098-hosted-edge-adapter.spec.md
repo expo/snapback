@@ -640,7 +640,55 @@ what it attests: a hosted deployment must serve a fixed 404 on `/_snapback/*`
 reachable), and the profile must refuse, not redirect, plaintext on
 credential-bearing paths.
 
-**Not run.** The LLP 0077 matrix. The deployment's active auth mode is `dev`;
+### 8.2 Second run — sessions staged, matrix executed, 2026-07-25
+
+The deployment now runs **sessions mode under hosted admission**
+(`GET /auth/session` reports `activeMode: sessions`), staged by a
+purpose-built minimal sessions app
+(`demos/competitive-checkpoint/acceptance/hosted-edge/app/`) delivered as a
+`--startup-artifacts` carrier. Sessions went active in a single boot on a fresh
+database — the two-boot transition applies to a *change* of mode, not a fresh
+deployment. S4's fix is confirmed live: `/_snapback/admin` and
+`/_snapback/api/inspect` both answer a fixed body-free 404 on the served origin.
+
+The LLP 0077 matrix was executed by a new instrument,
+`demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs`
+(38 checks: issuance, protected requests, the nonce protocol and its
+anti-oracle rule, replay, the grant matrix over both carriers, the WebSocket
+`sender_nonce` release, and ten refusal axes).
+
+**A third attested-but-unenforced fact, and it was mine.** The matrix found
+that `effectiveSource: "trusted"` was attested while
+`src/auth/effective_source.rs` — written with ten passing unit tests in this
+same program — **was never referenced by the request path**. The origin still
+read the raw peer socket address, so under the profile's own
+loopback-terminated topology every per-source throttle bucket collapsed onto
+the terminator: exactly the failure §6 calls "load-bearing, not optional
+polish". The instrument's whole run succeeding *without ever sending
+`X-Forwarded-For`* was itself the witness.
+
+That is the same defect class as S4 and D2-plaintext, and its recurrence is the
+finding worth keeping: **a module with green unit tests is not an enforced
+fact.** Only the served-origin matrix distinguished "the code exists and is
+correct" from "the code runs". The derivation is now wired into the hosted
+request path and fails closed with `SNAPBACK_AUTH_SOURCE_UNTRUSTED`.
+
+**D-1 — an unauthenticated caller reaches the JSON parser.** On a
+sender-constrained route, `POST /query/listNotes` with no `Authorization`, no
+`DPoP`, and a malformed body answers `400 SNAPBACK_REQUEST_JSON_INVALID`; the
+same request with a well-formed body answers `401 SNAPBACK_AUTH_REQUIRED`.
+Root cause: when the bearer is `Absent` and `credential_resolution !=
+RequiredSessionBearer`, `admit_hosted_sender_request` returns `Ok(None)` and
+sender admission is skipped entirely, so the eventual refusal comes from the
+function-authority gate *after* body parse. LLP 0077 §HTTP binding's stated
+rationale is "an unproven sender must never cause body ingestion", and §Nonce
+protocol says the absent-carrier refusal is enforced at the route middleware
+*before* sender admission is reached. Neither holds. It is bounded by the body
+limit, so it is an ordering/attack-surface defect rather than an unbounded one,
+and it is recorded as an open LLP 0077 ledger defect rather than fixed in this
+lane — the admission ordering is delicate enough to deserve its own change.
+
+**Not run in the first run.** The LLP 0077 matrix. The deployment's active auth mode is `dev`;
 sessions mode is selected by the application schema and requires a
 `--startup-artifacts` carrier plus a two-boot staging transition that this
 deployment does not yet stage. `POST /auth/request-code` refuses

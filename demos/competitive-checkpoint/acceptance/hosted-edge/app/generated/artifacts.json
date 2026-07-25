@@ -1,0 +1,70 @@
+{
+  "appId": "hosted-edge",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/createNote.args.schema.json",
+    "operations/deleteNote.args.schema.json",
+    "operations/getNote.args.schema.json",
+    "operations/listNotes.args.schema.json",
+    "operations/updateNote.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/createNote.mutation.ts",
+    "contract/createNote.mutation.contract-meta.ts",
+    "contract/deleteNote.mutation.ts",
+    "contract/deleteNote.mutation.contract-meta.ts",
+    "contract/getNote.query.ts",
+    "contract/getNote.query.contract-meta.ts",
+    "contract/listNotes.query.ts",
+    "contract/listNotes.query.contract-meta.ts",
+    "contract/updateNote.mutation.ts",
+    "contract/updateNote.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:912e447c2f63ec2148104daefbc2d856b423211d5369df6e279455a9f75ceb4f",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "hosted-edge:createNote",
+      "kind": "Mutation",
+      "name": "createNote"
+    },
+    {
+      "id": "hosted-edge:deleteNote",
+      "kind": "Mutation",
+      "name": "deleteNote"
+    },
+    {
+      "id": "hosted-edge:getNote",
+      "kind": "LiveQuery",
+      "name": "getNote"
+    },
+    {
+      "id": "hosted-edge:listNotes",
+      "kind": "LiveQuery",
+      "name": "listNotes"
+    },
+    {
+      "id": "hosted-edge:updateNote",
+      "kind": "Mutation",
+      "name": "updateNote"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:4134630afaf3da4eb1875895d7f09327d921e7e64627e3e0c4a1fa0aa0b27b42",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:fc34a11f1029b55da9f88fb02340517526986a7262fdbaa21ae1ba0e84fadeeb",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "notes"
+  ]
+}

@@ -73,6 +73,22 @@ refusing credential-bearing paths — both attested-but-unenforced facts (LLP
 active auth mode is `dev`, and sessions needs a `--startup-artifacts` carrier
 plus a two-boot staging transition the deployment does not yet stage.
 
+**New ledger defect (2026-07-25, D-1): sender admission is skipped for an
+absent carrier, so an unauthenticated caller reaches the JSON parser.** On a
+sender-constrained route, `POST /query/listNotes` with no `Authorization`, no
+`DPoP`, and a malformed body answers `400 SNAPBACK_REQUEST_JSON_INVALID`; the
+same request with a well-formed body answers `401 SNAPBACK_AUTH_REQUIRED`.
+When the bearer is `Absent` and `credential_resolution !=
+RequiredSessionBearer`, `admit_hosted_sender_request` returns `Ok(None)` and
+admission is skipped entirely, so the refusal comes from the function-authority
+gate *after* body parse. This contradicts §HTTP binding ("an unproven sender
+must never cause body ingestion") and §Nonce protocol (the absent-carrier
+refusal is "enforced at the route middleware before sender admission is
+reached"). Bounded by the body limit, so it is an ordering/attack-surface
+defect, not an unbounded one. Found by the served-origin matrix; left
+deliberately RED in the instrument rather than worked around, and not fixed in
+the adapter lane because the admission ordering deserves its own change.
+
 This does **not** close the capability gate. `hostedAuthCapable` still
 requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
 against a **real served public origin** under that attestation, which needs
