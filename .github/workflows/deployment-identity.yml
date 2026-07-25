@@ -1,0 +1,54 @@
+name: deployment-identity
+
+# LLP 0049 §Deployment-identity freshness gate (2026-07-25): the committed
+# cloudflare/generated/deployment-identity.<app>.json manifests are the
+# source-derived state identity that cloudflare/deploy.sh (via
+# scripts/cf-check-compat) refuses to deploy against when stale. Until this
+# lane existed nothing failed the OFFENDING commit — a landing that changed
+# deploy inputs (bundled sources, schema manifests, wrangler/compat configs)
+# without regenerating silently made main un-deployable, which happened twice
+# on 2026-07-25 alone. This lane recomputes both app identities from the
+# checkout and fails fast on drift; verify-local-proof runs the same --check,
+# so local runs and CI exercise one code path.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Agents push to main in bursts; only the newest commit's proof matters.
+concurrency:
+  group: deployment-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deployment-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      # ENG-24513: consume the root .node-version authority instead of
+      # floating the Node patch release.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      # The identity computation needs the root lockfile's esbuild to discover
+      # transitive bundle inputs; no submodules, no Hermes, no credentials.
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Recompute Cloudflare deployment identities and refuse drift
+        run: node cloudflare/scripts/generate-deployment-identity.mjs --check

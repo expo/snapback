@@ -10,6 +10,7 @@ const workflowDir = join(ROOT, '.github', 'workflows');
 const workflowNames = readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)).sort();
 assert.deepEqual(workflowNames, [
   'all-aboard-cold-clone.yml',
+  'deployment-identity.yml',
   'linux-runtime-package.yml',
   'local-proof.yml',
   'ref-check.yml',
@@ -134,8 +135,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 4, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 20, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 5, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 23, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');

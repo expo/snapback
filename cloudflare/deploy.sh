@@ -424,10 +424,58 @@ if ! node -e "
     try { console.log(JSON.parse(process.argv[1]).code || 'unknown'); }
     catch (_) { console.log('invalid-health-response'); }
   " "${PROBED_HEALTH_BODY:-}")"
-  echo "!!> DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED: $health_code" >&2
-  echo "    The new Worker version is live, but persistent state needs the documented" >&2
-  echo "    migration/reset path before this deploy can be declared healthy." >&2
-  exit 1
+  # Opt-in stale-hash escape hatch (issues/closed/20260725-deploy-stale-schema-
+  # hash-reset-race.md): a schema/inputs-hash change over non-empty persisted
+  # state refuses on the NEW version by design, and coordinator.js
+  # initializeSchema()'s two-phase startup deliberately keeps the authenticated
+  # reset endpoint alive on that stale deployment so it can rebuild and stamp
+  # the new hashes. Invoking it here — against the just-activated version,
+  # before any failure/rollback — replaces the reset-loop-vs-rollback race that
+  # was the previous working procedure. The call authenticates against the
+  # admin secret a PREVIOUS deploy already configured on the Worker (this run's
+  # secret handling happens later), which is exactly what the live workaround
+  # proved works.
+  stale_reset_recovered=0
+  if [[ "${SNAPBACK_DEPLOY_RESET_ON_STALE:-0}" == "1" && "$health_code" == SNAPBACK_STALE_CLOUDFLARE_* ]]; then
+    if [[ -z "${SNAPBACK_ADMIN_TOKEN:-}" ]]; then
+      echo "!!> SNAPBACK_DEPLOY_RESET_ON_STALE=1 is set, but SNAPBACK_ADMIN_TOKEN is not in the" >&2
+      echo "    environment; cannot authenticate /_snapback/api/app/reset — failing closed" >&2
+    else
+      echo "==> SNAPBACK_DEPLOY_RESET_ON_STALE=1: invoking authenticated /_snapback/api/app/reset on the new version"
+      reset_attempts="${SNAPBACK_DEPLOY_RESET_ATTEMPTS:-6}"
+      reset_delay="${SNAPBACK_DEPLOY_RESET_DELAY_SECONDS:-5}"
+      for ((i = 1; i <= reset_attempts; i++)); do
+        reset_body="$(curl -sS --max-time 15 -X POST -H "x-snapback-admin-token: ${SNAPBACK_ADMIN_TOKEN}" "$probe_url/_snapback/api/app/reset" 2>/dev/null || true)"
+        if node -e "
+          const body = JSON.parse(process.argv[1] || 'null');
+          process.exit(body && body.reset === true ? 0 : 1);
+        " "$reset_body" 2>/dev/null; then
+          echo "==> reset landed on the new deployment; re-probing health"
+          if probe_gateway_bindings "$probe_url" "$probe_attempts" "$probe_delay" && node -e "
+            const body = JSON.parse(process.argv[1] || 'null');
+            process.exit(body && body.ok === true ? 0 : 1);
+          " "${PROBED_HEALTH_BODY:-}"; then
+            stale_reset_recovered=1
+            echo "==> health passes after reset; continuing the normal deploy path"
+          else
+            echo "!!> reset landed but health still refuses; falling through to failure/rollback" >&2
+          fi
+          break
+        fi
+        echo "    reset $i/$reset_attempts: new deployment has not confirmed \"reset\":true yet"
+        sleep "$reset_delay"
+      done
+    fi
+  fi
+  if [[ "$stale_reset_recovered" -ne 1 ]]; then
+    echo "!!> DEPLOYED BINDINGS VERIFIED, BUT HEALTH REFUSED: $health_code" >&2
+    echo "    The new Worker version is live, but persistent state needs the documented" >&2
+    echo "    migration/reset path before this deploy can be declared healthy." >&2
+    echo "    For proof/demo targets whose persisted state is disposable, rerun with" >&2
+    echo "    SNAPBACK_DEPLOY_RESET_ON_STALE=1 (and SNAPBACK_ADMIN_TOKEN exported) to reset" >&2
+    echo "    and restamp on the new version instead of rolling back." >&2
+    exit 1
+  fi
 fi
 
 # The destructive admin endpoints (/_snapback/api/app/reset, /_snapback/api/object/evict) are token-gated and fail

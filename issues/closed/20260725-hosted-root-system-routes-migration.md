@@ -62,9 +62,16 @@ Executed as part of the LLP 0093 P-0 landing (spec: LLP 0094 §0A.3; LLP
 - **Verification.** `node cloudflare/test/local-suite.mjs` (the full
   non-remote inventory) green on the migrated paths; Rust
   `workerd_exec` transport tests updated and green.
-- **Redeploy pending, needs fleet coordination.** The shared Cloudflare
-  deployment still serves the old root paths until redeployed; the
-  updated remote suites (`acceptance.remote*.mjs`, `measure.remote.mjs`)
-  and tooling target the new paths and will only pass against a
-  post-migration deploy. Do not redeploy without checking for concurrent
-  fleet sessions using the shared environment.
+- **Redeploy executed (2026-07-25, later the same day).** Both proofs
+  redeployed from main at `951d7d21` with a fresh Workers-scoped API
+  token: all-aboard gateway version `c98e51e6`, notes gateway version
+  `3e69104f`. Live verification: `/_snapback/api/cron/status` serves
+  real JSON, old-path `/cron/status` falls to the SPA (no root aliases,
+  as designed). Notes remote suite 11/11 (including the analytics
+  billing read). All-aboard remote suite 16/17 — the one failure
+  (`live 511 refresh writes real future departure rows`) is
+  environmental: the refresh committed through the real 511 key but
+  upstream returned 0 monitored visits at 04:35 PT on a Saturday,
+  before the first weekend Caltrain departure; rerun during service
+  hours. Deploy friction hit along the way is filed as
+  `issues/20260725-deploy-stale-schema-hash-reset-race.md`.

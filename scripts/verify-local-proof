@@ -64,6 +64,12 @@ run scripts/ibex-doctor
 # LLP 0032 P3 artifact gates: regen-and-diff staleness + tsc over generated
 # types (the Rust-derived schema validation gate runs inside cargo test).
 run scripts/check-generated-artifacts
+# @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — recompute the
+# committed Cloudflare deployment-identity manifests here so the commit that
+# changes deploy inputs without regenerating fails, not the next deploy
+# (cf-check-compat refuses at deploy time; on 2026-07-25 main went
+# un-deployable twice this way). Fast-CI twin: .github/workflows/deployment-identity.yml.
+run node cloudflare/scripts/generate-deployment-identity.mjs --check
 run scripts/check-generated-types
 run scripts/check-demo-surfaces
 # ENG-22543 (Diary 0011 flip-condition 2): production-build every REQUIRED demo
