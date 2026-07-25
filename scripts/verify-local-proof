@@ -58,7 +58,6 @@ run node scripts/check-guide.mjs
 # the All Aboard `headsgn` typo at compile time.
 run node scripts/check-contract-meta.mjs
 run node scripts/check-contract-meta.test.mjs
-run bun test demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
@@ -72,6 +71,9 @@ run scripts/check-demo-surfaces
 # surfaces build here unconditionally from their committed registry locks; no
 # sibling Exact checkout or source-asset bridge participates.
 run node scripts/check-required-surface-builds.mjs
+# ENG-25268: this Bun test imports the surface-pinned Exact compiler, so it
+# runs only after the shared gate has completed that surface's frozen install.
+run bun test demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts
 # ENG-24452: the rebuild above regenerates every required surface dist IN
 # PLACE, so this scan sees exactly the production bytes a contributor would
 # commit; it rejects absolute checkout paths (surfaces still pinned to a

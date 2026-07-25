@@ -597,6 +597,11 @@ the complete hosted drill and public package path are operational.
   inventory and reviewed action counts. The lane itself passed on its first
   complete run; the broader proof correctly refused the unreviewed workflow
   until that meta-gate named and inspected it.
+- The canonical proof had one more clean-runner ordering dependency: its Exact
+  compiler type test ran before the required-surface gate installed the
+  surface's frozen registry tree. Moving that test immediately after the
+  shared install/build gate removed the accidental reliance on a developer's
+  existing `node_modules`.
 - This was a useful advantage over checking only an application already inside
   the monorepo: the required-surface lane caught source resolution, and the
   external tarball install independently caught release closure.

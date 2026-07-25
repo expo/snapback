@@ -251,6 +251,11 @@ assert.match(
   'canonical CI must use the repository bootstrap to materialize and launch-test Hermes',
 );
 const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
+assert(
+  localProofScript.indexOf('check-required-surface-builds.mjs')
+    < localProofScript.indexOf('headsign-typecheck.test.ts'),
+  'Exact-dependent surface type tests must run after the frozen surface install/build gate',
+);
 assert.match(
   localProofScript,
   /admin-ui[^\n]*audit:production|audit:production/,
