@@ -2836,7 +2836,7 @@ export class SnapbackClient {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
     }
-    const responseSenderNonce = res.headers.get('dpop-nonce');
+    const responseSenderNonce = res.headers?.get?.('dpop-nonce') ?? null;
     if (responseSenderNonce !== null && !isCanonicalSenderNonce(responseSenderNonce)) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       const error = new Error('SNAPBACK_AUTH_SENDER_PROOF_INVALID: response nonce is invalid');
@@ -4131,7 +4131,7 @@ export class SnapbackClient {
       // in-memory only in rollout step 1 (persistence is step 5). Adopted
       // from subscribe outputs and refreshed envelopes per the LLP 0091
       // §0B.3 transition table; cleared on digest mismatch.
-      resume: null,
+      resumeToken: null,
       authorizationDisposition: 'retain',
       get connection() {
         return connection;
@@ -4720,7 +4720,7 @@ export class SnapbackClient {
           handle.version = update.version;
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
           // replacement rows it was minted from.
-          if (update.resume) handle.resume = update.resume;
+          if (update.resume) handle.resumeToken = update.resume;
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
               version: handle.version,
@@ -4739,7 +4739,7 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
-        if (update.resume) handle.resume = update.resume;
+        if (update.resume) handle.resumeToken = update.resume;
         deliverAuthorityObservation(() => {
           onUpdate?.(handle.rows, {
             version: handle.version,
@@ -4787,9 +4787,9 @@ export class SnapbackClient {
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
             if (digest && rowsMatchDigest(handle.rows, digest)) {
-              handle.resume = update.resume;
+              handle.resumeToken = update.resume;
             } else {
-              handle.resume = null;
+              handle.resumeToken = null;
               void resubscribe('rqs_digest_mismatch');
               return;
             }
@@ -4832,7 +4832,7 @@ export class SnapbackClient {
           // (the LLP 0034 §2.4 amendment: maybe-CurrentAsOf-with-subscribe).
           // In-memory only in rollout step 1; auth-scoped handles never hold
           // a token (the server never mints one for them).
-          const heldResume = handle.resume;
+          const heldResume = handle.resumeToken;
           const sub = await client.subscribeLive(name, {
             connectionId,
             args,
@@ -4896,7 +4896,7 @@ export class SnapbackClient {
             }
             // else: the rung-1 CurrentAsOf answer — held rows are current;
             // the current_as_of durable envelope advances version + token.
-            if (sub.resume) handle.resume = sub.resume;
+            if (sub.resume) handle.resumeToken = sub.resume;
             markAuthorityCapture(handle.rows, handleAuthorityCapture);
           }
           return true;
