@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "partitime.comparison-protocol.v1",
+  "protocolId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "claimManifest": "demos/partiful-matrix/acceptance/claims.v1.json",
+  "ratifier": "Charlie Cheever, as the ratifying source named by LLP 0000",
+  "disputeAdjudicator": "Charlie Cheever; a disputed gate interpretation is resolved by a dated LLP 0063 amendment before rerun",
+  "environment": {
+    "packageIdentity": "Each receipt records every surface lockfile digest and resolved package name/version; aliases are reported as aliases, never normalized away.",
+    "hardwareClass": "apple-silicon-arm64; exact OS build, CPU model, and memory are recorded per run",
+    "agentConfigurationId": "codex-gpt5-default-tools-2026-07-19",
+    "agentPrompt": "Implement one manifest-named cell from the same clean fixture and guide context; no cross-cell transcript reuse.",
+    "credentialCustodian": "Charlie Cheever; secrets remain in .agent-local-secrets.md and receipts record only named health outcomes"
+  },
+  "sampling": {
+    "deterministicChecks": { "runs": 1, "aggregation": "all required assertions pass; a skip is not a pass" },
+    "stochasticMeasurements": { "warmups": 2, "samples": 7, "aggregation": "median and p95", "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure" },
+    "timingTolerance": "Contract p95 must be at or below the formula-derived threshold; equality passes",
+    "remoteDependency": "Credential health is preflighted. An unhealthy remote cell is a receipt-recorded remote-dependency skip, excluded from local gate aggregation and never counted as pass."
+  },
+  "nonInferiority": {
+    "visualQuality": "All registered semantic and visual-baseline claims pass at the same themes/viewports. Critical accessibility or layout failures have zero tolerance; image review is against the shared product specification, not React pixel identity.",
+    "interactionDesign": "The same claim IDs pass with no extra mandatory navigation/reboot step and no waived keyboard, focus, reduced-motion, or screen-reader claim.",
+    "runtimeWeight": "Each numeric category uses the formulas below against the same-workload React×Snapback baseline.",
+    "diagnostics": "Contract scores at least 90/100 and no lower than React on the frozen rubric.",
+    "deploymentErgonomics": "All scripted clean-checkout milestones pass, manual interventions are zero, and required command count is no more than React plus one.",
+    "agentEffort": "For the pinned configuration, median turns and tool calls are no more than 1.10× React; human interventions are no greater than React. A mixed result fails unless every worse dimension stays within its margin and Contract wins at least one dimension."
+  },
+  "diagnosticRubric": {
+    "sourceLocus": 25,
+    "stableCodeAndSeverity": 20,
+    "structuredSafeDetails": 15,
+    "repairGuidance": 10,
+    "cliLspAgentParity": 20,
+    "deduplicationIdentity": 10
+  },
+  "thresholdFormulas": {
+    "emittedMinifiedJsBytes": "floor(react_same_cell_baseline * 1.05)",
+    "compressedJsBytes": "floor(react_same_cell_baseline * 1.05)",
+    "coldAndWarmStartupMsP95": "floor(react_same_cell_baseline * 1.10)",
+    "firstAuthoritativeAndLiveDataMsP95": "floor(react_same_cell_baseline * 1.10)",
+    "firstPushFreshnessLatencyMsP95": "floor(react_snapback_baseline * 1.10)",
+    "idleCpuAndNetwork": "min(react_same_cell_baseline * 1.05, protocol_declared_absolute_idle_ceiling)",
+    "memoryPerActiveSubscriptionBytesP95": "floor(react_same_cell_baseline * 1.10)",
+    "fanoutAndHostPatchCountP95": "floor(react_same_cell_baseline * 1.10)",
+    "productionAndIncrementalBuildMsP95": "floor(react_same_cell_baseline * 1.10)",
+    "nativeCarrierCostP95": "floor(react_expo_same_os_baseline * 1.10)",
+    "contractSourceLines": "floor(react_same_workload_source_lines * 1.10)",
+    "snapbackBackendLines": "floor(partitime_snapback_backend_baseline_lines * 0.80)",
+    "requiredCheckCount": "partitime_full_web_matrix_required_check_count"
+  },
+  "initialAttributionCategories": [
+    "emittedMinifiedJsBytes", "compressedJsBytes", "authoredSourceLines",
+    "glueFileAndLineInventory", "requiredCheckCount", "firstPushFreshnessLatencyMsP95"
+  ],
+  "futureCategoriesDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
+  "amendments": [
+    {
+      "id": "partitime-ws8-prospective-2026-07-21",
+      "date": "2026-07-21",
+      "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+      "status": "ratified"
+    },
+    {
+      "id": "partitime-ws8-warm-prime-invalidation-2026-07-22",
+      "date": "2026-07-22",
+      "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json",
+      "status": "ratified"
+    },
+    {
+      "id": "partitime-ws8-native-lane-invalidation-2026-07-22",
+      "date": "2026-07-22",
+      "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+      "status": "ratified"
+    }
+  ],
+  "changePolicy": {
+    "validBaseline": "Never loosen or replace an ID; later amendments may tighten or add a holdout-validated metric.",
+    "invalidBaseline": "Preserve original artifacts; document the instrument defect and impact; obtain ratifier approval; version-bump method and threshold IDs; rerun both comparison arms and controls prospectively. The replacement may move either direction.",
+    "unavailableInstrument": "Document the loss; preserve the old artifacts; version-bump IDs; name the replacement environment/configuration; rerun both arms and controls prospectively.",
+    "workloadRollover": "A new immutable workload version is declared before measurement; never rewrite an old workload baseline."
+  }
+}
