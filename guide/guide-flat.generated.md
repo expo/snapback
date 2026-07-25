@@ -50,6 +50,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a route entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner | bundle, preload, resumable snapshots, boot, RQS | local | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
@@ -127,6 +128,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
 | /action/{name} | backend.actions |
+| /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
 | /auth/agents/pair | auth.agent-principals |
 | /auth/agents/revoke-self | auth.agent-principals |

@@ -232,6 +232,16 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "auth.rescue-colliding-table.output.schema.json",
             schemars::schema_for!(crate::auth::rescue::CollisionRescueResult),
         ),
+        // The snapshot bundle endpoint (LLP 0092 §0D.1): request/response of
+        // `POST /app/bundle`, exported through the LLP 0051 drift gates.
+        finish(
+            "app.bundle.input.schema.json",
+            schemars::schema_for!(crate::bundle::BundleRequest),
+        ),
+        finish(
+            "app.bundle.output.schema.json",
+            schemars::schema_for!(crate::bundle::BundleResponse),
+        ),
         finish(
             "app.ensure.input.schema.json",
             schemars::schema_for!(EnsureAppRequest),

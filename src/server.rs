@@ -4801,6 +4801,77 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Remove a pending-registration grant for reaping, yielding a
+    /// whole-id-cleanup-safe terminal capture (the connection existed only
+    /// for the reaped bundle, so whole-id teardown is exact). The caller
+    /// publishes the capture so the retirement sink disarms demand and
+    /// purges topology.
+    fn retire_bundle_connection(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+    ) -> Option<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        if !state
+            .grants
+            .get(connection_id)
+            .is_some_and(|record| record.grant_id == grant_id)
+        {
+            return None;
+        }
+        let record = state.remove_grant(connection_id)?;
+        Some(
+            record
+                .authority
+                .terminal_capture(connection_id.to_owned(), record.grant_id)
+                .after_mint_only_containment(),
+        )
+    }
+
+    /// Rotate a pending-registration grant's secret in place (LLP 0031 dated
+    /// amendment: a lost-response retry returns the registration set under a
+    /// freshly rotated connection-grant secret bound to the same connection
+    /// identity; re-returning a possibly-exposed secret verbatim is refused).
+    fn rotate_grant_token(&self, connection_id: &str, grant_id: &str) -> SnapbackResult<String> {
+        let mut state = self.lock();
+        let record = state
+            .grants
+            .get_mut(connection_id)
+            .filter(|record| record.grant_id == grant_id)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                    "realtime",
+                    "the pending connection grant is no longer installed",
+                )
+            })?;
+        let token = format!("sct_{}", Uuid::new_v4().simple());
+        record.token = token.clone();
+        Ok(token)
+    }
+
+    /// The effect fence and invalidation connection for an installed grant —
+    /// the register-mode supersede path re-derives the pending connection's
+    /// registration identity from the registry record.
+    fn bundle_register_identity(
+        &self,
+        connection_id: &str,
+        grant_id: &str,
+    ) -> Option<(
+        crate::ephemeral::ConnectionEffectFence,
+        Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
+    )> {
+        let state = self.lock();
+        let record = state
+            .grants
+            .get(connection_id)
+            .filter(|record| record.grant_id == grant_id)?;
+        Some((
+            record.authority.effect_fence(grant_id),
+            record.authorization_invalidation.clone(),
+        ))
+    }
+
     /// Refresh the grant's mutable cached lease after authenticated-use
     /// publication. The immutable authority identity and grant id must still
     /// match at the session fence cut.
@@ -5896,6 +5967,13 @@ pub enum ResponseSensitivity {
     /// reveal no protected row, but caching either protocol response is still
     /// invalid.
     PublicNoStore,
+    /// Declared-public application data (LLP 0031 dated LLP 0090 amendment):
+    /// arbitrary app query rows whose anonymous emission is authorized by the
+    /// query's own codegen-compiled served-manifest facts, re-checked
+    /// server-side. Governs the bundle/Channel A lanes only. Operator-plane
+    /// logging posture stays that of application data (bodies excluded);
+    /// cache posture is `no-store` in v1 (the middleware's non-public arm).
+    DeclaredPublicApplicationData,
     ApplicationData,
     ConnectionSecret,
     OperatorMetadata,
@@ -6880,6 +6958,26 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             app_auth_route("POST", "/client-mutations/acknowledge"),
             post(acknowledge_mutations),
+        ),
+        // The snapshot bundle endpoint (LLP 0090 D1.2 / LLP 0092 §0D):
+        // optional credential — anonymous accepted only for read mode against
+        // publicInline-class routes; register mode is credentialed-only. The
+        // response class is the amendment's DeclaredPublicApplicationData.
+        // @ref LLP 0092#0d7-route-taxonomy-entry-llp-0031 — the taxonomy row
+        //   this registration implements.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/app/bundle",
+                RouteClass::AppData,
+                RoutePolicy::AppAuth,
+                CredentialResolution::LegacyBodyAuth,
+                InvocationAuthority::ClientAsserted,
+                LegacyBodyPolicy::Allowed,
+                ResponseSensitivity::DeclaredPublicApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::app_function_session()),
+            post(app_bundle),
         ),
         RegisteredRoute::new(
             app_function_route("POST", "/mutation/{name}"),
@@ -7868,6 +7966,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
         "/query/{name}" => Some(InvocationSource::HttpQuery),
         "/query/{name}/authorized-lease" => Some(InvocationSource::HttpQuery),
+        // Bundle entries are evaluated exactly like HTTP queries; register
+        // mode re-prepares LiveInitialQuery authorities per entry inside the
+        // local cut (LLP 0092 §0D.5).
+        "/app/bundle" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge"
@@ -14045,6 +14147,10 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 // prune by TTL, LLP 0013 §TTL and leases).
                 ephemeral.cleanup_expired(now);
             }
+            // Pending-registration owners are swept every tick (5 s, inside
+            // the ≤10 s bound of LLP 0092 §0D.4): a reaped boot leaves no
+            // armed demand and no usable grant.
+            sweep_pending_bundle_owners(&runtime);
             let connections = runtime.connections.clone();
             let retired_idle = if run_maintenance {
                 connections.retire_idle_for_cleanup(now.saturating_sub(CONNECTION_IDLE_TTL_MS))
@@ -15670,6 +15776,379 @@ async fn invoke_query(
     Ok(Json(FunctionResponse::new(output, attribution)))
 }
 
+/// Interim replay-tuple identities (LLP 0031 dated amendment; see
+/// `BundleReplayScope`): stable projections of the resolved authority pending
+/// sender-constrained custody wiring on this route.
+fn bundle_authority_key(resolved: &ResolvedAppAuthority) -> String {
+    match resolved {
+        ResolvedAppAuthority::Anonymous => "anonymous".to_owned(),
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => format!("dev:{user_id}"),
+        ResolvedAppAuthority::Session { user_id, .. } => format!("session:{user_id}"),
+        ResolvedAppAuthority::ServicePrincipal { actor_user_id, .. } => {
+            format!("service:{actor_user_id}")
+        }
+        ResolvedAppAuthority::AdminBypass { .. } => "admin".to_owned(),
+        ResolvedAppAuthority::System => "system".to_owned(),
+    }
+}
+
+fn bundle_sender_identity(resolved: &ResolvedAppAuthority) -> (String, u64) {
+    match resolved {
+        ResolvedAppAuthority::Anonymous => ("anonymous".to_owned(), 0),
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => (format!("dev:{user_id}"), 0),
+        ResolvedAppAuthority::Session {
+            session_id,
+            authority_instance_id,
+            generation,
+            ..
+        } => (
+            format!("session:{authority_instance_id}:{session_id}"),
+            *generation,
+        ),
+        ResolvedAppAuthority::ServicePrincipal {
+            credential_id,
+            token_id,
+            credential_generation,
+            ..
+        } => (
+            format!("service:{credential_id}:{token_id}"),
+            *credential_generation,
+        ),
+        ResolvedAppAuthority::AdminBypass { reason } => (format!("admin:{reason}"), 0),
+        ResolvedAppAuthority::System => ("system".to_owned(), 0),
+    }
+}
+
+/// Reap a pending-registration connection: registry removal with terminal
+/// capture, which the retirement sink turns into full ephemeral + local
+/// topology teardown — demand disarmed, capacity released, grant invalidated
+/// (LLP 0092 §0D.4).
+fn bundle_reap_connection(runtime: &AppState, connection_id: String, grant_id: String) {
+    if let Some(capture) = runtime
+        .connections
+        .retire_bundle_connection(&connection_id, &grant_id)
+    {
+        runtime.connections.publish_retirement(capture);
+    }
+}
+
+fn bundle_refusal(code: &'static str, message: &str) -> ApiError {
+    ApiError::from(SnapbackError::error(code, "realtime", message.to_owned()))
+}
+
+/// The attach-grace window (LLP 0092 §0D.4: 30 s default, a server policy
+/// knob — overridable so acceptance suites can exercise reaping without a
+/// 30-second wait).
+fn bundle_attach_grace_ms() -> u64 {
+    std::env::var("SNAPBACK_BUNDLE_ATTACH_GRACE_MS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(crate::bundle::BUNDLE_ATTACH_GRACE_MS)
+}
+
+/// Reap every pending-registration owner past its attach deadline. The
+/// maintenance worker calls this every tick; it is public so the acceptance
+/// suite can drive the sweep deterministically. Returns the number reaped.
+pub fn sweep_pending_bundle_owners(runtime: &AppState) -> usize {
+    let now = now_millis();
+    let reaped = runtime.bundle_pending.sweep(now);
+    let count = reaped.len();
+    for (connection_id, grant_id) in reaped {
+        bundle_reap_connection(runtime, connection_id, grant_id);
+    }
+    count
+}
+
+/// `POST /app/bundle` — the snapshot bundle endpoint (LLP 0090 D1.2 rollout
+/// step 2; the contract is LLP 0092 §0D). Read mode evaluates a manifest
+/// entry's queries at one commit cut and creates no server state; register
+/// mode additionally arms the pending-registration owner of the LLP 0031
+/// dated amendment — the one sanctioned socketless-demand exception.
+async fn app_bundle(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    input: Result<Json<crate::bundle::BundleRequest>, JsonRejection>,
+) -> Result<Json<crate::bundle::BundleResponse>, ApiError> {
+    use crate::bundle::{self, BundleMode, RegisterAdmission, code};
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let mode = bundle::validate_mode(request.mode.as_deref(), request.idempotency_key.as_deref())
+        .map_err(|code| {
+        bundle_refusal(code, "bundle mode/idempotency-key combination refused")
+    })?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_key = bundle_authority_key(authority.resolved());
+    runtime
+        .bundle_pending
+        .admit_rate(&authority_key, epoch_now_ms)
+        .map_err(|code| bundle_refusal(code, "per-authority bundle request rate exceeded"))?;
+    // Cluster 0C's routes-manifest authoring surface (`snapback/routes.mjs` →
+    // `routes.manifest.json`) has not landed, so no served route manifest
+    // exists to match against; requests must inline the route entry in the
+    // clearly-marked dev/test form. TODO(ENG-25448): route-manifest lookup.
+    let Some(entry) = request.dev_manifest_entry.clone() else {
+        return Err(bundle_refusal(
+            code::ROUTE_UNKNOWN,
+            "no served route manifest holds this route (inline devManifestEntry required until the cluster-0C authoring surface lands)",
+        ));
+    };
+    let route = request.route.clone();
+    let params = request.params.clone();
+    let auth = request.auth.clone();
+    match mode {
+        BundleMode::Read => {
+            // Interim fail-closed `publicInline`: the codegen-compiled fact
+            // is cluster-0C work, so no route is publicInline-class yet and
+            // every anonymous read refuses (LLP 0092 §0D.1's NOT_PUBLIC gate
+            // with an empty publicInline set). TODO(ENG-25448).
+            if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+                return Err(bundle_refusal(
+                    code::NOT_PUBLIC,
+                    "anonymous bundle reads require a publicInline-class route (none are served yet)",
+                ));
+            }
+            let response = with_snapback(&state, move |snapback| {
+                snapback.evaluate_bundle(&entry, &params, &route, &auth, &authority, None)
+            })
+            .await
+            .map_err(ApiError::from)?;
+            Ok(Json(response))
+        }
+        BundleMode::Register => {
+            if !authority.resolved().carries_user() {
+                // Refused explicitly so the client retries in read mode —
+                // never a silent mode substitution (LLP 0092 §0D.2).
+                return Err(bundle_refusal(
+                    code::REGISTER_REQUIRES_CREDENTIAL,
+                    "register mode requires a credentialed caller; retry in read mode",
+                ));
+            }
+            let key = request
+                .idempotency_key
+                .clone()
+                .expect("register mode validated the key present");
+            let generation = with_snapback(&state, |snapback| snapback.rqs_generation_digest())
+                .await
+                .map_err(ApiError::from)?;
+            let (sender_identity, credential_incarnation) =
+                bundle_sender_identity(authority.resolved());
+            let identity_of = |value: serde_json::Value| {
+                crate::rqs::sha256_identity(&value).map_err(|_| {
+                    bundle_refusal(
+                        code::ENTRY_INVALID,
+                        "bundle entry is not canonically hashable",
+                    )
+                })
+            };
+            let entry_identity =
+                identity_of(serde_json::to_value(&entry).unwrap_or(serde_json::Value::Null))?;
+            let args_identity = identity_of(serde_json::json!({
+                "route": route,
+                "params": params,
+            }))?;
+            let scope = bundle::BundleReplayScope {
+                authority_key,
+                sender_identity,
+                credential_incarnation,
+                generation,
+                entry_identity,
+                args_identity,
+            };
+            let admission_outcome = runtime
+                .bundle_pending
+                .begin_register(&key, &scope)
+                .map_err(|code| bundle_refusal(code, "bundle idempotency-key admission refused"))?;
+            match admission_outcome {
+                RegisterAdmission::New => {
+                    let presented = presented_session_bearer(&headers);
+                    let prepared_open = match prepare_connection_open_authority_with_scoped_token(
+                        &runtime,
+                        presented,
+                        epoch_now_ms,
+                        monotonic_now,
+                        None,
+                    )
+                    .await
+                    {
+                        Ok(prepared_open) => prepared_open,
+                        Err(error) => {
+                            runtime.bundle_pending.abandon_register(&key);
+                            return Err(error);
+                        }
+                    };
+                    // Atomic mint (LLP 0031 amendment): the grant is
+                    // discarded on any downstream failure, so a failed
+                    // bundle mints nothing and strands no server state.
+                    let opened =
+                        match runtime
+                            .connections
+                            .open_prepared(ConnectionOpenAttempt::new(
+                                None,
+                                None,
+                                false,
+                                prepared_open.clone(),
+                                epoch_now_ms,
+                                monotonic_now,
+                                None,
+                            )) {
+                            Ok(opened) => opened,
+                            Err(error) => {
+                                runtime.bundle_pending.abandon_register(&key);
+                                return Err(ApiError::from(error));
+                            }
+                        };
+                    let target = crate::local::BundleRegisterTarget {
+                        connection_id: opened.grant.connection_id.clone(),
+                        effect_fence: prepared_open.bound.effect_fence(&opened.grant_id),
+                        invalidation_connection: opened.grant.authorization_invalidation.clone(),
+                    };
+                    let evaluated = {
+                        let entry = entry.clone();
+                        let params = params.clone();
+                        let route = route.clone();
+                        let auth = auth.clone();
+                        let authority = authority.clone();
+                        let target = target.clone();
+                        with_snapback(&state, move |snapback| {
+                            snapback.evaluate_bundle(
+                                &entry,
+                                &params,
+                                &route,
+                                &auth,
+                                &authority,
+                                Some(target),
+                            )
+                        })
+                        .await
+                    };
+                    let mut response = match evaluated {
+                        Ok(response) => response,
+                        Err(error) => {
+                            runtime.connections.discard_unpublished_open(&opened);
+                            runtime.bundle_pending.abandon_register(&key);
+                            return Err(ApiError::from(error));
+                        }
+                    };
+                    let attach_deadline = epoch_now_ms + bundle_attach_grace_ms();
+                    runtime
+                        .bundle_pending
+                        .commit_register(bundle::PendingRegistrationOwner {
+                            idempotency_key: key,
+                            scope,
+                            connection_id: opened.grant.connection_id.clone(),
+                            grant_id: opened.grant_id.clone(),
+                            subscription_ids: response
+                                .entries
+                                .iter()
+                                .filter_map(|entry| entry.subscription_id.clone())
+                                .collect(),
+                            attach_deadline_ms: attach_deadline,
+                        });
+                    runtime
+                        .ephemeral
+                        .touch_connection(&opened.grant.connection_id);
+                    response.connection = Some(bundle::BundleConnection {
+                        connection_id: opened.grant.connection_id.clone(),
+                        grant: opened.grant.connection_token.clone(),
+                        attach_deadline,
+                    });
+                    Ok(Json(response))
+                }
+                RegisterAdmission::Replay {
+                    connection_id,
+                    grant_id,
+                } => {
+                    // Lost-response retry: atomically supersede the pending
+                    // set — fresh evaluation at a new commit cut, the same
+                    // connection identity, a freshly rotated grant secret.
+                    let token = runtime
+                        .connections
+                        .rotate_grant_token(&connection_id, &grant_id)
+                        .map_err(ApiError::from)?;
+                    let Some((effect_fence, invalidation_connection)) = runtime
+                        .connections
+                        .bundle_register_identity(&connection_id, &grant_id)
+                    else {
+                        runtime
+                            .bundle_pending
+                            .resolve_key(&key, bundle::PendingResolution::Reaped);
+                        return Err(bundle_refusal(
+                            code::IDEMPOTENCY_EXPIRED,
+                            "the pending connection is no longer installed",
+                        ));
+                    };
+                    let target = crate::local::BundleRegisterTarget {
+                        connection_id: connection_id.clone(),
+                        effect_fence,
+                        invalidation_connection,
+                    };
+                    let evaluated = {
+                        let entry = entry.clone();
+                        let params = params.clone();
+                        let route = route.clone();
+                        let auth = auth.clone();
+                        let authority = authority.clone();
+                        let target = target.clone();
+                        with_snapback(&state, move |snapback| {
+                            // Supersede under the same local cut: purge the
+                            // prior pending set, then register afresh.
+                            snapback.purge_connection_topology(
+                                &target.connection_id,
+                                &target.effect_fence,
+                            );
+                            snapback.evaluate_bundle(
+                                &entry,
+                                &params,
+                                &route,
+                                &auth,
+                                &authority,
+                                Some(target.clone()),
+                            )
+                        })
+                        .await
+                    };
+                    match evaluated {
+                        Ok(mut response) => {
+                            let attach_deadline = epoch_now_ms + bundle_attach_grace_ms();
+                            runtime.bundle_pending.commit_register(
+                                bundle::PendingRegistrationOwner {
+                                    idempotency_key: key,
+                                    scope,
+                                    connection_id: connection_id.clone(),
+                                    grant_id,
+                                    subscription_ids: response
+                                        .entries
+                                        .iter()
+                                        .filter_map(|entry| entry.subscription_id.clone())
+                                        .collect(),
+                                    attach_deadline_ms: attach_deadline,
+                                },
+                            );
+                            response.connection = Some(bundle::BundleConnection {
+                                connection_id,
+                                grant: token,
+                                attach_deadline,
+                            });
+                            Ok(Json(response))
+                        }
+                        Err(error) => {
+                            // The prior set is already purged; a failed
+                            // supersede reaps the owner entirely so the
+                            // client starts a fresh boot with a new key.
+                            bundle_reap_connection(&runtime, connection_id, grant_id);
+                            runtime
+                                .bundle_pending
+                                .resolve_key(&key, bundle::PendingResolution::Reaped);
+                            Err(ApiError::from(error))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Run a fresh full query, sign outside the app lock (preserving the global
 /// provider-before-app lock order), then reacquire the app lane for one exact
 /// head/auth/activation/no-pending reservation transaction.
@@ -16426,6 +16905,25 @@ async fn stream_live(
     if let Err(error) = connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || Ok(()))
     {
         return error.into_response();
+    }
+    // Pending-registration attach (LLP 0031 dated amendment): a socket
+    // presenting the grant inside the grace window takes atomic handoff of
+    // the pending registrations (the owner resolves and its idempotency
+    // key's replay validity ends); past `attachDeadline` the attach is
+    // refused exactly, regardless of reaper timing, and the owner is reaped.
+    match runtime
+        .bundle_pending
+        .mark_attached(&connection_id, epoch_now_ms)
+    {
+        crate::bundle::AttachOutcome::Expired { grant_id } => {
+            bundle_reap_connection(&runtime, connection_id.clone(), grant_id);
+            return bundle_refusal(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "the pending-registration attach deadline has passed",
+            )
+            .into_response();
+        }
+        crate::bundle::AttachOutcome::Attached | crate::bundle::AttachOutcome::NotPending => {}
     }
     // Select the negotiated subprotocol when offered (a browser fails the
     // connection if it offered subprotocols and the server echoed none).
@@ -19070,6 +19568,33 @@ impl From<SnapbackError> for ApiError {
 /// unrecognized code fails conservatively as 500 so a runtime/storage failure
 /// can never silently masquerade as bad input (ENG-24357).
 fn status_for_diagnostic_code(code: &str) -> StatusCode {
+    // @ref LLP 0092#0d1-route-and-schemas-finalizing-0090-d12s-provisional-shape —
+    //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
+    //   statuses advisory).
+    match code {
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_BUNDLE_NOT_PUBLIC"
+        | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
+        | "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH" => StatusCode::FORBIDDEN,
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH" | "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED" => {
+            StatusCode::CONFLICT
+        }
+        "SNAPBACK_BUNDLE_LIMIT_QUERIES"
+        | "SNAPBACK_BUNDLE_LIMIT_ROWS"
+        | "SNAPBACK_BUNDLE_LIMIT_BYTES"
+        | "SNAPBACK_BUNDLE_LIMIT_TIME" => StatusCode::PAYLOAD_TOO_LARGE,
+        "SNAPBACK_BUNDLE_RATE_LIMITED" | "SNAPBACK_BUNDLE_PENDING_CAPACITY" => {
+            StatusCode::TOO_MANY_REQUESTS
+        }
+        "SNAPBACK_BUNDLE_PARAMS_INVALID"
+        | "SNAPBACK_BUNDLE_MODE_INVALID"
+        | "SNAPBACK_BUNDLE_ENTRY_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_BUNDLE_QUERY_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
+        _ => status_for_established_diagnostic_code(code),
+    }
+}
+
+fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
@@ -31331,6 +31856,14 @@ globalThis.__snapbackHandlers = {
             "environment variable overriding the Ibex executable",
         ),
         (
+            "SNAPBACK_BUNDLE_",
+            "diagnostic-code family prefix appearing in bundle refusal-registry docs (LLP 0092 §0D.2)",
+        ),
+        (
+            "SNAPBACK_BUNDLE_ATTACH_GRACE_MS",
+            "environment variable overriding the bundle attach-grace window (LLP 0092 §0D.4 policy knob)",
+        ),
+        (
             "SNAPBACK_MARK__",
             "suffix of the __SNAPBACK_MARK__ HTML template placeholder",
         ),
@@ -31467,6 +32000,10 @@ globalThis.__snapbackHandlers = {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ACTION_STREAM_INVALID",
+        // LLP 0092 §0D.1 bundle request-shape refusals.
+        "SNAPBACK_BUNDLE_ENTRY_INVALID",
+        "SNAPBACK_BUNDLE_MODE_INVALID",
+        "SNAPBACK_BUNDLE_PARAMS_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
@@ -31707,6 +32244,10 @@ globalThis.__snapbackHandlers = {
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        // LLP 0092 §0D.1 bundle authorization/sender refusals.
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH",
+        "SNAPBACK_BUNDLE_NOT_PUBLIC",
+        "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL",
         "SNAPBACK_AUTH_AGENT_DEACTIVATED",
         "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID",
@@ -31737,6 +32278,7 @@ globalThis.__snapbackHandlers = {
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
         "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
@@ -31749,6 +32291,9 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        // LLP 0092 §0D.3 idempotency replay-validity conflicts.
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",
+        "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH",
         "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
@@ -31787,6 +32332,11 @@ globalThis.__snapbackHandlers = {
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+        // LLP 0092 §0D.2 bundle hard limits.
+        "SNAPBACK_BUNDLE_LIMIT_BYTES",
+        "SNAPBACK_BUNDLE_LIMIT_QUERIES",
+        "SNAPBACK_BUNDLE_LIMIT_ROWS",
+        "SNAPBACK_BUNDLE_LIMIT_TIME",
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
@@ -31797,6 +32347,9 @@ globalThis.__snapbackHandlers = {
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
+        // LLP 0092 §0D.2/§0D.4 bundle rate and pending-owner capacity.
+        "SNAPBACK_BUNDLE_PENDING_CAPACITY",
+        "SNAPBACK_BUNDLE_RATE_LIMITED",
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
@@ -31902,6 +32455,8 @@ globalThis.__snapbackHandlers = {
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0092 §0D.2 atomic entry-evaluation failure.
+        "SNAPBACK_BUNDLE_QUERY_FAILED",
         "SNAPBACK_ACTION_HOST_MISSING",
         "SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED",
         "SNAPBACK_ACTION_SECRETS_DEPRECATED",

@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24
+**Revised:** 2026-07-24 (dated amendment: three step-1 implementation
+divergences reconciled — `sbrq_` key-id prefix, the symmetric integral-double
+refusal band, and the interim content-derived `queryArtifact`; see "Dated
+amendment: step-1 implementation reconciliation")
 **Related:** LLP 0008, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0077, LLP 0090
 
 ## Summary
@@ -625,6 +628,39 @@ and G10 (`SNAPBACK_RESUME_*` namespace) were absorbed into 0090 v0.6 and
 are pinned with parameters here; G2 (`meta` width) is closed by §0B.1
 including `app`; G6 (constructions by name and parameters) is closed by
 §0A.4.
+
+## Dated amendment: step-1 implementation reconciliation (2026-07-24)
+
+LLP 0090 rollout step 1 (ENG-25452, commit 390a6f22) implemented this
+contract in `src/rqs.rs` / `packages/snapback-client/rqs.mjs` and reported
+three divergences. Per LLP 0004 the docs track the code; the implemented
+behavior is normative and the sections above read as amended here:
+
+1. **Key-id prefix is `sbrq_`, not `sbrk_`** (§0A.1). The drafted `sbrk_`
+   prefix collides with the secret-read root key class already registered in
+   the `src/auth/crypto.rs` credential-prefix registry; the collision-free
+   spelling `sbrq_` landed instead (`ResumeKeyId`, `RESUME_KEY_PREFIX`).
+   `keyId = "sbrq_" <22-char base64url>`; everything else in §0A.1 is
+   unchanged.
+2. **The integer refusal is a symmetric band rule** (§0A.2). "An integer
+   with magnitude above 2^53 − 1" is implemented as: an **integral double
+   whose magnitude lies in the open band (2^53 − 1, 1e21) is refused at mint
+   on both arms** — in that band the JCS serialization is full decimal
+   digits, indistinguishable on the JS arm from a lossy big integer, so the
+   Rust arm refuses symmetrically rather than emitting bytes the JS arm
+   must refuse. At and above 1e21 the ECMAScript exponent form is canonical
+   and unambiguously a double, so those values are allowed. True
+   >2^53 − 1 integers (i64/u64-typed) remain refused as written.
+3. **`queryArtifact` is interim content-derived** (§0A.1). The served
+   functions manifest carries no per-function generated-artifact hash yet —
+   that field is cluster-0C work — so step 1 derives the identity from the
+   served `FunctionDefinition` itself:
+   `"sha256:" + hex(SHA-256("snapback-rqs-query-artifact-v1\0" ||
+   jcs(functionDefinition)))` (`query_artifact_hash`, `src/rqs.rs`). The
+   identity is stable within a generation and rotates whenever the function
+   artifact changes — the property admission needs. When 0C lands the
+   manifest-carried per-function artifact hash, it replaces this derivation
+   (a `generation` rotation, so no mixed-identity tokens survive the swap).
 
 ## Open questions
 
