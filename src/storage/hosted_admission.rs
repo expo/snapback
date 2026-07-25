@@ -7,7 +7,10 @@
 
 use super::LocalDatabase;
 use crate::auth::deployment::HostedServingAuthority;
-use crate::auth::hosted_edge::{VerifiedHostedAdmission, install_verified_admission};
+use crate::auth::hosted_edge::{
+    AdmissionRenewalInputs, VerifiedHostedAdmission, install_verified_admission,
+    verify_renewal_candidate,
+};
 use crate::diagnostic::SnapbackResult;
 
 impl LocalDatabase {
@@ -21,5 +24,26 @@ impl LocalDatabase {
         now_ms: u64,
     ) -> SnapbackResult<HostedServingAuthority> {
         install_verified_admission(verified, now_ms, &mut self.conn)
+    }
+
+    /// Verify and install the successor covering `now`, if the chain has one.
+    ///
+    /// Returns the installed authority, or `None` when the incumbent is still
+    /// current. A chain that no longer covers the clock yields the ordinary
+    /// coded refusal and the incumbent is left to expire — renewal can never
+    /// extend a snapshot, only replace it with another verified one.
+    pub(crate) fn renew_hosted_admission(
+        &mut self,
+        inputs: &AdmissionRenewalInputs,
+        installed_issued_at_ms: u64,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<(HostedServingAuthority, u64)>> {
+        let Some(verified) = verify_renewal_candidate(inputs, installed_issued_at_ms, now_ms)?
+        else {
+            return Ok(None);
+        };
+        let issued_at_ms = verified.issued_at_ms();
+        let authority = install_verified_admission(&verified, now_ms, &mut self.conn)?;
+        Ok(Some((authority, issued_at_ms)))
     }
 }

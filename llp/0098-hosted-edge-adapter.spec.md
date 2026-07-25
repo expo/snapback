@@ -659,8 +659,31 @@ Two consequences, both recorded rather than smoothed over:
 
 - **A renewal loop is not optional polish; it is required for any drill longer
   than five minutes.** The LLP 0077 matrix will need it (or must complete inside
-  one snapshot lifetime) even after sessions are staged. This makes open
+  one snapshot lifetime) even after sessions are staged. This made open
   question 1 a blocking implementation item, not a design preference.
+
+  **Closed 2026-07-25.** The origin holds the admission document and a
+  hot-swappable authority slot (`HostedServingHandle`); every 30 seconds it
+  re-reads the document, selects the snapshot covering the clock, and — if it is
+  not the incumbent — runs the **identical §3.1 conjunction** before swapping.
+  Renewal is deliberately *not* a cheaper trust path: a successor signed by the
+  wrong key, bound to another configuration, or violating any other clause is
+  refused exactly as a first install would be.
+
+  **It cannot widen the serving window.** Each installed authority keeps its own
+  `issuedAtMs`/`expiresAtMs` and every request re-checks them; the loop only
+  ever *replaces* a snapshot with another verified one. When the document stops
+  covering the clock the loop installs nothing and the incumbent expires, so
+  withdrawal is composed with rather than suppressed. Both properties are
+  pinned by negative tests
+  (`renewal_installs_nothing_once_the_chain_stops_covering_the_clock`,
+  `a_renewal_successor_runs_the_full_conjunction`), and empirically a local
+  hosted deployment served across three consecutive 90-second snapshots where
+  it previously withdrew after one.
+
+  The renewal *mode* remains the author decision already filed: this implements
+  the conservative default in force (`presignedWindow`), and an `online` mode
+  would reuse the same slot with a different document source.
 - **Observed withdrawal is broader than D5 requires.** `/health` withdrew along
   with everything else, where LLP 0060 D5 permits diagnostics to remain
   reachable. Failing closed in the safe direction, but it should be deliberate

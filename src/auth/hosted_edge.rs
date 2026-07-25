@@ -199,6 +199,56 @@ impl HostedEdgeConfig {
     }
 }
 
+/// How often the renewal loop looks for a successor.
+///
+/// Comfortably shorter than the five-minute maximum lifetime so a successor is
+/// installed well before the incumbent lapses, without polling hotly.
+pub const ADMISSION_RENEWAL_INTERVAL_MS: u64 = 30_000;
+
+/// Everything the renewal loop needs to verify a successor exactly as the
+/// pre-bind path did. Carrying the same inputs is the point: a renewed
+/// admission is not trusted more cheaply than the first one.
+#[derive(Clone, Debug)]
+pub(crate) struct AdmissionRenewalInputs {
+    pub document_path: std::path::PathBuf,
+    pub admission_public_key: Vec<u8>,
+    pub facts: HostedEdgeSelfFacts,
+}
+
+/// Verify the successor covering `now`, if there is one.
+///
+/// Returns `Ok(None)` when the incumbent is still the current snapshot, so the
+/// caller does no work. Every error is the ordinary coded refusal — a chain
+/// that stops covering the clock simply yields nothing, and the incumbent
+/// expires on its own terms.
+///
+/// @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing
+pub(crate) fn verify_renewal_candidate(
+    inputs: &AdmissionRenewalInputs,
+    installed_issued_at_ms: u64,
+    now_ms: u64,
+) -> SnapbackResult<Option<VerifiedHostedAdmission>> {
+    let document = std::fs::read(&inputs.document_path).map_err(|_| {
+        refuse(
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+            "hosted admission document could not be re-read for renewal",
+        )
+    })?;
+    let candidate = select_admission_for_now(&document, now_ms)?;
+    if candidate.admission.issued_at_ms == installed_issued_at_ms {
+        return Ok(None);
+    }
+    // The successor runs the identical conjunction, including the topology and
+    // binding clauses. Renewal is not a trust shortcut.
+    verify_admission_envelope_prebind(
+        &candidate,
+        &inputs.admission_public_key,
+        &inputs.facts,
+        now_ms,
+    )
+    .map(Some)
+}
+
 /// Select the snapshot covering `now` from a single envelope or a pre-signed
 /// chain.
 ///
@@ -519,6 +569,10 @@ impl VerifiedHostedAdmission {
 
     pub(crate) fn capabilities(&self) -> crate::auth::deployment::HostedAuthCapabilities {
         self.envelope.admission.hosted_auth
+    }
+
+    pub(crate) fn issued_at_ms(&self) -> u64 {
+        self.envelope.admission.issued_at_ms
     }
 }
 
@@ -1122,6 +1176,89 @@ mod tests {
             other.public_key().as_ref(),
         );
         assert_ne!(base, rotated, "rotating the key must change the digest");
+    }
+
+    /// Renewal must compose with withdrawal, never suppress it. When the
+    /// document stops covering the clock the loop installs nothing, so the
+    /// incumbent expires on its own terms.
+    ///
+    /// @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing
+    #[test]
+    fn renewal_installs_nothing_once_the_chain_stops_covering_the_clock() {
+        let key = control_plane_key();
+        let facts = self_facts(&key);
+        let first = envelope(&key);
+        let chain = serde_json::to_vec(&vec![first.clone()]).expect("chain");
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("admission.json");
+        std::fs::write(&path, &chain).expect("write chain");
+
+        let inputs = AdmissionRenewalInputs {
+            document_path: path,
+            admission_public_key: key.public_key().as_ref().to_vec(),
+            facts,
+        };
+
+        // Inside the window, the incumbent is still current: nothing to do.
+        let inside = verify_renewal_candidate(
+            &inputs,
+            first.admission.issued_at_ms,
+            first.admission.issued_at_ms + 1_000,
+        )
+        .expect("in-window renewal check");
+        assert!(inside.is_none(), "the incumbent must not be reinstalled");
+
+        // Past the end of the chain there is no successor, so the loop installs
+        // nothing and the incumbent is left to expire. Renewal cannot extend a
+        // snapshot, only replace it with another verified one.
+        let exhausted = verify_renewal_candidate(
+            &inputs,
+            first.admission.issued_at_ms,
+            first.admission.expires_at_ms + 1,
+        )
+        .expect_err("an exhausted chain yields no successor");
+        assert_eq!(
+            code(exhausted),
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
+            "an exhausted chain must not silently keep serving"
+        );
+    }
+
+    /// A successor is verified through the identical conjunction: renewal is
+    /// not a cheaper trust path than the first install.
+    #[test]
+    fn a_renewal_successor_runs_the_full_conjunction() {
+        let key = control_plane_key();
+        let foreign = Ed25519KeyPair::from_seed_unchecked(&[11u8; 32]).expect("foreign key");
+        let first = envelope(&key);
+
+        // A successor signed by the wrong key, otherwise perfectly formed.
+        let mut successor = envelope(&key);
+        successor.admission.issued_at_ms = first.admission.expires_at_ms;
+        successor.admission.expires_at_ms = first.admission.expires_at_ms + 60_000;
+        sign(&foreign, &mut successor);
+
+        let chain = serde_json::to_vec(&vec![first.clone(), successor.clone()]).expect("chain");
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("admission.json");
+        std::fs::write(&path, &chain).expect("write chain");
+
+        let inputs = AdmissionRenewalInputs {
+            document_path: path,
+            admission_public_key: key.public_key().as_ref().to_vec(),
+            facts: self_facts(&key),
+        };
+
+        let refused = verify_renewal_candidate(
+            &inputs,
+            first.admission.issued_at_ms,
+            successor.admission.issued_at_ms + 1_000,
+        )
+        .expect_err("a forged successor must be refused");
+        assert_eq!(
+            code(refused),
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED"
+        );
     }
 
     #[test]

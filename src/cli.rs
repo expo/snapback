@@ -398,10 +398,15 @@ fn hosted_now_ms() -> u64 {
         .as_millis() as u64
 }
 
+type ComposedHostedEdge = Option<(
+    crate::auth::hosted_edge::VerifiedHostedAdmission,
+    crate::auth::hosted_edge::AdmissionRenewalInputs,
+)>;
+
 fn compose_hosted_edge_admission(
     args: &Args,
     bind_ip: IpAddr,
-) -> crate::diagnostic::SnapbackResult<Option<crate::auth::hosted_edge::VerifiedHostedAdmission>> {
+) -> crate::diagnostic::SnapbackResult<ComposedHostedEdge> {
     use crate::auth::deployment::AuthDeploymentTarget;
 
     if args.auth_deployment != AuthDeploymentTarget::Hosted {
@@ -437,13 +442,21 @@ fn compose_hosted_edge_admission(
     // the address it is about to bind is loopback (LLP 0098 H1). A caller
     // cannot assert this any more than it can assert sessions transport.
     let facts = config.self_facts(bind_ip.is_loopback())?;
+    let admission_public_key = config.admission_public_key_bytes()?;
     let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
         &envelope,
-        &config.admission_public_key_bytes()?,
+        &admission_public_key,
         &facts,
         now_ms,
     )?;
-    Ok(Some(verified))
+    // The renewal loop re-runs this exact conjunction against successors, so it
+    // carries the same inputs rather than a cached decision.
+    let renewal = crate::auth::hosted_edge::AdmissionRenewalInputs {
+        document_path: envelope_path.clone(),
+        admission_public_key,
+        facts,
+    };
+    Ok(Some((verified, renewal)))
 }
 
 // @ref LLP 0060#d1-plaintext-listener-fence — sessions have no plaintext
@@ -2062,7 +2075,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // the pre-bind phase could not, then creates the replay/nonce and throttle
     // tables and applies the LLP 0077 decision-1 sender-replay epoch floor.
     let app_state = match verified_hosted_admission.as_ref() {
-        Some(verified) => {
+        Some((verified, _)) => {
             let authority = {
                 let mut snapback = state.lock().await;
                 snapback
@@ -2076,6 +2089,50 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
         None => app_state,
     };
+    // @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing — an admission
+    // lives at most five minutes, so a deployment that serves longer needs its
+    // authority replaced in place. The loop only ever installs another
+    // independently verified snapshot; when the document stops covering the
+    // clock it installs nothing and the incumbent expires, so withdrawal is
+    // composed with rather than suppressed.
+    if let Some((verified, renewal)) = verified_hosted_admission {
+        let handle = app_state.hosted_serving_handle();
+        let renewal_state = state.clone();
+        let mut installed_issued_at_ms = verified.issued_at_ms();
+        if let Some(handle) = handle {
+            tokio::spawn(async move {
+                let interval = std::time::Duration::from_millis(
+                    crate::auth::hosted_edge::ADMISSION_RENEWAL_INTERVAL_MS,
+                );
+                loop {
+                    tokio::time::sleep(interval).await;
+                    let now_ms = hosted_now_ms();
+                    let renewed = {
+                        let mut snapback = renewal_state.lock().await;
+                        snapback.auth_database_mut().renew_hosted_admission(
+                            &renewal,
+                            installed_issued_at_ms,
+                            now_ms,
+                        )
+                    };
+                    match renewed {
+                        Ok(Some((authority, issued_at_ms))) => {
+                            if handle.install(authority) {
+                                installed_issued_at_ms = issued_at_ms;
+                            }
+                        }
+                        // Incumbent still current: nothing to do.
+                        Ok(None) => {}
+                        // A document that no longer covers the clock, or a
+                        // successor that fails any clause, leaves the incumbent
+                        // to expire on its own terms. Withdrawal is the
+                        // designed outcome, not an error to route around.
+                        Err(_) => {}
+                    }
+                }
+            });
+        }
+    }
     let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
