@@ -16,7 +16,20 @@ decided re-open binding immutability, the socket offer-classification
 matrix with per-stage enforcement, the B1 `wireVersion` response echo
 (closes former OQ2), and the pinned §0B.6 decode-class signal; §0F item 2
 restated; §0B.7 populations refreshed with the Swift client; citations
-re-pinned at `137dee8c`)
+re-pinned at `137dee8c`); 2026-07-25 (v0.3, review-round-2 resolutions,
+dual-family NOT READY on v0.2, all concerns in-delta: hosted in-band
+subscribe **reply** grammar stated as served (mixed proof/kit dialect,
+`type: "snapshot"`/`type: "error"` on non-resume and error paths),
+decided out of v1 conformance claimability until converged and ledgered
+(§0A.1, §0C.6 item 6, §0F item 2); §0B.3 re-open matrix (lineage ×
+offer × stage) with echo-witnesses-explicit-binding semantics and
+classification-before-equality precedence; §0B.4 predicate rewritten
+(bearer exclusion, `snapback.v` prefix candidates, precedence order);
+`/app/ensure` closure corrected to closed (it was misclassified open in
+v0.2); §0C.6 extended to the full audited error-emitter set
+(`requestDiagnostic`, gateway refusals, `platformFailureResponse`);
+session-socket schema gap owned in §0F item 4; §0C.5 citation fixed;
+decisions log added)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -111,7 +124,7 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | `subscribe\|unsubscribe\|ping` (`webSocketMessage`, `coordinator.js` — kit sockets get kit-dialect responses: `kind: "current_as_of"` on subscribe per LLP 0091 step-5, `kind: "pong"` with `requestId` echo on ping, session-scoped delete on unsubscribe); **no ephemeral kinds**. In-band durable subscribe/unsubscribe is served and LLP 0091-contracted on this arm even though no first-party client sends it |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`); **no ephemeral kinds**. Reply grammar as served is **mixed-dialect**: ping → kit `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → kit `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → **proof-dialect** `{type: "snapshot", subscriptionId, function, version, rows, connectionKey}`; every error → proof-dialect `{type: "error", code, …}`; unsubscribe → session-scoped delete, **no reply frame**. Decision (v0.3): the in-band durable **request** surface is recorded as served; its **reply** grammar is **not conformance-claimable wire v1** until converged to kit dialect (§0C.6 item 6 ledger + ticket). The v1 conformant durable entry point on this arm is HTTP subscribe/unsubscribe with a current socket session; no first-party client sends in-band durable frames |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
 | `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
@@ -291,20 +304,41 @@ The `/connection/open` request body gains one optional field:
 | absent | opens a **legacy** connection, implicitly bound to v1 for the socket-equality rule; ineligible for envelope kinds gated on the open-time offer; no echo member; admitted through the bootstrap bridge, refusal (`SNAPBACK_WIRE_VERSION_REQUIRED`) is the scheduled end state |
 
 **Binding is once, at open, and immutable for the life of the
-connection grant lineage.** An idempotent re-open under `previousToken`
-does not re-bind: a present offer on re-open MUST equal the connection's
-bound version (for a legacy, offerless-open connection the implicit v1
-binding is what a `snapback.v1` re-open offer confirms — the same
-confirm-never-upgrade rule as §0B.4), and a **changed** offer refuses
-with `SNAPBACK_WIRE_VERSION_MISMATCH` without disturbing the existing
-connection, its socket, or its subscriptions. An **absent** offer on
-re-open leaves the binding untouched (it never converts a bound
-connection to legacy). Rationale: local and hosted re-open both preserve
-the connection id and token (`ConnectionRegistry::open_prepared`,
-`src/server.rs`; `kitOpenConnection`, `coordinator.js`) and neither
-retires a live socket, so a version change mid-lineage would put two
-versions inside one connection-scoped surface; a client that wants a
-different version opens a fresh connection.
+connection grant lineage.** A lineage is in exactly one of two states,
+fixed at first open: **explicitly bound** (the open carried a known
+offer) or **legacy** (offerless open; implicitly v1 for the equality
+rules; ineligible for offer-gated envelope kinds). No re-open changes
+the state — the only way to a different binding (or from legacy to
+explicit) is a fresh connection. Rationale: local and hosted re-open
+both preserve the connection id and token
+(`ConnectionRegistry::open_prepared`, `src/server.rs`;
+`kitOpenConnection`, `coordinator.js`) and neither retires a live
+socket, so any mid-lineage change would put two versions inside one
+connection-scoped surface.
+
+**Echo semantics (B1+):** the `wireVersion` response member witnesses
+the lineage's **explicit binding** — it appears on every successful
+open *and re-open* response of an explicitly bound lineage (with or
+without an offer on the re-open body) and **never** on a legacy
+lineage's responses (a confirming `snapback.v1` re-open offer does not
+produce it: confirmation is not upgrade, and eligibility stays legacy).
+Echo present ⇔ explicitly bound; echo absent ⇔ legacy lineage or
+pre-B1 server (§0B.6).
+
+**Re-open matrix (normative, B1+).** Offer classification runs first
+and uses §0B.4's predicate; equality runs second (an uninterpretable
+token can never be a mismatch):
+
+| Lineage state | Re-open offer | Behavior |
+| --- | --- | --- |
+| explicitly bound | absent | admitted; binding and eligibility unchanged; echo emitted |
+| explicitly bound | = bound version | admitted; echo emitted |
+| explicitly bound | known, ≠ bound | refuse `SNAPBACK_WIRE_VERSION_MISMATCH`; the existing connection, socket, and subscriptions are undisturbed |
+| explicitly bound | unknown candidate | refuse `SNAPBACK_WIRE_VERSION_UNSUPPORTED` (classification precedence — never `MISMATCH`) |
+| legacy | absent | admitted; stays legacy; no echo. **B4 exemption:** `SNAPBACK_WIRE_VERSION_REQUIRED` applies to fresh opens only — an authenticated `previousToken` re-open stays admitted offerless, so the legacy population drains through lineage turnover (process restarts open fresh), not mid-lineage breakage |
+| legacy | `snapback.v1` | admitted; **confirms** implicit v1 for the equality rules; stays legacy (no upgrade, no echo) |
+| legacy | known, ≠ v1 | refuse `SNAPBACK_WIRE_VERSION_MISMATCH` (differs from the implicit binding) |
+| legacy | unknown candidate | refuse `SNAPBACK_WIRE_VERSION_UNSUPPORTED` |
 
 ### 0B.4 Socket-offer requirement and the equality rule
 
@@ -312,23 +346,33 @@ A conformant client MUST offer `snapback.v1` in the
 `Sec-WebSocket-Protocol` list of the kit stream upgrade
 (`GET /live/{connection_id}/stream`), on both arms.
 
-**Token classification (normative).** The subprotocol list is an offer
-*set* (WebSocket semantics: the client offers, the server selects at
-most one). Within it, a **wire-version-shaped token** is any entry
-matching `snapback.v<digits>`; the bearer subprotocol
-(`snapback.connection-token.<token>`) is a credential carrier and is
-**excluded** from version classification; all other entries are ignored
-for versioning. Duplicates are harmless. Classification and refusal, in
-the must-understand refusal style of `src/auth/handshake.rs` (pre-upgrade
-HTTP responses; a present-but-malformed `snapback.v*` entry classifies as
-unknown, never as absent):
+**Token classification (normative; one executable predicate).** The
+subprotocol list is an offer *set* (WebSocket semantics: the client
+offers, the server selects at most one). Classify each entry in order:
 
-| Offer set contains | Server behavior | Enforced from |
+1. an entry starting `snapback.connection-token.` is the **bearer
+   carrier** — excluded before any version classification;
+2. any remaining entry starting `snapback.v` is a **version
+   candidate**; a candidate exactly equal to a supported token (this
+   spec defines one: `snapback.v1`) is **known**, every other candidate
+   — `snapback.v2`, `snapback.vx`, `snapback.v1.0`, any malformed
+   suffix — is **unknown** (malformed never falls through to ignored or
+   absent);
+3. every other entry (unrelated subprotocols) is **ignored** for
+   versioning. Duplicates are harmless.
+
+Then apply the first matching row (precedence is this table order —
+"bound version present wins"; classification precedes equality, so an
+offer set with no known candidate can never be a mismatch). Refusals in
+the must-understand style of `src/auth/handshake.rs` (pre-upgrade HTTP
+responses):
+
+| Offer set (after classification) | Server behavior | Enforced from |
 | --- | --- | --- |
-| the connection's bound version | accept; echo it as the selected subprotocol | today (echo); equality meaningful from B1 |
-| ≥1 known token, but not the bound version | refuse, `SNAPBACK_WIRE_VERSION_MISMATCH` | B1 |
-| only unknown/malformed wire-version-shaped tokens | refuse, `SNAPBACK_WIRE_VERSION_UNSUPPORTED` | B1 |
-| no wire-version-shaped token (absent) | bridge: admit as the implicit-v1 confirmation path; refuse `SNAPBACK_WIRE_VERSION_REQUIRED` at end state | B3 |
+| contains the connection's bound version (however many other candidates ride along) | accept; select and echo the bound version | today (echo); equality meaningful from B1 |
+| contains ≥1 known candidate, none equal to the bound version | refuse, `SNAPBACK_WIRE_VERSION_MISMATCH` | B1 |
+| contains ≥1 version candidate, none known | refuse, `SNAPBACK_WIRE_VERSION_UNSUPPORTED` | B1 |
+| contains no version candidate (absent) | bridge: admit as the implicit-v1 confirmation path; refuse `SNAPBACK_WIRE_VERSION_REQUIRED` at end state | B3 |
 
 Present-offer enforcement (`MISMATCH`/`UNSUPPORTED` rows) begins at
 **B1**: no deployed consumer offers a conflicting or unknown version
@@ -483,7 +527,7 @@ feature-off).
 | dev-mode socket client message (`LiveSocketClientMessage`, `src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
 | `AuthorizedLeaseQueryRequest` (`src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
 | client-mutation acknowledge input (`client-mutation.ack.input.schema.json`) | **closed** | closed | stays closed |
-| `/app/ensure` intent body | **open** | `app.ensure.input.schema.json`, open | stays open (intent family, LLP 0012/0031) |
+| `/app/ensure` intent body (`EnsureAppInput` / `EnsureAppExplicitInput`, `src/local.rs`) | **closed** (`deny_unknown_fields` on the legacy struct and every intent variant) | `app.ensure.input.schema.json`, closed definitions | stays closed (v0.2 misclassified this row open — corrected; the closed-family gating rule applies to any addition). Hosted `kitEnsureApp` decodes it open, per §0C.3 |
 | `/app/bundle` request (`app.bundle.input.schema.json`) | **open** | open | stays open (LLP 0090's dated amendment owns evolution) |
 | ephemeral HTTP requests (`PublishRequest`/`SubscribeRequest`/`DeleteRequest`, `src/ephemeral.rs`) | **open** | no standalone committed schemas (they appear embedded in the socket-client schema) | stays open; standalone schema commitment is a named gap riding the §0F item-1 ticket |
 
@@ -509,10 +553,19 @@ clients are not proven tolerant needs capability gating or a new token
 | `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm currently under-fills it (§0C.6 item 3) |
 | `MutationResponse` (`mutation.output.schema.json`) | **closed** | but the served local bytes ride `FunctionResponse<T>`, which flattens an optional `attribution` member the closed schema does not admit — a real schema-generation defect, §0C.6 item 4 |
 | `QueryOutput` / action output (`src/manifest.rs`) | open | **no standalone committed schemas** — typed in Rust, exported only through composite manifests; named gap riding the §0F item-1 ticket |
-| `/app/ensure` / `/app/bundle` outputs (`app.ensure.output` / `app.bundle.output` schemas) | open objects | additive-optional evolution, same rule as the live outputs |
+| `/app/ensure` outcomes (`EnsureAppAttestOutcome` / `EnsureAppProvisionOutcome` / legacy `EnsureAppOutcome`, `src/local.rs`) | **closed** (`deny_unknown_fields`; `additionalProperties: false` in `app.ensure.output.schema.json`) | closed-family rule: additions need gating or a new token (v0.2 misclassified this row open — corrected) |
+| `/app/bundle` output (`app.bundle.output.schema.json`) | open object | additive-optional evolution, same rule as the live outputs |
 | `AuthorizedLeaseQueryResponse` / lease envelope (`authorized-lease.*` schemas) | **closed** | exact-protocol surface; evolution under LLP 0043/0053, cited not restated |
 | client-mutation acknowledge output (`client-mutation.ack.output.schema.json`) | **closed** | stays closed |
 | ephemeral HTTP outcomes (`src/ephemeral.rs`) | open | no standalone committed schemas — same named gap as the request side |
+
+Socket server→client union rule: on the kit stream, durable-lane
+payloads arrive **unwrapped** — bare `LiveEnvelope` kinds
+(`live_replace`/`resync_required`/`current_as_of`…) interleave with
+`LiveSocketServerFrame` kinds on the same socket (the kit implements
+exactly this union, `packages/snapback-client/index.mjs`), so a
+clean-room client's socket decoder is the union of the two families,
+dispatched on `kind`.
 
 ### 0C.3 The hosted-arm caveat
 
@@ -541,7 +594,7 @@ inside otherwise-open decoders, not a closure.
 ### 0C.5 `authInvalidationProtocol`: decided, not inherited
 
 Today an **unknown** `authInvalidationProtocol` value silently degrades
-to a legacy connection (`src/server.rs:4716-4718` — exact-match-v1 else
+to a legacy connection (`src/server.rs:4727-4728` — exact-match-v1 else
 `None`), the opposite of §0B.3's unknown-refuses rule for the adjacent
 field. Decision: **aligned to refuse**. From stage B1, both offer fields
 on `/connection/open` follow one matrix — known binds, unknown refuses
@@ -588,12 +641,45 @@ ledger by reference.
 5. **Hosted `/query/{name}`** (`kitQuery`) returns `{version, rows}` —
    shape-compatible with `QueryOutput` (no committed standalone schema;
    §0C.2 gap row), noted here for completeness, not a schema violation.
+6. **Hosted in-band durable subscribe replies** (§0A.1 WS-kinds row):
+   plain (non-resume) subscribe answers proof-dialect
+   `{type: "snapshot", …, connectionKey}` and every in-band error is
+   proof-dialect `{type: "error", code, …}` — frames outside both
+   committed socket-frame families. Convergence target: kit dialect
+   (`kind`-tagged), matching the already-kit-dialect `current_as_of`
+   and `pong` replies; until then the reply grammar is
+   conformance-unclaimable (the §0A.1 decision).
+7. **Hosted kit-route request-parse refusals** (`requestDiagnostic` via
+   `parseJsonObjectRequest`, `coordinator.js`) emit
+   `{ok, code, message, diagnostic}` — top-level members the closed
+   `ErrorResponse` does not admit, plus the under-filled inner
+   `Diagnostic` of item 3.
+8. **Gateway-lane refusals** (`cloudflare/src/gateway.js`): kit-route
+   method refusals emit an under-filled `Diagnostic`
+   (`SNAPBACK_METHOD_NOT_ALLOWED`); the kit-stream non-upgrade branch
+   emits `{error: "expected websocket upgrade"}` (426) and the
+   `/_snapback/*`/fallthrough 404s emit `{error: "not found", path}` —
+   no `diagnostic` envelope at all.
+9. **Hosted platform-failure responses on kit routes**
+   (`platformFailureResponse`, `cloudflare/src/platform-errors.js`,
+   non-proof branch): `{diagnostic: {code, message, details}}` with the
+   under-filled inner `Diagnostic` (no `severity`/`subsystem`; `details`
+   dropped when undefined).
 
-The fix direction is decided: **converge the emitters to the schemas**
-(hosted kit routes gain the missing members; the local `attribution`
-flatten gets admitted into the generated schema), with a hosted-side
-executable response-schema gate riding the §0F item-1/item-3 ticket.
-Nothing in this ledger is an evolution precedent.
+Governance decision (answers what the envelope rule covers):
+`error.response.schema.json` governs **every** non-2xx JSON failure on
+§0A.1 kit routes on both arms — gateway lane, parse lane, platform lane,
+and handler lane alike; items 3 and 7–9 are the audited divergences from
+that rule. The ledger enumerates **emitter functions**, not sampled
+responses (`kitError`, `kitFailure`, `requestDiagnostic`, the gateway
+`json(...)` refusal sites, `platformFailureResponse`); the convergence
+ticket owns an executable audit that fails when a new non-conformant
+emitter appears. The fix direction is decided: **converge the emitters
+to the schemas** (hosted kit routes gain the missing members; the local
+`attribution` flatten gets admitted into the generated schema; in-band
+replies converge to kit dialect), with a hosted-side executable
+response-schema gate riding the §0F item-1/item-3 ticket. Nothing in
+this ledger is an evolution precedent.
 
 ## 0D — Subscription receipt typing (implemented)
 
@@ -690,22 +776,27 @@ Audit at `6fe11376` of what remains outside the schema drift gates
    of wire v1 and out of the gate inventory — its consumers are the
    pinned proof suites, and schematizing their frozen reply shapes
    would imply evolution support they do not have. The **kit-socket
-   in-band request grammar and kit-dialect replies**
-   (`subscribe`/`unsubscribe`/`ping`, `kind`-tagged responses,
-   LLP 0091-contracted) are **inside wire v1**: they are served to
-   conformant clients and their schema/gate coverage rides the item-1
-   ticket alongside the marker envelopes. The exemption is scoped to
-   the proof socket only.
+   in-band request grammar** (`subscribe`/`unsubscribe`/`ping`) is
+   **inside wire v1** and its schema/gate coverage rides the item-1
+   ticket alongside the marker envelopes; the in-band **reply** grammar
+   is mixed-dialect as served (§0A.1) and enters the gates only at its
+   §0C.6 item-6 convergence to kit dialect — schematizing the mixed
+   as-built replies would contract the wrong protocol. The exemption is
+   scoped to the proof socket only.
 3. **The hosted kit-route response composition** (`kitSubscribe` et al.
    compose subscribe outputs in JS): governed by the committed schemas
    but with no hosted-side executable drift gate. The
    conformance-twin/acceptance suites are the current enforcement seam;
    a hosted schema-validation gate rides the same ticket as item 1.
 4. **Families typed in Rust but without standalone committed schemas**
-   (audited, §0C's gap rows): `QueryOutput` and the action output, and
-   the ephemeral HTTP request/outcome families. They are serde-typed and
-   drift-gated at the type level but not independently
-   schema-committed; closing them rides the item-1 ticket.
+   (audited, §0C's gap rows): `QueryOutput` and the action output, the
+   ephemeral HTTP request/outcome families, and
+   `SessionLiveSocketClientMessage` (the sessions-mode socket family —
+   its schema absence is an oversight, not an LLP 0043 exemption; the
+   sessions surface governs its semantics, this spec owns its
+   schema-commitment gap). They are serde-typed and drift-gated at the
+   type level but not independently schema-committed; closing them
+   rides the item-1 ticket.
 5. Everything else client-visible is schema-governed (LLP 0051 §D4's
    ENG-23891/ENG-23964 completion; §0D closes the last untyped member
    inside an already-governed family), with the served-bytes exceptions
@@ -726,26 +817,41 @@ in the landing commit. The §0C.6 convergence lands under its own ticket
 with hosted response-schema assertions in the Cloudflare acceptance
 suite for each ledger item.
 
+## Decisions log (review loop)
+
+- **B1 echoes the bound version** as an additive `ConnectionGrant`
+  member (round 1; both families independently converged on it). The
+  echo witnesses the lineage's **explicit binding** — never emitted for
+  legacy lineages, emitted on every open/re-open response of an
+  explicitly bound lineage (§0B.3).
+- **In-band durable subscribe on the hosted kit socket** (round 2): the
+  request surface is recorded as served; the reply grammar is
+  mixed-dialect as built and **not conformance-claimable** in v1 until
+  converged to kit dialect (§0A.1, §0C.6 item 6). The v1 durable entry
+  point on that arm is HTTP subscribe/unsubscribe with a current socket
+  session.
+- **Error-envelope governance** (round 2): `error.response.schema.json`
+  governs every non-2xx JSON failure on §0A.1 kit routes, all lanes,
+  both arms; divergent emitters are ledgered in §0C.6, not exempted.
+- **Session-socket schema gap** (round 2): owned by §0F item 4 as an
+  oversight to close, not an LLP 0043 exemption.
+
 ## Open questions
 
 1. Should the B2 kit offer also ride the generated clients' pinned
    fixtures (so every generated client inherits the offer atomically),
    or is the kit the single mint point? (Leaning: single mint point —
    generated clients call the kit.)
-2. ~~Whether `wireVersion` should additionally be echoed in the
-   `/connection/open` response.~~ **Decided this revision** (both
-   round-1 reviewers independently converged on it): B1 echoes the
-   bound version as an additive `ConnectionGrant` member (§0B.3); it is
-   the hosted arm's only runtime version witness (§0B.6).
-3. May clients mint client-side diagnostic codes inside the
+2. May clients mint client-side diagnostic codes inside the
    `SNAPBACK_*` namespace (the Swift client's
    `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE` for the §0B.6 downgrade
    diagnostic), or does the namespace belong to servers with clients
    required to use a `SNAPBACK_CLIENT_*` sub-namespace or their own?
    (Leaning: reserve `SNAPBACK_CLIENT_*` for client-minted codes and
    register them beside §0E.)
-4. When the shared Cloudflare deployment redeploys with §0A.3, should
+3. When the shared Cloudflare deployment redeploys with §0A.3, should
    the acceptance suite assert the old root system routes actually
    stopped answering (the no-aliases claim as deployed, not just
    in-repo)? (Leaning: yes — one negative probe per migrated family in
-   the remote suite.)
+   the remote suite, paired with a positive probe of its migrated
+   replacement in the same run.)

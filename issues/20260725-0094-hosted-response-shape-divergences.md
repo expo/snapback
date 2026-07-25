@@ -19,6 +19,28 @@ satisfy the committed schemas (verified at `137dee8c`):
    does not admit — fix is schema-side (generate from the served
    envelope or admit `attribution` explicitly).
 
+Extended 2026-07-25 (review round 2, Codex Major 3 / Fable Major 1 —
+§0C.6 items 6–9):
+
+5. Hosted in-band durable subscribe replies are mixed-dialect
+   (proof-dialect `type: 'snapshot'` on non-resume, `type: 'error'` on
+   errors, kit `kind: 'current_as_of'`/`'pong'` on resume/ping) —
+   converge to kit dialect; the reply grammar is
+   conformance-unclaimable until then (LLP 0094 §0A.1 decision).
+6. `requestDiagnostic` (via `parseJsonObjectRequest`,
+   `coordinator.js`) emits `{ok, code, message, diagnostic}` — top-level
+   members outside the closed `ErrorResponse`, inner diagnostic
+   under-filled.
+7. Gateway-lane refusals (`gateway.js`): method refusals under-fill
+   `Diagnostic`; the non-upgrade 426 and the 404s emit bare
+   `{error: ...}` shapes with no diagnostic envelope.
+8. `platformFailureResponse` (kit-route branch,
+   `cloudflare/src/platform-errors.js`) under-fills `Diagnostic`.
+
+The ledger enumerates emitter functions; this ticket owns an executable
+audit (a suite check that fails when a new non-conformant error emitter
+appears on a kit route) in addition to the per-item convergence.
+
 Decided direction (LLP 0094 §0C.6): converge emitters to the schemas;
 add hosted response-schema assertions to the Cloudflare acceptance suite
 per ledger item; a hosted executable schema-validation gate rides

@@ -34,12 +34,16 @@ hosted **proof-socket response framing** is frozen (LLP 0040 pinned
 regression surface) and stays out of the gate inventory. The exemption
 is scoped to the proof socket only.
 
-**Amended 2026-07-25 (LLP 0094 v0.2, review round 1):** additionally in
-scope — schema/gate coverage for the **kit-socket in-band frame
-grammar** (`validateLiveSocketFrame`'s `subscribe`/`unsubscribe`/`ping`
-requests and the kit-dialect `kind`-tagged replies, LLP 0091-contracted;
-LLP 0094 §0A.1 WS-kinds row and §0F item 2), standalone committed
+**Amended 2026-07-25 (LLP 0094 v0.2, review round 1; corrected v0.3,
+round 2):** additionally in scope — schema/gate coverage for the
+**kit-socket in-band request grammar**
+(`validateLiveSocketFrame`'s `subscribe`/`unsubscribe`/`ping`; LLP 0094
+§0A.1 WS-kinds row and §0F item 2); the in-band **reply** grammar is
+mixed-dialect as served and enters the gates only after its
+convergence to kit dialect
+(`issues/20260725-0094-hosted-response-shape-divergences.md` item 5 —
+do not schematize the mixed as-built replies); standalone committed
 schemas for `QueryOutput` / the action output / the ephemeral HTTP
-request-outcome families (LLP 0094 §0C gap rows), and the hosted
-response-schema assertions of
-`issues/20260725-0094-hosted-response-shape-divergences.md`.
+request-outcome families / `SessionLiveSocketClientMessage` (LLP 0094
+§0C gap rows and §0F item 4), and the hosted response-schema assertions
+of the divergences ticket.
