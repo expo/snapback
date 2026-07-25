@@ -38,7 +38,10 @@ fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.as_ref().unwrap().rows, Vec::<Value>::new());
+    assert_eq!(
+        subscription.snapshot.as_ref().unwrap().rows,
+        Vec::<Value>::new()
+    );
 
     let mutation = snapback
         .invoke_mutation(
@@ -89,7 +92,10 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
             },
         )
         .expect("subscribe live query");
-    assert_eq!(subscription.snapshot.as_ref().unwrap().rows, Vec::<Value>::new());
+    assert_eq!(
+        subscription.snapshot.as_ref().unwrap().rows,
+        Vec::<Value>::new()
+    );
 
     let mutation = snapback
         .invoke_mutation(

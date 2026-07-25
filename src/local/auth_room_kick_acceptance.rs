@@ -143,9 +143,15 @@ impl KickFixture {
             )
             .expect("B subscribes to its durable membership");
         assert_eq!(durable_a.snapshot.as_ref().unwrap().rows.len(), 1);
-        assert_eq!(durable_a.snapshot.as_ref().unwrap().rows[0]["_id"], MEMBER_A);
+        assert_eq!(
+            durable_a.snapshot.as_ref().unwrap().rows[0]["_id"],
+            MEMBER_A
+        );
         assert_eq!(durable_b.snapshot.as_ref().unwrap().rows.len(), 1);
-        assert_eq!(durable_b.snapshot.as_ref().unwrap().rows[0]["_id"], MEMBER_B);
+        assert_eq!(
+            durable_b.snapshot.as_ref().unwrap().rows[0]["_id"],
+            MEMBER_B
+        );
         let board_a = snapback
             .subscribe_live_prepared_with_invalidation(
                 "board",
@@ -172,7 +178,10 @@ impl KickFixture {
             .expect("B subscribes to the durable board while a member");
         for board in [&board_a, &board_b] {
             assert_eq!(board.snapshot.as_ref().unwrap().rows.len(), 1);
-            assert_eq!(board.snapshot.as_ref().unwrap().rows[0]["move"], OPPONENT_MOVE);
+            assert_eq!(
+                board.snapshot.as_ref().unwrap().rows[0]["move"],
+                OPPONENT_MOVE
+            );
         }
         // Drive the real durable fanout path before the kick so A's outbox
         // contains an authorization-stamped board snapshot that can be paused

@@ -6065,11 +6065,8 @@ impl LocalSnapback {
         // rather than a named durable policy; both identities are pinned
         // literals until those artifacts exist, so changing either model
         // rotates the generation through this string.
-        let resume_config = crate::rqs::resume_config_identity(
-            "caller-supplied-v0",
-            auth_mode,
-            "absent",
-        );
+        let resume_config =
+            crate::rqs::resume_config_identity("caller-supplied-v0", auth_mode, "absent");
         let generation = crate::rqs::generation_digest(
             &deployment_identity,
             &schema_identity,
@@ -6765,11 +6762,8 @@ impl LocalSnapback {
         if let Some(body) = admitted_resume.as_ref() {
             let distance = head_version.saturating_sub(body.version);
             self.live_delivery.resume.last_journal_distance = distance;
-            self.live_delivery.resume.max_journal_distance = self
-                .live_delivery
-                .resume
-                .max_journal_distance
-                .max(distance);
+            self.live_delivery.resume.max_journal_distance =
+                self.live_delivery.resume.max_journal_distance.max(distance);
             let current_digest = rqs_state.as_ref().map(|state| state.digest.published());
             let refuse = |stats: &mut LiveDeliveryStats, code: &'static str| {
                 *stats.resume.refused.entry(code.to_owned()).or_default() += 1;
@@ -6787,8 +6781,10 @@ impl LocalSnapback {
                 // function of (state, args) after all — fail closed to rung 3
                 // (counted under the policy-replacement code; the registry
                 // has no more specific cause).
-                resume_refusal =
-                    refuse(&mut self.live_delivery, crate::rqs::refusal::POLICY_REPLACED);
+                resume_refusal = refuse(
+                    &mut self.live_delivery,
+                    crate::rqs::refusal::POLICY_REPLACED,
+                );
             } else {
                 match self.journal_resume_requires_resnapshot(body.version) {
                     Ok(false) => {
@@ -19530,7 +19526,8 @@ globalThis.__snapbackHandlers = {
                 indexed_by: None,
             })),
         );
-        scoped.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
+        scoped.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
         FunctionManifest {
             bundle_hash: Some("rqs-functions-v0".to_owned()),
             functions: vec![
@@ -19569,9 +19566,7 @@ globalThis.__snapbackHandlers = {
         }
     }
 
-    fn rqs_wrap(
-        resume: crate::live_wire::ResumeWire,
-    ) -> Option<crate::live_wire::ResumeFromToken> {
+    fn rqs_wrap(resume: crate::live_wire::ResumeWire) -> Option<crate::live_wire::ResumeFromToken> {
         Some(crate::live_wire::ResumeFromToken { resume })
     }
 
@@ -19679,7 +19674,10 @@ globalThis.__snapbackHandlers = {
             )
             .expect("token resume subscribe");
         assert!(resumed.snapshot.is_none(), "rung 1 sends zero rows");
-        assert!(resumed.resume.is_none(), "the fresh token rides CurrentAsOf");
+        assert!(
+            resumed.resume.is_none(),
+            "the fresh token rides CurrentAsOf"
+        );
         assert_eq!(resumed.resume_refusal, None);
         let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
         assert_eq!(envelopes.len(), 1);
@@ -19763,10 +19761,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(envelopes[0]["kind"], "current_as_of");
         let advanced = rqs_resume_from_value(&envelopes[0]["resume"]);
         assert!(advanced.token.starts_with("sbrt1.sbrq_"));
-        assert_eq!(
-            advanced.meta.content_digest,
-            refreshed.meta.content_digest
-        );
+        assert_eq!(advanced.meta.content_digest, refreshed.meta.content_digest);
     }
 
     #[test]
@@ -20072,8 +20067,7 @@ globalThis.__snapbackHandlers = {
 
     #[test]
     fn rqs_resume_keyring_survives_restart_on_disk() {
-        let dir =
-            std::env::temp_dir().join(format!("snapback-rqs-restart-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("snapback-rqs-restart-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("create test dir");
         let path = dir.join("rqs-restart.sqlite");
         let _ = std::fs::remove_file(&path);

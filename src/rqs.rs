@@ -418,7 +418,9 @@ impl ResultDigest {
                 let mut state = MsetState::default();
                 let mut row_hashes = BTreeMap::new();
                 for row in rows {
-                    let id = row_wire_id(row).ok_or(MintRefusal::RowIdMissing)?.to_owned();
+                    let id = row_wire_id(row)
+                        .ok_or(MintRefusal::RowIdMissing)?
+                        .to_owned();
                     let hash = row_hash(row)?;
                     if row_hashes.insert(id.clone(), hash).is_some() {
                         return Err(MintRefusal::RowIdDuplicate);
@@ -524,7 +526,10 @@ pub fn resume_config_identity(
 }
 
 pub fn sha256_identity(value: &Value) -> Result<String, MintRefusal> {
-    Ok(format!("sha256:{}", hex(&Sha256::digest(jcs(value)?.as_bytes()))))
+    Ok(format!(
+        "sha256:{}",
+        hex(&Sha256::digest(jcs(value)?.as_bytes()))
+    ))
 }
 
 fn frame(hash: &mut Sha256, component: &str) {
@@ -789,11 +794,7 @@ impl ResumeKeyring {
     }
 
     /// Resolve a presented key id for verification under the overlap window.
-    fn verification_key(
-        &self,
-        key_id: &str,
-        now_ms: u64,
-    ) -> Result<&ResumeKey, &'static str> {
+    fn verification_key(&self, key_id: &str, now_ms: u64) -> Result<&ResumeKey, &'static str> {
         let key = self
             .keys
             .iter()
@@ -972,7 +973,10 @@ mod tests {
             jcs(&json!(-9007199254740992_i64)),
             Err(MintRefusal::UnsafeInteger)
         );
-        assert_eq!(jcs(&json!(9007199254740991_u64)).unwrap(), "9007199254740991");
+        assert_eq!(
+            jcs(&json!(9007199254740991_u64)).unwrap(),
+            "9007199254740991"
+        );
         // The integral-double band shared with the JS arm: refused below
         // 1e21, allowed at and above it (exponent form).
         assert_eq!(jcs(&json!(1e20)), Err(MintRefusal::UnsafeInteger));
@@ -994,12 +998,16 @@ mod tests {
         let row_b = json!({ "_id": "b", "value": 2 });
         let row_c = json!({ "_id": "c", "value": 3 });
 
-        let forward =
-            ResultDigest::from_rows(DigestKind::Mset1, &[row_a.clone(), row_b.clone(), row_c.clone()])
-                .unwrap();
-        let backward =
-            ResultDigest::from_rows(DigestKind::Mset1, &[row_c.clone(), row_a.clone(), row_b.clone()])
-                .unwrap();
+        let forward = ResultDigest::from_rows(
+            DigestKind::Mset1,
+            &[row_a.clone(), row_b.clone(), row_c.clone()],
+        )
+        .unwrap();
+        let backward = ResultDigest::from_rows(
+            DigestKind::Mset1,
+            &[row_c.clone(), row_a.clone(), row_b.clone()],
+        )
+        .unwrap();
         assert_eq!(forward.published(), backward.published());
 
         // Strict-subset change: update only b; a and c leaves stay (the
@@ -1159,8 +1167,7 @@ mod tests {
         retired_ring.mint_active(1_000);
         // Inside the window the retired key still verifies.
         assert!(
-            decode_and_verify(&retired_wire, &retired_ring, 2_000, RESUME_TOKEN_MAX_AGE_MS)
-                .is_ok()
+            decode_and_verify(&retired_wire, &retired_ring, 2_000, RESUME_TOKEN_MAX_AGE_MS).is_ok()
         );
         // Past the window it refuses with the retired code.
         assert_eq!(
@@ -1175,7 +1182,12 @@ mod tests {
 
         // Expired.
         assert_eq!(
-            decode_and_verify(&wire, &ring, 1_000 + RESUME_TOKEN_MAX_AGE_MS + 1, RESUME_TOKEN_MAX_AGE_MS),
+            decode_and_verify(
+                &wire,
+                &ring,
+                1_000 + RESUME_TOKEN_MAX_AGE_MS + 1,
+                RESUME_TOKEN_MAX_AGE_MS
+            ),
             Err(refusal::TOKEN_EXPIRED)
         );
 
@@ -1201,10 +1213,8 @@ mod tests {
 
     #[test]
     fn keyring_survives_restart_via_file() {
-        let dir = std::env::temp_dir().join(format!(
-            "snapback-rqs-keyring-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("snapback-rqs-keyring-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(RESUME_KEYRING_FILE_NAME);
         let _ = std::fs::remove_file(&path);
