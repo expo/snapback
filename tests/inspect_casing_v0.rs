@@ -7,6 +7,8 @@
 //     wire shapes (`field_type`, host-plan `indexed_by`, externally-tagged
 //     runtime variants, …) are the ratified LLP 0012 v0 artifact pin — their
 //     casing is owned by that pin, not by the inspect payload.
+//   - `capabilityManifest.capabilityMaturity`: keys are closed capability ids,
+//     not payload fields, and intentionally use their registry wire spelling.
 // Admin-only `ephemeral.activeRooms[].scope` keys are app data (whatever the
 // app's collection declares), not payload keys. The public projection omits
 // active room identities entirely.
@@ -49,6 +51,8 @@ fn exempt(path: &str) -> bool {
     // The embedded v0 artifacts keep their ratified pinned shapes.
     path.starts_with(".schema.") || path == ".schema"
         || path.starts_with(".functions.") || path == ".functions"
+        // Closed capability ids are dynamic map keys, not payload fields.
+        || path.starts_with(".capabilityManifest.capabilityMaturity.")
         // App-declared scope field names are data, not payload keys.
         || path.contains(".scope.")
 }
