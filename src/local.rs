@@ -4826,6 +4826,17 @@ impl LocalSnapback {
         capability_gaps
     }
 
+    /// The persisted receipt of the last `RebuildMaintainedProjection` of
+    /// `plan_id` (LLP 0080 §5 / the minimal 0081 slice): the verification
+    /// surface the coupled suite consumes; `snapback migrate verify` is its
+    /// operator-facing successor.
+    pub fn projection_rebuild_receipt(
+        &self,
+        plan_id: &str,
+    ) -> SnapbackResult<Option<crate::storage::ProjectionRebuildReceipt>> {
+        self.db.projection_rebuild_receipt(plan_id)
+    }
+
     pub fn invoke_query(&self, name: &str, input: HandlerInput) -> SnapbackResult<QueryOutput> {
         Ok(self
             .invoke_query_with_dependencies_from_source(name, input, InvocationSource::LocalQuery)?
