@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "AuthInput": {
+      "properties": {
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "BundleQuerySpec": {
+      "properties": {
+        "args": {
+          "default": null,
+          "description": "`params-v1` args mapping (LLP 0092 §0E.6): JSON literals plus\n`{\"$param\": \"name\"}` references."
+        },
+        "function": {
+          "description": "Exported function name in the served functions manifest.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "type": "object"
+    },
+    "BundleRouteEntry": {
+      "description": "One route entry: every query the route needs — the unit the bundle\nevaluates at one commit (LLP 0092 §0C.1).",
+      "properties": {
+        "persist": {
+          "description": "LLP 0091 §0A.5 per-entry persist opt-out (default true); carried for\nschema completeness — the client store consumes it.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "queries": {
+          "description": "1..=32 query specs (the 0D.2 query-count limit).",
+          "items": {
+            "$ref": "#/$defs/BundleQuerySpec"
+          },
+          "type": "array"
+        },
+        "route": {
+          "description": "Route pattern: `/`-separated static segments plus `:name` params.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "route",
+        "queries"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/app.bundle.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`POST /app/bundle` request (LLP 0092 §0D.1). `mode` stays a plain string\nso an unknown mode refuses with the coded `SNAPBACK_BUNDLE_MODE_INVALID`\nrather than an untyped serde rejection.",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthInput",
+      "default": {
+        "principal": null,
+        "session_id": null,
+        "user_id": null
+      },
+      "description": "Dev-mode legacy body auth (the `app_function_route` carrier); ignored\nin sessions mode like every legacy body-auth field."
+    },
+    "devManifestEntry": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BundleRouteEntry"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Dev/test-only inline manifest entry. The cluster-0C authoring surface\n(`snapback/routes.mjs` → `routes.manifest.json`, LLP 0092 §0C.1) has\nnot landed; until it does, the local arm accepts the route entry\ninline in this clearly-marked form. It is refused whenever a served\nroute manifest exists for the app.\nTODO(ENG-25448): retire once the routes-manifest authoring path lands."
+    },
+    "idempotencyKey": {
+      "description": "Register mode only, required there: client-minted per boot attempt,\n22-char base64url (16 random bytes).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mode": {
+      "default": null,
+      "description": "`\"read\"` (default) or `\"register\"`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "params": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "description": "Route params, all strings (percent-decoded segment values).",
+      "type": "object"
+    },
+    "route": {
+      "description": "Exact manifest route pattern (LLP 0092 §0C.1) — matched by string\nequality against the served route manifest; the endpoint never does\nURL matching.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "route"
+  ],
+  "title": "BundleRequest",
+  "type": "object"
+}

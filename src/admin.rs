@@ -726,6 +726,11 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
+    /// Pending-registration owners for bundle register mode plus the
+    /// per-authority bundle rate limiter (LLP 0031 dated LLP 0090 amendment;
+    /// LLP 0092 §0D.4 bounds and reaping). Public for the acceptance suite;
+    /// handlers and the maintenance sweep are the only production writers.
+    pub bundle_pending: crate::bundle::PendingBundleRegistry,
     /// Terminal invalidation shares the exact registry and delivery notifier
     /// installed in this app state. The pre-bind expiry worker receives a
     /// clone, so readiness cannot accidentally describe a different graph.
@@ -848,6 +853,7 @@ impl AppState {
                 ephemeral,
                 server: Arc::new(server),
                 connections,
+                bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
                 service_authority_fences,
                 auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {

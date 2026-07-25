@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "BundleConnection": {
+      "description": "Register-mode connection mint (LLP 0092 §0D.1/§0D.4).",
+      "properties": {
+        "attachDeadline": {
+          "description": "Absolute server-clock ms deadline for socket attach.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "connectionId": {
+          "type": "string"
+        },
+        "grant": {
+          "description": "The connection-grant secret (`[secret]` response sensitivity).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "connectionId",
+        "grant",
+        "attachDeadline"
+      ],
+      "type": "object"
+    },
+    "BundleEntry": {
+      "description": "Per-entry closed union (LLP 0092 §0D.1): `resume` is present iff the\nquery is `rqsEligible` and explicitly `null` otherwise, in BOTH modes;\n`subscriptionId` appears in register mode only; `authorization` appears\nfor register-mode auth-scoped entries only.",
+      "properties": {
+        "args": {
+          "description": "Fully substituted, validated args."
+        },
+        "authorization": {
+          "description": "LLP 0053 scope/invalidation projections for register-mode auth-scoped\nentries."
+        },
+        "function": {
+          "type": "string"
+        },
+        "resume": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResumeWire"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Always serialized (`null` for non-eligible entries) — the closed\nunion's discriminating field."
+        },
+        "rows": {
+          "items": true,
+          "type": "array"
+        },
+        "subscriptionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "function",
+        "args",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/app.bundle.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`POST /app/bundle` response (LLP 0092 §0D.1).",
+  "properties": {
+    "commitVersion": {
+      "description": "Single shared commit version — every entry was evaluated at this cut.",
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "connection": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BundleConnection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Register mode only."
+    },
+    "entries": {
+      "description": "One per `querySpec`, manifest order.",
+      "items": {
+        "$ref": "#/$defs/BundleEntry"
+      },
+      "type": "array"
+    },
+    "generation": {
+      "type": "string"
+    },
+    "versionStream": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "commitVersion",
+    "generation",
+    "versionStream",
+    "entries"
+  ],
+  "title": "BundleResponse",
+  "type": "object"
+}

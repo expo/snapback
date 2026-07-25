@@ -3429,6 +3429,65 @@ export class SnapbackClient {
     );
   }
 
+  /// Mint a bundle boot idempotency key (LLP 0092 §0D.3): 22-char base64url
+  /// over 16 random bytes, minted per boot attempt — two concurrent boots
+  /// hold distinct keys and produce distinct registration sets.
+  static mintBundleBootKey() {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
+  }
+
+  /// Fetch a snapshot bundle (`POST /app/bundle` — LLP 0090 D1.2, contract
+  /// LLP 0092 §0D): every entry is evaluated at one shared commit, and each
+  /// entry's `resume` is present iff its query is rqsEligible (null
+  /// otherwise — the closed union). `mode: 'register'` additionally arms the
+  /// pending-registration owner (credentialed callers only; an anonymous
+  /// register refuses with SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL and
+  /// the caller retries in read mode) and returns `connection`; the minted
+  /// grant is adopted into this client's connection-grant cache so the
+  /// subsequent socket attach and outbox drains present it — the atomic
+  /// handoff of the pending registrations — without a second
+  /// `/connection/open` handshake.
+  ///
+  /// Until the cluster-0C routes-manifest authoring surface lands, the
+  /// served local instance requires the route entry inline as
+  /// `devManifestEntry` (a clearly-marked dev/test form).
+  async fetchBundle({
+    route,
+    params = {},
+    mode = 'read',
+    idempotencyKey = null,
+    devManifestEntry = null,
+    userId,
+  } = {}) {
+    if (typeof route !== 'string' || route.length === 0) {
+      throw new TypeError('Snapback fetchBundle requires a route pattern string');
+    }
+    const body = { route, params, mode, auth: SnapbackClient.auth(userId) };
+    if (mode === 'register') {
+      body.idempotencyKey = idempotencyKey ?? SnapbackClient.mintBundleBootKey();
+    } else if (idempotencyKey != null) {
+      body.idempotencyKey = idempotencyKey;
+    }
+    if (devManifestEntry) body.devManifestEntry = devManifestEntry;
+    const response = await this.#req('POST', '/app/bundle', body);
+    const connection = response?.connection;
+    if (connection?.connectionId && connection?.grant) {
+      this.__connectionGrants.set(
+        connection.connectionId,
+        Promise.resolve({
+          id: connection.connectionId,
+          token: connection.grant,
+          authorizationInvalidation: null,
+        }),
+      );
+    }
+    return response;
+  }
+
   // Item 8's only renewal path: a fresh full query whose rows and exact
   // server-issued AuthorizedLease are returned as one response boundary.
   // The caller reserves leaseRequestId durably before entering this method.

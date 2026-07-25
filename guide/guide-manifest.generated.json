@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "64dab784523d3543ec55c73e2e42315f6a702e33"
+    "commit": "76e8dd52f65a99603db8d203f88e2e04279cb04e"
   },
   "nav": {
     ".": [
@@ -729,7 +729,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "d07a1e455c15782b4acefd5bfa06b33810eeca532f9e081f0430b8174f80f681",
+      "sha256": "1672bc73173851a3403e8b6f2c214bd9e667b03ae3770a4fde0e260088120d5f",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1685,11 +1685,13 @@
       "sync.offline",
       "testing.acceptance"
     ],
-    "gaps": []
+    "gaps": [
+      "realtime.snapshot-bundles"
+    ]
   },
   "surfaces": {
-    "routes": 68,
+    "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "88f265d92230d8c270d48312ba8c5a14aa149dde70c752415bb17099cdefae35"
+  "contentHash": "de27eb27c07aedb264da50240d4285c08bff977344a61ad1b56d77c1b9211043"
 }

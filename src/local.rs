@@ -2645,6 +2645,16 @@ struct LiveSubscriptionAuthorization {
     owner_continuity_id: String,
 }
 
+/// Register-mode target for [`LocalSnapback::evaluate_bundle`]: the freshly
+/// minted pending-registration connection every bundle subscription binds to
+/// (LLP 0031 dated amendment — the one sanctioned socketless-demand owner).
+#[derive(Clone, Debug)]
+pub(crate) struct BundleRegisterTarget {
+    pub(crate) connection_id: String,
+    pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
+    pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct LiveInvalidationAdmission {
     pub(crate) connection: Option<AuthorizationInvalidationConnection>,
@@ -6035,7 +6045,7 @@ impl LocalSnapback {
     /// every ensure (`install_app_generation` clears the cache). A no-op
     /// ensure reproduces identical components and therefore an identical
     /// digest, so dev-loop ensures do not needlessly refuse tokens.
-    fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
+    pub(crate) fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
         if let Some(generation) = &self.rqs_generation {
             return Ok(generation.clone());
         }
@@ -6216,6 +6226,271 @@ impl LocalSnapback {
             return Err(refusal::VERSION_IMPLAUSIBLE);
         }
         Ok(body)
+    }
+
+    /// Dev-authority read-mode bundle evaluation (the library/test seam,
+    /// mirroring [`Self::subscribe_live`]). Production HTTP composition
+    /// prepares its authority in the route middleware and calls
+    /// `evaluate_bundle` directly.
+    pub fn app_bundle_read_dev(
+        &mut self,
+        entry: &crate::bundle::BundleRouteEntry,
+        params: &std::collections::BTreeMap<String, String>,
+        request_route: &str,
+        auth: &AuthInput,
+    ) -> SnapbackResult<crate::bundle::BundleResponse> {
+        let admission = self.admission.admit_dev()?;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(auth),
+        )?;
+        self.evaluate_bundle(entry, params, request_route, auth, &authority, None)
+    }
+
+    /// Evaluate one bundle route entry — every query at one commit cut
+    /// (LLP 0090 D1.2's single-commit invariant; LLP 0092 §0D.5). On this
+    /// arm the cut is the instance's exclusive borrow: every mutation path
+    /// requires the same `&mut LocalSnapback` access this method holds, so
+    /// no commit can fall between entry evaluations. Read mode therefore
+    /// runs on the serialized lane rather than the concurrent read lane —
+    /// correctness-identical to §0D.5's pinned-read-snapshot phrasing, with
+    /// the read-lane concurrency left as follow-up work.
+    ///
+    /// Atomic failure: any coded refusal returns with **no** entry results;
+    /// in register mode the caller-supplied connection's topology is purged
+    /// before returning, so a failed bundle strands no server state
+    /// (LLP 0031 dated amendment).
+    ///
+    /// @ref LLP 0092#0d2-atomicity-limits-and-the-snapback_bundle_-registry —
+    ///   limits and per-cause codes; the closed per-entry union of §0D.1.
+    pub(crate) fn evaluate_bundle(
+        &mut self,
+        entry: &crate::bundle::BundleRouteEntry,
+        params: &std::collections::BTreeMap<String, String>,
+        request_route: &str,
+        auth: &AuthInput,
+        authority: &PreparedAuthority,
+        register: Option<crate::local::BundleRegisterTarget>,
+    ) -> SnapbackResult<crate::bundle::BundleResponse> {
+        use crate::bundle::{self, code};
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        let started = std::time::Instant::now();
+        bundle::validate_entry_against_params(entry, request_route, params)
+            .map_err(|code| refuse(code, "bundle route entry refused"))?;
+        let commit_version = self
+            .db
+            .current_version()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle commit version unavailable"))?;
+        let generation = self
+            .rqs_generation_digest()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle generation unavailable"))?;
+        let version_stream = self
+            .db
+            .data_version_stream()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle version stream unavailable"))?;
+
+        let mut entries = Vec::with_capacity(entry.queries.len());
+        let mut total_rows = 0_usize;
+        let mut total_bytes = 0_usize;
+        // Register-mode unwind: purge the freshly minted connection's whole
+        // topology, retiring any auth scopes the partial registration
+        // created. The connection exists only for this bundle, so purging it
+        // is exactly the amendment's "strands no server state".
+        let unwind = |snapback: &mut Self, error: SnapbackError| -> SnapbackError {
+            if let Some(target) = &register {
+                snapback.purge_connection_topology(&target.connection_id, &target.effect_fence);
+            }
+            error
+        };
+        let result = (|snapback: &mut Self| -> SnapbackResult<Vec<crate::bundle::BundleEntry>> {
+            for spec in &entry.queries {
+                if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
+                    return Err(refuse(
+                        code::LIMIT_TIME,
+                        "bundle evaluation wall time exceeded",
+                    ));
+                }
+                let function = snapback
+                    .function(&spec.function)
+                    .map_err(|_| {
+                        refuse(
+                            code::ENTRY_INVALID,
+                            "bundle entry names an unknown function",
+                        )
+                    })?
+                    .clone();
+                let is_query =
+                    matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery);
+                if !is_query {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "bundle entries may name queries only",
+                    ));
+                }
+                if register.is_some() && function.kind != FunctionKind::LiveQuery {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "register mode requires live queries",
+                    ));
+                }
+                let args = bundle::substitute_params_v1(&spec.args, params)
+                    .map_err(|code| refuse(code, "bundle args mapping refused"))?;
+                let (rows, resume, subscription_id, authorization) = match &register {
+                    None => {
+                        let input = HandlerInput {
+                            args: args.clone(),
+                            auth: auth.clone(),
+                            read_set: Vec::new(),
+                            correlation: None,
+                            ctx_ledger: None,
+                        };
+                        let invocation = snapback
+                            .invoke_query_with_dependencies_prepared(
+                                &spec.function,
+                                input,
+                                authority.clone(),
+                            )
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle entry evaluation failed")
+                                    .with_details(json!({
+                                        "function": spec.function,
+                                        "cause": error.diagnostic.code,
+                                    }))
+                            })?;
+                        let rows = invocation.output.rows;
+                        // `resume` presence keys on the interim `rqsEligible`
+                        // predicate and nothing else (LLP 0092 §0D.1).
+                        let resume = rqs_eligibility(&function).and_then(|kind| {
+                            let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
+                            let query_artifact = serde_json::to_value(&function)
+                                .ok()
+                                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())?;
+                            let args_hash = crate::rqs::args_hash(&args).ok()?;
+                            snapback.mint_resume_wire(
+                                &query_artifact,
+                                &args_hash,
+                                commit_version,
+                                kind,
+                                digest.published(),
+                            )
+                        });
+                        (rows, resume, None, None)
+                    }
+                    Some(target) => {
+                        let admission = snapback
+                            .admission
+                            .admit_for_mode(authority.active_mode())
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle admission unavailable")
+                                    .with_details(json!({ "cause": error.diagnostic.code }))
+                            })?;
+                        let sub_authority = InvocationGate::prepare_admitted_authority(
+                            InvocationSource::LiveInitialQuery,
+                            authority.active_mode(),
+                            authority.profile(),
+                            admission,
+                            &WireAuthorityFields::default(),
+                            authority.resolved().clone(),
+                        )
+                        .map_err(|error| {
+                            refuse(code::QUERY_FAILED, "bundle register authority refused")
+                                .with_details(json!({ "cause": error.diagnostic.code }))
+                        })?;
+                        let sub_input = LiveSubscribeInput {
+                            connection_id: target.connection_id.clone(),
+                            input: HandlerInput {
+                                args: args.clone(),
+                                auth: auth.clone(),
+                                read_set: Vec::new(),
+                                correlation: None,
+                                ctx_ledger: None,
+                            },
+                            authorization_namespace: None,
+                            supersedes: None,
+                            resume_from_token: None,
+                        };
+                        let invalidation = LiveInvalidationAdmission {
+                            connection: target.invalidation_connection.clone(),
+                            effect_fence: Some(target.effect_fence.clone()),
+                            #[cfg(test)]
+                            session_mode: false,
+                        };
+                        let output = snapback
+                            .subscribe_live_prepared_with_invalidation(
+                                &spec.function,
+                                sub_input,
+                                sub_authority,
+                                invalidation,
+                            )
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle registration failed")
+                                    .with_details(json!({
+                                        "function": spec.function,
+                                        "cause": error.diagnostic.code,
+                                    }))
+                            })?;
+                        let rows = output
+                            .snapshot
+                            .map(|snapshot| snapshot.rows)
+                            .unwrap_or_default();
+                        let authorization = output.authorization_scope.as_ref().map(|scope| {
+                            json!({
+                                "scope": scope,
+                                "invalidation": output.authorization_invalidation,
+                            })
+                        });
+                        (
+                            rows,
+                            output.resume,
+                            Some(output.subscription_id),
+                            authorization,
+                        )
+                    }
+                };
+                total_rows += rows.len();
+                if total_rows > bundle::BUNDLE_MAX_ROWS {
+                    return Err(refuse(code::LIMIT_ROWS, "bundle row limit exceeded"));
+                }
+                total_bytes += serde_json::to_vec(&rows)
+                    .map(|bytes| bytes.len())
+                    .unwrap_or(0);
+                if total_bytes > bundle::BUNDLE_MAX_BYTES {
+                    return Err(refuse(code::LIMIT_BYTES, "bundle byte limit exceeded"));
+                }
+                if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
+                    return Err(refuse(
+                        code::LIMIT_TIME,
+                        "bundle evaluation wall time exceeded",
+                    ));
+                }
+                entries.push(crate::bundle::BundleEntry {
+                    function: spec.function.clone(),
+                    args,
+                    rows,
+                    resume,
+                    subscription_id,
+                    authorization,
+                });
+            }
+            Ok(entries)
+        })(self);
+        let entries = match result {
+            Ok(entries) => entries,
+            Err(error) => return Err(unwind(self, error)),
+        };
+        Ok(crate::bundle::BundleResponse {
+            commit_version,
+            generation,
+            version_stream,
+            entries,
+            connection: None,
+        })
     }
 
     pub fn subscribe_live(
