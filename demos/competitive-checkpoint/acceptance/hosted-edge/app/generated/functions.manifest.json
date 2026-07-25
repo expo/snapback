@@ -1,0 +1,453 @@
+{
+  "appId": "hosted-edge",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:912e447c2f63ec2148104daefbc2d856b423211d5369df6e279455a9f75ceb4f",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createNote",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "createNote",
+      "id": "hosted-edge:createNote",
+      "kind": "Mutation",
+      "name": "createNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Binding": "__standardCreatedId"
+                },
+                "table": "notes"
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "__standardCreatedId",
+                  "table": "notes",
+                  "values": {
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "createdAt": "RuntimeNow",
+                    "ownerId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "deleteNote",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "deleteNote",
+      "id": "hosted-edge:deleteNote",
+      "kind": "Mutation",
+      "name": "deleteNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "notes"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "notes"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "getNote",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "getNote",
+      "id": "hosted-edge:getNote",
+      "kind": "LiveQuery",
+      "name": "getNote",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "id"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "notes"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listNotes",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "notes_by_owner",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listNotes",
+      "id": "hosted-edge:listNotes",
+      "kind": "LiveQuery",
+      "name": "listNotes",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "notes_by_owner",
+            "limit": 100,
+            "membershipFilters": [],
+            "order": [],
+            "table": "notes"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "updateNote",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "updateNote",
+      "id": "hosted-edge:updateNote",
+      "kind": "Mutation",
+      "name": "updateNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Arg": "id"
+                },
+                "table": "notes"
+              }
+            },
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "notes"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "notes",
+                  "values": {
+                    "body": {
+                      "Arg": "body"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:4134630afaf3da4eb1875895d7f09327d921e7e64627e3e0c4a1fa0aa0b27b42",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": []
+}

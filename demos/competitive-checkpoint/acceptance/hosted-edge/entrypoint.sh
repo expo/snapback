@@ -68,6 +68,7 @@ exec /app/bin/snapback \
   --port 4287 \
   --db /data/hosted.sqlite3 \
   --ready-file /data/ready.json \
+  --startup-artifacts /app/etc/startup-artifacts.json \
   --auth-deployment hosted \
   --hosted-edge /app/etc/hosted-edge.json \
   --hosted-admission /data/admission.json

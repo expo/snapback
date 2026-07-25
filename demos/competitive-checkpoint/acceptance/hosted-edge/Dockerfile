@@ -80,6 +80,11 @@ COPY demos/competitive-checkpoint/acceptance/hosted-edge/Caddyfile /app/etc/Cadd
 # either changes `configurationSha256`, which invalidates every admission
 # snapshot signed against the original (LLP 0098 §3.1 clause 5).
 COPY demos/competitive-checkpoint/acceptance/hosted-edge/hosted-edge.json /app/etc/hosted-edge.json
+# The sessions-mode startup carrier. Sessions is selected by the application
+# schema, so the LLP 0077 matrix cannot run without it; the checkpoint app is
+# `dev` and several landed receipts depend on it staying that way, hence the
+# small purpose-built app under hosted-edge/app/.
+COPY demos/competitive-checkpoint/acceptance/hosted-edge/startup-artifacts.json /app/etc/startup-artifacts.json
 COPY demos/competitive-checkpoint/snapback/generated/ /app/checkpoint-generated/
 COPY demos/competitive-checkpoint/snapback/seed.json /app/checkpoint-generated/seed.json
 
