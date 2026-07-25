@@ -40,9 +40,9 @@ const server = await startServer({
   },
 });
 const client = new SnapbackClient(server.baseUrl, server.clientOptions);
-// @ref LLP 0075#author-adjudication--2026-07-22 — protocol amendment v0.1: target identity
-// is derived from the served capability manifest (never a hand-written alias)
-// and the receipt pins the manifest digest it was derived from.
+// @ref LLP 0075#author-adjudication--2026-07-22 — protocol amendment v0.1:
+// derive target identity from the served capability manifest rather than a
+// hand-written alias, and pin the exact served manifest bytes in the receipt.
 const servedIdentity = await deriveServedTargetIdentity(server.baseUrl);
 const cleanups = [() => source.close(), () => server.stop()];
 const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 8 });
@@ -108,8 +108,9 @@ await runAcceptance(suite, async () => {
       'SNAPBACK_ROW_NOT_FOUND',
       'other actor update must fail closed',
     );
-    // @ref LLP 0065#2-the-v1-visibility-floor — cross-user delete refusal is part of the
-    // required negative-authorization set; the row must survive untouched.
+    // @ref LLP 0065#2-the-v1-visibility-floor — the public refusal must make
+    // an invisible row indistinguishable from an absent row, and the row must
+    // survive the refused cross-user delete.
     await assertThrows(
       () => client.mutate(api.deleteConversation, {
         userId: GRACE,
@@ -332,10 +333,6 @@ await runAcceptance(suite, async () => {
   reportExtra: {
     schemaVersion: 'snapback.competitive-checkpoint.local-streaming.v0',
     protocol: 'llp-0075-convex-checkpoint-v0',
-    // Derived, never authored: the alias mistake recorded in
-    // knownInstrumentDefects (hardcoded `local-ibex-sqlite.v1`) is structurally
-    // unrepeatable because the receipt carries the served identity plus the
-    // digest of the manifest it came from.
     targetProfile: servedIdentity.targetProfile,
     targetIdentitySource: servedIdentity.source,
     capabilityManifestSha256: servedIdentity.capabilityManifestSha256,

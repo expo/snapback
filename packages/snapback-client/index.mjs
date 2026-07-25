@@ -2882,7 +2882,7 @@ export class SnapbackClient {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
     }
-    const responseSenderNonce = res.headers.get('dpop-nonce');
+    const responseSenderNonce = res.headers?.get?.('dpop-nonce') ?? null;
     if (responseSenderNonce !== null && !isCanonicalSenderNonce(responseSenderNonce)) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       const error = new Error('SNAPBACK_AUTH_SENDER_PROOF_INVALID: response nonce is invalid');

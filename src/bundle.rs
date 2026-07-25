@@ -209,9 +209,9 @@ pub fn route_patterns_overlap(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).all(|(left, right)| {
-        left.starts_with(':') || right.starts_with(':') || left == right
-    })
+    a.iter()
+        .zip(b.iter())
+        .all(|(left, right)| left.starts_with(':') || right.starts_with(':') || left == right)
 }
 
 /// Structural validation of a routes manifest (LLP 0092 §0C.1): format
@@ -410,10 +410,7 @@ pub fn function_route_arg_types(
 /// (LLP 0092 §0E.6 per-request substitution): `string` as-is; `number` by
 /// strict decimal parse refused unless the value round-trips under the JCS
 /// number rules; `boolean` by exact `"true"`/`"false"`.
-pub fn decode_route_param(
-    value: &str,
-    target: RouteParamType,
-) -> Result<Value, &'static str> {
+pub fn decode_route_param(value: &str, target: RouteParamType) -> Result<Value, &'static str> {
     match target {
         RouteParamType::String => Ok(Value::String(value.to_owned())),
         RouteParamType::Boolean => match value {
@@ -430,8 +427,7 @@ pub fn decode_route_param(
         }
         RouteParamType::Number => {
             let parsed: f64 = value.parse().map_err(|_| code::PARAMS_INVALID)?;
-            let number =
-                serde_json::Number::from_f64(parsed).ok_or(code::PARAMS_INVALID)?;
+            let number = serde_json::Number::from_f64(parsed).ok_or(code::PARAMS_INVALID)?;
             let canonical = Value::Number(number);
             // JCS round-trip rule: the decoded value's canonical serialization
             // must reproduce the presented segment exactly, so `argsHash` is
@@ -460,22 +456,21 @@ pub fn substitute_params_v1(
     params: &BTreeMap<String, String>,
     arg_types: &BTreeMap<String, RouteParamType>,
 ) -> Result<Value, &'static str> {
-    let decode_reference =
-        |map: &serde_json::Map<String, Value>,
-         target: Option<RouteParamType>|
-         -> Result<Value, &'static str> {
-            // A `$param` key alongside other keys, or with a non-string
-            // value, is refused (LLP 0092 §0E.6's unambiguity rule).
-            if map.len() != 1 {
-                return Err(code::PARAMS_INVALID);
-            }
-            let Some(Value::String(name)) = map.get("$param") else {
-                return Err(code::PARAMS_INVALID);
-            };
-            let value = params.get(name).ok_or(code::PARAMS_INVALID)?;
-            let target = target.ok_or(code::PARAMS_INVALID)?;
-            decode_route_param(value, target)
+    let decode_reference = |map: &serde_json::Map<String, Value>,
+                            target: Option<RouteParamType>|
+     -> Result<Value, &'static str> {
+        // A `$param` key alongside other keys, or with a non-string
+        // value, is refused (LLP 0092 §0E.6's unambiguity rule).
+        if map.len() != 1 {
+            return Err(code::PARAMS_INVALID);
+        }
+        let Some(Value::String(name)) = map.get("$param") else {
+            return Err(code::PARAMS_INVALID);
         };
+        let value = params.get(name).ok_or(code::PARAMS_INVALID)?;
+        let target = target.ok_or(code::PARAMS_INVALID)?;
+        decode_route_param(value, target)
+    };
     fn substitute_literal(mapping: &Value) -> Result<Value, &'static str> {
         match mapping {
             Value::Object(map) => {
@@ -968,7 +963,11 @@ mod tests {
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
-            substitute_params_v1(&json!({ "board": { "$param": "missing" } }), &params, &types),
+            substitute_params_v1(
+                &json!({ "board": { "$param": "missing" } }),
+                &params,
+                &types
+            ),
             Err(code::PARAMS_INVALID)
         );
         assert_eq!(
@@ -988,19 +987,28 @@ mod tests {
         assert_eq!(decode_route_param("true", T::Boolean), Ok(json!(true)));
         assert_eq!(decode_route_param("false", T::Boolean), Ok(json!(false)));
         for bad in ["True", "1", "", "yes"] {
-            assert_eq!(decode_route_param(bad, T::Boolean), Err(code::PARAMS_INVALID));
+            assert_eq!(
+                decode_route_param(bad, T::Boolean),
+                Err(code::PARAMS_INVALID)
+            );
         }
         assert_eq!(decode_route_param("42", T::Integer), Ok(json!(42)));
         assert_eq!(decode_route_param("-7", T::Integer), Ok(json!(-7)));
         // Non-canonical, non-integral, over-band, or junk decimal forms refuse
         // (the JCS round-trip rule keeps argsHash well-defined).
         for bad in ["042", "1.5", "+1", "1e3", "9007199254740992", ""] {
-            assert_eq!(decode_route_param(bad, T::Integer), Err(code::PARAMS_INVALID));
+            assert_eq!(
+                decode_route_param(bad, T::Integer),
+                Err(code::PARAMS_INVALID)
+            );
         }
         assert_eq!(decode_route_param("1.5", T::Number), Ok(json!(1.5)));
         assert_eq!(decode_route_param("42", T::Number), Ok(json!(42.0)));
         for bad in ["1.50", "NaN", "Infinity", "0.10000000000000000001x", ""] {
-            assert_eq!(decode_route_param(bad, T::Number), Err(code::PARAMS_INVALID));
+            assert_eq!(
+                decode_route_param(bad, T::Number),
+                Err(code::PARAMS_INVALID)
+            );
         }
     }
 

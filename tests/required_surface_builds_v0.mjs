@@ -18,6 +18,7 @@ import {
   classifyRequiredWebSurface,
   collectRequiredWebSurfaces,
   ensureRegistryInstall,
+  ensureWorkspaceInstall,
   requiredSurfaceStructuralErrors,
   runBoundedProcess,
   signalProcessTree,
@@ -122,6 +123,27 @@ try {
   });
   assert.equal(installed.ok, true);
   assert.equal(frozenRuns, 1, 'a valid cache is still checked by frozen install');
+
+  let workspaceFrozenRuns = 0;
+  const workspaceInstalled = await ensureWorkspaceInstall({
+    runInstall: async () => {
+      workspaceFrozenRuns += 1;
+      return { ok: true, output: 'workspace cache verified' };
+    },
+  });
+  assert.equal(workspaceInstalled.ok, true);
+  assert.equal(workspaceFrozenRuns, 1, 'clean surface builds prepare the root workspace once');
+
+  const workspaceFailure = await ensureWorkspaceInstall({
+    runInstall: async () => ({
+      ok: false,
+      reason: 'exited 9; process tree terminated',
+      output: 'frozen lock mismatch',
+    }),
+  });
+  assert.equal(workspaceFailure.ok, false);
+  assert.match(workspaceFailure.reason, /root workspace frozen install failed/);
+  assert.match(workspaceFailure.reason, /frozen lock mismatch/);
 
   const linked = surface('linked');
   const linkedRoot = join(linked.surfaceDir, 'node_modules', '@exact', 'contract');

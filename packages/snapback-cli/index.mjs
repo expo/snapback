@@ -3,27 +3,102 @@
 // same native CLI instead of growing a second lifecycle dialect.
 
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
+  chmodSync,
+  copyFileSync,
   cpSync,
   existsSync,
   lstatSync,
+  mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
   rmSync,
   watch,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { SnapbackClient } from '@snapback/client';
 import { generate } from '@snapback/codegen';
+import {
+  addTarget,
+  applyBackupPlan,
+  applyDeployPlan,
+  applyRestoreActivationPlan,
+  applyRestorePlan,
+  applyRollbackPlan,
+  createDeployPlan,
+  createBackupPlan,
+  createHostedAuthDrillReceipt,
+  createAdapterQualificationManifest,
+  createPreparedReleaseManifest,
+  createRemoteDrillPlan,
+  createRestoreActivationPlan,
+  createRestorePlan,
+  createRollbackPlan,
+  doctorTarget,
+  inspectTargetAdmin,
+  inspectTarget,
+  listBackups,
+  queryControlLogs,
+  sealHostedAdmissionEnvelope,
+  showTarget,
+  validateTargetDescriptor,
+  verifyBackupManifest,
+  verifyControlAuditLedger,
+  verifyPreparedReleaseArtifacts,
+  verifyRemoteDrillPlan,
+  verifyRestoreReceipt,
+} from './deployment-control.mjs';
+export {
+  addTarget,
+  applyBackupPlan,
+  applyDeployPlan,
+  applyRestoreActivationPlan,
+  applyRestorePlan,
+  applyRollbackPlan,
+  createDeployPlan,
+  createBackupPlan,
+  createHostedAuthDrillReceipt,
+  createAdapterQualificationManifest,
+  createPreparedReleaseManifest,
+  createRemoteDrillPlan,
+  createRestoreActivationPlan,
+  createRestorePlan,
+  createRollbackPlan,
+  doctorTarget,
+  inspectTargetAdmin,
+  inspectTarget,
+  listBackups,
+  queryControlLogs,
+  sealHostedAdmissionEnvelope,
+  showTarget,
+  validateTargetDescriptor,
+  verifyBackupManifest,
+  verifyControlAuditLedger,
+  verifyPreparedReleaseArtifacts,
+  verifyRemoteDrillPlan,
+  verifyRestoreReceipt,
+} from './deployment-control.mjs';
+export {
+  createExternalReplayFloorAdvanceReceipt,
+  prepareHostedAdmissionBoot,
+  refreshHostedAdmissionProjection,
+} from './hosted-admission-producer.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const RUNTIME_PACKAGES = new Map([
   ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
+  ['linux-x64', '@snapback/runtime-linux-x64'],
 ]);
 
 export function diagnosticError(code, message, details = undefined) {
@@ -87,13 +162,27 @@ export function resolveRuntimeBinary(options = {}) {
   return { binary, source: packageName, platform };
 }
 
-export function doctor(options = {}) {
+function doctorDiagnostic(code, subsystem, message, details = undefined) {
+  return {
+    code,
+    severity: code.endsWith('_OK') ? 'info' : 'error',
+    subsystem,
+    message,
+    ...(details === undefined ? {} : { details }),
+  };
+}
+
+// @ref LLP 0074#priority-6-setup-that-fails-rarely-and-diagnostically —
+// doctor proves a disposable VM/bundle/query/mutation/live/shutdown slice;
+// file-presence and `--help` checks alone cannot certify the installed loop.
+export async function doctor(options = {}) {
   let runtime;
   try {
     runtime = resolveRuntimeBinary(options);
   } catch (error) {
-    return { schemaVersion: 'snapback.cli-doctor.v1', ok: false, checks: [error.diagnostic] };
+    return { schemaVersion: 'snapback.cli-doctor.v2', ok: false, checks: [error.diagnostic] };
   }
+  const checks = [];
   const launch = spawnSync(runtime.binary, ['--help'], {
     encoding: 'utf8',
     env: scrubDynamicLoaderEnvironment(options.env),
@@ -101,29 +190,178 @@ export function doctor(options = {}) {
   });
   if (launch.status !== 0) {
     return {
-      schemaVersion: 'snapback.cli-doctor.v1',
+      schemaVersion: 'snapback.cli-doctor.v2',
       ok: false,
       runtime,
-      checks: [{
-        code: 'SNAPBACK_IBEX_RUNTIME_LOAD_FAILED',
-        severity: 'error',
-        subsystem: 'runtime',
-        message: 'the installed Snapback binary did not launch with dynamic-loader overrides scrubbed',
-        details: { status: launch.status, signal: launch.signal, stderr: launch.stderr?.slice(0, 2_000) ?? '' },
-      }],
+      checks: [doctorDiagnostic(
+        'SNAPBACK_IBEX_RUNTIME_LOAD_FAILED',
+        'runtime',
+        'the installed Snapback binary did not launch with dynamic-loader overrides scrubbed',
+        { status: launch.status, signal: launch.signal, stderr: launch.stderr?.slice(0, 2_000) ?? '' },
+      )],
     };
   }
-  return {
-    schemaVersion: 'snapback.cli-doctor.v1',
-    ok: true,
-    runtime,
-    checks: [{
-      code: 'SNAPBACK_RUNTIME_LAUNCH_OK',
-      severity: 'note',
-      subsystem: 'runtime',
-      message: 'the packaged Snapback binary launched without ambient dynamic-loader paths',
-    }],
-  };
+  checks.push(doctorDiagnostic(
+    'SNAPBACK_RUNTIME_LAUNCH_OK',
+    'runtime',
+    'the packaged Snapback binary launched without ambient dynamic-loader paths',
+  ));
+  if (options.verticalSlice === false) {
+    return { schemaVersion: 'snapback.cli-doctor.v2', ok: true, runtime, checks, probe: 'launch-only' };
+  }
+
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-doctor-'));
+  const projectRoot = join(scratch, 'probe');
+  const backendRoot = join(projectRoot, 'snapback');
+  const stateRoot = join(projectRoot, '.snapback');
+  const readyFile = join(stateRoot, 'doctor.ready.json');
+  const database = join(stateRoot, 'doctor.sqlite3');
+  let child = null;
+  let live = null;
+  let failure = null;
+  try {
+    cpSync(join(packageRoot, 'templates', 'todo-contract', 'snapback'), backendRoot, { recursive: true });
+    const generated = await generateApp(backendRoot);
+    if (!generated.ok) {
+      throw diagnosticError(
+        'SNAPBACK_DOCTOR_GENERATION_FAILED',
+        'the disposable doctor bundle did not generate',
+        { diagnostics: generated.diagnostics ?? [] },
+      );
+    }
+    mkdirSync(stateRoot, { recursive: true });
+    child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+      cwd: projectRoot,
+      env: scrubDynamicLoaderEnvironment(options.env),
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+    const descriptor = validateDevTarget(
+      await waitForReady(readyFile, child, options.readyTimeoutMs ?? 15_000),
+      { readyFile, database },
+    );
+    const adminToken = managedAdminToken(descriptor, database);
+    loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, { seed: true });
+    checks.push(doctorDiagnostic(
+      'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
+      'runtime',
+      'the disposable server created its VM and loaded the generated bundle',
+    ));
+
+    const apiModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'api.mjs')).href}?doctor=${Date.now()}`);
+    const api = apiModule.default;
+    const client = new SnapbackClient(descriptor.serverUrl, { adminToken });
+    const userId = 'user_doctor';
+    const before = await client.query(api.listTodos, { userId });
+    if (!Array.isArray(before.rows)) {
+      throw diagnosticError('SNAPBACK_DOCTOR_QUERY_FAILED', 'the disposable query returned no rows array');
+    }
+    checks.push(doctorDiagnostic(
+      'SNAPBACK_DOCTOR_QUERY_OK',
+      'runtime',
+      'the disposable generated query executed in the runtime VM',
+      { version: before.version, rowCount: before.rows.length },
+    ));
+
+    const mutation = await client.mutate(api.createTodo, {
+      userId,
+      args: { title: 'Snapback doctor vertical slice' },
+      clientMutationId: `doctor-${process.pid}-${Date.now()}`,
+    });
+    if (mutation?.changed_count !== 1) {
+      throw diagnosticError(
+        'SNAPBACK_DOCTOR_MUTATION_FAILED',
+        'the disposable mutation did not commit exactly one row',
+        { changedCount: mutation?.changed_count ?? null },
+      );
+    }
+    checks.push(doctorDiagnostic(
+      'SNAPBACK_DOCTOR_MUTATION_OK',
+      'storage',
+      'the disposable mutation committed against an isolated temporary database',
+      { version: mutation.version },
+    ));
+
+    live = await client.liveQuery(api.listTodos, { connectionId: 'doctor', userId });
+    if (!live.rows.some((row) => row.title === 'Snapback doctor vertical slice')) {
+      throw diagnosticError('SNAPBACK_DOCTOR_LIVE_FAILED', 'the disposable live snapshot omitted the committed row');
+    }
+    live.dispose();
+    live = null;
+    checks.push(doctorDiagnostic(
+      'SNAPBACK_DOCTOR_LIVE_OK',
+      'realtime',
+      'the disposable live subscription opened with an authoritative snapshot and closed',
+    ));
+  } catch (error) {
+    failure = error?.diagnostic ?? doctorDiagnostic(
+      error?.code ?? 'SNAPBACK_DOCTOR_VERTICAL_SLICE_FAILED',
+      'doctor',
+      error?.message ?? String(error),
+    );
+  } finally {
+    try {
+      live?.dispose();
+    } catch (error) {
+      failure ??= doctorDiagnostic(
+        'SNAPBACK_DOCTOR_LIVE_CLOSE_FAILED',
+        'realtime',
+        'the disposable live subscription did not close cleanly',
+        { message: error?.message ?? String(error) },
+      );
+    }
+    if (child?.exitCode === null) {
+      const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], {
+        cwd: projectRoot,
+        env: options.env,
+        timeout: 15_000,
+      });
+      if (stop.status !== 0) {
+        child.kill('SIGTERM');
+        failure ??= doctorDiagnostic(
+          'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
+          'runtime',
+          'the disposable server did not stop through its owned readiness descriptor',
+          { status: stop.status, signal: stop.signal, stderr: stop.stderr?.slice(0, 2_000) ?? '' },
+        );
+      }
+    }
+    if (child?.exitCode === null) {
+      await new Promise((resolveExit) => {
+        const timer = setTimeout(() => {
+          child.kill('SIGKILL');
+          failure ??= doctorDiagnostic(
+            'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
+            'runtime',
+            'the disposable server did not exit within the shutdown deadline',
+          );
+          resolveExit();
+        }, 5_000);
+        child.once('exit', () => {
+          clearTimeout(timer);
+          resolveExit();
+        });
+      });
+    }
+    try {
+      rmSync(scratch, { recursive: true, force: true });
+    } catch (error) {
+      failure ??= doctorDiagnostic(
+        'SNAPBACK_DOCTOR_CLEANUP_FAILED',
+        'doctor',
+        'the disposable doctor directory could not be removed',
+        { path: scratch, message: error?.message ?? String(error) },
+      );
+    }
+  }
+  if (failure) {
+    return { schemaVersion: 'snapback.cli-doctor.v2', ok: false, runtime, checks: [...checks, failure] };
+  }
+  checks.push(doctorDiagnostic(
+    'SNAPBACK_DOCTOR_SHUTDOWN_OK',
+    'runtime',
+    'the disposable server stopped and its temporary state was removed',
+  ));
+  return { schemaVersion: 'snapback.cli-doctor.v2', ok: true, runtime, checks, probe: 'vertical-slice' };
 }
 
 function safeProjectName(name) {
@@ -132,6 +370,670 @@ function safeProjectName(name) {
 
 function packageVersion() {
   return JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version;
+}
+
+const RELEASE_FILE_MAX = 8_192;
+const RELEASE_BYTES_MAX = 256 * 1024 * 1024;
+const RELEASE_COMPONENT_PREFIX = 'components/';
+const RELEASE_CONTROL_GAPS = [
+  ['control-plane.adapter', 'no hosted adapter has completed the target-neutral identity, upload, activation, and interruption contract'],
+  ['control-plane.artifact-signature', 'artifact signing and a trusted signing-key identity are not configured'],
+  ['control-plane.authenticated-inspection', 'the release has no executed authenticated hosted-inspection receipt'],
+  ['control-plane.backup-restore', 'the release has no executed backup read-back and isolated destructive restore drill'],
+  ['control-plane.logs', 'the release has no executed structured hosted-log query receipt'],
+  ['control-plane.rollback', 'the release has no compatible release pair and executed code-only rollback receipt'],
+  ['control-plane.runtime-artifact', 'a hosted runtime/server artifact must be supplied and verified by the selected adapter'],
+  ['control-plane.tls-origin', 'the release has no provider-attested public TLS origin'],
+  ['release.compatibility-generations', 'minimum and maximum readable schema, retained-client, job, and config generations are not yet modeled'],
+  ['release.health-probes', 'generated health and acceptance probe definitions are not yet retained'],
+  ['release.migrations', 'no reviewed migration artifact or compatibility plan is retained'],
+  ['supply-chain.license-sbom', 'license inventory and SBOM artifacts are not yet retained'],
+  ['supply-chain.provenance', 'a separately verifiable build provenance attestation is not yet retained'],
+];
+
+function sha256Bytes(bytes) {
+  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function canonicalValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(canonicalValue(value));
+}
+
+function normalizeRelativePath(path) {
+  return path.split(sep).join('/');
+}
+
+function assertPathInside(parent, child, code = 'SNAPBACK_RELEASE_PATH_INVALID') {
+  const parentPath = resolve(parent);
+  const childPath = resolve(child);
+  const relation = relative(parentPath, childPath);
+  if (relation === '..' || relation.startsWith(`..${sep}`) || relation === '') {
+    if (relation === '') return childPath;
+    throw diagnosticError(code, 'release input or output escaped its declared root', {
+      parent: parentPath,
+      child: childPath,
+    });
+  }
+  return childPath;
+}
+
+function assertExistingDirectory(path, code = 'SNAPBACK_RELEASE_PATH_INVALID') {
+  const absolute = resolve(path);
+  let metadata;
+  try {
+    metadata = lstatSync(absolute);
+  } catch (cause) {
+    const error = diagnosticError(code, 'release directory does not exist', { path: absolute });
+    error.cause = cause;
+    throw error;
+  }
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    throw diagnosticError(code, 'release inputs and stores must be non-symlink directories', { path: absolute });
+  }
+  return realpathSync.native(absolute);
+}
+
+function assertDisjointTrees(left, right) {
+  const leftPath = resolve(left);
+  const rightPath = resolve(right);
+  const leftToRight = relative(leftPath, rightPath);
+  const rightToLeft = relative(rightPath, leftPath);
+  if (
+    leftToRight === ''
+    || (!leftToRight.startsWith(`..${sep}`) && leftToRight !== '..')
+    || (!rightToLeft.startsWith(`..${sep}`) && rightToLeft !== '..')
+  ) {
+    throw diagnosticError('SNAPBACK_RELEASE_PATH_OVERLAP', 'release output must not contain or be contained by a release input', {
+      input: leftPath,
+      output: rightPath,
+    });
+  }
+}
+
+function parseJsonFile(path, expectedKind) {
+  let value;
+  try {
+    value = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError('SNAPBACK_RELEASE_ARTIFACT_INVALID', `could not parse generated artifact ${path}`, { path });
+    error.cause = cause;
+    throw error;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.artifactKind !== expectedKind) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_ARTIFACT_INVALID',
+      `generated artifact ${path} is not a ${expectedKind}`,
+      { path, expectedKind, receivedKind: value?.artifactKind ?? null },
+    );
+  }
+  return value;
+}
+
+function runGit(projectRoot, args, code) {
+  const result = spawnSync('git', ['-C', projectRoot, ...args], {
+    encoding: 'utf8',
+    env: scrubDynamicLoaderEnvironment(),
+    timeout: 15_000,
+  });
+  if (result.status !== 0) {
+    throw diagnosticError(code, 'release source identity could not be resolved from git', {
+      operation: args.join(' '),
+      status: result.status,
+      stderr: result.stderr?.slice(0, 2_000) ?? '',
+    });
+  }
+  return result.stdout;
+}
+
+function releaseSourceFacts(projectRoot, packageManifest, allowDirty, excludedOutput) {
+  const revision = runGit(projectRoot, ['rev-parse', 'HEAD'], 'SNAPBACK_DEPLOY_SOURCE_UNVERSIONED').trim();
+  if (!/^[0-9a-f]{40,64}$/i.test(revision)) {
+    throw diagnosticError('SNAPBACK_DEPLOY_SOURCE_UNVERSIONED', 'git returned a non-canonical source revision');
+  }
+  const epochText = runGit(projectRoot, ['show', '-s', '--format=%ct', 'HEAD'], 'SNAPBACK_DEPLOY_SOURCE_UNVERSIONED').trim();
+  const sourceDateEpoch = Number(epochText);
+  if (!Number.isSafeInteger(sourceDateEpoch) || sourceDateEpoch < 0) {
+    throw diagnosticError('SNAPBACK_DEPLOY_SOURCE_UNVERSIONED', 'git returned an invalid source timestamp');
+  }
+  const excludedPath = excludedOutput === undefined ? null : normalizeRelativePath(relative(projectRoot, excludedOutput));
+  const excludeArguments = excludedPath && excludedPath !== '..' && !excludedPath.startsWith('../')
+    ? [`:(exclude)${excludedPath}`, `:(exclude)${excludedPath}/**`]
+    : [];
+  const status = runGit(
+    projectRoot,
+    ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.', ...excludeArguments],
+    'SNAPBACK_DEPLOY_SOURCE_STATUS_FAILED',
+  );
+  const dirtyEntries = status.split('\0').filter(Boolean).sort();
+  if (dirtyEntries.length > 0 && !allowDirty) {
+    throw diagnosticError(
+      'SNAPBACK_DEPLOY_DIRTY_SOURCE',
+      'release build refused a dirty source tree; commit the application or pass --allow-dirty for a non-production preview artifact',
+      { dirtyEntryCount: dirtyEntries.length },
+    );
+  }
+  const repositoryName = typeof packageManifest.name === 'string' && packageManifest.name.length > 0
+    ? packageManifest.name
+    : basename(projectRoot);
+  return {
+    repositoryName,
+    revision: revision.toLowerCase(),
+    sourceDateEpoch,
+    dirty: dirtyEntries.length > 0,
+    dirtyPathsSha256: dirtyEntries.length > 0 ? sha256Bytes(Buffer.from(dirtyEntries.join('\0'))) : null,
+  };
+}
+
+function mediaType(path) {
+  if (path.endsWith('.json')) return 'application/json';
+  if (path.endsWith('.mjs') || path.endsWith('.js')) return 'text/javascript';
+  if (path.endsWith('.ts') || path.endsWith('.mts')) return 'text/typescript';
+  if (path.endsWith('.html')) return 'text/html';
+  if (path.endsWith('.css')) return 'text/css';
+  if (path.endsWith('.wasm')) return 'application/wasm';
+  return 'application/octet-stream';
+}
+
+function scanReleaseFile(path, releasePath) {
+  const metadata = lstatSync(path);
+  if (metadata.isSymbolicLink() || !metadata.isFile()) {
+    throw diagnosticError(
+      metadata.isSymbolicLink() ? 'SNAPBACK_RELEASE_SYMLINK_REFUSED' : 'SNAPBACK_RELEASE_FILE_INVALID',
+      'release components must be regular, non-symlink files',
+      { path: releasePath },
+    );
+  }
+  if (metadata.size > RELEASE_BYTES_MAX) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_BUDGET_EXCEEDED',
+      'one release component exceeds the entire v1 byte budget',
+      { path: releasePath, bytes: metadata.size, maxBytes: RELEASE_BYTES_MAX },
+    );
+  }
+  const lower = releasePath.toLowerCase();
+  const segments = lower.split('/');
+  const leaf = segments.at(-1);
+  if (
+    leaf === '.env'
+    || leaf?.startsWith('.env.')
+    || leaf === '.npmrc'
+    || leaf?.endsWith('.pem')
+    || leaf?.endsWith('.key')
+    || leaf?.endsWith('.p12')
+    || leaf?.endsWith('.sqlite')
+    || leaf?.endsWith('.sqlite3')
+    || leaf?.endsWith('.db')
+    || leaf?.endsWith('.map')
+    || lower.includes('admin-token')
+    || lower.endsWith('.ready.json')
+  ) {
+    throw diagnosticError(
+      leaf?.endsWith('.map') ? 'SNAPBACK_RELEASE_SOURCE_MAP_REFUSED' : 'SNAPBACK_RELEASE_FORBIDDEN_FILE',
+      'release input contains a forbidden secret/state/source-map file class',
+      { path: releasePath },
+    );
+  }
+  const bytes = readFileSync(path);
+  const text = bytes.toString('utf8');
+  const secretPatterns = [
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+    /(?:^|[^A-Za-z0-9_])npm_[A-Za-z0-9]{30,}/,
+    /(?:^|[^A-Za-z0-9_])gh[oprsu]_[A-Za-z0-9]{30,}/,
+    /(?:CLOUDFLARE_API_TOKEN|NPM_TOKEN)\s*=\s*[^\s"']+/,
+  ];
+  if (secretPatterns.some((pattern) => pattern.test(text))) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_SECRET_SCAN_FAILED',
+      'release input matched a forbidden credential pattern',
+      { path: releasePath, received: 'redacted credential pattern' },
+    );
+  }
+  return {
+    sourcePath: path,
+    path: `${RELEASE_COMPONENT_PREFIX}${releasePath}`,
+    sha256: sha256Bytes(bytes),
+    bytes: bytes.byteLength,
+    mediaType: mediaType(releasePath),
+  };
+}
+
+function collectReleaseTree(root, releasePrefix) {
+  const releaseRoot = assertExistingDirectory(root);
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const path = join(directory, entry.name);
+      const relativePath = normalizeRelativePath(relative(releaseRoot, path));
+      const releasePath = `${releasePrefix}/${relativePath}`;
+      if (entry.isSymbolicLink()) {
+        throw diagnosticError('SNAPBACK_RELEASE_SYMLINK_REFUSED', 'release trees may not contain symlinks', { path: releasePath });
+      }
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile()) {
+        if (files.length >= RELEASE_FILE_MAX) {
+          throw diagnosticError(
+            'SNAPBACK_RELEASE_BUDGET_EXCEEDED',
+            'one release input tree exceeds the v1 file budget',
+            { path: releasePrefix, files: files.length + 1, maxFiles: RELEASE_FILE_MAX },
+          );
+        }
+        files.push(scanReleaseFile(path, releasePath));
+      }
+      else throw diagnosticError('SNAPBACK_RELEASE_FILE_INVALID', 'release trees may contain only directories and regular files', { path: releasePath });
+    }
+  };
+  visit(releaseRoot);
+  return files;
+}
+
+function assertReleaseBudget(components) {
+  const totalBytes = components.reduce((sum, component) => sum + component.bytes, 0);
+  if (components.length === 0 || components.length > RELEASE_FILE_MAX || totalBytes > RELEASE_BYTES_MAX) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_BUDGET_EXCEEDED',
+      'release component closure exceeded the v1 file or byte budget',
+      { files: components.length, bytes: totalBytes, maxFiles: RELEASE_FILE_MAX, maxBytes: RELEASE_BYTES_MAX },
+    );
+  }
+  return totalBytes;
+}
+
+function digestField(value, name) {
+  if (typeof value === 'string' && /^sha256:[0-9a-f]{64}$/i.test(value)) return value.toLowerCase();
+  if (typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value)) return `sha256:${value.toLowerCase()}`;
+  throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_INVALID', `${name} is not a full SHA-256 digest`, {
+    field: name,
+    received: typeof value,
+  });
+}
+
+function releaseContentId(content) {
+  return sha256Bytes(Buffer.from(`snapback-release-manifest-v1\0${canonicalJson(content)}`));
+}
+
+function assertClosedKeys(value, keys, name) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', `${name} must be an object`);
+  }
+  const expected = new Set(keys);
+  const unexpected = Object.keys(value).filter((key) => !expected.has(key));
+  const missing = keys.filter((key) => !(key in value));
+  if (unexpected.length > 0 || missing.length > 0) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', `${name} has a noncanonical shape`, { unexpected, missing });
+  }
+}
+
+export function verifyRelease(releaseDirectory) {
+  const root = assertExistingDirectory(releaseDirectory, 'SNAPBACK_RELEASE_MANIFEST_INVALID');
+  const manifestPath = join(root, 'release.manifest.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release manifest is missing or invalid JSON', { manifestPath });
+    error.cause = cause;
+    throw error;
+  }
+  const manifestKeys = [
+    'artifactKind', 'schemaVersion', 'releaseId', 'projectId', 'targetProfileId',
+    'activationEligible', 'source', 'toolchain', 'compatibility', 'requiredCapabilities',
+    'components', 'scan', 'gaps',
+  ];
+  assertClosedKeys(manifest, manifestKeys, 'release manifest');
+  assertClosedKeys(manifest.source, ['repositoryName', 'revision', 'sourceDateEpoch', 'dirty', 'dirtyPathsSha256'], 'release source');
+  assertClosedKeys(manifest.toolchain, ['snapbackCliVersion', 'nodeVersion', 'packageManager'], 'release toolchain');
+  assertClosedKeys(
+    manifest.compatibility,
+    ['schemaVersion', 'authMode', 'schemaSha256', 'functionsSha256', 'capabilitySha256', 'inputsSha256'],
+    'release compatibility',
+  );
+  assertClosedKeys(manifest.scan, ['secretScan', 'sourceMaps', 'symlinks', 'scannedFiles', 'scannedBytes'], 'release scan');
+  if (
+    manifest.artifactKind !== 'releaseManifest'
+    || manifest.schemaVersion !== 'snapback.release-manifest.v1'
+    || !Array.isArray(manifest.components)
+    || manifest.activationEligible !== false
+  ) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release manifest has an unsupported identity or eligibility posture');
+  }
+  if (
+    typeof manifest.projectId !== 'string'
+    || manifest.projectId.length === 0
+    || typeof manifest.targetProfileId !== 'string'
+    || manifest.targetProfileId.length === 0
+    || typeof manifest.source.repositoryName !== 'string'
+    || manifest.source.repositoryName.length === 0
+    || !/^[0-9a-f]{40,64}$/.test(manifest.source.revision)
+    || !Number.isSafeInteger(manifest.source.sourceDateEpoch)
+    || manifest.source.sourceDateEpoch < 0
+    || typeof manifest.source.dirty !== 'boolean'
+    || (manifest.source.dirty ? !/^sha256:[0-9a-f]{64}$/.test(manifest.source.dirtyPathsSha256 ?? '') : manifest.source.dirtyPathsSha256 !== null)
+    || typeof manifest.toolchain.snapbackCliVersion !== 'string'
+    || typeof manifest.toolchain.nodeVersion !== 'string'
+    || !(manifest.toolchain.packageManager === null || typeof manifest.toolchain.packageManager === 'string')
+  ) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release identity or toolchain facts are malformed');
+  }
+  for (const name of ['schemaSha256', 'functionsSha256', 'capabilitySha256', 'inputsSha256']) {
+    digestField(manifest.compatibility[name], `compatibility.${name}`);
+  }
+  if (
+    typeof manifest.compatibility.schemaVersion !== 'string'
+    || typeof manifest.compatibility.authMode !== 'string'
+    || !Array.isArray(manifest.requiredCapabilities)
+    || manifest.requiredCapabilities.some((capability) => typeof capability !== 'string' || capability.length === 0)
+    || new Set(manifest.requiredCapabilities).size !== manifest.requiredCapabilities.length
+    || [...manifest.requiredCapabilities].sort().some((capability, index) => capability !== manifest.requiredCapabilities[index])
+    || !Array.isArray(manifest.gaps)
+  ) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release compatibility, capability, or GAP facts are malformed');
+  }
+  const gapIds = new Set();
+  for (const gap of manifest.gaps) {
+    assertClosedKeys(gap, ['id', 'reason', 'blocking'], 'release GAP');
+    if (
+      typeof gap.id !== 'string'
+      || gap.id.length === 0
+      || gapIds.has(gap.id)
+      || typeof gap.reason !== 'string'
+      || gap.reason.length === 0
+      || gap.blocking !== true
+    ) {
+      throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release GAP is malformed, duplicated, or non-blocking');
+    }
+    gapIds.add(gap.id);
+  }
+  const { releaseId, ...content } = manifest;
+  if (releaseContentId(content) !== releaseId) {
+    throw diagnosticError('SNAPBACK_RELEASE_ID_MISMATCH', 'release id does not match the canonical manifest content', { releaseId });
+  }
+  const declared = new Set(['release.manifest.json']);
+  let totalBytes = 0;
+  for (const component of manifest.components) {
+    assertClosedKeys(component, ['path', 'sha256', 'bytes', 'mediaType'], 'release component');
+    const componentSegments = typeof component.path === 'string' ? component.path.split('/') : [];
+    if (
+      typeof component.path !== 'string'
+      || !component.path.startsWith(RELEASE_COMPONENT_PREFIX)
+      || component.path.includes('\\')
+      || componentSegments.some((segment) => segment === '' || segment === '.' || segment === '..')
+      || declared.has(component.path)
+      || !/^sha256:[0-9a-f]{64}$/.test(component.sha256)
+      || !Number.isSafeInteger(component.bytes)
+      || component.bytes < 0
+      || typeof component.mediaType !== 'string'
+      || component.mediaType.length === 0
+    ) {
+      throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release component path is invalid or duplicated', { path: component.path });
+    }
+    declared.add(component.path);
+    const path = assertPathInside(root, join(root, ...componentSegments), 'SNAPBACK_RELEASE_PATH_INVALID');
+    let metadata;
+    try {
+      metadata = lstatSync(path);
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release component is missing', { path: component.path });
+      error.cause = cause;
+      throw error;
+    }
+    if (!metadata.isFile() || metadata.isSymbolicLink()) {
+      throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release component is missing or no longer a regular file', { path: component.path });
+    }
+    const bytes = readFileSync(path);
+    if (bytes.byteLength !== component.bytes || sha256Bytes(bytes) !== component.sha256) {
+      throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release component bytes do not match the retained digest', { path: component.path });
+    }
+    totalBytes += bytes.byteLength;
+  }
+  const observed = new Set();
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release closure contains a symlink', { path: normalizeRelativePath(relative(root, path)) });
+      }
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile()) observed.add(normalizeRelativePath(relative(root, path)));
+      else throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release closure contains a non-file entry');
+    }
+  };
+  visit(root);
+  if (observed.size !== declared.size || [...observed].some((path) => !declared.has(path))) {
+    throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release closure contains undeclared or missing files', {
+      declaredFiles: declared.size,
+      observedFiles: observed.size,
+    });
+  }
+  if (
+    manifest.scan.secretScan !== 'passed'
+    || manifest.scan.sourceMaps !== 'refused'
+    || manifest.scan.symlinks !== 'refused'
+    || manifest.scan.scannedFiles !== manifest.components.length
+    || manifest.scan.scannedBytes !== totalBytes
+  ) {
+    throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release scan facts do not match the retained closure');
+  }
+  return {
+    schemaVersion: 'snapback.release-verification.v1',
+    ok: true,
+    releaseId,
+    manifestPath,
+    manifestSha256: sha256Bytes(readFileSync(manifestPath)),
+    componentCount: manifest.components.length,
+    totalBytes,
+    activationEligible: false,
+    gaps: manifest.gaps,
+  };
+}
+
+function makeReadOnlyTree(root) {
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else chmodSync(path, 0o444);
+    }
+  };
+  visit(root);
+}
+
+// @ref LLP 0072#release-artifact — build and retain the target-neutral,
+// content-addressed closure before any provider credential or activation
+// authority is used.
+export async function buildRelease(options = {}) {
+  const backendRoot = assertExistingDirectory(options.backendDirectory ?? 'snapback');
+  const projectRoot = assertExistingDirectory(options.projectRoot ?? dirname(backendRoot));
+  assertPathInside(projectRoot, backendRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
+  const requestedOutputRoot = resolve(options.outputDirectory ?? join(projectRoot, '.snapback', 'releases'));
+  assertDisjointTrees(backendRoot, requestedOutputRoot);
+  if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
+  const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
+  const generated = await generateApp(backendRoot, { targetProfile });
+  if (!generated.ok) {
+    throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
+  }
+  const generatedRoot = join(backendRoot, 'generated');
+  const schemaPath = join(generatedRoot, 'schema.manifest.json');
+  const functionsPath = join(generatedRoot, 'functions.manifest.json');
+  const capabilityPath = join(generatedRoot, 'capability.manifest.json');
+  const schemaManifest = parseJsonFile(schemaPath, 'schemaManifest');
+  const functionsManifest = parseJsonFile(functionsPath, 'functionManifest');
+  const capabilityManifest = parseJsonFile(capabilityPath, 'capabilityManifest');
+  if (
+    typeof schemaManifest.appId !== 'string'
+    || schemaManifest.appId.length === 0
+    || functionsManifest.appId !== schemaManifest.appId
+    || functionsManifest.schemaVersion !== schemaManifest.schemaVersion
+    || functionsManifest.inputsHash !== schemaManifest.inputsHash
+    || capabilityManifest.schemaVersion !== schemaManifest.schemaVersion
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEPLOY_GENERATED_IDENTITY_MISMATCH',
+      'generated schema, function, and capability artifacts do not describe one application build',
+      {
+        schemaAppId: schemaManifest.appId ?? null,
+        functionsAppId: functionsManifest.appId ?? null,
+        schemaVersion: schemaManifest.schemaVersion ?? null,
+        functionsSchemaVersion: functionsManifest.schemaVersion ?? null,
+        capabilitySchemaVersion: capabilityManifest.schemaVersion ?? null,
+      },
+    );
+  }
+  if (capabilityManifest.targetProfileId !== targetProfile) {
+    throw diagnosticError('SNAPBACK_DEPLOY_TARGET_PROFILE_MISMATCH', 'generated capability manifest names a different target profile', {
+      expected: targetProfile,
+      observed: capabilityManifest.targetProfileId ?? null,
+    });
+  }
+
+  let packageManifest;
+  try {
+    packageManifest = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError('SNAPBACK_DEPLOY_PACKAGE_MANIFEST_INVALID', 'project package.json is required for release identity');
+    error.cause = cause;
+    throw error;
+  }
+  const source = releaseSourceFacts(projectRoot, packageManifest, options.allowDirty === true, requestedOutputRoot);
+  const requiredCapabilities = [...new Set([
+    ...(schemaManifest.requiredCapabilities ?? []),
+    ...((functionsManifest.functions ?? []).flatMap((definition) => definition.requiredCapabilities ?? [])),
+  ])].sort();
+  const supportedCapabilities = new Set(capabilityManifest.supportedCapabilities ?? []);
+  const unsupported = requiredCapabilities.filter((capability) => !supportedCapabilities.has(capability));
+  if (unsupported.length > 0) {
+    throw diagnosticError('SNAPBACK_DEPLOY_CAPABILITY_MISMATCH', 'target profile does not support every generated function requirement', {
+      targetProfile,
+      unsupported,
+    });
+  }
+
+  let components = collectReleaseTree(generatedRoot, 'app');
+  for (const name of ['package.json', 'bun.lock', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock']) {
+    const path = join(projectRoot, name);
+    if (existsSync(path)) components.push(scanReleaseFile(path, `meta/${name}`));
+  }
+  if (options.webDirectory) {
+    const webRoot = assertExistingDirectory(options.webDirectory);
+    assertPathInside(projectRoot, webRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
+    components.push(...collectReleaseTree(webRoot, 'web'));
+  }
+  components = components.sort((left, right) => left.path.localeCompare(right.path));
+  const totalBytes = assertReleaseBudget(components);
+  const gaps = [
+    ...(capabilityManifest.capabilityGaps ?? []).map((gap) => ({
+      id: `capability.${gap}`,
+      reason: `target capability manifest reports ${gap} as unsupported`,
+      blocking: true,
+    })),
+    ...RELEASE_CONTROL_GAPS.map(([id, reason]) => ({ id, reason, blocking: true })),
+  ].sort((left, right) => left.id.localeCompare(right.id));
+  const content = {
+    artifactKind: 'releaseManifest',
+    schemaVersion: 'snapback.release-manifest.v1',
+    projectId: schemaManifest.appId ?? source.repositoryName,
+    targetProfileId: targetProfile,
+    activationEligible: false,
+    source,
+    toolchain: {
+      snapbackCliVersion: packageVersion(),
+      nodeVersion: process.version,
+      packageManager: typeof packageManifest.packageManager === 'string' ? packageManifest.packageManager : null,
+    },
+    compatibility: {
+      schemaVersion: schemaManifest.schemaVersion,
+      authMode: schemaManifest.auth?.mode ?? 'dev',
+      schemaSha256: sha256Bytes(readFileSync(schemaPath)),
+      functionsSha256: sha256Bytes(readFileSync(functionsPath)),
+      capabilitySha256: sha256Bytes(readFileSync(capabilityPath)),
+      inputsSha256: digestField(schemaManifest.inputsHash, 'schemaManifest.inputsHash'),
+    },
+    requiredCapabilities,
+    components: components.map(({ sourcePath: _sourcePath, ...component }) => component),
+    scan: {
+      secretScan: 'passed',
+      sourceMaps: 'refused',
+      symlinks: 'refused',
+      scannedFiles: components.length,
+      scannedBytes: totalBytes,
+    },
+    gaps,
+  };
+  const releaseId = releaseContentId(content);
+  const manifest = { ...content, releaseId };
+  const manifestBytes = Buffer.from(`${canonicalJson(manifest)}\n`);
+  mkdirSync(requestedOutputRoot, { recursive: true });
+  const outputRoot = assertExistingDirectory(requestedOutputRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
+  assertDisjointTrees(backendRoot, outputRoot);
+  if (options.webDirectory) assertDisjointTrees(assertExistingDirectory(options.webDirectory), outputRoot);
+  const finalRoot = join(outputRoot, releaseId.slice('sha256:'.length));
+  let state = 'built';
+  if (existsSync(finalRoot)) {
+    const verified = verifyRelease(finalRoot);
+    if (verified.releaseId !== releaseId) {
+      throw diagnosticError('SNAPBACK_RELEASE_ID_COLLISION', 'an existing release directory has a different identity', { releaseId });
+    }
+    state = 'reused';
+  } else {
+    const stageRoot = mkdtempSync(join(outputRoot, '.release-stage-'));
+    try {
+      for (const component of components) {
+        const destination = join(stageRoot, ...component.path.split('/'));
+        mkdirSync(dirname(destination), { recursive: true });
+        copyFileSync(component.sourcePath, destination);
+        const copied = readFileSync(destination);
+        if (copied.byteLength !== component.bytes || sha256Bytes(copied) !== component.sha256) {
+          throw diagnosticError('SNAPBACK_RELEASE_COPY_MISMATCH', 'release component changed while it was copied', { path: component.path });
+        }
+      }
+      writeFileSync(join(stageRoot, 'release.manifest.json'), manifestBytes, { flag: 'wx', mode: 0o444 });
+      let committed = false;
+      try {
+        renameSync(stageRoot, finalRoot);
+        committed = true;
+      } catch (cause) {
+        if (!existsSync(finalRoot)) {
+          const error = diagnosticError(
+            'SNAPBACK_RELEASE_STORE_COMMIT_FAILED',
+            'the verified release staging directory could not be committed atomically',
+            { releaseId },
+          );
+          error.cause = cause;
+          throw error;
+        }
+        const concurrentlyRetained = verifyRelease(finalRoot);
+        if (concurrentlyRetained.releaseId !== releaseId) {
+          throw diagnosticError(
+            'SNAPBACK_RELEASE_ID_COLLISION',
+            'a concurrently retained release directory has a different identity',
+            { releaseId },
+          );
+        }
+        rmSync(stageRoot, { recursive: true, force: true });
+        state = 'reused';
+      }
+      if (committed) makeReadOnlyTree(finalRoot);
+    } catch (error) {
+      if (existsSync(stageRoot)) rmSync(stageRoot, { recursive: true, force: true });
+      throw error;
+    }
+  }
+  const verified = verifyRelease(finalRoot);
+  return {
+    ...verified,
+    schemaVersion: 'snapback.deploy-build.v1',
+    ok: true,
+    state,
+    releaseDirectory: finalRoot,
+    sourceDirty: source.dirty,
+    targetProfileId: targetProfile,
+  };
 }
 
 export function scaffoldApp(target, options = {}) {
@@ -170,6 +1072,15 @@ export async function generateApp(backendDirectory, options = {}) {
   };
 }
 
+function canonicalFilesystemPath(path) {
+  const absolute = resolve(path);
+  try {
+    return realpathSync.native(absolute);
+  } catch {
+    return absolute;
+  }
+}
+
 export function readReadyDescriptor(path) {
   let value;
   try {
@@ -192,8 +1103,8 @@ export function readReadyDescriptor(path) {
 }
 
 export function validateDevTarget(descriptor, { readyFile, database }) {
-  const observed = descriptor?.database?.path ? resolve(descriptor.database.path) : null;
-  const expected = database ? resolve(database) : null;
+  const observed = descriptor?.database?.path ? canonicalFilesystemPath(descriptor.database.path) : null;
+  const expected = database ? canonicalFilesystemPath(database) : null;
   if (expected !== observed) {
     throw diagnosticError(
       'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
@@ -228,8 +1139,8 @@ function requireNativeSuccess(result, code, operation) {
 export function managedAdminToken(descriptor, database) {
   const declared = descriptor?.adminTokenFile;
   if (typeof declared !== 'string') return null;
-  const expected = `${resolve(database)}.admin-token`;
-  if (resolve(declared) !== expected) {
+  const expected = canonicalFilesystemPath(`${resolve(database)}.admin-token`);
+  if (canonicalFilesystemPath(declared) !== expected) {
     throw diagnosticError(
       'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
       'the readiness descriptor names an unexpected admin-token carrier',
@@ -468,14 +1379,38 @@ export async function runDev(options = {}) {
       await regenerateAndLoad(filename);
     }
   });
+  const isGeneratedWatchPath = (filename) => (
+    typeof filename === 'string'
+    && (filename.startsWith('generated') || filename.startsWith('.generated'))
+  );
   const watcher = watch(backendRoot, { recursive: true }, (_event, filename) => {
     // Ignore codegen's own outputs: the committed `generated/` tree and the
     // `.generated.tmp-*` staging directories it renames into place —
     // otherwise every regeneration retriggers the watcher forever.
-    if (closed || !filename || filename.startsWith('generated') || filename.startsWith('.generated')) return;
+    if (closed || !filename || isGeneratedWatchPath(filename)) return;
     queuedFilename = filename;
     clearTimeout(timer);
     timer = setTimeout(() => void drainGenerationQueue(), 100);
+  });
+  watcher.on('error', (error) => {
+    const filename = typeof error?.path === 'string' ? relative(backendRoot, error.path) : null;
+    // @ref LLP 0041#watch-mode — codegen replaces `generated/` atomically.
+    // Node's Linux recursive watcher can race the removal of the staging
+    // directory while adding its internal subwatch; that expected ENOENT must
+    // not kill the dev loop or prevent recovery from an authoring error.
+    if (error?.code === 'ENOENT' && isGeneratedWatchPath(filename)) return;
+    emitDevEvent({
+      schemaVersion: 'snapback.dev.v1',
+      ok: false,
+      state: 'watch-failed',
+      diagnostics: [{
+        code: 'SNAPBACK_DEV_WATCH_FAILED',
+        severity: 'error',
+        subsystem: 'dev-loop',
+        message: error?.message ?? 'backend watcher failed',
+        ...(filename ? { path: filename } : {}),
+      }],
+    });
   });
 
   const attachExitWatch = (proc) => {
@@ -818,9 +1753,17 @@ function takeFlag(args, name, fallback = null) {
   return value;
 }
 
+function takeBooleanFlag(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) return false;
+  args.splice(index, 1);
+  return true;
+}
+
 function printResult(result, json) {
   if (json) console.log(JSON.stringify(result, null, 2));
-  else if (result.ok) console.log(`${result.schemaVersion}: ok`);
+  else if (result.ok === undefined) console.log(JSON.stringify(result, null, 2));
+  else if (result.ok !== false) console.log(`${result.schemaVersion}: ok`);
   else console.error(JSON.stringify(result, null, 2));
 }
 
@@ -829,8 +1772,10 @@ export async function runCli(argv, options = {}) {
   const command = args.shift();
   const json = args.includes('--json');
   if (json) args.splice(args.indexOf('--json'), 1);
+  const auditActorId = takeFlag(args, '--audit-actor');
+  if (auditActorId !== null) options = { ...options, auditActorId };
   if (command === 'doctor') {
-    const result = doctor(options);
+    const result = await doctor(options);
     printResult(result, json);
     return result.ok ? 0 : 1;
   }
@@ -847,6 +1792,394 @@ export async function runCli(argv, options = {}) {
     const result = await generateApp(args.shift() ?? 'snapback', { targetProfile });
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  if (command === 'target') {
+    const subcommand = args.shift();
+    const controlRoot = takeFlag(args, '--control-root');
+    if (subcommand === 'add') {
+      const descriptor = takeFlag(args, '--descriptor');
+      if (!descriptor || args.length > 0) {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback target add --descriptor <target.json> [--control-root <dir>]');
+      }
+      const result = addTarget(descriptor, { controlRoot: controlRoot ?? undefined });
+      if (json) printResult(result, true);
+      else console.log(JSON.stringify(result, null, 2));
+      return 0;
+    }
+    const targetId = args.shift();
+    if (!targetId || args.length > 0 || !['show', 'doctor', 'inspect'].includes(subcommand)) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback target <show|doctor|inspect> <target-id> [--control-root <dir>]');
+    }
+    const targetOptions = { controlRoot: controlRoot ?? undefined, ...options };
+    const result = subcommand === 'show'
+      ? showTarget(targetId, targetOptions)
+      : subcommand === 'doctor'
+        ? doctorTarget(targetId, targetOptions)
+        : inspectTarget(targetId, targetOptions);
+    if (json) printResult(result, true);
+    else console.log(JSON.stringify(result, null, 2));
+    return result.ok === false ? 1 : 0;
+  }
+  if (command === 'logs' || command === 'inspect') {
+    const targetId = takeFlag(args, '--target');
+    const controlRoot = takeFlag(args, '--control-root');
+    const sinceRaw = takeFlag(args, '--since-ms');
+    const untilRaw = takeFlag(args, '--until-ms');
+    const limitRaw = takeFlag(args, '--limit');
+    const cursor = takeFlag(args, '--cursor');
+    if (!targetId || args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `usage: snapback ${command} --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>]`,
+      );
+    }
+    const queryOptions = {
+      targetId,
+      controlRoot: controlRoot ?? undefined,
+      ...(sinceRaw === undefined ? {} : { sinceMs: Number(sinceRaw) }),
+      ...(untilRaw === undefined ? {} : { untilMs: Number(untilRaw) }),
+      ...(limitRaw === undefined ? {} : { limit: Number(limitRaw) }),
+      ...(cursor === undefined ? {} : { cursor }),
+      ...options,
+    };
+    const result = command === 'logs'
+      ? queryControlLogs(targetId, queryOptions)
+      : inspectTargetAdmin(targetId, queryOptions);
+    printResult(result, json);
+    return result.ok ? 0 : 1;
+  }
+  if (command === 'audit') {
+    const subcommand = args.shift();
+    const controlRoot = takeFlag(args, '--control-root');
+    if (subcommand !== 'verify' || args.length > 0) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback audit verify [--control-root <dir>]');
+    }
+    const result = verifyControlAuditLedger({ controlRoot: controlRoot ?? undefined, ...options });
+    printResult(result, json);
+    return result.ok ? 0 : 1;
+  }
+  if (command === 'restore') {
+    const subcommand = args.shift();
+    const controlRoot = takeFlag(args, '--control-root');
+    const targetId = takeFlag(args, '--target');
+    let result;
+    if (subcommand === 'plan') {
+      const sourceTargetId = takeFlag(args, '--source-target');
+      const reason = takeFlag(args, '--reason');
+      const operationId = takeFlag(args, '--operation-id');
+      const replacementReleaseId = takeFlag(args, '--replace-release');
+      const destinationSentinelSha256 = takeFlag(args, '--destination-sentinel');
+      const backupId = args.shift();
+      if (!backupId || !sourceTargetId || !targetId || !reason || args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback restore plan <backup-id> --source-target <id> --target <destination-id> --reason <text> [--replace-release <id> --destination-sentinel <sha256>] [--operation-id <id>] [--control-root <dir>]',
+        );
+      }
+      result = createRestorePlan({
+        sourceTargetId,
+        destinationTargetId: targetId,
+        backupId,
+        reason,
+        operationId: operationId ?? undefined,
+        replacementReleaseId: replacementReleaseId ?? undefined,
+        destinationSentinelSha256: destinationSentinelSha256 ?? undefined,
+        controlRoot: controlRoot ?? undefined,
+        ...options,
+      });
+    } else if (subcommand === 'apply') {
+      const confirmation = takeFlag(args, '--confirm');
+      const planId = args.shift();
+      if (!planId || !targetId || !confirmation || args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback restore apply <plan-id> --target <destination-id> --confirm <token> [--control-root <dir>]',
+        );
+      }
+      result = applyRestorePlan(planId, {
+        targetId,
+        confirmation,
+        controlRoot: controlRoot ?? undefined,
+        ...options,
+      });
+    } else if (subcommand === 'verify') {
+      const receiptId = args.shift();
+      if (!receiptId || !targetId || args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback restore verify <receipt-id> --target <destination-id> [--control-root <dir>]',
+        );
+      }
+      result = verifyRestoreReceipt(receiptId, {
+        targetId,
+        controlRoot: controlRoot ?? undefined,
+        ...options,
+      });
+    } else if (subcommand === 'activate') {
+      const mode = args.shift();
+      if (mode === 'plan') {
+        const reason = takeFlag(args, '--reason');
+        const operationId = takeFlag(args, '--operation-id');
+        const releaseDirectory = takeFlag(args, '--release');
+        const preparedReleasePath = takeFlag(args, '--prepared-release');
+        const qualificationPath = takeFlag(args, '--adapter-qualification');
+        const receiptId = args.shift();
+        if (!receiptId || !targetId || !reason || !releaseDirectory
+            || !preparedReleasePath || !qualificationPath || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback restore activate plan <restore-receipt-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>]',
+          );
+        }
+        result = createRestoreActivationPlan({
+          restoreReceiptId: receiptId,
+          targetId,
+          reason,
+          operationId: operationId ?? undefined,
+          releaseDirectory,
+          preparedReleasePath,
+          qualificationPath,
+          verifyRelease,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else if (mode === 'apply') {
+        const confirmation = takeFlag(args, '--confirm');
+        const releaseDirectory = takeFlag(args, '--release');
+        const preparedReleasePath = takeFlag(args, '--prepared-release');
+        const qualificationPath = takeFlag(args, '--adapter-qualification');
+        const planId = args.shift();
+        if (!planId || !targetId || !confirmation || !releaseDirectory
+            || !preparedReleasePath || !qualificationPath || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback restore activate apply <plan-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>]',
+          );
+        }
+        result = applyRestoreActivationPlan(planId, {
+          targetId,
+          confirmation,
+          releaseDirectory,
+          preparedReleasePath,
+          qualificationPath,
+          verifyRelease,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback restore activate <plan|apply> ...');
+      }
+    } else {
+      throw diagnosticError(
+        'SNAPBACK_RESTORE_SUBCOMMAND_UNIMPLEMENTED',
+        'usage: snapback restore <plan|apply|verify|activate> ...',
+        { subcommand: subcommand ?? null },
+      );
+    }
+    printResult(result, json);
+    return result.applyEligible === false ? 2 : (result.ok === false ? 1 : 0);
+  }
+  if (command === 'backup') {
+    const subcommand = args.shift();
+    const targetId = takeFlag(args, '--target');
+    const controlRoot = takeFlag(args, '--control-root');
+    if (!targetId) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback backup <create|list|verify> ... --target <id> [--control-root <dir>]');
+    }
+    let result;
+    if (subcommand === 'create') {
+      const mode = args.shift();
+      if (mode === 'plan') {
+        const reason = takeFlag(args, '--reason');
+        const retentionPolicy = takeFlag(args, '--retention-policy');
+        const operationId = takeFlag(args, '--operation-id');
+        if (!reason || !retentionPolicy || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback backup create plan --target <id> --reason <text> --retention-policy <policy> [--operation-id <id>] [--control-root <dir>]',
+          );
+        }
+        result = createBackupPlan({
+          targetId,
+          reason,
+          retentionPolicy,
+          operationId: operationId ?? undefined,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else if (mode === 'apply') {
+        const confirmation = takeFlag(args, '--confirm');
+        const planId = args.shift();
+        if (!planId || !confirmation || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback backup create apply <plan-id> --target <id> --confirm <token> [--control-root <dir>]',
+          );
+        }
+        result = applyBackupPlan(planId, {
+          targetId,
+          confirmation,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback backup create <plan|apply> ...');
+      }
+    } else if (subcommand === 'list' && args.length === 0) {
+      result = listBackups(targetId, { controlRoot: controlRoot ?? undefined, ...options });
+    } else if (subcommand === 'verify') {
+      const backupId = args.shift();
+      if (!backupId || args.length > 0) {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback backup verify <backup-id> --target <id> [--control-root <dir>]');
+      }
+      result = verifyBackupManifest(backupId, targetId, { controlRoot: controlRoot ?? undefined, ...options });
+    } else {
+      throw diagnosticError('SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED', 'usage: snapback backup <create|list|verify> ...', { subcommand: subcommand ?? null });
+    }
+    if (json) printResult(result, true);
+    else console.log(JSON.stringify(result, null, 2));
+    return result.ok ? 0 : 1;
+  }
+  if (command === 'deploy') {
+    const subcommand = args.shift();
+    if (subcommand === 'rollback') {
+      const mode = args.shift();
+      const targetId = takeFlag(args, '--target');
+      const controlRoot = takeFlag(args, '--control-root');
+      const releaseDirectory = takeFlag(args, '--release');
+      const preparedReleasePath = takeFlag(args, '--prepared-release');
+      const qualificationPath = takeFlag(args, '--adapter-qualification');
+      let result;
+      if (mode === 'plan') {
+        const reason = takeFlag(args, '--reason');
+        const operationId = takeFlag(args, '--operation-id');
+        if (!targetId || !releaseDirectory || !preparedReleasePath || !qualificationPath || !reason || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback deploy rollback plan --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>]',
+          );
+        }
+        result = createRollbackPlan({
+          targetId,
+          destinationReleaseDirectory: releaseDirectory,
+          preparedReleasePath,
+          qualificationPath,
+          reason,
+          operationId: operationId ?? undefined,
+          verifyRelease,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else if (mode === 'apply') {
+        const confirmation = takeFlag(args, '--confirm');
+        const planId = args.shift();
+        if (!planId || !targetId || !releaseDirectory || !preparedReleasePath || !qualificationPath || !confirmation || args.length > 0) {
+          throw diagnosticError(
+            'SNAPBACK_CLI_ARGUMENT_INVALID',
+            'usage: snapback deploy rollback apply <plan-id> --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>]',
+          );
+        }
+        result = applyRollbackPlan(planId, {
+          targetId,
+          destinationReleaseDirectory: releaseDirectory,
+          preparedReleasePath,
+          qualificationPath,
+          confirmation,
+          verifyRelease,
+          controlRoot: controlRoot ?? undefined,
+          ...options,
+        });
+      } else {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback deploy rollback <plan|apply> ...');
+      }
+      printResult(result, json);
+      return result.applyEligible === false ? 2 : 0;
+    }
+    if (subcommand === 'status') {
+      const targetId = takeFlag(args, '--target');
+      const controlRoot = takeFlag(args, '--control-root');
+      if (!targetId || args.length > 0) {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback deploy status --target <id> [--control-root <dir>]');
+      }
+      const result = inspectTarget(targetId, { controlRoot: controlRoot ?? undefined, ...options });
+      if (json) printResult(result, true);
+      else console.log(JSON.stringify(result, null, 2));
+      return 0;
+    }
+    if (subcommand === 'apply') {
+      const targetId = takeFlag(args, '--target');
+      const confirmation = takeFlag(args, '--confirm');
+      const releaseDirectory = takeFlag(args, '--release');
+      const preparedReleasePath = takeFlag(args, '--prepared-release');
+      const qualificationPath = takeFlag(args, '--adapter-qualification');
+      const controlRoot = takeFlag(args, '--control-root');
+      const planId = args.shift();
+      if (!planId || !targetId || !confirmation || !releaseDirectory || args.length > 0) {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback deploy apply <plan-id> --target <id> --release <release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>]');
+      }
+      const result = applyDeployPlan(planId, {
+        targetId,
+        confirmation,
+        releaseDirectory,
+        preparedReleasePath: preparedReleasePath ?? undefined,
+        qualificationPath: qualificationPath ?? undefined,
+        verifyRelease,
+        controlRoot: controlRoot ?? undefined,
+        ...options,
+      });
+      printResult(result, json);
+      return 0;
+    }
+    if (subcommand === 'plan') {
+      const targetId = takeFlag(args, '--target');
+      const reason = takeFlag(args, '--reason');
+      const controlRoot = takeFlag(args, '--control-root');
+      const operationId = takeFlag(args, '--operation-id');
+      const preparedReleasePath = takeFlag(args, '--prepared-release');
+      const qualificationPath = takeFlag(args, '--adapter-qualification');
+      const releaseDirectory = args.shift();
+      if (!releaseDirectory || !targetId || !reason || args.length > 0) {
+        throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'usage: snapback deploy plan <release-dir> --target <id> --reason <text> [--operation-id <id>] [--control-root <dir>]');
+      }
+      const result = createDeployPlan({
+        releaseDirectory,
+        targetId,
+        reason,
+        verifyRelease,
+        controlRoot: controlRoot ?? undefined,
+        operationId: operationId ?? undefined,
+        preparedReleasePath: preparedReleasePath ?? undefined,
+        qualificationPath: qualificationPath ?? undefined,
+        ...options,
+      });
+      printResult(result, json);
+      return result.applyEligible ? 0 : 2;
+    }
+    if (subcommand !== 'build') {
+      throw diagnosticError(
+        'SNAPBACK_DEPLOY_SUBCOMMAND_UNIMPLEMENTED',
+        'usage: snapback deploy <build|plan|apply|status|rollback> ...',
+        { subcommand: subcommand ?? null },
+      );
+    }
+    const targetProfile = takeFlag(args, '--target-profile', 'local-dev-sqlite-ibex');
+    const outputDirectory = takeFlag(args, '--output');
+    const webDirectory = takeFlag(args, '--web-dist');
+    const allowDirty = takeBooleanFlag(args, '--allow-dirty');
+    const backendDirectory = args[0]?.startsWith('--') ? 'snapback' : (args.shift() ?? 'snapback');
+    if (args.length > 0) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', 'deploy build received unknown arguments', { args });
+    }
+    const result = await buildRelease({
+      backendDirectory,
+      targetProfile,
+      allowDirty,
+      ...(outputDirectory ? { outputDirectory } : {}),
+      ...(webDirectory ? { webDirectory } : {}),
+      ...options,
+    });
+    printResult(result, json);
+    return 0;
   }
   if (command === 'dev') {
     const attach = args.includes('--attach');
@@ -943,4 +2276,9 @@ export async function runCli(argv, options = {}) {
   return result.status ?? 1;
 }
 
-export const __test = { loadGenerated, readReadyDescriptor, scrubDynamicLoaderEnvironment };
+export const __test = {
+  loadGenerated,
+  readReadyDescriptor,
+  runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
+  scrubDynamicLoaderEnvironment,
+};

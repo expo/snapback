@@ -377,7 +377,9 @@ pub fn decode_and_verify_standard_pattern_cursor(
     }
     let body: StandardPatternCursorBody =
         serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
-    let key = keyring.verification_key(key_id, now_ms).map_err(|_| REFUSED)?;
+    let key = keyring
+        .verification_key(key_id, now_ms)
+        .map_err(|_| REFUSED)?;
     standard_pattern_cursor_mac(key.secret.as_ref(), key_id, &body)
         .verify_slice(&mac_bytes)
         .map_err(|_| REFUSED)?;
@@ -447,8 +449,7 @@ pub fn relational_result_encoding_v1(
             first = false;
             jcs_escape_into(&mut out, field);
             out.push(':');
-            jcs_into(&mut out, value)
-                .map_err(|_| RelationalEncodingRefusal::NonCanonicalValue)?;
+            jcs_into(&mut out, value).map_err(|_| RelationalEncodingRefusal::NonCanonicalValue)?;
         }
         out.push('}');
     }
@@ -465,8 +466,8 @@ pub fn relational_result_encoding_artifact() -> Value {
     let vector = |name: &str, field_order: &[&str], rows: Value| {
         let fields: Vec<String> = field_order.iter().map(|s| (*s).to_owned()).collect();
         let rows_vec = rows.as_array().cloned().expect("vector rows are an array");
-        let bytes = relational_result_encoding_v1(&fields, &rows_vec)
-            .expect("golden vectors encode");
+        let bytes =
+            relational_result_encoding_v1(&fields, &rows_vec).expect("golden vectors encode");
         serde_json::json!({
             "name": name,
             "fieldOrder": fields,
@@ -679,7 +680,9 @@ impl ResultDigest {
                 let mut state = MsetState::default();
                 let mut row_hashes = BTreeMap::new();
                 for row in rows {
-                    let id = row_wire_id(row).ok_or(MintRefusal::RowIdMissing)?.to_owned();
+                    let id = row_wire_id(row)
+                        .ok_or(MintRefusal::RowIdMissing)?
+                        .to_owned();
                     let hash = row_hash(row)?;
                     if row_hashes.insert(id.clone(), hash).is_some() {
                         return Err(MintRefusal::RowIdDuplicate);
@@ -854,7 +857,10 @@ pub fn resume_config_identity(
 }
 
 pub fn sha256_identity(value: &Value) -> Result<String, MintRefusal> {
-    Ok(format!("sha256:{}", hex(&Sha256::digest(jcs(value)?.as_bytes()))))
+    Ok(format!(
+        "sha256:{}",
+        hex(&Sha256::digest(jcs(value)?.as_bytes()))
+    ))
 }
 
 /// Domain-separated digest for a maintained-projection output row
@@ -1391,7 +1397,9 @@ pub fn mint_relational_cursor(
     }
     let body_value = serde_json::to_value(body).ok()?;
     let body_json = jcs(&body_value).ok()?;
-    let mac = relational_cursor_mac(key, key_id, body).finalize().into_bytes();
+    let mac = relational_cursor_mac(key, key_id, body)
+        .finalize()
+        .into_bytes();
     let wire = format!(
         "{RELATIONAL_CURSOR_WIRE_PREFIX}.{key_id}.{}.{}",
         URL_SAFE_NO_PAD.encode(body_json.as_bytes()),
@@ -1439,7 +1447,9 @@ pub fn decode_and_verify_relational_cursor(
         return Err(REFUSED);
     }
     let body: RelationalCursorBody = serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
-    let key = keyring.verification_key(key_id, now_ms).map_err(|_| REFUSED)?;
+    let key = keyring
+        .verification_key(key_id, now_ms)
+        .map_err(|_| REFUSED)?;
     relational_cursor_mac(key.secret.as_ref(), key_id, &body)
         .verify_slice(&mac_bytes)
         .map_err(|_| REFUSED)?;
@@ -1623,11 +1633,7 @@ impl ResumeKeyring {
     }
 
     /// Resolve a presented key id for verification under the overlap window.
-    fn verification_key(
-        &self,
-        key_id: &str,
-        now_ms: u64,
-    ) -> Result<&ResumeKey, &'static str> {
+    fn verification_key(&self, key_id: &str, now_ms: u64) -> Result<&ResumeKey, &'static str> {
         let key = self
             .keys
             .iter()
@@ -1953,7 +1959,10 @@ mod tests {
             jcs(&json!(-9007199254740992_i64)),
             Err(MintRefusal::UnsafeInteger)
         );
-        assert_eq!(jcs(&json!(9007199254740991_u64)).unwrap(), "9007199254740991");
+        assert_eq!(
+            jcs(&json!(9007199254740991_u64)).unwrap(),
+            "9007199254740991"
+        );
         // The integral-double band shared with the JS arm: refused below
         // 1e21, allowed at and above it (exponent form).
         assert_eq!(jcs(&json!(1e20)), Err(MintRefusal::UnsafeInteger));
@@ -1975,12 +1984,16 @@ mod tests {
         let row_b = json!({ "_id": "b", "value": 2 });
         let row_c = json!({ "_id": "c", "value": 3 });
 
-        let forward =
-            ResultDigest::from_rows(DigestKind::Mset1, &[row_a.clone(), row_b.clone(), row_c.clone()])
-                .unwrap();
-        let backward =
-            ResultDigest::from_rows(DigestKind::Mset1, &[row_c.clone(), row_a.clone(), row_b.clone()])
-                .unwrap();
+        let forward = ResultDigest::from_rows(
+            DigestKind::Mset1,
+            &[row_a.clone(), row_b.clone(), row_c.clone()],
+        )
+        .unwrap();
+        let backward = ResultDigest::from_rows(
+            DigestKind::Mset1,
+            &[row_c.clone(), row_a.clone(), row_b.clone()],
+        )
+        .unwrap();
         assert_eq!(forward.published(), backward.published());
 
         // Strict-subset change: update only b; a and c leaves stay (the
@@ -2068,10 +2081,7 @@ mod tests {
         );
 
         // Over the entry cap refuses with the oversize code.
-        assert_eq!(
-            decode_witness(&witness, 1),
-            Err(refusal::WITNESS_OVERSIZE)
-        );
+        assert_eq!(decode_witness(&witness, 1), Err(refusal::WITNESS_OVERSIZE));
 
         // Non-canonical hash encodings are ambiguity: bad base64, wrong length.
         let mut bad_base64 = witness.clone();
@@ -2229,8 +2239,7 @@ mod tests {
         retired_ring.mint_active(1_000);
         // Inside the window the retired key still verifies.
         assert!(
-            decode_and_verify(&retired_wire, &retired_ring, 2_000, RESUME_TOKEN_MAX_AGE_MS)
-                .is_ok()
+            decode_and_verify(&retired_wire, &retired_ring, 2_000, RESUME_TOKEN_MAX_AGE_MS).is_ok()
         );
         // Past the window it refuses with the retired code.
         assert_eq!(
@@ -2245,7 +2254,12 @@ mod tests {
 
         // Expired.
         assert_eq!(
-            decode_and_verify(&wire, &ring, 1_000 + RESUME_TOKEN_MAX_AGE_MS + 1, RESUME_TOKEN_MAX_AGE_MS),
+            decode_and_verify(
+                &wire,
+                &ring,
+                1_000 + RESUME_TOKEN_MAX_AGE_MS + 1,
+                RESUME_TOKEN_MAX_AGE_MS
+            ),
             Err(refusal::TOKEN_EXPIRED)
         );
 
@@ -2271,10 +2285,8 @@ mod tests {
 
     #[test]
     fn keyring_survives_restart_via_file() {
-        let dir = std::env::temp_dir().join(format!(
-            "snapback-rqs-keyring-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("snapback-rqs-keyring-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(RESUME_KEYRING_FILE_NAME);
         let _ = std::fs::remove_file(&path);

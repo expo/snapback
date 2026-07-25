@@ -4751,7 +4751,8 @@ mod tests {
         })
     }
 
-    // @ref LLP 0081#3-typed-migration-steps / #5-verification-and-data-proof
+    // @ref LLP 0081#3-typed-migration-steps — the staged-generation path.
+    // @ref LLP 0081#5-verification-and-data-proof — its independent data proof.
     //   — the staged-generation path end to end: stage, copy through closed
     //   expressions, prove content against the independent expected-value
     //   evaluation, publish by swap, park the predecessor for the rollback
@@ -5175,4 +5176,3 @@ mod tests {
         }
     }
 }
-

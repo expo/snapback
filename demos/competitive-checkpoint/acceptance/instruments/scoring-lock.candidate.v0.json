@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-scoring-lock.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs-and-scoring",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "files": [
+    {
+      "path": "scoring.v0.mjs",
+      "sha256": "6379244c7f09beea817242c67c7acea48a605c03c492caa9e9d2db6fb6eaf97f"
+    }
+  ],
+  "claimBoundary": "This locks the mechanical margin, confidence-receipt, and outcome-precedence evaluator, including one-capsule/run observation closure, Convex-first alternation, and retained invalid replacement slots. It supplies no per-arm confidence anchors and cannot satisfy the scoringAnchors prerequisite."
+}

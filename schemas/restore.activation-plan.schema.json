@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "RestoreActivationPlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "verifyPausedRestore",
+        "acquireLease",
+        "activateRestoredGeneration",
+        "verifyServedPath",
+        "releaseLease"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/restore.activation-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Explicit second-stage activation of one verified, effects-fenced restore.\nIt binds the paused restore receipt and a fresh destination observation,\ngiving activation its own operation id, lease, expiry, and confirmation.",
+  "properties": {
+    "adapterQualificationId": {
+      "type": "string"
+    },
+    "adapterQualificationSha256": {
+      "type": "string"
+    },
+    "applicationSentinelSha256": {
+      "type": "string"
+    },
+    "applyEligible": {
+      "type": "boolean"
+    },
+    "backupId": {
+      "type": "string"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "confirmation": {
+      "type": "string"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "databaseId": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "observedActivationGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "preparedReleaseId": {
+      "type": "string"
+    },
+    "preparedReleaseManifestSha256": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "restoreReceiptId": {
+      "type": "string"
+    },
+    "restoredReleaseId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/RestoreActivationPlanStep"
+      },
+      "type": "array"
+    },
+    "streamIncarnation": {
+      "type": "string"
+    },
+    "targetDescriptorSha256": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "targetObservationSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planId",
+    "operationId",
+    "reason",
+    "restoreReceiptId",
+    "backupId",
+    "targetId",
+    "deploymentId",
+    "databaseId",
+    "streamIncarnation",
+    "targetDescriptorSha256",
+    "targetObservationSha256",
+    "observedActivationGeneration",
+    "preparedReleaseId",
+    "preparedReleaseManifestSha256",
+    "adapterQualificationId",
+    "adapterQualificationSha256",
+    "applicationSentinelSha256",
+    "steps",
+    "blockers",
+    "applyEligible",
+    "confirmation",
+    "createdAtMs",
+    "expiresAtMs"
+  ],
+  "title": "RestoreActivationPlan",
+  "type": "object"
+}

@@ -10,11 +10,13 @@
 # npm registry (`@exact/*` -> published `@ccheever/exact-*` via npm alias
 # deps) and the surface's committed `bun.lock` IS the pin, so the lane is:
 #
-#   1. `bun install --frozen-lockfile` in the surface (registry only — a
-#      lockfile that drifts from package.json fails, not resolves);
-#   2. production-build the surface through the installed
+#   1. `bun install --frozen-lockfile` at the root for the Snapback workspace
+#      source edges consumed by demos/_kit;
+#   2. `bun install --frozen-lockfile` in the surface for Exact registry
+#      packages (a lockfile that drifts from package.json fails, not resolves);
+#   3. production-build the surface through the installed
 #      `@exact/devtools/contract-web` preset;
-#   3. run the 34-check browser acceptance with SNAPBACK_REQUIRE_EXACT=1 and
+#   4. run the 34-check browser acceptance with SNAPBACK_REQUIRE_EXACT=1 and
 #      independently require >= 34 checks to have actually PASSed.
 #
 # Usage: scripts/cold-clone-check.sh
@@ -118,6 +120,15 @@ banner "Snapback engine build (cargo build)"
 step_timer_start
 (cd "$ROOT" && run cargo build)
 step_timer_end "engine build (cargo build)"
+
+# The surface imports Snapback through demos/_kit, which deliberately reaches
+# the repository's package source. Prepare those workspace:* edges exactly as
+# a clean contributor checkout does; publication staging separately rewrites
+# them to exact versions inside released tarballs.
+banner "bun install in the Snapback workspace (frozen lockfile)"
+step_timer_start
+(cd "$ROOT" && run bun install --frozen-lockfile)
+step_timer_end "bun install (Snapback workspace)"
 
 # --- Exact side: registry install pinned by the committed lockfile ----------
 # ENG-22480 phase 2 retired the pinned-checkout mechanism: no Exact clone, no

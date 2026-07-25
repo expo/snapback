@@ -129,7 +129,9 @@ fn paint_cell() -> FunctionDefinition {
                 ]),
                 bind_id_as: Some("cellId".to_owned()),
             }],
-            return_value: Some(snapback::manifest::ReturnValue::Binding("cellId".to_owned())),
+            return_value: Some(snapback::manifest::ReturnValue::Binding(
+                "cellId".to_owned(),
+            )),
         })),
     )
 }
@@ -266,7 +268,10 @@ async fn anonymous_read_of_public_inline_route_succeeds() {
     assert_eq!(entry["args"], json!({ "boardId": "wall" }));
     assert_eq!(entry["rows"].as_array().map(Vec::len), Some(1));
     // rqsEligible ⇒ resume present, minted at the bundle's commit.
-    assert!(entry["resume"]["token"].is_string(), "resume rides the entry");
+    assert!(
+        entry["resume"]["token"].is_string(),
+        "resume rides the entry"
+    );
     assert_eq!(entry["resume"]["meta"]["version"], body["commitVersion"]);
 }
 

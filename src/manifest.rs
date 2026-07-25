@@ -1397,8 +1397,7 @@ impl ObservedEffects {
     }
 
     fn write(&mut self, table: &str, operation: &str) {
-        self.writes
-            .insert((table.to_owned(), operation.to_owned()));
+        self.writes.insert((table.to_owned(), operation.to_owned()));
     }
 
     fn expr(&mut self, expr: &ValueExpr) {
@@ -1424,10 +1423,8 @@ impl ObservedEffects {
             ValueExpr::MembershipExists(_) => {
                 self.authorization_inputs.insert("membershipPredicate");
             }
-            ValueExpr::Arg(_)
-            | ValueExpr::Args
-            | ValueExpr::Binding(_)
-            | ValueExpr::Literal(_) => {}
+            ValueExpr::Arg(_) | ValueExpr::Args | ValueExpr::Binding(_) | ValueExpr::Literal(_) => {
+            }
             ValueExpr::Field { base, .. } => self.expr(base),
             ValueExpr::Binary { left, right, .. } => {
                 self.expr(left);
@@ -1554,9 +1551,10 @@ fn validate_effect_ceiling(function: &FunctionDefinition) -> SnapbackResult<()> 
         }))
     };
     for (table, access, index) in &observed.reads {
-        let admitted = ceiling.reads.iter().any(|read| {
-            read.table == *table && read.access == *access && read.index == *index
-        });
+        let admitted = ceiling
+            .reads
+            .iter()
+            .any(|read| read.table == *table && read.access == *access && read.index == *index);
         if !admitted {
             return Err(exceeded(
                 "read",
@@ -1873,7 +1871,9 @@ pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> Snapb
         )));
     }
     if plan.projection.is_empty() {
-        return Err(invalid("relational projection must be non-empty".to_owned()));
+        return Err(invalid(
+            "relational projection must be non-empty".to_owned(),
+        ));
     }
     let mut names = std::collections::BTreeSet::new();
     for leaf in &plan.projection {
@@ -1995,10 +1995,10 @@ pub struct FunctionDefinition {
     /// already-public query's rows may be embedded in a tokenless HTML
     /// response. Grants no invocation authority; accepted only beside a valid
     /// `authorityIndependent` declaration.
-    ///
-    /// @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
-    ///   authored on the function definition, compiled by codegen, re-enforced
-    ///   at manifest load; never route-manifest authored.
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    //   authored on the function definition, compiled by codegen, re-enforced
+    //   at manifest load; never route-manifest authored. Keep this reference
+    //   out of the generated JSON Schema description.
     #[serde(
         default,
         rename = "publicInline",
@@ -2296,13 +2296,16 @@ pub struct StandardPatternIdentity {
     pub profile: String,
 }
 
-/// LLP 0080 §1 — the closed first relational profile: one root table, exactly
-/// one unique-joined table, at most four equality pairs, explicit
+// @ref LLP 0080#1-closed-relational-plan — this Rust-owned shape is the
+// closed first relational profile. Keep the reference out of generated schema
+// prose so ref-check does not interpret a JSON string as a source annotation.
+/// The closed first relational profile: one root table, exactly one
+/// unique-joined table, at most four equality pairs, explicit
 /// visibility on both sources, index-served root access, deterministic
 /// root ordering, and a bounded `take`. Evaluation follows the normative
-/// `root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor
-/// boundary → root order → take N roots → join + joined visibility →
-/// projection. `take` bounds consumed authorized roots, not emitted rows.
+/// `root-window-v1` pipeline: visible root filter → cursor boundary → root
+/// order → take N roots → join + joined visibility → projection. `take`
+/// bounds consumed authorized roots, not emitted rows.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RelationalQueryPlan {
@@ -2452,6 +2455,7 @@ pub struct PublicFunctionManifest {
         rename = "acknowledgedExperimentalCapabilities",
         skip_serializing_if = "Vec::is_empty"
     )]
+    #[schemars(default)]
     pub acknowledged_experimental_capabilities: Vec<String>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
@@ -2750,9 +2754,10 @@ pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
-    /// LLP 0080 §1 — the closed bounded-join profile. Callable and
-    /// `live_replace`-capable only; targets that cannot execute it report a
-    /// machine-readable capability gap before invocation.
+    // @ref LLP 0080#1-closed-relational-plan — closed bounded-join plan.
+    /// The closed bounded-join profile. Callable and `live_replace`-capable
+    /// only; targets that cannot execute it report a machine-readable
+    /// capability gap before invocation.
     RelationalQuery(RelationalQueryPlan),
 }
 

@@ -58,7 +58,6 @@ run node scripts/check-guide.mjs
 # the All Aboard `headsgn` typo at compile time.
 run node scripts/check-contract-meta.mjs
 run node scripts/check-contract-meta.test.mjs
-run bun test demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
@@ -78,6 +77,9 @@ run scripts/check-demo-surfaces
 # surfaces build here unconditionally from their committed registry locks; no
 # sibling Exact checkout or source-asset bridge participates.
 run node scripts/check-required-surface-builds.mjs
+# ENG-25268: this Bun test imports the surface-pinned Exact compiler, so it
+# runs only after the shared gate has completed that surface's frozen install.
+run bun test demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts
 # ENG-24452: the rebuild above regenerates every required surface dist IN
 # PLACE, so this scan sees exactly the production bytes a contributor would
 # commit; it rejects absolute checkout paths (surfaces still pinned to a
@@ -142,15 +144,28 @@ esac
 # visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
 # sees the same identity stamp and measures startup rather than a cold link.
 run cargo build --locked --bin snapback
+# @ref LLP 0041#runtime-distribution — the packaged CLI deliberately scrubs
+# LD_LIBRARY_PATH. On Linux, stage the freshly built debug executable in the
+# same bin/../lib closure as the public runtime package so these CLI proofs
+# exercise its loader-relative RUNPATH instead of a source-tree-only loader
+# environment.
+runtime_binary="$ROOT/target/debug/snapback"
+if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "linux" ]; then
+    run env \
+        SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$runtime_binary" \
+        SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$ROOT/vendor/ibex/linux/lib/libhermesvm.so" \
+        node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
+    runtime_binary="$ROOT/packages/snapback-runtime-linux-x64/bin/snapback"
+fi
 # LLP 0079 SC-1b: the control-plane MCP acceptance loop (@snapback/cli) drives
 # a real native server through `snapback mcp-control`; point the JS CLI at the
 # freshly built debug binary. Runs here (not with the bun package tests above)
 # because it needs that binary.
-run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-cli test
+run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback-cli test
 # LLP 0079 SC-2a: the LLP 0030 MVP managed-dev Vite plugin drives the same
 # native binary through a real Vite dev server (managed spawn, /__snapback
 # allowlist, WS relay); it needs the debug binary for the same reason.
-run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-vite test
+run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback-vite test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 # LLP 0090 rollout step 7 (ENG-25458): Channel C consumption — the

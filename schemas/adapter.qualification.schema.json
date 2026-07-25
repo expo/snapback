@@ -1,0 +1,568 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "AdapterQualificationClaim": {
+      "enum": [
+        "identityFencing",
+        "immutableUploadReadBack",
+        "tlsOrigin",
+        "hostedAuth",
+        "healthAcceptance",
+        "logsInspection",
+        "compatibilityRollback",
+        "backupRestore",
+        "interruptionResume",
+        "secretScan",
+        "costCapacity"
+      ],
+      "type": "string"
+    },
+    "AdapterQualificationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/AdapterQualificationClaim"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/AdapterEvidenceRef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "AuthenticationBucketPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "burst": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intervalMs": {
+          "format": "uint64",
+          "maximum": 86400000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumDenialDebtAttempts": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intervalMs",
+        "burst",
+        "maximumDenialDebtAttempts"
+      ],
+      "type": "object"
+    },
+    "AuthenticationThrottle": {
+      "enum": [
+        "unavailable",
+        "processLocal",
+        "sharedEnforced"
+      ],
+      "type": "string"
+    },
+    "BrowserCredentialPosture": {
+      "description": "The strongest browser credential claim the target can honestly advertise.\n\nA restrictive CSP does not upgrade bearer v1: app-origin script can still\nread or exercise the coordinator's IndexedDB/page-memory credential.",
+      "enum": [
+        "unavailable",
+        "bearerV1XssExposed",
+        "senderConstrainedV2"
+      ],
+      "type": "string"
+    },
+    "BrowserDirectBearerSeam": {
+      "description": "Whether the browser artifact can construct a client with a directly\nsupplied bearer instead of coordinator custody.",
+      "enum": [
+        "available",
+        "excluded"
+      ],
+      "type": "string"
+    },
+    "EffectiveSource": {
+      "enum": [
+        "unavailable",
+        "trusted"
+      ],
+      "type": "string"
+    },
+    "ExternalTls": {
+      "enum": [
+        "unavailable",
+        "enforced"
+      ],
+      "type": "string"
+    },
+    "HostedAdmission": {
+      "additionalProperties": false,
+      "description": "Closed, deployment-bound facts required before a future hosted target can\nclaim readiness. This is a schema authority only: no current target owns\nthe authenticated producer or live-health authority needed to admit it.\n\n@ref LLP 0060#d5-hosted-readiness-is-conjunctive — a positive admission\nincludes the exact capability facts and every non-static admission gate.",
+      "properties": {
+        "admissionEpoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "authenticationThrottleConfig": {
+          "$ref": "#/$defs/SharedAuthenticationThrottleConfig"
+        },
+        "browserDirectBearerSeam": {
+          "$ref": "#/$defs/BrowserDirectBearerSeam"
+        },
+        "configurationSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "deploymentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "handlerIncarnation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "handlerProtocolVersion": {
+          "format": "uint64",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "hostedAuth": {
+          "$ref": "#/$defs/HostedAuthCapabilities"
+        },
+        "invalidationEpoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "issuedAtMs": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limiterEpoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "operatorSurface": {
+          "$ref": "#/$defs/HostedOperatorSurface"
+        },
+        "senderReplayEpochFloor": {
+          "default": 0,
+          "description": "Control-plane monotone floor for the durable `sender_replay_epoch`.\nStored outside the rolled-back durable set and only ever advanced by\nthe control plane; the serving boot applies\n`effective epoch = max(durable, floor)` so a raw backup rollback\ncannot resurrect an accepted proof. Zero means \"no floor delivered\"\n(a valid state for targets predating the field).\n\n@ref LLP 0077#author-decisions--2026-07-23 — decision 1: the\ncomposition ratchet (LLP 0059 incarnation + control-plane floor).",
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "supportSha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "deploymentId",
+        "configurationSha256",
+        "supportSha256",
+        "admissionEpoch",
+        "issuedAtMs",
+        "expiresAtMs",
+        "limiterEpoch",
+        "authenticationThrottleConfig",
+        "invalidationEpoch",
+        "handlerProtocolVersion",
+        "handlerIncarnation",
+        "operatorSurface",
+        "browserDirectBearerSeam",
+        "hostedAuth"
+      ],
+      "type": "object"
+    },
+    "HostedAuthCapabilities": {
+      "additionalProperties": false,
+      "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0060#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
+      "properties": {
+        "authenticationThrottle": {
+          "$ref": "#/$defs/AuthenticationThrottle"
+        },
+        "clientCredentialPosture": {
+          "$ref": "#/$defs/BrowserCredentialPosture"
+        },
+        "effectiveSource": {
+          "$ref": "#/$defs/EffectiveSource"
+        },
+        "externalTls": {
+          "$ref": "#/$defs/ExternalTls"
+        },
+        "sessionInvalidation": {
+          "$ref": "#/$defs/SessionInvalidation"
+        }
+      },
+      "required": [
+        "externalTls",
+        "effectiveSource",
+        "authenticationThrottle",
+        "sessionInvalidation",
+        "clientCredentialPosture"
+      ],
+      "type": "object"
+    },
+    "HostedAuthDrillReceipt": {
+      "additionalProperties": false,
+      "description": "Executed hosted-auth drill bound to one target and one short-lived\ndeployment admission. This proves qualification-time behavior only; an\nactivation must still obtain a fresh admission and live-health snapshot.\n\n@ref LLP 0060#d5-hosted-readiness-is-conjunctive — static support,\ndeployment attestation, live health, browser-seam exclusion, handler\ncompatibility, and operator isolation are independent positive facts.",
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "admission": {
+          "$ref": "#/$defs/HostedAdmission"
+        },
+        "browserArtifactSha256": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/AdapterEvidenceRef"
+          },
+          "type": "array"
+        },
+        "finishedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "liveHealth": {
+          "$ref": "#/$defs/HostedAuthLiveHealth"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "receiptId": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "startedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "receiptId",
+        "targetId",
+        "targetProfileId",
+        "deploymentId",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "browserArtifactSha256",
+        "admission",
+        "liveHealth",
+        "evidence",
+        "gaps",
+        "startedAtMs",
+        "finishedAtMs"
+      ],
+      "type": "object"
+    },
+    "HostedAuthLiveHealth": {
+      "additionalProperties": false,
+      "properties": {
+        "admissionEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "handlerCompatible": {
+          "type": "boolean"
+        },
+        "invalidationCurrent": {
+          "type": "boolean"
+        },
+        "limiterReachable": {
+          "type": "boolean"
+        },
+        "observedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "senderReplayEpochFloor": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "senderReplayEpochFloorCurrent": {
+          "type": "boolean"
+        },
+        "serializedAuthorityCurrent": {
+          "type": "boolean"
+        },
+        "servingAdmitted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "admissionEpoch",
+        "senderReplayEpochFloor",
+        "senderReplayEpochFloorCurrent",
+        "limiterReachable",
+        "invalidationCurrent",
+        "serializedAuthorityCurrent",
+        "handlerCompatible",
+        "servingAdmitted",
+        "observedAtMs"
+      ],
+      "type": "object"
+    },
+    "HostedOperatorSurface": {
+      "enum": [
+        "enabled",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "SessionInvalidation": {
+      "enum": [
+        "unavailable",
+        "singleProcess",
+        "globallyFenced"
+      ],
+      "type": "string"
+    },
+    "SharedAuthenticationThrottleConfig": {
+      "additionalProperties": false,
+      "description": "Exact target-published GCRA policy. A denied request advances every\napplicable bucket, with finite denial debt preventing attacker-controlled\ninteger growth.",
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "global": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "maximumKeyCount": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "retentionMs": {
+          "format": "uint64",
+          "maximum": 31536000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "sourceSubject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "subject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        }
+      },
+      "required": [
+        "retentionMs",
+        "maximumKeyCount",
+        "global",
+        "source",
+        "subject",
+        "sourceSubject",
+        "family"
+      ],
+      "type": "object"
+    },
+    "VmAdapterKind": {
+      "enum": [
+        "singleInstanceContainerVm"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/adapter.qualification.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Target-specific result of the complete remote adapter drill. This cannot be\nminted by release build: it binds provider/account/region/origin, driver\nbytes, remote evidence for every qualification claim, and every remaining\nGAP.",
+  "properties": {
+    "accountFingerprint": {
+      "type": "string"
+    },
+    "adapterKind": {
+      "$ref": "#/$defs/VmAdapterKind"
+    },
+    "adapterVersion": {
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/AdapterQualificationEvidence"
+      },
+      "type": "array"
+    },
+    "driverSha256": {
+      "type": "string"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "hostedAuthDrill": {
+      "$ref": "#/$defs/HostedAuthDrillReceipt"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "publicOrigin": {
+      "type": "string"
+    },
+    "qualificationId": {
+      "type": "string"
+    },
+    "qualifiedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "region": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "qualificationId",
+    "targetId",
+    "targetProfileId",
+    "adapterKind",
+    "adapterVersion",
+    "driverSha256",
+    "provider",
+    "accountFingerprint",
+    "region",
+    "publicOrigin",
+    "remoteEvidence",
+    "hostedAuthDrill",
+    "claims",
+    "gaps",
+    "qualifiedAtMs"
+  ],
+  "title": "AdapterQualificationManifest",
+  "type": "object"
+}

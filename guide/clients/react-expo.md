@@ -4,13 +4,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0074-convex-competitive-strategy.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
+examples: [demos/partiful-matrix/native/react-expo, demos/competitive-checkpoint/surfaces/react-expo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7914210856
+reviewed: 2026-07-22
+reviewed-commit: HEAD
 ---
 
 # React Expo Online clients
@@ -37,13 +37,18 @@ not as a physical-device or production-support declaration.
 The carrier imports project-generated refs and binds them through the ordinary
 React hook:
 
-```js source=demos/partiful-matrix/native/react-expo/App.js
-  const query = useSnapbackQuery({ provider, name: 'listEvents', args: {}, userId, authority: userId });
+```tsx source=demos/competitive-checkpoint/surfaces/react-expo/App.tsx
+  const conversations = useSnapbackQuery<Conversation>({
+    provider: checkpointProvider,
+    query: api.listConversations,
+    userId: USER_ID,
+    authority: USER_ID,
+  });
 ```
 
-The provider calls `SnapbackClient.liveQuery(api[name], ...)` and
-`SnapbackClient.mutate(api[name], ...)`; there is no direct table-write API or
-second native cache. It declares the exact
+The package compatibility layer resolves that immutable reference for the
+provider; application code never supplies a string function name. There is no
+direct table-write API or second native cache. The provider declares the exact
 `snapback.external-store.v1` compatibility token. A different token refuses
 before application data is published.
 

@@ -1,0 +1,250 @@
+{
+  "$defs": {
+    "ReleaseArtifactKind": {
+      "enum": [
+        "releaseManifest"
+      ],
+      "type": "string"
+    },
+    "ReleaseCompatibility": {
+      "additionalProperties": false,
+      "properties": {
+        "authMode": {
+          "type": "string"
+        },
+        "capabilitySha256": {
+          "type": "string"
+        },
+        "functionsSha256": {
+          "type": "string"
+        },
+        "inputsSha256": {
+          "type": "string"
+        },
+        "schemaSha256": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode",
+        "schemaSha256",
+        "functionsSha256",
+        "capabilitySha256",
+        "inputsSha256"
+      ],
+      "type": "object"
+    },
+    "ReleaseComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "mediaType"
+      ],
+      "type": "object"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "ReleaseManifestVersion": {
+      "enum": [
+        "snapback.release-manifest.v1"
+      ],
+      "type": "string"
+    },
+    "ReleaseScan": {
+      "additionalProperties": false,
+      "properties": {
+        "scannedBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scannedFiles": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "secretScan": {
+          "type": "string"
+        },
+        "sourceMaps": {
+          "type": "string"
+        },
+        "symlinks": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "secretScan",
+        "sourceMaps",
+        "symlinks",
+        "scannedFiles",
+        "scannedBytes"
+      ],
+      "type": "object"
+    },
+    "ReleaseSource": {
+      "additionalProperties": false,
+      "properties": {
+        "dirty": {
+          "type": "boolean"
+        },
+        "dirtyPathsSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repositoryName": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sourceDateEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "repositoryName",
+        "revision",
+        "sourceDateEpoch",
+        "dirty"
+      ],
+      "type": "object"
+    },
+    "ReleaseToolchain": {
+      "additionalProperties": false,
+      "properties": {
+        "nodeVersion": {
+          "type": "string"
+        },
+        "packageManager": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "snapbackCliVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapbackCliVersion",
+        "nodeVersion"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/release.manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activationEligible": {
+      "type": "boolean"
+    },
+    "artifactKind": {
+      "$ref": "#/$defs/ReleaseArtifactKind"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/ReleaseCompatibility"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/ReleaseComponent"
+      },
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "releaseId": {
+      "type": "string"
+    },
+    "requiredCapabilities": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "scan": {
+      "$ref": "#/$defs/ReleaseScan"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/ReleaseManifestVersion"
+    },
+    "source": {
+      "$ref": "#/$defs/ReleaseSource"
+    },
+    "targetProfileId": {
+      "type": "string"
+    },
+    "toolchain": {
+      "$ref": "#/$defs/ReleaseToolchain"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "releaseId",
+    "projectId",
+    "targetProfileId",
+    "activationEligible",
+    "source",
+    "toolchain",
+    "compatibility",
+    "requiredCapabilities",
+    "components",
+    "scan",
+    "gaps"
+  ],
+  "title": "ReleaseManifest",
+  "type": "object"
+}

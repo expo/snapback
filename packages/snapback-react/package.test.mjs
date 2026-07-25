@@ -8,6 +8,18 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const observers = new Map();
+const eventDetailsRef = Object.freeze({
+  artifactKind: 'functionReference',
+  id: 'test:eventDetails',
+  name: 'eventDetails',
+  kind: 'LiveQuery',
+});
+const createEventRef = Object.freeze({
+  artifactKind: 'functionReference',
+  id: 'test:createEvent',
+  name: 'createEvent',
+  kind: 'Mutation',
+});
 let subscriptionSequence = 0;
 let disposed = 0;
 let latestQuery = null;
@@ -32,7 +44,7 @@ const provider = {
 function Probe({ eventId }) {
   const query = useSnapbackQuery({
     provider,
-    name: 'eventDetails',
+    query: eventDetailsRef,
     args: { eventId },
     userId: 'alice',
   });
@@ -88,7 +100,7 @@ assert(subscriptionSequence >= 2, 'React StrictMode replays the shared store sub
 assert(disposed >= 1, 'StrictMode cleanup disposes its first handle');
 
 await act(async () => {
-  await latestQuery.mutate('createEvent', { eventId: 'optimistic' }, {
+  await latestQuery.mutate(createEventRef, { eventId: 'optimistic' }, {
     id: 'connection-only-does-not-reconcile',
     optimisticRows: (rows) => [...rows, { id: 'optimistic' }],
   });

@@ -1,0 +1,199 @@
+{
+  "$defs": {
+    "AdapterOperation": {
+      "enum": [
+        "doctor",
+        "inspect"
+      ],
+      "type": "string"
+    },
+    "AdapterResponseVersion": {
+      "enum": [
+        "snapback.vm-adapter-response.v1"
+      ],
+      "type": "string"
+    },
+    "AdapterSafeDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    },
+    "CredentialStatus": {
+      "enum": [
+        "ready",
+        "missing",
+        "invalid",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "DeploymentState": {
+      "enum": [
+        "registered",
+        "provisioning",
+        "inactive",
+        "staging",
+        "ready",
+        "active",
+        "degraded",
+        "draining",
+        "failed",
+        "restoring",
+        "retired"
+      ],
+      "type": "string"
+    },
+    "TargetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "activeReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicationSentinelSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capabilityGaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "credentialStatus": {
+          "$ref": "#/$defs/CredentialStatus"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "observedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "providerFactsSha256": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/DeploymentState"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "targetId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "resourceId",
+        "state",
+        "activationGeneration",
+        "credentialStatus",
+        "providerFactsSha256",
+        "observedAtMs",
+        "capabilityGaps"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/AdapterSafeDiagnostic"
+      },
+      "type": "array"
+    },
+    "observation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetObservation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "operation": {
+      "$ref": "#/$defs/AdapterOperation"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterResponseVersion"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "ok",
+    "diagnostics"
+  ],
+  "title": "AdapterResponse",
+  "type": "object"
+}

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -7,20 +9,52 @@ import { PassThrough } from 'node:stream';
 import {
   __test,
   attachDevControlChannel,
+  addTarget,
+  applyDeployPlan,
+  buildRelease,
+  createAdapterQualificationManifest,
+  createDeployPlan,
+  createHostedAuthDrillReceipt,
+  createPreparedReleaseManifest,
+  createRemoteDrillPlan,
   doctor,
+  doctorTarget,
   generateApp,
+  inspectTarget,
+  inspectTargetAdmin,
+  listBackups,
+  queryControlLogs,
   scaffoldApp,
+  sealHostedAdmissionEnvelope,
+  showTarget,
   validateDevTarget,
+  validateTargetDescriptor,
+  verifyBackupManifest,
+  verifyControlAuditLedger,
+  verifyPreparedReleaseArtifacts,
+  verifyRemoteDrillPlan,
+  verifyRestoreReceipt,
+  verifyRelease,
 } from './index.mjs';
+import { __deploymentTest } from './deployment-control.mjs';
 
-const root = mkdtempSync(join(tmpdir(), 'snapback-cli-package-'));
+const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 try {
+  assert.deepEqual(__test.runtimePackages, {
+    'darwin-arm64': '@snapback/runtime-darwin-arm64',
+    'linux-x64': '@snapback/runtime-linux-x64',
+  });
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
   chmodSync(fakeRuntime, 0o755);
-  const report = doctor({ runtimeBinary: fakeRuntime, env: { ...process.env, DYLD_FRAMEWORK_PATH: '/must/not/be/needed' } });
+  const report = await doctor({
+    runtimeBinary: fakeRuntime,
+    env: { ...process.env, DYLD_FRAMEWORK_PATH: '/must/not/be/needed' },
+    verticalSlice: false,
+  });
   assert.equal(report.ok, true);
   assert.equal(report.runtime.source, 'override');
+  assert.equal(report.probe, 'launch-only');
 
   const project = join(root, 'todo-contract');
   const scaffold = scaffoldApp(project);
@@ -30,12 +64,1337 @@ try {
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
 
+  const git = (...args) => {
+    const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git('init');
+  git('add', '.');
+  git('-c', 'user.name=Snapback Test', '-c', 'user.email=snapback-test@example.invalid', 'commit', '-m', 'fixture');
+  const releaseOutput = join(root, 'releases');
+  const release = await buildRelease({
+    backendDirectory: join(project, 'snapback'),
+    outputDirectory: releaseOutput,
+  });
+  assert.equal(release.ok, true);
+  assert.equal(release.schemaVersion, 'snapback.deploy-build.v1');
+  assert.equal(release.state, 'built');
+  assert.equal(release.sourceDirty, false);
+  assert.equal(release.activationEligible, false);
+  assert.ok(release.gaps.some((gap) => gap.id === 'control-plane.backup-restore' && gap.blocking));
+  assert.equal(verifyRelease(release.releaseDirectory).releaseId, release.releaseId);
+  const reused = await buildRelease({
+    backendDirectory: join(project, 'snapback'),
+    outputDirectory: releaseOutput,
+  });
+  assert.equal(reused.state, 'reused');
+  assert.equal(reused.releaseId, release.releaseId);
+  const defaultRelease = await buildRelease({ backendDirectory: join(project, 'snapback') });
+  assert.equal(defaultRelease.state, 'built');
+  assert.equal(defaultRelease.releaseId, release.releaseId);
+  const defaultReused = await buildRelease({ backendDirectory: join(project, 'snapback') });
+  assert.equal(defaultReused.state, 'reused');
+  assert.equal(defaultReused.sourceDirty, false);
+
+  const controlRoot = join(root, 'control');
+  const adapterDriver = join(root, 'fixture-vm-adapter.mjs');
+  writeFileSync(adapterDriver, `#!/usr/bin/env node
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+if (process.argv.length !== 2 || process.env.NPM_TOKEN) process.exit(13);
+const request = JSON.parse(input);
+const target = request.target;
+const canonicalValue = (value) => Array.isArray(value)
+  ? value.map(canonicalValue)
+  : (!value || typeof value !== 'object')
+    ? value
+    : Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
+const canonicalJson = (value) => JSON.stringify(canonicalValue(value));
+const sha256 = (value) => 'sha256:' + createHash('sha256').update(value).digest('hex');
+const statePath = new URL('./fixture-vm-adapter.state.json', import.meta.url);
+const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { targets: {}, responses: {} };
+const targetState = state.targets[target.targetId] ??= {
+  descriptor: target,
+  state: 'registered',
+  activationGeneration: 0,
+  activeReleaseId: null,
+  applicationSentinelSha256: null,
+  lease: null,
+};
+targetState.descriptor ??= target;
+const observation = () => ({
+    targetId: target.targetId,
+    environmentId: target.environmentId,
+    deploymentId: target.deploymentId,
+    databaseId: target.databaseId,
+    streamIncarnation: target.streamIncarnation,
+    targetProfileId: target.targetProfileId,
+    provider: target.adapter.provider,
+    accountFingerprint: target.targetId === 'target-mismatch' ? 'wrong-account' : target.adapter.accountFingerprint,
+    region: target.adapter.region,
+    publicOrigin: target.adapter.publicOrigin,
+    resourceId: 'vm-fixture-1',
+    state: targetState.state,
+    activationGeneration: targetState.activationGeneration,
+    activeReleaseId: targetState.activeReleaseId,
+    applicationSentinelSha256: targetState.applicationSentinelSha256,
+    credentialStatus: 'ready',
+    providerFactsSha256: 'sha256:${'3'.repeat(64)}',
+    observedAtMs: 2,
+    capabilityGaps: target.targetId.startsWith('target-preview') || target.targetId === 'target-mismatch' ? ['hosted-auth'] : [],
+});
+if (request.schemaVersion === 'snapback.vm-adapter-request.v1') {
+  process.stdout.write(JSON.stringify({
+    schemaVersion: 'snapback.vm-adapter-response.v1',
+    operation: request.operation,
+    operationId: request.operationId,
+    ok: true,
+    observation: observation(),
+    diagnostics: [{ code: 'SNAPBACK_FIXTURE_OK', severity: 'info', message: 'fixture read-back completed' }],
+  }));
+  process.exit(0);
+}
+if (request.schemaVersion === 'snapback.vm-adapter-query-request.v1') {
+  const logs = request.operation === 'logs' ? {
+    entries: [{
+      timestampMs: request.query.sinceMs,
+      severity: 'info',
+      deploymentId: target.deploymentId,
+      releaseId: targetState.activeReleaseId,
+      activationGeneration: targetState.activationGeneration,
+      streamIncarnation: target.streamIncarnation,
+      correlationId: request.operationId,
+      eventCode: 'SNAPBACK_FIXTURE_EVENT',
+      eventVersion: 1,
+      payload: [{ name: 'status', value: 'verified' }],
+    }],
+    nextCursor: null,
+    retentionClass: 'fixture-seven-days',
+    indexingClass: 'deployment-and-operation',
+    deliveryLatencyMs: 1,
+    droppedEvents: 0,
+    backpressure: false,
+  } : null;
+  const fact = (name, status) => ({ name, status, valueSha256: 'sha256:${'7'.repeat(64)}' });
+  const inspection = request.operation === 'inspectAdmin' ? {
+    targetId: target.targetId,
+    deploymentId: target.deploymentId,
+    databaseId: target.databaseId,
+    streamIncarnation: target.streamIncarnation,
+    activeReleaseId: targetState.activeReleaseId,
+    inactiveReleaseIds: [],
+    activationGeneration: targetState.activationGeneration,
+    schemaGeneration: 0,
+    configGeneration: 1,
+    authGeneration: 1,
+    workerGeneration: 1,
+    capabilityManifestSha256: 'sha256:${'8'.repeat(64)}',
+    capabilityGaps: observation().capabilityGaps,
+    health: [fact('publicHealth', 'ready'), fact('logSink', 'ready')],
+    dependencies: [],
+    migration: [],
+    backups: [],
+    queues: [],
+    connections: [],
+    resources: [],
+    operations: [],
+    diagnostics: [],
+  } : null;
+  const inputSha256 = sha256('snapback-vm-adapter-query-input-v1\\0' + canonicalJson(request));
+  const outputContent = {
+    schemaVersion: 'snapback.vm-adapter-query-response.v1',
+    operation: request.operation,
+    operationId: request.operationId,
+    ok: true,
+    remoteEvidence: false,
+    inputSha256,
+    observation: observation(),
+    logs,
+    inspection,
+    evidence: [{ kind: 'fixtureEvidence', uri: 'fixture://provider/' + request.operation, sha256: 'sha256:${'6'.repeat(64)}', bytes: 0, verified: true }],
+    diagnostics: [{ code: 'SNAPBACK_FIXTURE_OK', severity: 'info', message: 'fixture query completed' }],
+  };
+  process.stdout.write(JSON.stringify({
+    ...outputContent,
+    outputSha256: sha256('snapback-vm-adapter-query-output-v1\\0' + canonicalJson(outputContent)),
+  }));
+  process.exit(0);
+}
+if (request.schemaVersion !== 'snapback.vm-adapter-lifecycle-request.v1') process.exit(14);
+const responseKey = target.targetId + ':' + request.operationId + ':' + request.operation;
+if (state.responses[responseKey]) {
+  const replay = {
+    ...state.responses[responseKey],
+    idempotentReplay: true,
+    inputSha256: sha256('snapback-vm-adapter-lifecycle-input-v1\\0' + canonicalJson(request)),
+  };
+  const { outputSha256: ignored, ...outputContent } = replay;
+  replay.outputSha256 = sha256('snapback-vm-adapter-lifecycle-output-v1\\0' + canonicalJson(outputContent));
+  process.stdout.write(JSON.stringify(replay));
+  process.exit(0);
+}
+let backup = null;
+let restore = null;
+if (request.operation === 'acquireLease') {
+  targetState.lease = {
+    leaseId: 'lease-' + target.targetId,
+    targetId: target.targetId,
+    operationId: request.operationId,
+    expectedActivationGeneration: request.plan.observedActivationGeneration,
+    acquiredAtMs: 20,
+    expiresAtMs: 120020,
+  };
+} else if (request.lease?.leaseId !== targetState.lease?.leaseId) {
+  process.exit(15);
+} else if (request.operation === 'provisionInactive') {
+  targetState.state = 'inactive';
+} else if (request.operation === 'createVerifiedBackup') {
+  const backupContent = {
+    schemaVersion: 'snapback.backup-manifest.v1',
+    operationId: request.operationId,
+    targetId: target.targetId,
+    deploymentId: target.deploymentId,
+    databaseId: target.databaseId,
+    streamIncarnation: target.streamIncarnation,
+    releaseId: request.plan.observedActiveReleaseId,
+    schemaIdentitySha256: 'sha256:${'4'.repeat(64)}',
+    encryptionClass: 'fixture-external-key',
+    storageClass: 'fixture-object-store',
+    retentionPolicy: request.plan.retentionPolicy ?? 'fixture-seven-days',
+    components: [{ kind: 'sqliteSnapshot', sha256: 'sha256:${'5'.repeat(64)}', bytes: 64, objects: 1, verified: true }],
+    excludedSecretClasses: ['application-secrets', 'control-plane-credentials'],
+    createdAtMs: 30,
+    verifiedAtMs: 31,
+  };
+  backup = { ...backupContent, backupId: sha256('snapback-backup-manifest-v1\\0' + canonicalJson(backupContent)) };
+} else if (request.operation === 'stageRelease') {
+  targetState.state = 'ready';
+} else if (request.operation === 'activateGeneration') {
+  targetState.state = 'active';
+  targetState.activationGeneration += 1;
+  targetState.activeReleaseId = request.plan.releaseId;
+  targetState.applicationSentinelSha256 = 'sha256:${'d'.repeat(64)}';
+} else if (request.operation === 'rollback') {
+  const destinationReleaseId = request.plan.destinationReleaseId ?? request.plan.observedActiveReleaseId;
+  if (targetState.activeReleaseId !== destinationReleaseId) targetState.activationGeneration += 1;
+  targetState.activeReleaseId = destinationReleaseId;
+  targetState.state = targetState.activeReleaseId === null ? 'registered' : 'active';
+} else if (request.operation === 'fenceExternalEffects') {
+  targetState.state = 'restoring';
+} else if (request.operation === 'restoreBackupInactive') {
+  const source = state.targets[request.plan.sourceTargetId]?.descriptor;
+  if (!source) process.exit(16);
+  targetState.activationGeneration += 1;
+  targetState.activeReleaseId = null;
+  targetState.applicationSentinelSha256 = 'sha256:${'9'.repeat(64)}';
+  targetState.state = 'inactive';
+  targetState.restore = {
+    backupId: request.plan.backupId,
+    sourceTargetId: source.targetId,
+    sourceDeploymentId: source.deploymentId,
+    sourceDatabaseId: source.databaseId,
+    sourceStreamIncarnation: source.streamIncarnation,
+    destinationTargetId: target.targetId,
+    destinationDeploymentId: target.deploymentId,
+    destinationDatabaseId: target.databaseId,
+    destinationStreamIncarnation: target.streamIncarnation,
+    restoreEpoch: 1,
+    effectsFenced: true,
+    componentsVerified: true,
+    applicationSentinelSha256: targetState.applicationSentinelSha256,
+    acceptanceSha256: 'sha256:${'a'.repeat(64)}',
+    externalEffectsDisabled: true,
+    activated: false,
+  };
+  restore = targetState.restore;
+} else if (request.operation === 'verifyRestoredComponents' || request.operation === 'verifyRestoredApplication') {
+  restore = targetState.restore;
+} else if (request.operation === 'activateRestoredGeneration') {
+  targetState.activationGeneration += 1;
+  targetState.activeReleaseId = request.plan.restoredReleaseId;
+  targetState.state = 'active';
+  targetState.restore = {
+    ...targetState.restore,
+    effectsFenced: false,
+    externalEffectsDisabled: false,
+    activated: true,
+  };
+  restore = targetState.restore;
+} else if (request.operation === 'releaseLease') {
+  targetState.lease = null;
+  if (request.plan.schemaVersion === 'snapback.restore-plan.v1'
+      || request.plan.schemaVersion === 'snapback.restore-activation-plan.v1') {
+    restore = targetState.restore;
+  }
+}
+const inputSha256 = sha256('snapback-vm-adapter-lifecycle-input-v1\\0' + canonicalJson(request));
+const outputContent = {
+  schemaVersion: 'snapback.vm-adapter-lifecycle-response.v1',
+  operation: request.operation,
+  operationId: request.operationId,
+  ok: !(target.targetId === 'target-failure' && request.operation === 'verifyServedPath'),
+  idempotentReplay: false,
+  remoteEvidence: false,
+  inputSha256,
+  lease: request.operation === 'releaseLease' ? null : targetState.lease,
+  observation: observation(),
+  evidence: [{ kind: 'fixtureEvidence', uri: 'fixture://provider/' + request.operation, sha256: 'sha256:${'6'.repeat(64)}', bytes: 0, verified: true }],
+  backup,
+  restore,
+  diagnostics: [{ code: 'SNAPBACK_FIXTURE_OK', severity: 'info', message: 'fixture lifecycle step completed' }],
+};
+const response = {
+  ...outputContent,
+  outputSha256: sha256('snapback-vm-adapter-lifecycle-output-v1\\0' + canonicalJson(outputContent)),
+};
+state.responses[responseKey] = response;
+writeFileSync(statePath, JSON.stringify(state));
+process.stdout.write(JSON.stringify(response));
+`);
+  chmodSync(adapterDriver, 0o700);
+  const driverSha256 = `sha256:${createHash('sha256').update(readFileSync(adapterDriver)).digest('hex')}`;
+  const targetDescriptor = {
+    schemaVersion: 'snapback.target-descriptor.v1',
+    targetId: 'target-preview-1',
+    projectId: JSON.parse(readFileSync(join(release.releaseDirectory, 'release.manifest.json'), 'utf8')).projectId,
+    environmentId: 'preview-1',
+    deploymentId: 'deployment-1',
+    databaseId: 'database-1',
+    streamIncarnation: 'stream-1',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    productionClass: 'preview',
+    adapter: {
+      kind: 'singleInstanceContainerVm',
+      version: '1.0.0',
+      driverPath: adapterDriver,
+      driverSha256,
+      provider: 'fixture-provider',
+      accountFingerprint: 'account-1',
+      region: 'test-1',
+      publicOrigin: 'https://preview.example.invalid',
+      credentialRef: 'secret-store://snapback/preview-1',
+      stateStoreRef: 'object://snapback-control/preview-1',
+    },
+    createdAtMs: 1,
+  };
+  assert.equal(validateTargetDescriptor(targetDescriptor), targetDescriptor);
+  assert.throws(
+    () => validateTargetDescriptor({
+      ...targetDescriptor,
+      adapter: {
+        ...targetDescriptor.adapter,
+        credentialRef: 'secret-store://operator:credential@example.invalid/control',
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_TARGET_DESCRIPTOR_INVALID',
+  );
+  assert.throws(
+    () => validateTargetDescriptor({
+      ...targetDescriptor,
+      adapter: {
+        ...targetDescriptor.adapter,
+        stateStoreRef: 'object://snapback-control/preview-1?token=forbidden',
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_TARGET_DESCRIPTOR_INVALID',
+  );
+  const registration = addTarget(targetDescriptor, { controlRoot });
+  assert.equal(registration.state, 'registered');
+  assert.equal(addTarget(targetDescriptor, { controlRoot }).state, 'reused');
+  assert.equal(statSync(join(controlRoot, 'targets', 'target-preview-1.json')).mode & 0o777, 0o600);
+  assert.equal(showTarget('target-preview-1', { controlRoot }).deploymentId, 'deployment-1');
+  const targetHardlink = join(root, 'target-preview-1.hardlink.json');
+  linkSync(join(controlRoot, 'targets', 'target-preview-1.json'), targetHardlink);
+  assert.throws(
+    () => showTarget('target-preview-1', { controlRoot }),
+    (error) => error.code === 'SNAPBACK_TARGET_DESCRIPTOR_INVALID',
+  );
+  rmSync(targetHardlink);
+  assert.equal(doctorTarget('target-preview-1', {
+    controlRoot,
+    operationId: 'doctor-op',
+    env: { ...process.env, NPM_TOKEN: 'super-secret-must-be-scrubbed' },
+  }).ok, true);
+  assert.equal(inspectTarget('target-preview-1', { controlRoot, operationId: 'inspect-op' }).observation.resourceId, 'vm-fixture-1');
+  assert.throws(
+    () => queryControlLogs('target-preview-1', {
+      controlRoot,
+      operationId: 'logs-remote-required',
+      sinceMs: 0,
+      untilMs: 10,
+    }),
+    (error) => error.code === 'SNAPBACK_ADAPTER_REMOTE_EVIDENCE_REQUIRED',
+  );
+  assert.throws(
+    () => inspectTargetAdmin('target-preview-1', {
+      controlRoot,
+      operationId: 'inspect-admin-remote-required',
+      sinceMs: 0,
+      untilMs: 10,
+    }),
+    (error) => error.code === 'SNAPBACK_ADAPTER_REMOTE_EVIDENCE_REQUIRED',
+  );
+  const fixtureLogs = __deploymentTest.logsHarness('target-preview-1', {
+    controlRoot,
+    operationId: 'logs-op',
+    sinceMs: 0,
+    untilMs: 10,
+    limit: 10,
+  });
+  assert.equal(fixtureLogs.logs.entries[0].payload[0].value, 'verified');
+  const fixtureInspection = __deploymentTest.inspectAdminHarness('target-preview-1', {
+    controlRoot,
+    operationId: 'inspect-admin-op',
+    sinceMs: 0,
+    untilMs: 10,
+  });
+  assert.equal(fixtureInspection.inspection.health.find((fact) => fact.name === 'logSink').status, 'ready');
+  const planOptions = {
+    releaseDirectory: release.releaseDirectory,
+    targetId: 'target-preview-1',
+    reason: 'fixture preview planning proof',
+    operationId: 'plan-op',
+    nowMs: 10_000,
+    controlRoot,
+    verifyRelease,
+  };
+  const plan = createDeployPlan(planOptions);
+  assert.equal(plan.applyEligible, false);
+  assert.equal(plan.observedActivationGeneration, 0);
+  assert.equal(plan.releaseId, release.releaseId);
+  assert.ok(plan.blockers.some((blocker) => blocker.id === 'adapter.hosted-auth'));
+  assert.deepEqual(createDeployPlan(planOptions), plan);
+  const planPath = join(controlRoot, 'plans', `${plan.planId.slice('sha256:'.length)}.json`);
+  assert.equal(statSync(planPath).mode & 0o777, 0o600);
+  assert.doesNotMatch(readFileSync(join(controlRoot, 'targets', 'target-preview-1.json'), 'utf8'), /super-secret/);
+  assert.throws(
+    () => applyDeployPlan(plan.planId, {
+      targetId: 'target-preview-1',
+      confirmation: 'wrong-confirmation',
+      nowMs: 10_001,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_DEPLOY_CONFIRMATION_REQUIRED',
+  );
+  assert.throws(
+    () => applyDeployPlan(plan.planId, {
+      targetId: 'target-preview-1',
+      confirmation: plan.confirmation,
+      nowMs: 10_001,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_DEPLOY_PLAN_BLOCKED',
+  );
+  const eligibleVerifier = (directory) => ({ ...verifyRelease(directory), activationEligible: true });
+  const retainHarnessPlan = (descriptor, operationId, verifier = eligibleVerifier) => {
+    addTarget(descriptor, { controlRoot });
+    const observation = inspectTarget(descriptor.targetId, { controlRoot, operationId: `${operationId}-inspect` }).observation;
+    const verification = verifier(release.releaseDirectory);
+    const content = {
+      artifactKind: 'deployPlan',
+      schemaVersion: 'snapback.deploy-plan.v1',
+      operationId,
+      reason: 'deterministic lifecycle protocol proof',
+      targetId: descriptor.targetId,
+      projectId: descriptor.projectId,
+      environmentId: descriptor.environmentId,
+      deploymentId: descriptor.deploymentId,
+      databaseId: descriptor.databaseId,
+      streamIncarnation: descriptor.streamIncarnation,
+      targetProfileId: descriptor.targetProfileId,
+      productionClass: descriptor.productionClass,
+      targetDescriptorSha256: __deploymentTest.sha256(Buffer.from(__deploymentTest.canonicalJson(descriptor))),
+      targetObservationSha256: __deploymentTest.sha256(Buffer.from(__deploymentTest.canonicalJson(observation))),
+      observedActivationGeneration: observation.activationGeneration,
+      observedActiveReleaseId: observation.activeReleaseId,
+      releaseId: verification.releaseId,
+      releaseManifestSha256: verification.manifestSha256,
+      preparedReleaseId: null,
+      preparedReleaseManifestSha256: null,
+      steps: [
+        'verifyIdentity', 'acquireLease', 'uploadImmutableRelease',
+        'provisionInactive', 'compatibilityPreflight', 'createVerifiedBackup',
+        'stageRelease', 'activateGeneration', 'verifyServedPath', 'releaseLease',
+        'rollbackOnFailure',
+      ],
+      blockers: [],
+      applyEligible: true,
+      createdAtMs: 10_000,
+      expiresAtMs: 910_000,
+    };
+    const planId = __deploymentTest.sha256(Buffer.from(`snapback-deploy-plan-v1\0${__deploymentTest.canonicalJson(content)}`));
+    const retained = { ...content, planId, confirmation: `confirm:${planId}` };
+    writeFileSync(
+      join(controlRoot, 'plans', `${planId.slice('sha256:'.length)}.json`),
+      `${__deploymentTest.canonicalJson(retained)}\n`,
+      { mode: 0o600 },
+    );
+    return retained;
+  };
+  const lifecycleTarget = {
+    ...targetDescriptor,
+    targetId: 'target-lifecycle',
+    environmentId: 'lifecycle-preview',
+    deploymentId: 'lifecycle-deployment',
+    databaseId: 'lifecycle-database',
+    streamIncarnation: 'lifecycle-stream',
+    targetProfileId: 'trusted-single-tenant-app-complete.v1',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://lifecycle.example.invalid' },
+  };
+  const lifecyclePlan = retainHarnessPlan(lifecycleTarget, 'lifecycle-op');
+  let lifecycleClock = 40;
+  const lifecycleReceipt = __deploymentTest.applyHarness(lifecyclePlan.planId, {
+    targetId: lifecycleTarget.targetId,
+    confirmation: lifecyclePlan.confirmation,
+    nowMs: 10_001,
+    releaseDirectory: release.releaseDirectory,
+    verifyRelease: eligibleVerifier,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(lifecycleReceipt.outcome, 'activated');
+  assert.equal(lifecycleReceipt.remoteEvidence, false);
+  assert.equal(lifecycleReceipt.activationGenerationAfter, 1);
+  assert.equal(lifecycleReceipt.backup.releaseId, null);
+  assert.ok(lifecycleReceipt.gaps.some((gap) => gap.id === 'control-plane.remote-evidence'));
+  assert.deepEqual(
+    lifecycleReceipt.steps.map((step) => step.operation),
+    ['acquireLease', 'uploadImmutableRelease', 'provisionInactive', 'compatibilityPreflight', 'createVerifiedBackup', 'stageRelease', 'activateGeneration', 'verifyServedPath', 'releaseLease'],
+  );
+  for (let index = 1; index < lifecycleReceipt.steps.length; index += 1) {
+    assert.equal(lifecycleReceipt.steps[index].previousFactSha256, lifecycleReceipt.steps[index - 1].factSha256);
+  }
+  assert.equal(
+    statSync(join(controlRoot, 'receipts', `${lifecycleReceipt.receiptId.slice('sha256:'.length)}.json`)).mode & 0o777,
+    0o600,
+  );
+  const backupList = listBackups(lifecycleTarget.targetId, { controlRoot });
+  assert.equal(backupList.backups.length, 1);
+  assert.equal(backupList.backups[0].backupId, lifecycleReceipt.backup.backupId);
+  const backupVerification = verifyBackupManifest(lifecycleReceipt.backup.backupId, lifecycleTarget.targetId, { controlRoot });
+  assert.equal(backupVerification.ok, true);
+  assert.equal(backupVerification.adapterReadBackAttested, true);
+  assert.deepEqual(backupVerification.excludedSecretClasses, ['application-secrets', 'control-plane-credentials']);
+  assert.equal(
+    statSync(join(controlRoot, 'backups', `${lifecycleReceipt.backup.backupId.slice('sha256:'.length)}.json`)).mode & 0o777,
+    0o600,
+  );
+  assert.equal(inspectTarget(lifecycleTarget.targetId, { controlRoot, operationId: 'lifecycle-after' }).observation.activeReleaseId, release.releaseId);
+  assert.throws(
+    () => __deploymentTest.applyHarness(lifecyclePlan.planId, {
+      targetId: lifecycleTarget.targetId,
+      confirmation: lifecyclePlan.confirmation,
+      nowMs: 10_002,
+      releaseDirectory: release.releaseDirectory,
+      verifyRelease: eligibleVerifier,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_DEPLOY_PLAN_STALE',
+  );
+  const secondReleaseId = `sha256:${'c'.repeat(64)}`;
+  const secondVerifier = (directory) => ({
+    ...eligibleVerifier(directory),
+    releaseId: secondReleaseId,
+  });
+  const secondLifecyclePlan = retainHarnessPlan(lifecycleTarget, 'lifecycle-second-op', secondVerifier);
+  const secondLifecycleReceipt = __deploymentTest.applyHarness(secondLifecyclePlan.planId, {
+    targetId: lifecycleTarget.targetId,
+    confirmation: secondLifecyclePlan.confirmation,
+    nowMs: 10_003,
+    releaseDirectory: release.releaseDirectory,
+    verifyRelease: secondVerifier,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(secondLifecycleReceipt.previousReleaseId, release.releaseId);
+  assert.equal(secondLifecycleReceipt.backup.releaseId, release.releaseId);
+  assert.equal(secondLifecycleReceipt.releaseId, secondReleaseId);
+  const auditEventsBeforeStandaloneBackup = verifyControlAuditLedger({ controlRoot }).events;
+  const standaloneBackupPlan = __deploymentTest.createBackupPlanHarness({
+    targetId: lifecycleTarget.targetId,
+    reason: 'standalone verified backup drill',
+    retentionPolicy: 'fixture-thirty-days',
+    operationId: 'standalone-backup-op',
+    nowMs: 10_004,
+    controlRoot,
+  });
+  assert.equal(standaloneBackupPlan.applyEligible, true);
+  assert.equal(standaloneBackupPlan.observedActiveReleaseId, secondReleaseId);
+  assert.equal(standaloneBackupPlan.retentionPolicy, 'fixture-thirty-days');
+  assert.throws(
+    () => __deploymentTest.applyBackupPlanHarness(standaloneBackupPlan.planId, {
+      targetId: lifecycleTarget.targetId,
+      confirmation: 'wrong',
+      nowMs: 10_005,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_MAINTENANCE_CONFIRMATION_REQUIRED',
+  );
+  const standaloneBackupReceipt = __deploymentTest.applyBackupPlanHarness(standaloneBackupPlan.planId, {
+    targetId: lifecycleTarget.targetId,
+    confirmation: standaloneBackupPlan.confirmation,
+    nowMs: 10_005,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(standaloneBackupReceipt.outcome, 'backedUp');
+  assert.equal(standaloneBackupReceipt.releaseIdBefore, secondReleaseId);
+  assert.equal(standaloneBackupReceipt.releaseIdAfter, secondReleaseId);
+  assert.equal(standaloneBackupReceipt.activationGenerationBefore, standaloneBackupReceipt.activationGenerationAfter);
+  assert.equal(
+    verifyBackupManifest(standaloneBackupReceipt.backupId, lifecycleTarget.targetId, { controlRoot }).ok,
+    true,
+  );
+  assert.equal(verifyControlAuditLedger({ controlRoot }).events, auditEventsBeforeStandaloneBackup + 5);
+  const auditFiles = readdirSync(join(controlRoot, 'audit-events')).filter((name) => name.endsWith('.json'));
+  assert.equal(auditFiles.length, auditEventsBeforeStandaloneBackup + 5);
+  assert.equal(statSync(join(controlRoot, 'audit-events', auditFiles[0])).mode & 0o777, 0o600);
+  const auditLock = join(controlRoot, 'audit-events', '.append.lock');
+  writeFileSync(auditLock, 'occupied\n', { mode: 0o600 });
+  assert.throws(
+    () => __deploymentTest.logsHarness(lifecycleTarget.targetId, {
+      controlRoot,
+      operationId: 'audit-unavailable-read',
+    }),
+    (error) => error.code === 'SNAPBACK_CONTROL_AUDIT_UNAVAILABLE',
+  );
+  rmSync(auditLock);
+  const interruptionTarget = {
+    ...targetDescriptor,
+    targetId: 'target-interruption',
+    environmentId: 'interruption-preview',
+    deploymentId: 'interruption-deployment',
+    databaseId: 'interruption-database',
+    streamIncarnation: 'interruption-stream',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://interruption.example.invalid' },
+  };
+  const interruptionPlan = retainHarnessPlan(interruptionTarget, 'interruption-op');
+  assert.throws(
+    () => __deploymentTest.applyHarness(interruptionPlan.planId, {
+      targetId: interruptionTarget.targetId,
+      confirmation: interruptionPlan.confirmation,
+      nowMs: 10_001,
+      releaseDirectory: release.releaseDirectory,
+      verifyRelease: eligibleVerifier,
+      controlRoot,
+      clock: () => lifecycleClock++,
+      simulateInterruptionAfter: 'compatibilityPreflight',
+    }),
+    (error) => error.code === 'SNAPBACK_TEST_SIMULATED_INTERRUPTION',
+  );
+  const interruptedJournal = JSON.parse(readFileSync(join(controlRoot, 'operations', 'interruption-op.json'), 'utf8'));
+  assert.equal(interruptedJournal.state, 'interrupted');
+  assert.equal(interruptedJournal.steps.at(-1).operation, 'compatibilityPreflight');
+  const resumedReceipt = __deploymentTest.applyHarness(interruptionPlan.planId, {
+    targetId: interruptionTarget.targetId,
+    confirmation: interruptionPlan.confirmation,
+    nowMs: 10_002,
+    releaseDirectory: release.releaseDirectory,
+    verifyRelease: eligibleVerifier,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(resumedReceipt.outcome, 'activated');
+  assert.deepEqual(
+    resumedReceipt.steps.slice(0, 4).map((step) => step.idempotentReplay),
+    [true, true, true, true],
+  );
+  assert.equal(JSON.parse(readFileSync(join(controlRoot, 'operations', 'interruption-op.json'), 'utf8')).attempt, 2);
+  const remoteRequiredTarget = {
+    ...targetDescriptor,
+    targetId: 'target-remote-required',
+    environmentId: 'remote-required-preview',
+    deploymentId: 'remote-required-deployment',
+    databaseId: 'remote-required-database',
+    streamIncarnation: 'remote-required-stream',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://remote-required.example.invalid' },
+  };
+  const remoteRequiredPlan = retainHarnessPlan(remoteRequiredTarget, 'remote-required-op');
+  let remoteRequiredError;
+  try {
+    applyDeployPlan(remoteRequiredPlan.planId, {
+      targetId: remoteRequiredTarget.targetId,
+      confirmation: remoteRequiredPlan.confirmation,
+      nowMs: 10_001,
+      releaseDirectory: release.releaseDirectory,
+      verifyRelease: eligibleVerifier,
+      controlRoot,
+      clock: () => lifecycleClock++,
+    });
+  } catch (error) {
+    remoteRequiredError = error;
+  }
+  assert.equal(remoteRequiredError?.code, 'SNAPBACK_PREPARED_RELEASE_REQUIRED');
+  assert.equal(inspectTarget(remoteRequiredTarget.targetId, { controlRoot, operationId: 'remote-required-after' }).observation.activeReleaseId, null);
+  assert.throws(
+    () => verifyPreparedReleaseArtifacts({
+      targetId: remoteRequiredTarget.targetId,
+      releaseDirectory: release.releaseDirectory,
+      preparedReleasePath: join(root, 'missing-prepared.json'),
+      qualificationPath: join(root, 'missing-qualification.json'),
+      verifyRelease,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_PREPARED_RELEASE_PROFILE_INVALID',
+  );
+  const qualifiedTarget = {
+    ...targetDescriptor,
+    targetId: 'target-qualified',
+    environmentId: 'qualified-preview',
+    deploymentId: 'qualified-deployment',
+    databaseId: 'qualified-database',
+    streamIncarnation: 'qualified-stream',
+    targetProfileId: 'trusted-single-tenant-app-complete.v1',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://qualified.example.invalid' },
+  };
+  addTarget(qualifiedTarget, { controlRoot });
+  const remoteDrillOptions = {
+    targetId: qualifiedTarget.targetId,
+    reason: 'pin the complete provider boundary before provisioning',
+    storage: {
+      computeClass: 'fixture-small',
+      persistentVolumeClass: 'fixture-encrypted-volume',
+      persistentVolumeEncrypted: true,
+      artifactStoreRef: 'object://fixture-artifacts/releases',
+      artifactStorageClass: 'fixture-immutable',
+      backupStoreRef: 'object://fixture-backups/verified',
+      backupStorageClass: 'fixture-retained',
+      backupPermissionBoundary: 'separateWriteGrant',
+    },
+    tls: { issuer: 'fixture-acme' },
+    supervisor: { kind: 'systemd' },
+    logs: {
+      sinkRef: 'logs://fixture-control/deployments',
+      retentionClass: 'fixture-thirty-days',
+      redactionProfile: 'snapback-secret-private-v1',
+    },
+    credentials: {
+      admissionKeyRef: 'provider-secret://fixture/hosted-admission-key',
+      replayFloorStoreRef: 'object://fixture-control/replay-floor',
+    },
+    cost: {
+      currency: 'USD',
+      estimatedMonthlyMinorUnits: 1200,
+      maximumMonthlyMinorUnits: 2000,
+      estimateBasisSha256: `sha256:${'c'.repeat(64)}`,
+    },
+    nowMs: 40,
+    controlRoot,
+  };
+  const remoteDrillPlan = createRemoteDrillPlan(remoteDrillOptions);
+  assert.equal(remoteDrillPlan.provider, qualifiedTarget.adapter.provider);
+  assert.equal(remoteDrillPlan.accountFingerprint, qualifiedTarget.adapter.accountFingerprint);
+  assert.equal(remoteDrillPlan.provisioningAuthority, 'confirmationRequired');
+  assert.deepEqual(remoteDrillPlan.nonclaims, [
+    'highAvailability', 'autoscaling', 'multiRegion', 'zeroDowntime',
+    'untrustedMultiTenancy', 'managedServiceSla',
+  ]);
+  assert.deepEqual(createRemoteDrillPlan(remoteDrillOptions), remoteDrillPlan);
+  assert.deepEqual(
+    verifyRemoteDrillPlan(remoteDrillPlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: remoteDrillPlan.confirmation,
+      nowMs: 41,
+      controlRoot,
+    }),
+    remoteDrillPlan,
+  );
+  assert.throws(
+    () => verifyRemoteDrillPlan(remoteDrillPlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: 'confirm:wrong',
+      nowMs: 41,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_REMOTE_DRILL_CONFIRMATION_REQUIRED',
+  );
+  assert.throws(
+    () => verifyRemoteDrillPlan(remoteDrillPlan.planId, {
+      targetId: 'target-other',
+      confirmation: remoteDrillPlan.confirmation,
+      nowMs: 41,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_REMOTE_DRILL_IDENTITY_MISMATCH',
+  );
+  assert.throws(
+    () => verifyRemoteDrillPlan(remoteDrillPlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: remoteDrillPlan.confirmation,
+      nowMs: remoteDrillPlan.expiresAtMs + 1,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_REMOTE_DRILL_PLAN_EXPIRED',
+  );
+  assert.equal(
+    statSync(join(
+      controlRoot,
+      'remote-drill-plans',
+      `${remoteDrillPlan.planId.slice('sha256:'.length)}.json`,
+    )).mode & 0o777,
+    0o600,
+  );
+  assert.throws(
+    () => createRemoteDrillPlan({
+      ...remoteDrillOptions,
+      storage: {
+        ...remoteDrillOptions.storage,
+        backupStoreRef: remoteDrillOptions.storage.artifactStoreRef,
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_REMOTE_DRILL_PLAN_INVALID',
+  );
+  assert.throws(
+    () => createRemoteDrillPlan({
+      ...remoteDrillOptions,
+      cost: {
+        ...remoteDrillOptions.cost,
+        maximumMonthlyMinorUnits: 1000,
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_REMOTE_DRILL_PLAN_INVALID',
+  );
+  const remoteAttestation = {
+    kind: 'remoteProviderAttestation',
+    uri: 'fixture://remote/provider-attestation',
+    sha256: `sha256:${'a'.repeat(64)}`,
+    bytes: 128,
+    verified: true,
+  };
+  const hostedAuthSupport = {
+    externalTls: 'enforced',
+    effectiveSource: 'trusted',
+    authenticationThrottle: 'sharedEnforced',
+    sessionInvalidation: 'globallyFenced',
+    clientCredentialPosture: 'senderConstrainedV2',
+  };
+  const browserArtifactSha256 = `sha256:${'f'.repeat(64)}`;
+  const hostedAuthSupportContent = {
+    hostedAuth: hostedAuthSupport,
+    authenticationThrottleConfig: {
+      retentionMs: 900_000,
+      maximumKeyCount: 100_000,
+      global: { intervalMs: 10, burst: 200, maximumDenialDebtAttempts: 100 },
+      source: { intervalMs: 10, burst: 200, maximumDenialDebtAttempts: 100 },
+      subject: { intervalMs: 10, burst: 200, maximumDenialDebtAttempts: 100 },
+      sourceSubject: { intervalMs: 10, burst: 200, maximumDenialDebtAttempts: 100 },
+      family: { intervalMs: 10, burst: 200, maximumDenialDebtAttempts: 100 },
+    },
+    operatorSurface: 'disabled',
+    browserDirectBearerSeam: 'excluded',
+    browserArtifactSha256,
+  };
+  const hostedAuthSupportSha256 = __deploymentTest.sha256(Buffer.from(
+    `snapback-hosted-auth-support-v1\0${__deploymentTest.canonicalJson(hostedAuthSupportContent)}`,
+  )).slice('sha256:'.length);
+  const hostedAuthDrill = createHostedAuthDrillReceipt({
+    targetId: qualifiedTarget.targetId,
+    browserArtifactSha256,
+    admission: {
+      version: 1,
+      deploymentId: qualifiedTarget.deploymentId,
+      configurationSha256: 'e'.repeat(64),
+      supportSha256: hostedAuthSupportSha256,
+      admissionEpoch: 7,
+      senderReplayEpochFloor: 17,
+      issuedAtMs: 50,
+      expiresAtMs: 300_050,
+      limiterEpoch: 11,
+      authenticationThrottleConfig: hostedAuthSupportContent.authenticationThrottleConfig,
+      invalidationEpoch: 13,
+      handlerProtocolVersion: 1,
+      handlerIncarnation: 'handler-1',
+      operatorSurface: 'disabled',
+      browserDirectBearerSeam: 'excluded',
+      hostedAuth: hostedAuthSupport,
+    },
+    liveHealth: {
+      admissionEpoch: 7,
+      senderReplayEpochFloor: 17,
+      senderReplayEpochFloorCurrent: true,
+      limiterReachable: true,
+      invalidationCurrent: true,
+      serializedAuthorityCurrent: true,
+      handlerCompatible: true,
+      servingAdmitted: true,
+      observedAtMs: 80,
+    },
+    evidence: [remoteAttestation],
+    startedAtMs: 60,
+    finishedAtMs: 90,
+    controlRoot,
+  });
+  assert.throws(
+    () => createHostedAuthDrillReceipt({
+      targetId: qualifiedTarget.targetId,
+      browserArtifactSha256,
+      admission: hostedAuthDrill.admission,
+      liveHealth: hostedAuthDrill.liveHealth,
+      evidence: [],
+      startedAtMs: hostedAuthDrill.startedAtMs,
+      finishedAtMs: hostedAuthDrill.finishedAtMs,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_HOSTED_AUTH_DRILL_INCOMPLETE',
+  );
+  const sealedHostedAdmission = sealHostedAdmissionEnvelope({
+    keyId: 'hosted-key-1',
+    keyMaterial: Buffer.alloc(32, 29),
+    publicOrigin: qualifiedTarget.adapter.publicOrigin,
+    admission: hostedAuthDrill.admission,
+  });
+  assert.equal(sealedHostedAdmission.schemaVersion, 'snapback.hosted-admission-envelope.v1');
+  assert.match(sealedHostedAdmission.mac, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal('keyMaterial' in sealedHostedAdmission, false);
+  const crossLanguageAdmission = {
+    ...hostedAuthDrill.admission,
+    deploymentId: 'deployment-1',
+    configurationSha256: 'a'.repeat(64),
+    supportSha256: 'b'.repeat(64),
+    issuedAtMs: 1_000,
+    expiresAtMs: 301_000,
+  };
+  assert.equal(
+    sealHostedAdmissionEnvelope({
+      keyId: 'hosted-key-1',
+      keyMaterial: Buffer.alloc(32, 29),
+      publicOrigin: 'https://app.example.test',
+      admission: crossLanguageAdmission,
+    }).mac,
+    'tb12sK-_E81LB_DCFs2h4ZSwDewruaUk9S2LFU1RsRo',
+    'Node and Rust must share the exact canonical hosted-admission MAC vector',
+  );
+  const qualificationClaimNames = [
+    'identityFencing', 'immutableUploadReadBack', 'tlsOrigin', 'hostedAuth',
+    'healthAcceptance', 'logsInspection', 'compatibilityRollback',
+    'backupRestore', 'interruptionResume', 'secretScan', 'costCapacity',
+  ];
+  const qualificationClaimEvidence = Object.fromEntries(
+    qualificationClaimNames.map((claim) => [claim, [remoteAttestation]]),
+  );
+  const qualification = createAdapterQualificationManifest({
+    targetId: qualifiedTarget.targetId,
+    hostedAuthDrill,
+    claimEvidence: qualificationClaimEvidence,
+    qualifiedAtMs: 100,
+    controlRoot,
+  });
+  assert.throws(
+    () => createAdapterQualificationManifest({
+      targetId: qualifiedTarget.targetId,
+      hostedAuthDrill,
+      claimEvidence: Object.fromEntries(
+        qualificationClaimNames.slice(1).map((claim) => [claim, [remoteAttestation]]),
+      ),
+      qualifiedAtMs: 100,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_ADAPTER_QUALIFICATION_INVALID',
+  );
+  assert.throws(
+    () => createAdapterQualificationManifest({
+      targetId: qualifiedTarget.targetId,
+      hostedAuthDrill,
+      claimEvidence: {
+        ...qualificationClaimEvidence,
+        hostedAuth: [{
+          ...remoteAttestation,
+          kind: 'localFixtureEvidence',
+        }],
+      },
+      qualifiedAtMs: 100,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_ADAPTER_QUALIFICATION_INCOMPLETE',
+  );
+  const qualificationId = qualification.qualificationId;
+  const qualificationPath = join(root, 'qualified-adapter.json');
+  writeFileSync(qualificationPath, `${__deploymentTest.canonicalJson(qualification)}\n`);
+  const qualifiedReleaseDirectory = join(root, 'qualified-release');
+  mkdirSync(qualifiedReleaseDirectory);
+  const qualifiedBaseManifest = {
+    ...JSON.parse(readFileSync(join(release.releaseDirectory, 'release.manifest.json'), 'utf8')),
+    targetProfileId: qualifiedTarget.targetProfileId,
+  };
+  const qualifiedBaseManifestBytes = Buffer.from(`${__deploymentTest.canonicalJson(qualifiedBaseManifest)}\n`);
+  writeFileSync(join(qualifiedReleaseDirectory, 'release.manifest.json'), qualifiedBaseManifestBytes);
+  const qualifiedBaseVerification = {
+    releaseId: release.releaseId,
+    manifestSha256: __deploymentTest.sha256(qualifiedBaseManifestBytes),
+    activationEligible: false,
+  };
+  const preparedReleaseEvidenceKinds = [
+    'runtimeArtifact', 'serverArtifact', 'artifactSignature', 'licenseSbom',
+    'buildProvenance', 'compatibilityGenerations', 'migrationPlan',
+    'healthProbes', 'acceptanceProbes', 'configRequirements',
+  ];
+  const preparedReleaseEvidence = Object.fromEntries(
+    preparedReleaseEvidenceKinds.map((kind) => [kind, [remoteAttestation]]),
+  );
+  const preparedReleaseOptions = {
+    targetId: qualifiedTarget.targetId,
+    releaseDirectory: qualifiedReleaseDirectory,
+    qualificationPath,
+    verifyRelease: () => ({ ...qualifiedBaseVerification }),
+    compatibility: {
+      minimumReadableSchemaGeneration: 0,
+      maximumReadableSchemaGeneration: 0,
+      writeSchemaGeneration: 0,
+      minimumRetainedClientGeneration: 0,
+      minimumJobGeneration: 0,
+      minimumConfigGeneration: 0,
+      migrationSha256: `sha256:${'b'.repeat(64)}`,
+      migrationTransactional: true,
+      irreversibleBoundary: null,
+      rollbackMode: 'codeOnly',
+    },
+    releaseEvidence: preparedReleaseEvidence,
+    preparedAtMs: 101,
+    controlRoot,
+  };
+  const preparedRelease = createPreparedReleaseManifest(preparedReleaseOptions);
+  assert.throws(
+    () => createPreparedReleaseManifest({
+      ...preparedReleaseOptions,
+      releaseEvidence: Object.fromEntries(
+        preparedReleaseEvidenceKinds.slice(1).map((kind) => [kind, [remoteAttestation]]),
+      ),
+    }),
+    (error) => error.code === 'SNAPBACK_PREPARED_RELEASE_INVALID',
+  );
+  const preparedReleaseId = preparedRelease.preparedReleaseId;
+  const preparedReleasePath = join(root, 'qualified-release.json');
+  writeFileSync(preparedReleasePath, `${__deploymentTest.canonicalJson(preparedRelease)}\n`);
+  const qualifiedVerifier = () => ({ ...qualifiedBaseVerification });
+  const preparedVerification = verifyPreparedReleaseArtifacts({
+    targetId: qualifiedTarget.targetId,
+    releaseDirectory: qualifiedReleaseDirectory,
+    preparedReleasePath,
+    qualificationPath,
+    verifyRelease: qualifiedVerifier,
+    controlRoot,
+  });
+  assert.equal(preparedVerification.activationEligible, true);
+  assert.equal(preparedVerification.preparedReleaseId, preparedReleaseId);
+  const qualifiedPlan = createDeployPlan({
+    releaseDirectory: qualifiedReleaseDirectory,
+    targetId: qualifiedTarget.targetId,
+    reason: 'qualified artifact production-fence proof',
+    operationId: 'qualified-op',
+    nowMs: 10_000,
+    controlRoot,
+    verifyRelease: qualifiedVerifier,
+    preparedReleasePath,
+    qualificationPath,
+  });
+  assert.equal(qualifiedPlan.applyEligible, true);
+  assert.equal(qualifiedPlan.preparedReleaseId, preparedReleaseId);
+  let qualifiedApplyError;
+  try {
+    applyDeployPlan(qualifiedPlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: qualifiedPlan.confirmation,
+      nowMs: 10_001,
+      releaseDirectory: qualifiedReleaseDirectory,
+      preparedReleasePath,
+      qualificationPath,
+      verifyRelease: qualifiedVerifier,
+      controlRoot,
+      clock: () => lifecycleClock++,
+    });
+  } catch (error) {
+    qualifiedApplyError = error;
+  }
+  assert.equal(qualifiedApplyError?.code, 'SNAPBACK_DEPLOY_REMOTE_EVIDENCE_REQUIRED');
+  assert.equal(qualifiedApplyError?.diagnostic?.details?.outcome, 'rolledBack');
+  assert.equal(inspectTarget(qualifiedTarget.targetId, { controlRoot, operationId: 'qualified-after' }).observation.activeReleaseId, null);
+  const qualifiedCurrentVerifier = () => ({
+    ...qualifiedBaseVerification,
+    releaseId: secondReleaseId,
+    activationEligible: true,
+  });
+  const qualifiedCurrentPlan = retainHarnessPlan(qualifiedTarget, 'qualified-current-op', qualifiedCurrentVerifier);
+  const qualifiedCurrentReceipt = __deploymentTest.applyHarness(qualifiedCurrentPlan.planId, {
+    targetId: qualifiedTarget.targetId,
+    confirmation: qualifiedCurrentPlan.confirmation,
+    nowMs: 10_010,
+    releaseDirectory: qualifiedReleaseDirectory,
+    verifyRelease: qualifiedCurrentVerifier,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(qualifiedCurrentReceipt.releaseId, secondReleaseId);
+  const rollbackPlan = __deploymentTest.createRollbackPlanHarness({
+    targetId: qualifiedTarget.targetId,
+    destinationReleaseDirectory: qualifiedReleaseDirectory,
+    preparedReleasePath,
+    qualificationPath,
+    verifyRelease: qualifiedVerifier,
+    reason: 'code-only rollback drill',
+    operationId: 'explicit-rollback-op',
+    nowMs: 10_020,
+    controlRoot,
+  });
+  assert.equal(rollbackPlan.applyEligible, true);
+  assert.equal(rollbackPlan.observedActiveReleaseId, secondReleaseId);
+  assert.equal(rollbackPlan.destinationReleaseId, release.releaseId);
+  assert.throws(
+    () => __deploymentTest.applyRollbackPlanHarness(rollbackPlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: 'wrong',
+      nowMs: 10_021,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_MAINTENANCE_CONFIRMATION_REQUIRED',
+  );
+  const rollbackReceipt = __deploymentTest.applyRollbackPlanHarness(rollbackPlan.planId, {
+    targetId: qualifiedTarget.targetId,
+    confirmation: rollbackPlan.confirmation,
+    nowMs: 10_021,
+    destinationReleaseDirectory: qualifiedReleaseDirectory,
+    preparedReleasePath,
+    qualificationPath,
+    verifyRelease: qualifiedVerifier,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(rollbackReceipt.outcome, 'rolledBack');
+  assert.equal(rollbackReceipt.releaseIdBefore, secondReleaseId);
+  assert.equal(rollbackReceipt.releaseIdAfter, release.releaseId);
+  assert.equal(rollbackReceipt.remoteEvidence, false);
+  assert.ok(rollbackReceipt.gaps.some((gap) => gap.id === 'control-plane.remote-evidence'));
+  assert.equal(
+    statSync(join(controlRoot, 'maintenance-receipts', `${rollbackReceipt.receiptId.slice('sha256:'.length)}.json`)).mode & 0o777,
+    0o600,
+  );
+  const replacementSentinel = `sha256:${'d'.repeat(64)}`;
+  const restorePlan = __deploymentTest.createRestorePlanHarness({
+    sourceTargetId: lifecycleTarget.targetId,
+    destinationTargetId: qualifiedTarget.targetId,
+    backupId: secondLifecycleReceipt.backup.backupId,
+    reason: 'isolated destructive restore drill',
+    operationId: 'restore-op',
+    replacementReleaseId: release.releaseId,
+    destinationSentinelSha256: replacementSentinel,
+    nowMs: 10_030,
+    controlRoot,
+  });
+  assert.equal(restorePlan.applyEligible, true);
+  assert.equal(restorePlan.observedActiveReleaseId, release.releaseId);
+  assert.throws(
+    () => __deploymentTest.applyRestorePlanHarness(restorePlan.planId, {
+      targetId: qualifiedTarget.targetId,
+      confirmation: 'wrong',
+      nowMs: 10_031,
+      controlRoot,
+    }),
+    (error) => error.code === 'SNAPBACK_MAINTENANCE_CONFIRMATION_REQUIRED',
+  );
+  const restoredPaused = __deploymentTest.applyRestorePlanHarness(restorePlan.planId, {
+    targetId: qualifiedTarget.targetId,
+    confirmation: restorePlan.confirmation,
+    nowMs: 10_031,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(restoredPaused.outcome, 'restoredPaused');
+  assert.equal(restoredPaused.restore.effectsFenced, true);
+  assert.equal(restoredPaused.restore.externalEffectsDisabled, true);
+  assert.equal(restoredPaused.restore.activated, false);
+  assert.equal(
+    verifyRestoreReceipt(restoredPaused.receiptId, { targetId: qualifiedTarget.targetId, controlRoot }).activated,
+    false,
+  );
+  assert.equal(
+    inspectTarget(qualifiedTarget.targetId, { controlRoot, operationId: 'restore-paused-inspect' }).observation.state,
+    'inactive',
+  );
+  const restoreActivationPlan = __deploymentTest.createRestoreActivationPlanHarness({
+    restoreReceiptId: restoredPaused.receiptId,
+    targetId: qualifiedTarget.targetId,
+    reason: 'activate verified restored destination',
+    operationId: 'restore-activate-op',
+    releaseDirectory: qualifiedReleaseDirectory,
+    preparedReleasePath,
+    qualificationPath,
+    verifyRelease: qualifiedVerifier,
+    nowMs: 10_040,
+    controlRoot,
+  });
+  assert.equal(restoreActivationPlan.applyEligible, true);
+  const restoredActivated = __deploymentTest.applyRestoreActivationPlanHarness(restoreActivationPlan.planId, {
+    targetId: qualifiedTarget.targetId,
+    confirmation: restoreActivationPlan.confirmation,
+    releaseDirectory: qualifiedReleaseDirectory,
+    preparedReleasePath,
+    qualificationPath,
+    verifyRelease: qualifiedVerifier,
+    nowMs: 10_041,
+    controlRoot,
+    clock: () => lifecycleClock++,
+  });
+  assert.equal(restoredActivated.outcome, 'restoreActivated');
+  assert.equal(restoredActivated.restore.effectsFenced, false);
+  assert.equal(restoredActivated.restore.externalEffectsDisabled, false);
+  assert.equal(restoredActivated.restore.activated, true);
+  assert.equal(restoredActivated.releaseIdAfter, release.releaseId);
+  assert.equal(
+    verifyRestoreReceipt(restoredActivated.receiptId, { targetId: qualifiedTarget.targetId, controlRoot }).activated,
+    true,
+  );
+  assert.equal(
+    inspectTarget(qualifiedTarget.targetId, { controlRoot, operationId: 'restore-active-inspect' }).observation.activeReleaseId,
+    release.releaseId,
+  );
+  const auditedEventTypes = new Set(
+    readdirSync(join(controlRoot, 'audit-events'))
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => JSON.parse(readFileSync(join(controlRoot, 'audit-events', name), 'utf8')).eventType),
+  );
+  for (const eventType of [
+    'deployApply',
+    'backupCreate',
+    'codeOnlyRollback',
+    'destructiveRestore',
+    'restoreActivation',
+    'controlLogsRead',
+    'adminInspect',
+    'backupList',
+    'backupVerify',
+    'restoreVerify',
+  ]) {
+    assert.equal(auditedEventTypes.has(eventType), true, `missing audit coverage for ${eventType}`);
+  }
+  const failureTarget = {
+    ...targetDescriptor,
+    targetId: 'target-failure',
+    environmentId: 'failure-preview',
+    deploymentId: 'failure-deployment',
+    databaseId: 'failure-database',
+    streamIncarnation: 'failure-stream',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://failure.example.invalid' },
+  };
+  const failurePlan = retainHarnessPlan(failureTarget, 'failure-op');
+  let rollbackError;
+  try {
+    __deploymentTest.applyHarness(failurePlan.planId, {
+      targetId: failureTarget.targetId,
+      confirmation: failurePlan.confirmation,
+      nowMs: 10_001,
+      releaseDirectory: release.releaseDirectory,
+      verifyRelease: eligibleVerifier,
+      controlRoot,
+      clock: () => lifecycleClock++,
+    });
+  } catch (error) {
+    rollbackError = error;
+  }
+  assert.equal(rollbackError?.code, 'SNAPBACK_ADAPTER_REJECTED');
+  assert.equal(rollbackError?.diagnostic?.details?.outcome, 'rolledBack');
+  const rollbackOnFailureReceiptId = rollbackError.diagnostic.details.receiptId;
+  const rollbackOnFailureReceipt = JSON.parse(readFileSync(join(controlRoot, 'receipts', `${rollbackOnFailureReceiptId.slice('sha256:'.length)}.json`), 'utf8'));
+  assert.equal(rollbackOnFailureReceipt.outcome, 'rolledBack');
+  assert.ok(rollbackOnFailureReceipt.steps.some((step) => step.operation === 'rollback' && step.state === 'rolledBack'));
+  assert.equal(inspectTarget(failureTarget.targetId, { controlRoot, operationId: 'failure-after' }).observation.activeReleaseId, null);
+  assert.throws(
+    () => validateTargetDescriptor({ ...targetDescriptor, apiToken: 'must-not-fit' }),
+    (error) => error.code === 'SNAPBACK_TARGET_DESCRIPTOR_INVALID',
+  );
+  const mismatchTarget = {
+    ...targetDescriptor,
+    targetId: 'target-mismatch',
+    environmentId: 'preview-mismatch',
+    deploymentId: 'deployment-mismatch',
+    databaseId: 'database-mismatch',
+    streamIncarnation: 'stream-mismatch',
+    adapter: { ...targetDescriptor.adapter, publicOrigin: 'https://mismatch.example.invalid' },
+  };
+  addTarget(mismatchTarget, { controlRoot });
+  assert.throws(
+    () => inspectTarget('target-mismatch', { controlRoot, operationId: 'mismatch-op' }),
+    (error) => error.code === 'SNAPBACK_TARGET_IDENTITY_MISMATCH',
+  );
+  writeFileSync(adapterDriver, `${readFileSync(adapterDriver, 'utf8')}\n// tampered\n`);
+  assert.throws(
+    () => showTarget('target-preview-1', { controlRoot }),
+    (error) => error.code === 'SNAPBACK_ADAPTER_DRIVER_TAMPERED',
+  );
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: join(project, 'snapback', 'release-output'),
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_PATH_OVERLAP',
+  );
+
+  const schemaSource = join(project, 'snapback', 'schema.mjs');
+  writeFileSync(schemaSource, `${readFileSync(schemaSource, 'utf8')}\n// dirty preview proof\n`);
+  await assert.rejects(
+    buildRelease({ backendDirectory: join(project, 'snapback'), outputDirectory: releaseOutput }),
+    (error) => error.code === 'SNAPBACK_DEPLOY_DIRTY_SOURCE',
+  );
+  const dirtyRelease = await buildRelease({
+    backendDirectory: join(project, 'snapback'),
+    outputDirectory: releaseOutput,
+    allowDirty: true,
+  });
+  assert.equal(dirtyRelease.sourceDirty, true);
+  assert.notEqual(dirtyRelease.releaseId, release.releaseId);
+  const dirtyManifestPath = join(dirtyRelease.releaseDirectory, 'release.manifest.json');
+  const dirtyManifest = JSON.parse(readFileSync(dirtyManifestPath, 'utf8'));
+  dirtyManifest.source.unexpected = true;
+  chmodSync(dirtyManifestPath, 0o644);
+  writeFileSync(dirtyManifestPath, `${JSON.stringify(dirtyManifest)}\n`);
+  assert.throws(
+    () => verifyRelease(dirtyRelease.releaseDirectory),
+    (error) => error.code === 'SNAPBACK_RELEASE_MANIFEST_INVALID',
+  );
+
+  const unsafeWeb = join(project, 'dist-web');
+  mkdirSync(unsafeWeb);
+  writeFileSync(join(unsafeWeb, '.env'), 'NPM_TOKEN=must-never-ship\n');
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: releaseOutput,
+      webDirectory: unsafeWeb,
+      allowDirty: true,
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_FORBIDDEN_FILE',
+  );
+
+  const retainedManifest = JSON.parse(readFileSync(join(release.releaseDirectory, 'release.manifest.json'), 'utf8'));
+  const tampered = join(release.releaseDirectory, ...retainedManifest.components[0].path.split('/'));
+  chmodSync(tampered, 0o644);
+  writeFileSync(tampered, 'tampered');
+  assert.throws(
+    () => verifyRelease(release.releaseDirectory),
+    (error) => error.code === 'SNAPBACK_RELEASE_ARTIFACT_TAMPERED',
+  );
+
   assert.throws(
     () => validateDevTarget({ database: { path: join(root, 'other.sqlite3') } }, {
       readyFile: join(root, 'ready.json'),
       database: join(root, 'expected.sqlite3'),
     }),
     (error) => error.code === 'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
+  );
+
+  const physicalTarget = join(root, 'canonical-target');
+  const aliasedTarget = join(root, 'canonical-alias');
+  mkdirSync(physicalTarget);
+  symlinkSync(physicalTarget, aliasedTarget, 'dir');
+  const physicalDatabase = join(physicalTarget, 'dev.sqlite3');
+  writeFileSync(physicalDatabase, '');
+  assert.equal(
+    validateDevTarget({ database: { path: physicalDatabase } }, {
+      readyFile: join(root, 'canonical.ready.json'),
+      database: join(aliasedTarget, 'dev.sqlite3'),
+    }).database.path,
+    physicalDatabase,
   );
 
   const commandLog = join(root, 'runtime-commands.log');
@@ -135,7 +1494,7 @@ try {
     assert.equal(stopped, 1, 'stdin end must stop the loop');
   }
 
-  console.log('package.test.mjs: doctor, scaffold, offline generation, attach fencing, seed-once reload, and dev control channels pass');
+  console.log('package.test.mjs: doctor, scaffold, pre-provision remote-drill planning, positive qualification/prepared-release production, deploy lifecycle, interruption resume, standalone backup, mandatory audit, code-only rollback, destructive restore/activation, bounded logs, authenticated inspection, backup verification, target fencing, attach fencing, seed-once reload, and dev control channels pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

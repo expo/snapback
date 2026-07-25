@@ -93,6 +93,21 @@ submodules, a missing vendored CLI, missing Node/Bun/Cargo, and dynamic-loader
 configuration. Follow the emitted next checks; do not collapse those states
 into “build failed.”
 
+For an installed application runtime, run the packaged vertical-slice doctor:
+
+```sh
+snapback doctor --json
+```
+
+It emits `snapback.cli-doctor.v2` and succeeds only after
+`SNAPBACK_RUNTIME_LAUNCH_OK`, `SNAPBACK_DOCTOR_BUNDLE_LOAD_OK`,
+`SNAPBACK_DOCTOR_QUERY_OK`, `SNAPBACK_DOCTOR_MUTATION_OK`,
+`SNAPBACK_DOCTOR_LIVE_OK`, and `SNAPBACK_DOCTOR_SHUTDOWN_OK`. The probe uses a
+fresh temporary database and an owned ready descriptor. A path mismatch,
+failed load, malformed query result, non-committing mutation, missing live row,
+shutdown failure, or cleanup failure remains the first structured error and
+cannot be converted into a green file-presence check.
+
 ## Preserve the first useful failure
 
 Acceptance harnesses must fail during setup instead of reporting a vacuous

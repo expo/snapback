@@ -12,6 +12,7 @@
     "hosted-browser.mjs",
     "index.mjs",
     "rqs.mjs",
+    "rqs-preload.mjs",
     "rqs-store.mjs",
     "rqs-store-file.mjs",
     "sender-proof.mjs"
