@@ -8965,6 +8965,7 @@ fn sender_admission_response(
     response
 }
 
+#[allow(clippy::too_many_arguments)] // Keep every throttle dimension explicit at the fail-closed charge boundary.
 async fn charge_hosted_sender_attempt(
     runtime: &AppState,
     throttle: crate::auth::deployment::HostedAuthenticationThrottle,
@@ -9078,6 +9079,7 @@ async fn charge_hosted_body_auth_attempt(
 /// @ref LLP 0077#http-binding — canonical target authority comes only from
 /// the provider-authenticated hosted target, and the SQLite replay/nonce cut
 /// completes before any body poll.
+#[allow(clippy::too_many_arguments)] // Admission inputs stay explicit until verification has produced a binding.
 async fn admit_hosted_sender_request(
     spec: RouteSpec,
     effective: EffectiveRoutePolicy,

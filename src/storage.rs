@@ -11291,12 +11291,11 @@ mod guarded_commit_tests {
                     quote_ident(physical).unwrap()
                 ))
                 .unwrap();
-            let columns = statement
+            statement
                 .query_map([], |row| row.get::<_, String>(2))
                 .unwrap()
                 .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            columns
+                .unwrap()
         };
         assert_eq!(
             index_columns(&db, "items_by_rank"),

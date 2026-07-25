@@ -395,16 +395,9 @@ impl SessionBearer {
         Self::parse(input).or_else(|_| Self::parse_sender_v2(input))
     }
 
+    #[cfg(test)]
     pub(crate) fn generate_sender_v2(random: &dyn RandomSource) -> Result<Self, CryptoError> {
         mint_bearer(random, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
-    }
-
-    pub(crate) fn into_sender_v2(&self) -> Result<Self, CryptoError> {
-        let body = self
-            .expose_secret()
-            .strip_prefix(SESSION_PREFIX)
-            .ok_or(CryptoError::InvalidBearer)?;
-        Self::parse_sender_v2(&format!("{SENDER_SESSION_PREFIX}{body}"))
     }
 
     pub(crate) fn expose_secret(&self) -> &str {
