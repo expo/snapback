@@ -688,6 +688,25 @@ limit, so it is an ordering/attack-surface defect rather than an unbounded one,
 and it is recorded as an open LLP 0077 ledger defect rather than fixed in this
 lane — the admission ordering is delicate enough to deserve its own change.
 
+### 8.3 Served-origin rerun blocked by the recorded platform limit
+
+The matrix run in §8.2 was against a *local* hosted origin composed identically
+to the deployed one. The served-origin rerun (which would additionally exercise
+the real in-container terminator and the platform edge) was attempted and is
+**blocked by the exact no-volume risk §8.1 recorded**: the redeploy carrying the
+effective-source fix wiped Caddy's certificate storage, and re-issuance now
+fails against Let's Encrypt's duplicate-certificate rate limit ("could not get
+certificate from issuer"). The origin itself is healthy — it listens on
+`127.0.0.1:4287`, sessions is active, and the loopback path works — but the
+public HTTPS leg has no certificate until the weekly limit clears.
+
+This blocks the served rerun; it does **not** change the verdict. D-1 is a
+genuine defect, so `hostedAuthCapable` cannot be claimed on either origin. The
+served rerun is a strengthening of already-red evidence, not the thing standing
+between the program and a positive claim. Reproducing it needs either the
+rate-limit window to clear or a persistent volume for Caddy's cert storage (the
+production answer §8.1 already names).
+
 **Not run in the first run.** The LLP 0077 matrix. The deployment's active auth mode is `dev`;
 sessions mode is selected by the application schema and requires a
 `--startup-artifacts` carrier plus a two-boot staging transition that this

@@ -89,6 +89,18 @@ defect, not an unbounded one. Found by the served-origin matrix; left
 deliberately RED in the instrument rather than worked around, and not fixed in
 the adapter lane because the admission ordering deserves its own change.
 
+**Matrix executed 2026-07-25 (41/42, gate stays open on merit).** With
+sessions staged under hosted admission, the full LLP 0077 matrix
+(`hosted-sender-matrix.mjs`: issuance, protected requests, nonce protocol +
+anti-oracle, replay, grant matrix over both carriers, WebSocket `sender_nonce`
+release, ten refusal axes) ran against a hosted origin and scored **41/42**.
+The single red is defect D-1 above, left deliberately failing. Receipt:
+`demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.json`.
+The run was against a local hosted origin; the served-origin rerun is blocked
+by the Let's Encrypt duplicate-certificate limit (no-volume cert loss on
+redeploy, LLP 0098 §8.1/§8.3) and cannot change the verdict, because D-1 is a
+real defect. `hostedAuthCapable` is NOT claimed.
+
 This does **not** close the capability gate. `hostedAuthCapable` still
 requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
 against a **real served public origin** under that attestation, which needs
