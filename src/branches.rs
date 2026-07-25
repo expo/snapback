@@ -1,0 +1,302 @@
+//! Ephemeral data branches — registry & lifecycle (LLP 0097, phase P0.1).
+//!
+//! @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — a branch
+//! is a short-lived, writable child within one logical app's trust boundary.
+//! @ref LLP 0097#design — a full branch is a materialized base at version V + an
+//! operation/command log + a copy-on-write overlay; this module implements only
+//! the additive **registry + lifecycle** slice (P0.1). It does not touch the
+//! canonical change journal or version stream — those are later increments
+//! (P0.2 child stream, P0.3 materialized base, P0.4 COW reads/writes).
+
+use rusqlite::{Connection, OptionalExtension, Row, params};
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+
+/// Stable identity of an ephemeral branch within one logical app.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BranchId(pub String);
+
+/// Identity of a branch's typed ephemeral **child version-stream**.
+///
+/// @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — the
+/// normative amendment to LLP 0007/0018: a logical app owns one canonical stream
+/// plus zero-or-more typed ephemeral child streams. A child stream's versions are
+/// never numerically comparable to the canonical stream; `base_version` is a fork
+/// pointer, not a shared coordinate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChildStreamId(pub String);
+
+/// Lifecycle state of a branch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BranchState {
+    /// Live: divergent reads/writes resolve against the branch overlay.
+    Active,
+    /// Marked for teardown; admits no new work. Cleared by GC (LLP 0097 §4).
+    TearingDown,
+}
+
+impl BranchState {
+    fn as_str(self) -> &'static str {
+        match self {
+            BranchState::Active => "active",
+            BranchState::TearingDown => "tearing_down",
+        }
+    }
+
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "active" => Ok(BranchState::Active),
+            "tearing_down" => Ok(BranchState::TearingDown),
+            other => Err(invalid(format!("unknown branch state {other:?}"))),
+        }
+    }
+}
+
+/// A registered ephemeral branch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BranchRecord {
+    pub branch_id: BranchId,
+    pub child_stream_id: ChildStreamId,
+    /// Canonical version the branch forked from — its compare-and-swap base for
+    /// promotion.
+    ///
+    /// @ref LLP 0097#5-promotion-command-replay-staged-effect-settlement — v1
+    /// promotion requires the canonical head to equal `base_version`.
+    pub base_version: u64,
+    /// Canonical data-version-stream identity the branch forked from.
+    pub base_stream: String,
+    pub state: BranchState,
+    /// Server-clock creation time (caller-supplied; the store never reads a wall
+    /// clock, per Snapback's injected-clock discipline).
+    pub created_at_ms: i64,
+    /// Optional TTL for ephemeral teardown (LLP 0097 §4). `None` = no TTL.
+    pub ttl_ms: Option<i64>,
+}
+
+fn invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::new(Diagnostic::error(
+        "SNAPBACK_BRANCH_INVALID",
+        "storage",
+        message,
+    ))
+}
+
+/// A row read straight from SQLite, before the fallible `state` parse.
+struct RawRow {
+    branch_id: String,
+    child_stream_id: String,
+    base_version: i64,
+    base_stream: String,
+    state: String,
+    created_at_ms: i64,
+    ttl_ms: Option<i64>,
+}
+
+fn read_raw(row: &Row<'_>) -> rusqlite::Result<RawRow> {
+    Ok(RawRow {
+        branch_id: row.get(0)?,
+        child_stream_id: row.get(1)?,
+        base_version: row.get(2)?,
+        base_stream: row.get(3)?,
+        state: row.get(4)?,
+        created_at_ms: row.get(5)?,
+        ttl_ms: row.get(6)?,
+    })
+}
+
+impl RawRow {
+    fn into_record(self) -> SnapbackResult<BranchRecord> {
+        if self.base_version < 0 {
+            return Err(invalid("branch base_version is negative"));
+        }
+        Ok(BranchRecord {
+            branch_id: BranchId(self.branch_id),
+            child_stream_id: ChildStreamId(self.child_stream_id),
+            base_version: self.base_version as u64,
+            base_stream: self.base_stream,
+            state: BranchState::parse(&self.state)?,
+            created_at_ms: self.created_at_ms,
+            ttl_ms: self.ttl_ms,
+        })
+    }
+}
+
+const SELECT_COLUMNS: &str =
+    "branch_id, child_stream_id, base_version, base_stream, state, created_at_ms, ttl_ms";
+
+/// Ensure the branch registry table exists. Idempotent and additive — it never
+/// touches the canonical journal or version stream.
+pub fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_branches (
+           branch_id       TEXT PRIMARY KEY,
+           child_stream_id TEXT NOT NULL UNIQUE,
+           base_version    INTEGER NOT NULL CHECK(base_version >= 0),
+           base_stream     TEXT NOT NULL,
+           state           TEXT NOT NULL,
+           created_at_ms   INTEGER NOT NULL,
+           ttl_ms          INTEGER
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_branches_by_state
+           ON _snapback_branches(state);",
+    )?;
+    Ok(())
+}
+
+/// Register a new ephemeral branch forked from `(base_stream, base_version)`.
+///
+/// Fails closed if `branch_id` or `child_stream_id` already exists (both are
+/// unique) — a branch identity is never silently reused.
+#[allow(clippy::too_many_arguments)]
+pub fn create_branch(
+    conn: &Connection,
+    branch_id: &BranchId,
+    child_stream_id: &ChildStreamId,
+    base_stream: &str,
+    base_version: u64,
+    created_at_ms: i64,
+    ttl_ms: Option<i64>,
+) -> SnapbackResult<BranchRecord> {
+    ensure_branch_registry(conn)?;
+    let record = BranchRecord {
+        branch_id: branch_id.clone(),
+        child_stream_id: child_stream_id.clone(),
+        base_version,
+        base_stream: base_stream.to_string(),
+        state: BranchState::Active,
+        created_at_ms,
+        ttl_ms,
+    };
+    conn.execute(
+        "INSERT INTO _snapback_branches
+           (branch_id, child_stream_id, base_version, base_stream, state, created_at_ms, ttl_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            record.branch_id.0,
+            record.child_stream_id.0,
+            record.base_version as i64,
+            record.base_stream,
+            record.state.as_str(),
+            record.created_at_ms,
+            record.ttl_ms,
+        ],
+    )?;
+    Ok(record)
+}
+
+/// Look up a branch by id.
+pub fn get_branch(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Option<BranchRecord>> {
+    ensure_branch_registry(conn)?;
+    let raw = conn
+        .query_row(
+            &format!("SELECT {SELECT_COLUMNS} FROM _snapback_branches WHERE branch_id = ?1"),
+            params![branch_id.0],
+            read_raw,
+        )
+        .optional()?;
+    raw.map(RawRow::into_record).transpose()
+}
+
+/// List every registered branch, newest first.
+pub fn list_branches(conn: &Connection) -> SnapbackResult<Vec<BranchRecord>> {
+    ensure_branch_registry(conn)?;
+    let mut statement = conn.prepare(&format!(
+        "SELECT {SELECT_COLUMNS} FROM _snapback_branches ORDER BY created_at_ms DESC, branch_id"
+    ))?;
+    let raws = statement
+        .query_map([], read_raw)?
+        .collect::<rusqlite::Result<Vec<RawRow>>>()?;
+    raws.into_iter().map(RawRow::into_record).collect()
+}
+
+/// Mark a branch for teardown. Returns whether the branch existed.
+pub fn mark_teardown(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<bool> {
+    ensure_branch_registry(conn)?;
+    let updated = conn.execute(
+        "UPDATE _snapback_branches SET state = ?2 WHERE branch_id = ?1",
+        params![branch_id.0, BranchState::TearingDown.as_str()],
+    )?;
+    Ok(updated > 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn conn() -> Connection {
+        Connection::open_in_memory().expect("in-memory sqlite")
+    }
+
+    fn ids(n: &str) -> (BranchId, ChildStreamId) {
+        (BranchId(format!("branch-{n}")), ChildStreamId(format!("cs-{n}")))
+    }
+
+    #[test]
+    fn create_then_get_round_trips() {
+        let c = conn();
+        let (bid, cs) = ids("a");
+        let created = create_branch(&c, &bid, &cs, "canonical", 42, 1_000, Some(60_000))
+            .expect("create");
+        assert_eq!(created.base_version, 42);
+        assert_eq!(created.state, BranchState::Active);
+
+        let fetched = get_branch(&c, &bid).expect("get").expect("present");
+        assert_eq!(fetched, created);
+        assert_eq!(fetched.child_stream_id, cs);
+        assert_eq!(fetched.base_stream, "canonical");
+        assert_eq!(fetched.ttl_ms, Some(60_000));
+    }
+
+    #[test]
+    fn get_missing_is_none() {
+        let c = conn();
+        assert!(get_branch(&c, &BranchId("nope".into())).expect("get").is_none());
+    }
+
+    #[test]
+    fn duplicate_branch_id_fails_closed() {
+        let c = conn();
+        let (bid, cs) = ids("dup");
+        create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("first");
+        let again = create_branch(&c, &bid, &ChildStreamId("cs-other".into()), "canonical", 1, 2, None);
+        assert!(again.is_err(), "reusing a branch id must fail closed");
+    }
+
+    #[test]
+    fn duplicate_child_stream_fails_closed() {
+        let c = conn();
+        let (bid, cs) = ids("x");
+        create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("first");
+        let again = create_branch(&c, &BranchId("branch-y".into()), &cs, "canonical", 1, 2, None);
+        assert!(again.is_err(), "reusing a child stream id must fail closed");
+    }
+
+    #[test]
+    fn list_is_newest_first() {
+        let c = conn();
+        let (b1, s1) = ids("1");
+        let (b2, s2) = ids("2");
+        create_branch(&c, &b1, &s1, "canonical", 1, 100, None).expect("b1");
+        create_branch(&c, &b2, &s2, "canonical", 2, 200, None).expect("b2");
+        let listed = list_branches(&c).expect("list");
+        assert_eq!(listed.len(), 2);
+        assert_eq!(listed[0].branch_id, b2, "newest (created_at_ms 200) first");
+        assert_eq!(listed[1].branch_id, b1);
+    }
+
+    #[test]
+    fn mark_teardown_transitions_state() {
+        let c = conn();
+        let (bid, cs) = ids("t");
+        create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("create");
+        assert!(mark_teardown(&c, &bid).expect("teardown"));
+        let after = get_branch(&c, &bid).expect("get").expect("present");
+        assert_eq!(after.state, BranchState::TearingDown);
+        // Idempotent-ish: marking a missing branch reports false.
+        assert!(!mark_teardown(&c, &BranchId("ghost".into())).expect("teardown missing"));
+    }
+}
