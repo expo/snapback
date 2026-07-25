@@ -33806,8 +33806,10 @@ globalThis.__snapbackHandlers = {
                     source: r#"globalThis.__snapbackHandlers = {
   async hungAttempt(ctx, args) {
     const started = await ctx.streamAttempt.start(args.clientKey);
-    const begun = Date.now();
-    while (Date.now() - begun < 2000) {}
+    if (!started.terminal) {
+      const begun = Date.now();
+      while (Date.now() - begun < 30000) {}
+    }
     return { started: started };
   }
 };"#
@@ -33849,7 +33851,7 @@ globalThis.__snapbackHandlers = {
             Arc::new(Semaphore::new(1)),
             1,
             counters,
-            150,
+            5_000,
         )
         .await
         .expect_err("the watchdog abandons the hung action");
