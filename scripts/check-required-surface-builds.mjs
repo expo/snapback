@@ -11,7 +11,10 @@
 // production-builds EVERY required web surface on every Exact pin bump, so this
 // class cannot recur silently. Every surface now pins Exact through its own
 // committed bun.lock; this gate runs on every push/PR, which covers every
-// package-version bump.
+// package-version bump. These surfaces also bundle Snapback source through
+// demos/_kit, so the gate first performs one frozen root-workspace install;
+// that makes package-to-package `workspace:*` edges available in a clean
+// checkout without weakening each surface's independent Exact registry lock.
 //
 // Surface set is DERIVED from the demo manifests (demos/*/demo.snapback.json),
 // not from whichever package.json files happen to survive in the checkout: a
@@ -461,6 +464,25 @@ export async function ensureRegistryInstall(surface, {
   return verifyInstalledExactContract(surface.surfaceDir);
 }
 
+export async function ensureWorkspaceInstall({
+  runInstall = () => runBoundedProcess(
+    'bun',
+    ['install', '--frozen-lockfile', '--cwd', ROOT],
+    { cwd: ROOT, timeoutMs: INSTALL_TIMEOUT_MS },
+  ),
+} = {}) {
+  log('$ bun install --frozen-lockfile --cwd .');
+  const result = await runInstall();
+  if (result.ok) return result;
+  const diagnostics = result.output?.trim();
+  return {
+    ...result,
+    reason:
+      `root workspace frozen install failed: ${result.reason}`
+      + (diagnostics ? `\noutput tail:\n${diagnostics}` : ''),
+  };
+}
+
 async function main() {
   const surfaces = collectRequiredWebSurfaces().map(classifyRequiredWebSurface);
   if (surfaces.length === 0) {
@@ -485,6 +507,9 @@ async function main() {
     if (error) fail(error);
   }
   if (LIST_ONLY) return;
+
+  const workspaceInstall = await ensureWorkspaceInstall();
+  if (!workspaceInstall.ok) fail(workspaceInstall.reason);
 
   let built = 0;
   for (const surface of surfaces) {

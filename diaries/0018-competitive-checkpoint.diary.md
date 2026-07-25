@@ -585,7 +585,9 @@ the complete hosted drill and public package path are operational.
 - The first draft-PR surface build exposed an important source-versus-release
   distinction: repository manifests still need `workspace:*` so demos can
   bundle package source in a clean checkout, while publication staging rewrites
-  those edges to exact release versions inside the immutable tarballs.
+  those edges to exact release versions inside the immutable tarballs. The
+  shared required-surface gate now performs one frozen root-workspace install
+  before applying each surface's independent frozen Exact registry lock.
 - The cold-install proof then found that the upstream effect-ceiling module was
   imported by codegen but absent from its explicit package file closure.
   Adding it to `files` made the package match the production import graph.
