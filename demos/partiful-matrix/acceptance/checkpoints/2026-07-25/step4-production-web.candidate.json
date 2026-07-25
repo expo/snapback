@@ -1,0 +1,942 @@
+{
+  "schemaVersion": "partitime.step4-production-web.v2",
+  "claimId": "STEP4.PRODUCTION_WEB",
+  "auditCompleted": true,
+  "ok": false,
+  "claimSatisfied": false,
+  "outcome": "red",
+  "skipPolicy": "forbidden",
+  "skipped": 0,
+  "recordedAt": "2026-07-25T14:29:02.764Z",
+  "repository": {
+    "snapbackRevision": "5116c269b174faa6713d91ed2c1350ae0ffb0527",
+    "exactRevision": "2d687583744b3ffa0bcad71b0a695b05e60b92cd"
+  },
+  "inputs": {
+    "protocol": {
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
+    },
+    "step0WebReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+      "sha256": "553081fc8671fd668f0bda221705e1dafbf2c0e8b3d113925215f9be6fc6b543"
+    },
+    "productionBrowserReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+      "sha256": "3b0c1216c810f12d7e5468691197424f385f61aa08ba950d073d93ce907b89f4"
+    },
+    "citizenshipReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
+      "sha256": "08416ecd7b49228a57f5c19e045fc83db994e4c2f68dc821044147fa6ab5fde5"
+    },
+    "staticExport": {
+      "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
+      "sha256": "c6e20225511865dd0c7ee97cb88ea0e947c0b492b7276e0a74fb2dd43773bfe7"
+    },
+    "exactVerifyRegistry": {
+      "path": "../../../../tmp/llp0063-snap-checkpoint.VBke06/exact/exact-verify.json",
+      "sha256": "e3d16903b79876b5b2e933a6c6b6a75bb3472e769de00b8197ec71d312186e22"
+    }
+  },
+  "summary": {
+    "passed": 11,
+    "red": 1,
+    "nonclaims": 0,
+    "total": 12
+  },
+  "requirements": [
+    {
+      "id": "production-build-artifact",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_PRODUCTION_BUILD_PASSED",
+      "evidence": {
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+          "sha256": "3b0c1216c810f12d7e5468691197424f385f61aa08ba950d073d93ce907b89f4"
+        },
+        "result": {
+          "export": {
+            "schemaVersion": "partitime.contract-static-export.v1",
+            "mode": "snapback",
+            "basePath": "/partitime/",
+            "canonicalOrigin": "https://partitime.example",
+            "nowMs": 1784548800000,
+            "renderer": "@exact/devtools/contract-static-html",
+            "pages": [
+              {
+                "routeId": "/",
+                "path": "index.html",
+                "htmlSha256": "e0610dc20a00bfadfb87a4a5074abf9270821c14c5fbbee5ef1eedac070debd6",
+                "nodes": 79
+              },
+              {
+                "routeId": "/events/event_sunset/",
+                "path": "events/event_sunset/index.html",
+                "htmlSha256": "5f71deead467d06b9eebdf53a05ca3502f231bea5f438240cbc5339b26df4909",
+                "nodes": 73
+              },
+              {
+                "routeId": "/events/event_swim/",
+                "path": "events/event_swim/index.html",
+                "htmlSha256": "df3de14abd4038c9a65d81638b26e80b7edd231fef25aa9a46123b5bbce16764",
+                "nodes": 71
+              },
+              {
+                "routeId": "/events/event_ceramics/",
+                "path": "events/event_ceramics/index.html",
+                "htmlSha256": "cf79ffd90d64cfd221211ad7f931f54207ed1fcdc9745323ab5e1524aeb0ca28",
+                "nodes": 62
+              }
+            ]
+          },
+          "javascript": {
+            "bytes": 380339,
+            "sha256": "fc0a2e76602eb12a01a4b84db914dd6db7a1096b8fd24a809652d043a02a01a7"
+          }
+        },
+        "staticExport": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
+          "sha256": "c6e20225511865dd0c7ee97cb88ea0e947c0b492b7276e0a74fb2dd43773bfe7"
+        },
+        "pages": [
+          {
+            "routeId": "/",
+            "path": "index.html",
+            "htmlSha256": "5039f8bb474ce7419dba87b88ca4c99232ee264d913a4195b04198318a185eee",
+            "nodes": 79
+          },
+          {
+            "routeId": "/events/event_sunset/",
+            "path": "events/event_sunset/index.html",
+            "htmlSha256": "e535852971ee59775594eaa60719651c5eb266fb2c5f693e97f3076f3843b3df",
+            "nodes": 73
+          },
+          {
+            "routeId": "/events/event_swim/",
+            "path": "events/event_swim/index.html",
+            "htmlSha256": "1c149fed9d06fec6d7704757d32df1b7a303b10f73461a4211435dcb2dac18fb",
+            "nodes": 71
+          },
+          {
+            "routeId": "/events/event_ceramics/",
+            "path": "events/event_ceramics/index.html",
+            "htmlSha256": "985727e6d92d2070ec4a851ce9ced2d6c38265dd10b7b0ccc9ca8cdcd73b7507",
+            "nodes": 62
+          }
+        ],
+        "javascript": {
+          "assets": [
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-C4K2XXPi.js",
+              "minifiedBytes": 16730,
+              "deterministicGzipBytes": 3953,
+              "sha256": "e54eea5d64879f48a2943916460e59f88367945ef4ea6b893ad4e393160fe257"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DkKU8-QD.js",
+              "minifiedBytes": 380326,
+              "deterministicGzipBytes": 107289,
+              "sha256": "2fea14ba743062975286a63f58bc7182dced8722e00fd50ca7c024303bb21ecb"
+            }
+          ],
+          "minifiedBytes": 397056,
+          "deterministicGzipBytes": 111242
+        }
+      }
+    },
+    {
+      "id": "browser-product-flow",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_BROWSER_FLOW_PASSED",
+      "evidence": {
+        "step0Receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+          "sha256": "553081fc8671fd668f0bda221705e1dafbf2c0e8b3d113925215f9be6fc6b543"
+        },
+        "checks": [
+          "contract × snapback boots its identified cell",
+          "contract × snapback renders the canonical feed",
+          "contract × snapback opens details and observes RSVP",
+          "contract × snapback proves unsolicited push with polling fallback disabled"
+        ]
+      }
+    },
+    {
+      "id": "production-built-artifact-browser-execution",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_DIST_BROWSER_EXECUTION_PASSED",
+      "evidence": {
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+          "sha256": "3b0c1216c810f12d7e5468691197424f385f61aa08ba950d073d93ce907b89f4"
+        },
+        "servedMode": "vite-preview-over-immutable-dist",
+        "checks": [
+          "Contract production build emits immutable route artifacts",
+          "Contract production feed is authoritative with JavaScript disabled",
+          "Contract production event deep link is authoritative with route metadata and JavaScript disabled",
+          "Contract production feed adopts every node without replacement, stale flash, or duplicate subscription",
+          "Contract production event adopts every node with exactly three live query subscriptions",
+          "Contract production assets and deep links honor the non-root base path",
+          "Contract production history traverses feed and event without document reload",
+          "Contract production client metadata tracks the active route",
+          "Contract production hydrated event receives unsolicited Snapback push with polling disabled"
+        ]
+      }
+    },
+    {
+      "id": "browser-history",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HISTORY_PASSED",
+      "evidence": {
+        "before": {
+          "identity": "61cff799-e80f-4832-a29d-69a01bee3249",
+          "navigations": 1
+        },
+        "event": {
+          "pathname": "/partitime/events/event_sunset/",
+          "title": "Sunset Supper Club · Partitime",
+          "identity": "61cff799-e80f-4832-a29d-69a01bee3249",
+          "navigations": 1
+        },
+        "after": {
+          "pathname": "/partitime/",
+          "title": "Partitime · plans worth leaving the chat for",
+          "identity": "61cff799-e80f-4832-a29d-69a01bee3249",
+          "navigations": 1
+        }
+      }
+    },
+    {
+      "id": "deep-links",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_DEEP_LINKS_PASSED",
+      "evidence": {
+        "noJavaScriptEvent": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "basepath": {
+          "pathname": "/partitime/events/event_sunset/",
+          "resources": [
+            "/partitime/assets/index-UyEVcCfe.js",
+            "/partitime/assets/event-Drldh5Kt.js"
+          ],
+          "scripts": [
+            "/partitime/assets/index-UyEVcCfe.js"
+          ]
+        },
+        "eventArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
+          "sha256": "e535852971ee59775594eaa60719651c5eb266fb2c5f693e97f3076f3843b3df"
+        }
+      }
+    },
+    {
+      "id": "ssr-ssg-authority",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_STATIC_AUTHORITY_PASSED",
+      "evidence": {
+        "feed": {
+          "text": "🍊Sat, Aug 1 at 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8 at 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16 at 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →",
+          "title": "Partitime · plans worth leaving the chat for",
+          "canonical": "https://partitime.example/partitime/",
+          "manifest": true,
+          "clientBooted": false
+        },
+        "event": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "feedArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+          "sha256": "5039f8bb474ce7419dba87b88ca4c99232ee264d913a4195b04198318a185eee"
+        },
+        "eventArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
+          "sha256": "e535852971ee59775594eaa60719651c5eb266fb2c5f693e97f3076f3843b3df"
+        }
+      }
+    },
+    {
+      "id": "hydration-without-duplicates-or-stale-flash",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HYDRATION_ADOPTION_PASSED",
+      "evidence": {
+        "feed": {
+          "hydration": {
+            "manifest": {
+              "rootId": 1347682305,
+              "routeId": "/",
+              "serverVerification": {
+                "adoptedNodeCount": 79,
+                "recreatedNodeCount": 0,
+                "hydrationMismatchCount": 0,
+                "adoptionFallbacks": [],
+                "serverHtmlHash": "fnv1a32:092347ba",
+                "deferredMountTasks": 0,
+                "tasksReleasedBeforeAdoption": false,
+                "firstPaintHtmlHash": "fnv1a32:092347ba",
+                "firstPaintByteIdentical": true
+              }
+            },
+            "result": {
+              "rootId": 1347682305,
+              "adoptedNodes": 79,
+              "recreatedNodes": 0,
+              "mismatches": []
+            },
+            "provider": {
+              "seededDeliveries": 1,
+              "underlyingSubscriptions": 1,
+              "bufferedLiveDeliveries": 1,
+              "releasedLiveDeliveries": 1,
+              "hydrationReleased": true
+            },
+            "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "preMountSizeClass": "expanded"
+          },
+          "witness": {
+            "sameRoot": true,
+            "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "rootReplacements": 0,
+            "childListMutations": 7,
+            "result": {
+              "rootId": 1347682305,
+              "adoptedNodes": 79,
+              "recreatedNodes": 0,
+              "mismatches": [],
+              "mountPath": "partitime-static-document"
+            }
+          }
+        },
+        "event": {
+          "hydration": {
+            "manifest": {
+              "rootId": 1347686401,
+              "routeId": "/events/event_sunset/",
+              "serverVerification": {
+                "adoptedNodeCount": 73,
+                "recreatedNodeCount": 0,
+                "hydrationMismatchCount": 0,
+                "adoptionFallbacks": [],
+                "serverHtmlHash": "fnv1a32:67e63e6a",
+                "deferredMountTasks": 0,
+                "tasksReleasedBeforeAdoption": false,
+                "firstPaintHtmlHash": "fnv1a32:67e63e6a",
+                "firstPaintByteIdentical": true
+              }
+            },
+            "result": {
+              "rootId": 1347686401,
+              "adoptedNodes": 77,
+              "recreatedNodes": 0,
+              "mismatches": []
+            },
+            "provider": {
+              "seededDeliveries": 3,
+              "underlyingSubscriptions": 3,
+              "bufferedLiveDeliveries": 3,
+              "releasedLiveDeliveries": 3,
+              "hydrationReleased": true
+            },
+            "adoptedText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "preMountSizeClass": "expanded"
+          },
+          "witness": {
+            "sameRoot": true,
+            "initialText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "finalText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nEve\nMaybe\nGrace\nGoing",
+            "rootReplacements": 0,
+            "result": {
+              "rootId": 1347686401,
+              "adoptedNodes": 77,
+              "recreatedNodes": 0,
+              "mismatches": [],
+              "mountPath": "partitime-static-document"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "document-metadata",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_ROUTE_METADATA_PASSED",
+      "evidence": {
+        "staticEvent": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "clientRoute": {
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "http://127.0.0.1:64479/partitime/events/event_sunset/",
+          "themeColor": "#f4f0e8"
+        }
+      }
+    },
+    {
+      "id": "basepath",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_NON_ROOT_BASEPATH_PASSED",
+      "evidence": {
+        "pathname": "/partitime/events/event_sunset/",
+        "resources": [
+          "/partitime/assets/index-UyEVcCfe.js",
+          "/partitime/assets/event-Drldh5Kt.js"
+        ],
+        "scripts": [
+          "/partitime/assets/index-UyEVcCfe.js"
+        ]
+      }
+    },
+    {
+      "id": "hydrated-push-without-polling",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HYDRATED_PUSH_PASSED",
+      "evidence": {
+        "before": "EveMaybe",
+        "after": "EveGoing",
+        "latencyMs": 7,
+        "pollFallback": "disabled",
+        "evidence": [
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f99a4a1707b92b21e116ce5e99725",
+            "subscriptionId": "sub_019f99a4a1707b92b21e116ce5e99725",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "snapback-online-surface:491f3abc-8337-4a66-9ab7-297351c1ba08",
+              "bindingIds": [
+                "eventDetails"
+              ]
+            },
+            "receivedAtMs": 1784989131121,
+            "queryName": "eventDetails",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
+            "queryName": "eventDetails",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f99a4a1717592b2fc596c7b745391",
+            "subscriptionId": "sub_019f99a4a1717592b2fc596c7b745391",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "snapback-online-surface:491f3abc-8337-4a66-9ab7-297351c1ba08",
+              "bindingIds": [
+                "eventWall"
+              ]
+            },
+            "receivedAtMs": 1784989131121,
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
+            "queryName": "guestList",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f99a4a1717592b2fc5982ff63c83b",
+            "subscriptionId": "sub_019f99a4a1717592b2fc5982ff63c83b",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "snapback-online-surface:491f3abc-8337-4a66-9ab7-297351c1ba08",
+              "bindingIds": [
+                "guestList"
+              ]
+            },
+            "receivedAtMs": 1784989131121,
+            "queryName": "guestList",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-production-web-capabilities-registered",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
+      "evidence": {
+        "registry": {
+          "path": "../../../../tmp/llp0063-snap-checkpoint.VBke06/exact/exact-verify.json",
+          "sha256": "e3d16903b79876b5b2e933a6c6b6a75bb3472e769de00b8197ec71d312186e22"
+        },
+        "checks": [
+          "contract-web-host-csr",
+          "contract-ssg-no-js",
+          "contract-hydration-corpus",
+          "web-citizenship-axe-delta",
+          "web-bundle-budget",
+          "web-citizenship-desktop-chrome",
+          "web-citizenship-ime-forms"
+        ],
+        "missingChecks": []
+      }
+    },
+    {
+      "id": "residual-browser-device-ime-forms-matrix",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_CITIZENSHIP_MATRIX_MISSING_OR_RED",
+      "evidence": {
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
+          "sha256": "08416ecd7b49228a57f5c19e045fc83db994e4c2f68dc821044147fa6ab5fde5"
+        },
+        "issues": [
+          "receipt-not-green"
+        ],
+        "rows": [
+          {
+            "environment": "ios-safari-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-safari",
+            "assertion": "focus-trap-restore",
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Safari WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+                "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
+                "result": "contract × snapback traps and restores focus in desktop safari"
+              }
+            ],
+            "browser": {
+              "name": "Safari",
+              "version": "26.5.2"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "input": "WebDriver key actions"
+            }
+          },
+          {
+            "environment": "desktop-safari",
+            "assertion": "find-on-page",
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Safari run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+                "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
+                "result": "contract × snapback exposes visible content to desktop safari find-on-page"
+              }
+            ],
+            "browser": {
+              "name": "Safari",
+              "version": "26.5.2"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "selection": "Sunset Supper Club",
+              "anchor": "AXButton:View Sunset Supper Club",
+              "nativeFind": {
+                "present": true,
+                "value": "Sunset Supper Club",
+                "status": "missing value, 1 match",
+                "notFound": false
+              },
+              "usableAfterFind": true,
+              "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
+            }
+          },
+          {
+            "environment": "desktop-chrome",
+            "assertion": "focus-trap-restore",
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run trapped focus inside the create-event dialog and restored it to the trigger after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+                "sha256": "a51cef9b10205f63045abef488cf26a97338606d61b118b1b8f753b40a87f6d8",
+                "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
+              }
+            ],
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.130"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          },
+          {
+            "environment": "desktop-chrome",
+            "assertion": "find-on-page",
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run selected visible canonical event text with browser find and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
+                "sha256": "46524d6006204ed9a6d09a85ba5e21c732cc6bc29cf6b022957bb624c479b0e2",
+                "result": "contract × snapback exposes visible content to browser find-on-page"
+              }
+            ],
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.130"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "matched": true,
+              "selection": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "usableAfterFind": true
+            }
+          },
+          {
+            "environment": "desktop-firefox",
+            "assertion": "focus-trap-restore",
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
+                "result": "contract × snapback traps and restores focus in desktop firefox"
+              }
+            ],
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "input": "WebDriver key actions"
+            }
+          },
+          {
+            "environment": "desktop-firefox",
+            "assertion": "find-on-page",
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
+                "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
+              }
+            ],
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "selection": "Sunset Supper Club",
+              "nativeFind": {
+                "hidden": false,
+                "present": true,
+                "status": "",
+                "value": "Sunset Supper Club"
+              },
+              "usableAfterFind": true,
+              "input": "Firefox native FindBar via privileged WebDriver"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "conclusion": "Partitime passes the immutable production-web, hydration, routing, metadata, and push gates; the residual citizenship matrix remains red."
+}
