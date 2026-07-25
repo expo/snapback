@@ -10,6 +10,7 @@ pub mod admin_impersonation;
 pub mod admin_secret_read;
 pub mod auth;
 pub mod bench;
+pub mod branches;
 pub mod bundle;
 pub mod cli;
 pub mod config;
