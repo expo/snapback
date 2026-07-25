@@ -1715,4 +1715,91 @@ mod tests {
         assert!(matches!(log[1], BranchOp::Effect(_)));
         assert!(matches!(log[2], BranchOp::Write(3, _)));
     }
+
+    #[test]
+    fn transitive_effect_dependence_taints_all_later_writes() {
+        // w1 (pre-effect) | effect | w2 | w3 (both post-effect) — transitive
+        // over-approximation makes w2 AND w3 provisional, w1 unconditional.
+        let mut canonical = source_with_head(4);
+        let (bid, cs) = ids("trans");
+        create_branch(&canonical, &bid, &cs, "canonical", 4, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&canonical, None).expect("base");
+        record_overlay_write(&mut base.conn, &bid, &upsert("1", "a"), 1).expect("w1");
+        capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Outbox,
+                scope: EffectScope::HostMediated,
+                target: "q".into(),
+                payload: None,
+                simulated_outcome: Some("id-7".into()),
+            },
+            2,
+        )
+        .expect("effect");
+        record_overlay_write(&mut base.conn, &bid, &upsert("2", "b"), 3).expect("w2");
+        record_overlay_write(&mut base.conn, &bid, &upsert("3", "c"), 4).expect("w3");
+
+        let result = promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            4,
+            AuthorityDecision::Revalidated,
+            apply_widget,
+        )
+        .expect("promote");
+        assert_eq!(result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(
+            result.provisional.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
+            vec![3, 4],
+            "every write after the first effect is transitively provisional"
+        );
+    }
+
+    #[test]
+    fn staged_settlement_is_never_rolled_back_after_initiation() {
+        // Once promoted, a provisional write stays in canonical even if its
+        // effect later settles Rejected — reconciliation resolves status only,
+        // it does not undo the committed canonical row.
+        let mut canonical = source_with_head(1);
+        let (bid, cs) = ids("noroll");
+        create_branch(&canonical, &bid, &cs, "canonical", 1, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&canonical, None).expect("base");
+        capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Payment,
+                scope: EffectScope::HostMediated,
+                target: "charge".into(),
+                payload: None,
+                simulated_outcome: Some("ok".into()),
+            },
+            1,
+        )
+        .expect("effect");
+        record_overlay_write(&mut base.conn, &bid, &upsert("9", "provisional"), 2).expect("w");
+
+        promote(&mut canonical, &base.conn, &bid, 1, AuthorityDecision::Revalidated, apply_widget)
+            .expect("promote");
+        // The provisional write is present in canonical post-promotion.
+        assert_eq!(
+            canonical
+                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r.get::<_, String>(0))
+                .expect("row"),
+            "provisional"
+        );
+        // Effect settles Rejected — status flips, canonical row is NOT undone.
+        reconcile_effect(&canonical, &bid, 1, EffectSettlement::Rejected).expect("reconcile");
+        assert!(
+            canonical
+                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r.get::<_, String>(0))
+                .is_ok(),
+            "canonical write survives a rejected settlement (never rolled back after initiation)"
+        );
+        let pending = pending_promotions(&canonical, &bid).expect("pending");
+        assert!(pending.iter().any(|(v, kind, status)| *v == 1 && kind == "effect" && status == "rejected"));
+    }
 }
