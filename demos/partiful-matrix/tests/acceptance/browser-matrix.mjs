@@ -784,6 +784,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     });
 
     const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      await taskPage.pollText('event-card-event_sunset', 'Sunset Supper Club', 15_000);
       await taskPage.focus('open-event_sunset');
       await taskPage.key('Enter');
       if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard open-event boot');
@@ -859,6 +860,10 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     await page.key('Escape'); observations.push({ overlay: 'create', dismissed: await assertFocused(page, 'create-event', 'create Escape') });
 
     await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+    await page.pollText('guest-user_eve', 'Eve', 5_000);
+    await page.pollText('wall', 'Grace', 5_000);
+    await page.pollText('connection', 'live', 5_000);
     await page.focus('event-options-trigger'); await page.click('event-options-trigger');
     await page.pollText('event-options-menu', 'Copy invite link', 5_000);
     observations.push({ overlay: 'menu', opened: await waitForOverlayFocus(page, 'menu', 'menu') });

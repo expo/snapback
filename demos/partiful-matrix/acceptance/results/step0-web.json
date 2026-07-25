@@ -1,20 +1,23 @@
 {
   "revision": {
-    "snapback": "74794d32dfcea2bd81f5fc8673060c70362578b6",
-    "exact": "917c2a65801381969ee705132e2e96998ced856a"
+    "snapback": "7b9283d6fd96c0143435c90d35f1083d69468da1",
+    "exact": "b4d8d6ac60ab0bd5c3447e53e6cdd9f6601f3c0c"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v22.19.0",
-    "bun": "1.3.10",
+    "node": "v25.9.0",
+    "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.186",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.182",
-    "cpu": "Apple M4",
-    "logicalCpus": 10,
-    "totalMemoryBytes": 17179869184
+    "chromeVersion": "Google Chrome 150.0.7871.186",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
   },
   "packages": {
     "react": {
@@ -111,27 +114,27 @@
       "resolvedDependencies": {
         "@exact/contract": {
           "requested": "npm:@ccheever/exact-contract@0.1.5",
-          "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "c1dab475c1793d98999a4439f4a5bece3c46c7586dfe8392e680540d18e113a5"
+          "resolvedName": "@exact/contract",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "acb45904ccbe0cc10416182e257e81c155844e4c78fd4ec48a36dfeb178de872"
         },
         "@exact/devtools": {
           "requested": "npm:@ccheever/exact-devtools@0.1.5",
-          "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
+          "resolvedName": "@exact/devtools",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "33fa1bc9e7c13c6d580d7117b51f36831f83b64e85242f514bba87822ff5357e"
         },
         "@exact/facet-core": {
           "requested": "npm:@ccheever/exact-facet-core@0.1.5",
-          "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "8c7dfd95b951a599ec284cfe5a3ec06a60e007aa168dfc5bc303e5216375b407"
+          "resolvedName": "@exact/facet-core",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "2e5b04036abde985139847bd5d878f73024f7f2b4f34fb7af98cfc258a8dca88"
         },
         "@exact/renderer": {
           "requested": "npm:@ccheever/exact-renderer@0.1.5",
-          "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "ba7d0ec05b0c193d639be65e3a66f136f20f3176541c751cbc92d2157af65d0d"
+          "resolvedName": "@exact/renderer",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "d1c2d7157aecb364c92f6a5f8bc2cee840eed3aa5c3423f8058682f77c07e9ad"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -150,7 +153,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "001db06f64b13d86eb7e710b20eb1b83f4094744506827550c23b386ab6a0a7d",
+      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -165,9 +168,9 @@
     }
   },
   "artifacts": {
-    "inputsHash": "ffbc919046a2c2886a8d3b56a301aae838b20007605dcaea8f17b10db92d9947",
-    "bundleHash": "sha256:6e8be90857e97698",
-    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
+    "inputsHash": "6cff844d8c8ca2c0cddefa9a485ecd4fca3a6aa914eb6e0af644b3d4381e709c",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "eace7b4bca5941d48cb64198d0f1b38130d1094c9cfa13dc6c8bf05418f78b92",
     "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
@@ -180,12 +183,16 @@
       "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
     },
     {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "42dbcb63bdc8fc0e27bf0ab326f7dc43dd133a1328057a87bbc3ed4c6837cfe3"
+      "sha256": "6b7c584cb9cb0779d603398271161e91f4acc872f063ddc00b2d419d3cee09f0"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+      "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -193,19 +200,19 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "65fbeb41026a2f4d508a588757903133f6ec2346b4d7de80c47990ef7968599e"
+      "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
+      "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+      "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+      "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -220,7 +227,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "af4ef1e26381413e917b48c4c1787e7d3ce7c25b183d50b081ef04750fab1c0c",
+  "testInventorySha256": "42a0b4135b677cf3f1d289cead3ec3090a2879e27cd197d1b3ba5d5427c36129",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -308,69 +315,69 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 7
+            "latencyMs": 10
           },
           {
             "sampleIndex": 1,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
+            "latencyMs": 7
           },
           {
             "sampleIndex": 2,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 7
           },
           {
             "sampleIndex": 3,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 3
+            "latencyMs": 7
           },
           {
             "sampleIndex": 4,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 3
+            "latencyMs": 7
           },
           {
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 3
+            "latencyMs": 7
           },
           {
             "sampleIndex": 6,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 7
           },
           {
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 2
+            "latencyMs": 6
           },
           {
             "sampleIndex": 8,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 3
+            "latencyMs": 6
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            4,
-            3,
-            3,
-            3,
-            4,
-            2,
-            3
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            6
           ],
-          "median": 3,
-          "p95": 4
+          "median": 7,
+          "p95": 7
         },
         "connectionBefore": "live",
         "established": [
@@ -378,36 +385,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61b9ab7a62a5ebd7260824de4b",
-            "subscriptionId": "sub_019f9a61b9ab7a62a5ebd7260824de4b",
+            "bindingId": "sub_019f9b0419c27381819569095665111e",
+            "subscriptionId": "sub_019f9b0419c27381819569095665111e",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523634
+            "receivedAtMs": 1785012165059
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61b9ab7a62a5ebd759d8309c63",
-            "subscriptionId": "sub_019f9a61b9ab7a62a5ebd759d8309c63",
+            "bindingId": "sub_019f9b0419c37150b865f8246814ebb4",
+            "subscriptionId": "sub_019f9b0419c37150b865f8246814ebb4",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523641
+            "receivedAtMs": 1785012165097
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba177f71a2d43a61c482ede8",
-            "subscriptionId": "sub_019f9a61ba177f71a2d43a61c482ede8",
+            "bindingId": "sub_019f9b041a307a9094252f9f54c8d196",
+            "subscriptionId": "sub_019f9b041a307a9094252f9f54c8d196",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -416,14 +423,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523735
+            "receivedAtMs": 1785012165168
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba177f71a2d43addcacb3f6d",
-            "subscriptionId": "sub_019f9a61ba177f71a2d43addcacb3f6d",
+            "bindingId": "sub_019f9b041a307a9094252fc811b34e24",
+            "subscriptionId": "sub_019f9b041a307a9094252fc811b34e24",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -432,14 +439,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523736
+            "receivedAtMs": 1785012165169
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba1870c09e5e678c2bcadf0d",
-            "subscriptionId": "sub_019f9a61ba1870c09e5e678c2bcadf0d",
+            "bindingId": "sub_019f9b041a317a118066b428daee0b7a",
+            "subscriptionId": "sub_019f9b041a317a118066b428daee0b7a",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -448,14 +455,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523739
+            "receivedAtMs": 1785012165170
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba1870c09e5e67665284f8f7",
-            "subscriptionId": "sub_019f9a61ba1870c09e5e67665284f8f7",
+            "bindingId": "sub_019f9b041a327680b6a87ce03a881abc",
+            "subscriptionId": "sub_019f9b041a327680b6a87ce03a881abc",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -464,14 +471,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523753
+            "receivedAtMs": 1785012165212
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba177f71a2d43afe6047706c",
-            "subscriptionId": "sub_019f9a61ba177f71a2d43afe6047706c",
+            "bindingId": "sub_019f9b041a327680b6a87d05cf34f792",
+            "subscriptionId": "sub_019f9b041a327680b6a87d05cf34f792",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -480,14 +487,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523764
+            "receivedAtMs": 1785012165223
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a61ba1870c09e5e674e437c5861",
-            "subscriptionId": "sub_019f9a61ba1870c09e5e674e437c5861",
+            "bindingId": "sub_019f9b041a327680b6a87ccfd19f734a",
+            "subscriptionId": "sub_019f9b041a327680b6a87ccfd19f734a",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -496,7 +503,7 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785001523775
+            "receivedAtMs": 1785012165234
           }
         ]
       }
@@ -516,9 +523,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -536,9 +543,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -556,9 +563,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -595,97 +602,97 @@
             "sampleIndex": 0,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 5
+            "latencyMs": 6
           },
           {
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 6
           },
           {
             "sampleIndex": 2,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 6
           },
           {
             "sampleIndex": 3,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 4,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 2
+            "latencyMs": 4
           },
           {
             "sampleIndex": 5,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 6
           },
           {
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 2
+            "latencyMs": 5
           },
           {
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 2
+            "latencyMs": 5
           },
           {
             "sampleIndex": 8,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 2
+            "latencyMs": 6
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            3,
-            3,
-            2,
-            3,
-            2,
-            2,
-            2
+            6,
+            5,
+            4,
+            6,
+            5,
+            5,
+            6
           ],
-          "median": 2,
-          "p95": 3
+          "median": 5,
+          "p95": 6
         },
         "connectionBefore": "●live",
         "established": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a6256497ef0b1d4e35b74a74d3c",
-            "subscriptionId": "sub_019f9a6256497ef0b1d4e35b74a74d3c",
+            "bindingId": "sub_019f9b04cc507e72ad040e783fae6f50",
+            "subscriptionId": "sub_019f9b04cc507e72ad040e783fae6f50",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:a9686676-480a-4826-941a-3adea6b57913",
+              "rootId": "snapback-online-surface:2fb529c4-38d7-4875-a346-c28193ba86ce",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1785001563722,
+            "receivedAtMs": 1785012210769,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a62565c73a2a5902b39fe33a7c4",
-            "subscriptionId": "sub_019f9a62565c73a2a5902b39fe33a7c4",
+            "bindingId": "sub_019f9b04cc7d7963861a9f72313c02f4",
+            "subscriptionId": "sub_019f9b04cc7d7963861a9f72313c02f4",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -694,12 +701,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:1ce5ff14-1c7b-4002-94bf-59e4b6b7ab09",
+              "rootId": "snapback-online-surface:3b8df791-d44f-4983-b96e-64ddd18cee00",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1785001563748,
+            "receivedAtMs": 1785012210861,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -708,8 +715,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a62565d72c296174c7277711a94",
-            "subscriptionId": "sub_019f9a62565d72c296174c7277711a94",
+            "bindingId": "sub_019f9b04cc7e7071bdd163a2731d44c5",
+            "subscriptionId": "sub_019f9b04cc7e7071bdd163a2731d44c5",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -718,12 +725,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:1ce5ff14-1c7b-4002-94bf-59e4b6b7ab09",
+              "rootId": "snapback-online-surface:3b8df791-d44f-4983-b96e-64ddd18cee00",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1785001563748,
+            "receivedAtMs": 1785012210862,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -732,8 +739,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a62565d72c296174c59566a1394",
-            "subscriptionId": "sub_019f9a62565d72c296174c59566a1394",
+            "bindingId": "sub_019f9b04cc7d7963861a9f9e697583d9",
+            "subscriptionId": "sub_019f9b04cc7d7963861a9f9e697583d9",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -742,12 +749,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:1ce5ff14-1c7b-4002-94bf-59e4b6b7ab09",
+              "rootId": "snapback-online-surface:3b8df791-d44f-4983-b96e-64ddd18cee00",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1785001563748,
+            "receivedAtMs": 1785012210862,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -771,9 +778,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -791,9 +798,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -811,9 +818,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -863,11 +870,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 102.59999999403954,
-          "boot-started": 102.79999999701977,
-          "provider-ready": 110.29999999701977,
-          "ui-mounted": 111.5,
-          "first-authoritative-snapshot": 114
+          "module-evaluated": 187.70000004768372,
+          "boot-started": 188,
+          "provider-ready": 199.80000001192093,
+          "ui-mounted": 201.9000000357628,
+          "first-authoritative-snapshot": 222.5
         }
       }
     },
@@ -885,69 +892,69 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 1,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 2
+            "latencyMs": 6
           },
           {
             "sampleIndex": 2,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 2
+            "latencyMs": 4
           },
           {
             "sampleIndex": 3,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 2
+            "latencyMs": 4
           },
           {
             "sampleIndex": 4,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 2
+            "latencyMs": 4
           },
           {
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 1
+            "latencyMs": 5
           },
           {
             "sampleIndex": 6,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 1
+            "latencyMs": 3
           },
           {
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 1
+            "latencyMs": 4
           },
           {
             "sampleIndex": 8,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 2
+            "latencyMs": 12
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            2,
-            2,
-            2,
-            1,
-            1,
-            1,
-            2
+            4,
+            4,
+            4,
+            5,
+            3,
+            4,
+            12
           ],
-          "median": 2,
-          "p95": 2
+          "median": 4,
+          "p95": 12
         },
         "connectionBefore": "live",
         "established": [
@@ -955,54 +962,22 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a627cd87793944f4a80c5c3f375",
-            "subscriptionId": "sub_019f9a627cd87793944f4a80c5c3f375",
+            "bindingId": "sub_019f9b0506d17df29d02684eab92e473",
+            "subscriptionId": "sub_019f9b0506d17df29d02684eab92e473",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785001573593
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f9a627cf67a40b0468b9e3752ce8a",
-            "subscriptionId": "sub_019f9a627cf67a40b0468b9e3752ce8a",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 22,
-            "lastDeltaVersion": 22,
-            "correlation": null,
-            "receivedAtMs": 1785001573622
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f9a627cf67a40b0468bb1faac8ab0",
-            "subscriptionId": "sub_019f9a627cf67a40b0468bb1faac8ab0",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 22,
-            "lastDeltaVersion": 22,
-            "correlation": null,
-            "receivedAtMs": 1785001573633
+            "receivedAtMs": 1785012225746
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9a627cf67a40b0468bea1df211b9",
-            "subscriptionId": "sub_019f9a627cf67a40b0468bea1df211b9",
+            "bindingId": "sub_019f9b0507067fc381f8d25fcd5a9837",
+            "subscriptionId": "sub_019f9b0507067fc381f8d25fcd5a9837",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1011,7 +986,39 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785001573644
+            "receivedAtMs": 1785012225798
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9b0507067fc381f8d29e2b192bd6",
+            "subscriptionId": "sub_019f9b0507067fc381f8d29e2b192bd6",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 22,
+            "lastDeltaVersion": 22,
+            "correlation": null,
+            "receivedAtMs": 1785012225818
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9b05070777b1adb07749c3f6e82c",
+            "subscriptionId": "sub_019f9b05070777b1adb07749c3f6e82c",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 22,
+            "lastDeltaVersion": 22,
+            "correlation": null,
+            "receivedAtMs": 1785012225833
           }
         ]
       }
@@ -1031,9 +1038,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1063,11 +1070,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 97.29999999701977,
-          "boot-started": 97.3999999910593,
-          "provider-ready": 97.5,
-          "ui-mounted": 98.5,
-          "first-authoritative-snapshot": 183.19999998807907
+          "module-evaluated": 153.89999997615814,
+          "boot-started": 154.19999998807907,
+          "provider-ready": 154.30000001192093,
+          "ui-mounted": 155.89999997615814,
+          "first-authoritative-snapshot": 237.39999997615814
         }
       }
     },
@@ -1086,9 +1093,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1118,11 +1125,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 87.09999999403954,
-          "boot-started": 87.29999999701977,
-          "provider-ready": 87.3999999910593,
-          "ui-mounted": 88.3999999910593,
-          "first-authoritative-snapshot": 192.29999999701977
+          "module-evaluated": 173.5999999642372,
+          "boot-started": 173.80000001192093,
+          "provider-ready": 173.89999997615814,
+          "ui-mounted": 175.39999997615814,
+          "first-authoritative-snapshot": 269.19999998807907
         }
       }
     },
@@ -1141,9 +1148,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1173,11 +1180,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 141.90000000596046,
-          "boot-started": 142.1000000089407,
-          "provider-ready": 142.20000000298023,
-          "ui-mounted": 143.1000000089407,
-          "first-authoritative-snapshot": 152.5
+          "module-evaluated": 421.69999998807907,
+          "boot-started": 422,
+          "provider-ready": 422.0999999642372,
+          "ui-mounted": 423.5999999642372,
+          "first-authoritative-snapshot": 438
         }
       }
     }

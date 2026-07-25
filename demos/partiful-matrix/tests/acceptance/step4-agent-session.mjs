@@ -73,13 +73,17 @@ function compileContract(path) {
   return compiled.file;
 }
 
-const connectionBadge = runtime.defineComponent(compileContract('connection-badge.contract'));
+const connectionBadge = runtime.defineComponent(compileContract('connection-badge.contract'), {
+  textFor: ui.textFor,
+});
 const feed = runtime.defineComponent(compileContract('feed.contract'), {
   ConnectionBadge: connectionBadge,
   listEvents: (args = {}) => runtime.createProviderQueryHandle(provider, 'listEvents', args),
   createEvent: runtime.createProviderMutation(provider, 'createEvent'),
   fmtWhen: helpers.fmtWhen,
   openEvent: () => undefined,
+  openCreateRoute: () => undefined,
+  openFeed: () => undefined,
   backgroundFor: ui.backgroundFor,
   textFor: ui.textFor,
   mutedFor: ui.mutedFor,
