@@ -785,7 +785,7 @@ pub struct AppState {
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
     /// Provider-authenticated hosted origin/admission authority. It is absent
     /// on every local target and cannot be synthesized from request headers.
-    pub(crate) hosted_serving: Option<Arc<crate::auth::deployment::HostedServingAuthority>>,
+    pub(crate) hosted_serving: Option<crate::auth::deployment::HostedServingHandle>,
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
@@ -968,7 +968,15 @@ impl AppState {
     ) -> Option<crate::auth::deployment::HostedAuthCapabilities> {
         self.hosted_serving
             .as_ref()
+            .and_then(|handle| handle.current())
             .map(|authority| authority.capabilities())
+    }
+
+    /// The hot-swap slot, for the renewal loop. `None` on every local target.
+    pub(crate) fn hosted_serving_handle(
+        &self,
+    ) -> Option<crate::auth::deployment::HostedServingHandle> {
+        self.hosted_serving.clone()
     }
 
     /// Install the target-authenticated hosted serving authority and create
@@ -1014,7 +1022,7 @@ impl AppState {
                 .auth_database_mut()
                 .apply_sender_replay_epoch_floor(authority.sender_replay_epoch_floor())?;
         }
-        self.hosted_serving = Some(Arc::new(authority));
+        self.hosted_serving = Some(crate::auth::deployment::HostedServingHandle::new(authority));
         Ok(self)
     }
 
@@ -1229,6 +1237,7 @@ impl AppState {
             return self
                 .hosted_serving
                 .as_ref()
+                .and_then(|handle| handle.current())
                 .ok_or_else(|| {
                     crate::auth::deployment::deployment_unsupported(
                         crate::auth::deployment::HostedAuthCapabilities::local_target(),

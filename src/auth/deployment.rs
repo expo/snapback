@@ -465,6 +465,57 @@ fn read_hosted_admission_envelope(path: &Path) -> SnapbackResult<HostedAdmission
 /// The public origin is target configuration, never a request forwarding
 /// header. Construction is crate-private so an HTTP embedder cannot turn an
 /// arbitrary `Host`/`Forwarded` value into proof-verification authority.
+/// A hot-swappable slot holding the deployment's current serving authority.
+///
+/// An admission lives at most five minutes (D5), so a deployment that serves
+/// longer than one snapshot needs its authority replaced in place — every
+/// `AppState` clone must observe the successor. The slot is that shared
+/// reference.
+///
+/// **This cannot widen the serving window.** Each installed authority still
+/// carries its own `issuedAtMs`/`expiresAtMs` and every request re-checks them
+/// through `admission_epoch_at`. Renewal only ever replaces a snapshot with
+/// another independently verified one; if no valid successor exists the
+/// incumbent expires and serving withdraws exactly as it does today.
+///
+/// @ref LLP 0098#5-live-health-and-withdrawal — renewal composes with
+/// withdrawal, it does not suppress it.
+#[derive(Clone)]
+pub(crate) struct HostedServingHandle {
+    current: Arc<std::sync::RwLock<Arc<HostedServingAuthority>>>,
+}
+
+impl fmt::Debug for HostedServingHandle {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("HostedServingHandle").finish()
+    }
+}
+
+impl HostedServingHandle {
+    pub(crate) fn new(authority: HostedServingAuthority) -> Self {
+        Self {
+            current: Arc::new(std::sync::RwLock::new(Arc::new(authority))),
+        }
+    }
+
+    /// The authority in force right now. A poisoned lock is treated as a lost
+    /// authority by the caller rather than panicking a request thread.
+    pub(crate) fn current(&self) -> Option<Arc<HostedServingAuthority>> {
+        self.current.read().ok().map(|guard| guard.clone())
+    }
+
+    /// Replace the incumbent with an independently verified successor.
+    pub(crate) fn install(&self, authority: HostedServingAuthority) -> bool {
+        match self.current.write() {
+            Ok(mut guard) => {
+                *guard = Arc::new(authority);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+}
+
 #[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
 pub(crate) struct HostedServingAuthority {

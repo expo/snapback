@@ -7775,7 +7775,11 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     if runtime.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted
         && !matches!(spec.path, "/" | "/health")
     {
-        let Some(authority) = runtime.hosted_serving.as_ref() else {
+        let Some(authority) = runtime
+            .hosted_serving
+            .as_ref()
+            .and_then(|handle| handle.current())
+        else {
             return Some(crate::auth::deployment::deployment_unsupported(
                 crate::auth::deployment::HostedAuthCapabilities::local_target(),
             ));
@@ -9197,7 +9201,11 @@ async fn charge_hosted_body_auth_attempt(
     if !matches!(spec.path, "/auth/request-code" | "/auth/exchange") {
         return Ok(());
     }
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         return Ok(());
     };
     let now_ms = installed_auth_provider(runtime)
@@ -9231,7 +9239,11 @@ async fn admit_hosted_sender_request(
     nonce_response: SenderNonceResponse,
     effective_source: Option<std::net::IpAddr>,
 ) -> Result<Option<HostedSenderGrantBinding>, Response> {
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         return Ok(None);
     };
     let now_ms = installed_auth_provider(runtime)
@@ -10389,7 +10401,11 @@ fn prepare_sender_issuance(
     request_uri: &axum::http::Uri,
     now_ms: u64,
 ) -> Result<Option<SenderIssuanceCommitment>, ApiError> {
-    let Some(hosted) = runtime.hosted_serving.as_ref() else {
+    let Some(hosted) = runtime
+        .hosted_serving
+        .as_ref()
+        .and_then(|handle| handle.current())
+    else {
         if request.sender_constraint.is_some() {
             return Err(sender_issuance_invalid());
         }
