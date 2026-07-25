@@ -17788,6 +17788,207 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    // @ref LLP 0065#3-common-pattern-contracts — the Sessions-auth-mode
+    //   matrix: with real session identities (not the dev lane, which
+    //   canonicalizes sessions away), a keyset cursor minted under one
+    //   session refuses after a session re-mint for the same user — the
+    //   session-axis authority transition — and under another user's
+    //   session, byte-identically with the other refusal classes; the
+    //   relational family behaves the same.
+    #[test]
+    fn cursor_negatives_hold_under_sessions_authorities() {
+        let (schema, mut functions) = relational_live_fixture_functions(1);
+        // Add a keyset pair alongside the relational fixture so both cursor
+        // families run under the same session matrix.
+        let owner_filter = FilterExpr {
+            field: "ownerId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let page_plan = |with_cursor: bool| QueryPlan {
+            table: "books".to_owned(),
+            filters: if with_cursor {
+                vec![
+                    owner_filter.clone(),
+                    FilterExpr {
+                        field: "title".to_owned(),
+                        op: FilterOp::Gt,
+                        value: ValueExpr::Arg("after".to_owned()),
+                    },
+                ]
+            } else {
+                vec![owner_filter.clone()]
+            },
+            membership_filters: Vec::new(),
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            limit: Some(1),
+            indexed_by: Some("by_owner_title".to_owned()),
+        };
+        let pattern = || {
+            Some(crate::manifest::StandardPatternIdentity {
+                helper: "owned-keyset-pages.v1".to_owned(),
+                profile: "owner.v1".to_owned(),
+            })
+        };
+        let mut first_def = FunctionDefinition::new(
+            "firstBookPage",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(false))),
+        );
+        first_def.standard_pattern = pattern();
+        let mut next_def = FunctionDefinition::new(
+            "nextBookPage",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(true))),
+        );
+        next_def.standard_pattern = pattern();
+        functions.functions.push(first_def);
+        functions.functions.push(next_def);
+
+        let mut snapback = LocalSnapback::memory().expect("memory sessions fixture");
+        snapback.apply_schema(schema).expect("apply sessions schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "sessions fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed sessions rows");
+
+        let session = |user: &str, session_id: &str| {
+            crate::auth::invocation::InvocationGate::prepare_authority(
+                crate::auth::invocation::InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                crate::admin::ServerProfile::Test,
+                1,
+                1,
+                &crate::auth::invocation::WireAuthorityFields::default(),
+                crate::auth::invocation::ResolvedAppAuthority::Session {
+                    user_id: user.to_owned(),
+                    session_id: session_id.to_owned(),
+                    provider: "test".to_owned(),
+                    generation: 1,
+                    authority_instance_id: format!("authinst-{session_id}"),
+                    session_not_after_ms: u64::MAX / 2,
+                    provider_not_after_ms: None,
+                },
+            )
+            .expect("prepare session authority")
+        };
+        let invoke = |snapback: &LocalSnapback, name: &str, args: Value, user: &str, sid: &str| {
+            snapback.invoke_query_with_dependencies_prepared(
+                name,
+                HandlerInput {
+                    args,
+                    ..HandlerInput::default()
+                },
+                session(user, sid),
+            )
+        };
+
+        // Keyset family: mint under session s1, continue under s1, refuse
+        // under a re-minted session s2 (same user) and another user's
+        // session — the session axis the dev lane cannot express.
+        let page1 = invoke(&snapback, "firstBookPage", json!({}), "user-a", "s1")
+            .expect("sessions first page")
+            .output;
+        assert_eq!(page1.rows[0]["title"], json!("alpha"));
+        let cursor = page1.cursor.expect("sessions continuation");
+        let page2 = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor.clone() }),
+            "user-a",
+            "s1",
+        )
+        .expect("same-session continuation")
+        .output;
+        assert_eq!(page2.rows[0]["title"], json!("beta"));
+        let rotated = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor.clone() }),
+            "user-a",
+            "s2",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("session re-mint must refuse the cursor");
+        assert_eq!(
+            rotated.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        );
+        let cross_user = invoke(
+            &snapback,
+            "nextBookPage",
+            json!({ "after": cursor }),
+            "user-b",
+            "s9",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("another user's session must refuse the cursor");
+        assert_eq!(
+            (
+                cross_user.diagnostic.code.as_str(),
+                cross_user.diagnostic.message.as_str()
+            ),
+            (
+                rotated.diagnostic.code.as_str(),
+                rotated.diagnostic.message.as_str()
+            ),
+            "session-axis refusals stay byte-indistinguishable",
+        );
+
+        // Relational family: same session axis, same posture.
+        let rel1 = invoke(&snapback, "booksWithAuthors", json!({}), "user-a", "s1")
+            .expect("sessions relational page")
+            .output;
+        let rel_cursor = rel1.cursor.expect("relational continuation");
+        invoke(
+            &snapback,
+            "booksWithAuthors",
+            json!({ "cursor": rel_cursor.clone() }),
+            "user-a",
+            "s1",
+        )
+        .expect("same-session relational continuation");
+        let rel_rotated = invoke(
+            &snapback,
+            "booksWithAuthors",
+            json!({ "cursor": rel_cursor }),
+            "user-a",
+            "s2",
+        )
+        .map(|invocation| invocation.output)
+        .expect_err("session re-mint must refuse the relational cursor");
+        assert_eq!(
+            rel_rotated.diagnostic.code,
+            "SNAPBACK_RELATIONAL_CURSOR_INVALID"
+        );
+    }
+
     // @ref LLP 0065#3-common-pattern-contracts — defineOwnedKeysetPages'
     //   continuation is an opaque versioned cursor bound to the app, the
     //   pair plan identity, and the caller's authority partition: first
