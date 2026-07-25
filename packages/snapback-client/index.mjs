@@ -4288,7 +4288,11 @@ export class SnapbackClient {
 
     // -----------------------------------------------------------------
     // Channel B persisted resume state (LLP 0090 D3, LLP 0091 §0A.5/§0B.3,
-    // rollout step 5 — web/IndexedDB arm; native/DK-9 is a later pass).
+    // rollout step 5). Store-agnostic: the web/IndexedDB arm injects
+    // rqs-store.mjs, the native/DK-9 arm rqs-store-file.mjs; cadence and
+    // budget are the same on both (LLP 0091 step-5 native amendment), with
+    // the pagehide/visibility flush below mapped on native to the host
+    // lifecycle calling handle.flushResumeState() on background/inactive.
     // -----------------------------------------------------------------
     const resumeStore = persistResume ? client.rqsStore : null;
     const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;
