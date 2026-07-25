@@ -58,3 +58,18 @@ obligation machinery); the JS client-side quarantine UX; blind
 identity on the mutation wire (LLP 0093 adjacency); the auth-scoped
 precheck ordering is covered by inspection pending the 0081 corpus, which
 builds full artifacts and should add that case.
+
+**Phase D closure (2026-07-25):** the sessions-profile publication tail
+landed. Publication now fires LLP 0053's machinery for auth-scoped state
+instead of the fail-closed refusal: every auth-scoped subscription gets a
+durable `Delete` obligation raised with the publication witness, a
+`terminalDelete` resolution with acknowledgement semantics (ackToken on
+the projected frame), the obligation frame delivered durably, and an
+authenticated scope retirement (`prepare/commit_scope_retirement`) — a
+generic resync is never substituted. The only remaining refusal is the
+inconsistent auth-scoped-subscriptions-without-invalidation-state case.
+Witness: `publication_fires_durable_dispositions_for_auth_scoped_subscriptions`
+(Sessions authorities via the activation fixture). Still fail-closed with
+recorded reasons: blind read-set-free predecessor writes (needs
+mutation-wire artifact identity — LLP 0093 adjacency) and the JS
+client-side quarantine UX.

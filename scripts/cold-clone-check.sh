@@ -135,6 +135,20 @@ step_timer_end "bun install (surface)"
 # The acceptance must never skip-pass for missing Exact packages in this lane.
 export SNAPBACK_REQUIRE_EXACT=1
 
+# --- Snapback side: link the workspace so its data tier resolves -------------
+# The surface imports the Snapback data tier from WORKSPACE source
+# (packages/snapback-*), not the registry — only Exact is registry-pinned. Those
+# workspace packages resolve their own workspace: deps (e.g. @snapback/client ->
+# @snapback/contract) through the root install's node_modules linking, so a cold
+# clone must link the workspace once before the surface build. Without it, the
+# bare '@snapback/contract/*' specifiers inside packages/snapback-client fail to
+# resolve. This is a workspace link, not an Exact-registry dependency, so it does
+# not weaken the registry isolation the surface's frozen install attests above.
+banner "bun install at repo root (workspace link for the Snapback data tier)"
+step_timer_start
+(cd "$ROOT" && run bun install --frozen-lockfile)
+step_timer_end "bun install (workspace)"
+
 # --- Step 1: production build ------------------------------------------------
 
 banner "Step 1: production build of the Contract surface"

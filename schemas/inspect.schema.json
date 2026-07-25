@@ -3330,7 +3330,7 @@
           "type": "string"
         },
         "retention": {
-          "description": "Closed, default-deny retention classes the target admits for\nrelational plans. V1 is exactly `[\"none\"]`;\n`opaque-authorized-snapshot-v1` (the authenticated lease class) is\nspecified but not yet admitted by authoring, and anonymous results\nhave no admissible retention.",
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans: `none` (the default) and\n`opaque-authorized-snapshot-v1` (the authenticated lease class —\nowner-visible plans only; anonymous results have no admissible\nretention).",
           "items": {
             "type": "string"
           },

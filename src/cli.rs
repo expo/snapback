@@ -729,9 +729,13 @@ pub enum MigrateCommand {
     Preview {
         #[arg(long)]
         db: PathBuf,
-        /// JSON file: an array of MigrationIntent values.
+        /// JSON file: an array of MigrationIntent values. Explicit intents
+        /// take precedence; when omitted, preview derives the intent set
+        /// from the schema diff (unambiguous, semantics-free changes only —
+        /// renames, conversions, and required-field backfills must be
+        /// declared explicitly and refuse derivation).
         #[arg(long)]
-        intents: PathBuf,
+        intents: Option<PathBuf>,
         /// The staged successor schema manifest (JSON).
         #[arg(long)]
         schema: PathBuf,
@@ -6419,8 +6423,6 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             max_barrier_downtime_ms,
             out,
         } => migrate_emit("migrate.preview", (|| {
-            let intents: Vec<crate::migration::MigrationIntent> =
-                migrate_read_json(&intents, "intents")?;
             let successor: crate::manifest::SchemaManifest =
                 migrate_read_json(&schema, "successor schema")?;
             let constant_values: std::collections::BTreeMap<String, Value> = match &constants {
@@ -6430,6 +6432,13 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             let snapback = crate::local::LocalSnapback::open(&db)?;
             let predecessor = snapback.migrate_predecessor_schema();
             let head = snapback.migrate_head_version()?;
+            // Explicit intents win; a schema-diff derivation covers exactly
+            // the unambiguous changes (LLP 0081 §2 — the derivation refuses
+            // anything needing a declared backfill/rename/conversion).
+            let intents: Vec<crate::migration::MigrationIntent> = match &intents {
+                Some(path) => migrate_read_json(path, "intents")?,
+                None => crate::migration::derive_intents(&predecessor, &successor)?,
+            };
             let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
             let body = crate::migration::MigrationPlanBody {
                 schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),

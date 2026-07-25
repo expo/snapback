@@ -73,11 +73,16 @@ That arrangement is the security contract, not a deployment preference:
 
 ## Sharp edges, recorded
 
-- **No persistent volume.** An auto-stop/start cycle wipes the rootfs, taking
-  Caddy's certificate storage *and* the delivered chain with it, and forcing a
-  fresh Let's Encrypt issuance against the **5-per-week duplicate limit**. Hence
-  `auto_stop_machines = "off"` and `min_machines_running = 1`. A volume is the
-  production answer; budget issuances while iterating.
+- **Certificates persist; the database and chain do not.** LLP 0098 author
+  decision D4 (2026-07-25) added one persistent volume
+  (`vol_r6815pkd59o1x614`, `caddy_storage`, 1 GB, sjc) mounted at
+  `/data/caddy`, so certificate storage survives redeploys and stop/start
+  cycles instead of burning the Let's Encrypt **5-per-week duplicate limit**.
+  The rootfs still carries the database and the delivered admission chain, so
+  `auto_stop_machines = "off"` and `min_machines_running = 1` remain: a
+  redeploy gets a fresh database (single-boot sessions staging) and needs a
+  freshly minted chain. A volume cannot un-spend an already-consumed
+  duplicate-certificate window — it only stops future burn.
 - **Serving withdraws when the pre-signed window ends.** There is no renewal
   loop yet (LLP 0098 open question 1). Re-mint and re-deliver to extend.
 - **Raw passthrough on the shared IPv4 relies on Fly's SNI-peek routing**, which

@@ -754,6 +754,70 @@ Two consequences, both recorded rather than smoothed over:
   wrong key, bound to another configuration, or violating any other clause is
   refused exactly as a first install would be.
 
+### 8.4 D4 executed: the volume, the redeploy from fixed main, and the plaintext-refusal close (2026-07-25, later)
+
+Charlie resolved author decision D4 (`issues/20260725-llp0098-hosted-edge-author-decisions.md`):
+create the persistent volume; the Fly-secret alternative is rejected as a
+silent key-custody change. Executed the same day, with every leg below
+witnessed on the served deployment:
+
+- **The volume.** `vol_r6815pkd59o1x614` (`caddy_storage`, 1 GB, encrypted,
+  sjc), mounted at `/data/caddy` — certificate storage only; the database and
+  the delivered admission chain deliberately remain on the rootfs, so a
+  redeploy still gets the fresh database single-boot sessions staging relies
+  on. Platform fact recorded rather than smoothed over: attaching a volume
+  replaces the Fly machine, so the v0.7-pinned `819701c927ee68` was retired
+  by the platform and the app's single machine is now `849764f2e7dd58`
+  (same app, region, size; machine count still one; LLP 0075 amendment v0.8
+  and the drill README teardown inventory carry both identities).
+- **Redeploy from current main.** The image now carries the D-1-fixed binary
+  and current artifacts. Witnessed on the machine: hosted admission verifies
+  the fresh epoch-2 chain and `/inspect` publishes the five-positive
+  attested tuple; sessions staged in a single boot on the fresh database
+  (`activeMode: sessions`, settled); `/_snapback/admin` answers the fixed
+  body-free 404.
+- **D2-plaintext closed on the served origin.** The terminator now REFUSES
+  plaintext instead of redirecting: an explicit `http://` site answers a
+  fixed body-free **403** (witnessed from the public internet on
+  `/auth/session`, `/query/listNotes`, and `/`), replacing the 308 that
+  §8.1 recorded as attested-but-unenforced. A redirect would invite a
+  credential-bearing client to resend what it already emitted in cleartext;
+  the fixed 403 gives the cleartext caller nothing.
+- **ACME interception proven under the new config.** Adding an explicit
+  plaintext site disables Caddy's automatic redirect, so the load-bearing
+  question was whether HTTP-01 challenges still route. Witnessed: certmagic's
+  staging fallback ran a complete order under the refusal config —
+  `validations succeeded; finalizing order` against
+  `acme-staging-v02.api.letsencrypt.org` at 2026-07-25T19:20:36Z — so
+  production issuance is a rate-limit question only.
+- **Public TLS: still blocked, now precisely.** The machine's own ACME log:
+  HTTP 429 `urn:ietf:params:acme:error:rateLimited`, "too many certificates
+  (5) already issued for this exact set of identifiers in the last 168h0m0s,
+  retry after **2026-07-27 00:53:37 UTC**" (rolling window; the
+  new-certificates-per-exact-set-of-identifiers limit). The volume prevents
+  future burn; it cannot un-spend the window. Caddy's paced backoff retries
+  (no operator hammering) will obtain the certificate once the window clears,
+  and it then persists on the volume across redeploys and stop/start cycles.
+
+**What remains for `hostedAuthCapable`, exactly.** One leg: the served-origin
+LLP 0077 matrix (42 checks, currently 42/42 against the identically composed
+local origin) plus the LLP 0072 drill legs that need public HTTPS. Recipe for
+the session that runs it after the window clears: (1) mint a fresh chain
+(`snapback-hosted-admission mint` with the control-plane seed; the delivered
+chain expires ~4 h after mint, and the renewal loop hot-swaps from
+`/data/admission.json`, so a live chain can be delivered by `fly ssh sftp`
+without a restart); (2) run
+`demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs` with
+`SNAPBACK_MATRIX_ORIGIN=https://snapback-drill.fly.dev`,
+`SNAPBACK_MATRIX_PUBLIC_ORIGIN=https://snapback-drill.fly.dev`, and
+`SNAPBACK_MATRIX_CODE_SOURCE=command` where the command recovers the code by
+reading the challenge digest row and keyring over `fly ssh console -C`
+(sqlite3 ships in the image; the digest recomputation is LLP 0057's
+capture-mailbox recovery, identical to the local `operator-digest` source).
+No fence was weakened anywhere in this pass: the D1 plaintext refusal now
+extends to the terminator, the hosted profile still requires loopback, and no
+`hostedAuthCapable` claim is made.
+
   **It cannot widen the serving window.** Each installed authority keeps its own
   `issuedAtMs`/`expiresAtMs` and every request re-checks them; the loop only
   ever *replaces* a snapshot with another verified one. When the document stops

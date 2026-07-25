@@ -57,6 +57,29 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
     /must be a declared unique index/,
     'the cardinality proof requires the declared unique index',
   );
+  // Retention is closed and default-deny (LLP 0080 §4): two values only,
+  // and the authenticated lease class needs an owner-visible output.
+  assert.throws(
+    () => defineRelationalQuery({ ...base, retention: 'forever' }),
+    /retention must be 'none' or 'opaque-authorized-snapshot-v1'/,
+    'the retention vocabulary is closed',
+  );
+  assert.throws(
+    () => defineRelationalQuery({
+      ...base,
+      visibility: { root: { kind: 'public-read' }, joined: { kind: 'public-read' }, output: 'public-read' },
+      retention: 'opaque-authorized-snapshot-v1',
+    }),
+    /anonymous results have no admissible v1 retention/,
+    'an all-public plan cannot declare the lease class',
+  );
+  {
+    const retained = defineRelationalQuery({ ...base, retention: 'opaque-authorized-snapshot-v1' });
+    assert.equal(retained.retainable, true, 'the lease class declares retainable');
+    assert.deepEqual(retained.authorizationDependence, ['UserId']);
+    const plain = defineRelationalQuery(base);
+    assert.equal(plain.retainable, undefined, 'retention defaults to none');
+  }
   assert.throws(
     () => defineRelationalQuery({
       ...base,

@@ -1,7 +1,7 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:0208d3a01c3babda",
+  "bundleHash": "sha256:87a071ff451abc9e",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -580,7 +580,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "0f50e45d3b6350b4b70fa5574e7e92bf8f33d9f55b3215eb614f63f5d124d910",
+  "inputsHash": "25f31702c931b983b9f263f35eab04ca72a8645bfb58c5493d7041d60fcbe21c",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

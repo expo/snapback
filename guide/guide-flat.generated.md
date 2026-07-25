@@ -2210,11 +2210,16 @@ Live subscriptions deliver whole-result replacement (`live_replace`): a
 commit touching either source re-runs the query. No incremental delta or
 skip proof is claimed, matching LLP 0080's deliberately conservative v1.
 A relational plan is never `authorityIndependent` — public plans stay
-authority-partition-scoped — and retention is default-deny: v1 admits only
-`retention: none` (declaring a relational query retainable is a load
-error), with the authenticated-lease snapshot class specified as the
-successor. The capability manifest records both facts under
-`relationalQueries`.
+authority-partition-scoped — and retention is default-deny with a closed
+two-value vocabulary. `retention: 'none'` is the default. An owner-visible
+plan may declare `retention: 'opaque-authorized-snapshot-v1'`: the
+projected result is retained as an opaque authorized snapshot under the
+authenticated lease path (the client decodes it; it never re-executes the
+join over retained rows), and the continuation cursor never rides the
+lease envelope. An all-public plan cannot declare it — anonymous results
+have no admissible v1 retention, refused at generation and again at load
+(`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`). The capability manifest records
+the admitted classes under `relationalQueries.retention`.
 
 ## Pagination
 

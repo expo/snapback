@@ -72,10 +72,11 @@ relational_corpus_v0`), executed by `tests/relational_corpus_v0.rs`.
 
 **Residuals (callable half):**
 
-- the instrumented examined-entries assertion for the index-served root
-  bound: the large sparse fixture asserts window correctness, not scan
-  counts — needs a `#[cfg(test)]` examined-rows counter on the
-  root-window query path;
+- ~~the instrumented examined-entries assertion~~ CLOSED 2026-07-25:
+  `relational_root_window_is_index_served_on_sparse_fixture` (src/storage.rs)
+  instruments the root-window path with SQLite statement-status counters —
+  zero fullscan steps, fetches within the admitted window, and VM work far
+  below a 3,000-row traversal;
 - authority-rotation fencing and the obligation-fault e2e for relational
   subscriptions (LLP 0053 machinery exists and is tested generically;
   the relational-specific fixture lands with the coupled suite);

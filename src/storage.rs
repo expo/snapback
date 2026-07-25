@@ -2293,6 +2293,14 @@ impl LocalDatabase {
         })
     }
 
+    /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
+    /// §4: a crash after release reopens only the successor and resumes
+    /// cleanup). Inventory-driven — no artifact required.
+    pub(crate) fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        let schema = self.schema.clone();
+        migration_executor::resume_pending_cleanup(&mut self.conn, &schema)
+    }
+
     /// Install the active maintained-projection set (LLP 0080 §5). Called by
     /// function-manifest activation after validation; every mutation path on
     /// this database maintains these outputs in its own commit.
@@ -5863,6 +5871,30 @@ pub(crate) fn query_on_with_storage_limit(
     query_on_with_storage_limit_visibility(conn, schema, plan, input, storage_limit, false)
 }
 
+/// Test-only instrumentation for the index-served root bound (LLP 0080
+/// §Acceptance): each keyset-path query records its table, SQLite
+/// fullscan steps, virtual-machine steps, and fetched rows so a witness
+/// can prove examined entries stay within the admitted window and no
+/// target scans to fill a page.
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(crate) struct KeysetScanStats {
+    pub table: String,
+    pub fullscan_steps: i32,
+    pub vm_steps: i32,
+    pub fetched_rows: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static KEYSET_SCAN_STATS: RefCell<Vec<KeysetScanStats>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+pub(crate) fn take_keyset_scan_stats() -> Vec<KeysetScanStats> {
+    KEYSET_SCAN_STATS.with(|stats| stats.borrow_mut().drain(..).collect())
+}
+
 /// The relational root window's entry: the generic validated query path with
 /// an optional keyset boundary and the always-total `(order…, _id ASC)`
 /// ordering `root-window-v1` continuation identity depends on.
@@ -5992,6 +6024,18 @@ fn query_on_with_storage_limit_visibility_keyset(
             let document = row_to_document(row, table, &columns)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             output.push(document);
+        }
+        #[cfg(test)]
+        {
+            drop(rows);
+            KEYSET_SCAN_STATS.with(|stats| {
+                stats.borrow_mut().push(KeysetScanStats {
+                    table: table.name.clone(),
+                    fullscan_steps: statement.get_status(rusqlite::StatementStatus::FullscanStep),
+                    vm_steps: statement.get_status(rusqlite::StatementStatus::VmStep),
+                    fetched_rows: output.len(),
+                });
+            });
         }
 
         Ok(QueryOutput {
@@ -14222,6 +14266,73 @@ mod guarded_commit_tests {
                 r#"{"title":"gamma","authorName":null,"shelf":"fiction"}]"#,
             ),
             "left-join nulls stay literal; members follow the declaration order",
+        );
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the instrumented
+    //   index-served root bound: on a large, sparse, mostly-invisible
+    //   fixture the root window performs zero fullscan steps (the declared
+    //   owner-leading index serves the range), fetches no more rows than
+    //   the admitted window, and its total VM work stays far below a table
+    //   traversal — no target scans to fill a page.
+    #[test]
+    fn relational_root_window_is_index_served_on_sparse_fixture() {
+        use crate::manifest::JoinKind;
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(relational_schema()).expect("apply schema");
+        // 3,000 roots; only every 300th belongs to user-a (10 visible),
+        // interleaved so a scan would walk the whole table.
+        let books: Vec<Map<String, Value>> = (0..3_000)
+            .map(|index| {
+                let owner = if index % 300 == 0 { "user-a" } else { "user-b" };
+                json!({
+                    "_id": format!("b{index:04}"),
+                    "title": format!("t{index:04}"),
+                    "authorSlug": "ada",
+                    "ownerId": owner,
+                })
+                .as_object()
+                .cloned()
+                .expect("seed row")
+            })
+            .collect();
+        let authors = vec![
+            json!({ "_id": "a1", "slug": "ada", "name": "Ada", "ownerId": "user-a" })
+                .as_object()
+                .cloned()
+                .expect("seed row"),
+        ];
+        db.seed(SeedData {
+            tables: BTreeMap::from([
+                ("books".to_owned(), books),
+                ("authors".to_owned(), authors),
+            ]),
+        })
+        .expect("seed sparse fixture");
+
+        let input = relational_input("user-a");
+        let _ = take_keyset_scan_stats();
+        let (page, continuation) = db
+            .query_relational(&relational_plan(JoinKind::Left, 5), &input, None)
+            .expect("sparse window");
+        assert_eq!(page.rows.len(), 5);
+        assert!(continuation.is_some(), "full window continues");
+        let stats = take_keyset_scan_stats();
+        let root = stats
+            .iter()
+            .find(|entry| entry.table == "books")
+            .expect("root window recorded scan stats");
+        assert_eq!(
+            root.fullscan_steps, 0,
+            "the root window must be index-served, never a table scan: {root:?}"
+        );
+        assert!(
+            root.fetched_rows <= 5,
+            "examined entries stay within the admitted window: {root:?}"
+        );
+        assert!(
+            root.vm_steps < 1_000,
+            "VM work must be window-bounded, far below a 3,000-row              traversal: {root:?}"
         );
     }
 

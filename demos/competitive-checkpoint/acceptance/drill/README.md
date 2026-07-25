@@ -105,3 +105,10 @@ provisioned identities, tool versions, and instrument digests.
 `fly apps destroy snapback-drill` and `fly storage destroy snapback-drill-backups`
 (plus the auto-created `fly-builder-*` app in the org, a platform artifact of
 `--remote-only` builds).
+
+Resource inventory addition (LLP 0098 author decision D4, 2026-07-25): one
+persistent volume `vol_r6815pkd59o1x614` (name `caddy_storage`, 1 GB,
+encrypted, sjc) for Caddy's certificate storage. Attaching it replaced the
+machine: `819701c927ee68` (v0.7 pin) was retired by the platform and the
+app's single machine is now `849764f2e7dd58`. `fly apps destroy snapback-drill` removes attached volumes with the
+app; if tearing down piecemeal, `fly volumes destroy vol_r6815pkd59o1x614`.

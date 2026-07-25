@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.hosted-edge-d4-volume.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "loopback-terminated-single-instance.v1",
+  "capturedAt": "2026-07-25T19:35:00Z",
+  "kind": "partial-pass",
+  "claim": "hostedAuthCapable is NOT claimed. This receipt records the execution of LLP 0098 author decision D4 (persistent certificate volume), the redeploy of the drill target from current main (the D-1-fixed binary), the close of the D2-plaintext gap on the served origin, and the precise remaining blocker: the Let's Encrypt duplicate-certificate window. The served-origin LLP 0077 matrix and the public-HTTPS drill legs remain NOT RUN.",
+  "governingDocuments": [
+    "LLP 0098 (§8.4 narrates this receipt)",
+    "LLP 0075 (protocol amendment v0.8 pins the volume)",
+    "LLP 0060",
+    "LLP 0077"
+  ],
+  "provider": {
+    "name": "fly.io",
+    "app": "snapback-drill",
+    "machineId": "849764f2e7dd58",
+    "machineReplaced": "attaching the volume replaced the v0.7-pinned machine 819701c927ee68 (Fly platform behavior; machine count still one)",
+    "region": "sjc",
+    "publicOrigin": "https://snapback-drill.fly.dev",
+    "volume": {
+      "id": "vol_r6815pkd59o1x614",
+      "name": "caddy_storage",
+      "sizeGb": 1,
+      "encrypted": true,
+      "mountedAt": "/data/caddy",
+      "scope": "Caddy certificate storage only; database and admission chain deliberately remain on the rootfs"
+    }
+  },
+  "legs": [
+    {
+      "id": "d4-volume-created-and-mounted",
+      "status": "PASS",
+      "what": "The one D4-authorized Fly volume exists, is attached to the app's single machine, and is mounted at Caddy's storage path.",
+      "evidence": "fly volumes list: vol_r6815pkd59o1x614 attached to 849764f2e7dd58; Caddyfile `storage file_system /data/caddy`; fly.toml [mounts] caddy_storage -> /data/caddy."
+    },
+    {
+      "id": "redeploy-from-current-main",
+      "status": "PASS",
+      "what": "The deployment runs an image built from current main (LLP 0077 D-1 fix, LLP 0076-accepted surface, S4 fixed 404, effective-source enforcement).",
+      "evidence": "image snapback-drill:deployment-01KYDB17QJRKBN9SB7K6TD21HE; loopback /health 200 (release build); /_snapback/admin answers 404 with 0 bytes."
+    },
+    {
+      "id": "hosted-admission-verifies",
+      "status": "PASS",
+      "what": "Hosted admission verifies the freshly minted epoch-2 pre-signed chain and publishes the attested five-positive tuple; the 30-second renewal loop serves from /data/admission.json.",
+      "evidence": "boot log `hosted-edge: materialized the admission chain from its Fly secret`; loopback /inspect capabilityManifest.hostedAuth = {externalTls: enforced, effectiveSource: trusted, authenticationThrottle: sharedEnforced, sessionInvalidation: globallyFenced, clientCredentialPosture: senderConstrainedV2}."
+    },
+    {
+      "id": "sessions-staged-single-boot",
+      "status": "PASS",
+      "what": "Sessions went active in a single boot on the fresh rootfs database via the committed startup-artifacts carrier.",
+      "evidence": "loopback GET /auth/session: activeMode sessions, desiredMode sessions, modeState settled."
+    },
+    {
+      "id": "plaintext-credential-refusal",
+      "status": "PASS",
+      "what": "The D2-plaintext gap is closed on the served origin: plaintext REFUSES with a fixed body-free 403 and never redirects, so a credential-bearing client is not invited to resend what it already emitted in cleartext.",
+      "evidence": "public http://snapback-drill.fly.dev{/auth/session,/query/listNotes,/} -> 403, redirect_url empty, 0 bytes (was 308 in the §8.1 run)."
+    },
+    {
+      "id": "acme-interception-under-refusal-config",
+      "status": "PASS",
+      "what": "Defining the explicit plaintext-refusal site does not break ACME HTTP-01: certmagic completed a full staging-CA order under the new config, so production issuance is purely a rate-limit question.",
+      "evidence": "machine log 2026-07-25T19:20:36Z: `validations succeeded; finalizing order` and `successfully downloaded available certificate chains` against acme-staging-v02.api.letsencrypt.org."
+    },
+    {
+      "id": "public-tls-issuance",
+      "status": "BLOCKED",
+      "what": "Production certificate issuance is refused by Let's Encrypt's new-certificates-per-exact-set-of-identifiers limit; the volume prevents future burn but cannot un-spend the window. Caddy's paced backoff self-heals once the window clears; the certificate then persists on the volume.",
+      "evidence": "machine ACME log: HTTP 429 urn:ietf:params:acme:error:rateLimited — 'too many certificates (5) already issued for this exact set of identifiers in the last 168h0m0s, retry after 2026-07-27 00:53:37 UTC' (rolling window)."
+    },
+    {
+      "id": "llp-0077-sender-auth-matrix-served",
+      "status": "NOT RUN",
+      "what": "The served-origin matrix needs public HTTPS. Everything else is now in place: the 42-check matrix passes 42/42 against a local hosted origin composed identically (hosted-sender-matrix.v0.rerun-20260725.json), sessions is active on the served origin, and LLP 0098 §8.4 records the exact rerun recipe (fresh chain via sftp hot-swap; command code source over fly ssh).",
+      "evidence": "blocked solely by the public-tls-issuance leg above."
+    }
+  ],
+  "claimBoundary": "Defect count is zero and every leg runnable without public TLS passes on the served deployment, but hostedAuthCapable requires the LLP 0077 matrix plus the LLP 0072 hosted-auth drill to pass against the served public origin under real TLS and real attestation. That remains blocked until the Let's Encrypt window clears (retry after 2026-07-27 00:53:37 UTC). No fence was weakened: the D1 plaintext refusal now extends to the terminator, the hosted profile still requires loopback, and the admission chain's private signing half never entered the machine, a receipt, or a commit."
+}

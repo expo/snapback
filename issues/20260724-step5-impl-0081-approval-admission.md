@@ -49,3 +49,17 @@ refuses honestly (`SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE`). Remaining:
 the hosted/control-plane approval class (LLP 0072 operation), policy-digest
 semantics beyond the local constant, and the §5/§6 verify/rollback faces
 (Wave 3).
+
+**Phase D closure (2026-07-25):** `snapback migrate preview` derives the
+intent set from the schema diff when `--intents` is omitted (explicit
+intents take precedence). The derivation (`derive_intents`) is
+deterministic through to plan bytes and covers exactly the unambiguous,
+semantics-free changes — create table (successor declaration applies
+whole, indexes included), new index on an existing table, add optional
+field, optional→required tighten, retire field/table — and refuses with
+`SNAPBACK_MIGRATION_PLAN_INVALID` naming the explicit intent required for
+required-field adds (AddRequiredField), type changes (ConvertField),
+removed+added field pairs (RenameField — a diff cannot distinguish a
+rename), required→optional loosening, and index removal/alteration
+(outside the closed vocabulary). Witness:
+`schema_diff_derivation_is_deterministic_and_closed`.

@@ -11026,6 +11026,13 @@ impl LocalSnapback {
         //   fenced database starts every lane closed until the operation's
         //   journal reaches a terminal state (resume or explicit exit).
         let migration_fenced = db.migration_fence()?.is_some();
+        // §4 crash recovery: a tail interrupted between its durable cuts
+        // completes before the instance serves (the sweep is idempotent and
+        // inventory-driven; failure keeps the journal at cleanup-pending
+        // for the next reopen rather than blocking open).
+        if !migration_fenced {
+            let _ = db.resume_pending_migration_cleanup();
+        }
         let admission = AdmissionController::from_mode_state_with_migration_fence(
             &auth_mode,
             migration_fenced,
@@ -11171,22 +11178,47 @@ impl LocalSnapback {
         successor_schema: &SchemaManifest,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
-        //   publication must fire LLP 0053's activation obligations for
-        //   auth-scoped state, not a generic resync. The dev profile below
-        //   fires the unscoped activation consequence; the durable
-        //   auth-scoped disposition integration belongs to the sessions
-        //   activation machinery, so publishing under live auth-scoped
-        //   subscriptions fails closed instead of substituting a resync.
-        if self
-            .subscriptions
-            .values()
-            .any(|subscription| subscription.authorization.is_some())
+        //   publication fires LLP 0053's activation obligations for
+        //   auth-scoped state: every auth-scoped subscription gets a durable
+        //   Delete obligation with the publication witness, a terminal
+        //   resolution with acknowledgement semantics, and an authenticated
+        //   scope retirement (see retire_live_subscriptions_for_publication).
+        //   The only refusal left here is the inconsistent state where
+        //   auth-scoped subscriptions exist without installed invalidation —
+        //   no durable disposition could be recorded, so publishing would
+        //   silently substitute a resync for 0053's machinery.
+        if self.auth_invalidation.is_none()
+            && self
+                .subscriptions
+                .values()
+                .any(|subscription| subscription.authorization.is_some())
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
                 "storage",
-                "migration publication under live auth-scoped subscriptions requires the \
-                 sessions activation-obligation integration; drain those subscriptions first",
+                "migration publication found auth-scoped subscriptions without installed \
+                 authorization-invalidation state; no durable disposition can be recorded",
+            ));
+        }
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
+        //   publishes with the storage is the staged generated-function and
+        //   schema identity set. On the local profile the serving manifest
+        //   is that staged set, so publication refuses when it does not
+        //   bind against the successor schema — a released database whose
+        //   functions reference retired shape is exactly the ambiguity the
+        //   receipt exists to prevent.
+        if self.functions_loaded
+            && let Err(error) =
+                validate_function_schema_references(&self.functions, successor_schema)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                "storage",
+                format!(
+                    "the staged function set does not bind against the successor schema; \
+                     stage a successor-compatible pair before publishing ({})",
+                    error.diagnostic.message
+                ),
             ));
         }
         let audience = self.migrate_resolved_audience()?;
@@ -11225,34 +11257,100 @@ impl LocalSnapback {
         Ok(receipt)
     }
 
-    /// The dev-profile publication consequence: every retained live
-    /// subscription is disposed and told to resync with retained state
-    /// cleared. Mirrors the activation path's unscoped retirement; the
-    /// auth-scoped durable-disposition variant is the sessions residual
-    /// recorded in the journal-events ticket.
+    /// The publication consequence for every retained live subscription
+    /// (LLP 0081 §4). Unscoped subscriptions are disposed and told to
+    /// resync with retained state cleared. Auth-scoped subscriptions get
+    /// LLP 0053's machinery, never a generic resync: a durable `Delete`
+    /// obligation raised with the publication witness, a terminal-delete
+    /// resolution carrying acknowledgement semantics, the projected
+    /// obligation frame delivered durably, and an authenticated scope
+    /// retirement — so a lost frame is recovered by the obligation
+    /// registry, retained rows cannot survive the raised floor, and the
+    /// retired scope can never be resumed.
     fn retire_live_subscriptions_for_publication(&mut self) -> SnapbackResult<()> {
         let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
         if subscriptions.is_empty() {
             return Ok(());
         }
-        let snapshot_version = Some(self.db.current_version()?);
+        let publication_version = self.db.current_version()?;
+        let snapshot_version = Some(publication_version);
         let received_at_ms = now_millis();
         for subscription in subscriptions {
-            let payload = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
-                reason: "schema_publication".to_owned(),
-                subscription_id: Some(subscription.id.clone()),
-                scope: Some(String::new()),
-                epoch: Some(0),
-                clear_retained: true,
-            })
-            .map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
-                    "realtime",
-                    "publication resync message could not be serialized",
-                )
-                .with_details(json!({ "error": error.to_string() }))
-            })?;
+            let payload = if let Some(authorization) = subscription.authorization.as_ref() {
+                let scope = authorization.scope_id.clone();
+                let (projection, prepared_retirement) = {
+                    let state = self.auth_invalidation.as_mut().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
+                            "auth",
+                            "publication cannot dispose an auth-scoped subscription without \
+                             invalidation state",
+                        )
+                    })?;
+                    let cause = state.reserve_cause_sequence()?;
+                    let witness = state.witness(publication_version);
+                    state.obligations.raise(
+                        scope.clone(),
+                        cause,
+                        format!("schema_publication:{cause}"),
+                        InvalidationDisposition::Delete,
+                        witness.clone(),
+                        None,
+                    )?;
+                    state.obligations.issue_resolution(
+                        &scope,
+                        ResolutionKind::TerminalDelete,
+                        witness,
+                    )?;
+                    let projection =
+                        state.obligations.projection(&scope).ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+                                "auth",
+                                "a just-raised publication obligation has no projection",
+                            )
+                        })?;
+                    let (candidate, _retirement) =
+                        state.prepare_scope_retirement_authenticated(&scope)?;
+                    (projection, candidate)
+                };
+                let payload = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                    projection.obligation,
+                    projection.resolution,
+                    None,
+                ))
+                .map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+                        "realtime",
+                        "publication obligation frame could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() }))
+                })?;
+                // No fallible step remains: remove, then commit the
+                // authenticated retirement (the unsubscribe ordering).
+                self.subscriptions.remove(&subscription.id);
+                if let Some(state) = self.auth_invalidation.as_mut() {
+                    state.commit_scope_retirement(&scope, &prepared_retirement);
+                }
+                payload
+            } else {
+                serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    reason: "schema_publication".to_owned(),
+                    subscription_id: Some(subscription.id.clone()),
+                    scope: Some(String::new()),
+                    epoch: Some(0),
+                    clear_retained: true,
+                })
+                .map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                        "realtime",
+                        "publication resync message could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() }))
+                })?
+            };
             self.subscriptions.remove(&subscription.id);
             self.receipts.push_global(
                 Receipt::Subscription {
@@ -16180,6 +16278,283 @@ mod tests {
         assert_eq!(resync["clear_retained"], json!(true));
     }
 
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
+    //   publishes with the storage is the staged generated-function and
+    //   schema identity set: publication refuses when the serving function
+    //   set does not bind against the successor schema.
+    #[test]
+    fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput, MigrationIntent,
+            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            RetainedWorkPosture, MIGRATION_APPROVAL_SCHEMA_VERSION,
+            MIGRATION_PLAN_SCHEMA_VERSION, derive_intents, derive_plan_steps,
+            new_operation_id,
+        };
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+
+        let mut snapback = LocalSnapback::memory().expect("memory fixture");
+        snapback.apply_schema(predecessor.clone()).expect("apply schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "listByExtra",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: vec![FilterExpr {
+                        field: "extra".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::Literal(json!("x")),
+                    }],
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+
+        let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+        assert_eq!(
+            intents,
+            vec![MigrationIntent::RetireField {
+                table: "notes".to_owned(),
+                field: "extra".to_owned(),
+            }],
+        );
+        let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+        let artifact = MigrationPlanArtifactV1::seal(MigrationPlanBody {
+            schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+            app: snapback.migrate_app_id(),
+            instance: "memory".to_owned(),
+            target_profile_id:
+                crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            predecessor_schema_hash: identity(&predecessor),
+            successor_schema_hash: identity(&successor),
+            predecessor_generation: 1,
+            steps,
+            execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+            proof: MigrationProof {
+                method: MigrationProofMethod::Full,
+                bound: None,
+            },
+            ceilings: MigrationCeilings {
+                max_affected_rows: 100,
+                max_bytes: 1024 * 1024,
+                max_writes: 100,
+                max_barrier_downtime_ms: 60_000,
+            },
+            compatibility_posture: CompatibilityPosture::SuccessorOnly,
+            retained_work_posture: RetainedWorkPosture::Empty,
+            backup: MigrationBackupRequirement {
+                required: false,
+                checkpoint_label: None,
+            },
+            expected_output: MigrationExpectedOutput {
+                schema_hash: identity(&successor),
+                projection_generations: BTreeMap::new(),
+            },
+            constants: MigrationConstants {
+                publication_timestamp_ms: 2_000_000_000_000,
+                rollback_timestamp_ms: None,
+                values: BTreeMap::new(),
+            },
+            boundaries: Default::default(),
+        })
+        .expect("seal plan");
+        let approve = |snapback: &mut LocalSnapback, artifact: &MigrationPlanArtifactV1| {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: now_millis(),
+                expires_at_ms: now_millis() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        };
+        let approval = approve(&mut snapback, &artifact);
+        let error = snapback
+            .migrate_apply_artifact(&artifact, &approval, &successor)
+            .expect_err("a function bound to the retired field must refuse publication");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+        assert!(
+            error.diagnostic.message.contains("staged function set"),
+            "{}",
+            error.diagnostic.message
+        );
+
+        // With a successor-compatible function set the same plan publishes.
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "listNotes",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+        // Reloading the staged pair rolled the activation generation, so
+        // the earlier approval's audience is stale by design (§2): the same
+        // plan publishes as a new operation under a fresh approval.
+        let fresh = approve(&mut snapback, &artifact);
+        let receipt = snapback
+            .migrate_apply_artifact(&artifact, &fresh, &successor)
+            .expect("a binding pair publishes");
+        assert_eq!(receipt.state.kind(), "released");
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — publication
+    //   fires LLP 0053's activation obligations for auth-scoped state, not
+    //   a generic resync: under Sessions authorities, an auth-scoped live
+    //   subscription crossing a publication gets a durable Delete
+    //   obligation raised with the publication witness, a terminal-delete
+    //   resolution with acknowledgement semantics, the projected obligation
+    //   frame, and an authenticated scope retirement.
+    #[test]
+    fn publication_fires_durable_dispositions_for_auth_scoped_subscriptions() {
+        let (schema, functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "publication-authz".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(97)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("auth-scoped subscribe under sessions");
+        let scope = snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .and_then(|subscription| subscription.authorization.as_ref())
+            .map(|authorization| authorization.scope_id.clone())
+            .expect("subscription is auth-scoped");
+        // Start from an empty queue so the drained frames below are exactly
+        // the publication consequence.
+        let _ = drain_live_stream_through_test_sink(&mut snapback, "publication-authz");
+
+        snapback
+            .retire_live_subscriptions_for_publication()
+            .expect("publication retirement under auth-scoped subscription");
+
+        assert!(
+            snapback.subscriptions.is_empty(),
+            "no subscription survives the publication"
+        );
+        // The durable consequence is the obligation frame — never the
+        // unscoped generic resync.
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "publication-authz");
+        let envelopes: Vec<Value> = frames
+            .iter()
+            .map(|frame| serde_json::from_str(frame).expect("frame parses"))
+            .collect();
+        assert!(
+            envelopes
+                .iter()
+                .all(|envelope| envelope["kind"] != "resync_required"),
+            "auth-scoped retirement must not substitute a generic resync: {envelopes:?}"
+        );
+        let invalidation = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "authorization_invalidation")
+            .expect("durable obligation frame delivered");
+        assert_eq!(
+            invalidation["obligation"]["maxDisposition"],
+            json!("delete"),
+            "retained rows are cleared by durable disposition: {invalidation}"
+        );
+        assert_eq!(
+            invalidation["resolution"]["kind"],
+            json!("terminalDelete"),
+            "the terminal resolution rides the same frame: {invalidation}"
+        );
+        assert!(
+            invalidation["resolution"]["ackToken"].is_string(),
+            "the resolution carries acknowledgement semantics: {invalidation}"
+        );
+        // The scope retirement is durable and authenticated: the registry
+        // holds no live projection for the retired scope.
+        let retired_projection = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("invalidation installed")
+            .obligations
+            .projection(&scope);
+        assert!(
+            retired_projection.is_none(),
+            "a retired scope keeps no live obligation projection"
+        );
+    }
+
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
     //   posture-aware attest handshake: after a successor-only publication,
     //   a client attesting the predecessor schema artifact receives the
@@ -19295,9 +19670,9 @@ globalThis.__snapbackHandlers = {
             diagnostics.iter().any(|d| {
                 (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
                     || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
-                    && d.message.contains("relationalRetentionNone")
+                    && d.message.contains("incompleteReadSummary")
             }),
-            "relational retention is default-deny with an honest reason: {diagnostics:?}"
+            "retention stays default-deny: a bare retainable flag without the              relational read summary and dependence declaration refuses              (the complete opaque-authorized-snapshot-v1 declaration is              witnessed in relational_retention_admission_is_default_deny):              {diagnostics:?}"
         );
     }
 
@@ -20921,6 +21296,200 @@ globalThis.__snapbackHandlers = {
         ));
     }
 
+    // @ref LLP 0080#4-live-and-retained-capability — the obligation-fault
+    //   e2e: a shrinking replacement on an owner-visible relational
+    //   subscription is obligation-backed, so a lost delivery cannot leave
+    //   forbidden rows visible — the level-triggered obligation reprojects
+    //   until the exact ACK discharges it, and no live_delta ever escapes.
+    #[test]
+    fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
+        let (schema, mut functions) = relational_live_fixture_functions(10);
+        functions.functions.push(FunctionDefinition::new(
+            "deleteBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Delete {
+                    table: "books".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("memory shrink fixture");
+        snapback.apply_schema(schema).expect("apply shrink schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "shrink fixture must activate: {diagnostics:?}"
+        );
+        snapback
+            .invoke_mutation(
+                "addAuthor",
+                HandlerInput {
+                    args: json!({ "slug": "ada", "name": "Ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert author");
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({ "title": "alpha", "slug": "ada" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert book");
+        let book_id = snapback
+            .db
+            .query(
+                &QueryPlan {
+                    table: "books".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("read book id")
+            .rows[0]["_id"]
+            .as_str()
+            .expect("book id")
+            .to_owned();
+
+        let connection = install_test_invalidation(&mut snapback);
+        let admission = managed_session_admission();
+        let owner_input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        // An owner-visible plan needs a real Session authority under the
+        // session-mode admission (the anonymous test default would refuse
+        // with AUTH_USER_MISSING).
+        let session_authority = crate::auth::invocation::InvocationGate::prepare_authority(
+            crate::auth::invocation::InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            crate::admin::ServerProfile::Test,
+            1,
+            1,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Session {
+                user_id: "user-a".to_owned(),
+                session_id: "sess-shrink".to_owned(),
+                provider: "test".to_owned(),
+                generation: 1,
+                authority_instance_id: "authinst-shrink".to_owned(),
+                session_not_after_ms: u64::MAX / 2,
+                provider_not_after_ms: None,
+            },
+        )
+        .expect("prepare session authority");
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    input: owner_input,
+                    authorization_namespace: Some(test_authorization_namespace(7)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                session_authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("owner-visible relational auth-scoped subscription");
+        assert_eq!(
+            subscribed.snapshot.expect("initial snapshot").rows,
+            vec![json!({ "title": "alpha" })],
+        );
+        assert!(drain_live_stream_through_test_sink(&mut snapback, "rel-shrink").is_empty());
+
+        // The shrinking commit: the only visible root is deleted.
+        invoke_test_session_mutation(
+            &mut snapback,
+            "deleteBook",
+            HandlerInput {
+                args: json!({ "id": book_id }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("delete the visible book");
+        let messages = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink");
+        let frame = messages
+            .iter()
+            .filter_map(|message| serde_json::from_str::<Value>(message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("obligation-backed shrinking replacement frame");
+        assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+        assert_eq!(frame["resolution"]["kind"], "snapshot");
+        assert_eq!(frame["snapshot"]["rows"], json!([]));
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains("\"kind\":\"live_delta\"")),
+            "a relational shrink must never escape as best-effort live_delta"
+        );
+
+        // The fault: the replacement is treated as lost — no ACK arrives.
+        // Recovery is the obligation machinery, not best-effort delivery:
+        // reprojection re-emits the level-triggered obligation, the managed
+        // rerun re-delivers the atomic snapshot, and only the exact ACK
+        // discharges it.
+        snapback
+            .reproject_authorization_invalidations("rel-shrink", &admission)
+            .expect("reproject after lost delivery");
+        let hint = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink")
+            .into_iter()
+            .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+            .find(|message| message["kind"] == "authorization_invalidation")
+            .expect("level-triggered obligation survives the lost delivery");
+        assert!(
+            hint.get("resolution").is_none() && hint.get("snapshot").is_none(),
+            "a snapshot resolution is never projected without its atomic rows"
+        );
+        let rerun = snapback
+            .authorization_invalidation_frames("rel-shrink", &admission)
+            .expect("managed rerun");
+        let rerun = serde_json::from_slice::<Value>(
+            &rerun.first().expect("fresh snapshot frame").payload,
+        )
+        .expect("rerun frame JSON");
+        assert_eq!(rerun["snapshot"]["rows"], json!([]));
+        let ack_token = rerun["resolution"]["ackToken"]
+            .as_str()
+            .expect("ack token")
+            .to_owned();
+        let ack = snapback
+            .acknowledge_authorization_invalidation(
+                AuthorizationInvalidationAckInput {
+                    connection_id: "rel-shrink".to_owned(),
+                    ack_token,
+                },
+                connection,
+                &admission,
+            )
+            .expect("exact ack");
+        assert_eq!(ack.outcome, "discharged");
+        assert!(
+            snapback
+                .authorization_invalidation_frames("rel-shrink", &admission)
+                .expect("post-ack frames")
+                .is_empty(),
+            "the exact ACK discharges the obligation"
+        );
+    }
+
     #[test]
     fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
         let mut snapback = live_limit_snapback();
@@ -21605,11 +22174,69 @@ globalThis.__snapbackHandlers = {
             membership: None,
         };
 
+        let books = TableManifest {
+            name: "books".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "authorSlug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_owner_title".to_owned(),
+                fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                unique: false,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
+        let authors = TableManifest {
+            name: "authors".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "slug".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "name".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![IndexManifest {
+                name: "by_slug".to_owned(),
+                fields: vec!["slug".to_owned()],
+                unique: true,
+            }],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback
             .apply_schema(SchemaManifest {
                 schema_hash: Some(deployment.schema_hash.clone()),
-                tables: vec![items.clone()],
+                tables: vec![items.clone(), books.clone(), authors.clone()],
                 ..SchemaManifest::default()
             })
             .expect("apply lease schema");
@@ -21638,9 +22265,57 @@ globalThis.__snapbackHandlers = {
             mode: Some("singleTable".to_owned()),
             auth_scope_field: None,
         };
+        // @ref LLP 0080#4-live-and-retained-capability — the retained
+        //   relational lease-class fixture: retainable declares exactly
+        //   opaque-authorized-snapshot-v1, owner-visible, with the
+        //   relational read summary and UserId dependence.
+        let mut relational_retained = FunctionDefinition::new(
+            "relationalOwned",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(
+                crate::manifest::RelationalQueryPlan {
+                    root: "books".to_owned(),
+                    root_alias: "book".to_owned(),
+                    joined: "authors".to_owned(),
+                    joined_alias: "author".to_owned(),
+                    join_kind: crate::manifest::JoinKind::Inner,
+                    join_on: vec![crate::manifest::JoinEquality {
+                        root_field: "authorSlug".to_owned(),
+                        joined_field: "slug".to_owned(),
+                    }],
+                    root_filters: Vec::new(),
+                    root_visibility: vec![FilterExpr {
+                        field: "ownerId".to_owned(),
+                        op: FilterOp::Eq,
+                        value: ValueExpr::AuthUserId,
+                    }],
+                    joined_visibility: Vec::new(),
+                    projection: vec![crate::manifest::ProjectionLeaf {
+                        name: "title".to_owned(),
+                        source: crate::manifest::ProjectionSource::RootField("title".to_owned()),
+                    }],
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "title".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    take: 10,
+                    root_index: "by_owner_title".to_owned(),
+                    joined_index: "by_slug".to_owned(),
+                },
+            )),
+        );
+        relational_retained.retainable = true;
+        relational_retained.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        relational_retained.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
         let diagnostics = snapback.load_functions(FunctionManifest {
             bundle_hash: Some(deployment.bundle_hash.clone()),
-            functions: vec![retained],
+            functions: vec![retained, relational_retained],
             ..FunctionManifest::default()
         });
         assert!(
@@ -21658,7 +22333,7 @@ globalThis.__snapbackHandlers = {
             }),
             schema_hash: Some(deployment.schema_hash.clone()),
             inputs_hash: Some(deployment.inputs_hash.clone()),
-            tables: vec![items],
+            tables: vec![items, books, authors],
             ..SchemaManifest::default()
         };
         let db = snapback.auth_database_mut();
@@ -21806,6 +22481,117 @@ globalThis.__snapbackHandlers = {
             &capture.app_id,
         )
         .expect("sign captured lease")
+    }
+
+    // @ref LLP 0080#4-live-and-retained-capability — the
+    //   opaque-authorized-snapshot-v1 lease class end to end: an
+    //   owner-visible retained relational plan captures, signs, and
+    //   reserves an authorized lease under a real Sessions authority; the
+    //   projected result is the opaque snapshot (the relational
+    //   continuation cursor never rides the lease envelope), and the
+    //   default-deny admission refuses anonymous plans and incomplete
+    //   declarations at load.
+    #[test]
+    fn relational_retention_lease_class_admits_and_captures() {
+        let mut snapback = retainable_sessions_snapback();
+        let _connection = install_test_invalidation(&mut snapback);
+
+        let capture = snapback
+            .capture_authorized_lease_query(
+                "relationalOwned",
+                HandlerInput::default(),
+                lease_session_authority(),
+                lease_request("req_relational_1"),
+            )
+            .expect("owner-visible retained relational plan captures a lease");
+        assert!(
+            capture.output.rows.is_empty(),
+            "empty owner partition captures an empty opaque snapshot"
+        );
+        assert!(
+            capture.output.cursor.is_none(),
+            "a short page carries no continuation into the retained snapshot"
+        );
+        let issued_at = now_millis();
+        let lease = sign_captured_lease(&capture, issued_at);
+        snapback
+            .reserve_captured_authorized_lease(
+                capture,
+                &lease,
+                crate::auth::lease::AuthorizedLeaseConfig::default(),
+                issued_at,
+            )
+            .expect("retained relational lease reserves end to end");
+    }
+
+    // The default-deny admission half: anonymous plans and incomplete
+    // relational declarations refuse at load with typed reasons.
+    #[test]
+    fn relational_retention_admission_is_default_deny() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let relational = functions.functions[0].clone();
+        let load = |schema: &SchemaManifest, function: FunctionDefinition| {
+            let mut snapback = LocalSnapback::memory().expect("memory retention fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply retention schema");
+            snapback.load_functions(FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            })
+        };
+        let refuses = |diagnostics: &[crate::diagnostic::Diagnostic], reason: &str| {
+            diagnostics.iter().any(|d| {
+                (d.code == "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+                    || d.message.contains("SNAPBACK_AUTH_UNDECLARABLE_RETENTION"))
+                    && d.message.contains(reason)
+            })
+        };
+
+        // All-public retained relational: anonymous results have no
+        // admissible v1 retention.
+        let mut anonymous = relational.clone();
+        anonymous.retainable = true;
+        if let FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) =
+            &mut anonymous.runtime
+        {
+            plan.root_visibility.clear();
+        }
+        let diagnostics = load(&schema, anonymous);
+        assert!(
+            refuses(&diagnostics, "relationalAnonymousRetention"),
+            "{diagnostics:?}"
+        );
+
+        // Owner-visible but with a missing relational read summary.
+        let mut incomplete = relational.clone();
+        incomplete.retainable = true;
+        incomplete.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        let diagnostics = load(&schema, incomplete);
+        assert!(
+            refuses(&diagnostics, "incompleteReadSummary"),
+            "{diagnostics:?}"
+        );
+
+        // The complete declaration activates.
+        let mut declared = relational;
+        declared.retainable = true;
+        declared.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        declared.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("books".to_owned()),
+            tables: vec!["books".to_owned(), "authors".to_owned()],
+            mode: Some("relational".to_owned()),
+            auth_scope_field: None,
+        };
+        let diagnostics = load(&schema, declared);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "the complete lease-class declaration must activate: {diagnostics:?}"
+        );
     }
 
     /// ENG-24989: one user's unresolved obligation must not deny lease
