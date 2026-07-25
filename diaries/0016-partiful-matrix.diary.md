@@ -2349,3 +2349,35 @@ memory collection now validate every selected backend immediately after the
 one cohort preflight, before producing the first sample.
 This was benchmark-infrastructure friction rather than Snapback, Exact, or
 Contract authoring friction, and it did not expose a guide gap.
+
+## 2026-07-25 — integrated product checks needed authority and route isolation
+
+The first clean integration run of the final React and Contract product
+surfaces failed five of twelve focused UI checks even though the individual
+features were present. Three failures belonged to the acceptance boundary:
+React detail assertions ran before its initial live query delivered, both
+authoring arms mutated one in-memory Snapback fixture even though the
+responsive oracle required the canonical three rows, and CDP waited for the
+Contract async key handler long enough to miss the deliberately bounded
+optimistic row. The runner now waits for the semantic detail surface, gives
+each product arm its own in-memory Snapback authority, and installs its
+pending-state witness before dispatching Enter. The isolated reduced-motion
+run observed `Sending…` for about 459 ms, confirming that the app behavior was
+right and the polling observer was wrong.
+
+One failure was real Contract application integration friction. Closing the
+create sheet navigates from `/events/new/` to the feed, and the Contract host
+replaces the mounted tree for that route. Exact's local `focusRestore` correctly
+targeted the old opener, but that node no longer existed after the remount.
+Partitime already carried a semantic `focusTestId` on its navigation event; the
+route owner now applies it after the replacement tree commits. That makes the
+cross-route focus contract explicit without weakening the overlay primitive or
+requiring the app to retain a stale DOM node.
+
+After these repairs, the focused Chrome product lane passed 12/12 and the
+ordinary Contract × Snapback push lane passed 4/4. This felt like normal
+whole-application integration work rather than a fundamental Contract or
+Snapback limitation: Contract supplied the overlay and route ingredients, but
+the app still had to join their lifetimes. The existing Contract adapter guide
+covered the provider boundary; no missing Guide instruction caused these
+failures, so no `guide-gap` ticket was filed.
