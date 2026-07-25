@@ -13,6 +13,7 @@
       "default": "./provider-bindings.json"
     },
     "./provider-introspection": "./provider-introspection.json",
+    "./routes": "./routes.manifest.json",
     "./schema": "./schema.manifest.json"
   },
   "type": "module"

@@ -144,3 +144,42 @@ wire answer to "I already have the rows you inlined" is a ~200-byte
   (`disconnect removes the connection-owned cursor`, `TTL expiry prunes an
   idle cursor`) fail at the step-2 base commit on this host too — not a
   step-3 regression; needs its own investigation.
+
+## 2026-07-24 — the widget-shaped read-mode surface (LLP 0090 rollout step 7, ENG-25458)
+
+Graffiti grew its second Channel C consumer: `surfaces/widget/render.mjs`, a
+socket-less widget in D4's WidgetKit/complication shape — one anonymous
+read-mode `POST /app/bundle` against the parameterized `/board/:boardId`
+route, a last-writer-wins text render of the wall, exit. Deliberately **no
+client kit at all**: plain `fetch` is the whole transport, which is the
+point — a constrained extension process gets current rows without any of the
+subscription machinery.
+
+### What the widget case proved about the contract
+
+- The v1 socket-less rule (public/`publicInline` bundles only) needed zero
+  new declarations: the step-3 triple on `listCells` was exactly what
+  admitted the anonymous read. The layering worked as designed — the widget
+  surface added *no* authority surface.
+- The anonymous-register refusal behaves as LLP 0092 §0D.2 demands: the
+  widget asks for register, gets the coded
+  `SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL`, and retries with an
+  explicit read request — the acceptance pins that this is two visible
+  requests and never a silent mode substitution.
+- Deep-link + widget turned out to be the same motion: the widget's request
+  IS a params-v1 cold start into a parameterized route. A different board id
+  renders that board's wall from one request with nothing else changed.
+- The public entry is rqsEligible, so the widget receives a resume token it
+  has no use for — harmless (it could seed a future socketed session), but a
+  per-manifest-entry "no tokens needed" hint could shave bytes for pure
+  read-and-exit consumers someday. Not filed; the token is ~200 bytes.
+
+Acceptance (`tests/acceptance/widget-read-mode.mjs`, in the local proof)
+poisons the global `WebSocket` constructor for the whole run — "no socket
+opened" is enforced by construction, not observation — and additionally
+proves the CLI lifecycle terminates on its own (a held socket would hang the
+event loop and trip the timeout).
+
+Cosmetic observation, not a defect: read-mode public bundles serve
+`Cache-Control: no-store, private` where the taxonomy row says `no-store`
+(strictly stronger, same v1 posture).

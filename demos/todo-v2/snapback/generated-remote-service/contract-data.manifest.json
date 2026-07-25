@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:7947710779cd996c",
+  "bundleHash": "sha256:6493b1def1888b90",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "ea26b8f6c1bd4c4045a4e94dd1870875ddc869efa24f4fc7c0211c339810e97c",
+  "inputsHash": "2c0b418051b2111dfa05dbaa3f0228584237926182b056f9367a4a0a68ee4054",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {
@@ -313,6 +313,71 @@
       "subscription": "initial-snapshot",
       "transport": "push"
     },
+    "listTodosByPriority": {
+      "argOrder": [
+        "priority"
+      ],
+      "args": {
+        "priority": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listTodosByPriority",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "todos"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "completed": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "priority": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
     "listTodosOnce": {
       "argOrder": [],
       "args": {},
@@ -405,6 +470,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:2cd7f96cc8560eae",
+  "schemaHash": "sha256:fd249ab4167192d9",
   "schemaVersion": "snapback.v0"
 }

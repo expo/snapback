@@ -45,6 +45,7 @@ export interface GeneratedFunctionContexts {
   deleteTodo: GeneratedMutationContext;
   editTitle: GeneratedMutationContext;
   listTodos: GeneratedQueryContext;
+  listTodosByPriority: GeneratedQueryContext;
   listTodosOnce: GeneratedQueryContext;
   setCompleted: GeneratedMutationContext;
   setPriority: GeneratedMutationContext;
@@ -57,6 +58,7 @@ export interface GeneratedApi {
   deleteTodo: FunctionReference<'deleteTodo', 'Mutation', { id: string }, unknown>;
   editTitle: FunctionReference<'editTitle', 'Mutation', { id: string; title: string }, unknown>;
   listTodos: FunctionReference<'listTodos', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>>;
+  listTodosByPriority: FunctionReference<'listTodosByPriority', 'LiveQuery', { priority: string }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>>;
   listTodosOnce: FunctionReference<'listTodosOnce', 'Query', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>>;
   setCompleted: FunctionReference<'setCompleted', 'Mutation', { id: string; completed: boolean }, unknown>;
   setPriority: FunctionReference<'setPriority', 'Mutation', { id: string; priority: string }, unknown>;

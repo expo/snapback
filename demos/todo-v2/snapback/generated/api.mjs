@@ -72,6 +72,14 @@ export const api = Object.freeze({
     "name": "listTodos",
     "schemaVersion": "snapback.v0"
   },
+  "listTodosByPriority": {
+    "appId": "todo-v2",
+    "artifactKind": "functionReference",
+    "id": "todo-v2:listTodosByPriority",
+    "kind": "LiveQuery",
+    "name": "listTodosByPriority",
+    "schemaVersion": "snapback.v0"
+  },
   "listTodosOnce": {
     "appId": "todo-v2",
     "artifactKind": "functionReference",

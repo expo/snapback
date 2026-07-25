@@ -142,6 +142,11 @@ run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packa
 run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-vite test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
+# LLP 0090 rollout step 7 (ENG-25458): Channel C consumption — the
+# authenticated register-mode boot (todo-v2) and the socket-less widget
+# read-mode surface (graffiti), both wire-instrumented and hermetic.
+run node demos/todo-v2/tests/acceptance/register-boot.mjs
+run node demos/graffiti/tests/acceptance/widget-read-mode.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs
 run node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
 run node demos/_kit/tests/auth-handshake.mjs

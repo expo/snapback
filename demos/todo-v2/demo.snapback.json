@@ -46,6 +46,13 @@
       "runner": "node demos/todo-v2/tests/acceptance/headless.mjs",
       "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
     },
+    "registerBoot": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/todo-v2/tests/acceptance/register-boot.mjs",
+      "toolchain": "node>=22 (built-in fetch + WebSocket); cargo to build/run the local server",
+      "note": "LLP 0090 D4 rollout step 7 (ENG-25458): Channel C authenticated web boot — shell + one register-mode POST /app/bundle; the surface adopts the bundle registrations (rqsRegistered seam), the socket attaches under the bundle grant, and the wire shows exactly one snapshot per query (the bundle's). The browser surface (main.ts) performs the same boot; this suite is its wire-instrumented proof."
+    },
     "contract": {
       "requirement": "optional",
       "runner": "bun demos/todo-v2/tests/acceptance/contract.mjs",

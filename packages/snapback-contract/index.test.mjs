@@ -167,6 +167,73 @@ for (const { label, value, expected } of [
   surface.dispose();
 }
 
+// Channel C register-mode seam (LLP 0090 D4 rollout step 7): the surface's
+// `rqsRegistered` lookup rides into liveQuery as `registeredSubscription` in
+// both single-query and multi-live modes, keyed by the configured (name,
+// args), and a missing entry passes null (ordinary fresh subscribe).
+{
+  const registeredEntry = {
+    subscriptionId: 'sub_bundle_1',
+    rows: [{ _id: 'todo_1' }],
+    version: 7,
+    resume: null,
+  };
+  const singleOptions = [];
+  const singleSurface = await createSnapbackContractSurface({
+    runtime: mockRuntime(),
+    client: {
+      async liveQuery(name, options) {
+        singleOptions.push({ name, registered: options.registeredSubscription });
+        return {
+          rows: options.registeredSubscription?.rows ?? [],
+          version: options.registeredSubscription?.version,
+          connection: 'live',
+          dispose() {},
+        };
+      },
+      async mutate() {},
+    },
+    userId: 'ada',
+    manifest: baseManifest({ listTodos: { name: 'listTodos', mode: 'live' } }),
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    rqsRegistered: (name, args) => {
+      assert.equal(name, 'listTodos');
+      assert.deepEqual(args, {});
+      return registeredEntry;
+    },
+  });
+  assert.equal(singleOptions.length, 1);
+  assert.equal(singleOptions[0].registered, registeredEntry);
+  assert.deepEqual(singleSurface.links.listTodos(), [{ _id: 'todo_1' }]);
+  singleSurface.dispose();
+
+  const multiOptions = [];
+  const multiSurface = await createSnapbackContractSurface({
+    runtime: mockRuntime(),
+    client: {
+      async liveQuery(name, options) {
+        multiOptions.push({ name, registered: options.registeredSubscription });
+        return { rows: [], connection: 'live', dispose() {} };
+      },
+      async mutate() {},
+    },
+    userId: 'ada',
+    manifest: baseManifest({
+      trains: { name: 'trains', mode: 'live' },
+      feedState: { name: 'feedState', mode: 'live' },
+    }),
+    liveQueries: [{ name: 'trains', args: { line: 'red' } }, 'feedState'],
+    rqsRegistered: (name, args) => (
+      name === 'trains' && args.line === 'red' ? registeredEntry : null
+    ),
+  });
+  const byName = new Map(multiOptions.map((entry) => [entry.name, entry.registered]));
+  assert.equal(byName.get('trains'), registeredEntry);
+  assert.equal(byName.get('feedState'), null, 'a registry miss subscribes fresh with null');
+  multiSurface.dispose();
+}
+
 {
   const originalWarn = console.warn;
   let subscribeAttempts = 0;
