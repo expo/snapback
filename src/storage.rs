@@ -4681,6 +4681,10 @@ impl LocalDatabase {
     }
 
     /// The persisted receipt of the last rebuild of `plan_id`, if any.
+    /// Consumed by the verification witnesses today; the operator-facing
+    /// `snapback migrate verify` surface (the full 0081 lane) is its
+    /// production reader.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn projection_rebuild_receipt(
         &self,
         plan_id: &str,
