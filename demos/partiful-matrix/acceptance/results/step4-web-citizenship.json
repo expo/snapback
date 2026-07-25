@@ -7,21 +7,21 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-22T11:56:31.586Z",
+  "recordedAt": "2026-07-25T23:12:21.910Z",
   "repository": {
-    "snapbackRevision": "8bdede4b93a9048d56f17180f1a5906d9adec822",
-    "exactRevision": "fb9d484cfd189973dfb32bf61dfcceac0f7e9b2a"
+    "snapbackRevision": "410cf01342a1185ba3efce684e547881185f6aa7",
+    "exactRevision": "83ffa30bc56924252660fcefa7bf7185bf432c11"
   },
   "inputs": {
     "exactReport": {
       "repository": "exact",
       "path": "docs/reports/web-citizenship-ime-forms.json",
-      "sha256": "ffecedbd4e1dc3e672a09752e14c2ad9eade5e2dbbb21302ead512767158014c"
+      "sha256": "7a2d9c7acbfb24caf36bae0bf399ef25f63d9732636bb9ab767723eac70795a3"
     },
     "exactValidator": {
       "repository": "exact",
       "path": "scripts/check-web-citizenship-ime-forms.mjs",
-      "sha256": "6a865cf39c9f33a2e92932ab51b1cdb00e6a71436cc138e9c0382235d144e93d"
+      "sha256": "015fd3f9437423ceac5b94bca71b3d7e2a8b23ff942db6c7de326dd62a2e36e6"
     },
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-web-citizenship.mjs",
@@ -31,8 +31,8 @@
   "sourceStatus": "pending-manual-device-matrix",
   "sourceRun": null,
   "summary": {
-    "passed": 4,
-    "red": 17,
+    "passed": 9,
+    "red": 12,
     "total": 21,
     "structuralFailures": 0
   },
@@ -78,7 +78,7 @@
       "environment": "android-chrome-current",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
       "status": "red",
       "issues": [
@@ -116,7 +116,7 @@
           "artifact": {
             "repository": "exact",
             "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
-            "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+            "sha256": "f0262ab92355701d2e6bfebf8318a8b2506515d824ef2b706d1a9c0d90f719ae"
           }
         }
       ]
@@ -126,12 +126,12 @@
       "environment": "desktop-chrome",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
       "status": "pass",
       "issues": [],
-      "fixture": "facet-overlay-fixture",
-      "notes": "Chrome opened the Facet dialog, retained focus inside the dialog on Tab, dismissed with Escape, and restored focus to open-dialog.",
+      "fixture": "facet-contract-overlay-fixture",
+      "notes": "Chrome opened the Contract-authored FacetDialog fixture, observed its lowered focus-scope metadata, retained focus inside on Tab, dismissed with Escape, and restored focus to facet-open-dialog.",
       "evidence": [
         {
           "kind": "chrome-cdp-log",
@@ -139,7 +139,7 @@
           "artifact": {
             "repository": "exact",
             "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
-            "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+            "sha256": "f0262ab92355701d2e6bfebf8318a8b2506515d824ef2b706d1a9c0d90f719ae"
           }
         }
       ]
@@ -162,7 +162,7 @@
           "artifact": {
             "repository": "exact",
             "path": "docs/reports/web-citizenship-desktop-firefox-evidence.json",
-            "sha256": "f0591b691c77697f95875a612ffc88a4e005062bb806410a4f8d2832974d4e4c"
+            "sha256": "ef52e4d84c3f86e4266cec9c2b8222d145b2733ea3b2d3e6dbe89c1e8307ee0c"
           }
         }
       ]
@@ -172,12 +172,12 @@
       "environment": "desktop-firefox",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
       "status": "pass",
       "issues": [],
-      "fixture": "facet-overlay-fixture",
-      "notes": "Firefox retained keyboard focus inside the dialog and restored it to the trigger after Escape.",
+      "fixture": "facet-contract-overlay-fixture",
+      "notes": "Firefox opened the Contract-authored FacetDialog fixture, observed its lowered focus-scope metadata, retained focus through Tab, dismissed with Escape, and restored focus to facet-open-dialog.",
       "evidence": [
         {
           "kind": "firefox-webdriver-log",
@@ -185,7 +185,7 @@
           "artifact": {
             "repository": "exact",
             "path": "docs/reports/web-citizenship-desktop-firefox-evidence.json",
-            "sha256": "f0591b691c77697f95875a612ffc88a4e005062bb806410a4f8d2832974d4e4c"
+            "sha256": "ef52e4d84c3f86e4266cec9c2b8222d145b2733ea3b2d3e6dbe89c1e8307ee0c"
           }
         }
       ]
@@ -197,9 +197,20 @@
       "acceptedFixtures": [
         "caltrain-contract-search"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "caltrain-contract-search",
+      "notes": "Safari window.find located and selected visible Caltrain Contract text in the real DOM.",
+      "evidence": [
+        {
+          "kind": "safari-webdriver-log",
+          "ref": "docs/reports/web-citizenship-desktop-safari-evidence.json#results/desktop-safari/find-on-page",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-desktop-safari-evidence.json",
+            "sha256": "b36db6eb55b2e55eb5dae9e8a89dec6656789ae52a4ef01cd1353889df54db3f"
+          }
+        }
       ]
     },
     {
@@ -207,11 +218,22 @@
       "environment": "desktop-safari",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "facet-contract-overlay-fixture",
+      "notes": "Safari opened the Contract-authored FacetDialog fixture, observed its lowered focus-scope metadata, retained focus through Tab, dismissed with Escape, and restored focus to facet-open-dialog.",
+      "evidence": [
+        {
+          "kind": "safari-webdriver-log",
+          "ref": "docs/reports/web-citizenship-desktop-safari-evidence.json#results/desktop-safari/focus-trap-restore",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-desktop-safari-evidence.json",
+            "sha256": "b36db6eb55b2e55eb5dae9e8a89dec6656789ae52a4ef01cd1353889df54db3f"
+          }
+        }
       ]
     },
     {
@@ -255,7 +277,7 @@
       "environment": "ios-safari-current-1",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
       "status": "red",
       "issues": [
@@ -294,9 +316,20 @@
       "acceptedFixtures": [
         "multi-route-bfcache"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "multi-route-bfcache",
+      "notes": "Physical Mobile Safari restored the unchanged Caltrain to Forms to Back fixture with Millbrae state and Matches intact; the causal old-remount A/B reset to Mountain View.",
+      "evidence": [
+        {
+          "kind": "physical-ios-xcresult-screenshot-tree-and-causal-ab",
+          "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+            "sha256": "709d1aa899d7c8395370022cdf59484cbf5f0b74ca41950270805890e1a89108"
+          }
+        }
       ]
     },
     {
@@ -306,9 +339,20 @@
       "acceptedFixtures": [
         "caltrain-contract-search"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "caltrain-contract-search",
+      "notes": "Physical Mobile Safari Find on Page located visible Contract text Mountain View, reported 1 of 1, dismissed cleanly, and left the page usable.",
+      "evidence": [
+        {
+          "kind": "physical-ios-screenshot-tree-and-observation",
+          "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+          }
+        }
       ]
     },
     {
@@ -316,11 +360,22 @@
       "environment": "ios-safari-current",
       "assertion": "focus-trap-restore",
       "acceptedFixtures": [
-        "facet-overlay-fixture"
+        "facet-contract-overlay-fixture"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "facet-contract-overlay-fixture",
+      "notes": "Physical Mobile Safari opened the Contract-owned dialog, retained focus inside it, dismissed through Done, removed the dialog, and restored focus to Open Contract dialog.",
+      "evidence": [
+        {
+          "kind": "physical-ios-screenshot-tree-and-observation",
+          "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+          }
+        }
       ]
     },
     {
