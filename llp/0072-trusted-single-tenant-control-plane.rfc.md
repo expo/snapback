@@ -5,7 +5,10 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-25 (first adapter instantiation recorded: the LLP
+**Revised:** 2026-07-25 (hosted-auth admission leg resolved: LLP 0098's
+`loopback-terminated-single-instance.v1` profile admits on the served origin;
+partial pass, two attested facts unenforced, 0077 matrix not run); 2026-07-25
+(first adapter instantiation recorded: the LLP
 0075-pinned Fly.io single-Machine drill target with its
 region/storage/TLS/supervision/artifact/log/backup/credential/cost facts; claim
 boundary unchanged — provisioning and the LLP 0076 gate-2 streaming drill
@@ -628,8 +631,30 @@ into request-path state, so every app-data route on a non-loopback bind
 refused regardless of the flag (fixed with a regression test in the same
 landing).
 
-Claim boundary, unchanged: this records provisioning and the LLP 0076
-gate-2 streaming drill, NOT this RFC's acceptance corpus. No control-plane
+### Hosted-auth leg resolved 2026-07-25 — the loopback-terminated profile
+
+The hosted-auth refusal recorded below is superseded for the admission leg.
+[LLP 0098](./0098-hosted-edge-adapter.spec.md) defines the
+`loopback-terminated-single-instance.v1` profile and the same Fly target now
+runs it: Caddy terminates a Let's Encrypt certificate inside the container
+behind Fly raw-TCP passthrough on 443, and the origin binds `127.0.0.1:4287`.
+`--auth-deployment hosted` **admits** there under a signed, deployment-bound
+attestation, and the served origin publishes the attested five-positive tuple.
+
+The topology change is what resolved it. The plaintext posture below cannot
+attest LLP 0060 D2 because any co-resident workload on the platform's private
+network can address the origin directly; loopback termination removes that
+class by construction rather than assuming the private network is empty.
+
+Receipt: `demos/competitive-checkpoint/acceptance/results/hosted-edge-admission.v0.json`.
+It is a **partial pass**: two attested facts (`operatorSurface: disabled` and
+D2's plaintext-refusal clause) are not yet enforced by the origin, and the LLP
+0077 matrix has not run because the deployment's active auth mode is still
+`dev`. `hostedAuthCapable` stays unclaimed.
+
+Claim boundary, unchanged: this records provisioning, the LLP 0076
+gate-2 streaming drill, and now the hosted admission leg — NOT this RFC's
+acceptance corpus. No control-plane
 adapter operations (release manifests, activation generations, restore locks,
 inspection contract) exist for this target;
 `trusted-single-tenant-app-complete.v1` remains unsupported, and the

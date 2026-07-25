@@ -61,6 +61,18 @@ restart, and a local target still publishes the all-negative tuple. No fence
 was weakened: the D1 sessions plaintext refusal is untouched, and the hosted
 profile requires loopback rather than exempting itself.
 
+Served-origin run (2026-07-25): the adapter was deployed to the Fly target in
+the real topology and hosted admission **passed** on
+`https://snapback-drill.fly.dev` — receipt
+`demos/competitive-checkpoint/acceptance/results/hosted-edge-admission.v0.json`.
+The run surfaced two defects that now gate the claim independently of this
+program: `/_snapback/*` answers 503 rather than the fixed 404 the attested
+`operatorSurface: "disabled"` requires, and plaintext redirects rather than
+refusing credential-bearing paths — both attested-but-unenforced facts (LLP
+0098 §8.1). The 0077 matrix itself did **not** run there: the deployment's
+active auth mode is `dev`, and sessions needs a `--startup-artifacts` carrier
+plus a two-boot staging transition the deployment does not yet stage.
+
 This does **not** close the capability gate. `hostedAuthCapable` still
 requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
 against a **real served public origin** under that attestation, which needs

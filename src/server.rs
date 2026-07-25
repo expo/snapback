@@ -7749,6 +7749,21 @@ fn auth_diagnostic_app_route(path: &str) -> bool {
 /// authorized later by the `/app/ensure` operation gate.
 // @ref LLP 0060#d1-plaintext-listener-fence — repeat the startup transport
 // refusal for embedded/router composition without claiming proxy/TLS posture.
+/// The fixed 404 a hosted deployment serves for every `/_snapback/*` route.
+///
+/// Deliberately body-free and identical for every operator path: a response
+/// that varied by route would let an unauthenticated caller enumerate the
+/// operator surface it is not allowed to reach.
+///
+/// @ref LLP 0060#c2-defenses-that-do-not-change-the-boundary — the first
+/// hosted profile chooses `operatorSurface: "disabled"`, and CORS is not
+/// enabled on this path.
+fn hosted_operator_surface_disabled_response() -> Response {
+    let mut response = Response::new(axum::body::Body::empty());
+    *response.status_mut() = StatusCode::NOT_FOUND;
+    response
+}
+
 fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<SnapbackError> {
     if spec.class != RouteClass::AppData {
         return None;
@@ -9440,6 +9455,23 @@ async fn enforce_registered_route_policy(
         request.extensions_mut().insert(spec);
         request.extensions_mut().insert(effective);
         return apply_registered_response_controls(effective, next.run(request).await);
+    }
+    // @ref LLP 0098#81-first-served-origin-run--2026-07-25 — enforce the
+    // operator-surface disablement the admission *attests*. Verifying that a
+    // snapshot says `operatorSurface: disabled` while the routes stay reachable
+    // is an attested fact with no enforcing code behind it, which is worse than
+    // an unverifiable assertion because it looks verified. LLP 0060 C2 defines
+    // the disabled surface as a fixed 404 on the public application origin, so
+    // that is what a hosted deployment serves — before any handler, and
+    // identically for pages and API routes so the response cannot distinguish
+    // a present route from an absent one.
+    if runtime.hosted_serving.is_some()
+        && matches!(spec.class, RouteClass::SystemStatic | RouteClass::SystemApi)
+    {
+        return apply_registered_response_controls(
+            effective,
+            hosted_operator_surface_disabled_response(),
+        );
     }
     if let Some(error) = auth_app_data_refusal(spec, &runtime) {
         return apply_registered_response_controls(
@@ -25566,6 +25598,74 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_AUTH_TRANSPORT_INSECURE",
             "public descriptive fields must not override listener-owned posture"
         );
+    }
+
+    /// The first served-origin run found `/_snapback/*` answering 503 while the
+    /// admission attested `operatorSurface: "disabled"` — an attested fact with
+    /// no enforcing code behind it. This pins the enforcement.
+    ///
+    /// @ref LLP 0098#81-first-served-origin-run--2026-07-25
+    #[tokio::test]
+    async fn hosted_admission_enforces_the_operator_surface_it_attests() {
+        let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let state = state
+            .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
+            .expect("install hosted serving authority");
+        let router = app(state);
+
+        // Every operator route is a fixed, body-free 404 — including with a
+        // valid admin token, and identically for pages and API routes so the
+        // response cannot distinguish a present route from an absent one.
+        // NOTE: the method must match each route's registration. A
+        // method-mismatched request is rejected by axum's method router with
+        // 405 *before* this middleware runs, so a wrong-method probe still
+        // distinguishes a present operator route from an absent one. That
+        // residual is recorded in LLP 0098 §8.1 rather than papered over here.
+        for (method, path) in [
+            ("GET", "/_snapback/admin"),
+            ("GET", "/_snapback/api/inspect"),
+            ("POST", "/_snapback/api/schema/load"),
+        ] {
+            let disabled = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(path)
+                        .header("x-snapback-admin-token", "auth-http-admin")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                disabled.status(),
+                StatusCode::NOT_FOUND,
+                "{path} must be a fixed 404 under an attested disabled operator surface"
+            );
+            let body = axum::body::to_bytes(disabled.into_body(), usize::MAX)
+                .await
+                .expect("read disabled operator body");
+            assert!(body.is_empty(), "{path} must expose no body");
+        }
+
+        // The capability projection stays reachable: disabling the operator
+        // surface must not also hide the descriptor a hosted deployment
+        // publishes about itself.
+        let inspect = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/inspect")
+                    .header("x-snapback-admin-token", "auth-http-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(inspect.status(), StatusCode::OK);
     }
 
     #[tokio::test]

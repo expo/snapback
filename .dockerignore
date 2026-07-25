@@ -36,6 +36,9 @@ demos/competitive-checkpoint/*
 !demos/competitive-checkpoint/acceptance/
 demos/competitive-checkpoint/acceptance/*
 !demos/competitive-checkpoint/acceptance/drill/
+# LLP 0098 hosted-edge image: entrypoint, Caddyfile, and the adapter
+# configuration carrying the control-plane PUBLIC key.
+!demos/competitive-checkpoint/acceptance/hosted-edge/
 !demos/competitive-checkpoint/snapback/
 
 # Never ship credentials or scratch state.
