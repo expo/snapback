@@ -1163,3 +1163,8 @@ globalThis.__snapbackHandlers = {
     ];
   },
 };
+
+// No route→query manifest yet: All Aboard's queries are opaque-JS handlers,
+// which can never carry the rqsEligible closed-inputs fact (LLP 0092 §0C.2),
+// so Channel A has nothing to serve on this bundle (LLP 0090 rollout step 4).
+export const routesManifest = null;

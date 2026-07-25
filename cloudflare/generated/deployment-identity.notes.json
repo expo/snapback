@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "notes",
-  "schemaHash": "sha256:2e898e60a332d7ea88f7020ec54f5e37f7df53f62a89b6fca0afeeb8b684bc54",
-  "bundleHash": "sha256:347d859ac87788e4289a80d6ffe1de0603c64b5132c03505e7df1369edb24bf7",
-  "inputsHash": "sha256:a63b954e59d294b102019424a20e30e1876359765e1ae1ab1870829dd3ebd0a5",
+  "schemaHash": "sha256:91826ac15cda8cfcfdc362f1a3654ef6ef679d2499967298f7745d7c7b425125",
+  "bundleHash": "sha256:415aa4ec7e5dff9b1d7baa50ec932eb1ad5d57ac9ce8fba632acec9380d8a573",
+  "inputsHash": "sha256:f0c4120e87e04baf0ee328d93fa6692f7c024ced71ef67594474a2e2292e0a8a",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
@@ -14,16 +14,20 @@
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
     "cloudflare/src/platform-errors.js",
+    "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
     "normalized:cloudflare/wrangler.handler.jsonc",
     "normalized:cloudflare/wrangler.jsonc",
     "normalized:packages/snapback-harness/compat.json",
+    "packages/snapback-client/rqs.mjs",
     "packages/snapback-harness/allowlist-install.js",
     "packages/snapback-harness/allowlist.json",
     "packages/snapback-harness/ctx-bootstrap.js",
     "packages/snapback-harness/envelope.mjs",
     "packages/snapback-harness/workerd/allowlist.mjs",
     "packages/snapback-harness/workerd/handler-server.mjs",
-    "packages/snapback-harness/workerd/strip.mjs"
+    "packages/snapback-harness/workerd/strip.mjs",
+    "packages/snapback-vite/channel-a-core.mjs",
+    "packages/snapback-vite/rqs-serializer.mjs"
   ]
 }

@@ -15,14 +15,49 @@
 // (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
 import { classifyPlatformError, platformFailureResponse } from './platform-errors.js';
-import { appMeta, capabilityManifest } from 'snapback-app';
+import { appMeta, capabilityManifest, functions, routesManifest } from 'snapback-app';
+// Channel A on the Cloudflare arm (LLP 0090 rollout step 4 / LLP 0092 §0E):
+// the gateway owns the HTML response, so it owns the serving seam. The route
+// matcher, publicInline gate, and payload embed are the SAME modules the
+// local-arm Vite seam uses (packages/snapback-vite), bundled by relative
+// import — reuse, never a fork — and the serializer is the byte-pinned
+// tests/fixtures/rqs-serializer implementation.
+import {
+  entryIsPublicInline,
+  injectBootPayload,
+  matchManifestRoute,
+} from '../../packages/snapback-vite/channel-a-core.mjs';
+import { serializeBootPayload } from '../../packages/snapback-vite/rqs-serializer.mjs';
 
 export { Coordinator };
 
 const APP_OBJECT_NAME = appMeta.objectName;
 
 // Exact-path API routes forwarded to the coordinator with a fresh POST body.
-const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-meta', '/connection/open', '/app/ensure']);
+// /app/bundle is the RQS bundle endpoint (LLP 0092 §0D.1) — forwarded like
+// the other app-data JSON routes; the coordinator owns admission and limits.
+const FORWARDED_JSON_PATHS = new Set(['/query', '/mutation', '/__test/corrupt-meta', '/connection/open', '/app/ensure', '/app/bundle']);
+
+// §0E.5 pinned Channel A budgets (seam policy knobs). The anonymous
+// per-client-address rate window is in-memory per gateway isolate — a
+// best-effort degrade budget (degrade over the cap, never refuse), not an
+// admission control; the coordinator holds the authoritative bundle limits.
+const CHANNEL_A_BUDGET_MS = 500;
+const CHANNEL_A_MAX_PAYLOAD_BYTES = 256 * 1024;
+const CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE = 60;
+const channelARateWindows = new Map();
+
+function channelAAdmitRate(key, nowMs) {
+  const window = channelARateWindows.get(key) ?? [];
+  while (window.length > 0 && nowMs - window[0] >= 60_000) window.shift();
+  if (window.length >= CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE) {
+    channelARateWindows.set(key, window);
+    return false;
+  }
+  window.push(nowMs);
+  channelARateWindows.set(key, window);
+  return true;
+}
 
 // Kit wire-protocol prefixes (LLP 0049 Phase 0): the generated Contract
 // surface speaks the local server's protocol; these are its routes.
@@ -169,9 +204,80 @@ async function gatewayFetch(request, env) {
         }
         return json(404, { error: 'not found', path });
       }
+      // Channel A (LLP 0090 D2 / LLP 0092 §0E): when the pageload's route is
+      // manifested and every named query carries the compiled publicInline
+      // fact, compose the static shell with ONE coordinator bundle
+      // subrequest and embed the snapshots. Any failure, timeout, budget
+      // breach, or ineligibility serves the untransformed shell — degrade,
+      // never fail the pageload.
+      if (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html')) {
+        const match = matchManifestRoute(routesManifest, `${url.pathname}${url.search}`, '/');
+        if (match && entryIsPublicInline({ functions }, match.entry)) {
+          const clientKey = request.headers.get('cf-connecting-ip') || 'unknown';
+          if (channelAAdmitRate(clientKey, Date.now())) {
+            const inlined = await channelAInline(request, env, stub, match);
+            if (inlined) return inlined;
+          }
+        }
+      }
       return env.ASSETS.fetch(request);
     }
     return json(404, { error: 'not found', path });
+}
+
+// Assemble the transformed Channel A document, or null to degrade to the
+// untransformed shell. Response mechanics per LLP 0092 §0E.4: the transformed
+// document is `Cache-Control: no-store` with a recomputed Content-Length,
+// the static shell's validators dropped, compression left to the runtime
+// (the body handed over is identity bytes), and any CSP header carried
+// through untouched — the boot payload is a non-executable data block.
+async function channelAInline(request, env, stub, match) {
+  try {
+    const asset = await env.ASSETS.fetch(request);
+    const contentType = asset.headers.get('content-type') || '';
+    if (asset.status !== 200 || !contentType.includes('text/html')) return null;
+    const html = await asset.text();
+    // One coordinator subrequest per pageload, under the §0E.5 wall budget.
+    // The subrequest is raced rather than aborted — a late bundle is simply
+    // unused and the shell serves.
+    const bundleResponse = await Promise.race([
+      stub.fetch('http://coordinator/app/bundle', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ route: match.route, params: match.params, mode: 'read' }),
+      }),
+      new Promise((resolve) => setTimeout(() => resolve(null), CHANNEL_A_BUDGET_MS)),
+    ]);
+    if (!bundleResponse || !bundleResponse.ok) return null;
+    const bundle = await bundleResponse.json();
+    // Embedded payload (§0E.1): exactly the read-mode bundle response body
+    // plus the matched route pattern; generation/versionStream attestation
+    // facts already ride the body. No absolute backend origin appears.
+    const serialized = serializeBootPayload({ route: match.route, ...bundle });
+    const encoder = new TextEncoder();
+    if (encoder.encode(serialized).byteLength > CHANNEL_A_MAX_PAYLOAD_BYTES) return null;
+    const body = encoder.encode(injectBootPayload(html, serialized));
+    const headers = new Headers();
+    for (const [name, value] of asset.headers) {
+      const lower = name.toLowerCase();
+      if (
+        lower === 'etag'
+        || lower === 'last-modified'
+        || lower === 'content-length'
+        || lower === 'content-encoding'
+        || lower === 'cache-control'
+      ) continue;
+      headers.set(name, value);
+    }
+    headers.set('content-type', 'text/html; charset=utf-8');
+    headers.set('cache-control', 'no-store');
+    headers.set('content-length', String(body.byteLength));
+    return new Response(body, { status: 200, headers });
+  } catch (_) {
+    // Serializer property-check failure, subrequest failure, or anything
+    // else: degrade to the unhydrated shell (LLP 0092 §0E.5).
+    return null;
+  }
 }
 
 async function forward(stub, target, request) {

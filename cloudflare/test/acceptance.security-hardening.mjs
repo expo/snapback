@@ -282,6 +282,22 @@ try {
   }));
   current.ws.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
+  // Drain frames the replacement legitimately received BEFORE current's open
+  // closed it server-side: the armed warm poll (subscribe arms cron on this
+  // bundle) can commit feed mutations at nondeterministic times, queueing
+  // extra live_replace frames client-side. Those are pre-replacement traffic,
+  // not a violation; the invariant under test is that nothing NEW arrives for
+  // the post-replacement commit below (this drain closed a host-timing flake,
+  // issues/closed/20260724-security-hardening-obsolete-socket-flake.md).
+  for (;;) {
+    try {
+      await replacement.next(200);
+    } catch (_) {
+      break;
+    }
+  }
+  const preFinal = await jsonFetch(base, '/__test/connection-state', {});
+  assert.equal(preFinal.body.subscriptions.length, 0);
   await client.mutate('applyFeedTick', { args: { trigger: 'replacement-close-first', source: 'recorded' } });
   let obsoleteReceived = false;
   try {
