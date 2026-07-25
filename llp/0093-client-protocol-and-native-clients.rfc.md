@@ -660,6 +660,11 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
 - **P-2 — Swift client** (`poll/local` → `live/local` → `live/hosted`),
   with its own plan/diary and the
   spec-defect ledger from D4's discipline.
+  *Status (2026-07-25):* clean-room SwiftPM package landed
+  (`clients/swift/SnapbackClient`): client core + both local lanes, all 10
+  seeded corpus fixtures pass, 13-check live harness green against the todo
+  backend; `live/hosted` and the iOS proving host remain; defect ledger
+  `issues/20260725-0093-p2-spec-defect-*.md` (4 tickets), diary 0020.
 - **P-3 — Auth profiles** for non-browser clients: the profile contract,
   its mapping onto LLP 0012 `Online`/`Parity` reports, and what
   sender-constraint means off-browser — coordinated with LLP 0077. P-3
