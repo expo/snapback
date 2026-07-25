@@ -84,6 +84,17 @@ dependency of both the 0065 and 0080 lanes.
   0081 spec frictions are recorded for the next amendment
   (cancel_requested naming, an explicit `release` verb, the
   admission-timing profile note).
+  **Flip disposition (2026-07-25, author-delegated):** LLP 0065 flipped
+  to `Implemented` (§6 suite green on every claimed adapter; the
+  declaration-reduction receipt stays LLP 0063's). LLP 0080 and 0081
+  deliberately stay `Accepted`: 0080's §Acceptance still has unmet items
+  (the `opaque-authorized-snapshot-v1` lease enforcement, the
+  obligation-fault e2e, examined-entries instrumentation) and 0081 has
+  the sessions-profile publication tails and schema-diff→intents
+  derivation open. `relational_query_v1` stays `experimental` per the
+  registries' own recorded gate ("until the coupled suite passes and
+  both RFCs flip to Implemented") — promoting it is the same act as
+  flipping 0080/0081, not a separate lever.
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 
