@@ -1,21 +1,21 @@
 {
   "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_FIREFOX",
-  "recordedAt": "2026-07-23T09:37:30.612Z",
+  "recordedAt": "2026-07-25T18:48:27.697Z",
   "repository": {
-    "revision": "094e29be232f10260a84bb6ff8185579430fc374",
+    "revision": "55971cf41bb8f59009faa670e890b2d8f5c053fc",
     "dirty": false
   },
   "exactRepository": {
-    "revision": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79",
+    "revision": "36573f5dcbe1542807de303984d583b30c96840f",
     "dirty": false,
-    "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723"
+    "path": "../exact"
   },
   "candidatePackages": {
     "source": "linked-source",
     "sourceBound": true,
-    "rendererRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer",
-    "contractRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract",
+    "rendererRoot": "../exact/packages/exact-renderer",
+    "contractRoot": "../exact/packages/exact-contract",
     "artifacts": [
       {
         "path": "demos/partiful-matrix/surfaces/contract/package.json",
@@ -28,19 +28,19 @@
         "bytes": 89528
       },
       {
-        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/package.json",
-        "sha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01",
-        "bytes": 5710
+        "path": "../exact/packages/exact-renderer/package.json",
+        "sha256": "98556af0ded7ef1956ac9c5cc4702e7ac03fd54e6fdd1a53b0da5d820d6bbe83",
+        "bytes": 5754
       },
       {
-        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/src/web-host-direct.ts",
-        "sha256": "b598ccc0d0ca8af6cb3199c02d958f4ec7a9eaf8fa054a409e79cca56a5f88a0",
-        "bytes": 16430
+        "path": "../exact/packages/exact-renderer/src/web-host-direct.ts",
+        "sha256": "de7107ecbd8ba342e758e6a7f2ce366985c4e1edc6b74c49ba01ab9c25389089",
+        "bytes": 33414
       },
       {
-        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract/package.json",
-        "sha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3",
-        "bytes": 3814
+        "path": "../exact/packages/exact-contract/package.json",
+        "sha256": "cd9df7c79324094eff9df934213ad9931705ea9502826376e0ce2136f0d83cc4",
+        "bytes": 4397
       }
     ]
   },
@@ -51,28 +51,28 @@
   "browser": "firefox",
   "environment": {
     "node": "v25.9.0",
-    "bun": "1.3.12",
+    "bun": "1.3.10",
     "os": "darwin-25.5.0-arm64",
-    "browserVersion": "Mozilla Firefox 152.0.1",
+    "browserVersion": "Mozilla Firefox 153.0",
     "driver": "/opt/homebrew/bin/geckodriver",
     "driverVersion": "geckodriver 0.37.1\n\nThe source code of this program is available from\ntesting/geckodriver in https://hg.mozilla.org/mozilla-central.\n\nThis program is subject to the terms of the Mozilla Public License 2.0.\nYou can obtain a copy of the license at https://mozilla.org/MPL/2.0/.",
-    "cpu": "Apple M5 Max"
+    "cpu": "Apple M4"
   },
   "artifacts": [
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445",
-      "bytes": 15899
+      "sha256": "b12e6e238e74c2dccddc8895632f30d60e31c9740b54273d403c2ca8ee7711c1",
+      "bytes": 16194
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
-      "bytes": 4778
+      "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175",
+      "bytes": 4085
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee",
-      "bytes": 9073
+      "sha256": "7fa4266b8a5da1e93157643aae0cff09309011f07c0e9c046b99ecc2dc79f3ff",
+      "bytes": 9103
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
@@ -88,13 +88,13 @@
     },
     {
       "path": "demos/_kit/server-process.mjs",
-      "sha256": "41138bb2e42ea0746453aecb613b774a00102d2a11741348332584eed13b19c3",
-      "bytes": 32485
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71",
+      "bytes": 50484
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
-      "sha256": "138ec1d22948fbcf94d46e8ce3cd6aae20fcce772da09532175446ac36d60bb8",
-      "bytes": 21638
+      "sha256": "e321b50a30eb89d88072b274f7a5c99571e03b6bad431349fc327ff596b6f616",
+      "bytes": 24076
     }
   ],
   "missingPrerequisites": [],

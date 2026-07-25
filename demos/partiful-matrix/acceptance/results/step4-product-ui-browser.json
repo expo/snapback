@@ -1,20 +1,20 @@
 {
   "revision": {
-    "snapback": "fa08699792b1f41465b75c2424a386280a39777c",
-    "exact": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79"
+    "snapback": "4354417d0daf470ebc2cc3ce6dd1f7e51aeff09c",
+    "exact": "36573f5dcbe1542807de303984d583b30c96840f"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
     "node": "v25.9.0",
-    "bun": "1.3.12",
+    "bun": "1.3.10",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.130",
-    "cpu": "Apple M5 Max",
-    "logicalCpus": 18,
-    "totalMemoryBytes": 137438953472
+    "chromeVersion": "Google Chrome 150.0.7871.182",
+    "cpu": "Apple M4",
+    "logicalCpus": 10,
+    "totalMemoryBytes": 17179869184
   },
   "packages": {
     "react": {
@@ -113,7 +113,7 @@
           "requested": "npm:@ccheever/exact-contract@0.1.5",
           "resolvedName": "@exact/contract",
           "resolvedVersion": "0.1.0",
-          "manifestSha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3"
+          "manifestSha256": "cd9df7c79324094eff9df934213ad9931705ea9502826376e0ce2136f0d83cc4"
         },
         "@exact/devtools": {
           "requested": "npm:@ccheever/exact-devtools@0.1.5",
@@ -131,7 +131,7 @@
           "requested": "npm:@ccheever/exact-renderer@0.1.5",
           "resolvedName": "@exact/renderer",
           "resolvedVersion": "0.1.0",
-          "manifestSha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01"
+          "manifestSha256": "98556af0ded7ef1956ac9c5cc4702e7ac03fd54e6fdd1a53b0da5d820d6bbe83"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -150,7 +150,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "24ac6116f04740e816ec3ae8804c5f6dc255cdfbed408bcc8166b7f94869f9cc",
+      "lockSha256": "001db06f64b13d86eb7e710b20eb1b83f4094744506827550c23b386ab6a0a7d",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -165,9 +165,9 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
+    "inputsHash": "ffbc919046a2c2886a8d3b56a301aae838b20007605dcaea8f17b10db92d9947",
+    "bundleHash": "sha256:6e8be90857e97698",
+    "diarySha256": "a71bb671c2f9647aff99072ceead620a9662698fd06cdaafeb32c533260cc800",
     "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
@@ -180,12 +180,16 @@
       "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
     },
     {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "d7d4a4412d296d79417f3a8cb7106c1d9ed864b7af199cebc7689d1e895626d0"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+      "sha256": "66e3237850100ba17f69fec2f68d633f0dd4f6889673ed820811ac418bd185b0"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -193,15 +197,15 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445"
+      "sha256": "b12e6e238e74c2dccddc8895632f30d60e31c9740b54273d403c2ca8ee7711c1"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
+      "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+      "sha256": "7fa4266b8a5da1e93157643aae0cff09309011f07c0e9c046b99ecc2dc79f3ff"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
@@ -220,15 +224,13 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "3d5b357200f5c1cfdfaa3db0ed469d2885321e4bbc91c90903757607aa674ffe",
+  "testInventorySha256": "60b681293855f77a5bf35e02452167a1323e88434d21ff38902626cecc674e0b",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
-    "react:snapback",
     "contract:snapback"
   ],
   "transportWitnessCells": [
-    "react:snapback",
     "contract:snapback"
   ],
   "backendHealth": {
@@ -259,339 +261,12 @@
     }
   },
   "title": "partitime / product UI browser parity",
-  "passed": 19,
+  "passed": 10,
   "skipped": 0,
   "failed": 0,
-  "total": 19,
+  "total": 10,
   "ok": true,
   "results": [
-    {
-      "name": "react × snapback boots its identified cell",
-      "ok": true,
-      "details": null
-    },
-    {
-      "name": "react × snapback renders the canonical feed",
-      "ok": true,
-      "details": null
-    },
-    {
-      "name": "react × snapback opens details and observes RSVP",
-      "ok": true,
-      "details": {
-        "actor": "user_eve",
-        "before": "EVEveMaybe",
-        "after": "EVEveGoing",
-        "transition": "Going"
-      }
-    },
-    {
-      "name": "react × snapback traverses browser history without document reload",
-      "ok": true,
-      "details": {
-        "before": {
-          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
-          "url": "http://127.0.0.1:54747/?user=eve&event=event_sunset",
-          "navigations": 1
-        },
-        "after": {
-          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
-          "url": "http://127.0.0.1:54747/?user=eve",
-          "navigations": 1,
-          "event": null
-        },
-        "traversal": [
-          "feed",
-          "event",
-          "feed"
-        ]
-      }
-    },
-    {
-      "name": "react × snapback responds at compact width and changes theme on one tree",
-      "ok": true,
-      "details": {
-        "expanded": {
-          "fontSize": 98.56,
-          "background": "rgba(0, 0, 0, 0)",
-          "width": 1280
-        },
-        "compact": {
-          "fontSize": 54,
-          "background": "rgba(0, 0, 0, 0)",
-          "width": 390,
-          "identity": "retained"
-        },
-        "themed": {
-          "background": "rgb(21, 23, 29)",
-          "identity": "retained"
-        },
-        "treeIdentityRetained": true
-      }
-    },
-    {
-      "name": "react × snapback provides an accessible portal form and keyboard focus scope",
-      "ok": true,
-      "details": {
-        "semantics": {
-          "role": "dialog",
-          "modal": "true",
-          "labelledBy": "create-title-heading",
-          "describedBy": "create-description-copy",
-          "portal": true,
-          "portalDetached": true,
-          "overlayPosition": "fixed",
-          "descriptionTag": "TEXTAREA",
-          "activeTestId": "create-title"
-        },
-        "validation": {
-          "titleInvalid": "true",
-          "locationInvalid": "true",
-          "titleDescribedBy": "create-title-error",
-          "locationDescribedBy": "create-location-error",
-          "titleErrorRole": "alert",
-          "locationErrorRole": "alert",
-          "activeTestId": "create-title"
-        },
-        "trapped": {
-          "last": "create-submit",
-          "count": 6
-        },
-        "wrappedTo": "create-close",
-        "restored": {
-          "overlay": false,
-          "activeTestId": "new-event"
-        }
-      }
-    },
-    {
-      "name": "react × snapback honors reduced-motion preference",
-      "ok": true,
-      "details": {
-        "matches": true,
-        "animationDuration": "1e-06s",
-        "transitionDuration": "1e-06s",
-        "overlayTransition": "1e-06s"
-      }
-    },
-    {
-      "name": "react × snapback mounts a bounded virtual guest window",
-      "ok": true,
-      "details": {
-        "tag": "DIV",
-        "mounted": 3,
-        "totalText": "ADAdaHostingGRGraceGoingEVEveGoing",
-        "height": 300,
-        "overflowY": "auto"
-      }
-    },
-    {
-      "name": "react × snapback proves unsolicited push with polling fallback disabled",
-      "ok": true,
-      "details": {
-        "actor": "user_eve",
-        "mutationOrigin": "out-of-band SnapbackClient",
-        "pollFallback": "disabled",
-        "warmupCount": 2,
-        "sampleCount": 7,
-        "observations": [
-          {
-            "sampleIndex": 0,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 8
-          },
-          {
-            "sampleIndex": 1,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 2,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 3,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 5
-          },
-          {
-            "sampleIndex": 4,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 5,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 6,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 7,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 8,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
-          }
-        ],
-        "freshnessLatencyMs": {
-          "samples": [
-            4,
-            5,
-            4,
-            4,
-            4,
-            4,
-            4
-          ],
-          "median": 4,
-          "p95": 5
-        },
-        "connectionBefore": "live",
-        "established": [
-          {
-            "queryName": "listEvents",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5477752ad8ab806d530e317",
-            "subscriptionId": "sub_019f8e57b5477752ad8ab806d530e317",
-            "event": "established",
-            "transport": "push",
-            "scope": {},
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540552
-          },
-          {
-            "queryName": "listEvents",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b54874d1876395f2974ec881",
-            "subscriptionId": "sub_019f8e57b54874d1876395f2974ec881",
-            "event": "established",
-            "transport": "push",
-            "scope": {},
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540585
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b47060b091bc01c83a28cd",
-            "subscriptionId": "sub_019f8e57b5b47060b091bc01c83a28cd",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540661
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b47060b091bc23054179f2",
-            "subscriptionId": "sub_019f8e57b5b47060b091bc23054179f2",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540661
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540667
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f925367fc627",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f925367fc627",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540696
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f99196e8d109",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f99196e8d109",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540708
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b675408efde39aa7446269",
-            "subscriptionId": "sub_019f8e57b5b675408efde39aa7446269",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540719
-          }
-        ]
-      }
-    },
     {
       "name": "contract × snapback boots its identified cell",
       "ok": true,
@@ -617,13 +292,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
-          "url": "http://127.0.0.1:54949/events/event_sunset/?user=eve",
+          "identity": "99419f01-587e-4bcc-b562-8cf85960d9c5",
+          "url": "http://127.0.0.1:52700/events/event_sunset/?user=eve",
           "navigations": 1
         },
         "after": {
-          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
-          "url": "http://127.0.0.1:54949/?user=eve",
+          "identity": "99419f01-587e-4bcc-b562-8cf85960d9c5",
+          "url": "http://127.0.0.1:52700/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -641,7 +316,7 @@
         "expanded": {
           "fontSize": 66,
           "background": "rgb(244, 240, 232)",
-          "width": 1280
+          "width": 1265
         },
         "compact": {
           "fontSize": 38,
@@ -755,49 +430,49 @@
             "sampleIndex": 0,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 4
+            "latencyMs": 5
           },
           {
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 2,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 4
           },
           {
             "sampleIndex": 3,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 4,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 5,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 8,
@@ -808,58 +483,58 @@
         ],
         "freshnessLatencyMs": {
           "samples": [
-            3,
-            3,
-            3,
-            3,
-            3,
-            3,
+            4,
+            2,
+            2,
+            2,
+            2,
+            2,
             3
           ],
-          "median": 3,
-          "p95": 3
+          "median": 2,
+          "p95": 4
         },
         "connectionBefore": "●live",
         "established": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c44979e1b85b506e53ec41f8",
-            "subscriptionId": "sub_019f8e57c44979e1b85b506e53ec41f8",
+            "bindingId": "sub_019f9a8d08387e53aa2a57f503714e57",
+            "subscriptionId": "sub_019f9a8d08387e53aa2a57f503714e57",
             "event": "established",
             "transport": "push",
             "scope": {},
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
             "correlation": {
-              "rootId": "snapback-online-surface:59b1ba61-c2d1-4f23-97ad-2b22cd051457",
+              "rootId": "snapback-online-surface:1fa82c6f-f055-4c68-8281-2fddd75a1877",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1784799544394,
+            "receivedAtMs": 1785004361784,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46a7c10a24baeea37831305",
-            "subscriptionId": "sub_019f8e57c46a7c10a24baeea37831305",
+            "bindingId": "sub_019f9a8d08517860b44aaf90085b11b4",
+            "subscriptionId": "sub_019f9a8d08517860b44aaf90085b11b4",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:5121365f-a7d6-49f4-94fd-823c162f25b5",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784799544453,
+            "receivedAtMs": 1785004361816,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -868,22 +543,22 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46a7c10a24baea676cf9574",
-            "subscriptionId": "sub_019f8e57c46a7c10a24baea676cf9574",
+            "bindingId": "sub_019f9a8d08517860b44aafb464c0b259",
+            "subscriptionId": "sub_019f9a8d08517860b44aafb464c0b259",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:5121365f-a7d6-49f4-94fd-823c162f25b5",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784799544454,
+            "receivedAtMs": 1785004361816,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -892,22 +567,22 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
-            "subscriptionId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
+            "bindingId": "sub_019f9a8d08517860b44aafed42b23f09",
+            "subscriptionId": "sub_019f9a8d08517860b44aafed42b23f09",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:5121365f-a7d6-49f4-94fd-823c162f25b5",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784799544455,
+            "receivedAtMs": 1785004361816,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -917,7 +592,7 @@
       }
     }
   ],
-  "expectedChecks": 19,
+  "expectedChecks": 10,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }
