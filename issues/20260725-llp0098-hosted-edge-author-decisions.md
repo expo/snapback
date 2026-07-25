@@ -84,33 +84,51 @@ downtime is sufficient. LLP 0098 open question 3.
 
 ## D4. A persistent volume for certificate storage (new Fly resource)
 
-The hosted-edge machine has no volume, so every redeploy wipes Caddy's
-certificate storage and forces a fresh Let's Encrypt issuance. That limit has
-now been hit: the public TLS leg is down until the duplicate-certificate window
-clears, which blocks served-origin reruns (LLP 0098 §8.3).
+**RESOLVED 2026-07-25 (Charlie Cheever): create the volume.** Exact scope
+authorized and executed the same day: ONE small persistent Fly volume on the
+EXISTING machine, mounted at `/data/caddy` for Caddy's certificate storage
+only — no other new resource. Identity, pinned here and in the teardown
+inventory (`demos/competitive-checkpoint/acceptance/drill/README.md`) and
+protocol amendment v0.8 (LLP 0075):
 
-**Conservative default in force:** no new Fly resource was created. The drill
-runs `auto_stop_machines = "off"` with one always-on machine, which avoids
-stop/start cert loss but not redeploy cert loss.
+- volume `vol_r6815pkd59o1x614`, name `caddy_storage`, app `snapback-drill`,
+  region sjc, 1 GB, encrypted, scheduled snapshots. Attaching it replaced the
+  Fly machine (platform behavior, not an extra resource): `819701c927ee68`
+  was retired and the app's single machine is now `849764f2e7dd58`.
 
-**The decision:** whether to create a small persistent Fly volume for
-`/data/caddy` (the durable fix). It is a **new Fly resource**, which this lane
-was scoped not to create, so it is Charlie's call. The alternative — keeping
-cert material in a Fly secret — trades the rate limit for holding a private key
-in platform secret storage, which is a custody change and should not be adopted
-silently.
+The Fly-secret alternative was **rejected**: keeping certificate private-key
+material in platform secret storage is a key-custody change and must not be
+adopted silently. The database and the delivered admission chain deliberately
+stay on the rootfs — a redeploy still gets a fresh database (single-boot
+sessions staging) and a chain is re-minted per deploy window. Note the volume
+does not bypass an already-consumed Let's Encrypt duplicate-certificate
+window; it prevents future issuance burn by surviving redeploys.
+
+Original decision record, for context:
+
+The hosted-edge machine had no volume, so every redeploy wiped Caddy's
+certificate storage and forced a fresh Let's Encrypt issuance. That limit was
+hit: the public TLS leg was down until the duplicate-certificate window
+cleared, which blocked served-origin reruns (LLP 0098 §8.3). The conservative
+default in force was no new Fly resource, `auto_stop_machines = "off"`, one
+always-on machine — which avoids stop/start cert loss but not redeploy cert
+loss.
 
 ## Not an author decision — tracked as work
 
-- Plaintext credential-bearing paths currently 308-redirect rather than refuse
-  (LLP 0060 D2). This is a defect with a known fix, not a judgement call. It is
-  **not** the same seam as D-1: the redirect is issued by the Caddy terminator
-  before the origin sees the request, so it is a terminator-configuration fix,
-  not a request-ordering one. It gets its own change.
-- D-1 (unauthenticated caller reaches the JSON parser) needs the function-level
-  authentication requirement hoisted into route policy — a codegen/route-policy
-  design change, not the reorder it first looked like. See the 0077 index.
-- The LLP 0077 matrix has not run on the served origin because the deployment's
-  active auth mode is `dev`; staging a sessions carrier is implementation work.
+- ~~Plaintext credential-bearing paths currently 308-redirect rather than
+  refuse (LLP 0060 D2).~~ **Fixed 2026-07-25** with the D4 redeploy: the
+  terminator's explicit `http://` site answers a fixed body-free 403 (no
+  redirect), witnessed from the public internet; ACME HTTP-01 interception
+  proven intact via a successful staging-CA order under the new config
+  (LLP 0098 §8.4).
+- ~~D-1 (unauthenticated caller reaches the JSON parser).~~ **Fixed
+  2026-07-25** — the function-level `authRequirement` route-policy hoist; see
+  the 0077 index (matrix 42/42 against the local hosted origin).
+- The LLP 0077 matrix has not run on the served origin. As of the D4 redeploy
+  the deployment stages sessions in a single boot and runs the D-1-fixed
+  binary; the sole remaining blocker is public TLS (Let's Encrypt
+  duplicate-certificate window, retry after 2026-07-27 00:53:37 UTC —
+  LLP 0098 §8.4 records the rerun recipe).
 - A method-mismatched probe of a disabled operator route returns 405 before the
   disablement gate runs.

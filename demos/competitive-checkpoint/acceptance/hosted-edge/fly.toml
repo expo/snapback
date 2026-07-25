@@ -25,16 +25,26 @@ primary_region = "sjc"
   # never passes --allow-insecure-dev-auth. `test` remains the drill profile.
   SNAPBACK_PROFILE = "test"
 
+# LLP 0098 author decision D4 (Charlie Cheever, 2026-07-25): one small
+# persistent volume for Caddy's certificate storage ONLY, so certificates
+# survive redeploys and stop/start cycles instead of burning Let's Encrypt
+# duplicate-certificate budget. The database and the delivered admission
+# chain deliberately stay on the rootfs: a redeploy still gets a fresh
+# database (which is what lets sessions stage in a single boot) and a chain
+# is re-delivered per deploy window. Volume identity (teardown inventory:
+# ../drill/README.md): vol_r6815pkd59o1x614, name caddy_storage, sjc, 1GB;
+# attaching it replaced machine 819701c927ee68 with 849764f2e7dd58.
+[mounts]
+  source = "caddy_storage"
+  destination = "/data/caddy"
+
 # Raw TCP passthrough: TLS terminates in the container, not at Fly's edge.
 [[services]]
   internal_port = 8443
   protocol = "tcp"
-  # Auto-stop is OFF for this profile, and that is a finding rather than a
-  # preference: this machine has no persistent volume, so every stop/start
-  # cycle wipes the rootfs — taking Caddy's certificate storage with it and
-  # forcing a fresh Let's Encrypt issuance against the 5-per-week duplicate
-  # limit. One always-on machine keeps the certificate (and the delivered
-  # admission chain) stable. A volume would be the production answer.
+  # Auto-stop stays OFF: certificates now persist on the D4 volume, but the
+  # database and the delivered admission chain still live on the rootfs, and
+  # one always-on machine keeps both stable between deploys.
   auto_stop_machines = "off"
   auto_start_machines = true
   min_machines_running = 1
@@ -47,12 +57,9 @@ primary_region = "sjc"
 [[services]]
   internal_port = 8080
   protocol = "tcp"
-  # Auto-stop is OFF for this profile, and that is a finding rather than a
-  # preference: this machine has no persistent volume, so every stop/start
-  # cycle wipes the rootfs — taking Caddy's certificate storage with it and
-  # forcing a fresh Let's Encrypt issuance against the 5-per-week duplicate
-  # limit. One always-on machine keeps the certificate (and the delivered
-  # admission chain) stable. A volume would be the production answer.
+  # Auto-stop stays OFF: certificates now persist on the D4 volume, but the
+  # database and the delivered admission chain still live on the rootfs, and
+  # one always-on machine keeps both stable between deploys.
   auto_stop_machines = "off"
   auto_start_machines = true
   min_machines_running = 1
