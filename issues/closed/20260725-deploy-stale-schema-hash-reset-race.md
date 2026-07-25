@@ -36,3 +36,31 @@ behavior is unchanged (a stale refusal on a production-like target should
 stay a stop). Document the knob next to the existing
 "migration/reset path" message so the operator learns the escape hatch at
 the moment they need it.
+
+## Resolution (2026-07-25)
+
+Implemented as proposed in `cloudflare/deploy.sh`, hooked into the first
+health verdict (after `probe_gateway_bindings` succeeds but the probed body
+answers `ok !== true`, before the failure/rollback `exit 1`):
+
+- `SNAPBACK_DEPLOY_RESET_ON_STALE=1` + a `SNAPBACK_STALE_CLOUDFLARE_*`
+  refusal code + `SNAPBACK_ADMIN_TOKEN` in the environment → deploy.sh POSTs
+  `/_snapback/api/app/reset` with `x-snapback-admin-token` against the same
+  base URL the health probe used (the just-activated version), bounded to
+  `SNAPBACK_DEPLOY_RESET_ATTEMPTS` (default 6) tries at
+  `SNAPBACK_DEPLOY_RESET_DELAY_SECONDS` (default 5s) apart — ~30s max.
+- A response containing `"reset":true` triggers a full bindings + health
+  re-probe; if it now passes, the deploy continues down the normal healthy
+  path (admin-secret handling, post-secret deploy, final verification).
+- Any other outcome — knob unset, non-stale code, missing token, reset never
+  confirming, or health still refusing after reset — falls through to the
+  unchanged fail-closed failure/rollback path. The refusal message now names
+  `SNAPBACK_DEPLOY_RESET_ON_STALE=1` as the sanctioned escape hatch for
+  proof/demo targets whose persisted state is disposable.
+
+The reset authenticates against the admin secret a previous deploy already
+configured on the Worker (this run's secret handling comes later), which is
+exactly what the 2026-07-25 manual race proved works. Covered by new
+`stale-health-reset-knob*` cases in `cloudflare/test/deploy-script.mjs`
+(curl fake models the admin-gated reset endpoint); documented in
+`cloudflare/README.md`.
