@@ -1,7 +1,7 @@
 {
   "appId": "shindig",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:0afa1ba26f5ffded",
+  "bundleHash": "sha256:4105cab2c07dd7f9",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -619,7 +619,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "687b9379c44dc04cdfcf2d99f1ee8f3b883a5eff2342a7bc673c329e8e3f1537",
+  "inputsHash": "c170fe5124bae77126fb927ade1d02588228c1caddbb0ce073109d3610f0e2ff",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

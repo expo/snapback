@@ -102,6 +102,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
+  'relational_query_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
@@ -112,6 +113,9 @@ const TARGET_CAPABILITY_IDS = new Set([
 // Remove an id here in the same change that promotes it to stable in Rust.
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'bounded_response_stream_v1',
+  // LLP 0080 is Accepted (semantics); the id stays experimental until the
+  // coupled suite passes and both RFCs flip to Implemented.
+  'relational_query_v1',
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
@@ -1126,6 +1130,56 @@ export async function generateInProcess(backendDir, options = {}) {
         serverRunnable: true,
         localRunnable: false,
         ...(def.retainable === true ? { retainable: true } : {}),
+        ...contractQueryLivenessFields(def),
+      };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.relationalPlan) {
+      // @ref LLP 0080#1-closed-relational-plan — the authoring surface
+      //   already proved the closed shape against installed builders; this
+      //   branch serializes the normalized plan and nothing else. Activation
+      //   on the server re-proves schema binding and the cardinality claim.
+      const plan = def.relationalPlan;
+      const serializeFilters = (filters) => filters.map((f) => ({
+        field: f.field,
+        op: f.op,
+        value: serializeExpr(f.value),
+      }));
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: {
+          HostPlan: {
+            RelationalQuery: {
+              root: plan.root,
+              rootAlias: plan.rootAlias,
+              joined: plan.joined,
+              joinedAlias: plan.joinedAlias,
+              joinKind: plan.joinKind,
+              joinOn: plan.joinOn,
+              rootFilters: [],
+              rootVisibility: serializeFilters(plan.rootVisibility),
+              joinedVisibility: serializeFilters(plan.joinedVisibility),
+              projection: plan.projection,
+              order: plan.order.map((o) => ({ field: o.field, direction: o.direction })),
+              take: plan.take,
+              rootIndex: plan.rootIndex,
+              joinedIndex: plan.joinedIndex,
+            },
+          },
+        },
+        declaredReads: [plan.root, plan.joined],
+        declaredWrites: [],
+        authScopeField: null,
+        syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: {},
+        argOrder: [],
+        reads: [plan.root, plan.joined],
+        result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
+        serverRunnable: true,
+        localRunnable: false,
         ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
@@ -2925,6 +2979,38 @@ function rowDescriptor(table) {
   return { shape: 'object', fields };
 }
 
+// The projected relational row: declared leaves only — no system fields ride
+// along (LLP 0080 §2's result is the projection, and the opaque cursor, not
+// the row, carries pagination identity). Joined leaves are optional under a
+// left join because an unmatched or invisible joined row nulls them.
+function relationalRowDescriptor(plan, tables) {
+  const primOf = (tableName, fieldName) => {
+    const field = (tables[tableName]?.fields ?? []).find((f) => f.name === fieldName);
+    if (!field) return { shape: 'unknown' };
+    const prim = field.field_type === 'Principal' || idFieldTypeTable(field.field_type) !== null
+      ? 'string'
+      : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[field.field_type];
+    const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    if (field.optional) descriptor.optional = true;
+    return descriptor;
+  };
+  const fields = dict();
+  for (const leaf of plan.projection) {
+    if (leaf.source.RootField) {
+      fields[leaf.name] = primOf(plan.root, leaf.source.RootField);
+    } else if (leaf.source.JoinedField) {
+      const descriptor = primOf(plan.joined, leaf.source.JoinedField);
+      if (plan.joinKind === 'Left') descriptor.optional = true;
+      fields[leaf.name] = descriptor;
+    } else {
+      const literal = leaf.source.Literal;
+      const prim = { string: 'string', number: 'number', boolean: 'boolean' }[typeof literal];
+      fields[leaf.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
+    }
+  }
+  return { shape: 'object', fields };
+}
+
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // @ref LLP 0055#grants — static authority-creation is best-effort, while the
   // runtime write gate remains authoritative. Declared permission-backing
@@ -3360,6 +3446,13 @@ function writeSummary(fn) {
 
 function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
+  // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
+  //   execute the relational plan refuses at generation with a
+  //   machine-readable capability gap, never at runtime.
+  if (fn.runtime?.HostPlan?.RelationalQuery) {
+    const relational = [runtimeCapability, 'relational_query_v1'];
+    return fn.kind === 'LiveQuery' ? ['live_subscriptions', ...relational] : relational;
+  }
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
   if (fn.kind === 'Action') {

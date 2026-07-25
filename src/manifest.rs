@@ -3362,10 +3362,12 @@ pub enum TargetCapabilityId {
     MutationReadSetValidation,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
+    #[serde(rename = "relational_query_v1")]
+    RelationalQueryV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
@@ -3375,6 +3377,7 @@ impl TargetCapabilityId {
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
+        Self::RelationalQueryV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -3388,6 +3391,7 @@ impl TargetCapabilityId {
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
+            Self::RelationalQueryV1 => "relational_query_v1",
         }
     }
 
@@ -3409,6 +3413,11 @@ impl TargetCapabilityId {
             // 0076 reaches Accepted (LLP 0074's honesty rule for Draft-backed
             // capabilities). Flipping this to `Stable` is the acceptance act.
             Self::BoundedResponseStreamV1 => CapabilityMaturity::Experimental,
+            // LLP 0080 is Accepted (semantics), but its executable witnesses
+            // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
+            // relational profile's id stays `experimental`; flipping it to
+            // `Stable` is the Implemented act.
+            Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -3448,6 +3457,10 @@ impl TargetCapabilityId {
                         .any(|form| form == "cron-action-run-mutation")
             }
             Self::PermissionEpochResync => facts.permission_epoch_resync_registered,
+            // Fail-closed dedicated fact: a target implementing host plans
+            // (e.g. the Cloudflare host-ops path) does not thereby implement
+            // the relational executor (LLP 0080 §2's capability-gap rule).
+            Self::RelationalQueryV1 => facts.relational_query_v1_registered,
         }
     }
 }
@@ -3511,6 +3524,7 @@ impl CapabilityMaturity {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
     bounded_response_stream_v1_registered: bool,
+    relational_query_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3524,6 +3538,7 @@ impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
         Self {
             bounded_response_stream_v1_registered: true,
+            relational_query_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -4324,7 +4339,16 @@ mod membership_manifest_grammar_tests {
         // with `experimental` exactly when it is supported, and stable ids
         // never appear.
         let disabled = CapabilityManifest::local_v0_declared();
-        assert!(disabled.capability_maturity.is_empty());
+        // The relational profile is supported by the local runtime and its
+        // id is experimental until the coupled suite passes, so even the
+        // outbound-disabled declared manifest carries that one entry.
+        assert_eq!(
+            disabled
+                .capability_maturity
+                .get(&TargetCapabilityId::RelationalQueryV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        assert_eq!(disabled.capability_maturity.len(), 1);
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert_eq!(
             enabled
@@ -4332,7 +4356,7 @@ mod membership_manifest_grammar_tests {
                 .get(&TargetCapabilityId::BoundedResponseStreamV1),
             Some(&CapabilityMaturity::Experimental)
         );
-        assert_eq!(enabled.capability_maturity.len(), 1);
+        assert_eq!(enabled.capability_maturity.len(), 2);
 
         // Serialization: the annotated manifest carries the field; the
         // all-stable manifest omits it, and an omitted field round-trips to
@@ -4340,9 +4364,20 @@ mod membership_manifest_grammar_tests {
         let serialized = serde_json::to_value(&enabled).expect("serialize");
         assert_eq!(
             serialized["capabilityMaturity"],
-            json!({ "bounded_response_stream_v1": "experimental" })
+            json!({
+                "bounded_response_stream_v1": "experimental",
+                "relational_query_v1": "experimental",
+            })
         );
-        let plain = serde_json::to_value(&disabled).expect("serialize");
+        // An all-stable manifest omits the field, and an omitted field
+        // round-trips to an empty map (older manifests predate the
+        // dimension).
+        let mut all_stable = CapabilityManifest::local_v0_declared();
+        all_stable
+            .supported_capabilities
+            .retain(|id| id.maturity() == CapabilityMaturity::Stable);
+        all_stable.capability_maturity.clear();
+        let plain = serde_json::to_value(&all_stable).expect("serialize");
         assert!(plain.get("capabilityMaturity").is_none());
         let round_tripped: CapabilityManifest =
             serde_json::from_value(plain).expect("deserialize without the field");

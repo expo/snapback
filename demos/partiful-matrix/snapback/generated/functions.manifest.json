@@ -1,7 +1,7 @@
 {
   "appId": "partiful-matrix",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:b3617c6309661ea7",
+  "bundleHash": "sha256:3731ac6bcd0a758c",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -712,7 +712,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "5eaa23ac0eaba559e3f7f1e39873711ae2e9906bb7d1d949537836c9b300d868",
+  "inputsHash": "6cf92c0217792aab13eba36d94d97095887d1be2e929bf4db304fe0e80909ca6",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

@@ -677,6 +677,241 @@ function queryDef(kind, spec) {
 export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
 
+// ---------------------------------------------------------------------------
+// Relational queries (LLP 0080 §1 — the closed first relational profile)
+// ---------------------------------------------------------------------------
+
+const RELATIONAL_SPEC_FIELDS = new Set([
+  'root', 'rootAlias', 'joined', 'joinedAlias', 'join', 'kind', 'visibility',
+  'projection', 'take', 'rootIndex', 'joinedIndex', 'defaultLive',
+]);
+const RELATIONAL_VISIBILITY_FIELDS = new Set(['root', 'joined', 'output']);
+const RELATIONAL_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function relationalTable(table, where) {
+  assert(
+    table?.__table === true && typeof table.__tableName === 'string' && table.__tableName.length > 0,
+    `defineRelationalQuery ${where} must be a defineTable(...) installed in defineSchema(...)`,
+  );
+  return { name: table.__tableName, fields: table.fields, indexes: table.indexes ?? [] };
+}
+
+// The v1 join-key comparator classes (LLP 0080 §1): string, principal,
+// reference id (same declared target domain), JavaScript-safe integer, or
+// boolean. Float, Json, and cross-domain references are refused.
+function relationalJoinKeyClass(validator, where) {
+  const type = validator.fieldType;
+  if (type === 'String' || type === 'Principal' || type === 'Integer' || type === 'Boolean') {
+    return type;
+  }
+  if (type && typeof type === 'object' && type.Id && typeof type.Id.table === 'string') {
+    return `Id<${type.Id.table}>`;
+  }
+  assert(false, `${where} has non-portable join-key type ${JSON.stringify(type)}`);
+  return undefined;
+}
+
+function relationalVisibility(facts, visibility, where) {
+  assert(
+    visibility && typeof visibility === 'object' && !Array.isArray(visibility),
+    `defineRelationalQuery visibility.${where} is required and explicit — never inferred`,
+  );
+  if (visibility.kind === 'public-read') {
+    assert(
+      Object.keys(visibility).length === 1,
+      `visibility.${where} public-read admits no other fields`,
+    );
+    return { kind: 'public-read' };
+  }
+  assert(
+    visibility.kind === 'owner' && typeof visibility.field === 'string'
+      && Object.keys(visibility).length === 2,
+    `visibility.${where} must be { kind: 'owner', field } or { kind: 'public-read' }`,
+  );
+  const validator = facts.fields[visibility.field];
+  assert(
+    validator && !validator.optional
+      && (validator.fieldType === 'Principal' || validator.fieldType === 'String'),
+    `visibility.${where} owner field must be a non-optional principal or string field`,
+  );
+  return { kind: 'owner', field: visibility.field };
+}
+
+/**
+ * The closed first relational profile: one bounded two-source equi-join with
+ * explicit visibility on both sources and the output, an index-served root
+ * window, and a proven-unique joined side.
+ *
+ * @ref LLP 0080#1-closed-relational-plan — closed plan, no callbacks or SQL;
+ *   the joined side's declared unique index is the cardinality proof; the
+ *   root access index makes the bounded result a bounded scan.
+ * @ref LLP 0080#3-visibility-and-authority — visibility is declared per
+ *   source and output, never inferred; output visibility is provably no
+ *   broader than every contributing source, and a `left` join cannot derive
+ *   owner identity from the omissible side.
+ */
+export function defineRelationalQuery(spec) {
+  assertKnownSpecFields(spec, 'RelationalQuery', RELATIONAL_SPEC_FIELDS);
+  const rootFacts = relationalTable(spec.root, 'root');
+  const joinedFacts = relationalTable(spec.joined, 'joined');
+  assert(rootFacts.name !== joinedFacts.name, 'relational root and joined tables must differ in v1');
+  const rootAlias = spec.rootAlias ?? rootFacts.name;
+  const joinedAlias = spec.joinedAlias ?? joinedFacts.name;
+  assert(
+    RELATIONAL_IDENT.test(rootAlias) && RELATIONAL_IDENT.test(joinedAlias)
+      && rootAlias !== joinedAlias,
+    'relational aliases must be distinct identifiers',
+  );
+  const kind = spec.kind ?? 'inner';
+  assert(kind === 'inner' || kind === 'left', "relational kind must be 'inner' or 'left'");
+
+  assert(
+    Array.isArray(spec.join) && spec.join.length >= 1 && spec.join.length <= 4,
+    'relational join requires 1..=4 equality pairs',
+  );
+  const joinOn = spec.join.map((pair, index) => {
+    assert(
+      pair && typeof pair === 'object' && Object.keys(pair).length === 2
+        && typeof pair.root === 'string' && typeof pair.joined === 'string',
+      `join[${index}] must be { root, joined } field names`,
+    );
+    const rootValidator = rootFacts.fields[pair.root];
+    const joinedValidator = joinedFacts.fields[pair.joined];
+    assert(rootValidator, `join[${index}].root names unknown field ${rootFacts.name}.${pair.root}`);
+    assert(joinedValidator, `join[${index}].joined names unknown field ${joinedFacts.name}.${pair.joined}`);
+    assert(
+      !joinedValidator.optional,
+      `join[${index}].joined field must be non-optional so the unique key is total`,
+    );
+    const rootClass = relationalJoinKeyClass(rootValidator, `join[${index}].root`);
+    const joinedClass = relationalJoinKeyClass(joinedValidator, `join[${index}].joined`);
+    assert(
+      rootClass === joinedClass,
+      `join[${index}] compares ${rootClass} with ${joinedClass}; both operands must share one admitted type (reference ids must share their target domain)`,
+    );
+    return { rootField: pair.root, joinedField: pair.joined };
+  });
+
+  // Cardinality proof: the named joined index is unique and its complete
+  // ordered key is exactly the joined-field sequence.
+  assert(typeof spec.joinedIndex === 'string', 'relational joinedIndex is required');
+  const joinedIndex = joinedFacts.indexes.find((candidate) => candidate.name === spec.joinedIndex);
+  const joinedKey = joinOn.map((pair) => pair.joinedField);
+  assert(
+    joinedIndex && joinedIndex.unique === true
+      && joinedIndex.fields.length === joinedKey.length
+      && joinedIndex.fields.every((field, index) => field === joinedKey[index]),
+    `joinedIndex ${spec.joinedIndex} must be a declared unique index whose complete ordered key is exactly [${joinedKey.join(', ')}]`,
+  );
+
+  exactRelationalVisibilityObject(spec.visibility);
+  const rootVisibility = relationalVisibility(rootFacts, spec.visibility.root, 'root');
+  const joinedVisibility = relationalVisibility(joinedFacts, spec.visibility.joined, 'joined');
+  const anyOwner = rootVisibility.kind === 'owner' || joinedVisibility.kind === 'owner';
+  const computedOutput = anyOwner ? 'owner' : 'public-read';
+  assert(
+    spec.visibility.output === computedOutput,
+    `visibility.output must be explicitly '${computedOutput}' for these sources — output visibility is never broader than a contributing source and never silently narrower`,
+  );
+  // A left join cannot derive owner identity from the omissible side
+  // (LLP 0080 §3): if the only owner source is the joined side, `left`
+  // would emit rows whose owner evidence is null.
+  assert(
+    !(kind === 'left' && rootVisibility.kind !== 'owner' && joinedVisibility.kind === 'owner'),
+    "a left join cannot derive owner visibility from the omissible joined side; use kind: 'inner' or an owner-visible root",
+  );
+
+  // Index-served root access: for an owner-visible root the index's leading
+  // field is the owner field; v1 authoring admits no residual root filters,
+  // and ordering is the index's field sequence (the storage `_id` suffix
+  // totalizes it).
+  assert(typeof spec.rootIndex === 'string', 'relational rootIndex is required');
+  const rootIndex = rootFacts.indexes.find((candidate) => candidate.name === spec.rootIndex);
+  assert(rootIndex, `rootIndex ${spec.rootIndex} must be a declared index on ${rootFacts.name}`);
+  if (rootVisibility.kind === 'owner') {
+    assert(
+      rootIndex.fields[0] === rootVisibility.field,
+      `rootIndex ${spec.rootIndex} must lead with owner field ${rootVisibility.field}`,
+    );
+  }
+  const orderFields = rootVisibility.kind === 'owner'
+    ? rootIndex.fields.slice(1)
+    : rootIndex.fields.slice(0);
+
+  assert(
+    Number.isSafeInteger(spec.take) && spec.take >= 0 && spec.take <= 1_024,
+    'relational take must be an integer from 0 through 1024',
+  );
+
+  assert(
+    spec.projection && typeof spec.projection === 'object' && !Array.isArray(spec.projection)
+      && Object.keys(spec.projection).length > 0,
+    'relational projection must be a non-empty object',
+  );
+  const projection = Object.entries(spec.projection).map(([leafName, source]) => {
+    assert(RELATIONAL_IDENT.test(leafName), `projection field ${leafName} must be an identifier`);
+    assert(
+      source && typeof source === 'object' && Object.keys(source).length === 1,
+      `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
+    );
+    if (typeof source.root === 'string') {
+      assert(rootFacts.fields[source.root], `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      return { name: leafName, source: { RootField: source.root } };
+    }
+    if (typeof source.joined === 'string') {
+      assert(joinedFacts.fields[source.joined], `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      return { name: leafName, source: { JoinedField: source.joined } };
+    }
+    assert(
+      Object.hasOwn(source, 'literal'),
+      `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
+    );
+    return { name: leafName, source: { Literal: source.literal ?? null } };
+  });
+
+  const visibilityFilters = (visibility) => (
+    visibility.kind === 'owner' ? [eq(visibility.field, authUserId())] : []
+  );
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    auth: computedOutput === 'owner' ? 'authenticated' : 'public',
+    args: {},
+    ...(spec.defaultLive === false ? { defaultLive: false } : {}),
+    relationalPlan: {
+      root: rootFacts.name,
+      rootAlias,
+      joined: joinedFacts.name,
+      joinedAlias,
+      joinKind: kind === 'inner' ? 'Inner' : 'Left',
+      joinOn,
+      rootVisibility: visibilityFilters(rootVisibility),
+      joinedVisibility: visibilityFilters(joinedVisibility),
+      projection,
+      order: orderFields.map((field) => asc(field)),
+      take: spec.take,
+      rootIndex: spec.rootIndex,
+      joinedIndex: spec.joinedIndex,
+      outputVisibility: computedOutput,
+      leftJoin: kind === 'left',
+    },
+  };
+}
+
+function exactRelationalVisibilityObject(visibility) {
+  assert(
+    visibility && typeof visibility === 'object' && !Array.isArray(visibility),
+    'defineRelationalQuery requires visibility: { root, joined, output }',
+  );
+  for (const key of Object.keys(visibility)) {
+    assert(RELATIONAL_VISIBILITY_FIELDS.has(key), `visibility has unknown field ${key}`);
+  }
+  assert(
+    typeof visibility.output === 'string',
+    "visibility.output is required and explicit ('owner' or 'public-read')",
+  );
+}
+
 function jsQueryDef(kind, spec) {
   assertKnownSpecFields(spec, kind, JS_QUERY_SPEC_FIELDS);
   assert(spec.source, `${kind} requires a handler source file`);
