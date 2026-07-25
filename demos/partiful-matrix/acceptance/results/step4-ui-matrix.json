@@ -1,9 +1,9 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-22T10:54:07.524Z",
+  "generatedAt": "2026-07-25T23:42:20.760Z",
   "revisions": {
-    "snapback": "9be2e66fb6916e7806c03bc934ce164274d38689",
-    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+    "snapback": "c0d3494a8fd1d1b44f4f06b7eb37ea98cfae9d7f",
+    "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "oq9": {
     "path": "tests/partitime-ui/oq9-resolution.json",
@@ -23,11 +23,11 @@
       "revisionMatches": true,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims.json",
-      "sha256": "2459187a80418f5c153c3db97f87e0c6d02a1f9aff121b9ec7aacd187296edf3",
+      "sha256": "53c43f397a20f6d55cdffde93b4f49c9a296cf636255ec0ac7b25b3a473ccf16",
       "environment": "chrome",
       "revisions": {
-        "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
-        "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+        "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+        "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
       },
       "claimResults": [
         {
@@ -39,14 +39,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-responsive.json",
-              "receiptSha256": "2bed4b5bcc2abaf0455795e485abbbf13e06ce4194821260184a5b145c89cb5f"
+              "receiptSha256": "81bd91f7f7e00d44258c4c0b3db83a24a4289bf2c4a3cb06a7b4ae56e13bd45a"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-responsive.json",
-              "receiptSha256": "f4521769bf5f803dfc8ab71e906307fcf3e92fadfdc537cc97ff025ed38cd533"
+              "receiptSha256": "e35a83f15c4919208677265c56fb347f22f0a6e4b62588acbdadc088a60555da"
             }
           ]
         },
@@ -59,14 +59,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-keyboard.json",
-              "receiptSha256": "57e782f279235f98b3faf7e6a621584ffb35d30de9f518ce45d3cb70d934ae02"
+              "receiptSha256": "b08e92a216a1baa4ad0b5688f7edc04f3d80b29a3337dbc293c361a6543e0957"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-keyboard.json",
-              "receiptSha256": "1c6d4e15e072aedcce9a85f106286fa8c21a5584af804d9362b18cfed410ea88"
+              "receiptSha256": "75aaf8f729df9952d39d4e6645810d9e977957a8d836407c94e204f8cc45b7ad"
             }
           ]
         },
@@ -79,14 +79,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-focus.json",
-              "receiptSha256": "cd3cb29d3349f7d2ac0be659337b38bfd96492583d9a7cb9c86748044d6a11bd"
+              "receiptSha256": "e3bd6bfb08e055250f9ab761b8ff1587eb7f4397bd91382dc21c9165cd71f4f5"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-focus.json",
-              "receiptSha256": "33038d252b05a33b2a70bba64fdea16ffec3c1db43ac0d14871d63c5e1d2bf68"
+              "receiptSha256": "3cd3934e9d9fcd09b0e933f2aa89d62921fb505c22a6bbb151dc61344b04f35d"
             }
           ]
         },
@@ -99,14 +99,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-reduced-motion.json",
-              "receiptSha256": "f527e73846334ac57037ce6de181beb5387d506cc91ce76f4aa978a3b6cfb4d5"
+              "receiptSha256": "367e1f8c131929601f069a15256d10fa45d078f73888a36476f84e28973f9e6a"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-reduced-motion.json",
-              "receiptSha256": "b177ee470f44f5d6739f12c9327df68b2689dec5d83fdc967861b96df3a53c1d"
+              "receiptSha256": "b10895f209daaa0952b93f34d655f8319c4b71cdc28a3073913776f778e18c71"
             }
           ]
         },
@@ -119,14 +119,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-a11y.json",
-              "receiptSha256": "3355aac26d3e9a8685affbb9b432ea63a9a3bbfd98de0865dc218b2fb1270ea4"
+              "receiptSha256": "dbec420c7385d65811f6c67bdacc46e1a123c92b2f18c9095f6789839f4f42cb"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-a11y.json",
-              "receiptSha256": "79302073941d228b05d0b0174e9a3fe10034d10b5a396081fab660aa2dea25d4"
+              "receiptSha256": "7db1b762393a3f05b7f991becc923c90789ed7ffefd0a8a58c4d05787c2f82b9"
             }
           ],
           "delta": {
@@ -165,17 +165,11 @@
                 {
                   "id": "color-contrast",
                   "impact": "serious",
-                  "nodes": 3,
-                  "help": "Elements must meet minimum color contrast ratio thresholds"
-                },
-                {
-                  "id": "color-contrast",
-                  "impact": "serious",
-                  "nodes": 6,
+                  "nodes": 1,
                   "help": "Elements must meet minimum color contrast ratio thresholds"
                 }
               ],
-              "totalViolations": 3
+              "totalViolations": 2
             },
             "newCriticalSerious": [],
             "ok": true
@@ -190,14 +184,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-visual.json",
-              "receiptSha256": "4248d4448522e2f34014c95cdca62516aa2bc824e97cdd07663e1580937a5512"
+              "receiptSha256": "ea15d8538b72b016e52e371eda0137e55851c35ddfa384393fbf2de064fb2a5d"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-visual.json",
-              "receiptSha256": "f379c2e9689ba05d48db5090b23bb33f42591c8958d3c108bfd59a4f969223a6"
+              "receiptSha256": "497057c1213499890203f07f271311f259232d5f3e6f91f0ca02558fc5a059dd"
             }
           ],
           "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
@@ -207,139 +201,174 @@
     {
       "browserId": "safari-macos-latest",
       "role": "automated harness cell (WebDriver)",
-      "status": "red",
-      "reason": "claim-receipt-not-passing",
+      "status": "pass",
+      "reason": null,
       "revisionMatches": true,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-safari.json",
-      "sha256": "51829de60f123f1e581008f1d646ed5a1e035dce8a16f218668e2d71361707d9",
+      "sha256": "b51033313ca0fef27c08cf20f3a88f87d798e2b554930e5576cb769b6c946b5a",
       "environment": "safari",
       "revisions": {
-        "snapback": "ca0c8470bddb65c41880fd79afde0d8292813293",
-        "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+        "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+        "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
       },
       "claimResults": [
         {
           "claimId": "STEP4.UI.RESPONSIVE",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-responsive.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "bc8d2bd38e02181c1901326dbbab39b0aae854816d1e876fe48693f65907a366"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-responsive.json",
-              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+              "receiptSha256": "7fb84c21e163a94fb1225f2edebbcfb057d7c9b49d771098b1657f9e1b24dc1c"
             }
           ]
         },
         {
           "claimId": "STEP4.UI.KEYBOARD",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-keyboard.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "af97c4cf6c30ca658c8a708477a4306623744b6232729f706931a57f463cd675"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-keyboard.json",
-              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+              "receiptSha256": "a8a04a154631ba12eca2a778477200545342bf578c17d16fb5a0adb462292884"
             }
           ]
         },
         {
           "claimId": "STEP4.UI.FOCUS",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-focus.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "8296015532b4d73933ad59e10695697a4db64c15c6c8fba926c490511bc8f2c1"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-focus.json",
-              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+              "receiptSha256": "45924a9a1f07ecf1f03e28dd04d7186db18e9d61e134521e5bfea17235d325ab"
             }
           ]
         },
         {
           "claimId": "STEP4.UI.REDUCED-MOTION",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-reduced-motion.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "0c16ceaf1a55fc37f7043af0db99ec49da93b426c9b18873b255f215991d45bd"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-reduced-motion.json",
-              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+              "receiptSha256": "fabee7d856e11587e09ad5a81f482a7965566e0901540e8d4a8d69118ec16ae4"
             }
           ]
         },
         {
           "claimId": "STEP4.UI.A11Y",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-a11y.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "cee5b742ff9e13116a757958848ff7c5605297b6c759afb1d8bb04b09f7af595"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-a11y.json",
-              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+              "receiptSha256": "d962ed2e26f0d71f370fe1e514f40381b981283f7f5d2f54ce37ff12d65158aa"
             }
           ],
           "delta": {
-            "ok": false,
-            "reason": "both arm receipts are required for the delta oracle"
+            "oracle": "zero new critical/serious; Contract total violations <= React control",
+            "react": {
+              "criticalSerious": [
+                {
+                  "impact": "serious",
+                  "id": "color-contrast",
+                  "help": "Elements must meet minimum color contrast ratio thresholds",
+                  "nodes": 5
+                },
+                {
+                  "impact": "serious",
+                  "id": "color-contrast",
+                  "help": "Elements must meet minimum color contrast ratio thresholds",
+                  "nodes": 6
+                }
+              ],
+              "totalViolations": 2
+            },
+            "contract": {
+              "criticalSerious": [
+                {
+                  "impact": "serious",
+                  "id": "color-contrast",
+                  "help": "Elements must meet minimum color contrast ratio thresholds",
+                  "nodes": 5
+                },
+                {
+                  "impact": "serious",
+                  "id": "color-contrast",
+                  "help": "Elements must meet minimum color contrast ratio thresholds",
+                  "nodes": 1
+                }
+              ],
+              "totalViolations": 2
+            },
+            "newCriticalSerious": [],
+            "ok": true
           }
         },
         {
           "claimId": "STEP4.UI.VISUAL",
-          "status": "red",
+          "status": "pass",
           "cells": [
             {
               "arm": "react",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-visual.json",
-              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+              "receiptSha256": "fca13257ba31a9c38b4ab45a5bb4fbb8412b5804d7591d0c988d85bf1997bcb6"
             },
             {
               "arm": "contract",
-              "ok": false,
-              "exitCode": 2,
+              "ok": true,
+              "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-visual.json",
-              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+              "receiptSha256": "91fd55de0aeea0fce78ab5fedfa79a591b355405f3bd7d7ab104565bf26974d7"
             }
           ],
           "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
@@ -354,11 +383,11 @@
       "revisionMatches": true,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-firefox.json",
-      "sha256": "763a0a9b0f7324521e07b863a00be40f5ee19f4cb064176bc01817076536ffeb",
+      "sha256": "307dfdf7603db8c3c16a57c81cb350ae0aedea13a9b4b4ef862f45453a3e3fa4",
       "environment": "firefox",
       "revisions": {
-        "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
-        "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+        "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+        "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
       },
       "claimResults": [
         {
@@ -370,14 +399,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-responsive.json",
-              "receiptSha256": "92d05a7eee096732f34fe55eeb9a29890b8b428dcfd0a4f8e48217bbe2aad83a"
+              "receiptSha256": "428d8b55a9704a9d99227277e3f897dca023468d699045743dce0003efa785f2"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-responsive.json",
-              "receiptSha256": "f04a6ac7d3509e2629210c89d350727b2267e70bf425d81836b79d9aa8523820"
+              "receiptSha256": "60a01075b7f252dbab79354a130fb4a8674f8c2ca0da3a59d4adf08930e7c413"
             }
           ]
         },
@@ -390,14 +419,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-keyboard.json",
-              "receiptSha256": "1b7b203610a0409b4d410a62d8f04469873e16a372737ac9697222b2ae3ff794"
+              "receiptSha256": "9f16d43dfae1d1d07e98ef852f42e211392c36c61bdc3cd9046b926dbab48a86"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-keyboard.json",
-              "receiptSha256": "b23204dd535cd184b5ca1ad2ce5171578e748100ff315be12d7b32451fc4264d"
+              "receiptSha256": "3b92fd02baaf99f6b4c547b4536e65ccff5812e23c83fc1222008eaf5e844435"
             }
           ]
         },
@@ -410,14 +439,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-focus.json",
-              "receiptSha256": "d50719caf0b4dd0ea3b16a5af08f8bfa20d2b88ebce04af47a9372de8b3bc815"
+              "receiptSha256": "972b332fd4c0be588a5364815326038ab2e2fbc551b09d98faacfad449aaff44"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-focus.json",
-              "receiptSha256": "4508d88b00226d2134523cbf974cf9732dd10e14f685f08f3032f74d7f6bf5c1"
+              "receiptSha256": "f071f3ea54e3d6acd4111ec3f179aecbde8f9bb6eb4fea42fbfee4c8d14bf16b"
             }
           ]
         },
@@ -430,14 +459,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-reduced-motion.json",
-              "receiptSha256": "3e138ea29c9eddb74e9555ebe83e0fad768a0310eed67af2bc104ae4eb4b3fef"
+              "receiptSha256": "0f641579a4cdd4bb9b33f701406cc92fc03a3994f9d4e20de4bd006bc6eeeadd"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-reduced-motion.json",
-              "receiptSha256": "a3fa040cd685a128d2171d3f3c40c06e666dacbb6afdf337bc7631ac2be115b5"
+              "receiptSha256": "c0f39ca5a66d50d9f1a6b529c56fde16165089759271c40d08c6712f68a37cb4"
             }
           ]
         },
@@ -450,14 +479,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-a11y.json",
-              "receiptSha256": "5f28b5334859557b551be30f0c429c1ea5b7ee45fdaf19029264e672dd889bb6"
+              "receiptSha256": "648bf09b22641375d68ec7b9c3a9ffac5ef29b666041cfe99821d1a27b542914"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-a11y.json",
-              "receiptSha256": "ff6f595c487c3fd79aba2b5419931ec95bbcce31941c157c0f05008d230ce10f"
+              "receiptSha256": "aad5c7c3604129e38470877041b35897f6b677b9bc8e7b87d90a1b130551173f"
             }
           ],
           "delta": {
@@ -497,16 +526,10 @@
                   "help": "Elements must meet minimum color contrast ratio thresholds",
                   "id": "color-contrast",
                   "impact": "serious",
-                  "nodes": 3
-                },
-                {
-                  "help": "Elements must meet minimum color contrast ratio thresholds",
-                  "id": "color-contrast",
-                  "impact": "serious",
-                  "nodes": 6
+                  "nodes": 1
                 }
               ],
-              "totalViolations": 3
+              "totalViolations": 2
             },
             "newCriticalSerious": [],
             "ok": true
@@ -521,14 +544,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/react/step4-ui-visual.json",
-              "receiptSha256": "0e8a5a9040875a4744b2035a473315beecd88dbabeedf1a4f7cceb1e726ead57"
+              "receiptSha256": "06be08997fb2e3ada0de76ad0a1e091948e4ff46b27d9722dd9791d61e196581"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/firefox/contract/step4-ui-visual.json",
-              "receiptSha256": "092361acb8eef5b62761b3cdc1b3cd80ebeda617b2604b59c3ecb8edd1f5d567"
+              "receiptSha256": "c9cd1062fda15d736f511f25a48848afa7b7e5ea8bcc0ae283ebbf44d71452ec"
             }
           ],
           "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
@@ -539,8 +562,8 @@
       "browserId": "safari-ios-latest",
       "role": "automated where simulator-reachable; LLP 0211 §4.3-style manual checklist for soft-keyboard/IME/autofill/bfcache rows",
       "status": "red",
-      "reason": "claim-receipt-not-passing",
-      "revisionMatches": true,
+      "reason": "exact-revision-mismatch",
+      "revisionMatches": false,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-ios-safari.json",
       "sha256": "f029b7be3beab8b4a0693154a7f319c0a97035db44fd988c015b62eaa8b1053c",
@@ -756,9 +779,20 @@
         "acceptedFixtures": [
           "multi-route-bfcache"
         ],
-        "status": "red",
-        "issues": [
-          "evidence-missing"
+        "status": "pass",
+        "issues": [],
+        "fixture": "multi-route-bfcache",
+        "notes": "Physical Mobile Safari restored the unchanged Caltrain to Forms to Back fixture with Millbrae state and Matches intact; the causal old-remount A/B reset to Mountain View.",
+        "evidence": [
+          {
+            "kind": "physical-ios-xcresult-screenshot-tree-and-causal-ab",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+              "sha256": "709d1aa899d7c8395370022cdf59484cbf5f0b74ca41950270805890e1a89108"
+            }
+          }
         ]
       },
       {
@@ -768,9 +802,20 @@
         "acceptedFixtures": [
           "caltrain-contract-search"
         ],
-        "status": "red",
-        "issues": [
-          "evidence-missing"
+        "status": "pass",
+        "issues": [],
+        "fixture": "caltrain-contract-search",
+        "notes": "Physical Mobile Safari Find on Page located visible Contract text Mountain View, reported 1 of 1, dismissed cleanly, and left the page usable.",
+        "evidence": [
+          {
+            "kind": "physical-ios-screenshot-tree-and-observation",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+            }
+          }
         ]
       },
       {
@@ -778,11 +823,22 @@
         "environment": "ios-safari-current",
         "assertion": "focus-trap-restore",
         "acceptedFixtures": [
-          "facet-overlay-fixture"
+          "facet-contract-overlay-fixture"
         ],
-        "status": "red",
-        "issues": [
-          "evidence-missing"
+        "status": "pass",
+        "issues": [],
+        "fixture": "facet-contract-overlay-fixture",
+        "notes": "Physical Mobile Safari opened the Contract-owned dialog, retained focus inside it, dismissed through Done, removed the dialog, and restored focus to Open Contract dialog.",
+        "evidence": [
+          {
+            "kind": "physical-ios-screenshot-tree-and-observation",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+            }
+          }
         ]
       },
       {
@@ -800,7 +856,7 @@
       }
     ],
     "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-    "sha256": "9c13c23e44142eb9ed129ee695171855208e17c6ef889cf21470fad790db8136"
+    "sha256": "666700f7c7158c0410aa77f3f7ee6c4b46619aab3f2422bae914ad4cfe4a48e4"
   },
   "visualApproval": {
     "status": "red",
@@ -809,7 +865,7 @@
     "artifactCount": 156,
     "requiredArtifactCount": 156,
     "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-    "sha256": "ad7dea7a24301e9d0164206b7336f3932062feebfa694df63f04b1352d077353"
+    "sha256": "3ce1696749c3720c54c2f1939f369ac90cb0be60420153d089c4f0dd9911d4ab"
   },
   "inputs": {
     "generator": {
@@ -843,8 +899,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -853,8 +909,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "pass",
-          "reason": null
+          "status": "red",
+          "reason": "exact-revision-mismatch"
         }
       ]
     },
@@ -869,8 +925,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -880,7 +936,7 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "claim-not-passing"
+          "reason": "exact-revision-mismatch"
         }
       ],
       "manualDeviceGate": {
@@ -899,8 +955,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -909,8 +965,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "pass",
-          "reason": null
+          "status": "red",
+          "reason": "exact-revision-mismatch"
         }
       ],
       "manualDeviceGate": {
@@ -929,8 +985,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -940,7 +996,7 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "claim-not-passing"
+          "reason": "exact-revision-mismatch"
         }
       ]
     },
@@ -955,8 +1011,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -965,8 +1021,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "pass",
-          "reason": null
+          "status": "red",
+          "reason": "exact-revision-mismatch"
         }
       ],
       "manualDeviceGate": {
@@ -985,8 +1041,8 @@
         },
         {
           "browserId": "safari-macos-latest",
-          "status": "red",
-          "reason": "claim-not-passing"
+          "status": "pass",
+          "reason": null
         },
         {
           "browserId": "firefox-macos-latest",
@@ -995,8 +1051,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "pass",
-          "reason": null
+          "status": "red",
+          "reason": "exact-revision-mismatch"
         }
       ],
       "visualApproval": {
@@ -1006,7 +1062,7 @@
         "artifactCount": 156,
         "requiredArtifactCount": 156,
         "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-        "sha256": "ad7dea7a24301e9d0164206b7336f3932062feebfa694df63f04b1352d077353"
+        "sha256": "3ce1696749c3720c54c2f1939f369ac90cb0be60420153d089c4f0dd9911d4ab"
       }
     }
   ],

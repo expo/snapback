@@ -1,14 +1,14 @@
 {
   "revision": {
-    "snapback": "ca0c8470bddb65c41880fd79afde0d8292813293",
-    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+    "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+    "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v25.9.0",
-    "bun": "1.3.12",
+    "node": "v24.3.0",
+    "bun": "1.3.9",
     "os": "darwin-25.5.0-arm64",
     "browser": "safari",
     "browserBinary": "/System/Cryptexes/App/usr/bin/safaridriver",
@@ -16,9 +16,9 @@
     "iosSimulator": null,
     "chrome": null,
     "chromeVersion": null,
-    "cpu": "Apple M5 Max",
-    "logicalCpus": 18,
-    "totalMemoryBytes": 137438953472
+    "cpu": "Apple M4",
+    "logicalCpus": 10,
+    "totalMemoryBytes": 17179869184
   },
   "packages": {
     "react": {
@@ -101,41 +101,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "10aec7ee1dba8d76f9cc548cbadaed139b74b6abb5905612f2443321ae2c8a6f",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "6feaea1631a8dda52e477f2ada427789efe2e675d4729a0f530a32c333e4fe65",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-contract-0.1.0.tgz",
+        "@exact/devtools": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-devtools-0.1.0.tgz",
+        "@exact/facet-core": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-facet-core-0.1.0.tgz",
+        "@exact/renderer": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-renderer-0.1.0.tgz",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
-          "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+          "requested": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-contract-0.1.0.tgz",
+          "resolvedName": "@exact/contract",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "f639cb7f9050a71cbea1252d76dab63705cc506e32d3280ab628f371420fce05"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
-          "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+          "requested": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-devtools-0.1.0.tgz",
+          "resolvedName": "@exact/devtools",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "a7ec997a8d97ed77af6b1ff269241d279d7f3a211a6305303832cce5dea1abd5"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
-          "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+          "requested": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-facet-core-0.1.0.tgz",
+          "resolvedName": "@exact/facet-core",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "21c705041dec0898aeb7741f0bcb1d6f1dd49df33a57bc48bcf3aa6690ef59da"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
-          "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+          "requested": "file:/tmp/llp0373-exact-pack-5ea17e877/exact-renderer-0.1.0.tgz",
+          "resolvedName": "@exact/renderer",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "ac58d803977ced0b01b3896a07466f6e83c02ca01bd918f985b1e89a559f82c7"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -154,7 +154,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
+      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -169,10 +169,10 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
-    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+    "inputsHash": "6cff844d8c8ca2c0cddefa9a485ecd4fca3a6aa914eb6e0af644b3d4381e709c",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "8874cdd671c193e9c5c3be1a3315c45470226f85a65ea94991e331b6c01e5b15",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -185,15 +185,15 @@
     },
     {
       "path": "demos/_kit/server-process.mjs",
-      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+      "sha256": "a670a61f8e0f0eaca3d8045e30ce547f3e38e81fd564c0f88e59e4a5f1d3fe85"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
-      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+      "sha256": "b5179aee88d2586f5d90d4197742bf7018ab39a054c116f1e495622ab335cfe9"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
@@ -201,7 +201,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
+      "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -209,11 +209,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
+      "sha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -221,7 +221,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
+      "sha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -236,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
+  "testInventorySha256": "85d9fddce7d992b4f7630a6cf76b812efc22780d3e411d77322b060436664b7c",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -259,27 +259,138 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       },
       "convex": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       }
     }
   },
   "title": "partitime / product UI browser parity",
-  "passed": 0,
+  "passed": 1,
   "skipped": 0,
   "failed": 0,
-  "total": 0,
-  "ok": false,
-  "results": [],
+  "total": 1,
+  "ok": true,
+  "results": [
+    {
+      "name": "STEP4.UI.RESPONSIVE contract × snapback matches compact regular and expanded structure",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.RESPONSIVE",
+        "cell": "contract:snapback",
+        "observations": [
+          {
+            "id": "compact",
+            "width": 390,
+            "height": 844,
+            "columns": 1,
+            "count": 3,
+            "cardRects": [
+              {
+                "y": 641,
+                "x": 54,
+                "width": 265,
+                "height": 336
+              },
+              {
+                "y": 989,
+                "x": 54,
+                "width": 265,
+                "height": 307
+              },
+              {
+                "y": 1308,
+                "x": 54,
+                "width": 265,
+                "height": 336
+              }
+            ],
+            "xs": [
+              54
+            ],
+            "identity": "5fbcf6ee-6f87-4e22-ba33-27170bcac304",
+            "path": "/"
+          },
+          {
+            "id": "regular",
+            "width": 768,
+            "height": 1024,
+            "columns": 2,
+            "count": 3,
+            "cardRects": [
+              {
+                "y": 550,
+                "x": 54,
+                "width": 315.5,
+                "height": 307
+              },
+              {
+                "y": 550,
+                "x": 381.5,
+                "width": 315.5,
+                "height": 307
+              },
+              {
+                "y": 869,
+                "x": 54,
+                "width": 315.5,
+                "height": 307
+              }
+            ],
+            "xs": [
+              54,
+              382
+            ],
+            "identity": "5fbcf6ee-6f87-4e22-ba33-27170bcac304",
+            "path": "/"
+          },
+          {
+            "id": "expanded",
+            "width": 1280,
+            "height": 800,
+            "columns": 3,
+            "count": 3,
+            "cardRects": [
+              {
+                "y": 574,
+                "x": 54,
+                "width": 377,
+                "height": 307
+              },
+              {
+                "y": 574,
+                "x": 443,
+                "width": 377,
+                "height": 307
+              },
+              {
+                "y": 574,
+                "x": 832,
+                "width": 377,
+                "height": 307
+              }
+            ],
+            "xs": [
+              54,
+              443,
+              832
+            ],
+            "identity": "5fbcf6ee-6f87-4e22-ba33-27170bcac304",
+            "path": "/"
+          }
+        ],
+        "documentIdentityRetained": true
+      }
+    }
+  ],
   "expectedChecks": 1,
-  "shortfall": "zero checks ran",
-  "setupError": "WebDriver POST /session failed: session not created — Could not create a session: The session timed out while connecting to a Safari instance. The following asynchronous operation timed out: Finding or launching a compatible local Safari and waiting for its RWIApplication to appear and become ready.",
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }
