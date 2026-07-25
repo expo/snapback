@@ -11211,14 +11211,35 @@ impl LocalSnapback {
             && let Err(error) =
                 validate_function_schema_references(&self.functions, successor_schema)
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
-                "storage",
-                format!(
+            // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+            //   posture is proven from generated function/schema facts,
+            //   never inferred: a dual-compatible or predeploy-compatible
+            //   declaration claims the installed predecessor artifact
+            //   remains valid against the successor schema, so a failed
+            //   binding proof refuses the declared ordering by name.
+            let message = match artifact.body.compatibility_posture {
+                crate::migration::CompatibilityPosture::SuccessorOnly => format!(
                     "the staged function set does not bind against the successor schema; \
                      stage a successor-compatible pair before publishing ({})",
                     error.diagnostic.message
                 ),
+                crate::migration::CompatibilityPosture::DualCompatible => format!(
+                    "the declared dual-compatible ordering is unproven: the installed \
+                     predecessor artifact does not remain valid against the successor \
+                     schema ({})",
+                    error.diagnostic.message
+                ),
+                crate::migration::CompatibilityPosture::PredeployCompatible => format!(
+                    "the declared predeploy-compatible ordering is unproven: the \
+                     predecessor artifact's reads and writes do not remain valid against \
+                     the successor schema ({})",
+                    error.diagnostic.message
+                ),
+            };
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                "storage",
+                message,
             ));
         }
         let audience = self.migrate_resolved_audience()?;
@@ -16706,6 +16727,214 @@ mod tests {
         assert_eq!(receipt.state.kind(), "released");
     }
 
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+    //   ordering postures are proven, never inferred: a dual-compatible or
+    //   predeploy-compatible plan publishes only when the installed
+    //   predecessor artifact provably binds against the successor schema
+    //   (the generated-facts compatibility check), the old artifact keeps
+    //   serving across a predeploy publication, and an actually
+    //   incompatible predecessor refuses the declared ordering by name
+    //   with no DDL, publication, or transition event.
+    #[test]
+    fn compatibility_posture_ordering_is_proven_not_declared() {
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput,
+            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            RetainedWorkPosture, MIGRATION_APPROVAL_SCHEMA_VERSION,
+            MIGRATION_PLAN_SCHEMA_VERSION, derive_intents, derive_plan_steps,
+            new_operation_id,
+        };
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+        let list_function = |name: &str, filter_extra: bool| {
+            FunctionDefinition::new(
+                name,
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "notes".to_owned(),
+                    filters: filter_extra
+                        .then(|| FilterExpr {
+                            field: "extra".to_owned(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(json!("x")),
+                        })
+                        .into_iter()
+                        .collect(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                })),
+            )
+        };
+        let sealed = |snapback: &LocalSnapback, posture: CompatibilityPosture| {
+            let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+            let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+            MigrationPlanArtifactV1::seal(MigrationPlanBody {
+                schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: snapback.migrate_app_id(),
+                instance: "memory".to_owned(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash: identity(&predecessor),
+                successor_schema_hash: identity(&successor),
+                predecessor_generation: 1,
+                steps,
+                execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+                proof: MigrationProof {
+                    method: MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: MigrationCeilings {
+                    max_affected_rows: 100,
+                    max_bytes: 1024 * 1024,
+                    max_writes: 100,
+                    max_barrier_downtime_ms: 60_000,
+                },
+                compatibility_posture: posture,
+                retained_work_posture: RetainedWorkPosture::Empty,
+                backup: MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                },
+                expected_output: MigrationExpectedOutput {
+                    schema_hash: identity(&successor),
+                    projection_generations: BTreeMap::new(),
+                },
+                constants: MigrationConstants {
+                    publication_timestamp_ms: 2_000_000_000_000,
+                    rollback_timestamp_ms: None,
+                    values: BTreeMap::new(),
+                },
+                boundaries: Default::default(),
+            })
+            .expect("seal plan")
+        };
+        let approve = |snapback: &mut LocalSnapback, artifact: &MigrationPlanArtifactV1| {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: now_millis(),
+                expires_at_ms: now_millis() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        };
+        let build = |compatible_functions: bool| {
+            let mut snapback = LocalSnapback::memory().expect("memory posture fixture");
+            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                functions: vec![list_function("listNotes", !compatible_functions)],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            snapback
+        };
+
+        for posture in [
+            CompatibilityPosture::DualCompatible,
+            CompatibilityPosture::PredeployCompatible,
+        ] {
+            // Proven: the installed predecessor artifact never references
+            // the retired field, so the declared ordering publishes and the
+            // OLD artifact keeps serving against successor storage.
+            let mut snapback = build(true);
+            let artifact = sealed(&snapback, posture);
+            let approval = approve(&mut snapback, &artifact);
+            let receipt = snapback
+                .migrate_apply_artifact(&artifact, &approval, &successor)
+                .unwrap_or_else(|error| panic!("{posture:?} proven ordering publishes: {error:?}"));
+            assert_eq!(receipt.state.kind(), "released");
+            let transition = snapback
+                .db
+                .latest_schema_transition()
+                .expect("read transition")
+                .expect("transition recorded");
+            assert_eq!(transition.body.compatibility_posture, posture);
+            snapback
+                .invoke_query("listNotes", HandlerInput::default())
+                .unwrap_or_else(|error| {
+                    panic!("{posture:?}: the predecessor artifact keeps serving: {error:?}")
+                });
+
+            // Unproven: the installed artifact reads the retired field —
+            // the declared ordering refuses by name, with no publication.
+            let mut snapback = build(false);
+            let artifact = sealed(&snapback, posture);
+            let approval = approve(&mut snapback, &artifact);
+            let error = snapback
+                .migrate_apply_artifact(&artifact, &approval, &successor)
+                .expect_err("an unproven ordering must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PRECONDITION_FAILED");
+            let expected_fragment = match posture {
+                CompatibilityPosture::DualCompatible => "dual-compatible ordering is unproven",
+                CompatibilityPosture::PredeployCompatible => {
+                    "predeploy-compatible ordering is unproven"
+                }
+                CompatibilityPosture::SuccessorOnly => unreachable!(),
+            };
+            assert!(
+                error.diagnostic.message.contains(expected_fragment),
+                "{}",
+                error.diagnostic.message
+            );
+            assert!(
+                snapback
+                    .db
+                    .latest_schema_transition()
+                    .expect("read transition")
+                    .is_none(),
+                "a refused ordering publishes nothing",
+            );
+            assert!(
+                snapback.db.schema().table("notes").expect("table").field("extra").is_some(),
+                "a refused ordering issues no DDL",
+            );
+        }
+    }
+
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — publication
     //   fires LLP 0053's activation obligations for auth-scoped state, not
     //   a generic resync: under Sessions authorities, an auth-scoped live
@@ -16848,6 +17077,54 @@ mod tests {
             .attest_app(EnsureAppMode::Sessions, pair(&predecessor_hash))
             .expect_err("predecessor artifacts must refuse after successor-only publication");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+
+        // The admitted ordering under dual-compatible: the same predecessor
+        // attest is ADMITTED during the window — old and new artifacts are
+        // both valid, so the answer is an unmatched attest, not the
+        // upgrade-required refusal (LLP 0081 §6).
+        {
+            let (schema, functions) = sessions_activation_pair('b', false);
+            let mut dual = settled_sessions_activation_snapback(schema, functions);
+            let active = dual
+                .db
+                .auth_mode_snapshot()
+                .expect("snapshot")
+                .state
+                .active_deployment
+                .expect("active deployment");
+            let dual_pair = |schema_hash: &str| super::EnsureAppPairIdentity {
+                schema: super::EnsureAppSchemaIdentity {
+                    artifact_kind: "schemaManifest".to_owned(),
+                    schema_version: active.schema_version.clone(),
+                    app_id: active.app_id.clone(),
+                    schema_hash: schema_hash.to_owned(),
+                    inputs_hash: active.inputs_hash.clone(),
+                },
+                functions: super::EnsureAppFunctionIdentity {
+                    artifact_kind: "functionManifest".to_owned(),
+                    schema_version: active.schema_version.clone(),
+                    app_id: active.app_id.clone(),
+                    bundle_hash: active.bundle_hash.clone(),
+                    inputs_hash: active.inputs_hash.clone(),
+                },
+            };
+            let dual_predecessor_hash = {
+                let mut hash = active.schema_hash.clone();
+                let flipped = if hash.ends_with('0') { "1" } else { "0" };
+                hash.truncate(hash.len() - 1);
+                hash.push_str(flipped);
+                hash
+            };
+            crate::storage::publish_schema_transition_for_test(
+                &mut dual.db,
+                crate::migration::CompatibilityPosture::DualCompatible,
+                &dual_predecessor_hash,
+            );
+            let outcome = dual
+                .attest_app(EnsureAppMode::Sessions, dual_pair(&dual_predecessor_hash))
+                .expect("dual-compatible admits the predecessor attest during the window");
+            assert!(!outcome.matched, "the predecessor pair is admitted, not active");
+        }
 
         // The successor (active) pair still attests, matched.
         let outcome = snapback
