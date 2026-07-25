@@ -308,6 +308,8 @@ if (existsSync(p0aReceiptPath)) {
       protocol.workload.warmupSchedules[0],
       `${witness.arm} P0a witness omitted lifecycle churn`,
     );
+    assert.equal(witness.contextsVerified, 2);
+    assert.equal(witness.teardownActiveSubscriptions, 0);
   }
 }
 

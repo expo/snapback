@@ -665,6 +665,21 @@ const graceStatusExpression = `(() => {
   return null;
 })()`;
 
+async function teardownBenchmark(page) {
+  await page.evaluate('window.__partitimePerformanceV2.reset(0)');
+  const settled = await page.evaluate('window.__partitimePerformanceV2.awaitStable()');
+  assert.equal(
+    settled.activeSubscriptions,
+    0,
+    'PARTITIME_V2_TEARDOWN_SUBSCRIPTION_COUNT',
+  );
+  const renderedSubscribers = await page.evaluate(
+    'document.querySelectorAll(\'[data-testid^="performance-v2-subscriber-"]\').length',
+  );
+  assert.equal(renderedSubscribers, 0, 'PARTITIME_V2_TEARDOWN_RENDERED_COUNT');
+  return settled.activeSubscriptions;
+}
+
 async function correctnessWitness(page, arm) {
   const settledSchedule = protocol.workload.warmupSchedules[0];
   for (const activeSubscriptions of settledSchedule) {
@@ -692,10 +707,12 @@ async function correctnessWitness(page, arm) {
   assert.equal(counters.activeSubscriptions, 8, 'PARTITIME_V2_SUBSCRIPTION_COUNT');
   assert.ok(counters.deliveryCallbacks >= 1, 'PARTITIME_V2_DELIVERY_MISSING');
   assert.ok(counters.domPatchRecords >= 1, 'PARTITIME_V2_PATCH_MISSING');
+  const teardownActiveSubscriptions = await teardownBenchmark(page);
   return {
     arm,
     activeSubscriptions: counters.activeSubscriptions,
     settledSchedule,
+    teardownActiveSubscriptions,
     apiMethods: [...apiMethods],
     beforeGraceStatus,
     afterGraceStatus,
@@ -774,16 +791,20 @@ async function emitP0a() {
     } = verifyAuthorityAndFixtures());
     for (const arm of ['react:snapback', 'contract:snapback']) {
       const { staticUrl, cdp } = await preparedBrowser(arm);
-      const page = await cdp.newContextPage();
-      try {
-        await page.navigate(`${staticUrl}/performance-v2.html`);
-        await waitForBenchmarkApi(page);
-        witnesses.push(await correctnessWitness(page, arm));
-        assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
-        assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
-      } finally {
-        await page.close();
+      let witness = null;
+      for (let contextIndex = 0; contextIndex < 2; contextIndex += 1) {
+        const page = await cdp.newContextPage();
+        try {
+          await page.navigate(`${staticUrl}/performance-v2.html`);
+          await waitForBenchmarkApi(page);
+          witness = await correctnessWitness(page, arm);
+          assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
+          assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
+        } finally {
+          await page.close();
+        }
       }
+      witnesses.push({ ...witness, contextsVerified: 2 });
     }
   } catch (error) {
     failure = error;
@@ -808,7 +829,7 @@ async function emitP0a() {
       fixtureTreesVerified,
       collectorSha256: manifestDigest(manifest),
       collectorManifest: manifest,
-      ...(witnesses.length > 0 ? { correctnessWitnesses: witnesses } : {}),
+      ...(witnesses.length === 2 ? { correctnessWitnesses: witnesses } : {}),
       p0aComplete: failure === null,
       remaining: failure === null ? [] : ['valid clean-environment correctness witness'],
     },
@@ -1192,10 +1213,13 @@ async function collectCycles() {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       const page = await cdp.newContextPage();
       let receipt;
+      let teardownComplete = false;
       try {
         await page.navigate(`${staticUrl}/performance-v2.html`);
         await waitForBenchmarkApi(page);
         const measured = await measureCycle(page, descriptor.schedule);
+        await teardownBenchmark(page);
+        teardownComplete = true;
         assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
         assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
         const cycleEnvironment = environmentIdentity();
@@ -1246,6 +1270,14 @@ async function collectCycles() {
           },
         };
       } finally {
+        if (!teardownComplete) {
+          try {
+            await teardownBenchmark(page);
+          } catch {
+            // Preserve the primary invalid-cycle reason; context disposal is
+            // still the final cleanup fallback for a broken page.
+          }
+        }
         await page.close();
       }
       writeReceipt(
