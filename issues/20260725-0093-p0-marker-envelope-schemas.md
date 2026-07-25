@@ -29,6 +29,17 @@ responses (`kitSubscribe` et al.), which are governed by the committed
 schemas but have no hosted drift check today beyond the acceptance
 suites.
 
-Out of scope by decision (LLP 0094 §0F item 2): the hosted proof-socket
-protocol is frozen (LLP 0040 pinned regression surface) and stays out of
-the gate inventory.
+Out of scope by decision (LLP 0094 §0F item 2, restated in v0.2): the
+hosted **proof-socket response framing** is frozen (LLP 0040 pinned
+regression surface) and stays out of the gate inventory. The exemption
+is scoped to the proof socket only.
+
+**Amended 2026-07-25 (LLP 0094 v0.2, review round 1):** additionally in
+scope — schema/gate coverage for the **kit-socket in-band frame
+grammar** (`validateLiveSocketFrame`'s `subscribe`/`unsubscribe`/`ping`
+requests and the kit-dialect `kind`-tagged replies, LLP 0091-contracted;
+LLP 0094 §0A.1 WS-kinds row and §0F item 2), standalone committed
+schemas for `QueryOutput` / the action output / the ephemeral HTTP
+request-outcome families (LLP 0094 §0C gap rows), and the hosted
+response-schema assertions of
+`issues/20260725-0094-hosted-response-shape-divergences.md`.

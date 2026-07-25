@@ -8,7 +8,15 @@
 **Revised:** 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
 route migration implemented with this draft); 2026-07-25 (§0A.5 drain
 response contract and §0E live-ownership code scope, from the P-2 Swift
-clean-room defect ledger)
+clean-room defect ledger); 2026-07-25 (v0.2, review-round-1 resolutions,
+dual-family NOT READY: corrected the hosted kit-socket WS-kinds row and
+reconciled it with LLP 0091; added the §0A.0 route-domain rule, proof-route
+rows, §0A.6 dev-mode posture, §0C.6 response-shape divergence ledger;
+decided re-open binding immutability, the socket offer-classification
+matrix with per-stage enforcement, the B1 `wireVersion` response echo
+(closes former OQ2), and the pinned §0B.6 decode-class signal; §0F item 2
+restated; §0B.7 populations refreshed with the Swift client; citations
+re-pinned at `137dee8c`)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -19,20 +27,23 @@ This is the **P-0 cluster** of LLP 0093 (the client-protocol RFC): the wire
 envelope contract, at the same byte-and-symbol precision LLP 0091 set for
 the RQS wire. It pins, as normative contract:
 
-- **§0A** — the complete **arm × route matrix** for the client-visible
-  surface, including the admin/testing seams per arm, and the executed
-  migration of the hosted arm's root-level system routes under
-  `/_snapback/*` (LLP 0093 former OQ6, decided 2026-07-25: migrate, no
-  LLP 0031 exception).
+- **§0A** — the **arm × route matrix** for the client-visible app-data
+  surface (domain rule in §0A.0), the admin/testing seams per arm, the
+  **dev-mode posture** (§0A.6, the named section LLP 0093 D1 requires),
+  and the executed migration of the hosted arm's root-level system routes
+  under `/_snapback/*` (LLP 0093 former OQ6, decided 2026-07-25: migrate,
+  no LLP 0031 exception).
 - **§0B** — the **wire-version negotiation mechanics** LLP 0093 D1
   directs: the socket-lane offer requirement on both arms, the
   `/connection/open` `wireVersion` body field with its pinned offer
   matrix, the staged bootstrap, client-side legacy-server detection, and
   the recorded blast-radius checks.
 - **§0C** — the audited **per-family DTO closure matrix**, both
-  directions, with a decided open/closed posture per family and the
+  directions, with a decided open/closed posture per family, the
   `authInvalidationProtocol` unknown-value asymmetry decided rather than
-  inherited.
+  inherited, and the **hosted response-shape divergence ledger** (§0C.6):
+  the audited places where served hosted bytes do not satisfy the
+  committed schemas, held as defects, not renegotiated contract.
 - **§0D** — the **subscription-receipt typing**:
   `LiveSubscribeOutput.receipt` / `LiveUnsubscribeOutput.receipt` from
   `Option<Value>` to `Option<Receipt>`, schemas regenerated in the same
@@ -47,19 +58,36 @@ Authority and precedence are LLP 0093 D1's, restated once: the serde
 implementations are ground truth; the generated schemas in `schemas/` are
 their authoritative machine view; the fixture corpus (P-1) is normative
 for clients; the exact wire-shape tests are illustrative; prose loses to
-all of them. Citations below are file + symbol, line numbers as courtesy,
-pinned against origin/main `6fe11376`.
+all of them. One qualification that rule always implied and this revision
+makes explicit: on the **hosted** arm several kit routes compose their
+bytes in JS (`cloudflare/src/coordinator.js`), so the serde/schema chain
+describes the *contract target* there, not automatically the served
+bytes; every audited place where served hosted bytes fall short of the
+schemas is enumerated in §0C.6 and tracked as a defect. Citations below
+are file + symbol, line numbers as courtesy, pinned against origin/main
+`137dee8c`.
 
 ## 0A — Arm × route matrix
 
 The two served arms are **local** (`src/server.rs` router, built from the
 LLP 0031 route registry) and **hosted** (the Cloudflare gateway Worker
 `cloudflare/src/gateway.js` fronting the coordinator Durable Object
-`cloudflare/src/coordinator.js`). The matrix is normative: a route absent
-from an arm's column is **not served** on that arm, and a client MUST NOT
-infer a route's presence from the other arm. "Conn" means the LLP 0031
-`ConnectionAuth` policy (the `x-snapback-connection-token` header, with
-the transport carriers of LLP 0031 §Connection capability grants).
+`cloudflare/src/coordinator.js`).
+
+### 0A.0 Route domain and the absence rule
+
+The matrix is normative **within its route domain**: the client-visible
+app-data and connection surface (§0A.1) plus the enumerated system seams
+(§0A.2/§0A.3). Within that domain, a route absent from an arm's column is
+**not served** on that arm, and a client MUST NOT infer a route's
+presence from the other arm. Two surfaces are inside the domain but
+**incorporated by reference**, and reference is not absence: the local
+arm's full `/_snapback/*` system surface (LLP 0031's matrix, §0A.2) and
+the LLP 0040 hosted proof surface (its rows below are presence markers;
+its frozen message protocol is specified by LLP 0040, not here). "Conn"
+means the LLP 0031 `ConnectionAuth` policy (the
+`x-snapback-connection-token` header, with the transport carriers of LLP
+0031 §Connection capability grants).
 
 ### 0A.1 App-data routes (root)
 
@@ -69,23 +97,25 @@ the transport carriers of LLP 0031 §Connection capability grants).
 | `/health` | GET | Public | public metadata + server-binary identity (LLP 0031 §Server-binary identity) | public metadata + deployment identity (`coordinator.js` `route` `/health`) |
 | `/inspect` | GET | Public | typed public identity projection (`inspect.public.schema.json`) | **capability manifest** (`gateway.js` — same payload as `/capability`; a different shape from the local `/inspect`) |
 | `/capability` | GET | Public | not served under this name (the manifest rides `/inspect`/`/`) | capability manifest (`capability.manifest.schema.json`) |
-| `/connection/open` | POST | Public (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4070-4083`) | open decoder `kitOpenConnection` (`coordinator.js:4194`) — see §0C.3 |
+| `/connection/open` | POST | Public (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
 | `/query/{name}` | POST | app auth (mode-dependent, LLP 0031 matrix) | served | served (`kitQuery`) |
-| `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) |
+| `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) — response bytes currently diverge from `mutation.output.schema.json` (§0C.6 item 1) |
 | `/action/{name}` | POST | app auth | served | served (`executeAction`) |
 | `/query/{name}/authorized-lease` | POST | sessions-mode resolved caller + exact protocol offers (LLP 0043/0053) | served | **not served** (hosted auth profile gap) |
 | `/client-mutations/acknowledge` | POST | app auth + authority descriptor | served | **not served** |
-| `/live/{name}/subscribe` | POST | Conn | served; open decoder body (§0C) | served (`kitSubscribe`); **refuses without a current socket session** (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`) |
-| `/live/{name}/unsubscribe` | POST | Conn | served | served (`kitUnsubscribe`) |
-| `/live/{name}/resume` (reattach) | POST | Conn | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:64`) |
+| `/live/{name}/subscribe` | POST | Conn | served; open decoder body (§0C) | served (`kitSubscribe`); **refuses without a current socket session** (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`, HTTP **409** on this arm — `coordinator.js` `kitSubscribe`/`kitUnsubscribe` guards) |
+| `/live/{name}/unsubscribe` | POST | Conn | served | served (`kitUnsubscribe`) — response bytes currently diverge from `live.unsubscribe.output.schema.json` (§0C.6 item 2) |
+| `/live/{name}/resume` (reattach) | POST | Conn | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:67`) |
 | `/live/{connection_id}/stream` | GET (WS upgrade) | Conn (header or `snapback.connection-token.<token>` subprotocol; never URL) | served (`stream_live`) | served (`acceptKitSocket`) |
 | `/outbox/{connection_id}` | GET | Conn | leased-batch drain (LLP 0059 ownership cut; response shape §0A.5) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the stream | — | bound socket (LLP 0031 operation registry) | `ephemeral_publish\|ephemeral_subscribe\|ephemeral_delete\|ephemeral_unsubscribe\|live_ping` | `ping` only (kit socket); no ephemeral kinds |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | `subscribe\|unsubscribe\|ping` (`webSocketMessage`, `coordinator.js` — kit sockets get kit-dialect responses: `kind: "current_as_of"` on subscribe per LLP 0091 step-5, `kind: "pong"` with `requestId` echo on ping, session-scoped delete on unsubscribe); **no ephemeral kinds**. In-band durable subscribe/unsubscribe is served and LLP 0091-contracted on this arm even though no first-party client sends it |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
+| `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
+| `/live/stream` (proof socket) | GET (WS upgrade) | LLP 0040 proof protocol | not served | served (`acceptLiveSocket`) — same LLP 0040 proof surface, outside wire v1; exempt from §0B.4 |
 
 Consequences already pinned by LLP 0093 and restated as matrix facts, not
 renegotiated: the poll lane is local-arm-only in v1 (`poll/hosted` is not
@@ -182,6 +212,35 @@ against `drain_outbox` (`src/server.rs`):
   no ack route exists, and inventing one client-side is non-conformant
   guessing.
 
+### 0A.6 Dev-mode posture
+
+The named section LLP 0093 D1 requires: precisely what a dev-mode server
+accepts **without an auth handshake**. Dev mode is the local development
+authorization profile (LLP 0031's `AppAuth` = dev-mode client
+assertion); sessions mode replaces this posture wholesale.
+
+- **App-data invocations** (`/query/{name}`, `/mutation/{name}`,
+  `/action/{name}`): the optional body `auth` member (`query.input` /
+  `mutation.input` schemas; carried through `HandlerInput`) is a
+  **client assertion** — the server trusts it as `ctx.auth` without any
+  handshake. An absent `auth` runs the handler unauthenticated. There is
+  no token exchange, no session, no signature.
+- **Connection surface**: dev mode does **not** waive `ConnectionAuth`.
+  `/connection/open` mints the per-connection token in every mode, and
+  `/live/*`, `/outbox/{connection_id}`, and the ephemeral routes require
+  it (LLP 0031 §Connection capability grants). Caller-suggested
+  connection ids are adopted in non-prod profiles only.
+- **Socket grammar**: the dev-mode socket speaks the open
+  `LiveSocketClientMessage` family (§0C.1) with the bearer-subprotocol
+  or header token carrier.
+- **What sessions mode changes**: body-carried auth members are
+  **rejected**, not trusted (LLP 0031's body-auth rejection family);
+  identity comes from the LLP 0043 handshake; the closed
+  `SessionLiveSocketClientMessage` family replaces the open socket
+  grammar; the authorized-lease and invalidation routes (§0A.1) become
+  reachable. A clean-room client MUST key its auth carriage on the
+  negotiated mode, never on route availability probes.
+
 ## 0B — Wire-version negotiation
 
 ### 0B.1 Version identity
@@ -196,16 +255,16 @@ adds no envelope changes; it makes the negotiation enforceable.
 
 - **Local socket lane:** `stream_live` calls
   `.protocols([LIVE_STREAM_SUBPROTOCOL])` (`src/server.rs`, constant at
-  `:5456`, upgrade at `:16941-16945`): axum echoes `snapback.v1` when
+  `:5467`, upgrade at `:16966`): axum echoes `snapback.v1` when
   offered and **admits offerless upgrades**.
 - **Hosted socket lane:** `acceptKitSocket` echoes only when offered —
   `protocols.includes('snapback.v1') ? { 'sec-websocket-protocol':
-  'snapback.v1' } : undefined` (`cloudflare/src/coordinator.js:4598`) —
+  'snapback.v1' } : undefined` (`cloudflare/src/coordinator.js:4600`) —
   and likewise admits offerless upgrades.
 - **HTTP lane:** `POST /connection/open` carries one protocol offer
   today, `authInvalidationProtocol` (`OpenConnectionRequest`,
-  `src/server.rs:4070-4083`), whose unknown values silently degrade to
-  legacy (`:4716-4718`); the hosted `kitOpenConnection` ignores the field
+  `src/server.rs:4081-4094`), whose unknown values silently degrade to
+  legacy (`:4727-4728`); the hosted `kitOpenConnection` ignores the field
   entirely (§0C.3).
 - The JS kit always offers `snapback.v1` on the socket (with the bearer
   subprotocol) and sends no open-time wire-version field.
@@ -218,39 +277,67 @@ The `/connection/open` request body gains one optional field:
 { "wireVersion": "snapback.v1" }
 ```
 
-- **Name:** `wireVersion` (camelCase, `wire_version` accepted as alias,
-  matching the DTO's existing alias convention).
+- **Name:** `wireVersion` (camelCase, `wire_version` accepted as alias —
+  the DTO's existing convention: every `OpenConnectionRequest` member
+  carries a `#[serde(alias = "snake_case")]` twin).
 - **Value:** an exact version token (LLP 0064 doctrine). The only token
   defined by this spec is `"snapback.v1"`.
 - **Offer matrix** (normative, per LLP 0093 D1):
 
 | Offer | Server behavior |
 | --- | --- |
-| known token (`snapback.v1`) | binds the connection to that version; the response is unchanged in shape |
+| known token (`snapback.v1`) | binds the connection to that version; from B1 the response **echoes the bound version** as an additive `wireVersion` member on the open response (the explicit bound-version witness — decided this revision, closing former OQ2; it is what makes hosted post-B1 servers distinguishable, §0B.6) |
 | unknown token | synchronous refusal, `SNAPBACK_WIRE_VERSION_UNSUPPORTED` (HTTP 400, `error.response.schema.json` envelope) — a v2 client must never be interpreted under v1 |
-| absent | opens a **legacy** connection, implicitly bound to v1 for the socket-equality rule; ineligible for envelope kinds gated on the open-time offer; admitted through the bootstrap bridge, refusal (`SNAPBACK_WIRE_VERSION_REQUIRED`) is the scheduled end state |
+| absent | opens a **legacy** connection, implicitly bound to v1 for the socket-equality rule; ineligible for envelope kinds gated on the open-time offer; no echo member; admitted through the bootstrap bridge, refusal (`SNAPBACK_WIRE_VERSION_REQUIRED`) is the scheduled end state |
 
-Binding is once, at open; re-open under `previousToken` re-binds from the
-re-open body by the same matrix (an idempotent re-open that changes the
-offer is a new binding decision, not a mutation of a live socket's
-binding).
+**Binding is once, at open, and immutable for the life of the
+connection grant lineage.** An idempotent re-open under `previousToken`
+does not re-bind: a present offer on re-open MUST equal the connection's
+bound version (for a legacy, offerless-open connection the implicit v1
+binding is what a `snapback.v1` re-open offer confirms — the same
+confirm-never-upgrade rule as §0B.4), and a **changed** offer refuses
+with `SNAPBACK_WIRE_VERSION_MISMATCH` without disturbing the existing
+connection, its socket, or its subscriptions. An **absent** offer on
+re-open leaves the binding untouched (it never converts a bound
+connection to legacy). Rationale: local and hosted re-open both preserve
+the connection id and token (`ConnectionRegistry::open_prepared`,
+`src/server.rs`; `kitOpenConnection`, `coordinator.js`) and neither
+retires a live socket, so a version change mid-lineage would put two
+versions inside one connection-scoped surface; a client that wants a
+different version opens a fresh connection.
 
 ### 0B.4 Socket-offer requirement and the equality rule
 
 A conformant client MUST offer `snapback.v1` in the
 `Sec-WebSocket-Protocol` list of the kit stream upgrade
-(`GET /live/{connection_id}/stream`), on both arms. Server side, in the
-end state:
+(`GET /live/{connection_id}/stream`), on both arms.
 
-- an upgrade offering **no** known wire-version token is refused before
-  upgrade — `SNAPBACK_WIRE_VERSION_REQUIRED`, HTTP 400, in the
-  must-understand refusal style of `src/auth/handshake.rs` (exact tokens;
-  a present-but-malformed offer never falls through to "absent");
-- the socket offer MUST equal the version bound on the connection at open
-  — a mismatch refuses with `SNAPBACK_WIRE_VERSION_MISMATCH`. A
-  `snapback.v1` offer on a legacy (offerless-open) connection **confirms**
-  the implicit v1 binding, never upgrades it — today's JS kit is exactly
-  this shape and stays admitted through the bridge.
+**Token classification (normative).** The subprotocol list is an offer
+*set* (WebSocket semantics: the client offers, the server selects at
+most one). Within it, a **wire-version-shaped token** is any entry
+matching `snapback.v<digits>`; the bearer subprotocol
+(`snapback.connection-token.<token>`) is a credential carrier and is
+**excluded** from version classification; all other entries are ignored
+for versioning. Duplicates are harmless. Classification and refusal, in
+the must-understand refusal style of `src/auth/handshake.rs` (pre-upgrade
+HTTP responses; a present-but-malformed `snapback.v*` entry classifies as
+unknown, never as absent):
+
+| Offer set contains | Server behavior | Enforced from |
+| --- | --- | --- |
+| the connection's bound version | accept; echo it as the selected subprotocol | today (echo); equality meaningful from B1 |
+| ≥1 known token, but not the bound version | refuse, `SNAPBACK_WIRE_VERSION_MISMATCH` | B1 |
+| only unknown/malformed wire-version-shaped tokens | refuse, `SNAPBACK_WIRE_VERSION_UNSUPPORTED` | B1 |
+| no wire-version-shaped token (absent) | bridge: admit as the implicit-v1 confirmation path; refuse `SNAPBACK_WIRE_VERSION_REQUIRED` at end state | B3 |
+
+Present-offer enforcement (`MISMATCH`/`UNSUPPORTED` rows) begins at
+**B1**: no deployed consumer offers a conflicting or unknown version
+(§0B.7), so refusing present-but-wrong offers has zero blast radius and
+must not wait for the absent-offer bridge to close. Absence refusal is
+**B3** only. A `snapback.v1` offer on a legacy (offerless-open)
+connection **confirms** the implicit v1 binding, never upgrades it —
+today's JS kit is exactly this shape and stays admitted through the
+bridge.
 
 The refusal lands on **both arms**: local `stream_live` and hosted
 `acceptKitSocket` change together. The scope is the kit stream route
@@ -271,14 +358,20 @@ stages, each a named gate:
   `OpenConnectionRequest`; on the hosted arm `kitOpenConnection` must
   first **start reading** the field — its open decoder ignores unknown
   members today, so without B1 the hosted arm would silently feature-off
-  every offer (the §0C hazard, live on this exact field). B1 also aligns
-  `authInvalidationProtocol` unknown-value handling (§0C.5).
+  every offer (the §0C hazard, live on this exact field). B1 also emits
+  the `wireVersion` response echo (§0B.3), enables the present-offer
+  socket refusals (§0B.4), and aligns `authInvalidationProtocol`
+  unknown-value handling (§0C.5).
 - **B2 — client offers.** The JS kit sends `wireVersion: "snapback.v1"`
   at open. Gate: B1 deployed on every arm the kit targets (for the shared
-  Cloudflare deployment, a redeploy carrying B1).
-- **B3 — socket refusal enabled.** The §0B.4 offerless-upgrade refusal
-  turns on, after the recorded blast-radius check (§0B.7) is re-verified
-  at enablement time.
+  Cloudflare deployment, a redeploy carrying B1). Non-kit clients are
+  **sanctioned to offer early** — before B1, carrying §0B.6's
+  legacy-server detection and downgrade diagnostic (the Swift client's
+  shipped behavior); B2's gate binds the kit because the kit cannot
+  surface a per-app downgrade diagnostic to every embedding demo.
+- **B3 — socket refusal enabled.** The §0B.4 offerless-upgrade
+  (absent-class) refusal turns on, after the recorded blast-radius check
+  (§0B.7) is re-verified at enablement time.
 - **B4 — absent-offer refusal (end state).** `POST /connection/open`
   without `wireVersion` refuses with `SNAPBACK_WIRE_VERSION_REQUIRED`.
   Deprecation schedule: B4 is not scheduled by calendar; its gate is the
@@ -294,28 +387,49 @@ This spec is the contract they are built to.
 ### 0B.6 Client-side legacy-server detection
 
 A pre-B1 local server rejects a `wireVersion`-carrying open as a body
-decode failure (closed DTO). The pinned client rule: a **decode-class
-rejection** of `/connection/open` that disappears when the offer member
-is removed is **legacy-server detection**. The pinned fallback: the
-client re-opens **offerless, as legacy, exactly once per endpoint**,
-caches the verdict for the process lifetime, and MUST surface the
-downgrade as a structured diagnostic (never silently). A client may be
-configured strict (refuse instead of downgrade); conformance claims made
-against a strict configuration are claims about v1-bound connections
-only. Caveat recorded honestly: a pre-B1 **hosted** server does not
-produce the decode-class signal (open decoder — it ignores the offer),
-so hosted legacy detection is absence-of-echo, not rejection; the client
-cannot distinguish a pre-B1 hosted server from a B1 server that bound
-the offer, which is precisely why B2 gates on B1 deployment rather than
-on runtime detection.
+decode failure (closed DTO). The pinned client rule — the trigger is
+exact, not heuristic: a **decode-class rejection** is
+`SNAPBACK_REQUEST_JSON_INVALID` (HTTP 400; `ApiError::request_json_invalid`,
+minted by `parse_optional_json`, `src/server.rs`) **and** the
+differential — the rejection disappears when the offer member alone is
+removed. That code also fires for missing `Content-Type` and non-object
+bodies, which is what the differential re-try disambiguates. No other
+code may trigger the fallback; in particular
+`SNAPBACK_WIRE_VERSION_UNSUPPORTED` MUST NOT (it is a §0B.3
+must-not-retry-lower refusal from a version-aware server), and unrelated
+open-time 400s (e.g. the hosted `SNAPBACK_CONNECTION_ID_INVALID`) MUST
+NOT. The pinned fallback: the client re-opens **offerless, as legacy,
+exactly once per endpoint**, caches the verdict for the process
+lifetime, and MUST surface the downgrade as a structured diagnostic
+(never silently). A client may be configured strict (refuse instead of
+downgrade); conformance claims made against a strict configuration are
+claims about v1-bound connections only. (The P-2 Swift client currently
+triggers on any 400/422 except `UNSUPPORTED` — over-broad against this
+pin; ticketed, `issues/20260725-0094-swift-decode-class-heuristic.md`.)
 
-### 0B.7 Blast-radius record (audited at `6fe11376`)
+Hosted caveat, stated plainly: a pre-B1 **hosted** server produces **no
+distinguishing bytes at all** for a `wireVersion`-carrying open — the
+open decoder ignores the member and answers success bytes identical to
+an offerless open. Pre-B1 hosted legacy detection from the response is
+therefore **impossible**; it becomes possible only at B1 via the
+`wireVersion` response echo (§0B.3): echo present = bound, echo absent =
+legacy server (or a pre-echo B1 build, which B1 excludes by shipping the
+echo). Until the shared deployment carries B1, hosted version posture is
+a deployment-gating fact, not a runtime-detectable one — which is
+precisely why B2 gates on B1 deployment rather than on runtime
+detection.
+
+### 0B.7 Blast-radius record (audited at `6fe11376`, refreshed at `137dee8c`)
 
 **Kit-stream socket consumers offering no wire version: none found.** The
 enumerable population of the repo's own socket consumers:
 
 - `packages/snapback-client/index.mjs` (and its `demos/_kit/client.mjs`
   re-export shim): offers `snapback.v1` + bearer subprotocol — compliant.
+- `clients/swift/SnapbackClient` (landed after the original audit;
+  refresh addition): offers `snapback.v1` + bearer subprotocol on the
+  stream upgrade (`SnapbackClient.swift`, `wireVersionToken`) —
+  compliant.
 - `demos/_kit/tests/regression-reconnect-nuke.mjs`: raw socket, offers
   `['snapback.v1', 'snapback.connection-token.<token>']` — compliant.
 - Rust in-crate socket tests (`src/server.rs` test modules): offer
@@ -329,19 +443,26 @@ enumerable population of the repo's own socket consumers:
   `convex-realtime-web.mjs` sockets are third-party services, out of
   scope.
 
-**`/connection/open` consumers (the B4 gate population):** the kit is the
-only in-repo caller that constructs the open body (every demo, suite,
-and generated client goes through it), plus the hosted-suite direct
-opens in `cloudflare/test/*` (via the gateway with kit-shaped bodies)
-and Rust in-crate tests constructing `OpenConnectionRequest` directly.
-All inherit B2 when the kit and test fixtures add the offer; the B4
-audit re-runs this enumeration and must find zero offerless callers
-before absent may refuse.
+**`/connection/open` consumers (the B4 gate population):** the kit is
+the only *JS* in-repo caller that constructs the open body (every demo,
+suite, and generated client goes through it), plus the Swift client
+(`clients/swift/.../SnapbackClient.swift`, which constructs its own open
+body and already sends `wireVersion` with §0B.6 fallback — refresh
+addition at `137dee8c`), the hosted-suite direct opens in
+`cloudflare/test/*` (via the gateway with kit-shaped bodies), and Rust
+in-crate tests constructing `OpenConnectionRequest` directly. All
+inherit B2 when the kit and test fixtures add the offer (the Swift
+client offers already); the B4 audit re-runs this enumeration — it is a
+repo-wide search for `/connection/open` constructors, not a fixed list —
+and must find zero offerless callers before absent may refuse.
 
 ## 0C — Per-family DTO closure matrix
 
-Scope: every wire family of the §0A matrix, both directions. "Closed"
-means the decoder rejects unknown members (`deny_unknown_fields` /
+Scope: the wire families of the §0A.1 matrix, both directions —
+enumerated exhaustively below, with the families that have **no
+committed standalone schema** carried as named gaps rather than omitted
+(the §0F residual and its tickets own closing them). "Closed" means the
+decoder rejects unknown members (`deny_unknown_fields` /
 `additionalProperties: false`); "open" means unknown members are
 silently ignored. The rule from LLP 0093 D1 binds every row: a new
 client-sent field is **never** an ungated addition — it requires a
@@ -353,13 +474,18 @@ feature-off).
 
 | Family | Decoder (local arm) | Schema | Decided posture |
 | --- | --- | --- | --- |
-| `OpenConnectionRequest` (`src/server.rs:4070-4083`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member is the sanctioned evolution path |
-| `AuthorizationInvalidationAckInput` (`src/local.rs:783-788`) | **closed** | closed | stays closed |
+| `OpenConnectionRequest` (`src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member is the sanctioned evolution path |
+| `AuthorizationInvalidationAckInput` (`src/local.rs`) | **closed** | closed | stays closed |
 | manual-retry input (`src/local.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
-| `SessionLiveSocketClientMessage` (`src/server.rs:18204`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | — | stays closed |
-| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local.rs:614-767`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is accepted and mitigated by response witnesses (`resumeRefusal` is the existing example: an ignored capability field must have a response-visible echo or refusal so the client can detect feature-off) |
-| `HandlerInput` (`src/manifest.rs:2937`) | **open** | open | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
+| `SessionLiveSocketClientMessage` (`src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | — | stays closed |
+| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is accepted and mitigated by response witnesses (`resumeRefusal` is the existing example: an ignored capability field must have a response-visible echo or refusal so the client can detect feature-off) |
+| `HandlerInput` (`src/manifest.rs`) | **open** | open (`query.input` / `mutation.input`) | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
 | dev-mode socket client message (`LiveSocketClientMessage`, `src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
+| `AuthorizedLeaseQueryRequest` (`src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
+| client-mutation acknowledge input (`client-mutation.ack.input.schema.json`) | **closed** | closed | stays closed |
+| `/app/ensure` intent body | **open** | `app.ensure.input.schema.json`, open | stays open (intent family, LLP 0012/0031) |
+| `/app/bundle` request (`app.bundle.input.schema.json`) | **open** | open | stays open (LLP 0090's dated amendment owns evolution) |
+| ephemeral HTTP requests (`PublishRequest`/`SubscribeRequest`/`DeleteRequest`, `src/ephemeral.rs`) | **open** | no standalone committed schemas (they appear embedded in the socket-client schema) | stays open; standalone schema commitment is a named gap riding the §0F item-1 ticket |
 
 ### 0C.2 Server→client families
 
@@ -379,6 +505,14 @@ clients are not proven tolerant needs capability gating or a new token
 | `AuthorizationInvalidationAckOutput` (`src/local.rs:790-794`) | **closed** | same |
 | `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction) |
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
+| `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |
+| `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm currently under-fills it (§0C.6 item 3) |
+| `MutationResponse` (`mutation.output.schema.json`) | **closed** | but the served local bytes ride `FunctionResponse<T>`, which flattens an optional `attribution` member the closed schema does not admit — a real schema-generation defect, §0C.6 item 4 |
+| `QueryOutput` / action output (`src/manifest.rs`) | open | **no standalone committed schemas** — typed in Rust, exported only through composite manifests; named gap riding the §0F item-1 ticket |
+| `/app/ensure` / `/app/bundle` outputs (`app.ensure.output` / `app.bundle.output` schemas) | open objects | additive-optional evolution, same rule as the live outputs |
+| `AuthorizedLeaseQueryResponse` / lease envelope (`authorized-lease.*` schemas) | **closed** | exact-protocol surface; evolution under LLP 0043/0053, cited not restated |
+| client-mutation acknowledge output (`client-mutation.ack.output.schema.json`) | **closed** | stays closed |
+| ephemeral HTTP outcomes (`src/ephemeral.rs`) | open | no standalone committed schemas — same named gap as the request side |
 
 ### 0C.3 The hosted-arm caveat
 
@@ -420,6 +554,47 @@ unchanged, so no deployed caller observes the difference. The change
 ships inside B1, not independently, so the two fields' semantics never
 diverge again.
 
+### 0C.6 Response-shape divergences (audited at `137dee8c`): defects, not contract
+
+The precedence rule (Summary) holds the committed schemas as the
+contract target on both arms. This ledger enumerates every audited place
+where **served bytes today do not satisfy them**. Divergences are
+**defects** — tracked by
+`issues/20260725-0094-hosted-response-shape-divergences.md` — not
+renegotiated contract; until they are fixed, a client targeting the
+hosted arm MUST tolerate the enumerated shapes (tolerate means: accept
+these specific narrower/looser payloads; it licenses no other
+deviation), and a conformance claim on the affected tuples carries this
+ledger by reference.
+
+1. **Hosted `/mutation/{name}`** (`kitMutation`, `coordinator.js`)
+   returns `{version, changed_count, result}` — no `receipt`, which
+   `mutation.output.schema.json` requires.
+2. **Hosted `/live/{name}/unsubscribe`** (`kitUnsubscribe`) returns
+   `{removed: true}` — neither `subscription_id` nor `disposed`, both
+   required by `live.unsubscribe.output.schema.json`.
+3. **Hosted error envelopes** (`kitError`/`kitFailure`) emit
+   `{diagnostic: {code, message[, details]}}` — the envelope shape is
+   right, but the inner `Diagnostic` omits `severity` and `subsystem`
+   and makes `details` optional, all required by the schema.
+4. **Local function responses** ride `FunctionResponse<T>`
+   (`src/server.rs`), which serde-flattens an optional `attribution`
+   member onto the output; `mutation.output.schema.json` is closed and
+   does not admit it, so a sessions-mode mutation response with
+   attribution violates the committed schema on the **local** arm. The
+   schema should be generated from the served envelope (or `attribution`
+   admitted explicitly); this is the one divergence whose fix is a
+   schema-side correction rather than a JS emitter fix.
+5. **Hosted `/query/{name}`** (`kitQuery`) returns `{version, rows}` —
+   shape-compatible with `QueryOutput` (no committed standalone schema;
+   §0C.2 gap row), noted here for completeness, not a schema violation.
+
+The fix direction is decided: **converge the emitters to the schemas**
+(hosted kit routes gain the missing members; the local `attribution`
+flatten gets admitted into the generated schema), with a hosted-side
+executable response-schema gate riding the §0F item-1/item-3 ticket.
+Nothing in this ledger is an evolution precedent.
+
 ## 0D — Subscription receipt typing (implemented)
 
 `LiveSubscribeOutput.receipt` and `LiveUnsubscribeOutput.receipt` were
@@ -459,16 +634,17 @@ must-understand style:
 
 | Code | HTTP | Where | Meaning |
 | --- | --- | --- | --- |
-| `SNAPBACK_WIRE_VERSION_UNSUPPORTED` | 400 | `POST /connection/open` (B1+) | the offered `wireVersion` token is not understood; the client must not retry under a lower version without an explicit decision |
-| `SNAPBACK_WIRE_VERSION_MISMATCH` | 400 | kit stream upgrade (B1+) | the socket offer does not equal the connection's bound version |
-| `SNAPBACK_WIRE_VERSION_REQUIRED` | 400 | kit stream upgrade (B3+), `POST /connection/open` (B4) | no wire-version offer where one is required |
+| `SNAPBACK_WIRE_VERSION_UNSUPPORTED` | 400 | `POST /connection/open` and kit stream upgrade (B1+) | the offer contains no known wire-version token but at least one wire-version-shaped one (§0B.4 classification); the client must not retry under a lower version without an explicit decision |
+| `SNAPBACK_WIRE_VERSION_MISMATCH` | 400 | kit stream upgrade and `previousToken` re-open (B1+) | a known offer that does not equal the connection's bound version (§0B.3 immutability / §0B.4 equality) |
+| `SNAPBACK_WIRE_VERSION_REQUIRED` | 400 | kit stream upgrade (B3+), `POST /connection/open` (B4) | no wire-version-shaped offer where one is required (absent class only) |
 | `SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED` | 400 | `POST /connection/open` (B1+) | unknown `authInvalidationProtocol` value (§0C.5 alignment) |
 
 Existing codes this spec touches but does not change:
 `SNAPBACK_CONNECTION_TOKEN_REQUIRED` / `SNAPBACK_CONNECTION_TOKEN_INVALID`
 (grant gate), `SNAPBACK_CONNECTION_SOCKET_REQUIRED` (hosted
-socket-session gate). The migrated hosted system routes keep their
-existing codes unchanged (`SNAPBACK_ADMIN_*`, `SNAPBACK_CRON_*`, etc.).
+socket-session gate; HTTP **409** on the hosted arm — §0A.1). The
+migrated hosted system routes keep their existing codes unchanged
+(`SNAPBACK_ADMIN_*`, `SNAPBACK_CRON_*`, etc.).
 
 **Scope clarification (2026-07-25, P-2 defect ledger):**
 `SNAPBACK_LIVE_RESUME_OWNERSHIP` (HTTP 403) is, despite its name, the
@@ -502,21 +678,38 @@ Audit at `6fe11376` of what remains outside the schema drift gates
    drift gate; being private is not a hand-mirror exemption. **Not
    implemented here** — ticketed
    (`issues/20260725-0093-p0-marker-envelope-schemas.md`).
-2. **The hosted proof-protocol socket messages** (`acceptLiveSocket`'s
-   `subscribe`/`unsubscribe`/`ping` and their responses,
-   `coordinator.js:5318-5347`): LLP 0040's frozen pinned regression
-   surface. Decision: **out of wire v1 and out of the gate inventory**
-   — frozen means frozen; schematizing it would imply evolution support
-   it does not have. Recorded so its absence from the gates is a
-   decision, not an oversight.
+2. **The hosted in-band socket frame grammar** — one validator,
+   `validateLiveSocketFrame` (`coordinator.js`), serves **both** socket
+   populations: the LLP 0040 proof sockets and the kit sockets (§0A.1
+   WS-kinds row). The earlier "frozen three-message protocol"
+   characterization was inaccurate as a description of the validator:
+   the subscribe frame has already evolved under LLP 0091 (it accepts
+   `resumeFromToken` and tolerates `membershipWitness`). The decision,
+   restated precisely: the **proof-socket response framing** (LLP
+   0040's pinned regression surface, `type`-tagged replies) stays out
+   of wire v1 and out of the gate inventory — its consumers are the
+   pinned proof suites, and schematizing their frozen reply shapes
+   would imply evolution support they do not have. The **kit-socket
+   in-band request grammar and kit-dialect replies**
+   (`subscribe`/`unsubscribe`/`ping`, `kind`-tagged responses,
+   LLP 0091-contracted) are **inside wire v1**: they are served to
+   conformant clients and their schema/gate coverage rides the item-1
+   ticket alongside the marker envelopes. The exemption is scoped to
+   the proof socket only.
 3. **The hosted kit-route response composition** (`kitSubscribe` et al.
    compose subscribe outputs in JS): governed by the committed schemas
    but with no hosted-side executable drift gate. The
    conformance-twin/acceptance suites are the current enforcement seam;
    a hosted schema-validation gate rides the same ticket as item 1.
-4. Everything else client-visible is schema-governed (LLP 0051 §D4's
+4. **Families typed in Rust but without standalone committed schemas**
+   (audited, §0C's gap rows): `QueryOutput` and the action output, and
+   the ephemeral HTTP request/outcome families. They are serde-typed and
+   drift-gated at the type level but not independently
+   schema-committed; closing them rides the item-1 ticket.
+5. Everything else client-visible is schema-governed (LLP 0051 §D4's
    ENG-23891/ENG-23964 completion; §0D closes the last untyped member
-   inside an already-governed family).
+   inside an already-governed family), with the served-bytes exceptions
+   ledgered in §0C.6.
 
 ## Verification
 
@@ -529,7 +722,9 @@ live subscribe/unsubscribe paths; the Cloudflare non-remote suite for the
 with: offer-matrix acceptance fixtures on both arms (known/unknown/absent
 × open/socket), the socket-refusal style test mirroring
 `src/auth/handshake.rs`, and a re-run of the §0B.7 enumeration recorded
-in the landing commit.
+in the landing commit. The §0C.6 convergence lands under its own ticket
+with hosted response-schema assertions in the Cloudflare acceptance
+suite for each ledger item.
 
 ## Open questions
 
@@ -537,7 +732,20 @@ in the landing commit.
    fixtures (so every generated client inherits the offer atomically),
    or is the kit the single mint point? (Leaning: single mint point —
    generated clients call the kit.)
-2. Whether `wireVersion` should additionally be echoed in the
-   `/connection/open` response (an explicit bound-version witness) or
-   stay implicit. Echoing is additive and may ride B1; deciding it here
-   was skipped to keep B1's shape minimal.
+2. ~~Whether `wireVersion` should additionally be echoed in the
+   `/connection/open` response.~~ **Decided this revision** (both
+   round-1 reviewers independently converged on it): B1 echoes the
+   bound version as an additive `ConnectionGrant` member (§0B.3); it is
+   the hosted arm's only runtime version witness (§0B.6).
+3. May clients mint client-side diagnostic codes inside the
+   `SNAPBACK_*` namespace (the Swift client's
+   `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE` for the §0B.6 downgrade
+   diagnostic), or does the namespace belong to servers with clients
+   required to use a `SNAPBACK_CLIENT_*` sub-namespace or their own?
+   (Leaning: reserve `SNAPBACK_CLIENT_*` for client-minted codes and
+   register them beside §0E.)
+4. When the shared Cloudflare deployment redeploys with §0A.3, should
+   the acceptance suite assert the old root system routes actually
+   stopped answering (the no-aliases claim as deployed, not just
+   in-repo)? (Leaning: yes — one negative probe per migrated family in
+   the remote suite.)
