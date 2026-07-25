@@ -2342,5 +2342,10 @@ connection really is stalled while the target remains, closes it through that
 fresh connection and proves absence again. The timed interval and application
 bytes are unchanged. Focused tests cover ordinary closure, lost-response
 recovery, stalled-connection recovery, and the still-present failure case.
+The next attempt exposed a separate avoidable delay: gateway preflight had
+already recorded an unhealthy later remote backend, but the collector did not
+reject it until it reached that backend after sampling earlier cells. Web and
+memory collection now validate every selected backend immediately after the
+one cohort preflight, before producing the first sample.
 This was benchmark-infrastructure friction rather than Snapback, Exact, or
 Contract authoring friction, and it did not expose a guide gap.

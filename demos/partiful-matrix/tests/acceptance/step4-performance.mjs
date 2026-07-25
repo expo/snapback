@@ -106,11 +106,16 @@ try {
   const snapbackUrl = await startSnapback();
   const gateway = await startGateway(snapbackUrl);
   backendHealth = gateway.preflight;
+  for (const backend of new Set(cells.map((cell) => cell.backend))) {
+    const health = gateway.preflight.backends?.[backend];
+    assert(
+      health?.ok === true,
+      `backend preflight failed for ${backend}: ${JSON.stringify(health)}`,
+    );
+  }
   if (runWeb) {
     for (const cell of cells) {
       process.stderr.write(`[partitime-performance] web ${cellId(cell)} start\n`);
-      const health = gateway.preflight.backends?.[cell.backend];
-      assert(health?.ok === true, `backend preflight failed for ${cell.backend}: ${JSON.stringify(health)}`);
       buildMeasurementCell(cell, snapbackUrl, gateway.url);
       let chrome;
       let preview;
