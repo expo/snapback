@@ -222,6 +222,62 @@
       ],
       "type": "object"
     },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
+    },
     "ResyncObligation": {
       "additionalProperties": false,
       "properties": {
@@ -367,6 +423,17 @@
           "const": "live_replace",
           "type": "string"
         },
+        "resume": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResumeWire"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refreshed resume token for `rqsEligible` subscriptions — an\nignorable optional addition (old decoders drop it; LLP 0091 §0B.2)."
+        },
         "rows": {
           "items": true,
           "type": "array"
@@ -406,6 +473,17 @@
           },
           "type": "array"
         },
+        "resume": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResumeWire"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Refreshed resume token for `rqsEligible` subscriptions — an\nignorable optional addition (old decoders drop it; LLP 0091 §0B.2)."
+        },
         "subscription_id": {
           "type": "string"
         },
@@ -422,6 +500,39 @@
         "function",
         "version",
         "ops"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Rung-1 answer to a `resumeFromToken` subscribe (LLP 0090 D1.3, LLP\n0091 §0B.2): \"your held rows are current as of `version`\". The client\nadopts the mandatory fresh token and advances its version without\ntouching rows. Sent only to a subscriber that presented\n`resumeFromToken`, so decode ability is implied by the request — no\ncapability negotiation.",
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "current_as_of",
+          "type": "string"
+        },
+        "resume": {
+          "$ref": "#/$defs/ResumeWire",
+          "description": "Fresh token minted at `version` — the variant exists to advance it."
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id",
+        "function",
+        "version",
+        "resume"
       ],
       "type": "object"
     },

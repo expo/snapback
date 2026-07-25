@@ -43,7 +43,8 @@ use crate::live_matcher::{
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
-    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, SubscriptionReceiptEvent,
+    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
+    ResumeWire, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthorityDescriptor,
@@ -66,7 +67,7 @@ use crate::storage::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::Path;
@@ -630,12 +631,41 @@ pub struct LiveSubscribeInput {
     /// coexist — supersession is never inferred from matching identity.
     #[serde(default)]
     pub supersedes: Option<String>,
+    /// RQS token resume (LLP 0091 §0B.4): not a new route — the token seeds
+    /// this ordinary subscribe. Admission per LLP 0090 D1.1; every refusal
+    /// answers with rung 3 (a fresh snapshot), never a subscription failure.
+    #[serde(
+        default,
+        rename = "resumeFromToken",
+        alias = "resume_from_token",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub resume_from_token: Option<ResumeFromToken>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
-    pub snapshot: QueryOutput,
+    /// Absent exactly when the subscribe was answered with rung-1
+    /// `CurrentAsOf` (LLP 0090 D1.3): the caller presented `resumeFromToken`
+    /// and its held rows are current, so no rows ride the answer — the
+    /// `current_as_of` durable envelope (with the fresh token) does. Only a
+    /// resume-capable caller can receive the absent form.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<QueryOutput>,
+    /// Fresh resume token for `rqsEligible` subscriptions answered with rows
+    /// (the "initial `LiveReplace`" mint of LLP 0091 §0A.5 on this arm).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<ResumeWire>,
+    /// Per-cause `SNAPBACK_RESUME_*` code when a presented token was refused
+    /// (LLP 0091 §0B.6) — an observability fact; the subscribe itself
+    /// succeeded with rung 3.
+    #[serde(
+        default,
+        rename = "resumeRefusal",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub resume_refusal: Option<String>,
     #[serde(default)]
     #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
@@ -1172,6 +1202,39 @@ pub struct LiveDeliveryStats {
     ///   quarantine cost measurable before declaration-scoped narrowing.
     #[serde(default)]
     pub authorization_blast_radius: AuthorizationBlastRadiusStats,
+    /// RQS resume/refresh observability (LLP 0090 §Scalability: counters land
+    /// with rollout step 1). Cumulative runtime-epoch counters.
+    #[serde(default)]
+    pub resume: RqsResumeStats,
+}
+
+/// Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),
+/// rung taken, journal distance, and token refresh overhead.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RqsResumeStats {
+    /// Subscribes that presented `resumeFromToken`.
+    pub attempted: u64,
+    /// Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).
+    pub current_as_of_answers: u64,
+    /// Token presented, answered with rung 3 (refusal or no available proof).
+    pub fresh_replace_answers: u64,
+    /// Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).
+    pub refused: BTreeMap<String, u64>,
+    /// Rung-1 table-set fall-throughs: journal floor held but no certified
+    /// dependency-summary artifact exists yet (cluster 0C), so the answer is
+    /// rung 3. Not a token refusal — its own telemetry cause.
+    pub no_certified_summary: u64,
+    /// Tokens minted on the live path (subscribe answers + envelope refresh).
+    pub tokens_minted: u64,
+    /// Refreshed tokens attached to `live_replace`/`live_delta` envelopes.
+    pub tokens_refreshed: u64,
+    /// Rows/args the 0A canonicalization refused at mint (`resume` absent).
+    pub mint_refusals: u64,
+    /// Journal distance (head − token version) of the last presented token.
+    pub last_journal_distance: u64,
+    /// Maximum observed journal distance.
+    pub max_journal_distance: u64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2358,6 +2421,15 @@ pub struct LocalSnapback {
     // its ephemeral-only HTTP/WS drain must not enter the global writer lane.
     auth_scoped_live_connections: Arc<RwLock<Arc<BTreeSet<String>>>>,
     receipts: ReceiptLog,
+    // The RQS resume keyring — a dedicated ring and file beside the database,
+    // never the auth keyring (LLP 0091 §0A.1 custody). Surviving restart is
+    // what keeps dev-loop restarts from refusing outstanding tokens.
+    resume_keyring: crate::rqs::ResumeKeyring,
+    // Cached local-arm `generation` digest (LLP 0091 §0A.6): content-derived
+    // from the served manifests; recomputed after every manifest/auth-mode
+    // change (the invalidation sites set this back to `None`), so a no-op
+    // ensure reproduces the identical digest.
+    rqs_generation: Option<String>,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
@@ -2484,6 +2556,72 @@ struct LiveSubscription {
     read_dependencies: Vec<CapturedReadDependency>,
     authorization: Option<LiveSubscriptionAuthorization>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    /// RQS token-refresh state, present iff the subscription is `rqsEligible`
+    /// (LLP 0090 D1): the server-held digest accumulator plus the query/args
+    /// identity every refreshed token binds. Minting is suppressed entirely
+    /// when absent — auth-scoped subscriptions never carry it.
+    rqs: Option<RqsLiveState>,
+}
+
+/// Server-side RQS refresh state for one eligible live subscription.
+#[derive(Clone, Debug)]
+struct RqsLiveState {
+    query_artifact: String,
+    args_hash: String,
+    digest: crate::rqs::ResultDigest,
+}
+
+/// Interim `rqsEligible` predicate and digest-kind selector.
+///
+/// @ref LLP 0090#authorization-scope-v1 — interim eligibility, tightened by
+/// ENG-25448: LLP 0090's `rqsEligible` is `authorityIndependent` AND the LLP
+/// 0053 closed-inputs proof, but the closed-inputs fact is cluster-0C work
+/// that has not landed. Until it does, this gates on the declared
+/// `authorityIndependent` manifest fact AND a conservative closed-inputs
+/// check derived from the analyzable plan: only a `HostPlan` query none of
+/// whose filter values read authority or ambient inputs (`RuntimeNow`,
+/// `RuntimeId`, auth axes) qualifies. Opaque (`IbexModule`) plans fail
+/// closed even if declared authority-independent — no journal proof or
+/// replay is sound for them. TODO(ENG-25448): replace the derived check with
+/// the served manifest's closed-inputs fact once cluster 0C lands.
+///
+/// The digest kind is the manifest delta class (LLP 0091 §0A.4): the
+/// DK-3-analyzable unordered shape takes `mset1`; ordered/limited
+/// (replace-only) shapes take `seq1`.
+fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+    if !function.authority_independent {
+        return None;
+    }
+    if function.kind != FunctionKind::LiveQuery {
+        return None;
+    }
+    if function.effective_auth_requirement() != crate::manifest::AuthRequirement::Public {
+        return None;
+    }
+    if !function.uses.is_empty()
+        || function.read_set_summary.auth_scope_field.is_some()
+        || !function.authorization_dependence.is_empty()
+    {
+        return None;
+    }
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return None;
+    };
+    if plan
+        .filters
+        .iter()
+        .any(|filter| crate::manifest::value_expr_uses_authority_or_ambient_input(&filter.value))
+    {
+        return None;
+    }
+    if !plan.membership_filters.is_empty() {
+        return None;
+    }
+    Some(if plan.order.is_empty() && plan.limit.is_none() {
+        crate::rqs::DigestKind::Mset1
+    } else {
+        crate::rqs::DigestKind::Seq1
+    })
 }
 
 impl LiveSubscription {
@@ -3826,6 +3964,11 @@ impl LocalSnapback {
         self.app_generation = generation;
         self.app_generation_fence
             .store(generation, Ordering::SeqCst);
+        // Loaded code/schema (or the destructive app-state boundary) changed:
+        // recompute the content-derived RQS `generation` lazily. A no-op
+        // ensure recomputes the identical digest, so outstanding resume
+        // tokens keep verifying (LLP 0091 §0A.6).
+        self.rqs_generation = None;
     }
 
     fn resolve_complete_provision_pair(
@@ -5869,6 +6012,197 @@ impl LocalSnapback {
         }
     }
 
+    /// The local-arm `generation` digest (LLP 0091 §0A.6): content-derived
+    /// from the served manifests and resume-relevant config, recomputed after
+    /// every ensure (`install_app_generation` clears the cache). A no-op
+    /// ensure reproduces identical components and therefore an identical
+    /// digest, so dev-loop ensures do not needlessly refuse tokens.
+    fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
+        if let Some(generation) = &self.rqs_generation {
+            return Ok(generation.clone());
+        }
+        let canonical_identity = |value: &Value| -> SnapbackResult<String> {
+            crate::rqs::sha256_identity(value).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+                    "realtime",
+                    "served manifest could not be canonically hashed for the resume generation",
+                )
+            })
+        };
+        let deployment_identity = format!("local:{}", env!("CARGO_PKG_VERSION"));
+        let schema_identity = self
+            .db
+            .schema()
+            .schema_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let manifest_value = |value: Result<Value, serde_json::Error>| -> SnapbackResult<Value> {
+            value.map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
+                    "realtime",
+                    "served manifest could not be serialized for the resume generation",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })
+        };
+        let functions_identity =
+            canonical_identity(&manifest_value(serde_json::to_value(&self.functions))?)?;
+        let mut capability_manifest = CapabilityManifest::local_v0_instance(
+            self.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
+        if self.warm_vms.enabled() {
+            capability_manifest.vm_lifecycle =
+                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
+        }
+        let capability_identity =
+            canonical_identity(&manifest_value(serde_json::to_value(&capability_manifest))?)?;
+        let auth_mode = self.db.auth_mode_snapshot()?.state.active.as_str();
+        // The local arm has no route manifest yet (cluster 0C / LLP 0090 Q1)
+        // and its journal prune policy is a per-call maintenance argument
+        // rather than a named durable policy; both identities are pinned
+        // literals until those artifacts exist, so changing either model
+        // rotates the generation through this string.
+        let resume_config = crate::rqs::resume_config_identity(
+            "caller-supplied-v0",
+            auth_mode,
+            "absent",
+        );
+        let generation = crate::rqs::generation_digest(
+            &deployment_identity,
+            &schema_identity,
+            &functions_identity,
+            &capability_identity,
+            &resume_config,
+        );
+        self.rqs_generation = Some(generation.clone());
+        Ok(generation)
+    }
+
+    /// Mint one shared resume token at `(queryArtifact, argsHash, version,
+    /// contentDigest)` (LLP 0090 D1: one mint per result-change, shared
+    /// across the fan-out — the optional `cache` carries the sharing within
+    /// one commit frame). Returns `None` on any mint impediment: minting is
+    /// best-effort and its absence only costs a future resume.
+    fn mint_resume_wire(
+        &mut self,
+        query_artifact: &str,
+        args_hash: &str,
+        version: u64,
+        digest_kind: crate::rqs::DigestKind,
+        content_digest: String,
+    ) -> Option<ResumeWire> {
+        let app = self.functions.app_id.clone();
+        let generation = self.rqs_generation_digest().ok()?;
+        let version_stream = self.db.data_version_stream().ok()?;
+        let now = now_millis();
+        let (key_id, key) = self.resume_keyring.active(now)?;
+        let body = crate::rqs::ResumeTokenBody {
+            app: app.clone(),
+            generation: generation.clone(),
+            version_stream: version_stream.clone(),
+            version,
+            query_artifact: query_artifact.to_owned(),
+            args_hash: args_hash.to_owned(),
+            digest_kind: digest_kind.as_str().to_owned(),
+            content_digest: content_digest.clone(),
+            issued_at: now,
+            auth_partition: None,
+        };
+        let token = crate::rqs::mint_token_wire(key.as_ref(), &key_id, &body);
+        if token.len() > crate::rqs::RESUME_TOKEN_MAX_WIRE_BYTES {
+            // A token the server itself would refuse must never be minted.
+            return None;
+        }
+        self.live_delivery.resume.tokens_minted += 1;
+        Some(ResumeWire {
+            token,
+            meta: ResumeMeta {
+                app,
+                version,
+                content_digest,
+                generation,
+                version_stream,
+                query_artifact: query_artifact.to_owned(),
+                args_hash: args_hash.to_owned(),
+            },
+        })
+    }
+
+    /// LLP 0090 D1.1 admission for a presented resume token: cryptographic
+    /// verification, then every identity axis against the served instance
+    /// and the subscription being opened. Any `Err` answers with rung 3
+    /// under its per-cause code — never a subscribe failure.
+    fn admit_resume_token(
+        &mut self,
+        presented: &ResumeFromToken,
+        function: &FunctionDefinition,
+        args: &Value,
+        eligibility: Option<crate::rqs::DigestKind>,
+    ) -> Result<crate::rqs::ResumeTokenBody, &'static str> {
+        use crate::rqs::refusal;
+        let now = now_millis();
+        let body = crate::rqs::decode_and_verify(
+            &presented.resume.token,
+            &self.resume_keyring,
+            now,
+            crate::rqs::RESUME_TOKEN_MAX_AGE_MS,
+        )?;
+        if body.auth_partition.is_some() {
+            // Reserved v2 door: absent in v1 (LLP 0091 §0A.1). A partitioned
+            // token cannot be admitted by a v1 server.
+            return Err(refusal::TOKEN_MALFORMED);
+        }
+        if body.app != self.functions.app_id {
+            return Err(refusal::APP_MISMATCH);
+        }
+        let generation = self
+            .rqs_generation_digest()
+            .map_err(|_| refusal::GENERATION_STALE)?;
+        if body.generation != generation {
+            return Err(refusal::GENERATION_STALE);
+        }
+        let version_stream = self
+            .db
+            .data_version_stream()
+            .map_err(|_| refusal::STREAM_MISMATCH)?;
+        if body.version_stream != version_stream {
+            return Err(refusal::STREAM_MISMATCH);
+        }
+        let query_artifact = serde_json::to_value(function)
+            .ok()
+            .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())
+            .ok_or(refusal::QUERY_MISMATCH)?;
+        if body.query_artifact != query_artifact {
+            return Err(refusal::QUERY_MISMATCH);
+        }
+        let args_hash = crate::rqs::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
+        if body.args_hash != args_hash {
+            return Err(refusal::QUERY_MISMATCH);
+        }
+        // Interim eligibility, tightened by ENG-25448 (cluster 0C).
+        let Some(kind) = eligibility else {
+            return Err(refusal::NOT_ELIGIBLE);
+        };
+        if body.digest_kind != kind.as_str()
+            || !body
+                .content_digest
+                .starts_with(&format!("{}:", kind.as_str()))
+        {
+            return Err(refusal::DIGEST_KIND_MISMATCH);
+        }
+        let head = self
+            .db
+            .current_version()
+            .map_err(|_| refusal::VERSION_IMPLAUSIBLE)?;
+        if body.version > head {
+            return Err(refusal::VERSION_IMPLAUSIBLE);
+        }
+        Ok(body)
+    }
+
     pub fn subscribe_live(
         &mut self,
         name: &str,
@@ -6297,6 +6631,34 @@ impl LocalSnapback {
 
         let subscription_input = retained_authority.canonicalize_input(input.input);
 
+        // RQS eligibility + token admission (LLP 0090 D1.1 / rollout step 1).
+        // Eligibility keys minting AND admission alike; auth-scoped
+        // subscriptions can never be eligible, so minting is suppressed for
+        // them by construction. Every token refusal answers with rung 3.
+        let rqs_eligibility = rqs_eligibility(&function);
+        let mut resume_refusal: Option<&'static str> = None;
+        let mut admitted_resume: Option<crate::rqs::ResumeTokenBody> = None;
+        if let Some(presented) = input.resume_from_token.as_ref() {
+            self.live_delivery.resume.attempted += 1;
+            match self.admit_resume_token(
+                presented,
+                &function,
+                &subscription_input.args,
+                rqs_eligibility,
+            ) {
+                Ok(body) => admitted_resume = Some(body),
+                Err(code) => {
+                    resume_refusal = Some(code);
+                    *self
+                        .live_delivery
+                        .resume
+                        .refused
+                        .entry(code.to_owned())
+                        .or_default() += 1;
+                }
+            }
+        }
+
         // A valid explicit supersession is a net-zero replacement. Identify
         // it before admission, but do not remove it until the new snapshot
         // succeeds: a query failure must leave the old live authority intact.
@@ -6360,6 +6722,98 @@ impl LocalSnapback {
             Some(&self.warm_vms),
         )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
+
+        // Server-held RQS digest state for eligible subscriptions, the fresh
+        // token, and the admission-ladder rung (LLP 0090 D1.3, rungs 1 & 3).
+        // Everything from proof to registration happens under this one &mut
+        // cut — the local arm's serialization cut — so no commit can fall
+        // between proof, registration, and the answer (the atomicity rule).
+        let head_version = query.output.version;
+        let rqs_state = rqs_eligibility.and_then(|kind| {
+            let query_artifact = serde_json::to_value(&function)
+                .ok()
+                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok());
+            let args_hash = crate::rqs::args_hash(&subscription_input.args).ok();
+            match (
+                query_artifact,
+                args_hash,
+                crate::rqs::ResultDigest::from_rows(kind, &query.output.rows),
+            ) {
+                (Some(query_artifact), Some(args_hash), Ok(digest)) => Some(RqsLiveState {
+                    query_artifact,
+                    args_hash,
+                    digest,
+                }),
+                _ => {
+                    // Mint-time refusal (LLP 0091 §0A.2): no token, never a
+                    // wrong digest.
+                    self.live_delivery.resume.mint_refusals += 1;
+                    None
+                }
+            }
+        });
+        let mut fresh_resume = rqs_state.as_ref().and_then(|state| {
+            self.mint_resume_wire(
+                &state.query_artifact,
+                &state.args_hash,
+                head_version,
+                state.digest.kind,
+                state.digest.published(),
+            )
+        });
+        let mut answer_current_as_of = false;
+        if let Some(body) = admitted_resume.as_ref() {
+            let distance = head_version.saturating_sub(body.version);
+            self.live_delivery.resume.last_journal_distance = distance;
+            self.live_delivery.resume.max_journal_distance = self
+                .live_delivery
+                .resume
+                .max_journal_distance
+                .max(distance);
+            let current_digest = rqs_state.as_ref().map(|state| state.digest.published());
+            let refuse = |stats: &mut LiveDeliveryStats, code: &'static str| {
+                *stats.resume.refused.entry(code.to_owned()).or_default() += 1;
+                Some(code)
+            };
+            if body.version == head_version
+                && current_digest.as_deref() == Some(body.content_digest.as_str())
+                && fresh_resume.is_some()
+            {
+                // Rung 1, global no-commit proof: nothing committed since the
+                // token's version, so the caller's held rows are current.
+                answer_current_as_of = true;
+            } else if body.version == head_version {
+                // Same version, different digest: the result is not a pure
+                // function of (state, args) after all — fail closed to rung 3
+                // (counted under the policy-replacement code; the registry
+                // has no more specific cause).
+                resume_refusal =
+                    refuse(&mut self.live_delivery, crate::rqs::refusal::POLICY_REPLACED);
+            } else {
+                match self.journal_resume_requires_resnapshot(body.version) {
+                    Ok(false) => {
+                        // Rung-1 table-set proof: the journal floor holds,
+                        // but no complete certified dependency-summary
+                        // artifact exists for this generation yet (cluster
+                        // 0C), so the table-set arm is structurally present
+                        // and always falls through to rung 3 under its own
+                        // telemetry cause (LLP 0090 D1.3 proof obligations).
+                        self.live_delivery.resume.no_certified_summary += 1;
+                    }
+                    _ => {
+                        resume_refusal =
+                            refuse(&mut self.live_delivery, crate::rqs::refusal::JOURNAL_FLOOR);
+                    }
+                }
+            }
+        }
+        if input.resume_from_token.is_some() {
+            if answer_current_as_of {
+                self.live_delivery.resume.current_as_of_answers += 1;
+            } else {
+                self.live_delivery.resume.fresh_replace_answers += 1;
+            }
+        }
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
@@ -6518,6 +6972,7 @@ impl LocalSnapback {
                 read_dependencies: query.read_dependencies,
                 authorization: subscription_authorization,
                 effect_fence,
+                rqs: rqs_state,
             },
         );
         self.refresh_auth_scoped_live_connections();
@@ -6550,9 +7005,31 @@ impl LocalSnapback {
         self.receipts
             .push_connection(&input.connection_id, receipt.clone());
 
+        // Rung-1 answer: enqueue the `current_as_of` durable envelope (with
+        // its mandatory fresh token) in the same &mut cut that registered the
+        // subscription, and omit rows from the subscribe output entirely —
+        // the caller's held rows are current as of `head_version`.
+        if answer_current_as_of {
+            let envelope = LiveEnvelope::CurrentAsOf {
+                subscription_id: subscription_id.clone(),
+                function: name.to_owned(),
+                version: head_version,
+                resume: fresh_resume
+                    .take()
+                    .expect("rung-1 admission requires a minted fresh token"),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+            {
+                self.enqueue_subscription_durable(subscription, payload);
+            }
+        }
+
         Ok(LiveSubscribeOutput {
             subscription_id,
-            snapshot: query.output,
+            snapshot: (!answer_current_as_of).then_some(query.output),
+            resume: fresh_resume,
+            resume_refusal: resume_refusal.map(str::to_owned),
             permission_epochs,
             receipt: Some(receipt),
             authorization_scope,
@@ -9644,6 +10121,18 @@ impl LocalSnapback {
         })));
 
         let app_generation = next_app_generation()?;
+        // @ref LLP 0091#0a1-token-envelope-mac-keyring-custody-expiry — the
+        // local-arm resume keyring is a `secure_file` sidecar beside the
+        // database, separate from the auth keyring; in-memory instances mint
+        // a per-process ring (their tokens die with the process — fine, key
+        // loss is availability-only).
+        let resume_keyring = match db.database_path() {
+            Some(path) => crate::rqs::ResumeKeyring::load_or_create(
+                path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                now_millis(),
+            ),
+            None => crate::rqs::ResumeKeyring::in_memory(now_millis()),
+        };
         static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
@@ -9682,6 +10171,8 @@ impl LocalSnapback {
             read_epochs: Arc::new(RwLock::new(Arc::new(BTreeMap::new()))),
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
+            resume_keyring,
+            rqs_generation: None,
         })
     }
 
@@ -11186,6 +11677,11 @@ impl LocalSnapback {
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
 
+        // One RQS mint per (queryArtifact, argsHash, version, contentDigest)
+        // is shared across the entire fan-out of this commit frame (LLP 0090
+        // D1: refresh overhead is per result-change, not per subscriber).
+        let mut resume_mint_cache: HashMap<(String, String, u64, String), Option<ResumeWire>> =
+            HashMap::new();
         for (subscription, delta_plan) in affected {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
@@ -11206,6 +11702,7 @@ impl LocalSnapback {
                     changes,
                     frame_version,
                     admission,
+                    &mut resume_mint_cache,
                 ) {
                     Ok(delta) => delta,
                     Err(error) => {
@@ -11309,11 +11806,44 @@ impl LocalSnapback {
                 }
                 continue;
             }
+            // RQS token refresh on the replace lane (LLP 0091 §0A.5): every
+            // result-changing durable envelope for an eligible subscription
+            // carries a fresh token minted at the new (version, digest),
+            // shared per identity tuple across the fan-out via the frame
+            // cache. `seq1` (ordered/replace-only) digests recompute exactly
+            // here — their only refresh boundary.
+            let resume = if let Some(state) = subscription.rqs.as_ref() {
+                match crate::rqs::ResultDigest::from_rows(state.digest.kind, &query.output.rows) {
+                    Ok(digest) => {
+                        let wire = self.refreshed_resume(
+                            &state.query_artifact,
+                            &state.args_hash,
+                            query.output.version,
+                            digest.kind,
+                            digest.published(),
+                            &mut resume_mint_cache,
+                        );
+                        if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                            && let Some(stored_state) = stored.rqs.as_mut()
+                        {
+                            stored_state.digest = digest;
+                        }
+                        wire
+                    }
+                    Err(_) => {
+                        self.live_delivery.resume.mint_refusals += 1;
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: query.output.version,
                 rows: query.output.rows,
+                resume,
             }) {
                 Ok(payload) => payload,
                 Err(error) => {
@@ -11382,6 +11912,39 @@ impl LocalSnapback {
     /// `Failed` (serialization error — reported as a fan-out failure).
     ///
     /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
+    /// Mint (or reuse from the frame cache) the shared refreshed resume
+    /// token for one `(queryArtifact, argsHash, version, contentDigest)`
+    /// tuple (LLP 0091 §0A.5 refresh rule).
+    fn refreshed_resume(
+        &mut self,
+        query_artifact: &str,
+        args_hash: &str,
+        version: u64,
+        kind: crate::rqs::DigestKind,
+        content_digest: String,
+        cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
+    ) -> Option<ResumeWire> {
+        let key = (
+            query_artifact.to_owned(),
+            args_hash.to_owned(),
+            version,
+            content_digest.clone(),
+        );
+        let minted = match cache.get(&key) {
+            Some(shared) => shared.clone(),
+            None => {
+                let minted =
+                    self.mint_resume_wire(query_artifact, args_hash, version, kind, content_digest);
+                cache.insert(key, minted.clone());
+                minted
+            }
+        };
+        if minted.is_some() {
+            self.live_delivery.resume.tokens_refreshed += 1;
+        }
+        minted
+    }
+
     fn try_live_delta_fanout(
         &mut self,
         subscription: &LiveSubscription,
@@ -11389,6 +11952,7 @@ impl LocalSnapback {
         changes: &[ChangedRow],
         frame_version: u64,
         admission: &AdmissionLease,
+        resume_mint_cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
     ) -> SnapbackResult<Option<DeltaFanout>> {
         // The subscription must carry a captured Query dependency (its current
         // result membership); a subscription established before this change, or
@@ -11448,11 +12012,42 @@ impl LocalSnapback {
             })
             .collect();
 
+        // RQS token refresh on the delta lane (LLP 0090 D1): apply the ops
+        // to the held accumulator state — O(changed rows) — and mint the
+        // shared fresh token at the new (version, digest). The updated state
+        // commits into the stored subscription below, in the same guarded
+        // block as the membership update, so digest state and membership
+        // advance together.
+        let mut refreshed_digest = None;
+        let resume = if let Some(state) = subscription.rqs.as_ref() {
+            let mut digest = state.digest.clone();
+            match digest.apply_delta_ops(&wire_ops) {
+                Ok(()) => {
+                    let wire = self.refreshed_resume(
+                        &state.query_artifact,
+                        &state.args_hash,
+                        frame_version,
+                        digest.kind,
+                        digest.published(),
+                        resume_mint_cache,
+                    );
+                    refreshed_digest = Some(digest);
+                    wire
+                }
+                Err(_) => {
+                    self.live_delivery.resume.mint_refusals += 1;
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveDelta {
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
             version: frame_version,
             ops: wire_ops,
+            resume,
         }) {
             Ok(payload) => payload,
             Err(error) => {
@@ -11502,6 +12097,12 @@ impl LocalSnapback {
                     }
                 }
                 dependency.version = Some(frame_version);
+            }
+            if let Some(digest) = refreshed_digest.take()
+                && let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                && let Some(state) = stored.rqs.as_mut()
+            {
+                state.digest = digest;
             }
             if subscription.authorization.is_some() {
                 let authorization = self
@@ -13518,6 +14119,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(93)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority.clone(),
                 LiveInvalidationAdmission {
@@ -13548,6 +14150,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority,
                 LiveInvalidationAdmission {
@@ -13670,6 +14273,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(90)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -13678,7 +14282,7 @@ mod tests {
                 },
             )
             .expect("subscribe under predecessor deployment");
-        assert_eq!(subscribed.snapshot.rows.len(), 1);
+        assert_eq!(subscribed.snapshot.as_ref().unwrap().rows.len(), 1);
         assert!(
             drain_live_stream_through_test_sink(&mut snapback, "activation-live").is_empty(),
             "the activation test starts with an empty delivery queue"
@@ -13794,6 +14398,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 authority,
                 LiveInvalidationAdmission {
@@ -13953,6 +14558,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(91)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -14061,6 +14667,7 @@ mod tests {
                             input: HandlerInput::default(),
                             authorization_namespace: None,
                             supersedes: None,
+                            resume_from_token: None,
                         },
                         LiveInvalidationAdmission {
                             session_mode: true,
@@ -14110,6 +14717,7 @@ mod tests {
                 function: "independentChanged".to_owned(),
                 version: 1,
                 rows: vec![json!({ "value": "queued-predecessor" })],
+                resume: None,
             })
             .expect("serialize queued predecessor frame"),
         );
@@ -14233,6 +14841,7 @@ mod tests {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -14241,7 +14850,7 @@ mod tests {
                 },
             )
             .expect("subscribe empty auth-scoped result");
-        assert!(subscribed.snapshot.rows.is_empty());
+        assert!(subscribed.snapshot.as_ref().unwrap().rows.is_empty());
         drain_live_stream_through_test_sink(&mut snapback, "activation-data-seed");
         let predecessor_authorization = snapback
             .auth_invalidation
@@ -15357,6 +15966,7 @@ globalThis.__snapbackHandlers = {
             },
             authorization_namespace: None,
             supersedes: None,
+            resume_from_token: None,
         }
     }
 
@@ -15517,6 +16127,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -15546,6 +16157,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(1)),
             supersedes: None,
+            resume_from_token: None,
         };
         let unavailable = snapback
             .subscribe_live_with_invalidation(
@@ -15624,6 +16236,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(2)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -15753,6 +16366,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -15966,6 +16580,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(20)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -16107,6 +16722,7 @@ globalThis.__snapbackHandlers = {
                         query_instance_id: 30,
                     }),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     session_mode: true,
@@ -16720,6 +17336,7 @@ globalThis.__snapbackHandlers = {
                         input: HandlerInput::default(),
                         authorization_namespace: Some(test_authorization_namespace(instance)),
                         supersedes: None,
+                        resume_from_token: None,
                     },
                     LiveInvalidationAdmission {
                         session_mode: true,
@@ -16980,6 +17597,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: None,
                     supersedes: None,
+                    resume_from_token: None,
                 },
             )
             .expect("subscribe");
@@ -17631,9 +18249,9 @@ globalThis.__snapbackHandlers = {
         let publication = snapback
             .finalize_subscribe_live_for_transport(&staged)
             .expect("post-act query and publication");
-        assert_eq!(publication.output.snapshot.rows.len(), 1);
+        assert_eq!(publication.output.snapshot.as_ref().unwrap().rows.len(), 1);
         assert_eq!(
-            publication.output.snapshot.rows[0]["value"],
+            publication.output.snapshot.as_ref().unwrap().rows[0]["value"],
             json!("after-prepare")
         );
     }
@@ -17941,6 +18559,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(instance)),
             supersedes,
+            resume_from_token: None,
         };
         let invalidation = || LiveInvalidationAdmission {
             connection: Some(connection.clone()),
@@ -18066,6 +18685,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(91)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18119,6 +18739,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(200)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18192,6 +18813,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(201)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18261,6 +18883,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(202)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 test_live_session_authority(
                     InvocationSource::LiveInitialQuery,
@@ -18371,6 +18994,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(202)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18384,6 +19008,7 @@ globalThis.__snapbackHandlers = {
             input: HandlerInput::default(),
             authorization_namespace: Some(test_authorization_namespace(instance)),
             supersedes: Some(subscribed.subscription_id.clone()),
+            resume_from_token: None,
         };
 
         let error = snapback
@@ -18448,6 +19073,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection),
@@ -18498,6 +19124,7 @@ globalThis.__snapbackHandlers = {
                     input: HandlerInput::default(),
                     authorization_namespace: Some(test_authorization_namespace(92)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18611,6 +19238,7 @@ globalThis.__snapbackHandlers = {
                     },
                     authorization_namespace: Some(test_authorization_namespace(93)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(predecessor_connection.clone()),
@@ -18748,6 +19376,7 @@ globalThis.__snapbackHandlers = {
                     },
                     authorization_namespace: Some(test_authorization_namespace(94)),
                     supersedes: None,
+                    resume_from_token: None,
                 },
                 LiveInvalidationAdmission {
                     connection: Some(connection.clone()),
@@ -18806,5 +19435,690 @@ globalThis.__snapbackHandlers = {
                 .is_empty(),
             "the retained predecessor fence receives the fail-closed hint",
         );
+    }
+
+    // ------------------------------------------------------------------
+    // RQS resumeFromToken admission, rungs 1 & 3, token refresh (LLP 0090
+    // rollout step 1; contract LLP 0091). Acceptance list: LLP 0090
+    // "Rollout sketch" step 1.
+    // ------------------------------------------------------------------
+
+    fn rqs_schema() -> SchemaManifest {
+        SchemaManifest {
+            schema_hash: Some("rqs-schema-v0".to_owned()),
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "rank".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn rqs_public_live_query(name: &str, ordered: bool) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "todos".to_owned(),
+                filters: Vec::new(),
+                order: if ordered {
+                    vec![crate::manifest::OrderExpr {
+                        field: "rank".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        function.authority_independent = true;
+        function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        function
+    }
+
+    fn rqs_functions() -> FunctionManifest {
+        let create = FunctionDefinition::new(
+            "createTodo",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "todos".to_owned(),
+                    values: BTreeMap::from([
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        (
+                            "rank".to_owned(),
+                            ValueExpr::Literal(Value::Number(1.into())),
+                        ),
+                    ]),
+                    bind_id_as: Some("todoId".to_owned()),
+                }],
+                return_value: Some(crate::manifest::ReturnValue::Binding("todoId".to_owned())),
+            })),
+        );
+        let mut scoped = FunctionDefinition::new(
+            "listMineOnly",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "todos".to_owned(),
+                filters: vec![FilterExpr {
+                    field: "title".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                }],
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        scoped.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
+        FunctionManifest {
+            bundle_hash: Some("rqs-functions-v0".to_owned()),
+            functions: vec![
+                rqs_public_live_query("listPublicTodos", false),
+                rqs_public_live_query("listRankedTodos", true),
+                scoped,
+                create,
+            ],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn rqs_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.apply_schema(rqs_schema()).expect("apply schema");
+        let diagnostics = snapback.load_functions(rqs_functions());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+            "unexpected load diagnostics: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    fn rqs_subscribe_input(
+        connection_id: &str,
+        resume: Option<crate::live_wire::ResumeFromToken>,
+    ) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: None,
+            supersedes: None,
+            resume_from_token: resume,
+        }
+    }
+
+    fn rqs_wrap(
+        resume: crate::live_wire::ResumeWire,
+    ) -> Option<crate::live_wire::ResumeFromToken> {
+        Some(crate::live_wire::ResumeFromToken { resume })
+    }
+
+    fn rqs_user_input(user_id: &str) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: Some(user_id.to_owned()),
+                user_id: Some(user_id.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn rqs_drained_envelopes(snapback: &mut LocalSnapback, connection_id: &str) -> Vec<Value> {
+        snapback
+            .drain_live_stream(connection_id)
+            .into_iter()
+            .map(|text| serde_json::from_str(&text).expect("durable envelope json"))
+            .collect()
+    }
+
+    fn rqs_resume_from_value(value: &Value) -> crate::live_wire::ResumeWire {
+        serde_json::from_value(value.clone()).expect("resume wire decodes")
+    }
+
+    #[test]
+    fn rqs_interim_eligibility_fails_closed_on_opaque_and_ambient_plans() {
+        // Opaque runtime declared authority-independent: no journal proof or
+        // replay is sound, so eligibility must refuse even though the
+        // declaration claims independence (LLP 0090 Authorization scope).
+        let mut opaque = FunctionDefinition::new(
+            "opaqueDeclared",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "opaqueDeclared".to_owned(),
+            }),
+        );
+        opaque.authority_independent = true;
+        opaque.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        assert!(super::rqs_eligibility(&opaque).is_none());
+
+        // Time-dependent filter (RuntimeNow): not a pure function of
+        // (database state, args) — fail closed.
+        let mut time_dependent = rqs_public_live_query("timeDependent", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut time_dependent.runtime {
+            plan.filters.push(FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Lt,
+                value: ValueExpr::RuntimeNow,
+            });
+        }
+        assert!(super::rqs_eligibility(&time_dependent).is_none());
+
+        // Undeclared queries stay ineligible; declared unordered takes mset1
+        // and ordered takes seq1 (the LLP 0091 §0A.4 kind selector).
+        assert!(
+            super::rqs_eligibility(&FunctionDefinition::new(
+                "undeclared",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "todos".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            ))
+            .is_none()
+        );
+        assert_eq!(
+            super::rqs_eligibility(&rqs_public_live_query("u", false)),
+            Some(crate::rqs::DigestKind::Mset1)
+        );
+        assert_eq!(
+            super::rqs_eligibility(&rqs_public_live_query("o", true)),
+            Some(crate::rqs::DigestKind::Seq1)
+        );
+    }
+
+    #[test]
+    fn rqs_idle_resume_answers_current_as_of_with_zero_rows_and_token_advance() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("fresh subscribe");
+        let minted = first
+            .resume
+            .clone()
+            .expect("eligible subscribe mints a token");
+        assert!(minted.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(
+            minted.meta.version,
+            first.snapshot.as_ref().unwrap().version
+        );
+        assert!(minted.meta.content_digest.starts_with("mset1:"));
+
+        // Idle resume: nothing committed since the token — rung 1.
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted.clone())),
+            )
+            .expect("token resume subscribe");
+        assert!(resumed.snapshot.is_none(), "rung 1 sends zero rows");
+        assert!(resumed.resume.is_none(), "the fresh token rides CurrentAsOf");
+        assert_eq!(resumed.resume_refusal, None);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        assert_eq!(
+            envelopes[0]["subscription_id"],
+            json!(resumed.subscription_id)
+        );
+        assert_eq!(envelopes[0]["version"], minted.meta.version);
+        // The fresh token is minted at the same (version, digest) — its
+        // bytes differ only by issuedAt, so two mints inside one millisecond
+        // are legitimately identical (the shared-mint rule). Assert the
+        // advance semantics, not byte inequality.
+        let advanced = rqs_resume_from_value(&envelopes[0]["resume"]);
+        assert!(advanced.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(advanced.meta.version, minted.meta.version);
+        assert_eq!(advanced.meta.content_digest, minted.meta.content_digest);
+
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.attempted, 1);
+        assert_eq!(stats.current_as_of_answers, 1);
+        assert_eq!(stats.fresh_replace_answers, 0);
+        assert_eq!(stats.last_journal_distance, 0);
+    }
+
+    #[test]
+    fn rqs_tokens_refresh_across_delta_replace_and_current_as_of() {
+        let mut snapback = rqs_snapback();
+        // Unordered (mset1) subscription refreshes through live_delta.
+        let unordered = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe unordered");
+        let initial = unordered.resume.clone().expect("initial mint");
+        // Ordered (seq1) subscription refreshes through live_replace.
+        let ordered = snapback
+            .subscribe_live("listRankedTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe ordered");
+        let ordered_initial = ordered.resume.clone().expect("ordered initial mint");
+        assert!(ordered_initial.meta.content_digest.starts_with("seq1:"));
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "one" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("create todo");
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-a");
+        assert_eq!(envelopes.len(), 2);
+        let delta = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_delta")
+            .expect("unordered subscription refreshes via delta");
+        let replace = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_replace")
+            .expect("ordered subscription refreshes via replace");
+        let refreshed = rqs_resume_from_value(&delta["resume"]);
+        assert_eq!(refreshed.meta.version, delta["version"].as_u64().unwrap());
+        assert_ne!(refreshed.meta.content_digest, initial.meta.content_digest);
+        let ordered_refreshed = rqs_resume_from_value(&replace["resume"]);
+        assert!(ordered_refreshed.meta.content_digest.starts_with("seq1:"));
+        assert_ne!(
+            ordered_refreshed.meta.content_digest,
+            ordered_initial.meta.content_digest
+        );
+
+        // The refreshed delta token resumes rung-1 — and CurrentAsOf itself
+        // carries the next fresh token (the third refresh boundary).
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(refreshed.clone())),
+            )
+            .expect("resume at refreshed token");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        let advanced = rqs_resume_from_value(&envelopes[0]["resume"]);
+        assert!(advanced.token.starts_with("sbrt1.sbrq_"));
+        assert_eq!(
+            advanced.meta.content_digest,
+            refreshed.meta.content_digest
+        );
+    }
+
+    #[test]
+    fn rqs_stale_token_takes_rung3_and_table_set_falls_through_without_summary() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let stale = first.resume.clone().expect("initial mint");
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "advance" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("advance head");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(stale.clone())),
+            )
+            .expect("stale resume subscribe");
+        // Journal floor holds, but no certified dependency summary exists
+        // (cluster 0C), so the table-set arm always falls through to rung 3.
+        let snapshot = resumed.snapshot.as_ref().expect("rung 3 sends rows");
+        assert_eq!(snapshot.rows.len(), 1);
+        assert!(resumed.resume.is_some(), "rung 3 still refreshes the token");
+        assert_eq!(
+            resumed.resume_refusal, None,
+            "fall-through is not a refusal"
+        );
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.no_certified_summary, 1);
+        assert_eq!(stats.fresh_replace_answers, 1);
+        assert_eq!(stats.current_as_of_answers, 0);
+        assert_eq!(stats.last_journal_distance, 1);
+
+        // Journal floor miss: prune everything, then the same stale token
+        // refuses with the floor code (still answered with rows).
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "advance again" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("advance head again");
+        snapback
+            .prune_change_journal(now_millis() + 60_000, 0, 0)
+            .expect("prune journal");
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-c", rqs_wrap(stale)),
+            )
+            .expect("floor-refused resume subscribe");
+        assert!(refused.snapshot.is_some());
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_JOURNAL_FLOOR")
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_JOURNAL_FLOOR"],
+            1
+        );
+    }
+
+    #[test]
+    fn rqs_refusals_are_per_cause_and_never_fail_the_subscribe() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let good = first.resume.clone().expect("mint");
+
+        // Malformed garbage.
+        let mut garbage = good.clone();
+        garbage.token = "not-a-token".to_owned();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(garbage)),
+            )
+            .expect("malformed token still subscribes");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_TOKEN_MALFORMED")
+        );
+        assert!(refused.snapshot.is_some());
+
+        // Args mismatch: the token binds the exact canonical args.
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                LiveSubscribeInput {
+                    connection_id: "conn-c".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "cursor": 5 }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: rqs_wrap(good.clone()),
+                },
+            )
+            .expect("args-mismatch subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_QUERY_MISMATCH")
+        );
+
+        // Hand-crafted bodies signed by the live keyring exercise the
+        // remaining per-cause codes admission can reach. The base body
+        // mirrors the genuinely minted token's identity axes exactly, so
+        // each case's single perturbed field is the refusing axis.
+        let now = now_millis();
+        let base_body = crate::rqs::ResumeTokenBody {
+            app: good.meta.app.clone(),
+            generation: good.meta.generation.clone(),
+            version_stream: good.meta.version_stream.clone(),
+            version: good.meta.version,
+            query_artifact: good.meta.query_artifact.clone(),
+            args_hash: good.meta.args_hash.clone(),
+            digest_kind: "mset1".to_owned(),
+            content_digest: good.meta.content_digest.clone(),
+            issued_at: now,
+            auth_partition: None,
+        };
+        let (key_id, key) = snapback.resume_keyring.active(now).expect("active key");
+        let mint = |body: &crate::rqs::ResumeTokenBody| crate::live_wire::ResumeWire {
+            token: crate::rqs::mint_token_wire(key.as_ref(), &key_id, body),
+            meta: crate::live_wire::ResumeMeta {
+                app: body.app.clone(),
+                version: body.version,
+                content_digest: body.content_digest.clone(),
+                generation: body.generation.clone(),
+                version_stream: body.version_stream.clone(),
+                query_artifact: body.query_artifact.clone(),
+                args_hash: body.args_hash.clone(),
+            },
+        };
+
+        let cases: Vec<(crate::rqs::ResumeTokenBody, &str)> = vec![
+            (
+                crate::rqs::ResumeTokenBody {
+                    app: "someone-elses-app".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_APP_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    generation: "gen1:0000".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_GENERATION_STALE",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    version_stream: "not-the-stream".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_STREAM_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    digest_kind: "seq1".to_owned(),
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_DIGEST_KIND_MISMATCH",
+            ),
+            (
+                crate::rqs::ResumeTokenBody {
+                    version: 40_000,
+                    ..base_body.clone()
+                },
+                "SNAPBACK_RESUME_VERSION_IMPLAUSIBLE",
+            ),
+        ];
+        for (index, (body, expected)) in cases.into_iter().enumerate() {
+            let wire = mint(&body);
+            let refused = snapback
+                .subscribe_live(
+                    "listPublicTodos",
+                    rqs_subscribe_input(&format!("conn-case-{index}"), rqs_wrap(wire)),
+                )
+                .expect("refused token still subscribes");
+            assert_eq!(refused.resume_refusal.as_deref(), Some(expected));
+            assert!(refused.snapshot.is_some(), "every refusal answers rung 3");
+            assert_eq!(snapback.live_delivery.resume.refused[expected], 1);
+        }
+
+        // Eligibility: a well-formed token naming an auth-dependent query is
+        // NOT_ELIGIBLE (its artifact/args must match that query for the
+        // eligibility check to be the refusing axis).
+        let scoped = snapback.function("listMineOnly").expect("function").clone();
+        let scoped_artifact =
+            crate::rqs::query_artifact_hash(&serde_json::to_value(&scoped).unwrap()).unwrap();
+        let ineligible = crate::rqs::ResumeTokenBody {
+            query_artifact: scoped_artifact,
+            ..base_body.clone()
+        };
+        let wire = mint(&ineligible);
+        let refused = snapback
+            .subscribe_live(
+                "listMineOnly",
+                LiveSubscribeInput {
+                    connection_id: "conn-ineligible".to_owned(),
+                    input: rqs_user_input("user_1"),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: rqs_wrap(wire),
+                },
+            )
+            .expect("ineligible subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_NOT_ELIGIBLE")
+        );
+        assert!(refused.resume.is_none(), "no token is ever minted for it");
+    }
+
+    #[test]
+    fn rqs_auth_dependent_subscriptions_never_mint() {
+        let mut snapback = rqs_snapback();
+        let scoped = snapback
+            .subscribe_live(
+                "listMineOnly",
+                LiveSubscribeInput {
+                    connection_id: "conn-a".to_owned(),
+                    input: rqs_user_input("user_1"),
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe auth-dependent query");
+        assert!(scoped.resume.is_none());
+        assert!(scoped.snapshot.is_some());
+        // And its fan-out envelopes carry no resume either.
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "x" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("mutate");
+        for envelope in rqs_drained_envelopes(&mut snapback, "conn-a") {
+            assert!(envelope.get("resume").is_none());
+        }
+        assert_eq!(snapback.live_delivery.resume.tokens_minted, 0);
+    }
+
+    #[test]
+    fn rqs_mutation_after_answer_and_register_loses_no_ops() {
+        let mut snapback = rqs_snapback();
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let minted = first.resume.clone().expect("mint");
+
+        // Answer-and-register happens under one &mut cut; the next mutation
+        // must fan out to the resumed subscription with nothing skipped.
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted)),
+            )
+            .expect("resume");
+        assert!(resumed.snapshot.is_none(), "rung-1 answer");
+
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": "raced" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("mutate after registration");
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        let delta = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "live_delta")
+            .expect("the racing mutation reaches the resumed subscription");
+        let ops = delta["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0]["op"], "add");
+        assert_eq!(ops[0]["row"]["title"], "raced");
+        // The delta also refreshed the token past the CurrentAsOf version.
+        let refreshed = rqs_resume_from_value(&delta["resume"]);
+        assert!(refreshed.meta.version > 0);
+    }
+
+    #[test]
+    fn rqs_resume_keyring_survives_restart_on_disk() {
+        let dir =
+            std::env::temp_dir().join(format!("snapback-rqs-restart-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("rqs-restart.sqlite");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
+
+        let minted = {
+            let mut snapback = LocalSnapback::open(&path).expect("open snapback");
+            snapback.apply_schema(rqs_schema()).expect("apply schema");
+            let diagnostics = snapback.load_functions(rqs_functions());
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
+            );
+            snapback
+                .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+                .expect("subscribe")
+                .resume
+                .expect("mint")
+        };
+
+        // Dev-loop restart: same database, fresh process state. The
+        // resume-keyring file (and the content-derived generation) keep the
+        // outstanding token admissible — rung 1.
+        let mut reopened = LocalSnapback::open(&path).expect("reopen snapback");
+        reopened.apply_schema(rqs_schema()).expect("reapply schema");
+        let diagnostics = reopened.load_functions(rqs_functions());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
+        );
+        let resumed = reopened
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-b", rqs_wrap(minted)),
+            )
+            .expect("resume after restart");
+        assert!(
+            resumed.snapshot.is_none(),
+            "restart preserves the ring and generation: {:?}",
+            resumed.resume_refusal
+        );
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
     }
 }

@@ -15,6 +15,7 @@ use zeroize::{Zeroize as _, Zeroizing};
 
 const CHALLENGE_PREFIX: &str = "sbc_";
 const KEY_PREFIX: &str = "sbak_";
+const RESUME_KEY_PREFIX: &str = "sbrq_";
 const SESSION_PREFIX: &str = "sbs_";
 const SENDER_SESSION_PREFIX: &str = "sbs2_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
@@ -225,6 +226,37 @@ impl fmt::Debug for AuthKeyId {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Key ids are excluded from diagnostics alongside key material.
         formatter.write_str("AuthKeyId([REDACTED])")
+    }
+}
+
+/// A resume-keyring key id (LLP 0091 §0A.1): the `AuthKeyId` shape under its
+/// own registered prefix, carried inside `sbrt1.` resume-token envelopes. An
+/// identifier, never a bearer. (LLP 0091 names `sbrk_` for this class, but
+/// that prefix was already registered to the secret-read root key before 0091
+/// landed; `sbrq_` is the collision-free spelling — reported as a 0091
+/// erratum.)
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ResumeKeyId(String);
+
+impl ResumeKeyId {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_prefixed_id(input, RESUME_KEY_PREFIX)
+            .map(Self)
+            .map_err(|_| CryptoError::InvalidKeyId)
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_prefixed_id(random, RESUME_KEY_PREFIX).map(Self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ResumeKeyId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ResumeKeyId([REDACTED])")
     }
 }
 
@@ -549,6 +581,9 @@ pub enum CredentialClass {
     SecretReadProofNonce,
     /// `sbrm_` — a secret-read startup-proof MAC. **Never authenticates.**
     SecretReadProofMac,
+    /// `sbrq_` — a resume-keyring key id (LLP 0091 §0A.1); an identifier,
+    /// not a bearer.
+    ResumeKeyId,
 }
 
 impl CredentialClass {
@@ -573,6 +608,7 @@ impl CredentialClass {
             Self::SecretReadLease => "sbrl_",
             Self::SecretReadProofNonce => "sbrp_",
             Self::SecretReadProofMac => "sbrm_",
+            Self::ResumeKeyId => RESUME_KEY_PREFIX,
         }
     }
 
@@ -593,6 +629,7 @@ impl CredentialClass {
             self,
             Self::ChallengeId
                 | Self::AuthKeyId
+                | Self::ResumeKeyId
                 | Self::SecretReadProofNonce
                 | Self::SecretReadProofMac
         )
@@ -630,6 +667,7 @@ pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     ("sbrl_", CredentialClass::SecretReadLease),
     ("sbrp_", CredentialClass::SecretReadProofNonce),
     ("sbrm_", CredentialClass::SecretReadProofMac),
+    (RESUME_KEY_PREFIX, CredentialClass::ResumeKeyId),
 ];
 
 /// Structurally classify a presented credential by its registered prefix. The

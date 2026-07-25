@@ -40,7 +40,9 @@ use crate::deploy::{
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
-use crate::live_wire::{LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt};
+use crate::live_wire::{
+    LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, ResumeWire,
+};
 use crate::local::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
@@ -365,6 +367,13 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "live.resume.output.schema.json",
             schemars::schema_for!(LiveResumeOutput),
+        ),
+        // The RQS token-resume resume object (LLP 0091 §0B.1). Named
+        // `resume-token` so the token-resume vocabulary never collides with
+        // the reattach operation's `live.resume.*` schemas above (§0B.4).
+        finish(
+            "live.resume-token.schema.json",
+            schemars::schema_for!(ResumeWire),
         ),
         finish(
             "live.resume.input.schema.json",

@@ -47,6 +47,10 @@ pub enum LiveEnvelope {
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
         rows: Vec<Value>,
+        /// Refreshed resume token for `rqsEligible` subscriptions — an
+        /// ignorable optional addition (old decoders drop it; LLP 0091 §0B.2).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume: Option<ResumeWire>,
     },
     /// Op-log delta (DK-3 / LLP 0008): only the rows that entered/left/changed
     /// the subscription's result. Unordered by contract — ordered queries fall
@@ -57,6 +61,24 @@ pub enum LiveEnvelope {
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
         ops: Vec<LiveDeltaWireOp>,
+        /// Refreshed resume token for `rqsEligible` subscriptions — an
+        /// ignorable optional addition (old decoders drop it; LLP 0091 §0B.2).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume: Option<ResumeWire>,
+    },
+    /// Rung-1 answer to a `resumeFromToken` subscribe (LLP 0090 D1.3, LLP
+    /// 0091 §0B.2): "your held rows are current as of `version`". The client
+    /// adopts the mandatory fresh token and advances its version without
+    /// touching rows. Sent only to a subscriber that presented
+    /// `resumeFromToken`, so decode ability is implied by the request — no
+    /// capability negotiation.
+    CurrentAsOf {
+        subscription_id: String,
+        function: String,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+        version: u64,
+        /// Fresh token minted at `version` — the variant exists to advance it.
+        resume: ResumeWire,
     },
     /// Level-triggered authorization invalidation for one auth-scoped live
     /// query. The optional snapshot and resolution are one atomic wire frame;
@@ -111,6 +133,43 @@ pub struct AuthorizationInvalidationSnapshot {
     #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
+}
+
+/// The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated
+/// token plus its clear, client-advisory `meta` copy. `meta` repeats every
+/// identity field the LLP 0090 D3 channel arbitration compares and is never
+/// an admission input — admission decodes the token itself. Exported as
+/// `live.resume-token.schema.json`, named distinctly from the reattach
+/// operation's `live.resume.*` schemas (LLP 0091 §0B.4).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct ResumeWire {
+    /// `tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).
+    pub token: String,
+    pub meta: ResumeMeta,
+}
+
+/// Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The
+/// client's digest-kind signal is `content_digest`'s self-describing prefix.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ResumeMeta {
+    pub app: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub version: u64,
+    pub content_digest: String,
+    pub generation: String,
+    pub version_stream: String,
+    pub query_artifact: String,
+    pub args_hash: String,
+}
+
+/// The optional `resumeFromToken` wrapper on the subscribe input (LLP 0091
+/// §0B.4): token resume is not a new route. The wrapper object reserves room
+/// for the rung-2 `membershipWitness` field (rollout step 5a), so unknown
+/// fields are deliberately tolerated.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct ResumeFromToken {
+    pub resume: ResumeWire,
 }
 
 /// One `live_delta` op: the row is present for add/update and absent for
@@ -182,6 +241,13 @@ pub enum LiveSocketServerFrame {
         operation: String,
         diagnostic: Diagnostic,
     },
+    /// Decision-5 in-band successor-nonce release (LLP 0077): the next
+    /// sender-constrained nonce crosses as the first server frame on the
+    /// authenticated socket, before any application-visible frame. Typed
+    /// here so the frame rides the schema-governed wire like every other
+    /// socket frame (its first landing emitted raw JSON, stranding the kit
+    /// drift gate against the client's declared kind).
+    SenderNonce { nonce: String },
     /// An ephemeral-lane room message (presence/cursors), wrapped so the
     /// socket dispatch stays on `kind`.
     Ephemeral { message: EphemeralMessage },
@@ -399,6 +465,7 @@ mod tests {
             function: "listTodos".into(),
             version: 7,
             rows: vec![json!({ "_id": "a" })],
+            resume: None,
         };
         assert_eq!(
             serde_json::to_value(&replace).unwrap(),
@@ -427,6 +494,7 @@ mod tests {
                     row: None,
                 },
             ],
+            resume: None,
         };
         assert_eq!(
             serde_json::to_value(&delta).unwrap(),
@@ -459,6 +527,64 @@ mod tests {
                 "epoch": 3,
                 "clear_retained": true,
             })
+        );
+
+        // The rung-1 answer (LLP 0091 §0B.2): mandatory fresh token, no rows.
+        let resume = ResumeWire {
+            token: "sbrt1.sbrq_x.e30.e30".into(),
+            meta: ResumeMeta {
+                app: "app_1".into(),
+                version: 9,
+                content_digest: "mset1:aa".into(),
+                generation: "gen1:bb".into(),
+                version_stream: "stream-1".into(),
+                query_artifact: "sha256:cc".into(),
+                args_hash: "sha256:dd".into(),
+            },
+        };
+        let current_as_of = LiveEnvelope::CurrentAsOf {
+            subscription_id: "sub_1".into(),
+            function: "listTodos".into(),
+            version: 9,
+            resume: resume.clone(),
+        };
+        assert_eq!(
+            serde_json::to_value(&current_as_of).unwrap(),
+            json!({
+                "kind": "current_as_of",
+                "subscription_id": "sub_1",
+                "function": "listTodos",
+                "version": 9,
+                "resume": {
+                    "token": "sbrt1.sbrq_x.e30.e30",
+                    "meta": {
+                        "app": "app_1",
+                        "version": 9,
+                        "contentDigest": "mset1:aa",
+                        "generation": "gen1:bb",
+                        "versionStream": "stream-1",
+                        "queryArtifact": "sha256:cc",
+                        "argsHash": "sha256:dd",
+                    },
+                },
+            })
+        );
+
+        // A refreshed-token replace round-trips, and a decoder without the
+        // field (None) reads the same frame minus `resume` — the old-decoder
+        // tolerance case is exercised by the schema's non-required field.
+        let refreshed = LiveEnvelope::LiveReplace {
+            subscription_id: "sub_1".into(),
+            function: "listTodos".into(),
+            version: 9,
+            rows: vec![],
+            resume: Some(resume),
+        };
+        let encoded = serde_json::to_value(&refreshed).unwrap();
+        assert_eq!(encoded["resume"]["meta"]["contentDigest"], "mset1:aa");
+        assert_eq!(
+            serde_json::from_value::<LiveEnvelope>(encoded).unwrap(),
+            refreshed
         );
 
         // Connection-wide overflow: no subscription fields at all.

@@ -541,6 +541,23 @@
       "type": "object"
     },
     {
+      "description": "Decision-5 in-band successor-nonce release (LLP 0077): the next\nsender-constrained nonce crosses as the first server frame on the\nauthenticated socket, before any application-visible frame. Typed\nhere so the frame rides the schema-governed wire like every other\nsocket frame (its first landing emitted raw JSON, stranding the kit\ndrift gate against the client's declared kind).",
+      "properties": {
+        "kind": {
+          "const": "sender_nonce",
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "nonce"
+      ],
+      "type": "object"
+    },
+    {
       "description": "An ephemeral-lane room message (presence/cursors), wrapped so the\nsocket dispatch stays on `kind`.",
       "properties": {
         "kind": {

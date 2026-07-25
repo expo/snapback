@@ -144,6 +144,74 @@
         "version"
       ],
       "type": "object"
+    },
+    "ResumeFromToken": {
+      "description": "The optional `resumeFromToken` wrapper on the subscribe input (LLP 0091\n§0B.4): token resume is not a new route. The wrapper object reserves room\nfor the rung-2 `membershipWitness` field (rollout step 5a), so unknown\nfields are deliberately tolerated.",
+      "properties": {
+        "resume": {
+          "$ref": "#/$defs/ResumeWire"
+        }
+      },
+      "required": [
+        "resume"
+      ],
+      "type": "object"
+    },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.input.schema.json",
@@ -175,6 +243,17 @@
         },
         "read_set": []
       }
+    },
+    "resumeFromToken": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResumeFromToken"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "RQS token resume (LLP 0091 §0B.4): not a new route — the token seeds\nthis ordinary subscribe. Admission per LLP 0090 D1.1; every refusal\nanswers with rung 3 (a fresh snapshot), never a subscription failure."
     },
     "supersedes": {
       "default": null,

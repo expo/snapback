@@ -1088,7 +1088,7 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
     })))
 }
 
-fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
+pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
     match value {
         ValueExpr::AuthUserId
         | ValueExpr::AuthKind

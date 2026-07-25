@@ -827,6 +827,22 @@
           "minimum": 0,
           "type": "integer"
         },
+        "resume": {
+          "$ref": "#/$defs/RqsResumeStats",
+          "default": {
+            "attempted": 0,
+            "currentAsOfAnswers": 0,
+            "freshReplaceAnswers": 0,
+            "lastJournalDistance": 0,
+            "maxJournalDistance": 0,
+            "mintRefusals": 0,
+            "noCertifiedSummary": 0,
+            "refused": {},
+            "tokensMinted": 0,
+            "tokensRefreshed": 0
+          },
+          "description": "RQS resume/refresh observability (LLP 0090 §Scalability: counters land\nwith rollout step 1). Cumulative runtime-epoch counters."
+        },
         "totalDeliveries": {
           "format": "uint64",
           "minimum": 0,
@@ -1950,6 +1966,87 @@
         "table",
         "subjectField",
         "scopeFields"
+      ],
+      "type": "object"
+    },
+    "RqsResumeStats": {
+      "description": "Resume attempted/admitted/refused (by per-cause `SNAPBACK_RESUME_*` code),\nrung taken, journal distance, and token refresh overhead.",
+      "properties": {
+        "attempted": {
+          "description": "Subscribes that presented `resumeFromToken`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "currentAsOfAnswers": {
+          "description": "Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "freshReplaceAnswers": {
+          "description": "Token presented, answered with rung 3 (refusal or no available proof).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastJournalDistance": {
+          "description": "Journal distance (head − token version) of the last presented token.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxJournalDistance": {
+          "description": "Maximum observed journal distance.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mintRefusals": {
+          "description": "Rows/args the 0A canonicalization refused at mint (`resume` absent).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "noCertifiedSummary": {
+          "description": "Rung-1 table-set fall-throughs: journal floor held but no certified\ndependency-summary artifact exists yet (cluster 0C), so the answer is\nrung 3. Not a token refusal — its own telemetry cause.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "refused": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).",
+          "type": "object"
+        },
+        "tokensMinted": {
+          "description": "Tokens minted on the live path (subscribe answers + envelope refresh).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokensRefreshed": {
+          "description": "Refreshed tokens attached to `live_replace`/`live_delta` envelopes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempted",
+        "currentAsOfAnswers",
+        "freshReplaceAnswers",
+        "refused",
+        "noCertifiedSummary",
+        "tokensMinted",
+        "tokensRefreshed",
+        "mintRefusals",
+        "lastJournalDistance",
+        "maxJournalDistance"
       ],
       "type": "object"
     },
