@@ -73,6 +73,12 @@ export function useSnapbackQuery({
           return;
         }
         latestRows = [...(rows ?? [])];
+        if (delivery.kind === 'retained') {
+          // Persisted/preloaded rows (LLP 0090 D3): rendered through the
+          // existing pending surface, never presented as current.
+          controller.retained(latestRows, connection);
+          return;
+        }
         controller.ready(latestRows, connection);
       });
     },
