@@ -20,7 +20,11 @@ export async function createSupabaseAdapter(databaseUrl: string, { schema, prepa
     throw new Error(`ephemeral Supabase schema must match ${EPHEMERAL_SCHEMA_PREFIX}[a-z0-9_]+: ${schema}`);
   }
   const ns = schema ?? 'public';
-  const sql = new SQL({ url: databaseUrl, prepare });
+  // @ref LLP 0063#sequence — the frozen browser instrument starts the event,
+  // guest, and wall subscriptions together. Bound them to one transaction-
+  // pooler connection so concurrent startup cannot starve an otherwise healthy
+  // remote fixture behind connection acquisition.
+  const sql = new SQL({ url: databaseUrl, prepare, max: 1 });
   const events = () => sql`${sql(ns)}.${sql('partiful_matrix_events')}`;
   const rsvps = () => sql`${sql(ns)}.${sql('partiful_matrix_rsvps')}`;
   const posts = () => sql`${sql(ns)}.${sql('partiful_matrix_posts')}`;

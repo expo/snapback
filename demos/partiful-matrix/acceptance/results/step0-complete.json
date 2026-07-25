@@ -5,7 +5,7 @@
   "outcome": "pass",
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "b459217907cbc2a1fb4f42c12bad959cdc98285543ba8e55cf6df2fb9afe6d0e",
+  "manifestSemanticSha256": "054765a4b6b87e144ee3ece4ddc29a28a244d692b8fe0f2ce056a09bd35008cb",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "prerequisiteCount": 18,
@@ -15,7 +15,7 @@
       "witnessClass": "stable-diagnostics",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -23,7 +23,7 @@
       "witnessClass": "deterministic-state",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -31,7 +31,7 @@
       "witnessClass": "subscription-initial-snapshot",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -39,7 +39,7 @@
       "witnessClass": "deterministic-delivery",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -47,7 +47,7 @@
       "witnessClass": "capability-honesty",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -55,7 +55,7 @@
       "witnessClass": "artifact-freshness",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
+        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
       }
     },
     {
@@ -63,7 +63,7 @@
       "witnessClass": "harness-integrity",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "350a90b6264a673dffba3e07d53009fae7008efd6754cadb4f2579831391daf5"
+        "sha256": "109e609fca680cfb7b1940cd682dc74c1b792abd103ec8dde04bd19fbbca256f"
       }
     },
     {
@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
       }
     },
     {
@@ -111,7 +111,7 @@
       "witnessClass": "native-instrument-baseline",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-        "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+        "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
       }
     },
     {
@@ -127,7 +127,7 @@
       "witnessClass": "dependency-exclusion",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "a64274b6bd8395ff98269cf04050883567acd95685bba8cfc591fe065b1f0a52"
+        "sha256": "6d5b3909afa5929dad7b05f5cafa1047c7a65bab5df9057b6701dbae547de54f"
       }
     },
     {
@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "ed9204b1ae3fa0351078fddc798101811ea1076424bab98ed4356f89d211c10b"
+        "sha256": "88ea260ee9d9f519209d8aaf9841cf1f8fd2913a21fb19e4babd50b7853e0110"
       }
     },
     {
@@ -143,7 +143,7 @@
       "witnessClass": "preregistered-method",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-        "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+        "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa"
+        "sha256": "294adc60fcb145104e0a1979fdeed770e34d3536bd22b87b1d624211d31bdb13"
       }
     }
   ],
@@ -159,18 +159,18 @@
     {
       "name": "swiftui",
       "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-      "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+      "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
     },
     {
       "name": "exact-contract",
       "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-      "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+      "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
     }
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "ed9204b1ae3fa0351078fddc798101811ea1076424bab98ed4356f89d211c10b",
-    "exactRevision": "a7b3f1be669d0b82f117e4a4433527ef30ae5ba6"
+    "sha256": "88ea260ee9d9f519209d8aaf9841cf1f8fd2913a21fb19e4babd50b7853e0110",
+    "exactRevision": "dffb96183743149e91cfb38f606eb3538cd98b9f"
   },
   "inputs": {
     "semantics": {
@@ -179,7 +179,7 @@
     },
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/finalize-step0.mjs",
-      "sha256": "850a72311dfa50445007e3ee2e4ec042a4c0a139422a0ef783007f722d365c3e"
+      "sha256": "74fec8b1cdcba1036b759957f20f713930b4c7573299f0152ab0c4e89a931189"
     }
   }
 }

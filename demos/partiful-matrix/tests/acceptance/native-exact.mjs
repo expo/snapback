@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -528,7 +536,11 @@ try {
           report.cells.push({
             cell: `exact-contract:ios:${backend}`,
             ok: iosLaunch.status === 0 && iosActo.status === 0 && iosActo.receipt?.ok === true,
-            launch: { ...iosLaunch, stdout: undefined, stderr: undefined },
+            launch: {
+              ...iosLaunch,
+              stdout: undefined,
+              stderr: undefined,
+            },
             acto: { ...iosActo, stdout: undefined, stderr: undefined },
             devServerLogSha256: sha256(dev.log()),
             devServerLogTail: dev.log().trim().split('\n').filter(Boolean).slice(-20),

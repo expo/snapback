@@ -146,7 +146,18 @@ try {
     '/auth/session',
     '/query/listTodosOnce',
   ]);
-  assert.equal(calls.slice(2).every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'), true);
+  // @ref LLP 0059#connection-bound-authority — opening a live connection
+  // exchanges the bearer for a scoped connection grant; the subscription
+  // request must not keep transmitting the broader bearer.
+  const liveCall = calls.find(({ path }) => path === '/live/listTodos/subscribe');
+  assert.equal(liveCall.authorization, null);
+  assert.equal(
+    calls
+      .slice(2)
+      .filter(({ path }) => path !== '/live/listTodos/subscribe')
+      .every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'),
+    true,
+  );
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
 } finally {
   await new Promise((resolve) => server.close(resolve));
