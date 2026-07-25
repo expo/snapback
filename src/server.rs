@@ -32689,6 +32689,11 @@ globalThis.__snapbackHandlers = {
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0097 ephemeral-branch invariant code (branches.rs). Not yet wired
+        // into any request path; it is an internal branch/promotion invariant
+        // umbrella, so its truthful HTTP projection is the fail-safe 500 until a
+        // producer deliberately splits it into request-classed codes.
+        "SNAPBACK_BRANCH_INVALID",
         // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
         // from validated cursors, so a field/order mismatch reaching storage
         // is a server bug, never a client class.
