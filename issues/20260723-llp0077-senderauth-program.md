@@ -73,7 +73,41 @@ refusing credential-bearing paths — both attested-but-unenforced facts (LLP
 active auth mode is `dev`, and sessions needs a `--startup-artifacts` carrier
 plus a two-boot staging transition the deployment does not yet stage.
 
-**New ledger defect (2026-07-25, D-1): sender admission is skipped for an
+**D-1 root cause established 2026-07-25 — it is NOT a reorder.** The obvious
+reading ("move the absent-carrier refusal ahead of the body poll") is wrong, and
+the code says why. The bailout is:
+
+```rust
+PresentedSessionBearer::Absent
+    if effective.credential_resolution != CredentialResolution::RequiredSessionBearer =>
+        { /* charge on /connection/open */ return Ok(None); }
+```
+
+`admit_hosted_sender_request` already refuses an absent carrier with 401
+`SNAPBACK_AUTH_REQUIRED` *before* any body poll — but only on routes whose
+**route-level** policy is `RequiredSessionBearer`. `/query/listNotes` is not
+one: it is generated owner CRUD whose authentication requirement lives in the
+**function** (`authUserId`), not in the route policy. So at middleware time the
+origin genuinely does not know a credential was required, defers, and the body
+is parsed before the function's own authority check refuses.
+
+Deleting the guard is not available: it is exactly what admits legitimate
+anonymous traffic, and `hosted_anonymous_connection_open_consumes_shared_source_admission`
+passes *because* of it. Verified — that test still passes on the current tree.
+
+The real fix is to hoist the function-level authentication requirement into
+route policy so the middleware can see it (derive per-function credential
+resolution from the function manifest at publication time, so a function
+requiring `authUserId` yields a `RequiredSessionBearer` route). That is a design
+change across the codegen/route-policy seam and deserves its own reviewed
+change; it is not a safe in-place reorder, and it was deliberately NOT attempted
+as a rushed edit inside the adapter lane.
+
+Until then the exposure is bounded: an unauthenticated caller can reach the JSON
+parser (bounded by the body limit) on function-authenticated routes, and is then
+refused. No credential, sender state, or application data is reachable.
+
+**Original report (2026-07-25, D-1): sender admission is skipped for an
 absent carrier, so an unauthenticated caller reaches the JSON parser.** On a
 sender-constrained route, `POST /query/listNotes` with no `Authorization`, no
 `DPoP`, and a malformed body answers `400 SNAPBACK_REQUEST_JSON_INVALID`; the
@@ -100,6 +134,24 @@ The run was against a local hosted origin; the served-origin rerun is blocked
 by the Let's Encrypt duplicate-certificate limit (no-volume cert loss on
 redeploy, LLP 0098 §8.1/§8.3) and cannot change the verdict, because D-1 is a
 real defect. `hostedAuthCapable` is NOT claimed.
+
+### Exact remaining distance to `hostedAuthCapable` (2026-07-25)
+
+Recorded so the remaining gap is legible rather than implied. The claim now
+waits on exactly two things:
+
+1. **Defect count zero.** Currently one: D-1 above (42-check matrix scores
+   41/42). Its fix is the route-policy hoist described above, not a reorder.
+2. **A served-origin rerun.** The 41/42 run was against a local hosted origin
+   composed identically to the deployed one. The served rerun is blocked by the
+   Let's Encrypt duplicate-certificate limit after the no-volume cert loss
+   (LLP 0098 §8.1/§8.3); still blocked as of this update.
+
+Everything else the gate named is in place: the adapter attests and verifies,
+sessions runs under hosted admission, renewal composes with withdrawal, the
+operator surface is enforced, and effective source is enforced. **No one should
+claim `hostedAuthCapable` until both rows above are green**, and this program
+index does not claim it.
 
 This does **not** close the capability gate. `hostedAuthCapable` still
 requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
