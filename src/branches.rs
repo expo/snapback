@@ -750,6 +750,312 @@ pub fn captured_effects(conn: &Connection) -> SnapbackResult<Vec<CapturedEffect>
     Ok(out)
 }
 
+// ---------------------------------------------------------------------------
+// Promotion — op-log, receipts, revalidated authority, staged settlement
+// (LLP 0097 P2 + P3).
+//
+// Promotion re-plays a branch's operation log (overlay writes + captured
+// effects, merged by their shared child version = causal order) into canonical:
+//   - authority is REVALIDATED at promotion, never preserved from the fork;
+//   - v1 requires canonical head == base_version (refuse on ANY advance);
+//   - one canonical transaction advances canonical by exactly ONE version;
+//   - effect-dependent writes commit PROVISIONALLY and land in a reconciliation
+//     ledger (pending → succeeded|rejected|ambiguous), settled after the real
+//     effects fire ("never rolled back after initiation");
+//   - branch-tagged receipts record every op's promotion outcome.
+//
+// @ref LLP 0097#design — staged promotion + provisional/pending + transitive
+//   effect-dependence. @ref LLP 0055/0070 — authority revalidated per attempt.
+// ---------------------------------------------------------------------------
+
+/// A branch operation in causal (child-version) order — the promotion op-log.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BranchOp {
+    Write(u64, OverlayWrite),
+    Effect(CapturedEffect),
+}
+
+impl BranchOp {
+    pub fn child_version(&self) -> u64 {
+        match self {
+            BranchOp::Write(v, _) => *v,
+            BranchOp::Effect(e) => e.child_version,
+        }
+    }
+}
+
+/// The full branch op-log: overlay writes and captured effects merged into one
+/// causal order by their shared child version.
+pub fn branch_op_log(conn: &Connection) -> SnapbackResult<Vec<BranchOp>> {
+    let mut ops: Vec<BranchOp> = overlay_writes(conn)?
+        .into_iter()
+        .map(|(v, w)| BranchOp::Write(v, w))
+        .chain(captured_effects(conn)?.into_iter().map(BranchOp::Effect))
+        .collect();
+    ops.sort_by_key(|op| op.child_version());
+    Ok(ops)
+}
+
+/// Authority is revalidated at promotion (and at each async effect attempt),
+/// never carried over from the fork. A `Denied` decision fails promotion closed.
+///
+/// @ref LLP 0055/0070
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthorityDecision {
+    Revalidated,
+    Denied,
+}
+
+/// Promotion outcome for a single branch op — the branch-tagged receipt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BranchReceiptOutcome {
+    /// Committed unconditionally (no effect dependence).
+    Confirmed,
+    /// Committed provisionally; awaits effect settlement + reconciliation.
+    Provisional,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BranchReceiptKind {
+    Mutation { table_name: String, row_id: String },
+    Effect { class: EffectClass },
+}
+
+/// A branch-tagged receipt (extends LLP 0043 mutation receipts + the new
+/// external-effect receipt, OQ6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BranchReceipt {
+    pub branch_id: String,
+    pub child_version: u64,
+    pub kind: BranchReceiptKind,
+    pub outcome: BranchReceiptOutcome,
+}
+
+/// The result of promoting a branch into canonical.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PromotionResult {
+    /// The single new canonical version after promotion.
+    pub canonical_version: u64,
+    /// Writes committed unconditionally.
+    pub committed: Vec<(u64, OverlayWrite)>,
+    /// Effect-dependent writes committed provisionally (pending reconciliation).
+    pub provisional: Vec<(u64, OverlayWrite)>,
+    /// Captured effects to settle asynchronously (NOT fired by promotion).
+    pub effect_intents: Vec<CapturedEffect>,
+    /// Branch-tagged receipts, one per replayed op, in causal order.
+    pub receipts: Vec<BranchReceipt>,
+}
+
+/// Settlement of a captured effect after it really fires (P3 reconciliation).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EffectSettlement {
+    Succeeded,
+    Rejected,
+    Ambiguous,
+}
+
+impl EffectSettlement {
+    fn as_str(self) -> &'static str {
+        match self {
+            EffectSettlement::Succeeded => "succeeded",
+            EffectSettlement::Rejected => "rejected",
+            EffectSettlement::Ambiguous => "ambiguous",
+        }
+    }
+}
+
+/// Create the promotion reconciliation ledger on canonical (idempotent).
+pub fn ensure_promotion_pending(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_promotion_pending (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            branch_id           TEXT NOT NULL,
+            child_version       INTEGER NOT NULL,
+            kind                TEXT NOT NULL,
+            table_name          TEXT,
+            row_id              TEXT,
+            op                  TEXT,
+            payload             TEXT,
+            effect_class        TEXT,
+            target              TEXT,
+            simulated_outcome   TEXT,
+            status              TEXT NOT NULL DEFAULT 'pending',
+            promoted_at_version INTEGER NOT NULL
+         );",
+    )?;
+    Ok(())
+}
+
+/// Promote a branch into canonical.
+///
+/// `apply_write` performs the physical mutation for one overlay write inside the
+/// single canonical transaction (schema-specific; injected so this stays generic
+/// over the app's tables). `authority` MUST be freshly `Revalidated` — a value
+/// preserved from the fork is exactly what this refuses.
+///
+/// Effect-dependent writes are identified conservatively (transitive
+/// over-approximation): any overlay write ordered at/after the first captured
+/// effect may have observed a simulated outcome, so it commits provisionally.
+/// Writes strictly before any effect commit unconditionally.
+pub fn promote<F>(
+    canonical: &mut Connection,
+    base: &Connection,
+    branch_id: &BranchId,
+    base_version: u64,
+    authority: AuthorityDecision,
+    apply_write: F,
+) -> SnapbackResult<PromotionResult>
+where
+    F: Fn(&rusqlite::Transaction, &OverlayWrite) -> SnapbackResult<()>,
+{
+    // Authority is revalidated, not preserved from fork.
+    if authority != AuthorityDecision::Revalidated {
+        return Err(invalid(
+            "promotion authority not revalidated — refused (authority is never preserved from fork)",
+        ));
+    }
+    // v1 base-equality: refuse if canonical advanced past the fork point.
+    let head = crate::storage::current_version_on(canonical)?;
+    if head != base_version {
+        return Err(invalid(format!(
+            "promotion base-equality violated: canonical head {head} != base_version {base_version} (v1 refuses on any advance)"
+        )));
+    }
+
+    let ops = branch_op_log(base)?;
+    let effects: Vec<CapturedEffect> = captured_effects(base)?;
+    let first_effect_version = effects.iter().map(|e| e.child_version).min();
+
+    // Partition overlay writes into unconditional vs effect-dependent.
+    let mut committed: Vec<(u64, OverlayWrite)> = Vec::new();
+    let mut provisional: Vec<(u64, OverlayWrite)> = Vec::new();
+    for op in &ops {
+        if let BranchOp::Write(v, w) = op {
+            let dependent = first_effect_version.map(|fe| *v >= fe).unwrap_or(false);
+            if dependent {
+                provisional.push((*v, w.clone()));
+            } else {
+                committed.push((*v, w.clone()));
+            }
+        }
+    }
+
+    ensure_promotion_pending(canonical)?;
+    let new_version = crate::storage::next_storage_version(base_version)?;
+    let tx = canonical.transaction()?;
+    // Apply every write (committed + provisional) so canonical is consistent at
+    // one version; provisional ones are additionally tracked for reconciliation.
+    for (_, w) in committed.iter().chain(provisional.iter()) {
+        apply_write(&tx, w)?;
+    }
+    for (v, w) in &provisional {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_pending
+               (branch_id, child_version, kind, table_name, row_id, op, payload, promoted_at_version)
+             VALUES (?1, ?2, 'write', ?3, ?4, ?5, ?6, ?7)",
+            params![branch_id.0, *v as i64, w.table_name, w.row_id, w.op.as_str(), w.payload, new_version as i64],
+        )?;
+    }
+    for e in &effects {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_pending
+               (branch_id, child_version, kind, effect_class, target, simulated_outcome, promoted_at_version)
+             VALUES (?1, ?2, 'effect', ?3, ?4, ?5, ?6)",
+            params![branch_id.0, e.child_version as i64, e.class.as_str(), e.target, e.simulated_outcome, new_version as i64],
+        )?;
+    }
+    // One canonical version bump for the whole promotion.
+    tx.execute(
+        "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+        params![new_version as i64],
+    )?;
+    tx.commit()?;
+
+    // Branch-tagged receipts, one per op, in causal order.
+    let mut receipts = Vec::new();
+    for op in &ops {
+        match op {
+            BranchOp::Write(v, w) => {
+                let dependent = first_effect_version.map(|fe| *v >= fe).unwrap_or(false);
+                receipts.push(BranchReceipt {
+                    branch_id: branch_id.0.clone(),
+                    child_version: *v,
+                    kind: BranchReceiptKind::Mutation {
+                        table_name: w.table_name.clone(),
+                        row_id: w.row_id.clone(),
+                    },
+                    outcome: if dependent {
+                        BranchReceiptOutcome::Provisional
+                    } else {
+                        BranchReceiptOutcome::Confirmed
+                    },
+                });
+            }
+            BranchOp::Effect(e) => receipts.push(BranchReceipt {
+                branch_id: branch_id.0.clone(),
+                child_version: e.child_version,
+                kind: BranchReceiptKind::Effect { class: e.class },
+                outcome: BranchReceiptOutcome::Provisional,
+            }),
+        }
+    }
+
+    Ok(PromotionResult {
+        canonical_version: new_version,
+        committed,
+        provisional,
+        effect_intents: effects,
+        receipts,
+    })
+}
+
+/// Reconcile a settled effect against the pending ledger (P3 fenced
+/// reconciliation). Resolves the effect's pending row to the settlement status;
+/// idempotent-safe (returns how many pending rows it resolved). Never rolls back
+/// an already-initiated promotion — it only advances pending → resolved.
+pub fn reconcile_effect(
+    conn: &Connection,
+    branch_id: &BranchId,
+    effect_version: u64,
+    settlement: EffectSettlement,
+) -> SnapbackResult<usize> {
+    ensure_promotion_pending(conn)?;
+    let updated = conn.execute(
+        "UPDATE _snapback_promotion_pending
+            SET status = ?3
+          WHERE branch_id = ?1 AND child_version = ?2 AND kind = 'effect' AND status = 'pending'",
+        params![branch_id.0, effect_version as i64, settlement.as_str()],
+    )?;
+    Ok(updated)
+}
+
+/// The unresolved pending rows for a branch (for reconciliation/observability).
+pub fn pending_promotions(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Vec<(u64, String, String)>> {
+    ensure_promotion_pending(conn)?;
+    let mut stmt = conn.prepare(
+        "SELECT child_version, kind, status
+           FROM _snapback_promotion_pending
+          WHERE branch_id = ?1
+          ORDER BY child_version ASC",
+    )?;
+    let rows = stmt.query_map(params![branch_id.0], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (v, kind, status) = row?;
+        out.push((v.max(0) as u64, kind, status));
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1200,5 +1506,213 @@ mod tests {
         // Nothing was recorded and no version was consumed.
         assert!(captured_effects(&base.conn).expect("effects").is_empty());
         assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(0));
+    }
+
+    // ---- P2 + P3: promotion ------------------------------------------------
+
+    /// Reference physical applier over the demo `widgets(id, name)` table.
+    fn apply_widget(tx: &rusqlite::Transaction, w: &OverlayWrite) -> SnapbackResult<()> {
+        let id: i64 = w.row_id.parse().expect("widget id");
+        match w.op {
+            OverlayOp::Upsert => {
+                tx.execute(
+                    "INSERT INTO widgets (id, name) VALUES (?1, ?2)
+                     ON CONFLICT(id) DO UPDATE SET name = excluded.name",
+                    params![id, w.payload.clone().unwrap_or_default()],
+                )?;
+            }
+            OverlayOp::Delete => {
+                tx.execute("DELETE FROM widgets WHERE id = ?1", params![id])?;
+            }
+        }
+        Ok(())
+    }
+
+    fn canonical_version(c: &Connection) -> u64 {
+        c.query_row("SELECT version FROM _snapback_version WHERE id = 1", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .map(|v| v.max(0) as u64)
+        .expect("version")
+    }
+
+    fn upsert(row_id: &str, name: &str) -> OverlayWrite {
+        OverlayWrite {
+            table_name: "widgets".into(),
+            row_id: row_id.into(),
+            op: OverlayOp::Upsert,
+            payload: Some(name.into()),
+        }
+    }
+
+    #[test]
+    fn promote_applies_writes_and_bumps_version_once() {
+        let mut canonical = source_with_head(5);
+        let (bid, cs) = ids("promo");
+        create_branch(&canonical, &bid, &cs, "canonical", 5, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&canonical, None).expect("base");
+
+        base.conn
+            .execute("UPDATE widgets SET name='ALPHA' WHERE id=1", [])
+            .expect("phys");
+        record_overlay_write(&mut base.conn, &bid, &upsert("1", "ALPHA"), 1).expect("w1");
+        record_overlay_write(&mut base.conn, &bid, &upsert("3", "gamma"), 2).expect("w2");
+
+        let result = promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            5,
+            AuthorityDecision::Revalidated,
+            apply_widget,
+        )
+        .expect("promote");
+
+        // Exactly one canonical version bump.
+        assert_eq!(result.canonical_version, 6);
+        assert_eq!(canonical_version(&canonical), 6);
+        // No effects → everything committed unconditionally.
+        assert_eq!(result.committed.len(), 2);
+        assert!(result.provisional.is_empty());
+        assert!(result.effect_intents.is_empty());
+        assert!(result
+            .receipts
+            .iter()
+            .all(|r| r.outcome == BranchReceiptOutcome::Confirmed));
+        // Canonical now reflects the promoted writes.
+        assert_eq!(widget_names(&canonical), vec!["ALPHA", "beta", "gamma"]);
+        assert!(pending_promotions(&canonical, &bid).expect("pending").is_empty());
+    }
+
+    #[test]
+    fn promote_marks_effect_dependent_writes_provisional() {
+        let mut canonical = source_with_head(2);
+        let (bid, cs) = ids("prov");
+        create_branch(&canonical, &bid, &cs, "canonical", 2, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&canonical, None).expect("base");
+
+        // w1 before any effect → unconditional; effect; w2 after → effect-dependent.
+        record_overlay_write(&mut base.conn, &bid, &upsert("1", "pre"), 1).expect("w1");
+        capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Payment,
+                scope: EffectScope::HostMediated,
+                target: "charge:acct".into(),
+                payload: None,
+                simulated_outcome: Some("ok".into()),
+            },
+            2,
+        )
+        .expect("effect");
+        record_overlay_write(&mut base.conn, &bid, &upsert("2", "post"), 3).expect("w2");
+
+        let result = promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            2,
+            AuthorityDecision::Revalidated,
+            apply_widget,
+        )
+        .expect("promote");
+
+        assert_eq!(result.canonical_version, 3);
+        assert_eq!(result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(result.provisional.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![3]);
+        assert_eq!(result.effect_intents.len(), 1);
+
+        // Receipts: w1 Confirmed, effect Provisional, w2 Provisional.
+        let by_v: std::collections::BTreeMap<u64, BranchReceiptOutcome> =
+            result.receipts.iter().map(|r| (r.child_version, r.outcome)).collect();
+        assert_eq!(by_v[&1], BranchReceiptOutcome::Confirmed);
+        assert_eq!(by_v[&2], BranchReceiptOutcome::Provisional);
+        assert_eq!(by_v[&3], BranchReceiptOutcome::Provisional);
+
+        // Pending ledger holds the provisional write + the effect intent.
+        let pending = pending_promotions(&canonical, &bid).expect("pending");
+        assert_eq!(pending.len(), 2);
+        assert!(pending.iter().all(|(_, _, status)| status == "pending"));
+
+        // Reconcile the effect → resolves its pending row; never rolls back.
+        let n = reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("reconcile");
+        assert_eq!(n, 1);
+        let after = pending_promotions(&canonical, &bid).expect("pending after");
+        let effect_status = after.iter().find(|(v, kind, _)| *v == 2 && kind == "effect").expect("effect row");
+        assert_eq!(effect_status.2, "succeeded");
+        // Idempotent: reconciling again resolves nothing.
+        assert_eq!(reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("again"), 0);
+    }
+
+    #[test]
+    fn promote_refuses_when_canonical_advanced() {
+        let mut canonical = source_with_head(5);
+        let (bid, cs) = ids("adv");
+        create_branch(&canonical, &bid, &cs, "canonical", 5, 1, None).expect("register");
+        let base = MaterializedBase::materialize(&canonical, None).expect("base");
+        // Canonical advances past the fork point after the branch was cut.
+        canonical
+            .execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .expect("advance");
+        let err = promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            5,
+            AuthorityDecision::Revalidated,
+            apply_widget,
+        );
+        assert!(err.is_err(), "v1 must refuse promotion when canonical advanced");
+        assert_eq!(canonical_version(&canonical), 6, "canonical untouched");
+    }
+
+    #[test]
+    fn promote_refuses_authority_not_revalidated() {
+        let mut canonical = source_with_head(1);
+        let (bid, cs) = ids("auth");
+        create_branch(&canonical, &bid, &cs, "canonical", 1, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&canonical, None).expect("base");
+        record_overlay_write(&mut base.conn, &bid, &upsert("1", "x"), 1).expect("w1");
+        let err = promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            1,
+            AuthorityDecision::Denied,
+            apply_widget,
+        );
+        assert!(err.is_err(), "denied/preserved authority must fail closed");
+        assert_eq!(canonical_version(&canonical), 1, "no version bump on refusal");
+    }
+
+    #[test]
+    fn branch_op_log_merges_writes_and_effects_in_causal_order() {
+        let source = source_with_head(1);
+        let (bid, cs) = ids("log");
+        create_branch(&source, &bid, &cs, "canonical", 1, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&source, None).expect("base");
+        record_overlay_write(&mut base.conn, &bid, &upsert("1", "a"), 1).expect("w1");
+        capture_effect(
+            &mut base.conn,
+            &bid,
+            &CapturedEffectInput {
+                class: EffectClass::Fetch,
+                scope: EffectScope::HostMediated,
+                target: "u".into(),
+                payload: None,
+                simulated_outcome: None,
+            },
+            2,
+        )
+        .expect("effect");
+        record_overlay_write(&mut base.conn, &bid, &upsert("2", "b"), 3).expect("w2");
+
+        let log = branch_op_log(&base.conn).expect("log");
+        let versions: Vec<u64> = log.iter().map(|op| op.child_version()).collect();
+        assert_eq!(versions, vec![1, 2, 3]);
+        assert!(matches!(log[0], BranchOp::Write(1, _)));
+        assert!(matches!(log[1], BranchOp::Effect(_)));
+        assert!(matches!(log[2], BranchOp::Write(3, _)));
     }
 }
