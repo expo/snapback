@@ -17,6 +17,7 @@ const authorization = { incarnation: INCARNATION, epoch: 4 };
 const response = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: new Headers(),
   text: async () => JSON.stringify(body),
 });
 

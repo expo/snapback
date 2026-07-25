@@ -68,6 +68,7 @@ class FakeWebSocket {
 const stubFetch = (status, body) => async () => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: new Headers(),
   text: async () => body,
 });
 
@@ -370,6 +371,7 @@ try {
     const response = (status, body) => ({
       ok: status >= 200 && status < 300,
       status,
+      headers: new Headers(),
       text: async () => JSON.stringify(body),
     });
     globalThis.fetch = async (url, options = {}) => {
@@ -998,7 +1000,7 @@ try {
     let calls = 0;
     globalThis.fetch = async () => {
       calls += 1;
-      return { ok: true, status: 200, text: async () => '{}' };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => '{}' };
     };
     const db = new SnapbackClient('http://stub', { adminToken: 'sbat_secret' });
     const invalid = [
@@ -1033,7 +1035,7 @@ try {
     const requests = [];
     globalThis.fetch = async (url, init = {}) => {
       requests.push({ url: String(url), headers: init.headers ?? {} });
-      return { ok: true, status: 200, text: async () => '{}' };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => '{}' };
     };
     const db = new SnapbackClient('http://stub', { adminToken: 'sbat_secret' });
     await db.query({ name: 'safe_name' });
@@ -1109,7 +1111,7 @@ try {
       const body = path === '/connection/open'
         ? { connectionId: 'conn_auth_ack', connectionToken: 'sct_auth_ack' }
         : { outcome: 'discharged' };
-      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify(body) };
     };
     const authCoordinator = await coordinatorCustody({ session: true });
     const db = new SnapbackClient('http://stub', {
@@ -1414,7 +1416,7 @@ try {
     let fetches = 0;
     globalThis.fetch = async () => {
       fetches += 1;
-      return { ok: true, status: 200, text: async () => JSON.stringify({ result: null }) };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify({ result: null }) };
     };
     const db = new SnapbackClient('http://stub', { authCoordinator });
     db.authSession = async () => ({
@@ -1438,7 +1440,7 @@ try {
     let fetches = 0;
     globalThis.fetch = async () => {
       fetches += 1;
-      return { ok: true, status: 200, text: async () => JSON.stringify({ result: null }) };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify({ result: null }) };
     };
     const db = new SnapbackClient('http://stub', { authCoordinator });
     db.authSession = async () => ({
@@ -1480,7 +1482,7 @@ try {
           ? batch
           : null;
       assert(body !== null, `unexpected missed-wakeup drain request ${path}`);
-      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify(body) };
     };
     const db = new SnapbackClient('http://stub', { authCoordinator });
     db.authSession = async () => ({
@@ -1553,6 +1555,7 @@ try {
     globalThis.fetch = async () => ({
       ok: true,
       status: 200,
+      headers: new Headers(),
       text: async () => JSON.stringify({
         result: { ok: true },
         receipt: { kind: 'nested-response-receipt' },
@@ -1678,7 +1681,7 @@ try {
             ? { removed: true }
             : null;
       assert(body !== null, `unexpected terminal-materialization request ${path}`);
-      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+      return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify(body) };
     };
     const db = new SnapbackClient('http://stub', { authCoordinator });
     db.authSession = async () => ({
@@ -2634,6 +2637,7 @@ try {
     globalThis.fetch = async () => ({
       ok: true,
       status: 200,
+      headers: new Headers(),
       text: async () => JSON.stringify(batch),
     });
     const db = new SnapbackClient('http://stub');
@@ -2878,6 +2882,7 @@ try {
       return {
         ok: true,
         status: 200,
+        headers: new Headers(),
         text: async () => JSON.stringify(body),
       };
     };
@@ -3036,6 +3041,7 @@ try {
         return {
           ok: true,
           status: 200,
+          headers: new Headers(),
           text: async () => JSON.stringify({
             connectionId,
             connectionToken: 'sct_snapshot_race',
@@ -3048,6 +3054,7 @@ try {
           releaseSubscribe = (body) => resolve({
             ok: true,
             status: 200,
+            headers: new Headers(),
             text: async () => JSON.stringify(body),
           });
         });
@@ -3132,6 +3139,7 @@ try {
         return {
           ok: true,
           status: 200,
+          headers: new Headers(),
           text: async () => JSON.stringify({
             connectionId,
             connectionToken: 'sct_snapshot_overflow',
@@ -3144,6 +3152,7 @@ try {
           releaseSubscribe = (body) => resolve({
             ok: true,
             status: 200,
+            headers: new Headers(),
             text: async () => JSON.stringify(body),
           });
         });
