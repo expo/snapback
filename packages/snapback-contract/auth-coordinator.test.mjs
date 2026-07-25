@@ -1780,9 +1780,10 @@ for (const mode of ['owner', 'peer']) {
   await writer.close();
 }
 
-// A same-authority credential write from inside resume may update durable
-// custody, but it cannot reopen local publication. The outer exact revision
-// confirmation then aborts closed and a clean synchronization adopts it.
+// A same-authority credential/nonce write from inside resume may update the
+// exact durable revision while the outer barrier remains publication-closed.
+// Final confirmation adopts that locally witnessed revision; an unobserved
+// peer write would still fail the exact comparison.
 {
   const storage = createMemoryAuthCustodyStorage();
   const coordinator = new AuthCoordinator({
@@ -1809,14 +1810,12 @@ for (const mode of ['owner', 'peer']) {
       );
     },
   });
-  assert.equal(
-    await errorCode(() => coordinator.transition(
-      anonymousCapture,
-      successor(session(), 'bearer-before-reentrant-rotation', 10_000),
-      'reentrant_same_authority_exposure',
-    )),
-    'SNAPBACK_AUTH_TRANSITION_FAILED',
+  const transitioned = await coordinator.transition(
+    anonymousCapture,
+    successor(session(), 'bearer-before-reentrant-rotation', 10_000),
+    'reentrant_same_authority_exposure',
   );
+  assert.deepEqual(transitioned, rotatedCapture);
   assert.deepEqual(await coordinator.synchronize(), rotatedCapture);
   await unregister();
   await coordinator.close();

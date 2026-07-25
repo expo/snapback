@@ -446,6 +446,15 @@ the rule exists so the target-adaptation clause in [Decision](#decision) —
 satisfied by a port that quietly assumes the local target's continuous
 uniqueness.
 
+### Dev-loop artifact loads are not data migrations (added 2026-07-23)
+
+The dev-loop hot-push loads generated artifacts; it does not mutate application
+data as a hidden side channel. Any future data-bearing hot migration of a
+running system must be a versioned commit that the sync and read-set machinery
+can observe. LLP 0041 §Watch mode owns the standing dev-loop constraint; this
+document owns the storage consequence. This preserves the LLP 0079 SC-3
+amendment alongside the graduated-target seam rule above.
+
 ## Agent and Test Surface
 
 Because Snapback is agent-first, the local core must be easy to validate

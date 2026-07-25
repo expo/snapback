@@ -46,6 +46,7 @@ export const todos = defineTable({
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner_created', ['ownerId', 'createdAt'])
   .sync();
 ```
 
@@ -76,12 +77,25 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
   createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
   immutable: ['slug', 'pageKey', 'createdAt'],
+  listIndex: 'by_owner_created',
 });
 ```
 
+`listIndex` is required: it names a declared index whose leading field is the
+owner field, the generated list orders by that index's field sequence (the
+storage layer's implicit `_id` component breaks ties deterministically), and
+the helper never emits an unindexed owner scan. `now` defaults bind only to
+integer millisecond fields.
+
 Generation fails closed when `visibility` is missing, the owner field is
-optional or unsuitable, a trusted default has the wrong field type, or an
-unknown option is present.
+optional or unsuitable, `listIndex` is absent or not owner-leading, a trusted
+default has the wrong field type, the table carries a membership or
+permission-backing declaration (generated CRUD refuses authority-bearing
+tables), a unique index that excludes the owner field is not named in
+`discloseUniqueConflicts` (an undeclared cross-owner conflict would disclose
+existence), or an unknown option is present. Cross-owner update and delete
+refuse with the same `SNAPBACK_ROW_NOT_FOUND` outcome as a missing row, so
+existence is not disclosed at the public boundary.
 
 ## Generate a unique lookup
 

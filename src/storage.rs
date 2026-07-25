@@ -76,6 +76,12 @@ pub(crate) mod authorization;
 #[path = "storage/auth_invalidation.rs"]
 pub(crate) mod auth_invalidation;
 
+#[path = "storage/auth_sender.rs"]
+pub(crate) mod auth_sender;
+
+#[path = "storage/auth_throttle.rs"]
+pub(crate) mod auth_throttle;
+
 #[path = "storage/authorized_lease.rs"]
 pub(crate) mod authorized_lease;
 
@@ -768,6 +774,10 @@ fn reset_and_seed_transaction(
     seed: Option<SeedData>,
     successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
 ) -> SnapbackResult<Option<MutationOutput>> {
+    // @ref LLP 0077#issuance-refresh-and-recovery — the stream-incarnation
+    // reset advances sender replay authority and clears old proof/nonce state
+    // inside this same destructive transaction.
+    auth_sender::rotate_sender_authority_for_stream_reset(tx)?;
     // @ref LLP 0057#catalog-write-and-lifecycle-rules — auth state is
     // deleted in dependency order inside the same transaction as app reset,
     // while the protected catalog DDL and marker remain installed.
@@ -781,6 +791,10 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
+    // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a
+    // cursor-closing terminal event; retained attempt settlement evidence is
+    // application state and resets with it.
+    tx.execute("DELETE FROM _snapback_stream_attempts", [])?;
     auth_invalidation::clear_retry_episodes_in(tx)?;
     authorized_lease::clear_authorized_lease_reservations_in(tx)?;
     auth_invalidation::rotate_data_version_stream_in(tx)?;
@@ -1329,6 +1343,53 @@ impl LocalDatabase {
     #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
     pub(crate) fn database_path(&self) -> Option<&Path> {
         self.path.as_deref()
+    }
+
+    /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
+    /// pre-mark contract requires the row to be committed BEFORE the upstream
+    /// request bytes leave the process; callers hold the instance lock for
+    /// exactly this short write.
+    // @ref LLP 0076#author-decisions--2026-07-23 — decision 2: the certainty
+    //   column persists on the host-owned attempt record, not the authored
+    //   progress row.
+    pub(crate) fn upsert_stream_attempts(
+        &mut self,
+        rows: &[(String, String, String)],
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        for (token, client_key, record_json) in rows {
+            self.conn.execute(
+                "INSERT INTO _snapback_stream_attempts(token, client_key, record_json, updated_at_ms)
+                 VALUES(?1, ?2, ?3, ?4)
+                 ON CONFLICT(token) DO UPDATE SET record_json = ?3, updated_at_ms = ?4",
+                params![token, client_key, record_json, now_ms as i64],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn stream_attempt_by_client_key(
+        &self,
+        client_key: &str,
+    ) -> SnapbackResult<Option<(String, String)>> {
+        let mut statement = self.conn.prepare(
+            "SELECT token, record_json FROM _snapback_stream_attempts WHERE client_key = ?1",
+        )?;
+        let mut rows = statement.query(params![client_key])?;
+        match rows.next()? {
+            Some(row) => Ok(Some((row.get(0)?, row.get(1)?))),
+            None => Ok(None),
+        }
+    }
+
+    pub(crate) fn load_stream_attempts(&self) -> SnapbackResult<Vec<(String, String, String)>> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT token, client_key, record_json FROM _snapback_stream_attempts")?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }
 
     pub fn info(&self) -> SnapbackResult<StorageInfo> {
@@ -2167,6 +2228,22 @@ impl LocalDatabase {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         query_on(&self.conn, &self.schema, plan, input)
+    }
+
+    /// Execute a closed relational plan under `root-window-v1`.
+    ///
+    /// @ref LLP 0080#2-portable-evaluation-semantics — the normative
+    ///   pipeline: visible root filter → root order → take N roots → join +
+    ///   joined visibility → projection. Both source predicates execute
+    ///   inside one pinned read snapshot; `take` bounds consumed authorized
+    ///   roots; `inner` omits an unmatched or invisible joined row without
+    ///   refilling the page; `left` emits null joined leaves.
+    pub fn query_relational(
+        &self,
+        plan: &crate::manifest::RelationalQueryPlan,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryOutput> {
+        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input))
     }
 
     /// Run one complete query invocation against a snapshot-bound view of this
@@ -3425,6 +3502,17 @@ impl LocalDatabase {
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
             );
+            -- @ref LLP 0076#settlement-and-retry — the crash-safe write-ahead
+            -- initiationState: a StreamAttemptV1 row is durably pre-marked
+            -- before any request bytes reach the outbound stack, so a crash
+            -- always leaves the conservative initiation_possible reading for
+            -- the startup reconciler.
+            CREATE TABLE IF NOT EXISTS _snapback_stream_attempts (
+              token TEXT PRIMARY KEY,
+              client_key TEXT NOT NULL UNIQUE,
+              record_json TEXT NOT NULL,
+              updated_at_ms INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS _snapback_version (
               id INTEGER PRIMARY KEY CHECK (id = 1),
               version INTEGER NOT NULL
@@ -3815,6 +3903,158 @@ pub(crate) fn query_on(
     input: &HandlerInput,
 ) -> SnapbackResult<QueryOutput> {
     query_on_with_storage_limit(conn, schema, plan, input, effective_query_limit(plan))
+}
+
+// @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
+//   plan shape: exactly one joined table, 1..=4 equality pairs, take in
+//   0..=1024. Structural/type validation beyond this is generation's job;
+//   the executor still fails closed on the load-bearing bounds.
+fn validate_relational_plan_shape(
+    plan: &crate::manifest::RelationalQueryPlan,
+) -> SnapbackResult<()> {
+    if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            format!(
+                "relational plan requires 1..=4 join equality pairs, got {}",
+                plan.join_on.len()
+            ),
+        ));
+    }
+    if plan.take > 1024 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            format!("relational take must be 0..=1024, got {}", plan.take),
+        ));
+    }
+    if plan.root == plan.joined {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            "relational root and joined tables must differ in v1".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn query_relational_on(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+) -> SnapbackResult<QueryOutput> {
+    use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
+
+    validate_relational_plan_shape(plan)?;
+
+    // take: 0 returns an empty page and consumes nothing (LLP 0080 §2), but
+    // still reports the snapshot version so callers get a coherent cursor.
+    let root_window = {
+        let mut filters = plan.root_visibility.clone();
+        filters.extend(plan.root_filters.iter().cloned());
+        let root_plan = QueryPlan {
+            table: plan.root.clone(),
+            filters,
+            order: plan.order.clone(),
+            limit: Some(plan.take as usize),
+            membership_filters: Vec::new(),
+            indexed_by: Some(plan.root_index.clone()),
+        };
+        db.query(&root_plan, input)?
+    };
+    if plan.take == 0 {
+        return Ok(QueryOutput {
+            version: root_window.version,
+            rows: Vec::new(),
+        });
+    }
+
+    let mut rows = Vec::with_capacity(root_window.rows.len());
+    for root_row in &root_window.rows {
+        // A null (or absent) value in any join-key position never matches.
+        let mut key_values = Vec::with_capacity(plan.join_on.len());
+        let mut null_key = false;
+        for pair in &plan.join_on {
+            match root_row.get(&pair.root_field) {
+                Some(value) if !value.is_null() => key_values.push(value.clone()),
+                _ => {
+                    null_key = true;
+                    break;
+                }
+            }
+        }
+        let joined_row = if null_key {
+            None
+        } else {
+            let mut filters: Vec<FilterExpr> = plan
+                .join_on
+                .iter()
+                .zip(key_values)
+                .map(|(pair, value)| FilterExpr {
+                    field: pair.joined_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(value),
+                })
+                .collect();
+            filters.extend(plan.joined_visibility.iter().cloned());
+            let lookup = QueryPlan {
+                table: plan.joined.clone(),
+                filters,
+                order: Vec::new(),
+                // limit 2: a second row under the unique joined key is a
+                // storage-invariant failure, never a first-row choice
+                // (LLP 0080 §2).
+                limit: Some(2),
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            };
+            let looked_up = db.query(&lookup, input)?;
+            if looked_up.rows.len() > 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
+                    "query",
+                    format!(
+                        "two joined rows in {} share the unique key of index {}; \
+                         refusing rather than choosing a first row",
+                        plan.joined, plan.joined_index
+                    ),
+                ));
+            }
+            looked_up.rows.into_iter().next()
+        };
+
+        // Invisible behaves as absent: the visibility filters above already
+        // collapsed the two cases, so `inner` omits the root (short page, no
+        // refill) and `left` nulls every joined leaf.
+        if joined_row.is_none() && matches!(plan.join_kind, JoinKind::Inner) {
+            continue;
+        }
+
+        // Field order inside the JSON value is serde-sorted here; the
+        // declaration-order byte rule (RelationalResultEncodingV1) is the
+        // wire encoder's contract, not the storage row's.
+        let mut projected = Map::new();
+        for leaf in &plan.projection {
+            let value = match &leaf.source {
+                ProjectionSource::Literal(value) => value.clone(),
+                ProjectionSource::RootField(field) => {
+                    root_row.get(field).cloned().unwrap_or(Value::Null)
+                }
+                ProjectionSource::JoinedField(field) => joined_row
+                    .as_ref()
+                    .and_then(|row| row.get(field).cloned())
+                    .unwrap_or(Value::Null),
+            };
+            projected.insert(leaf.name.clone(), value);
+        }
+        rows.push(Value::Object(projected));
+    }
+
+    Ok(QueryOutput {
+        version: root_window.version,
+        rows,
+    })
 }
 
 pub(crate) fn query_on_with_storage_limit(
@@ -6220,9 +6460,17 @@ fn create_index(
     // **unique** index must not: `_id` is per-row unique, so including it would
     // make the whole key trivially unique and silently defeat the declared
     // uniqueness invariant (LLP 0056 relies on true `(principal, resource)`
-    // uniqueness). The declared columns must be non-null for it to be total —
-    // enforced by schema validation for both ordinary and membership indexes.
-    // @ref LLP 0007#index-contract — ordinary unique indexes are true and total.
+    // uniqueness). This split is now the normative rule: every declared index
+    // carries a framework-generated implicit trailing ascending `_id`
+    // component that is scan-order only — the uniqueness constraint, the
+    // complete-ordered-key semantics, and relational output keys stay over
+    // the declared fields alone. The declared columns must be non-null for
+    // the constraint to be total — enforced by schema validation for both
+    // ordinary and membership indexes.
+    // @ref LLP 0007#index-contract — implicit trailing `_id` is scan-order
+    //   only; unique constraints stay declared-fields-only.
+    // @ref LLP 0080#1-closed-relational-plan — the suffix makes the `_id`
+    //   tie-break index-servable without becoming author-indexable.
     // @ref LLP 0056#declaring-a-membership-table — membership pair uniqueness
     //   uses the same physical invariant.
     if !unique {
@@ -11079,6 +11327,497 @@ mod guarded_commit_tests {
         );
     }
 
+    fn relational_schema() -> SchemaManifest {
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![crate::manifest::IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![crate::manifest::IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        // Deliberately non-unique so the duplicate-key
+                        // below-constraint corruption case is seedable; the
+                        // executor must refuse, never pick a first row.
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn relational_plan(
+        join_kind: crate::manifest::JoinKind,
+        take: u32,
+    ) -> crate::manifest::RelationalQueryPlan {
+        use crate::manifest::{
+            FilterExpr, JoinEquality, ProjectionLeaf, ProjectionSource, RelationalQueryPlan,
+        };
+        let owner_visibility = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_visibility("ownerId")],
+            joined_visibility: vec![owner_visibility("ownerId")],
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "shelf".to_owned(),
+                    source: ProjectionSource::Literal(json!("fiction")),
+                },
+            ],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: OrderDirection::Asc,
+            }],
+            take,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        }
+    }
+
+    fn relational_database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(relational_schema()).expect("apply relational schema");
+        let row = |id: &str, fields: Value| {
+            let mut object = fields.as_object().cloned().expect("row object");
+            object.insert("_id".to_owned(), json!(id));
+            object
+        };
+        db.seed(SeedData {
+            tables: BTreeMap::from([
+                (
+                    "books".to_owned(),
+                    vec![
+                        row("b1", json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row("b2", json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        row("b3", json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" })),
+                        row("b4", json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" })),
+                    ],
+                ),
+                (
+                    "authors".to_owned(),
+                    vec![
+                        row("a1", json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                        row("a2", json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                    ],
+                ),
+            ]),
+        })
+        .expect("seed relational fixture");
+        db
+    }
+
+    fn relational_input(user: &str) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — root-window-v1: the
+    //   root window is filtered by visibility before take; an unmatched,
+    //   null-keyed, or invisible joined row is omitted by `inner` without
+    //   refilling the page and nulled by `left`; a duplicate under the
+    //   claimed-unique joined key refuses rather than choosing a row.
+    #[test]
+    fn relational_root_window_semantics() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+
+        // Inner: b1 joins Ada (visible); b2's author Grace is owned by
+        // user-b, so the joined predicate makes her absent and b2 is
+        // omitted; b3 has a null join key; b4 is another owner's root and
+        // never occupies a window slot. Short page, no refill.
+        let inner = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .expect("inner relational query");
+        assert_eq!(
+            inner.rows,
+            vec![json!({
+                "authorName": "Ada",
+                "shelf": "fiction",
+                "title": "alpha",
+            })],
+        );
+
+        // Left: every visible root emits; missing/invisible/null-key joined
+        // leaves are null — indistinguishable from one another.
+        let left = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input)
+            .expect("left relational query");
+        let titles: Vec<(&str, bool)> = left
+            .rows
+            .iter()
+            .map(|r| (r["title"].as_str().unwrap(), r["authorName"].is_null()))
+            .collect();
+        assert_eq!(
+            titles,
+            vec![("alpha", false), ("beta", true), ("gamma", true)],
+            "left join nulls invisible and null-key joined leaves identically",
+        );
+
+        // take bounds consumed authorized roots, not emitted rows: with
+        // take=2 the window is [alpha, beta]; beta's author is invisible so
+        // inner emits one row, and gamma is never consumed to refill.
+        let windowed = db
+            .query_relational(&relational_plan(JoinKind::Inner, 2), &input)
+            .expect("windowed inner query");
+        assert_eq!(windowed.rows.len(), 1);
+        assert_eq!(windowed.rows[0]["title"], json!("alpha"));
+
+        // take: 0 is an empty page that consumes nothing.
+        let empty = db
+            .query_relational(&relational_plan(JoinKind::Inner, 0), &input)
+            .expect("take zero");
+        assert!(empty.rows.is_empty());
+
+        // Below-constraint duplicate injection: a second row under the
+        // claimed-unique joined key is a storage-invariant refusal.
+        let mut corrupted = LocalDatabase::memory().expect("memory database");
+        corrupted
+            .apply_schema(relational_schema())
+            .expect("apply relational schema");
+        corrupted
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![json!({ "_id": "b1", "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })
+                            .as_object()
+                            .cloned()
+                            .expect("seed row")],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            json!({ "_id": "a1", "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                            json!({ "_id": "a3", "slug": "ada", "name": "Imposter", "ownerId": "user-a" }),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("seed row"))
+                        .collect(),
+                    ),
+                ]),
+            })
+            .expect("seed duplicate authors");
+        let error = corrupted
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .expect_err("duplicate unique key must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
+
+        // Closed-shape refusals.
+        let mut no_pairs = relational_plan(JoinKind::Inner, 10);
+        no_pairs.join_on.clear();
+        let error = db
+            .query_relational(&no_pairs, &input)
+            .expect_err("zero join pairs");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+        let mut too_big = relational_plan(JoinKind::Inner, 10);
+        too_big.take = 1025;
+        let error = db
+            .query_relational(&too_big, &input)
+            .expect_err("take over 1024");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+    }
+
+    // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
+    //   to a server-evaluated conditional plan: read, owner guard, write in
+    //   one authoritative transaction. The guard consumes the transaction's
+    //   own read — a concurrent owner transfer landing between preview and
+    //   commit is seen, refused with the collapsed public code, and neither
+    //   commit order loses or misattributes a write.
+    #[test]
+    fn conditional_owner_guard_reads_commit_state_not_preview_state() {
+        let owner_guard_plan = || {
+            let owner_eq = ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left: Box::new(ValueExpr::Field {
+                    base: Box::new(ValueExpr::Binding("row".to_owned())),
+                    key: "title".to_owned(),
+                }),
+                right: Box::new(ValueExpr::AuthUserId),
+            };
+            let mut patch_values = BTreeMap::new();
+            patch_values.insert("rank".to_owned(), ValueExpr::Literal(json!(5)));
+            MutationPlan {
+                steps: vec![
+                    MutationStep::Get {
+                        table: "items".to_owned(),
+                        id: ValueExpr::Literal(json!("row-1")),
+                        bind_as: "row".to_owned(),
+                        else_error: Some("SNAPBACK_ROW_NOT_FOUND".to_owned()),
+                    },
+                    MutationStep::Guard {
+                        cond: owner_eq,
+                        else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                    },
+                    MutationStep::Patch {
+                        table: "items".to_owned(),
+                        id: ValueExpr::Literal(json!("row-1")),
+                        values: patch_values,
+                    },
+                ],
+                return_value: Some(ReturnValue::ChangedCount),
+            }
+        };
+        let owner_input = |user: &str| HandlerInput {
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let transfer_to = |db: &mut LocalDatabase, new_owner: &str| {
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "row-1".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!(new_owner))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("handwritten owner transfer");
+        };
+        let seed = |db: &mut LocalDatabase| {
+            db.seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![
+                        json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
+                            .as_object()
+                            .cloned()
+                            .expect("seed row"),
+                    ],
+                )]),
+            })
+            .expect("seed owned row");
+        };
+
+        // Order 1: the transfer lands between the update's preview and its
+        // guarded commit. The commit-time guard must see the new owner and
+        // refuse with the collapsed public code; the row is untouched.
+        let mut db = database();
+        seed(&mut db);
+        let input = owner_input("user-a");
+        let plan = owner_guard_plan();
+        db.dry_run_mutation(&plan, &input)
+            .expect("preview against the pre-transfer owner succeeds");
+        transfer_to(&mut db, "user-b");
+        let error = db
+            .execute_mutation_guarded(&plan, &input, || Ok(()), || Ok(()))
+            .expect_err("commit-time guard must see the concurrent transfer");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
+        let row = db.scan_table("items", 10, 0).unwrap();
+        assert_eq!(
+            row.rows[0]["title"],
+            json!("user-b"),
+            "transfer is not lost"
+        );
+        assert_eq!(
+            row.rows[0]["rank"],
+            json!(1),
+            "refused update wrote nothing"
+        );
+
+        // Order 2: the update commits first, then the transfer. Both writes
+        // land; nothing is lost or misattributed.
+        let mut db = database();
+        seed(&mut db);
+        db.execute_mutation_guarded(
+            &owner_guard_plan(),
+            &owner_input("user-a"),
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("owner update before the transfer succeeds");
+        transfer_to(&mut db, "user-b");
+        let rows = db.scan_table("items", 10, 0).unwrap();
+        assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
+        assert_eq!(
+            rows.rows[0]["title"],
+            json!("user-b"),
+            "later transfer wins the field"
+        );
+    }
+
+    // @ref LLP 0007#index-contract — the duplicate-order-key witness: the
+    //   implicit trailing `_id` component totalizes scan order while a unique
+    //   index over the same declared fields still refuses duplicates.
+    #[test]
+    fn implicit_index_id_suffix_is_scan_order_only() {
+        let mut suffix_schema = schema();
+        suffix_schema.tables[0].indexes = vec![
+            crate::manifest::IndexManifest {
+                name: "by_rank".to_owned(),
+                fields: vec!["rank".to_owned()],
+                unique: false,
+            },
+            crate::manifest::IndexManifest {
+                name: "by_title".to_owned(),
+                fields: vec!["title".to_owned()],
+                unique: true,
+            },
+        ];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(suffix_schema).expect("apply index schema");
+
+        let index_columns = |db: &LocalDatabase, physical: &str| -> Vec<String> {
+            let mut statement = db
+                .conn
+                .prepare(&format!(
+                    "PRAGMA index_info({})",
+                    quote_ident(physical).unwrap()
+                ))
+                .unwrap();
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(2))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            columns
+        };
+        assert_eq!(
+            index_columns(&db, "items_by_rank"),
+            ["rank", "_id"],
+            "non-unique declared index carries the implicit scan-order _id suffix"
+        );
+        assert_eq!(
+            index_columns(&db, "items_by_title"),
+            ["title"],
+            "unique index stays declared-fields-only so the constraint is not vacuous"
+        );
+
+        // Duplicate order keys inserted in shuffled id order: scan order must
+        // be (rank, _id) ascending regardless of insertion order.
+        let mut rows: Vec<Map<String, Value>> = Vec::new();
+        for value in 0..64u32 {
+            let id = format!("row-{:02}", (value * 37) % 64);
+            rows.push(
+                json!({
+                    "_id": id,
+                    "title": format!("title-{}", id),
+                    "rank": (value % 2) as i64,
+                })
+                .as_object()
+                .cloned()
+                .expect("seed row"),
+            );
+        }
+        db.seed(SeedData {
+            tables: BTreeMap::from([("items".to_owned(), rows)]),
+        })
+        .expect("seed duplicate order keys");
+        let result = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "rank".to_owned(),
+                        direction: OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: Some("by_rank".to_owned()),
+                },
+                &HandlerInput::default(),
+            )
+            .expect("indexed duplicate-key query");
+        let observed: Vec<(i64, String)> = result
+            .rows
+            .iter()
+            .map(|row| {
+                (
+                    row["rank"].as_i64().expect("rank"),
+                    row["_id"].as_str().expect("id").to_owned(),
+                )
+            })
+            .collect();
+        let mut expected = observed.clone();
+        expected.sort();
+        assert_eq!(observed, expected, "scan order is (rank, _id) ascending");
+        assert_eq!(observed.len(), 64);
+
+        // The unique constraint ignores the implicit suffix: a duplicate
+        // declared key with a fresh _id still loses at commit.
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "row-fresh".to_owned(),
+                    values: Map::from_iter([
+                        ("title".to_owned(), json!("title-row-00")),
+                        ("rank".to_owned(), json!(9)),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("duplicate declared unique key must lose despite a fresh _id");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+    }
+
     #[test]
     fn delegated_host_decisions_intersect_actor_aware_rules_with_direct_baseline() {
         let delegated = HandlerInput {
@@ -13006,6 +13745,79 @@ mod guarded_commit_tests {
         };
         let reopened = LocalDatabase::open(&path).expect("reopen database");
         assert_eq!(reopened.authorization_version().unwrap(), committed);
+    }
+
+    #[test]
+    fn sender_replay_epoch_survives_restart_and_rotates_atomically_with_stream_reset() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("sender-replay-epoch.sqlite3");
+        let predecessor = {
+            let mut db = LocalDatabase::open(&path).expect("database");
+            db.apply_schema(permission_schema(None))
+                .expect("permission schema");
+            db.activate_current_auth_catalog()
+                .expect("activate auth catalog");
+            db.initialize_sender_proof_after_hosted_preflight()
+                .expect("initialize sender authority");
+            let epoch = crate::auth::sender_proof::sender_replay_epoch(&db.conn)
+                .expect("initial sender epoch");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_sender_proof_replay
+                     (admission_epoch, proof_id, expires_at_seconds)
+                     VALUES (?1, zeroblob(16), 999)",
+                    params![epoch as i64],
+                )
+                .expect("seed replay state");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_sender_nonce
+                     (admission_epoch, jwk_thumbprint, generation, nonce,
+                      expires_at_seconds)
+                     VALUES (?1, ?2, 1, ?3, 999)",
+                    params![epoch as i64, "A".repeat(43), "B".repeat(43)],
+                )
+                .expect("seed nonce state");
+            epoch
+        };
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen database");
+        reopened
+            .apply_schema(permission_schema(None))
+            .expect("reload permission schema");
+        assert_eq!(
+            crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
+                .expect("restart sender epoch"),
+            predecessor,
+            "an ordinary restart or serving rollout cannot rotate sender replay state",
+        );
+
+        let before_stream = reopened.authorization_version().unwrap();
+        reopened
+            .reset_and_seed_with_authorization(None)
+            .expect("stream reset");
+        let after_stream = reopened.authorization_version().unwrap();
+        assert_ne!(after_stream.incarnation, before_stream.incarnation);
+        assert_eq!(
+            crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
+                .expect("rotated sender epoch"),
+            predecessor + 1,
+        );
+        let retained: (i64, i64) = reopened
+            .conn
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM _snapback_sender_proof_replay),
+                   (SELECT COUNT(*) FROM _snapback_sender_nonce)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("post-reset sender facts");
+        assert_eq!(
+            retained,
+            (0, 0),
+            "epoch advance and proof/nonce clearing share the reset transaction",
+        );
     }
 
     #[test]

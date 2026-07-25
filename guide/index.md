@@ -62,6 +62,8 @@ you never build around a feature because you didn't know it existed.
   unique lookup, keyset pages, and server-derived time and IDs.
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
+- [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
+  response streaming, the attempt control plane, and durable progress.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,
   demand activation, deterministic ticks, and the run ledger.
 

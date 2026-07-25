@@ -12,7 +12,7 @@ import {
 import { generate } from '../../packages/snapback-codegen/index.mjs';
 import { startServer } from '../../demos/_kit/server-process.mjs';
 
-// @ref LLP 0065#5-acceptance — standard patterns prove their explicit
+// @ref LLP 0065#6-acceptance — standard patterns prove their explicit
 // visibility floor against a real server and two unrelated session principals;
 // generated metadata alone is not an authorization witness.
 
@@ -93,6 +93,7 @@ export const todos = defineTable({
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner_created', ['ownerId', 'createdAt'])
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
@@ -107,6 +108,7 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
   createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
   immutable: ['slug', 'pageKey', 'createdAt'],
+  listIndex: 'by_owner_created',
 });
 export const { todoBySlug } = defineOwnedUniqueLookup({
   table: schema.tables.todos, name: 'todoBySlug', index: 'by_owner_slug', visibility,
@@ -155,14 +157,38 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.deepEqual((await ada.client.query('todoBySlug', { args: { slug: 'grace' } })).rows, []);
   assert.deepEqual((await ada.client.query('firstTodoPage', { args: {} })).rows.map((row) => row.slug), ['ada']);
 
-  await assert.rejects(
+  // @ref LLP 0065#6-acceptance — the public outcome for a missing row is
+  //   byte-indistinguishable from the outcome for another owner's row: the
+  //   invisible and absent legs both refuse SNAPBACK_ROW_NOT_FOUND with one
+  //   shape, so a probing caller learns nothing about existence.
+  const refusalShape = async (attempt) => {
+    try {
+      await attempt();
+      assert.fail('cross-owner or missing-row mutation must refuse');
+    } catch (error) {
+      return {
+        code: error?.code ?? error?.diagnostic?.code,
+        keys: Object.keys(error?.diagnostic ?? error ?? {}).sort(),
+      };
+    }
+  };
+  const missingId = graceRow._id.slice(0, -1) + (graceRow._id.endsWith('0') ? '1' : '0');
+  const crossUpdate = await refusalShape(
     () => mutate(ada, 'updateTodo', { id: graceRow._id, title: 'stolen' }, 'cm_patterns_cross_update'),
-    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
   );
-  await assert.rejects(
+  const missingUpdate = await refusalShape(
+    () => mutate(ada, 'updateTodo', { id: missingId, title: 'ghost' }, 'cm_patterns_missing_update'),
+  );
+  assert.equal(crossUpdate.code, 'SNAPBACK_ROW_NOT_FOUND');
+  assert.deepEqual(crossUpdate, missingUpdate, 'missing and invisible must be indistinguishable');
+  const crossDelete = await refusalShape(
     () => mutate(ada, 'deleteTodo', { id: graceRow._id }, 'cm_patterns_cross_delete'),
-    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
   );
+  const missingDelete = await refusalShape(
+    () => mutate(ada, 'deleteTodo', { id: missingId }, 'cm_patterns_missing_delete'),
+  );
+  assert.equal(crossDelete.code, 'SNAPBACK_ROW_NOT_FOUND');
+  assert.deepEqual(crossDelete, missingDelete, 'missing and invisible must be indistinguishable');
   assert.deepEqual((await grace.client.query('getTodo', { args: { id: graceRow._id } })).rows.map((row) => row.title), ['Grace task']);
 
   await mutate(ada, 'deleteTodo', { id: adaRow._id }, 'cm_patterns_own_delete');

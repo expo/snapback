@@ -5,8 +5,8 @@
 **Systems:** Storage, Sync, Realtime, Runtime, Auth, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-25
-**Revised:** 2026-07-01 (LLP 0032 R1 batch: promotion to Active was ratified, then reverted at apply time — `ref-check` enforces that Active documents carry no `[inferred]` claims, and this research keeps its inference-tagged analysis, so Draft is its honest state; content stable since 2026-06-27)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0022, https://github.com/expo/valet
+**Revised:** 2026-07-23 (survey batch: six primary-source-verified sections added — TanStack DB, PocketBase, Encore, DBOS, Evolu, Nakama/Colyseus — plus a new fragile-suppliers synthesis theme; the "systems not yet surveyed" gap is closed by the new deep passes LLP 0082 (InstantDB), LLP 0083 (Cloudflare D1/Durable Objects + Rivet), LLP 0084 (Triplit/Ditto), and LLP 0085 (Jazz)). 2026-07-01 (LLP 0032 R1 batch: promotion to Active was ratified, then reverted at apply time — `ref-check` enforces that Active documents carry no `[inferred]` claims, and this research keeps its inference-tagged analysis, so Draft is its honest state; content stable since 2026-06-27)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0022, LLP 0028, LLP 0070, LLP 0082, LLP 0083, LLP 0084, LLP 0085, https://github.com/expo/valet
 
 ## Summary
 
@@ -21,6 +21,17 @@ It covers Valet (our own first cut), the sync engines (Zero/Replicache,
 LiveStore), the backend platforms (Supabase, Convex, Firebase, SpacetimeDB), the
 serverless databases (PlanetScale, Neon), the run-your-code platforms (Val.town),
 and the framework that defines "comprehensive and coherent" (Ruby on Rails).
+A 2026-07-23 survey batch adds six systems at survey depth — the unbundled
+client live-query layer (TanStack DB), the single-binary small end (PocketBase),
+infra-from-typed-code (Encore), database-owned durable execution (DBOS), the
+E2EE corner (Evolu), and the game-server lineage of room state
+(Nakama/Colyseus). The systems that earned full primary-source passes have their
+own documents: [LLP 0022](./0022-electric-powersync-turso.research.md)
+(ElectricSQL, PowerSync, Turso/libSQL), [LLP 0082](./0082-instantdb.research.md)
+(InstantDB), [LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md)
+(Cloudflare D1/Durable Objects + Rivet),
+[LLP 0084](./0084-triplit-ditto.research.md) (Triplit/Ditto), and
+[LLP 0085](./0085-jazz.research.md) (Jazz).
 
 ## How to read this — provenance and confidence
 
@@ -47,6 +58,13 @@ highest-value section; the first recovery pass now lives in LLP 0006. The
 remaining low-confidence material in this document is the fast-moving external
 prior art. A later revision should add primary-source links or citations for the
 non-Valet systems before this document moves beyond `Draft`.
+
+The six sections in the 2026-07-23 survey batch (TanStack DB through
+Nakama/Colyseus) were verified against primary sources — GitHub repos/releases,
+official docs, and dated vendor blog posts fetched 2026-07-23 — so their
+`[confirmed]` tags carry that date; press coverage and other secondary sources
+in those sections stay `[observed]`. The pre-batch sections keep their original,
+weaker provenance until similarly re-verified.
 
 ## Findings
 
@@ -267,16 +285,191 @@ under one roof, designed together."
 
 *Confidence:* **high.**
 
+### TanStack DB — the unbundled client live-query layer
+
+*Model [confirmed — tanstack.com/db, 2026-07-23]:* a reactive client-side store
+built on differential dataflow: collections backed by any source
+(REST/GraphQL/tRPC/sync engines), with **incrementally maintained live queries**
+over them — only the changed parts of joins/filters/aggregates recompute,
+sub-millisecond over 100k+ rows in memory. Layers on TanStack Query; developed
+in close collaboration with ElectricSQL, whose sync engine is a first-class
+collection source. The 0.5 release (2025-11-12) added "query-driven sync": the
+component's query *is* the API call, with eager/on-demand/progressive modes.
+
+- **Client-side incremental view maintenance is proven tractable** — live
+  relational queries do not require an integrated backend; the sync layer can be
+  a commodity behind a collection interface. [confirmed — 0.5 release post]
+- It is the **unbundled half of what Snapback integrates**, and the client API
+  its arms will be compared against — with the gravity of the TanStack Query
+  ecosystem behind it. [inferred]
+- Still **pre-1.0 beta** (~0.6.x as of 2026-07; the December-2025 1.0 target
+  slipped), MIT, very active. [confirmed — GitHub releases 2026-07-22]
+- *Influence:* Snapback's integrated live queries must win on what the
+  unbundled layer cannot own — server-authoritative correctness, permissions
+  evaluated inside the query, one impedance surface instead of N backend
+  adapters — and its client arm ([LLP 0005](./0005-contract-exact-react-integration.explainer.md),
+  DK-9's store-agnostic client store) should track TanStack DB's collection/
+  live-query API shapes as the emerging convention. [inferred]
+
+*Confidence:* **high** for current state (primary-sourced 2026-07-23);
+API details move fast pre-1.0.
+
+### PocketBase — one binary, one SQLite file
+
+*Model [confirmed — pocketbase.io/docs, GitHub, 2026-07-23]:* "open source
+realtime backend in 1 file" — a single Go binary embedding SQLite: REST API,
+realtime record subscriptions over SSE, email/OAuth2 auth, file storage, admin
+dashboard, and an expression-based per-collection rules language; extensible as
+a Go library or via embedded JS hooks. MIT, 60k+ GitHub stars.
+
+- The **existence proof for Snapback's small end**: one binary + one SQLite file
+  + declarative access rules covers a huge fraction of real apps, and the star
+  count says demand for exactly this shape is enormous. [confirmed]
+- Its ceilings mark Snapback's differentiation: subscriptions are **record-level
+  change feeds, not maintained live queries**; no real server-function runtime;
+  vertical-scale-only. [confirmed — docs]
+- **Perpetual pre-1.0 with a bus factor of one** — a single maintainer who calls
+  it a hobby project and declines 1.0 ETAs (v0.39.9, 2026-07-22, with a parallel
+  0.22.x maintenance line). [confirmed — GitHub discussions/releases]
+- *Influence:* validates the "so light an idle app costs nothing" end of
+  [LLP 0000](./0000-snapback.explainer.md); Snapback's pitch at this end is
+  PocketBase ergonomics plus live queries, real server functions, and a scale-up
+  path — and PocketBase's fragility is the credibility gap it fills. [inferred]
+
+*Confidence:* **high** (primary-sourced 2026-07-23).
+
+### Encore — infra from typed code, then agents
+
+*Model [confirmed — encore.dev, GitHub, 2026-07-23]:* open-source backend
+framework (Go and TypeScript, MPL-2.0) where infrastructure is declared in
+application code — Pub/Sub, databases, cron, secrets as typed objects; the
+toolchain statically parses the app, provisions local infra, generates typed
+API clients, and provides a local dev dashboard with tracing and architecture
+diagrams. In May 2025 the team launched **Leap**, an AI agent that generates and
+deploys Encore.ts apps to the user's own AWS/GCP; the repo now self-describes
+as "infrastructure platform for the intelligence era."
+
+- The strongest prior art for **"the app's source is the manifest"**: static
+  analysis of typed code yields provisioning, clients, and observability for
+  free — directly analogous to Snapback's schema/functions manifests driving
+  codegen and capability manifests. [confirmed]
+- The **agent pivot is the strategic lesson**: Encore concluded its declarative,
+  verifiable surface mattered most as a substrate for AI codegen — independent
+  validation of Snapback's agent-first bet from a team that arrived there by
+  product evolution rather than thesis. [confirmed — Leap launch post; inference
+  on significance]
+- Thinly capitalized (~$4M pre-seed) for the scope of the bet. [observed —
+  press]
+- *Influence:* feeds [LLP 0010](./0010-agent-dx-and-acceptance.spec.md) and
+  [LLP 0024](./0024-agent-operating-surface.spec.md) — a constrained,
+  introspectable, typed backend surface is what makes agent codegen safe; the
+  generated-client and dev-dashboard bar is concrete and current. [inferred]
+
+*Confidence:* **high** for framework mechanics and the Leap pivot;
+**medium** for business state.
+
+### DBOS — durable execution owned by the database
+
+*Model [confirmed — dbos.dev, GitHub, 2026-07-23]:* durable execution as a
+library: DBOS Transact (TypeScript, Python, now Java/Go; MIT) checkpoints
+workflow steps into your existing Postgres, giving crash-recoverable workflows,
+queues, scheduled jobs, and exactly-once-style semantics with **no external
+orchestrator cluster** — the explicit contrast is Temporal's dedicated server.
+Founded by Stonebraker and Zaharia on the "the database is the OS" thesis;
+$8.5M seed (2024); v4.24 released 2026-07-21.
+
+- **Direct kin to [LLP 0070](./0070-durable-background-work.rfc.md):** it
+  validates enqueueing work in the same transaction as application data and
+  letting the database own claim/lease/retry state — the fenced-lease,
+  at-least-once, idempotency-key design, arrived at independently. [confirmed +
+  inferred]
+- The difference is granularity: DBOS checkpoints **arbitrary code
+  step-by-step** (durable *execution*), where LLP 0070 deliberately stops at
+  durable *jobs* invoking version-pinned actions. DBOS is the argument the
+  library-on-your-database shape wins on ops simplicity. [confirmed — docs]
+- **Postgres-only coupling** is the gap Snapback's SQLite/DO-SQLite profile
+  fills at the small end. [confirmed]
+- *Influence:* [LLP 0070](./0070-durable-background-work.rfc.md) should cite
+  DBOS as external corroboration and mine its retry/queue semantics; the
+  step-checkpointing granularity question is a named non-goal to revisit if
+  long actions demand it (with [LLP 0028](./0028-cron-scheduled-execution.rfc.md)
+  cron as the schedule owner). [inferred]
+
+*Confidence:* **high** (primary-sourced 2026-07-23).
+
+### Evolu — E2EE local-first, the server goes blind
+
+*Model [confirmed — evolu.dev docs, GitHub, 2026-07-23]:* TypeScript local-first
+framework: client-side SQLite (WASM in browser; React/React Native) with a
+typed schema and query interface, all data **end-to-end encrypted** and synced
+as opaque CRDT messages through a relay the user can self-host — the server
+stores ciphertext and the real database is derived locally from the CRDT log.
+MIT; essentially one developer; stable line quiet since 2025-11 with a v3
+prerelease in 2026-05.
+
+- The **boundary statement**: E2EE buys data sovereignty by making the server
+  blind — which structurally forfeits server-side live queries, server
+  functions, permission evaluation, and any server-mediated authority.
+  Everything must be client-computed and CRDT-merged. [confirmed — how-it-works
+  docs + inferred]
+- E2EE-relational-CRDT and server-evaluated live queries are close to **mutually
+  exclusive design corners**; Evolu is what you build when the server *can't*
+  be trusted, Snapback is what you build when server logic *is* the product.
+  [inferred]
+- *Influence:* sharpens [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md)'s
+  server-authoritative rationale by naming the corner Snapback deliberately does
+  not occupy; if a hosted-privacy story is ever wanted, it is a different
+  architecture, not a feature flag. [inferred]
+
+*Confidence:* **medium-high** (primary-sourced but small project; moves
+slowly).
+
+### Nakama / Colyseus — the game-server lineage of room state
+
+*Model [confirmed — heroiclabs.com, docs.colyseus.io, 2026-07-23]:* Nakama
+(Apache-2.0, Go, Postgres-backed; v3.40.0 2026-07-13) is a game backend with
+matchmaking, chat, leaderboards, storage, and **authoritative realtime
+matches** — a server-side match loop at a fixed tick rate mutating in-memory
+state and broadcasting deltas to present members. Colyseus (MIT, Node/TS;
+0.17 line 2026) centers on **Rooms**: server-authoritative room state with
+schema-based binary delta sync, lifecycle hooks, and matchmaking. Both monetize
+via managed cloud hosting.
+
+- Game servers solved ephemeral room state a decade before "sync engines": an
+  authoritative in-memory object per room, mutated only by server logic,
+  diffed to present members, **discarded when the room empties** unless
+  explicitly persisted — precisely the shape of
+  [LLP 0013](./0013-ephemeral-realtime-state.rfc.md) and the card-game demo.
+  [confirmed + inferred]
+- Their lifecycle primitives (join/leave/presence/expiry as first-class,
+  separate from durable schema) corroborate LLP 0013's "ephemeral state is not
+  faster durable data" rule. [inferred]
+- **Tick-rate authoritative simulation loops** are a distinct workload
+  Snapback's event-driven ephemeral API does not cover — worth naming as an
+  explicit non-goal boundary, the same role SpacetimeDB plays above. [inferred]
+- *Influence:* prior art and vocabulary for
+  [LLP 0013](./0013-ephemeral-realtime-state.rfc.md); the tick-loop non-goal
+  belongs next to LLP 0000's realtime-game boundary. [inferred]
+
+*Confidence:* **high** for mechanics and licensing (primary-sourced
+2026-07-23).
+
 ### Systems not yet surveyed (coverage gap)
 
-This survey omits several systems that sit *closer* to Snapback's exact bet than
-some it covers. **The primary-source pass for the first three below — ElectricSQL,
-PowerSync, and Turso/libSQL — is now
-[LLP 0022](./0022-electric-powersync-turso.research.md); the entries here remain as
-the structural reason each was prioritized.** The rest (Cloudflare D1 + Durable
-Objects, Triplit/Ditto) still await a pass before this document leaves `Draft`;
-named here so the gap is explicit, with only the **structural** reason each is
-on-point (the stable part — specifics move fast, so verify):
+This survey once omitted several systems that sit *closer* to Snapback's exact
+bet than some it covers. **As of 2026-07-23 every named gap has a
+primary-source pass:** ElectricSQL, PowerSync, and Turso/libSQL in
+[LLP 0022](./0022-electric-powersync-turso.research.md); Cloudflare D1 +
+Durable Objects (with Rivet as the open-source counterpart) in
+[LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md); and Triplit/Ditto in
+[LLP 0084](./0084-triplit-ditto.research.md). Two systems this document never
+listed also earned deep passes on closer inspection:
+[LLP 0082](./0082-instantdb.research.md) (InstantDB — the closest living
+competitor to the live-query + ephemeral-state + permissions surface) and
+[LLP 0085](./0085-jazz.research.md) (Jazz — the sharpest counterpoint to
+server-authoritative auth). The entries below remain as the structural reason
+each was prioritized (the stable part — specifics move fast, so read the owning
+pass for current facts):
 
 - **ElectricSQL** — Postgres↔SQLite sync with partial replication ("shapes") into
   a local SQLite store. Almost exactly Snapback's "SQLite local, Postgres at
@@ -341,7 +534,17 @@ model. [inferred]
    self-host operational realities.
 7. **The non-goal line is real and has an owner.** [inferred] SpacetimeDB shows
    what a true realtime-game database looks like; that's the workload LLP 0000
-   declares out of scope. The comparison validates the boundary.
+   declares out of scope. The comparison validates the boundary — and the
+   2026-07 batch adds a second marker on the same line: Nakama/Colyseus
+   tick-rate authoritative simulation loops.
+8. **The demand is proven; the suppliers are fragile.** [inferred, from the
+   2026-07-23 batch] Across the six surveyed systems the recurring pattern is
+   perpetual pre-1.0 status or single-maintainer risk (PocketBase, TanStack DB,
+   Evolu, Colyseus) and thin capitalization for the size of the bet (Encore,
+   DBOS) — while adoption signals (stars, ecosystems, acquirers) stay strong.
+   The space Snapback enters has validated demand served by fragile suppliers;
+   comprehensiveness plus institutional durability is itself a differentiator,
+   and MIT/Apache licensing is table stakes everywhere.
 
 ## Open questions
 
@@ -357,11 +560,14 @@ model. [inferred]
 - **Where does the Valet-shaped architecture bend at production scale?** The
   highest-value remaining unknowns are the SQLite single-writer breaking point,
   realtime fan-out ceiling, retention/matcher cost, and hosted isolation model.
-- **Which closer peers deserve the first primary-source pass?** Answered for
+- **Which closer peers deserve the first primary-source pass?** Answered.
   ElectricSQL, PowerSync, and Turso/libSQL in
-  [LLP 0022](./0022-electric-powersync-turso.research.md). Still open: Cloudflare
-  D1 + Durable Objects (the privileged second target's primitives, partly covered
-  by [LLP 0014](./0014-cloudflare-strategy.rfc.md)) and Triplit/Ditto — see
+  [LLP 0022](./0022-electric-powersync-turso.research.md); Cloudflare D1 +
+  Durable Objects (+ Rivet) in
+  [LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md); Triplit/Ditto in
+  [LLP 0084](./0084-triplit-ditto.research.md); InstantDB in
+  [LLP 0082](./0082-instantdb.research.md); Jazz in
+  [LLP 0085](./0085-jazz.research.md) — see
   [Systems not yet surveyed](#systems-not-yet-surveyed-coverage-gap).
 
 ## Next steps
@@ -371,9 +577,11 @@ model. [inferred]
   owning subsystem LLPs.
 - **Verify the [observed] characterizations** against current primary sources
   before any of this hardens into a decision; this landscape moves quickly.
-  [LLP 0022](./0022-electric-powersync-turso.research.md) does this for the three
-  closest peers — the same treatment is still owed to the other non-Valet systems
-  here.
+  [LLP 0022](./0022-electric-powersync-turso.research.md) and the 2026-07-23
+  passes (LLP 0082–0085) do this for the closest peers, and the survey-batch
+  sections above carry dated verification — the same treatment is still owed to
+  the original pre-batch sections (Zero/Replicache, LiveStore, Supabase, Convex,
+  SpacetimeDB, Firebase, PlanetScale, Neon, Val.town).
 - **Feed findings into** the storage, local-first sync, realtime, migrations,
   auth, and DX follow-on LLPs as they evolve. LLP 0003 through LLP 0012 now
   consume the first Valet recovery pass; revisit them when production-scale

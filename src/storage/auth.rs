@@ -2748,6 +2748,9 @@ mod tests {
     #[test]
     fn declared_restore_uses_non_creation_timestamp_frontier_when_host_clock_is_lower() {
         let mut db = catalog_database();
+        db.initialize_sender_proof_after_hosted_preflight()
+            .expect("initialize restored sender authority");
+        let sender_thumbprint = "A".repeat(43);
         db.with_auth_transaction(|tx| {
             tx.execute("INSERT INTO _auth_users(id, created_at_ms) VALUES('user-restore-clock', 900)", [])?;
             tx.execute(
@@ -2766,9 +2769,27 @@ mod tests {
                  )",
                 params![vec![7_u8; 32]],
             )?;
+            tx.execute(
+                "INSERT INTO _snapback_sender_family_binding(
+                   session_id, protocol_version, jwk_thumbprint
+                 ) VALUES(
+                   '01890f47-0000-7000-8000-000000000021', 2, ?1
+                 )",
+                params![sender_thumbprint],
+            )?;
             Ok(())
         })
         .unwrap();
+        assert_eq!(
+            crate::auth::sender_proof::sender_constraint_for_presented_token(
+                &db.conn,
+                &[7_u8; 32],
+                900,
+                true,
+            )
+            .unwrap(),
+            Some(sender_thumbprint),
+        );
 
         db.apply_auth_restore_declaration("0197f862-f196-7bb2-b3f0-2a67185dfd18", 100)
             .unwrap();
@@ -2782,6 +2803,17 @@ mod tests {
             .unwrap();
         assert_eq!(revoked_at, 1100);
         assert_eq!(db.auth_session_clock_floor().unwrap(), 1100);
+        assert_eq!(
+            crate::auth::sender_proof::sender_constraint_for_presented_token(
+                &db.conn,
+                &[7_u8; 32],
+                1_100,
+                true,
+            )
+            .unwrap(),
+            None,
+            "declared restore cannot revive a pre-restore sender-bound token",
+        );
     }
 
     #[test]

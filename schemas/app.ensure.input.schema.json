@@ -544,6 +544,93 @@
       ],
       "type": "string"
     },
+    "EffectCeiling": {
+      "additionalProperties": false,
+      "description": "EffectCeilingV1 (LLP 0065 §1): the versioned conservative effect ceiling —\noperations, tables, index ranges, host operations, and authorization\ndependencies — recorded per generated function. `basis` is `\"static\"`\nwhen the ceiling was proved by codegen's total default-deny traversal of\nthe closed plan vocabulary and `\"declared\"` when it restates author\ndeclarations for an opaque handler.",
+      "properties": {
+        "authorizationInputs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "hostOperations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EffectCeilingRead"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        },
+        "writes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EffectCeilingWrite"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "version",
+        "basis"
+      ],
+      "type": "object"
+    },
+    "EffectCeilingRead": {
+      "additionalProperties": false,
+      "properties": {
+        "access": {
+          "description": "`\"point\"` or `\"query\"`.",
+          "type": "string"
+        },
+        "index": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "access"
+      ],
+      "type": "object"
+    },
+    "EffectCeilingWrite": {
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "operations"
+      ],
+      "type": "object"
+    },
     "EnsureAppExplicitInput": {
       "description": "Explicit ensure intents. `deny_unknown_fields` is load-bearing: an attest\nrequest cannot smuggle a manifest or seed, and a future mode-stage field\ncannot silently fall through to the legacy compatibility branch.",
       "oneOf": [
@@ -962,6 +1049,18 @@
             "null"
           ]
         },
+        "effectCeiling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectCeiling"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check.\n@ref LLP 0065#1-fact-classes — EffectCeilingV1."
+        },
         "exportedName": {
           "default": null,
           "type": [
@@ -1020,6 +1119,18 @@
             }
           ],
           "default": null
+        },
+        "standardPattern": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StandardPatternIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stable versioned standard-pattern identity — which generated helper\nand visibility profile produced this function (e.g. `owned-crud.v1`,\n`owner.v1`). Absent on free-form definitions.\n@ref LLP 0065#3-common-pattern-contracts — versioned identifiers."
         },
         "syncabilityClass": {
           "default": null,
@@ -2177,6 +2288,23 @@
         "file",
         "line",
         "column"
+      ],
+      "type": "object"
+    },
+    "StandardPatternIdentity": {
+      "additionalProperties": false,
+      "description": "The versioned helper/profile identity a standard-pattern function carries\n(LLP 0065 §3).",
+      "properties": {
+        "helper": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "helper",
+        "profile"
       ],
       "type": "object"
     },

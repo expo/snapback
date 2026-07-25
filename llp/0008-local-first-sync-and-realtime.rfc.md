@@ -5,8 +5,8 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-23 (LLP 0086 CC-8 citation absorptions from the prior-art batch: §Realtime Delivery records that bookmarkable versions stay on the wire, with D1's Sessions API as the copyable prior art for a future regional/cacheable read lane and the output-gate durability vocabulary cross-referenced to LLP 0007 — row 2; §Mutation Replay cites Ditto's read-time-derivation guidance as the from-inside-the-camp source for keeping semantic merge out of the sync core — row 9 — and the Jazz 2026-04-18 retreat trilogy plus Electric's pivot as primary-source evidence for the server-authoritative foundation — row 10; §Subscription Contract records the ceremony budget against Instant's query-scoped cache model — row 12); 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
-**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053, LLP 0059, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0086
+**Revised:** 2026-07-24 (LLP 0090 resume-scoping reconciliation: §Retention and Resume records that the online-reconnect-only delta-resume scoping is widened by Accepted LLP 0090 to relaunch-from-disk resume, with the pending-mutation reason preserved by 0090's outbox rule — a non-empty outbox takes the LLP 0043 full-resync path, never `resumeFromToken` — and the retention reason preserved by the journal floor, which answers below-floor resumes with a fresh snapshot; auth-scoped fresh-snapshot-on-resume is unchanged); 2026-07-23 (LLP 0086 CC-8 citation absorptions from the prior-art batch: §Realtime Delivery records that bookmarkable versions stay on the wire, with D1's Sessions API as the copyable prior art for a future regional/cacheable read lane and the output-gate durability vocabulary cross-referenced to LLP 0007 — row 2; §Mutation Replay cites Ditto's read-time-derivation guidance as the from-inside-the-camp source for keeping semantic merge out of the sync core — row 9 — and the Jazz 2026-04-18 retreat trilogy plus Electric's pivot as primary-source evidence for the server-authoritative foundation — row 10; §Subscription Contract records the ceremony budget against Instant's query-scoped cache model — row 12); 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0043, LLP 0053, LLP 0059, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0086, LLP 0090
 
 ## Summary
 
@@ -609,6 +609,37 @@ delta-resume only for the online-reconnect-with-no-pending-mutations case, full
 resnapshot when a mutation log exists, and treat "delta-resume *with* pending
 offline replay" as an explicit later milestone rather than an assumed v1 capability.
 
+**Relaunch-from-disk resume widening (2026-07-24, LLP 0090).**
+[LLP 0090](./0090-resumable-query-snapshots.rfc.md) (Accepted) widens the
+scoping above: resume is no longer confined to the online-reconnect case. A
+relaunching client may render a persisted snapshot first and then resume from
+a server-minted token (0090 Channel B), and the delta-resume consumer this
+section's L3 note names as missing is exactly what 0090's D1.3 admission
+ladder specifies. The widening does **not** discard either reason behind the
+narrow rule; each is preserved by name:
+
+- **The pending-mutation reason** (Valet's wrong-results hazard when replaying
+  mutations against incompletely delta-synced state) is preserved by **0090's
+  outbox rule** (0090 D3, co-owned with LLP 0043): a relaunching client with a
+  non-empty mutation outbox does not send `resumeFromToken` at all — it takes
+  the LLP 0043 path (full resync, then replay). "Delta-resume *with* pending
+  offline replay" remains the explicit later milestone, exactly as this
+  section demands.
+- **The retention reason** (do not let resume pin the change journal) is
+  preserved by **the journal floor**: the monotonic pruning watermark and
+  `journal_resume_requires_resnapshot` stay authoritative — a resume from
+  below the floor is answered with a fresh `LiveReplace` (0090's rung 3, the
+  always-available fallback), so honoring relaunch-gap resumes never
+  reintroduces Valet's unbounded-log trap. 0090's token refresh keeps
+  persisted cursors near head, *shrinking* typical journal distance rather
+  than stretching retention.
+
+Scope also stays honest in the other dimension: 0090 v1 restricts token
+resume and render-before-resume to `rqsEligible` (authority-independent +
+closed-inputs) queries, so LLP 0053's mandatory fresh-snapshot-on-resume for
+auth-scoped subscriptions — echoed in §Authorization-Aware Sync — is
+untouched by the widening.
+
 ## Realtime Delivery
 
 Realtime delivery is ordered by committed changeset version. Transport may be
@@ -758,6 +789,22 @@ The first sync/realtime validation should include:
   the authz version; uncertainty quarantines before read, proof deletes, and
   every non-live auth-scoped resume takes a fresh authorized snapshot;
 - a diagnostic explaining one invalid or non-subscribable query.
+
+## Dated constraints: additive wire, adapter-owned lifecycle (2026-07-23, LLP 0079 SC-3)
+
+Two rules remain standing:
+
+1. Wire evolution is additive. New delta or read lanes ship beside existing
+   snapshot/replace and WebSocket behavior rather than breaking it.
+2. App code never owns connection lifecycle. Schema, handlers, and generated
+   callers see declarative live queries, not socket handles, reconnect hooks,
+   or per-connection message handlers. Connection lifecycle and lane selection
+   belong to the framework and adapter.
+
+LLP 0078 F2a/F2e records the external evidence: exposing connection lifecycle
+created a deprecation cycle, and protocol streamlining imposed a breaking
+downstream tax. This section preserves the LLP 0079 SC-3 amendment alongside
+the prior-art absorptions already recorded above.
 
 ## Open Questions
 

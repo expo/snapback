@@ -234,7 +234,7 @@ export function physicalTableName(table, allowedTables) {
 // query|mutation. `nowMs` is frozen for the invocation (LLP 0007 replay).
 // `tables` is the schema-declared table-name set (ENG-23578).
 export class HostContext {
-  constructor({ sql, mode, nowMs, epoch, newId, tables, schemaTables = null, runMutation = null, hostFetch = null, control = null }) {
+  constructor({ sql, mode, nowMs, epoch, newId, tables, schemaTables = null, runMutation = null, hostFetch = null, hostStreams = null, control = null }) {
     this.sql = sql;
     this.mode = mode;
     this.nowMs = nowMs;
@@ -252,6 +252,8 @@ export class HostContext {
     // secret-resolving egress boundary. Queries and mutations get neither.
     this.runMutationHook = runMutation;
     this.hostFetchHook = hostFetch;
+    this.hostStreams = hostStreams;
+    this.lastStreamProgressCommitAt = 0;
   }
 
   abandon(code = 'SNAPBACK_ACTION_TIMEOUT', message = 'the invocation was abandoned') {
@@ -268,6 +270,25 @@ export class HostContext {
       this.control.code || 'SNAPBACK_HANDLER_STALE_CONTINUATION',
       this.control.message || 'the invocation is no longer active'
     );
+  }
+
+  // @ref LLP 0076#author-decisions--2026-07-23 — decision 4: the host rate
+  // fence emits the profile-neutral SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED.
+  reserveStreamProgressCommit() {
+    if (!this.hostStreams?.hasOpen()) return null;
+    const now = Date.now();
+    if (now - this.lastStreamProgressCommitAt < 100) {
+      return snapbackFail(
+        'SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED',
+        'stream progress exceeds ten authoritative commits per second'
+      );
+    }
+    this.lastStreamProgressCommitAt = now;
+    return null;
+  }
+
+  async closeResponseStreams() {
+    if (this.hostStreams) await this.hostStreams.closeAll();
   }
 
   ensureWritable(op) {
@@ -498,7 +519,36 @@ export class HostContext {
             'ctx.runMutation is available to actions only'
           );
         }
+        const streamRateFailure = this.reserveStreamProgressCommit();
+        if (streamRateFailure) return streamRateFailure;
         return this.runMutationHook(String(args.name || ''), args.args || {});
+      }
+      case 'action.streamOpen': {
+        if (this.mode !== 'action' || !this.hostStreams) {
+          return snapbackFail(
+            'SNAPBACK_ACTION_CONTEXT_UNAVAILABLE',
+            'ctx.fetchStream is available to actions only'
+          );
+        }
+        return this.hostStreams.open(args || {});
+      }
+      case 'action.streamRead': {
+        if (this.mode !== 'action' || !this.hostStreams) {
+          return snapbackFail(
+            'SNAPBACK_ACTION_CONTEXT_UNAVAILABLE',
+            'ctx.fetchStream reader is available to actions only'
+          );
+        }
+        return this.hostStreams.read(String(args.streamId || ''));
+      }
+      case 'action.streamCancel': {
+        if (this.mode !== 'action' || !this.hostStreams) {
+          return snapbackFail(
+            'SNAPBACK_ACTION_CONTEXT_UNAVAILABLE',
+            'ctx.fetchStream reader is available to actions only'
+          );
+        }
+        return this.hostStreams.cancel(String(args.streamId || ''));
       }
       case 'host.fetch': {
         if (this.mode !== 'action' || typeof this.hostFetchHook !== 'function') {

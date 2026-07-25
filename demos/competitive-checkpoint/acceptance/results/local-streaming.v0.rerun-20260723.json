@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.local-streaming.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "targetIdentitySource": "GET /inspect targetProfileId",
+  "capabilityManifestSha256": "103e6ece957188373b61403a13c4adbed7e307aaf9f3cc55071aca383e55a49d",
+  "title": "competitive checkpoint / local streamed actions",
+  "passed": 2,
+  "skipped": 0,
+  "failed": 4,
+  "total": 6,
+  "ok": false,
+  "results": [
+    {
+      "name": "generated owner CRUD, unique lookup, and keyset pages retain negative authorization",
+      "ok": true,
+      "details": {
+        "generatedOperations": 8,
+        "visibility": {
+          "kind": "owner",
+          "field": "ownerId"
+        },
+        "crossUserDenialsWitnessed": [
+          "list",
+          "uniqueLookup",
+          "keysetPage",
+          "update",
+          "delete"
+        ]
+      }
+    },
+    {
+      "name": "16 upstream chunks become multiple authoritative native-push commits",
+      "ok": false,
+      "error": "timed out waiting for Snapback live stream update on complete-observer",
+      "diagnostic": null
+    },
+    {
+      "name": "reply start retries are idempotent and cross-user progress mutation is refused",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "durable cancellation stops the reader and fences every late patch",
+      "ok": false,
+      "error": "timed out waiting for Snapback live stream update on cancel-observer",
+      "diagnostic": null
+    },
+    {
+      "name": "idle response settles timed_out distinctly",
+      "ok": false,
+      "error": "action timeout settlement: expected \"timed_out\", got \"failed\"",
+      "diagnostic": null
+    },
+    {
+      "name": "GET transport failure and unkeyed POST ambiguity remain distinct",
+      "ok": false,
+      "error": "POST ambiguity settlement: expected \"ambiguous\", got \"failed\"",
+      "diagnostic": null
+    }
+  ],
+  "expectedChecks": 6,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

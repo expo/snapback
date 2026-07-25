@@ -1,13 +1,36 @@
 {
   "appId": "partiful-matrix",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:adce7dc6b39cd37f",
+  "bundleHash": "sha256:b3617c6309661ea7",
   "config": [],
   "cronJobs": [],
   "functions": [
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "createEvent",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "events"
+          },
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "rsvps"
+          }
+        ]
+      },
       "exportedName": "createEvent",
       "id": "partiful-matrix:createEvent",
       "kind": "Mutation",
@@ -181,6 +204,19 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "eventDetails",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "eventDetails",
       "id": "partiful-matrix:eventDetails",
       "kind": "LiveQuery",
@@ -229,6 +265,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "eventWall",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_event",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "eventWall",
       "id": "partiful-matrix:eventWall",
       "kind": "LiveQuery",
@@ -282,6 +332,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "guestList",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_event",
+            "table": "rsvps"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "guestList",
       "id": "partiful-matrix:guestList",
       "kind": "LiveQuery",
@@ -335,6 +399,19 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "listEvents",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listEvents",
       "id": "partiful-matrix:listEvents",
       "kind": "LiveQuery",
@@ -380,6 +457,25 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "postMessage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
       "exportedName": "postMessage",
       "id": "partiful-matrix:postMessage",
       "kind": "Mutation",
@@ -468,6 +564,29 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "rsvp",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rsvps"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "deleteWhere",
+              "insert"
+            ],
+            "table": "rsvps"
+          }
+        ]
+      },
       "exportedName": "rsvp",
       "id": "partiful-matrix:rsvp",
       "kind": "Mutation",
@@ -593,7 +712,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
+  "inputsHash": "5eaa23ac0eaba559e3f7f1e39873711ae2e9906bb7d1d949537836c9b300d868",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

@@ -8,6 +8,35 @@
 **Related:** LLP 0077 (authority for every ticket below; the 13-item defect ledger and open-questions are the single source of truth), LLP 0057/0058/0059/0060 (amended/composed), llp/reviews/0077-sender-constrained-browser-auth.{fable,codex}.md
 **Marker:** program-index, llp-0077, sender-auth, super-refine-residue
 
+**Progress (2026-07-24):** the full 0077 implementation — stranded as
+uncommitted work on a ~130-commit-stale base in the primary checkout — was
+re-landed on main (adapted to the landed LLP 0076 surface) with a defect-fix
+pass. Ledger defects 1–8 and 11–13 are fixed with negative tests; the
+per-item witnesses live in LLP 0077's annotated ledger. Closed tickets:
+nonce-integrity, grace-lookup, replay-retention, issuance-binding,
+client-nonce-serialization, structural-exclusion, admission-order. Later the
+same day grant-binding and sender-replay-epoch closed too: defects 2 and 10
+are fully fixed (decision-1 floor via `HostedAdmission.senderReplayEpochFloor`
+with straddle witnesses; decision-6 issuance-epoch grant member with a
+served invalidation test). Defect 9 also closed
+the same day (the decision-2 bounded revoked-family tombstone: terminal
+durableDelete at the sender gate, proof-id consumption without nonce
+rotation, anti-oracle preserved, and client custody deletion — Rust unit,
+served, and client witnesses), and the decision-5 WebSocket in-band
+successor-nonce release landed as the final commissioned item: the first
+server frame on a sender-proof-gated upgrade carries the successor
+(`sender_nonce` frame, equal to the unreadable 101 header value), the
+client's per-custody flight releases on that frame after committing it into
+custody, and the bounded-challenge resync is retained as the decision's
+failure-path semantics for open-without-frame timeout, error, cancel, and
+reconnect (an open-without-frame stall releases the flight without killing
+a healthy socket). All thirteen ledger rows and every commissioned decision
+are implemented; this index stays open solely for the capability gate — no
+positive claim exists without the full matrix plus the LLP 0072 hosted-auth
+drill against a served origin. No ticket permits a
+positive capability claim until the whole matrix plus the LLP 0072
+hosted-auth drill receipt passes against a served origin.
+
 Umbrella index for the work surfaced by the 9-round /llp-super-refine on LLP
 0077 (Fable READY at round 9; Codex NOT READY throughout — the spec is
 internally sound and honest, but its 13-item ledger records real code defects
@@ -17,7 +46,11 @@ authoritative — each ticket **references** its ledger item rather than copying
 it, and closing a ticket means updating the Spec's ledger/checkpoint, not just
 landing code.
 
-Two prerequisites gate everything else and are author decisions, not code:
+Two prerequisites gate everything else and are author decisions, not code
+(both RESOLVED 2026-07-23 — LLP 0077 §Author decisions; the ratchet ticket is
+Resolved, the client-contract ticket is Resolved including the landed
+AuthCustodyV3 closed schema and the LLP 0059 BoundGrantAuthorityV2 amendment,
+and defects 2 and 10 are unblocked):
 
 - `20260723-llp0077-rollback-ratchet.md` — the non-rollbackable ratchet source
   for raw-backup-rollback non-resurrection (a stated security requirement with

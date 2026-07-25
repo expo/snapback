@@ -1,0 +1,41 @@
+{
+  "name": "@snapback/vite",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Managed Snapback Vite dev plugin: mode-aware backend lifecycle, /__snapback app-route proxy allowlist, and structured diagnostics.",
+  "files": [
+    "allowlist.mjs",
+    "index.mjs",
+    "lifecycle.mjs",
+    "proxy.mjs"
+  ],
+  "exports": {
+    ".": "./index.mjs",
+    "./allowlist": "./allowlist.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@snapback/cli": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@snapback/client": "workspace:*",
+    "vite": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

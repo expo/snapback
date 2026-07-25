@@ -480,6 +480,73 @@ globalThis.__snapbackHandlers = {
     },
   });
 
+  const streamed = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    const response = await ctx.fetchStream({ url: 'https://example.com' });
+    await response.body.getReader().cancel();
+    return { status: response.status };
+  }
+};
+`,
+    },
+  });
+  const streamedFunctions = JSON.parse(readFileSync(join(streamed.outDir, 'functions.manifest.json'), 'utf8'));
+  const streamedCapabilities = JSON.parse(readFileSync(join(streamed.outDir, 'capability.manifest.json'), 'utf8'));
+  assert(
+    streamedFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'ctx.fetchStream must add the named admission requirement',
+  );
+  assert.equal(streamedCapabilities.outboundActions, true, 'egress codegen embeds the Rust-owned enabled target variant');
+  assert(
+    streamedCapabilities.supportedCapabilities.includes('bounded_response_stream_v1'),
+    'paired capability artifact must positively support the streamed action requirement',
+  );
+
+  // AST-derived inference (LLP 0076): a comment that merely spells the call
+  // must not over-require, while a destructuring alias must still require.
+  const commentOnly = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe() {
+    // this comment mentions ctx.fetchStream( but the handler never streams
+    return { ok: true };
+  }
+};
+`,
+    },
+  });
+  const commentFunctions = JSON.parse(readFileSync(join(commentOnly.outDir, 'functions.manifest.json'), 'utf8'));
+  assert(
+    !commentFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'a comment mention must not add the stream requirement',
+  );
+  const aliased = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    const { fetchStream } = ctx;
+    const response = await fetchStream({ url: 'https://example.com' });
+    await response.body.getReader().cancel();
+    return { status: response.status };
+  }
+};
+`,
+    },
+  });
+  const aliasedFunctions = JSON.parse(readFileSync(join(aliased.outDir, 'functions.manifest.json'), 'utf8'));
+  assert(
+    aliasedFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'a destructuring alias must still add the stream requirement',
+  );
+
   const diagnostics = await invalidCase({
     functions: jsActionFunctions,
     handlers: {

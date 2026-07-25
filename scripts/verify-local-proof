@@ -131,6 +131,15 @@ esac
 # visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
 # sees the same identity stamp and measures startup rather than a cold link.
 run cargo build --locked --bin snapback
+# LLP 0079 SC-1b: the control-plane MCP acceptance loop (@snapback/cli) drives
+# a real native server through `snapback mcp-control`; point the JS CLI at the
+# freshly built debug binary. Runs here (not with the bun package tests above)
+# because it needs that binary.
+run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-cli test
+# LLP 0079 SC-2a: the LLP 0030 MVP managed-dev Vite plugin drives the same
+# native binary through a real Vite dev server (managed spawn, /__snapback
+# allowlist, WS relay); it needs the debug binary for the same reason.
+run env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" npm --prefix packages/snapback-vite test
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs

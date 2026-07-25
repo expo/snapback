@@ -27,8 +27,10 @@ const seed = JSON.parse(readFileSync(resolve(repoRoot, 'demos/partiful-matrix/sn
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 const platform = option('platform');
 if (!['ios', 'android'].includes(platform)) throw new Error('--platform must be ios or android');
+const performanceOnly = process.argv.includes('--performance-only');
+if (performanceOnly && platform !== 'ios') throw new Error('--performance-only currently requires --platform ios');
 const profileId = `react-expo/${platform}`;
-const suite = createSuite(`partitime / ${profileId} Online profile`, { expectedChecks: 7 });
+const suite = createSuite(`partitime / ${profileId} Online profile`, { expectedChecks: performanceOnly ? 3 : 7 });
 const tempRoot = mkdtempSync(resolve(tmpdir(), `partitime-${platform}-online-`));
 const dbPath = resolve(tempRoot, 'snapback.sqlite3');
 const readyPath = resolve(tempRoot, 'snapback.ready.json');
@@ -63,6 +65,7 @@ const reportExtra = {
   },
   releaseArtifact: null,
   build: { performed: false, startedAtMs: null, completedAtMs: null },
+  performance: performanceOnly ? { sample: null } : null,
   events,
   sourceInventory: sourcePaths.map((path) => ({
     path,
@@ -79,7 +82,7 @@ const witness = createServer(async (request, response) => {
   for await (const chunk of request) body += chunk;
   try {
     const event = JSON.parse(body);
-    if (activeLaunchId !== null && event.launchId !== activeLaunchId) {
+    if (activeLaunchId !== null && event.launchId !== activeLaunchId && event.event !== 'native-launch-stage') {
       response.writeHead(204).end();
       return;
     }
@@ -115,11 +118,12 @@ await runAcceptance(suite, async () => {
 
   dataServer = await startDataServer();
   cleanups.push(async () => { if (dataServer) await stopChild(dataServer); });
-  await installAndLaunch(artifact);
+  await installCarrier(artifact);
+  const launchRequest = await launchCarrier();
 
   const launch = await waitEvent('device-launch');
   activeLaunchId = launch.launchId;
-  const activeLaunchEvents = events.filter((event) => event.launchId === activeLaunchId);
+  const activeLaunchEvents = events.filter((event) => event.launchId === activeLaunchId || event.event === 'native-launch-stage');
   events.splice(0, events.length, ...activeLaunchEvents);
   const fromLaunch = (event) => event.launchId === activeLaunchId;
   const providerReady = await waitEvent('provider-ready', fromLaunch);
@@ -135,6 +139,32 @@ await runAcceptance(suite, async () => {
     assert(initialSnapshot.details.deliverySequence > 0, JSON.stringify(initialSnapshot));
     assert(initial.details.rowCount > 0, JSON.stringify(initial));
   });
+
+  if (performanceOnly) {
+    const nativeStage = await waitEvent('native-launch-stage');
+    const startupAssets = digestStartupAssets(artifact);
+    reportExtra.performance.sample = {
+      definitionVersion: 'partitime.native-launch-stage.v1',
+      hermesEvaluationMs: nativeStage.details.hermesEvaluationMs,
+      startupAssetWeightBytes: startupAssets.sizeBytes,
+      coldLaunchMs: launch.atMs - launchRequest.requestedAtMs,
+      firstAuthoritativeDataMs: initial.atMs - launchRequest.requestedAtMs,
+      launchRequest,
+      events: {
+        nativeStageAtMs: nativeStage.atMs,
+        deviceLaunchAtMs: launch.atMs,
+        firstAuthoritativeAtMs: initial.atMs,
+      },
+      startupAssets,
+    };
+    await suite.check(`${profileId} records comparable native launch stages`, async () => {
+      for (const name of ['hermesEvaluationMs', 'startupAssetWeightBytes', 'coldLaunchMs', 'firstAuthoritativeDataMs']) {
+        assert(Number.isFinite(reportExtra.performance.sample[name]) && reportExtra.performance.sample[name] >= 0, JSON.stringify(reportExtra.performance.sample));
+      }
+      assert(startupAssets.files.length > 0, 'release carrier has no admitted JavaScript/Hermes startup asset');
+    });
+    return;
+  }
 
   const optimisticPending = await waitEvent('optimistic-pending', fromLaunch);
   const optimisticConfirmed = await waitEvent('optimistic-confirmed', fromLaunch);
@@ -285,16 +315,24 @@ function carrierArtifact() {
   return resolve(appRoot, 'build/ios-profile-derived/Build/Products/Release-iphonesimulator/PartitimeNativeOnline.app');
 }
 
-async function installAndLaunch(artifact) {
+async function installCarrier(artifact) {
   if (platform === 'android') {
     await run('adb reverse data', appRoot, adb, ['reverse', `tcp:${dataPort}`, `tcp:${dataPort}`]);
     await run('adb reverse witness', appRoot, adb, ['reverse', `tcp:${witnessPort}`, `tcp:${witnessPort}`]);
     await run('adb install', appRoot, adb, ['install', '-r', artifact]);
-    await run('adb launch', appRoot, adb, ['shell', 'am', 'start', '-W', '-n', 'com.snapback.partitime.nativeonline/.MainActivity']);
     return;
   }
   await run('simulator install', appRoot, 'xcrun', ['simctl', 'install', deviceId, artifact]);
-  await run('simulator launch', appRoot, 'xcrun', ['simctl', 'launch', deviceId, 'com.snapback.partitime.nativeonline']);
+}
+
+async function launchCarrier() {
+  const requestedAtMs = Date.now();
+  if (platform === 'android') {
+    await run('adb launch', appRoot, adb, ['shell', 'am', 'start', '-W', '-n', 'com.snapback.partitime.nativeonline/.MainActivity']);
+  } else {
+    await run('simulator launch', appRoot, 'xcrun', ['simctl', 'launch', deviceId, 'com.snapback.partitime.nativeonline']);
+  }
+  return { requestedAtMs, commandCompletedAtMs: Date.now() };
 }
 
 async function stopInstalledCarrier() {
@@ -425,5 +463,19 @@ function digestArtifact(artifact) {
     files: files.length,
     sizeBytes,
     sha256: hash.digest('hex'),
+  };
+}
+
+function digestStartupAssets(artifact) {
+  const files = artifactFiles(artifact)
+    .filter((file) => /(?:main\.jsbundle|\.hbc)$/i.test(file))
+    .sort();
+  return {
+    files: files.map((file) => ({
+      path: relative(artifact, file) || relative(repoRoot, file),
+      sizeBytes: statSync(file).size,
+      sha256: createHash('sha256').update(readFileSync(file)).digest('hex'),
+    })),
+    sizeBytes: files.reduce((sum, file) => sum + statSync(file).size, 0),
   };
 }

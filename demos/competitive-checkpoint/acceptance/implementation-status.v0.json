@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.competitive-checkpoint.implementation-status.v0",
   "protocol": "llp-0075-convex-checkpoint-v0",
-  "protocolVersion": "v0.3",
-  "protocolSha256": "930adc07655bb32886eb731973951f8b96145c4c33e4e22dae4f608ff8597fa8",
+  "protocolVersion": "v0.4",
+  "protocolSha256": "0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4",
   "adjudicatedProtocolVersion": "v0",
   "recordedAt": "2026-07-22",
   "revisedAt": "2026-07-23",
@@ -15,7 +15,7 @@
     {
       "claim": "local generated owner patterns and bounded authoritative stream progress",
       "artifact": "demos/competitive-checkpoint/acceptance/results/local-streaming.v0.json",
-      "status": "passed-for-witnessed-subset-see-knownInstrumentDefects"
+      "status": "owner-patterns-with-delete-refusal-passed-on-committed-main-streaming-subset-pending-llp-0076-landing-see-knownInstrumentDefects"
     },
     {
       "claim": "shared authored ctx.fetchStream surface on the Workerd target",
@@ -80,14 +80,19 @@
   ],
   "knownInstrumentDefects": [
     {
-      "defect": "The local-streaming harness hardcodes the invented target alias local-ibex-sqlite.v1 into its receipt; the canonical identity is local-dev-sqlite-ibex (src/manifest.rs, generated capability manifest). Protocol v0.1 corrects the declared profile; the harness must derive target identity from the served capability manifest and the witness must be prospectively rerun before any comparison run.",
+      "defect": "RESOLVED IN HARNESS, RERUN PARTIAL: the local-streaming harness hardcoded the invented target alias local-ibex-sqlite.v1. The harness now derives target identity from the served capability manifest (GET /inspect targetProfileId), asserts it matches the generated artifact pair, and pins the served manifest sha256 in the receipt, making the alias mistake structurally unrepeatable. Witnessed in acceptance/results/local-streaming.v0.rerun-20260723.json (targetProfile local-dev-sqlite-ibex, derived). The retained v0 baseline receipt still carries the old alias and is superseded on the next full rerun.",
       "recordedAt": "2026-07-23",
-      "source": "llp/reviews/0075-convex-checkpoint-protocol.codex.md round 1"
+      "source": "issues/20260723-llp0075-instrument-corrections.md"
     },
     {
-      "defect": "The local-streaming witness covers cross-user list, lookup, and update denial but not cross-user delete refusal, which the frozen fixture and LLP 0065 both require; the generated-owner claim is narrowed to the witnessed subset until a real-server negative delete witness is retained.",
+      "defect": "RESOLVED: the local-streaming witness now covers cross-user delete refusal (SNAPBACK_ROW_NOT_VISIBLE, owner row intact) alongside list/lookup/page/update denial; witnessed passing against committed main in acceptance/results/local-streaming.v0.rerun-20260723.json check 1 (crossUserDenialsWitnessed includes delete). The generated-owner claim may widen to this witnessed subset.",
       "recordedAt": "2026-07-23",
-      "source": "llp/reviews/0075-convex-checkpoint-protocol.codex.md round 1"
+      "source": "issues/20260723-llp0075-instrument-corrections.md"
+    },
+    {
+      "defect": "NEW (blocks the full prospective rerun): the retained local-streaming.v0.json baseline (6/6, recorded 2026-07-22) is not reproducible from any committed revision \u2014 the streamed-action surface it exercises (ctx.fetchStream host ops, timed_out/ambiguous settlement) is absent from origin/main src/server.rs and src/runtime.rs and exists only as in-flight LLP 0076 work in a concurrent working tree. The 2026-07-23 rerun on committed main passes checks 1 and 3 and fails the four streaming checks accordingly. The baseline receipt is retained unrewritten; a full prospective rerun and defect closure wait on the LLP 0076 streamed-action implementation landing.",
+      "recordedAt": "2026-07-23",
+      "source": "acceptance/results/local-streaming.v0.rerun-20260723.json"
     }
   ],
   "requiredRemoteSkips": [

@@ -1,13 +1,27 @@
 {
   "appId": "graffiti",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:111c1bec22e21741",
+  "bundleHash": "sha256:e500de180d7352c5",
   "config": [],
   "cronJobs": [],
   "functions": [
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "listCells",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_board",
+            "table": "cells"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listCells",
       "id": "graffiti:listCells",
       "kind": "LiveQuery",
@@ -61,6 +75,23 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "paintCell",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "cells"
+          }
+        ]
+      },
       "exportedName": "paintCell",
       "id": "graffiti:paintCell",
       "kind": "Mutation",
@@ -120,7 +151,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "fac6e112899383dd0d7542bb76965a985f41db66f200504ce0b62e3cb0defc6f",
+  "inputsHash": "e3ad487a57910dc6bbb7d83ffe7f88778ab0d0efe2a7a1238912ace341357c57",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

@@ -7,6 +7,8 @@
   var TrustedFunction = Function;
   var TrustedMap = Map;
   var TrustedPromise = Promise;
+  var TrustedUint8Array = Uint8Array;
+  var trustedAsyncIterator = typeof Symbol === "function" ? Symbol.asyncIterator : null;
   var trustedString = String;
   var trustedJsonParse = JSON.parse;
   var trustedJsonStringify = JSON.stringify;
@@ -799,9 +801,153 @@
           secretSlots: slots
         });
       };
+      // @ref LLP 0076#surface — pull one host-bounded byte chunk per read;
+      // durable application progress still crosses ctx.runMutation and the
+      // ordinary commit/live-query path.
+      ctx.fetchStream = async function(request) {
+        var req = request || {};
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the same opaque placement
+        // slots as ordinary host-mediated fetch: descriptors resolve only at
+        // the host's own boundary and never enter this isolate.
+        var givenSlots = req.secretSlots || [];
+        var slots = [];
+        for (var slotIndex = 0; slotIndex < givenSlots.length; slotIndex++) {
+          var slot = givenSlots[slotIndex] || {};
+          var descriptor = slot.handle && slot.handle.__snapbackDescriptor;
+          slots.push({
+            placement: slot.placement,
+            name: slot.name,
+            secret: descriptor || null
+          });
+        }
+        var opened;
+        if (hostCallFn === ibexHostCall) {
+          host("action.externalEffectBegin", trustedCreate(null));
+        }
+        try {
+          opened = await host("action.streamOpen", {
+            url: req.url,
+            method: req.method || "GET",
+            headers: req.headers || {},
+            body: req.body == null ? null : req.body,
+            idempotencyKey: req.idempotencyKey == null ? null : req.idempotencyKey,
+            attemptToken: req.attemptToken == null ? null : req.attemptToken,
+            secretSlots: slots
+          });
+        } finally {
+          if (hostCallFn === ibexHostCall) {
+            host("action.externalEffectInitiated", trustedCreate(null));
+          }
+        }
+        var streamId = opened.streamId;
+        var locked = false;
+        var closed = false;
+        function makeReader() {
+          if (locked) {
+            throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "response body is already locked to a reader");
+          }
+          locked = true;
+          var reading = false;
+          var reader = {
+            read: async function() {
+              if (closed) {
+                return { done: true, value: undefined };
+              }
+              // @ref LLP 0076#surface — one in-flight pull per cursor: the
+              // bridge serializes read() so application backpressure stays
+              // the default and host buffering stays bounded.
+              if (reading) {
+                throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "the response stream already has a pull in flight");
+              }
+              reading = true;
+              var chunk;
+              try {
+                chunk = await host("action.streamRead", { streamId: streamId });
+              } finally {
+                reading = false;
+              }
+              if (chunk.done) closed = true;
+              var value = chunk.done
+                ? undefined
+                : trustedReflectConstruct(TrustedUint8Array, [chunk.bytes || []]);
+              // @ref LLP 0076#author-decisions--2026-07-23 — decision 6: the
+              // host-owned monotonic progress clock rides every read result.
+              return {
+                done: !!chunk.done,
+                value: value,
+                elapsedMs: chunk.elapsedMs || 0,
+                deltaMs: chunk.deltaMs || 0
+              };
+            },
+            cancel: async function() {
+              if (!closed) await host("action.streamCancel", { streamId: streamId });
+              closed = true;
+            },
+            // @ref LLP 0076#surface — deliberate deviation from the Web
+            // reader contract: releaseLock throws unless the stream reached
+            // EOF or was cancelled.
+            releaseLock: function() {
+              if (!closed) {
+                throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "releaseLock requires EOF or cancellation in the v1 reader profile");
+              }
+            }
+          };
+          return reader;
+        }
+        var body = { getReader: makeReader };
+        if (trustedAsyncIterator) {
+          trustedDefineProperty(body, trustedAsyncIterator, {
+            value: function() {
+              var reader = makeReader();
+              var iterator = {
+                next: reader.read,
+                return: function() {
+                  return trustedReflectApply(trustedPromiseThen, reader.cancel(), [
+                    function() { return { done: true, value: undefined }; }
+                  ]);
+                }
+              };
+              trustedDefineProperty(iterator, trustedAsyncIterator, { value: function() { return iterator; } });
+              return iterator;
+            }
+          });
+        }
+        return {
+          status: opened.status,
+          statusText: opened.statusText,
+          ok: opened.status >= 200 && opened.status < 300,
+          url: opened.url,
+          headers: opened.headers || {},
+          body: body
+        };
+      };
+      // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+      // surface: an opaque attempt token binding fetch (via the request's
+      // attemptToken field), progress, and terminal settlement under the
+      // single-runner lease. settle() returns the committed durable winner
+      // verbatim, which the action must return rather than local inference.
+      ctx.streamAttempt = {
+        start: function(clientKey) {
+          return host("action.streamAttemptStart", { clientKey: clientKey });
+        },
+        settle: function(attemptToken, cause) {
+          return host("action.streamAttemptSettle", { attemptToken: attemptToken, cause: cause });
+        }
+      };
     } else {
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
+      };
+      ctx.fetchStream = function() {
+        throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "fetchStream");
+      };
+      ctx.streamAttempt = {
+        start: function() {
+          throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "streamAttempt");
+        },
+        settle: function() {
+          throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "streamAttempt");
+        }
       };
       // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
       // The imperative role-gate twin, available in queries and mutations only

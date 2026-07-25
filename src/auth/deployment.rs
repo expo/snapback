@@ -5,8 +5,14 @@
 //! publish the closed descriptor and admission derives from its conjunction.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use axum::http;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::sync::Arc;
+
+use super::throttle::AuthenticationThrottleKey;
+pub use super::throttle::{AuthenticationBucketPolicy, SharedAuthenticationThrottleConfig};
 
 /// The exposure contract an operator asks the serving target to satisfy.
 ///
@@ -240,8 +246,21 @@ pub struct HostedAdmission {
     pub expires_at_ms: u64,
     #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub limiter_epoch: u64,
+    pub authentication_throttle_config: SharedAuthenticationThrottleConfig,
     #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub invalidation_epoch: u64,
+    /// Control-plane monotone floor for the durable `sender_replay_epoch`.
+    /// Stored outside the rolled-back durable set and only ever advanced by
+    /// the control plane; the serving boot applies
+    /// `effective epoch = max(durable, floor)` so a raw backup rollback
+    /// cannot resurrect an accepted proof. Zero means "no floor delivered"
+    /// (a valid state for targets predating the field).
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 1: the
+    /// composition ratchet (LLP 0059 incarnation + control-plane floor).
+    #[schemars(range(max = 9007199254740991_i64))]
+    #[serde(default)]
+    pub sender_replay_epoch_floor: u64,
     #[schemars(range(min = 1, max = 1))]
     pub handler_protocol_version: u64,
     #[schemars(length(min = 1))]
@@ -268,13 +287,187 @@ impl HostedAdmission {
             && self.expires_at_ms - self.issued_at_ms <= HOSTED_ADMISSION_MAX_LIFETIME_MS
             && self.limiter_epoch > 0
             && self.limiter_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
+            && self.authentication_throttle_config.validate().is_ok()
             && self.invalidation_epoch > 0
             && self.invalidation_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
+            && self.sender_replay_epoch_floor <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
             && self.handler_protocol_version == 1
             && !self.handler_incarnation.is_empty()
             && self.operator_surface == HostedOperatorSurface::Disabled
             && self.browser_direct_bearer_seam == BrowserDirectBearerSeam::Excluded
             && self.hosted_auth.hosted_auth_capable()
+    }
+}
+
+/// Provider-authenticated serving authority retained by one hosted target.
+///
+/// The public origin is target configuration, never a request forwarding
+/// header. Construction is crate-private so an HTTP embedder cannot turn an
+/// arbitrary `Host`/`Forwarded` value into proof-verification authority.
+#[derive(Clone)]
+pub(crate) struct HostedServingAuthority {
+    admission: HostedAdmission,
+    public_origin: String,
+    authentication_throttle_key: Arc<AuthenticationThrottleKey>,
+}
+
+impl fmt::Debug for HostedServingAuthority {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostedServingAuthority")
+            .field("admission_epoch", &self.admission.admission_epoch)
+            .field("expires_at_ms", &self.admission.expires_at_ms)
+            .field("public_origin", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl HostedServingAuthority {
+    /// Install facts only after the target adapter authenticated its
+    /// admission producer, live health, and canonical public origin.
+    #[allow(dead_code)] // Consumed by the first concrete hosted adapter.
+    pub(crate) fn from_authenticated_target(
+        public_origin: impl Into<String>,
+        admission: HostedAdmission,
+        observed_at_ms: u64,
+        authentication_throttle_key: [u8; 32],
+    ) -> SnapbackResult<Self> {
+        let public_origin = public_origin.into();
+        let parsed = public_origin.parse::<http::Uri>().map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted serving authority has an invalid canonical public origin",
+            )
+        })?;
+        let authority = parsed.authority().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted serving authority has no canonical public authority",
+            )
+        })?;
+        let origin_is_canonical = parsed.scheme_str() == Some("https")
+            && parsed.path() == "/"
+            && parsed.query().is_none()
+            && !authority.as_str().contains('@')
+            && authority
+                .host()
+                .bytes()
+                .all(|byte| !byte.is_ascii_uppercase())
+            && authority.port_u16() != Some(443)
+            && public_origin == format!("https://{authority}");
+        if !origin_is_canonical
+            || !admission.closed_admission_facts_hold()
+            || observed_at_ms < admission.issued_at_ms
+            || observed_at_ms > admission.expires_at_ms
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted serving authority is incomplete, expired, or non-canonical",
+            ));
+        }
+        Ok(Self {
+            admission,
+            public_origin,
+            authentication_throttle_key: Arc::new(AuthenticationThrottleKey::from_bytes(
+                authentication_throttle_key,
+            )),
+        })
+    }
+
+    pub(crate) fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
+        if now_ms < self.admission.issued_at_ms || now_ms > self.admission.expires_at_ms {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
+                "auth-deployment",
+                "hosted serving admission is not current",
+            ));
+        }
+        Ok(self.admission.admission_epoch)
+    }
+
+    pub(crate) fn authentication_throttle_at(
+        &self,
+        now_ms: u64,
+    ) -> SnapbackResult<HostedAuthenticationThrottle> {
+        self.admission_epoch_at(now_ms)?;
+        Ok(HostedAuthenticationThrottle {
+            limiter_epoch: self.admission.limiter_epoch,
+            deployment_id: self.admission.deployment_id.clone(),
+            config: self.admission.authentication_throttle_config.clone(),
+            key: self.authentication_throttle_key.clone(),
+        })
+    }
+
+    /// The control-plane monotone floor for the durable sender replay
+    /// namespace, applied at authority install (decision 1's anti-rollback
+    /// composition).
+    pub(crate) fn sender_replay_epoch_floor(&self) -> u64 {
+        self.admission.sender_replay_epoch_floor
+    }
+
+    /// Purpose key for the deterministic unknown-carrier cover nonce.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 3: the cover
+    /// nonce is `HMAC(server secret, sender_replay_epoch ‖ token_digest ‖
+    /// time_bucket)`; the secret here is a domain-separated derivation of the
+    /// target-attested key, valid only while admission is valid.
+    pub(crate) fn sender_cover_key_at(
+        &self,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::sender_proof::SenderCoverNonceKey> {
+        self.admission_epoch_at(now_ms)?;
+        Ok(crate::auth::sender_proof::SenderCoverNonceKey::from_bytes(
+            self.authentication_throttle_key.derive_sender_cover_key(),
+        ))
+    }
+
+    /// Derive the proof target solely from authenticated target origin plus
+    /// the already-routed absolute path. Query and all forwarding headers are
+    /// excluded from the proof identity.
+    pub(crate) fn canonical_external_uri(
+        &self,
+        request_uri: &http::Uri,
+        now_ms: u64,
+    ) -> SnapbackResult<String> {
+        self.admission_epoch_at(now_ms)?;
+        let path = request_uri.path();
+        let normalized = path.starts_with('/')
+            && path.is_ascii()
+            && !path.contains('%')
+            && !path.contains('\\')
+            && !path.contains("//")
+            && !path.split('/').any(|segment| matches!(segment, "." | ".."));
+        if !normalized {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+                "auth",
+                "sender proof target is invalid",
+            ));
+        }
+        Ok(format!("{}{}", self.public_origin, path))
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct HostedAuthenticationThrottle {
+    pub(crate) limiter_epoch: u64,
+    pub(crate) deployment_id: String,
+    pub(crate) config: SharedAuthenticationThrottleConfig,
+    pub(crate) key: Arc<AuthenticationThrottleKey>,
+}
+
+impl fmt::Debug for HostedAuthenticationThrottle {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostedAuthenticationThrottle")
+            .field("limiter_epoch", &self.limiter_epoch)
+            .field("deployment_id", &self.deployment_id)
+            .field("config", &self.config)
+            .field("key", &"[REDACTED]")
+            .finish()
     }
 }
 
@@ -324,6 +517,23 @@ pub fn validate_auth_deployment(
 mod tests {
     use super::*;
 
+    fn positive_throttle_config() -> SharedAuthenticationThrottleConfig {
+        let policy = AuthenticationBucketPolicy {
+            interval_ms: 10,
+            burst: 200,
+            maximum_denial_debt_attempts: 100,
+        };
+        SharedAuthenticationThrottleConfig {
+            retention_ms: 900_000,
+            maximum_key_count: 100_000,
+            global: policy,
+            source: policy,
+            subject: policy,
+            source_subject: policy,
+            family: policy,
+        }
+    }
+
     fn positive_hosted_admission() -> HostedAdmission {
         HostedAdmission {
             version: HOSTED_ADMISSION_VERSION,
@@ -334,7 +544,9 @@ mod tests {
             issued_at_ms: 1_000,
             expires_at_ms: 301_000,
             limiter_epoch: 11,
+            authentication_throttle_config: positive_throttle_config(),
             invalidation_epoch: 13,
+            sender_replay_epoch_floor: 0,
             handler_protocol_version: 1,
             handler_incarnation: "handler-1".into(),
             operator_surface: HostedOperatorSurface::Disabled,
@@ -435,6 +647,49 @@ mod tests {
         let mut json = serde_json::to_value(&admission).unwrap();
         json["operatorOverride"] = serde_json::json!(true);
         assert!(serde_json::from_value::<HostedAdmission>(json).is_err());
+    }
+
+    #[test]
+    fn authenticated_hosted_origin_is_closed_and_request_headers_cannot_retarget_it() {
+        let authority = HostedServingAuthority::from_authenticated_target(
+            "https://app.example.test",
+            positive_hosted_admission(),
+            1_000,
+            [7; 32],
+        )
+        .expect("canonical hosted origin");
+        let request_uri: http::Uri = "/query/items?ignored=attacker"
+            .parse()
+            .expect("request URI");
+        assert_eq!(
+            authority
+                .canonical_external_uri(&request_uri, 1_000)
+                .expect("canonical proof URI"),
+            "https://app.example.test/query/items",
+        );
+
+        for origin in [
+            "http://app.example.test",
+            "https://APP.example.test",
+            "https://app.example.test:443",
+            "https://app.example.test/path",
+            "https://user@app.example.test",
+        ] {
+            assert!(
+                HostedServingAuthority::from_authenticated_target(
+                    origin,
+                    positive_hosted_admission(),
+                    1_000,
+                    [7; 32],
+                )
+                .is_err(),
+                "{origin}",
+            );
+        }
+        for uri in ["/a//b", "/a/../b", "/a/%2e/b", "/a\\b"] {
+            let uri: http::Uri = uri.parse().expect("syntactically valid test URI");
+            assert!(authority.canonical_external_uri(&uri, 1_000).is_err());
+        }
     }
 
     #[test]

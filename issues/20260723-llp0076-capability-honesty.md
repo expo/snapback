@@ -1,6 +1,25 @@
 # Capability-manifest honesty and admission against the served instance manifest
 
-**Status:** Open
+**Status:** Open — narrowed to a SINGLE author-decision residue
+(2026-07-24). Everything implementable without an author decision has
+landed: local served-instance admission in every loader with negative and
+positive witnesses (commit 065484e6); AST-derived codegen inference; honest
+manifests on both targets; and the Workerd admission leg (this commit) —
+this target is deploy-time compiled, so function resolution is its loader
+seam (`/app/ensure` only hash-gates posted artifacts and never installs
+them), and `functionByName` now refuses any known registry id the served
+manifest does not support with a typed 503
+`SNAPBACK_CAPABILITY_UNSUPPORTED` before the handler runs, witnessed
+positively (the five stream probes declare `bounded_response_stream_v1` and
+run) and negatively (`probeUnsupportedRequirement` declares
+`auth.sessions.v1` and is refused) in the 28/28 Miniflare egress
+acceptance. REMAINING — and deliberately NOT decided here: whether the
+capability registry gains an explicit proposed/experimental maturity marker
+while LLP 0076 is Draft. That is an LLP 0058 registry-semantics schema
+design that belongs to the author (Charlie); until he decides, the
+instance-live predicate plus the per-bullet witnesses are the honesty
+mechanism (LLP 0076 ledger, "Positive capability overclaim" row). This
+ticket stays open solely as the tracking handle for that decision.
 **Severity:** P2
 **Systems:** Actions, Runtime, Code generation, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -80,7 +80,14 @@ const debug = {
 (globalThis as { partifulMatrixDebug?: typeof debug }).partifulMatrixDebug = debug;
 
 function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
-  const el = document.getElementById('boot-status'); if (el) { el.textContent = message; el.dataset.state = state; }
+  const el = document.getElementById('boot-status');
+  if (!el || (el.dataset.state === 'ready' && state !== 'error')) return;
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — once
+  // mounted UI owns progress, route remounts must not churn the hidden boot
+  // sentinel. A later failure may still surface it.
+  if (el.textContent === message && el.dataset.state === state) return;
+  el.textContent = message;
+  el.dataset.state = state;
 }
 
 function normalizedBasePath(): string {
@@ -137,7 +144,11 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
     const validation = validateContractHydrationManifest(JSON.parse(script.textContent ?? 'null'));
-    return validation.ok && validation.manifest.routeId === expectedRouteId ? validation.manifest : null;
+    if (!validation.ok || validation.manifest.routeId !== expectedRouteId) return null;
+    // The parsed manifest owns the adoption turn from here. Leaving the
+    // serialized copy in the live DOM retains the same node/path ledger twice.
+    script.remove();
+    return validation.manifest;
   } catch {
     return null;
   }
@@ -186,6 +197,11 @@ async function boot() {
       liveQueries,
       requiredQueries: liveQueries,
       liveFallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+      onConnectionChange: (connection: string, detail: Record<string, unknown>) => subscriptionEvents.push({
+        kind: 'connection',
+        connection,
+        ...detail,
+      }),
       onSubscriptionEvent: (event: Record<string, unknown>) => subscriptionEvents.push({
         pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         ...event,

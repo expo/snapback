@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./listConversations.query.ts', {
   listConversations: query({ reads: ["conversations"], readMode: 'sync', cacheKey: 'conversations', result: 'ListConversationsRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  ListConversationsRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","title":"string","model":"string","createdAt":"number"} }),
+  ListConversationsRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","createdAt":"number","model":"string","title":"string"} }),
 });

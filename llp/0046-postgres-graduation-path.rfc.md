@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Runtime, API, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-23 (LLP 0079 SC-4: the dev-time Postgres open question gains a third option — embedded/child-process Postgres as the graduation-path test harness, with Serverpod's conceded tradeoffs and candidate mechanisms to evaluate; no decision claimed); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0046-postgres-graduation-path.claude.md`: store-seam extraction named
 as the prerequisite, cursor/version semantics fixed per 0007, DK-2 cited
 instead of re-opened, atomic import and bundle exclusions restored; initial
@@ -175,7 +175,22 @@ boolean/bytes/timestamp normalization assertions.
   and therefore what is the pinned portable project/database handle
   representation (0007's standing open question, which this choice answers)?
 - Should local `snapback dev` start Postgres through Docker, connect to an
-  existing URL, or both?
+  existing URL, or both — **or a third option (added 2026-07-23, LLP 0079
+  SC-4 per LLP 0078 R4/F3c): an embedded or child-process Postgres as the
+  graduation-path test harness**, so agents can validate LLP 0007's
+  portable-abstraction contract against real Postgres with no Docker
+  dependency? Serverpod validated the child-process shape and its docs
+  concede the tradeoffs to carry into the evaluation: tests may need
+  serialized execution (their `--concurrency=1`), and ad-hoc DB access is
+  coupled to a live process. Candidate mechanisms to evaluate — plan-added
+  elaboration in LLP 0079, not from the Serverpod evidence, which validated
+  only the child-process shape: a vendored `initdb`/`pg_ctl` child process,
+  an embedded-Postgres crate, and PGlite-class wasm builds. Each candidate's
+  evaluation must state whether it exercises **actual PostgreSQL server
+  semantics** relevant to LLP 0007's conformance contract — a wasm build in
+  particular may not count as "real Postgres" for graduation-path
+  validation. The decision belongs to this RFC when the storage trait seam
+  it depends on exists; nothing is decided here.
 
 ## Status
 

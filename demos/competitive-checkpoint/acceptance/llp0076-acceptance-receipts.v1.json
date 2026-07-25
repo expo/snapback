@@ -1,0 +1,123 @@
+{
+  "artifactKind": "acceptanceReceipts",
+  "schemaVersion": "snapback.llp0076-acceptance-receipts.v1",
+  "authority": "llp/0076-bounded-streamed-actions.rfc.md §Acceptance (Draft; the ledger remains the living record)",
+  "producedAt": "2026-07-24",
+  "producedBy": "issues/20260723-llp0076-streaming-program.md — per-bullet receipts pass",
+  "honestyNote": "Each bullet maps to NAMED executable witnesses with the commit that landed them. Coverage is per target: local-dev-sqlite-ibex (the gate-2 substrate arm) and cloudflare-do-sqlite-v8 (a narrow proof, not gate-bearing — LLP 0076 author decision 7). The gate-bearing hosted receipt on single-instance-container-vm.v1 does NOT exist yet and is listed as an explicit gap, not implied.",
+  "witnessSuites": {
+    "instrument": "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs (LLP 0075 protocol v0.5; expectedChecks 7; PASS 7/7)",
+    "lib": "cargo test --lib (src/server.rs + src/stream_attempt.rs stream tests)",
+    "envelope": "cargo test --test action_stream_envelope_v0 (5/5)",
+    "workerdEgress": "cloudflare/test/acceptance.egress.mjs under Miniflare/workerd (28/28)"
+  },
+  "bullets": [
+    {
+      "bullet": "a deterministic server sends 16 numbered UTF-8 chunks over at least 800 ms",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "instrument check '16 upstream chunks become multiple authoritative native-push commits' (sourceChunks 16, sourceDurationMsMinimum 800)", "landed": "5ea5cbe9 (fixture) / ef6458e9 (passing host)" }
+      ]
+    },
+    {
+      "bullet": "a second client observes at least three authoritative intermediate commits before terminal completion",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "same instrument check: second-client observer over native-websocket-push records 8 intermediate authoritative commits, fallback off", "landed": "ef6458e9" }
+      ]
+    },
+    {
+      "bullet": "the received bytes are ordered, complete, and never duplicated across an idempotent retry",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "instrument checks 2 (ordered complete body) and 3 ('reply start retries are idempotent and cross-user progress mutation is refused')", "landed": "ef6458e9" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "egress check 'the Workerd action isolate pulls the complete response through ctx.fetchStream' (totalBytes exact, ordered checksum)", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "slow consumption keeps application buffering within 64 KiB",
+      "status": "witnessed-local; structural-workerd",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "lib test slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors (real high-water counter, four cursors, peak <= 64 KiB, accounting released to zero)", "landed": "c69c368e" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "structural only: one-in-flight-pull refusal + per-chunk ceiling + invocation-wide carry-over refusal path; 16 KiB visible-chunk cap witnessed by egress check; no high-water counter witness (internals unobservable through real workerd)", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "total-byte, idle, wall-clock, and progress-rate limits fail with their exact codes",
+      "status": "witnessed (wall on local only)",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "lib tests bounded_action_stream_refuses_the_first_byte_past_the_total_limit, bounded_action_stream_enforces_wall_idle_and_progress_rate_codes, wall_ceiling_bounds_a_blocked_read_absolutely (mid-read absolute wall)", "landed": "ef6458e9 / c69c368e" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "egress checks: 1 MiB total refusal, exact idle-timeout code, SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED nested-mutation fence; the 30 s wall is race-enforced but not separately witnessed there (no wall manifest row is published)", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "explicit cancellation closes the upstream reader and prevents every late progress commit",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "instrument check 'durable cancellation stops the reader and fences every late patch' (latePatches 0) + lib test cancel_physically_closes_the_upstream_socket_of_an_indefinite_source (physical close observed by the fixture)", "landed": "ef6458e9 / b66f46e1" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "egress check 'response-stream cancellation is idempotent and makes the reader terminal'", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "failed, cancelled, timed-out, and ambiguous attempts remain distinct",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "instrument checks 4/5/6 (cancelled; timed_out; failed-vs-ambiguous under the decision-5 safe-method-only downgrade) + lib test keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_failed", "landed": "ef6458e9 / dd26faaa" }
+      ]
+    },
+    {
+      "bullet": "a cancelled-after-initiation and a timed-out-after-initiation attempt each carry the upstream-effect-may-have-executed fact, while a pre-initiation failed attempt does not",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "instrument check 7 'terminal rows mirror the host-derived effect certainty' (cancelled/timed_out/ambiguous all true through the authored mirror, protocol v0.5) + lib tests cancelled_and_timed_out_after_initiation_carry_the_effect_fact and keyed_non_get_... (pre-send failure carries no uncertainty) + stream_attempt_rows_survive_process_death_and_reconcile_conservatively (crash fold)", "landed": "dd26faaa / this pass" }
+      ]
+    },
+    {
+      "bullet": "reload/reset, authority loss, and watchdog abandonment close cursors and preserve the existing late-mutation fence",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "lib tests terminalization_during_read_discards_late_bytes_and_closes_the_cursor (generation fence mid-blocked-read), service_principal_terminalization_fences_stream_open_and_discards_late_bytes (real scoped-token authority + real terminal gate), watchdog_abandonment_terminalizes_stream_attempts_with_timed_out, detached_action_rejects_every_host_call_after_reload_or_reset", "landed": "b66f46e1 / a86bd01e / 6cd8898d" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "pre/post-pull abandonment revalidation with late-byte discard is implemented and exercised within the egress suite's action lifecycle; the abandonment signal is the complete predicate on this target (hosted auth unavailable)", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "queries and mutations cannot open streams",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "envelope suite mutations_cannot_open_streams_as_an_executed_negative (executed negative through the real HTTP mutation path)", "landed": "cf3d77d9" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "host-ops dispatch refuses action.streamOpen outside action mode (SNAPBACK_ACTION_CONTEXT_UNAVAILABLE); exercised by the shared bridge in the egress suite's query/mutation denial checks", "landed": "15e1984a" }
+      ]
+    },
+    {
+      "bullet": "diagnostics and retained receipts pass secret/private-data scans",
+      "status": "witnessed-diagnostics; retained-receipts-scanned; hosted-durable-rows-open",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "envelope suite staged_secret_values_are_scrubbed_from_stream_error_envelopes ([REDACTED] witnessed) and untouched_stream_refusals_stay_value_free_with_secrets_in_the_request; lib test bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently (URL path never retained)", "landed": "edaac601 / ef6458e9" },
+        { "target": "cloudflare-do-sqlite-v8", "witness": "egress checks 'the resolved stream secret never re-enters the isolate or the action result' and 'status JSON stays key-free after live egress'; opened metadata returns the handler-authored URL, never the substituted one", "landed": "15e1984a" },
+        { "target": "retained-receipts", "witness": "scan performed at receipt production (2026-07-24): demos/competitive-checkpoint/acceptance/results/*.json contain none of the fixture secret values (test-511-key-alpha, test-ors-key-omega, stream-secret-value-7f3a) and no '[snapback secret' markers", "landed": "this pass" }
+      ],
+      "gap": "secret/private-data scans over DURABLE stream rows on the gate-bearing hosted target ride the single-instance-container-vm.v1 receipt below."
+    },
+    {
+      "bullet": "(cross-cutting) the witness must run through the real action, nested mutation, commit, and native live-push path",
+      "status": "witnessed",
+      "witnesses": [
+        { "target": "local-dev-sqlite-ibex", "witness": "the instrument runs a spawned snapback server binary end to end: generated client refs -> HTTP action -> ctx.fetchStream -> nested mutations -> SQLite commits -> native websocket push to a second client, fallback off", "landed": "5ea5cbe9 / ef6458e9" }
+      ]
+    }
+  ],
+  "explicitGaps": [
+    {
+      "id": "hosted-gate2-receipt",
+      "detail": "No receipt exists on single-instance-container-vm.v1, the LLP 0075-selected hosted target that gate 2 requires (LLP 0076 author decision 7). Cloudflare remains a narrow proof and is not gate-bearing. LLP 0074 gate 2 stays open until that receipt exists."
+    },
+    {
+      "id": "maturity-marker",
+      "detail": "Whether bounded_response_stream_v1 carries an explicit proposed/experimental maturity marker while LLP 0076 is Draft is the author's open LLP 0058 decision (issues/20260723-llp0076-capability-honesty.md). These receipts do not preempt it."
+    },
+    {
+      "id": "workerd-structural-bounds",
+      "detail": "On cloudflare-do-sqlite-v8 the 30 s wall and the 64 KiB high-water accounting are structural (race-bounded read; refusal-path accounting) rather than separately witnessed; stated in that target's manifest runtime fact."
+    }
+  ]
+}

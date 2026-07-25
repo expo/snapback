@@ -1284,3 +1284,538 @@ post-adoption viewport and live-data turns later appended to the same
 missed anchors. Deep-snapshotting the result in the callback restored the
 honest boundary: adoption remains immutable evidence, while responsive and
 live updates continue on the mounted tree.
+
+## 2026-07-21 — Step 4 stopped treating missing measurements as prose
+
+The budget receipt originally had fifteen performance rows that could only say
+"instrument missing," plus three attribution/amendment rows with no executable
+path to green. The new dated amendment turns those placeholders into a real
+protocol: two warmups, seven retained calibration samples, a committed
+calibration boundary, then seven independently collected holdout samples. It
+does not touch the frozen Step 0 byte/source thresholds.
+
+The browser-side collector is deliberately outside the measured application.
+A pre-document observer records product shell, authoritative card, live/current
+connection, and the bounded event-navigation mutation window. Chrome's
+performance, heap, GC, and network domains supply idle CPU, idle bytes, and
+heap-per-logical-subscription. Vite's command clock and watch events measure
+fresh and incremental builds without editing the repository. A React × SQLite
+quick canary exercised the whole path; because it used one sample and a 200 ms
+idle window, its receipt is explicitly nonclaim.
+
+Native metrology exposed a useful asymmetry. Exact already reports evaluation
+and first-frame stages. React Expo reported only JS-level product events, so a
+naive comparison would have called unlike timestamps equivalent. The iOS
+carrier now reads React Native's own script-execution duration when the
+JavaScript-loaded notification fires, inventories only the admitted startup
+JS/Hermes assets, and relates its first committed root effect and authoritative
+event to an external launch request. The aggregator refuses samples that lack
+those four structured values and requires React and Exact to name the same
+host identity.
+
+Cost attribution also became more useful than subtraction alone. Every Vite
+cell now emits a stable module ledger partitioned exactly once into framework
+runtime, provider runtime, generated app data, or application code. The
+vanilla row remains an honest lower bound; the ledger does not pretend a delta
+isolates one framework perfectly.
+
+The biggest good surprise was the active Exact AOT/pruning work. Its latest
+clean source-linked build of the same Partitime gateway cell reached 267,819
+bytes minified and 78,258 gzip, down from the stable package's roughly 468/117 kB.
+That is substantial and makes the remaining bundle gap feel tractable, but it
+is still 54,336 minified and 11,012 gzip bytes over the frozen limits. The
+authored Contract surface is also still 1,095 lines against 348. Neither is
+papered over by the new instruments.
+
+Two environmental gaps remain concrete. The authorized Apple host initially
+had only 2.6 GiB free; removing about 9.1 GiB of this project's prior ignored
+Rust/DerivedData outputs made isolated Xcode verification possible without
+touching its dirty evidence worktree. And the available browser inventory has
+desktop Safari/Chrome/Firefox, one iOS 26.2 runtime, and an Android Chrome 134
+emulator—not the required current/current-minus-one mobile matrix. With no
+device-cloud credentials present, those missing citizenship rows must remain
+red rather than being inferred from desktop Chrome.
+
+Compared with React plus Convex or Supabase, this is more ceremony, but the
+ceremony caught real category errors: total heap versus subscription delta,
+React JS effects versus Hermes evaluation, dev-server payload versus a native
+binary, and calibration data leaking into holdout thresholds. The amendment is
+still pending owner ratification, so no performance claim has been promoted.
+
+### Remote Xcode separated “builds” from “works”
+
+The authorized Xcode 26.3 host was useful precisely because it made two very
+different facts visible. Both iOS carriers compile now. React Expo needed the
+actual Swift importer shape of React Native's performance logger—the C enum
+arrives as a raw value rather than a named Swift case—and the nested app had to
+declare the transitive Snapback Contract workspace package explicitly. Exact
+had a more conventional generated-project bug: its normal app targets also
+compiled the Partitime acceptance file, producing two `@main` declarations.
+Excluding that file in `project.yml` fixed the ordinary iOS build without
+weakening the acceptance carrier.
+
+The Exact runtime result was much less flattering. It launched and loaded a
+7,109,789-byte script graph with 460 modules, then spent 6,414.54 ms in Hermes
+evaluation and never produced a frame within 15 seconds. That is the sharpest
+performance evidence from this pass. It does not mean Contract or Snapback is
+fundamentally unsound, but it does mean the native carrier cannot be described
+as merely awaiting polish: its current startup graph or boot path blocks the
+acceptance workload before user-visible output.
+
+### Browser citizenship became a ledger, not a checklist
+
+Exact LLP 0211's release profile expands to 21 concrete rows for this workload.
+The new collector makes every missing row red and requires exact browser/OS
+versions plus durable evidence. I kept the frozen Step 0 harness unchanged
+after its content hash correctly rejected my first attempt to extend it. A
+separate Chrome probe now proves actual browser find on visible event text,
+while the retained product-UI receipt proves dialog focus trap and restoration.
+
+That leaves current desktop Chrome and Firefox at 2/2 each, but the cumulative
+matrix at 4/21. Firefox was a useful test-design correction: JavaScript
+`element.click()` does not give its button focus, so an early probe falsely
+reported broken restoration. WebDriver's real element click proved the trap,
+reverse/forward wrap, Escape dismissal, and restoration; Firefox's privileged
+WebDriver context then invoked and inspected its native FindBar rather than
+substituting `window.find`.
+
+The machine has current desktop Safari, Chrome, and Firefox, but Safari's Allow
+Remote Automation setting is disabled and `safaridriver --enable` requires the
+owner's administrator password. It also has only one iOS 26.2 runtime, and the
+Android emulator's Chrome 134 is stale. Desktop automation cannot substitute
+for real mobile IME, password-manager/autofill, or bfcache behavior. Compared
+with React ecosystem test farms this is operationally heavier, but the
+strictness is useful: it distinguishes “the DOM looks compatible” from “the
+named shipping browser actually behaved correctly.”
+
+## 2026-07-21 — ratification turned the performance checklist into a red benchmark
+
+Charlie ratified `partitime-ws8-prospective-2026-07-21`, so the performance
+collector could finally cross the line from quick canary to claim-grade
+sampling. The clean calibration retained two warmups and seven observations
+for cold/warm startup, authoritative/live data, idle CPU/network, heap per
+logical subscription, update fan-out/patches, and fresh/incremental builds in
+all twelve cells. I committed that artifact before running holdout, and the
+holdout named the calibration commit rather than rereading a moving worktree.
+
+Getting there exposed several harness problems that small canaries had hidden.
+The Contract preview's development plugin middleware returned a client-module
+404 under a real script request even though a generic curl looked green, so
+the production artifact now uses a minimal preview-only Vite configuration.
+The external observer also needed to capture the page's boot promise before
+application code assigned it; otherwise static SSR copy could be mistaken for
+settled live data. Chrome became unreliable when one browser process and one
+flattened CDP session accumulated every navigation, so each cell now owns an
+isolated Chrome process and each navigation owns a short-lived control socket.
+None of those changes relax a product milestone; they remove unrelated harness
+state from the measurement.
+
+The Supabase leg made shared-environment cost visible in a less pleasant way.
+Another legitimate demo already held most direct/session database slots, so
+Partitime could not assume it owned that pool. Public-fixture reads now prefer
+the transaction pooler and disable prepared statements, while explicit
+ephemeral-schema runs keep the direct endpoint for DDL and teardown. This is
+more operational ceremony than a local React-plus-SQLite benchmark, but it is
+closer to how React plus Supabase actually behaves in a shared development
+machine and it kept the collector from killing unrelated work.
+
+The result is useful precisely because it is red: 29 of 44 Contract holdout
+rows pass and 15 fail. Snapback's Contract cell mainly misses heap. The polling
+cells add warm-start, idle, and heap misses; SQLite also shows a large update
+mutation window, and Convex/SQLite narrowly miss production-build limits. The
+instrument no longer lets “we have not measured this” sound like “probably
+fine.” It also did not change the frozen byte thresholds or promote any claim.
+
+Contract and Exact have a split story. The stable package still produces
+659,515/165,844 minified/gzip bytes with Snapback and roughly 468/117 kB in the
+other cells, so the shipping integration remains far too large. Separately,
+Exact's source-linked Phase 3c pruning reached 210,609/61,806 for the unchanged
+SQLite fixture, below its frozen byte limits. That makes the common-runtime
+problem look tractable, but it is not a stable-package victory yet, and it does
+nothing by itself for Snapback's additional provider-client weight or the
+1,095-line authored Contract surface.
+
+Safari improved after the owner enabled Allow Remote Automation. The first
+probe was falsely red because Safari does not focus a button after a mouse
+click; focusing the opener and activating it with a real Enter key produced an
+honest trap/wrap/Escape/restore pass. Native find remains red. WebDriver's
+Command-F did not expose the query as a DOM selection, and trying to bridge
+through macOS accessibility triggered Safari's automation-safety UI and made
+the session unstable. I kept the red row instead of substituting
+`window.find`. With refreshed Chrome 150 and Firefox 152 receipts, the strict
+matrix is now 5/21: all four Chrome/Firefox rows, Safari focus, Safari find red,
+and all fifteen mobile rows still red.
+
+Compared with React plus Convex or Supabase, the Contract path still asks for
+more metrology and packaging discipline than an application team would want
+to own. The good part is that the generated surface gave the collector stable
+product IDs, boot readiness, and explicit provider modes. The bad part is that
+runtime reachability and carrier boundaries remain large enough to dominate
+both bytes and heap. This pass made those tradeoffs concrete rather than
+fundamental: the source-linked runtime can fit, but the stable distribution,
+Snapback interaction cost, native first frame, and mobile citizenship still
+need real work.
+
+## 2026-07-21 — the optimized Exact runtime became a stable-package result
+
+Publishing Exact 0.1.5 changed the most important qualification on the bundle
+work: Partitime no longer needs a source-linked Exact checkout to fit the
+frozen limits. The release included the full 15-package closure, including the
+new observability package, and all 15 public registry tarballs byte-matched the
+publish ledger. Migrating the Contract arm's four direct npm aliases and
+regenerating its Bun lockfile pulled the whole transitive graph to 0.1.5; a
+frozen install then proved the consumer is not depending on worktree state.
+
+On the unchanged workload, all eight byte checks are now green. Contract ×
+Snapback emits 367,782 minified and 100,995 deterministic-gzip bytes against
+limits of 422,417 and 119,451. Supabase emits 210,785/61,883 against
+213,488/67,246, while Convex and SQLite each emit 210,771/61,881 against
+213,483/67,246. The immutable production-browser suite also passes all nine
+checks from the installed package, including static authority, hydration
+adoption, base-path routing, metadata, history, and unsolicited push.
+
+That is a real closure of the Contract bundle-size problem, but it is not a
+closure of Step 4. The aggregate budget receipt remains 9 pass / 17 red / 16
+nonclaims: the 1,095-line authored Contract surface still exceeds its frozen
+348-line limit, 15 of 44 performance holdout rows miss, and native carrier
+calibration and holdout receipts do not exist because the Exact carrier still
+does not reach a first frame. The production-web aggregate remains 11/12;
+only the strict citizenship gate is red, with 5 of 21 required rows admitted.
+I refreshed both artifacts but kept both claims failing.
+
+For Exact, the pleasant part was that capability pruning survived packaging:
+the installed consumer got the same small runtime graph the source experiment
+had promised. The less pleasant part was release-closure discipline—one
+consumer-facing upgrade traversed 15 packages and added observability's schema
+dependencies to the lockfile. Contract now looks much less like it has a
+fundamental browser-size problem; its remaining authored-source and runtime
+performance costs are concrete follow-up work. Snapback's incremental bundle
+cost also fits its preregistered allowance, but its subscription heap and the
+native boot path remain specific Snapback/Exact integration concerns. Compared
+with React plus Supabase or Convex, the installed Contract arm is finally in
+the same browser-byte neighborhood, while still demanding substantially more
+evidence machinery to establish that result.
+
+## 2026-07-22 — the update-cost regression was in the production DOM host
+
+The independent holdout evaluator made four previously hidden categories
+honest, and update economy was the sharpest finding. Exact 0.1.5 reduced the
+Contract cells' subscription heap by roughly thirty percent, but route
+navigation jumped from the earlier 0.1.2 observations of 7/15 DOM targets and
+patches in most cells (18/237 for SQLite) to 57/531 for Snapback, 24/202 for
+Supabase and Convex, and 56/1,133 for SQLite. That looked like a possible cost
+of the production AOT compiler until a focused trace showed the renderer was
+recursively reapplying every unchanged element's attributes and styles after
+each commit.
+
+The repair belongs in Exact's lightweight production DOM host: retain the last
+applied props identity, parent identity, and image color scheme, but continue
+walking the tree so changed descendants and structural order still reconcile.
+A MutationObserver regression now pins a text-only update to one character
+mutation and no ancestor attribute or child mutations. Partitime also stopped
+rewriting its already-hidden boot sentinel during client-side route remounts;
+once mounted UI owns progress, only a later error may make that sentinel write
+again.
+
+An unpublished four-cell quick run now records 6/9 targets/patches for
+Snapback, Supabase, and Convex, and 9/16 for SQLite. All four fit the unchanged
+9/19 frozen limits, and the SQLite bundle remains green at 211,203 minified /
+62,050 deterministic-gzip bytes. This is strong diagnostic evidence, not a
+claim promotion: the Exact change still needs a release and the full
+calibration/holdout cohorts. Compared with React, whose quick SQLite turn was
+9/18, Contract is now in the same update-cost neighborhood. The experience is
+reassuringly mundane—this was neither a Snapback transport flaw nor a
+fundamental Contract-language problem, just a production-host fast path that
+the original functional 9/9 browser corpus did not measure.
+
+## 2026-07-22 — “warm memory” was measuring a second page
+
+The polling failures initially looked coupled: Contract completed three
+one-second gateway requests inside the three-second idle window while React
+completed two, with CPU moving by almost exactly the same ratio. The timer and
+provider implementations were equivalent. The actual difference was the
+production handoff: static Contract rows were rendered as `live` before the
+underlying provider had converged, so the collector called the initial request
+idle work. The seed now stays authoritative but `connecting`; only the real
+provider may advance the connection axis to `polling` or `live`. This is a
+better product truth independent of the benchmark.
+
+The heap miss had a separate custody bug. Warm cache priming navigated the same
+Chrome target twice, and bfcache retained the first application document. The
+metric said one active logical subscription but `Runtime.getHeapUsage` included
+state from the measured page and the cached page. React grew from about 1.27 MB
+cold to 1.65 MB warm, vanilla from 0.62 to 0.85 MB, and Contract from 1.75 to
+2.48 MB. Priming a sibling target, closing it, and measuring in a fresh target
+keeps the shared HTTP cache warm while making cold and warm heaps converge in
+all three arms. Because the old threshold came from that invalid baseline, I
+preserved both original receipts and registered a proposed versioned
+invalidation amendment rather than silently refreshing the numbers.
+
+Removing bad measurement state did not make the candidate magically green.
+Against the corrected React diagnostic near 1.27 MB, the installed Contract
+feed is about 1.76 MB. Allocation profiles pointed to production representation
+rather than the query object: unopened Event Contract IR/AOT closures,
+serialized and parsed hydration ledgers, and ordinary feed runtime state. The
+event route is now a real lazy chunk, the consumed JSON script leaves the DOM,
+and Exact releases the parsed manifest after the adoption turn. With the
+unpublished Exact fix the feed reaches roughly 1.72 MB. That is meaningful but
+still red, which is a useful distinction: the bfcache jump was an instrument
+bug; the remaining runtime gap is real work.
+
+Compared with React plus Supabase, Contract's production hydration gives a
+faster authoritative first paint, but its current AOT representation costs more
+live heap. The best part of the debugging experience was that the three-arm
+control immediately separated browser custody from framework behavior. The
+worst part was that a metric named “per active subscription” was actually total
+target heap divided by one; even after fixing the extra document, it remains a
+strict whole-page runtime budget rather than an isolated provider allocation.
+
+## 2026-07-22 — the native red result belonged to the development lane
+
+The 7.1 MB / 6.4 s Exact launch is real, but its comparison label was not. The
+React carrier was a Release/Simulator Hermes app; Exact was the Debug host
+loading Vite's development module table with Acto explicitly eager. Exact's
+own startup plan says not to use that pairing as a headline and keeps the
+agent-on inspection smoke separate from the agent-off first-frame budget.
+
+A local module-table probe made the distortion concrete. With Acto disabled,
+the Partitime Exact graph was 261 modules, 2.92 MB of transformed module source,
+and 2.31 MB of compact startup source. Enabling Acto raised it to 511 modules,
+6.34 MB of module source, and 4.87 MB of startup source. That does not make the
+agent-off graph a release artifact—the production lane still needs a normal
+tree-shaken bundle compiled to HBC—but it explains why optimizing the old
+number as if it were carrier cost would reward removal of the observer rather
+than improvement of the product.
+
+I preserved the old receipt as development-carrier diagnostic evidence and
+proposed a second invalidation amendment. The replacement lane is paired on the
+same simulator and requires Release configuration, production-bundled Hermes
+HBC, no agent or debug overlay before first frame, a native-host frame mark, and
+a structured product-owned authoritative-data mark. The collector now refuses
+claim-grade receipts that do not attest all of those facts. The amendment is
+still proposed, and Exact does not yet ship the qualifying iOS bundle path, so
+the native claim remains honestly red.
+
+Compared with React Native, this is less a runtime result than a packaging
+lesson. Expo already has a conventional release-HBC lane. Exact has strong
+development observability and a static startup envelope, but Partitime exposed
+the missing bridge from that machinery to a benchmarkable production iOS
+artifact. Acto remains valuable; it simply cannot be charged to every user's
+first frame and then compared with a carrier where the equivalent inspector is
+off.
+
+## 2026-07-22 — the next 97 KB was a production introspection gate
+
+The corrected one-page heap was still useful because it made a production-only
+Contract bug visible. The signal runtime guarded its introspection graph with
+`'env' in import.meta`; that shape looked defensive in Node, but it prevented
+Vite from replacing the production constant. In an ordinary browser there is
+no `process` fallback, so the runtime selected its development default and
+registered metadata for every signal, computed, and effect.
+
+Exact now uses a safe existence check around direct
+`import.meta.env.PROD`/`DEV` reads, returns before production registration, and
+does not look up computed metadata when cause recording is off. Focused
+introspection and update-economy tests still pass, the three TypeScript
+profiles pass, and an unminified release-artifact test proves the three
+per-node registration calls are absent. On the same Contract × Supabase quick
+workload, post-GC heap moves from 1,717,728 to 1,620,640 bytes while the route
+turn stays at 6 mutation targets and 8 patches.
+
+The retained snapshot also kept us from overfitting the wrong idea. Installing
+ten browser listeners on every element looked expensive in allocation
+sampling, but selectively installing them did not improve the measured heap;
+I discarded that change. The remaining 226,540-byte miss is dominated by V8
+code and eager compiled view representation: the snapshot has 137 mount
+environments, 139 mounted `hostNodes`/`dispose` units, and the hidden create
+view's registered AOT/IR even though the overlay is closed. The shared signal
+module also still carries dead introspection code, so LLP 0192's stronger
+zero-code promise is not yet met.
+
+Compared with React plus Supabase, this is where Contract's compiler strategy
+shows its current tradeoff most clearly. React leaves much of a closed branch
+as lazy function code; Contract eagerly materializes more authored structure
+so updates and tooling have explicit identities. That is not a fundamental
+language failure, but it is a real production representation problem. The next
+useful changes are a development-only introspection module boundary and
+lazy/compact registration for unopened view regions—not provider or Snapback
+subscription surgery.
+
+## 2026-07-22 — the introspection implementation now leaves production too
+
+The allocation gate was only half of LLP 0192's promise. It stopped registering
+metadata, but the shared signal module still made the graph registry, bounded
+cause tracing, value cloning, and churn implementation reachable as production
+code. Exact now gives that machinery the same full-runtime/production boundary
+used for error reporting and quiescence: the Contract Vite plugin resolves the
+private bridge to a production stub, and Rollup removes both modules entirely.
+The unminified reachability fixture pins zero rendered bytes for each module and
+the absence of causal-carrier and registration symbols. All 27 focused
+introspection, update-economy, and reachability tests and all three TypeScript
+profiles remain green.
+
+The external Contract × Supabase quick probe moved from 1,620,640 to 1,608,104
+post-GC warm bytes while retaining 6 fan-out targets and 8 host patches. That
+12,536-byte improvement is smaller than the preceding allocation correction,
+which is useful evidence in itself: most of the remaining heap is mounted
+product representation, not dormant diagnostics. The corrected 1,394,100-byte
+threshold is still missed by 214,004 bytes, so no memory claim moves.
+
+Compared with React plus Supabase, this closes one avoidable tooling tax without
+changing Contract's core tradeoff. Development keeps a much richer explicit
+reactive graph; production now pays zero for the inspector. The remaining work
+is the representation of authored views—especially unopened regions and their
+mount environments—not the fact that Contract supports introspection.
+
+## 2026-07-22 — unopened plans and repeated environments were real, but small
+
+The next two changes tested the retained-heap theory directly. Generated AOT
+view registrations now keep each plan behind a first-mount factory, so closed
+conditional/resource/component regions retain their compiled identity without
+materializing their plan arrays. A runtime fixture proves registration and
+lookup invoke no factory, first mount invokes exactly one, repeat mount reuses
+it, and untouched siblings remain untouched. That moved the Supabase warm heap
+from 1,608,104 to 1,606,532 bytes.
+
+The sibling walkers also used to spread the full `MountEnv` for every node even
+after leaving the component root. Exact now creates one immutable false-root
+projection per boundary and reuses it through ordinary descendants; component,
+keyed-repetition, pager, and other actual context changes still project a new
+environment. The first browser attempt timed out before any cell receipt and is
+discarded. Its clean rerun measured 1,600,228 warm bytes with update fan-out and
+patches still 6/8, a further 6,304-byte reduction.
+
+Both optimizations are worth keeping—the lazy plan also reduced the Supabase
+artifact to 209,768 minified bytes across its two chunks, still below the
+213,488-byte gate—but neither is the missing 200 KB. The remaining miss is
+206,128 bytes. Compared with React, Contract is still retaining substantially
+more compiled/mounted host representation, and the next investigation should
+measure the large `instance.ts`/effect-supervisor/host-node footprint rather
+than continuing to polish unopened overlay plans.
+
+## 2026-07-22 — the direct DOM host was carrying native-shaped baggage
+
+The admitted browser host still allocated the full renderer element shape for
+every Contract node, including paragraph, inherited-layout, safe-area, and
+kernel-encoding fields that the direct DOM path never reads. Each node also
+owned three empty canonical records and an event map even though authored
+`originalProps` remains the browser path's semantic and event authority.
+
+Exact now has a narrow direct-DOM element factory, shares the empty
+props/style/transition values and unused event map, and leaves the full native
+factory intact. Direct-host semantics, production reachability, runtime
+coverage, and all three TypeScript profiles pass.
+
+The external Contract × Supabase quick probe measured 1,588,748 post-GC warm
+bytes with update fan-out and patches unchanged at 6/8. That is 11,480 bytes
+below the shared-environment checkpoint, but still 194,648 bytes above the
+corrected React-relative threshold. Host representation is therefore a real
+part of the retained-heap cost, but slimming its obviously unused fields is not
+enough to close the claim; compiled code and mounted-instance/effect state are
+still the larger target.
+
+## 2026-07-22 — ordinary nested containers needed no new mount context
+
+The sibling-environment change did not cover a second repetitive allocation:
+every AOT element still spread the complete immutable `MountEnv` before
+mounting its children, even when it was already below the component root and
+no portal or dismiss boundary changed any field. Exact now passes that context
+through by identity. Root transitions, portal repetition resets, and dismiss
+layer ancestry still receive explicit projections, and focused identity,
+runtime, reactivity, and codegen tests plus all TypeScript profiles pass.
+
+The first external probe never loaded the app because Vite's SSR module
+transport disconnected while fetching an unchanged dependency; it is not a
+measurement. The identical clean rerun measured 1,585,184 post-GC warm bytes
+and kept update fan-out/patches at 6/8. That saves another 3,564 bytes and leaves
+191,084 bytes above threshold. The allocation was real and worth removing, but
+its size confirms that context-object cloning is no longer the dominant miss.
+
+## 2026-07-22 — direct event dispatch was duplicated per element
+
+Paired quick-run heap snapshots made the next representation cost much less
+speculative. Against React, Contract retained 320 additional native listener
+wrappers and 724 additional JS closures overall. The admitted direct DOM host
+installed nine arrow-function listeners on every element (plus input/change on
+controls), so every passive layout and text container captured the same host
+node repeatedly.
+
+The first experiment attached listeners only when current props named a
+matching handler. That reduced the native listener topology but expanded the
+host's event decision code enough to make the frozen V8-heap metric 1,684 bytes
+worse, so it was not kept. The narrower retained change preserves the direct
+listener topology—and therefore native `currentTarget` and propagation—while
+storing a private DOM-to-host identity and sharing one dispatcher function.
+Replacement handlers are still read from current `originalProps`.
+
+Eight direct-host tests, production reachability, hydration and plugin suites,
+and all TypeScript profiles pass. The external Contract × Supabase quick probe
+measured 1,571,580 post-GC warm bytes with update fan-out/patches still 6/8.
+That is 13,604 bytes below the nested-environment checkpoint and leaves 177,480
+bytes above threshold. The result confirms that closure/context duplication is
+material, while the remaining miss is still mainly executable/runtime state
+rather than one giant host object.
+
+## 2026-07-22 — asking for attribute objects created attribute objects
+
+The paired heap comparison also showed 178 more retained native `Attr`
+wrappers on the Contract page. The direct host's stale-attribute loop used
+`element.attributes`, which asks the browser to materialize object wrappers,
+then immediately threw those objects away after reading their names.
+
+The host now uses `getAttributeNames()`. Stale removal, hydration adoption, and
+presentation output are unchanged, and the direct-host suite passes. The same
+external quick probe measured 1,567,664 post-GC warm bytes with 6/8 update
+fan-out/patches, 3,916 bytes below shared event dispatch and still 173,564
+bytes over threshold. This was small but clean: browser object APIs can create
+retained wrapper cost even when application semantics only need strings.
+
+## 2026-07-22 — initial style application did not need a CSSOM wrapper
+
+The direct host also requested `element.style` for every full presentation and
+set each validated property independently. Exact now serializes that same
+ordered style map into one `style` attribute. Values have already passed the
+shared inline-style safety check, and narrow reactive style patches still use
+CSSOM, so update semantics stay unchanged.
+
+The direct-host suite passes. The external Contract × Supabase quick probe
+measured 1,564,980 post-GC warm bytes with 6/8 update fan-out/patches, 2,684
+bytes below the attribute-name checkpoint and still 170,880 bytes above the
+corrected threshold. Like the `Attr` result, this is a small browser-wrapper
+win rather than the missing core-runtime reduction.
+
+The combined candidate subsequently passed the immutable production browser
+corpus 9/9: static routes and JavaScript-disabled authority, byte-identical
+hydration adoption with zero recreated nodes, non-root base paths, history and
+metadata, exactly three event subscriptions, and unsolicited Snapback push.
+
+## 2026-07-22 — the remaining memory miss is the unfinished production artifact
+
+After the safe host and environment reductions, the corrected Contract ×
+Supabase quick baseline is 1,564,980 post-GC warm bytes against 1,394,100,
+with update fan-out and patches already green at 6/8. Paired heap snapshots
+put the Contract/React JavaScript delta mainly in compiled code, object shapes,
+arrays, and closures—not in the one active query subscription. The generated
+feed makes that concrete: it retains 97 expression closures, 87 lazy view
+registration factories, and a parallel compact runtime-IR skeleton containing
+158 objects and 97 arrays.
+
+Three tempting reductions clarified the design boundary. One effect per
+static ownership subtree measured 1,554,740 bytes, but it replaces Contract's
+per-element/text dependency graph with union tracking. Compact interpreted
+view-value plans combined with that grouping measured 1,545,280 bytes, but
+undo the compiled-expression side of Exact LLP 0185. Prototype-backed mounted
+units preserved the model but only reached 1,560,208 bytes. None was retained:
+the two larger wins spend Contract's intended update semantics for less than
+20 KB, and the representation-only win is too small for its added machinery.
+
+This changes the shape of the remaining work. The missing 170,880 bytes are
+not a Snapback subscription leak and are unlikely to disappear through more
+DOM-wrapper polishing. LLP 0185's production artifact matrix already says
+production ships closures but not runtime IR; the implementation has not yet
+reached that state. The next credible memory slice is to generate structural
+and hydration identity into the AOT artifact, link child/branch closures
+directly, and stop retaining the duplicate production view tree while keeping
+fine-grained effects, compiled expressions, source attribution, and on-demand
+authorized editable IR. Until that larger S2 slice is implemented and
+remeasured, the memory claim remains red.

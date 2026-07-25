@@ -14,7 +14,6 @@
     "hosted_untrusted_code",
     "external_auth",
     "assets",
-    "outbound_actions",
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
@@ -38,7 +37,7 @@
   "offlineRetention": true,
   "onlineOnlyQueries": true,
   "optimisticReplay": true,
-  "outboundActions": false,
+  "outboundActions": true,
   "permissionDiagnostics": false,
   "portabilityOptOuts": [],
   "replaceOnlyQueries": true,
@@ -49,6 +48,34 @@
     },
     {
       "name": "action_wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_total_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_buffered_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_read_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_open_cursors",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_wall_clock",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_idle_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_progress_rate",
       "status": "Enforced"
     },
     {
@@ -99,6 +126,7 @@
   ],
   "supportedCapabilities": [
     "auth.sessions.v1",
+    "bounded_response_stream_v1",
     "cron",
     "cron_action_run_mutation",
     "host_plan_runtime",

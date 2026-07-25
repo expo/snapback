@@ -24,6 +24,13 @@ const inventories = [
     packageDir: 'packages/snapback-cli',
     testDir: '.',
     suffix: '.test.mjs',
+    expectedFiles: ['dev-loop.test.mjs', 'mcp-control.test.mjs', 'package.test.mjs'],
+  },
+  {
+    id: '@snapback/vite',
+    packageDir: 'packages/snapback-vite',
+    testDir: '.',
+    suffix: '.test.mjs',
     expectedFiles: ['package.test.mjs'],
   },
   {
@@ -31,7 +38,14 @@ const inventories = [
     packageDir: 'packages/snapback-client',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['external-store.test.mjs', 'package.test.mjs'],
+    expectedFiles: [
+      'external-store.test.mjs',
+      'hosted-browser.test.mjs',
+      'package.test.mjs',
+      'rqs-digest-parity.test.mjs',
+      'sender-proof.test.mjs',
+      'sender-transport.test.mjs',
+    ],
   },
   {
     id: '@snapback/react',
@@ -59,6 +73,7 @@ const inventories = [
       'contract-binding-reads.test.mjs',
       'data-tier-corpus.test.mjs',
       'dependency-graph.test.mjs',
+      'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'identifier-validation.test.mjs',
       'operation-schemas.test.mjs',
@@ -82,6 +97,7 @@ const inventories = [
       'auth-coordinator.test.mjs',
       'auth-custody-indexeddb.test.mjs',
       'auth-invalidation.test.mjs',
+      'auth-sender-custody.test.mjs',
       'agent-authority-contract.test.mjs',
       'authorized-contract.test.mjs',
       'authorized-lease.test.mjs',
@@ -178,7 +194,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 65, 'reviewed package/admin test count changed');
+assert.equal(total, 74, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

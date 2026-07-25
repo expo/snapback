@@ -33,7 +33,8 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     optionalKey: v.optional(v.string()),
   })
     .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
-    .index('by_owner_created_slug', ['ownerId', 'createdAt', 'slug'], { unique: true });
+    .index('by_owner_created_slug', ['ownerId', 'createdAt', 'slug'], { unique: true })
+    .index('by_slug_only', ['slug']);
   defineSchema({ todos });
   const names = {
     list: 'listTodos',
@@ -121,6 +122,98 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     'immutable fields must not be silently changed by trusted update defaults',
   );
   assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED/,
+    'the generated list must name an owner-leading index, never an unindexed owner scan',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      listIndex: 'by_slug_only',
+    }),
+    /SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED: listIndex by_slug_only must be a declared index whose leading field is ownerId/,
+    'a list index whose leading field is not the owner field cannot serve the owner scan',
+  );
+  {
+    const rated = defineTable({
+      ownerId: v.string(),
+      title: v.string(),
+      score: v.real(),
+    }).index('by_owner', ['ownerId']);
+    defineSchema({ rated });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: rated,
+        names,
+        visibility: { kind: 'owner', field: 'ownerId' },
+        listIndex: 'by_owner',
+        createDefaults: { score: 'now' },
+      }),
+      /SNAPBACK_STANDARD_PATTERN_INVALID: createDefaults.score uses now but is not an integer millisecond field/,
+      'trusted now binds only to integer millisecond fields, never floats',
+    );
+  }
+  {
+    const memberships = defineTable({
+      userId: v.principal(),
+      eventId: v.string(),
+      role: v.string(),
+    })
+      .index('by_user', ['userId'])
+      .membership({
+        scope: 'resource',
+        principal: 'userId',
+        resource: 'eventId',
+        role: 'role',
+        roles: ['host', 'guest'],
+      });
+    defineSchema({ memberships });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: memberships,
+        names,
+        visibility: { kind: 'owner', field: 'userId' },
+        listIndex: 'by_user',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
+      'generic CRUD must not own authority-bearing membership writes',
+    );
+  }
+  {
+    const invites = defineTable({
+      ownerId: v.string(),
+      email: v.string(),
+      note: v.string(),
+    })
+      .index('by_owner', ['ownerId'])
+      .index('by_email', ['email'], { unique: true });
+    defineSchema({ invites });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: invites,
+        names,
+        visibility: { kind: 'owner', field: 'ownerId' },
+        listIndex: 'by_owner',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_DISCLOSURE_REQUIRED/,
+      'a global unique index reachable by generated writes is an existence channel and must be declared',
+    );
+    const disclosed = defineOwnedCrud({
+      table: invites,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      listIndex: 'by_owner',
+      discloseUniqueConflicts: ['by_email'],
+    });
+    assert.equal(typeof disclosed.listTodos, 'object', 'an explicit disclosure declaration admits the table');
+  }
+  assert.throws(
     () => defineOwnedUniqueLookup({
       table: todos,
       name: 'todoBySlug',
@@ -141,60 +234,6 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     /SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED: by_owner_created_slug must be unique with exact fields \[ownerId, createdAt\]/,
     'a third unique-index field does not make the cursor unique within one owner partition',
   );
-
-  const permissionRows = defineTable({
-    ownerId: v.principal(),
-    role: v.string(),
-  }).permissionBacking(['role']);
-  const membershipRows = defineTable({
-    ownerId: v.principal(),
-    role: v.string(),
-  }).membership({
-    scope: 'app',
-    principal: 'ownerId',
-    role: 'role',
-    roles: ['member'],
-    transitions: [],
-  });
-  defineSchema({ permissionRows, membershipRows });
-  for (const table of [permissionRows, membershipRows]) {
-    assert.throws(
-      () => defineOwnedCrud({
-        table,
-        names,
-        visibility: { kind: 'owner', field: 'ownerId' },
-      }),
-      /SNAPBACK_STANDARD_PATTERN_PERMISSION_BACKING_REFUSED/,
-      'standard patterns must not turn permission-backing rows into self-service authority',
-    );
-  }
-
-  const opaqueOrder = defineTable({
-    ownerId: v.principal(),
-    payload: v.json(),
-    immutableValue: v.string(),
-  });
-  defineSchema({ opaqueOrder });
-  assert.throws(
-    () => defineOwnedCrud({
-      table: opaqueOrder,
-      names,
-      visibility: { kind: 'owner', field: 'ownerId' },
-      listOrder: 'payload',
-    }),
-    /SNAPBACK_STANDARD_PATTERN_INVALID: listOrder payload must be a portable scalar field/,
-    'portable list ordering must refuse JSON values',
-  );
-  assert.throws(
-    () => defineOwnedCrud({
-      table: opaqueOrder,
-      names,
-      visibility: { kind: 'owner', field: 'ownerId' },
-      immutable: ['payload', 'immutableValue'],
-    }),
-    /SNAPBACK_STANDARD_PATTERN_INVALID: update would patch no fields/,
-    'a generated update must not silently become an empty patch',
-  );
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'snapback-standard-patterns-'));
@@ -211,6 +250,7 @@ export const todos = defineTable({
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner_created', ['ownerId', 'createdAt'])
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
@@ -235,6 +275,7 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
   createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
   immutable: ['slug', 'pageKey', 'createdAt'],
+  listIndex: 'by_owner_created',
 });
 
 export const { todoBySlug } = defineOwnedUniqueLookup({
@@ -251,6 +292,16 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   cursorField: 'pageKey',
   visibility: { kind: 'owner', field: 'ownerId' },
 });
+
+// Handwritten equivalent of the generated get, for the posture-parity witness.
+import { defineLiveQuery, eq, arg, authUserId, v } from '${defineUrl}';
+export const getTodoByHand = defineLiveQuery({
+  table: 'todos',
+  args: { id: v.id('todos') },
+  filter: [eq('ownerId', authUserId()), eq('_id', arg('id'))],
+  auth: 'authenticated',
+  authScopeField: 'ownerId',
+});
 `);
 
   const result = await generate(dir);
@@ -258,14 +309,32 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
   assert.deepEqual([...byName.keys()].sort(), [
-    'createTodo', 'deleteTodo', 'firstTodoPage', 'getTodo', 'listTodos',
-    'nextTodoPage', 'todoBySlug', 'updateTodo',
+    'createTodo', 'deleteTodo', 'firstTodoPage', 'getTodo', 'getTodoByHand',
+    'listTodos', 'nextTodoPage', 'todoBySlug', 'updateTodo',
   ]);
+
+  // @ref LLP 0065#6-acceptance — posture parity: a generated operation and a
+  //   handwritten equivalent carry identical auth requirements, read
+  //   summaries, effect ceilings, and plan shape; generation confers no
+  //   special authority and skips no gate.
+  {
+    const generated = byName.get('getTodo');
+    const handwritten = byName.get('getTodoByHand');
+    assert.equal(generated.authRequirement, handwritten.authRequirement);
+    assert.deepEqual(generated.readSetSummary, handwritten.readSetSummary);
+    assert.deepEqual(generated.writeSetSummary, handwritten.writeSetSummary);
+    assert.deepEqual(generated.effectCeiling, handwritten.effectCeiling);
+    assert.deepEqual(generated.authorizationDependence, handwritten.authorizationDependence);
+    assert.deepEqual(
+      generated.runtime.HostPlan.Query.filters,
+      handwritten.runtime.HostPlan.Query.filters,
+      'the generated owner filter and id filter match the handwritten plan',
+    );
+  }
 
   for (const name of ['listTodos', 'getTodo', 'todoBySlug', 'firstTodoPage', 'nextTodoPage']) {
     const fn = byName.get(name);
     assert.equal(fn.authRequirement, 'authenticated', `${name} must require authenticated authority`);
-    assert.equal(Object.hasOwn(fn, 'retainable'), false, `${name} stays non-retainable until it carries the LLP 0053 convergence fixture`);
     assert.equal(fn.readSetSummary.authScopeField, 'ownerId', `${name} must carry explicit row visibility`);
     assert(
       fn.runtime.HostPlan.Query.filters.some((filter) => (
@@ -289,11 +358,65 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.equal(Object.hasOwn(createSchema.properties, 'createdAt'), false, 'trusted time must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'updatedAt'), false, 'trusted time must not be client-forgeable');
 
+  // @ref LLP 0065#3-common-pattern-contracts — every generated function
+  //   carries its versioned helper/profile identity.
+  for (const [fnName, helper] of [
+    ['listTodos', 'owned-crud.v1'], ['getTodo', 'owned-crud.v1'],
+    ['createTodo', 'owned-crud.v1'], ['updateTodo', 'owned-crud.v1'],
+    ['deleteTodo', 'owned-crud.v1'], ['todoBySlug', 'owned-unique-lookup.v1'],
+    ['firstTodoPage', 'owned-keyset-pages.v1'], ['nextTodoPage', 'owned-keyset-pages.v1'],
+  ]) {
+    assert.deepEqual(
+      byName.get(fnName).standardPattern,
+      { helper, profile: 'owner.v1' },
+      `${fnName} must carry its versioned standard-pattern identity`,
+    );
+  }
+
+  // @ref LLP 0065#6-acceptance — generation asserts each constructor's exact
+  //   expected EffectCeilingV1; the runtime subset check stays enforcement.
+  assert.deepEqual(byName.get('listTodos').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [{ table: 'todos', access: 'query', index: 'by_owner_created' }],
+    writes: [],
+    hostOperations: [],
+    authorizationInputs: ['authUserId'],
+  });
+  assert.deepEqual(byName.get('updateTodo').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [{ table: 'todos', access: 'point' }],
+    writes: [{ table: 'todos', operations: ['patch'] }],
+    hostOperations: ['runtimeNow'],
+    authorizationInputs: ['authUserId'],
+  });
+  assert.deepEqual(byName.get('createTodo').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [],
+    writes: [{ table: 'todos', operations: ['insert'] }],
+    hostOperations: ['runtimeId', 'runtimeNow'],
+    authorizationInputs: ['authUserId'],
+  });
+
+  const listTodos = byName.get('listTodos');
+  assert.equal(listTodos.runtime.HostPlan.Query.indexed_by, 'by_owner_created');
+  assert.deepEqual(
+    listTodos.runtime.HostPlan.Query.order.map((entry) => entry.field),
+    ['createdAt'],
+    'list order is the declared index sequence; the storage _id suffix totalizes it',
+  );
+
   const update = byName.get('updateTodo');
   const updateSteps = update.runtime.HostPlan.Mutation.steps;
   assert.equal(updateSteps[0].Get.table, 'todos');
-  assert.equal(updateSteps[0].Get.else_error, 'SNAPBACK_ROW_NOT_VISIBLE');
-  assert.equal(updateSteps[1].Guard.else_error, 'SNAPBACK_ROW_NOT_VISIBLE');
+  assert.equal(
+    updateSteps[1].Guard.else_error,
+    'SNAPBACK_ROW_NOT_FOUND',
+    'missing and invisible collapse to one public refusal',
+  );
+  assert.equal(updateSteps[0].Get.else_error, 'SNAPBACK_ROW_NOT_FOUND');
   assert.equal(updateSteps[1].Guard.cond.Binary.right, 'AuthUserId');
   assert.equal(updateSteps[2].Patch.values.updatedAt, 'RuntimeNow');
 

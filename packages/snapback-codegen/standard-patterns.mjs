@@ -7,9 +7,6 @@
 //   generated writes stay inside the closed, portable mutation IR.
 // @ref LLP 0065#2-the-v1-visibility-floor — owner visibility is an executable
 //   predicate and transaction guard, never metadata-only inference.
-// @ref LLP 0053#two-orthogonal-declarations — permission-backing tables are
-//   authority sources, so generic owner CRUD must refuse them rather than
-//   deriving a self-service authority-creation path from their row shape.
 
 import {
   arg,
@@ -39,7 +36,8 @@ const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const CRUD_NAME_FIELDS = Object.freeze(['list', 'get', 'create', 'update', 'delete']);
 const CRUD_OPTION_FIELDS = new Set([
   'table', 'names', 'visibility', 'idArg', 'createDefaults',
-  'updateDefaults', 'immutable', 'listOrder', 'listLimit',
+  'updateDefaults', 'immutable', 'listIndex', 'listLimit',
+  'discloseUniqueConflicts',
 ]);
 const UNIQUE_LOOKUP_OPTION_FIELDS = new Set([
   'table', 'name', 'index', 'visibility', 'live',
@@ -70,13 +68,12 @@ function tableFacts(table, where = 'table') {
       `${where} must be a defineTable(...) installed in defineSchema(...)`,
     );
   }
-  if (table.permissionBackingDeclared || table.membershipDeclaration !== undefined) {
-    fail(
-      'SNAPBACK_STANDARD_PATTERN_PERMISSION_BACKING_REFUSED',
-      `${where} ${table.__tableName} is permission-backing; generic standard patterns cannot create or mutate authority`,
-    );
-  }
-  return { name: table.__tableName, fields: table.fields, indexes: table.indexes ?? [] };
+  return {
+    name: table.__tableName,
+    fields: table.fields,
+    indexes: table.indexes ?? [],
+    authorityBearing: Boolean(table.membershipDeclaration) || Boolean(table.permissionBackingDeclared),
+  };
 }
 
 function requireName(name, where) {
@@ -123,8 +120,14 @@ function normalizeDefaults(table, defaults, where) {
       fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where}.${field} must be "now" or "id"`);
     }
     const validator = table.fields[field];
-    if (kind === 'now' && !['Integer', 'Real'].includes(validator.fieldType)) {
-      fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where}.${field} uses now but is not numeric`);
+    // @ref LLP 0065#3-common-pattern-contracts — `now` binds only to a
+    //   JavaScript-safe integer millisecond field; float timestamps are not
+    //   admitted.
+    if (kind === 'now' && validator.fieldType !== 'Integer') {
+      fail(
+        'SNAPBACK_STANDARD_PATTERN_INVALID',
+        `${where}.${field} uses now but is not an integer millisecond field`,
+      );
     }
     if (kind === 'id' && (validator.fieldType !== 'String' || validator.optional)) {
       fail(
@@ -156,14 +159,19 @@ function argsAndValues(table, excluded, defaults = {}) {
   return { args, values };
 }
 
+// The public boundary collapses missing and invisible: both legs refuse with
+// SNAPBACK_ROW_NOT_FOUND and an identical body, so a caller probing another
+// owner's id learns nothing an absent id would not teach. The distinguishing
+// record belongs to the separately authorized audit channel, never a public
+// code.
+// @ref LLP 0065#2-the-v1-visibility-floor — existence secrecy collapses at
+//   the public boundary by default.
 function ownedRowGuard(tableName, idArg, ownerField, bindAs) {
   return [
-    // Collapse missing and invisible rows at the generated public plan
-    // boundary so document-id probing cannot become an existence oracle.
-    get(tableName, arg(idArg), bindAs, { elseError: 'SNAPBACK_ROW_NOT_VISIBLE' }),
+    get(tableName, arg(idArg), bindAs, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
     guard(
       eqv(field(bindingRef(bindAs), ownerField), authUserId()),
-      'SNAPBACK_ROW_NOT_VISIBLE',
+      'SNAPBACK_ROW_NOT_FOUND',
     ),
   ];
 }
@@ -193,10 +201,22 @@ export function defineOwnedCrud(options) {
     createDefaults,
     updateDefaults,
     immutable = [],
-    listOrder = '_createdAt',
+    listIndex,
     listLimit = 100,
+    discloseUniqueConflicts = [],
   } = options;
   const facts = tableFacts(table);
+  // @ref LLP 0065#3-common-pattern-contracts — mutating helpers refuse
+  //   authority-bearing tables: generic CRUD over a membership or
+  //   permission-backing table would launder authority creation past LLP
+  //   0055/0056's provenance and effect-site gates.
+  if (facts.authorityBearing) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE',
+      `${facts.name} carries a membership or permission-backing declaration; `
+        + 'generated CRUD cannot own authority-bearing writes',
+    );
+  }
   exactObject(names, 'names', new Set(CRUD_NAME_FIELDS));
   for (const field of CRUD_NAME_FIELDS) requireName(names[field], `names.${field}`);
   requireDistinctNames(names, CRUD_NAME_FIELDS, 'names');
@@ -220,17 +240,56 @@ export function defineOwnedCrud(options) {
   if (immutable.some((field) => updateDefaultFields.includes(field))) {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'updateDefaults cannot set immutable fields');
   }
-  if (
-    typeof listOrder !== 'string'
-    || (!Object.hasOwn(facts.fields, listOrder) && !SYSTEM_ORDER_FIELDS.has(listOrder))
-  ) {
-    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `listOrder names unknown field ${String(listOrder)}`);
+  // @ref LLP 0065#3-common-pattern-contracts — the generated list requires an
+  //   explicitly named owner-leading declared index; index choice is never
+  //   inferred and an unindexed owner scan is never emitted. Ordering is the
+  //   index sequence; the storage layer's implicit `_id` component totalizes
+  //   it (LLP 0007 amended Index Contract).
+  if (listIndex === undefined) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED',
+      'defineOwnedCrud requires listIndex naming a declared index whose leading field is the owner field',
+    );
   }
-  if (Object.hasOwn(facts.fields, listOrder) && facts.fields[listOrder].fieldType === 'Json') {
-    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `listOrder ${listOrder} must be a portable scalar field`);
+  requireName(listIndex, 'listIndex');
+  const listIndexFacts = facts.indexes.find((candidate) => candidate.name === listIndex);
+  if (!listIndexFacts || listIndexFacts.fields[0] !== ownerField) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED',
+      `listIndex ${listIndex} must be a declared index whose leading field is ${ownerField}`,
+    );
   }
   if (!Number.isSafeInteger(listLimit) || listLimit < 1 || listLimit > 1_024) {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'listLimit must be an integer from 1 through 1024');
+  }
+  // @ref LLP 0065#2-the-v1-visibility-floor — uniqueness is existence
+  //   disclosure by conflict: a client-observable unique constraint reached
+  //   by generated create/update must be owner-partitioned or carry an
+  //   explicit disclosure declaration naming the index.
+  if (
+    !Array.isArray(discloseUniqueConflicts)
+    || discloseUniqueConflicts.some((name) => typeof name !== 'string')
+  ) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'discloseUniqueConflicts must be an array of index names');
+  }
+  for (const name of discloseUniqueConflicts) {
+    if (!facts.indexes.some((candidate) => candidate.name === name && candidate.unique)) {
+      fail(
+        'SNAPBACK_STANDARD_PATTERN_INVALID',
+        `discloseUniqueConflicts names ${name}, which is not a declared unique index`,
+      );
+    }
+  }
+  for (const index of facts.indexes) {
+    if (!index.unique) continue;
+    if (index.fields.includes(ownerField)) continue;
+    if (discloseUniqueConflicts.includes(index.name)) continue;
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_DISCLOSURE_REQUIRED',
+      `unique index ${index.name} excludes owner field ${ownerField}: a generated create/update `
+        + 'conflict would disclose another owner\'s row; owner-partition the index or name it in '
+        + 'discloseUniqueConflicts',
+    );
   }
 
   const create = argsAndValues(facts, new Set([ownerField]), createDefaultMap);
@@ -240,12 +299,6 @@ export function defineOwnedCrud(options) {
     new Set([ownerField, ...immutable, ...updateDefaultFields]),
   );
   for (const [field, kind] of Object.entries(updateDefaultMap)) update.values[field] = defaultExpr(kind);
-  if (Object.keys(update.values).length === 0) {
-    fail(
-      'SNAPBACK_STANDARD_PATTERN_INVALID',
-      'update would patch no fields; leave at least one mutable or trusted-default field',
-    );
-  }
 
   const getArgs = { [idArg]: v.id(facts.name) };
   const rowBind = '__standardOwnedRow';
@@ -255,29 +308,32 @@ export function defineOwnedCrud(options) {
       table: facts.name,
       args: {},
       filter: [eq(ownerField, authUserId())],
-      order: [asc(listOrder)],
+      order: listIndexFacts.fields.slice(1).map((field) => asc(field)),
       limit: listLimit,
+      index: listIndex,
       auth: 'authenticated',
-      retainable: false,
       authScopeField: ownerField,
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
     }),
     [names.get]: defineLiveQuery({
       table: facts.name,
       args: getArgs,
       filter: [eq(ownerField, authUserId()), eq('_id', arg(idArg))],
       auth: 'authenticated',
-      retainable: false,
       authScopeField: ownerField,
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
     }),
     [names.create]: defineMutation({
       args: create.args,
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: insert(facts.name, create.values, { bindIdAs: createIdBind }),
       returns: returnDocument(facts.name, bindingRef(createIdBind)),
     }),
     [names.update]: defineMutation({
       args: { ...getArgs, ...update.args },
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: [
         ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
         patch(facts.name, arg(idArg), update.values),
@@ -287,6 +343,7 @@ export function defineOwnedCrud(options) {
     [names.delete]: defineMutation({
       args: getArgs,
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: [
         ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
         del(facts.name, arg(idArg)),
@@ -329,8 +386,8 @@ export function defineOwnedUniqueLookup(options) {
     limit: 1,
     index,
     auth: 'authenticated',
-    retainable: false,
     authScopeField: ownerField,
+    standardPattern: { helper: 'owned-unique-lookup.v1', profile: 'owner.v1' },
   };
   const definition = live ? defineLiveQuery(query) : defineLiveQuery({ ...query, defaultLive: false });
   return Object.freeze({ [name]: definition });
@@ -396,8 +453,8 @@ export function defineOwnedKeysetPages(options) {
     limit,
     index,
     auth: 'authenticated',
-    retainable: false,
     authScopeField: ownerField,
+    standardPattern: { helper: 'owned-keyset-pages.v1', profile: 'owner.v1' },
   };
   return Object.freeze({
     [names.first]: defineLiveQuery({

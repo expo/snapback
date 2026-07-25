@@ -11,12 +11,13 @@ import { fileURLToPath } from 'node:url';
 import { measureSourceInventory } from './step4-closure-helpers.mjs';
 
 // @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax
-// @ref LLP 0065#5-acceptance
+// @ref LLP 0065#6-acceptance
 //
 // This witness intentionally separates a passing implementation candidate
-// from the author-owned authority gate. Draft LLP 0065 cannot promote the
-// cumulative STEP5.DECLARATION_REDUCTION claim, even when its implementation
-// and frozen source-volume row pass.
+// from the executable conformance gate. Accepted LLP 0065 authorizes this
+// implementation, but cannot promote the cumulative
+// STEP5.DECLARATION_REDUCTION claim until its conformance suite and frozen
+// source-volume row pass.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');

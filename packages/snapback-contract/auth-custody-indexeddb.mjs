@@ -10,13 +10,36 @@ import {
   AUTH_CUSTODY_LEASE_MS,
   AUTH_CUSTODY_LEASE_RENEW_MS,
   validateAuthCustody,
+  validateAuthCustodySenderKeys,
 } from './auth-coordinator.mjs';
 
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 const OBSERVED_UNCHANGED_MS = AUTH_CUSTODY_LEASE_MS;
 const RETRY_POLL_MS = 50;
 
-const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+const clone = (value) => {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
+  const CryptoKeyClass = globalThis.CryptoKey;
+  const containsCryptoKey = (candidate) => (
+    typeof CryptoKeyClass === 'function'
+    && (
+      candidate instanceof CryptoKeyClass
+      || (
+        candidate !== null
+        && typeof candidate === 'object'
+        && Reflect.ownKeys(candidate).some((key) => containsCryptoKey(candidate[key]))
+      )
+    )
+  );
+  if (containsCryptoKey(value)) {
+    throw storageError(
+      'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+      'sender-constrained custody requires structured clone support',
+    );
+  }
+  return JSON.parse(JSON.stringify(value));
+};
 
 function storageError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -159,7 +182,10 @@ function openCustodyDatabase(indexedDB, name) {
         db.close();
         return;
       }
-      if (!db.objectStoreNames.contains('custody') || !db.objectStoreNames.contains('leases')) {
+      if (
+        !db.objectStoreNames.contains('custody')
+        || !db.objectStoreNames.contains('leases')
+      ) {
         db.close();
         fail(storageError(
           'SNAPBACK_AUTH_CUSTODY_CORRUPT',
@@ -224,10 +250,11 @@ export function createIndexedDbAuthCustodyStorage({
         throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
       }
     }
-    return record === undefined ? null : validateAuthCustody(record, appId);
+    return record === undefined ? null : validateAuthCustodySenderKeys(record, appId);
   };
 
   const replaceCustody = async (db, appId, expectedRevision, next, lease = null) => {
+    const validatedNext = await validateAuthCustodySenderKeys(next, appId);
     const stores = lease ? ['custody', 'leases'] : ['custody'];
     const tx = db.transaction(stores, 'readwrite');
     const custodyStore = tx.objectStore('custody');
@@ -250,7 +277,7 @@ export function createIndexedDbAuthCustodyStorage({
           throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
         }
       }
-      const validated = validateReplacement(current, next, appId);
+      const validated = validateReplacement(current, validatedNext, appId);
       custodyStore.put(clone(validated), appId);
       await transactionDone(tx);
       return validated;

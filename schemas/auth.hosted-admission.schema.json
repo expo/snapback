@@ -1,5 +1,34 @@
 {
   "$defs": {
+    "AuthenticationBucketPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "burst": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intervalMs": {
+          "format": "uint64",
+          "maximum": 86400000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumDenialDebtAttempts": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intervalMs",
+        "burst",
+        "maximumDenialDebtAttempts"
+      ],
+      "type": "object"
+    },
     "AuthenticationThrottle": {
       "enum": [
         "unavailable",
@@ -82,6 +111,49 @@
         "globallyFenced"
       ],
       "type": "string"
+    },
+    "SharedAuthenticationThrottleConfig": {
+      "additionalProperties": false,
+      "description": "Exact target-published GCRA policy. A denied request advances every\napplicable bucket, with finite denial debt preventing attacker-controlled\ninteger growth.",
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "global": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "maximumKeyCount": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "retentionMs": {
+          "format": "uint64",
+          "maximum": 31536000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "sourceSubject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "subject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        }
+      },
+      "required": [
+        "retentionMs",
+        "maximumKeyCount",
+        "global",
+        "source",
+        "subject",
+        "sourceSubject",
+        "family"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-admission.schema.json",
@@ -94,6 +166,9 @@
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
+    },
+    "authenticationThrottleConfig": {
+      "$ref": "#/$defs/SharedAuthenticationThrottleConfig"
     },
     "browserDirectBearerSeam": {
       "$ref": "#/$defs/BrowserDirectBearerSeam"
@@ -146,6 +221,14 @@
     "operatorSurface": {
       "$ref": "#/$defs/HostedOperatorSurface"
     },
+    "senderReplayEpochFloor": {
+      "default": 0,
+      "description": "Control-plane monotone floor for the durable `sender_replay_epoch`.\nStored outside the rolled-back durable set and only ever advanced by\nthe control plane; the serving boot applies\n`effective epoch = max(durable, floor)` so a raw backup rollback\ncannot resurrect an accepted proof. Zero means \"no floor delivered\"\n(a valid state for targets predating the field).\n\n@ref LLP 0077#author-decisions--2026-07-23 — decision 1: the\ncomposition ratchet (LLP 0059 incarnation + control-plane floor).",
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
     "supportSha256": {
       "pattern": "^[0-9a-f]{64}$",
       "type": "string"
@@ -166,6 +249,7 @@
     "issuedAtMs",
     "expiresAtMs",
     "limiterEpoch",
+    "authenticationThrottleConfig",
     "invalidationEpoch",
     "handlerProtocolVersion",
     "handlerIncarnation",

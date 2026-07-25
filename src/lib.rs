@@ -34,6 +34,7 @@ pub(crate) mod secure_file;
 pub mod server;
 pub mod service_profile;
 pub mod storage;
+pub mod stream_attempt;
 pub mod value_expr;
 pub(crate) mod warm_vm;
 pub mod workerd_exec;

@@ -5,6 +5,7 @@
 //   never own independent current-auth state.
 
 export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 2;
+export const SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION = 3;
 export const AUTH_CUSTODY_DATABASE_NAME = 'snapback-auth-custody';
 export const AUTH_CUSTODY_DATABASE_VERSION = 1;
 export const AUTH_CUSTODY_LEASE_MS = 5_000;
@@ -16,10 +17,32 @@ const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 const AUTHORITY_KEY = /^sha256:[0-9a-f]{64}$/;
 const PHASES = new Set(['settled', 'clearing', 'exhausted']);
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
+const BASE64URL_32 = /^[A-Za-z0-9_-]{43}$/;
+const SENDER_SELF_CHECK = new TextEncoder().encode('snapback.sender-custody-self-check.v1');
 const DEFERRED_COUNTER_TERMINAL = Symbol('snapback.auth.deferred-counter-terminal');
 const BARRIER_PHASE_CLOSURE_RETRY = 'SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY';
 
-const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+const clone = (value) => {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
+  const CryptoKeyClass = globalThis.CryptoKey;
+  const containsCryptoKey = (candidate) => (
+    typeof CryptoKeyClass === 'function'
+    && (
+      candidate instanceof CryptoKeyClass
+      || (
+        candidate !== null
+        && typeof candidate === 'object'
+        && Reflect.ownKeys(candidate).some((key) => containsCryptoKey(candidate[key]))
+      )
+    )
+  );
+  if (containsCryptoKey(value)) {
+    throw corrupt('sender-constrained custody requires structured clone support');
+  }
+  return JSON.parse(JSON.stringify(value));
+};
 
 function hasExactKeys(value, expected) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -351,13 +374,22 @@ function sameClientAuthority(left, right) {
     ));
 }
 
-function transitionIdFor(appId, predecessorRevision, nextEpoch, nextAuthorityKey) {
-  return `sha256:${sha256Hex(`snapback.auth-transition.v1\n${appId}\n${predecessorRevision}\n${nextEpoch}\n${nextAuthorityKey}`)}`;
+function transitionIdFor(
+  appId,
+  predecessorRevision,
+  nextEpoch,
+  nextAuthorityKey,
+  senderConstraintThumbprint = undefined,
+) {
+  const domain = senderConstraintThumbprint === undefined
+    ? `snapback.auth-transition.v1\n${appId}\n${predecessorRevision}\n${nextEpoch}\n${nextAuthorityKey}`
+    : `snapback.auth-transition.v2\n${appId}\n${predecessorRevision}\n${nextEpoch}\n${nextAuthorityKey}\n${senderConstraintThumbprint ?? 'delete'}`;
+  return `sha256:${sha256Hex(domain)}`;
 }
 
 function validateTransitionIntent(value, appId) {
   if (value === null) return null;
-  assertExactKeys(value, [
+  const commonKeys = [
     'formatVersion',
     'transitionId',
     'expectedEpoch',
@@ -368,9 +400,21 @@ function validateTransitionIntent(value, appId) {
     'disposition',
     'previousAuthority',
     'nextAuthority',
-  ], 'custody.transitionIntent');
-  if (value.formatVersion !== 1 || !AUTHORITY_KEY.test(value.transitionId ?? '')) {
+  ];
+  assertExactKeys(
+    value,
+    value?.formatVersion === 2 ? [...commonKeys, 'senderConstraintThumbprint'] : commonKeys,
+    'custody.transitionIntent',
+  );
+  if (![1, 2].includes(value.formatVersion) || !AUTHORITY_KEY.test(value.transitionId ?? '')) {
     throw corrupt('custody transition intent version or identifier is invalid');
+  }
+  if (
+    value.formatVersion === 2
+    && value.senderConstraintThumbprint !== null
+    && !BASE64URL_32.test(value.senderConstraintThumbprint ?? '')
+  ) {
+    throw corrupt('custody transition intent sender constraint is invalid');
   }
   assertSafeInteger(value.expectedEpoch, 'transitionIntent.expectedEpoch');
   assertSafeInteger(value.nextEpoch, 'transitionIntent.nextEpoch', { positive: true });
@@ -392,11 +436,137 @@ function validateTransitionIntent(value, appId) {
   return clone({ ...value, previousAuthority, nextAuthority });
 }
 
+function canonicalSenderPublicJwk(value, field) {
+  assertExactKeys(value, ['crv', 'kty', 'x', 'y'], field);
+  if (
+    value.crv !== 'P-256'
+    || value.kty !== 'EC'
+    || !BASE64URL_32.test(value.x ?? '')
+    || !BASE64URL_32.test(value.y ?? '')
+  ) {
+    throw corrupt(`custody field ${field} is not a canonical P-256 public JWK`, { field });
+  }
+  return { crv: 'P-256', kty: 'EC', x: value.x, y: value.y };
+}
+
+function validateSenderNonce(value, field) {
+  assertExactKeys(value, ['value', 'generation', 'expiresAtMs'], field);
+  if (!BASE64URL_32.test(value.value ?? '')) {
+    throw corrupt(`custody field ${field}.value is not a canonical 32-byte nonce`, { field });
+  }
+  assertSafeInteger(value.generation, `${field}.generation`, { positive: true });
+  assertSafeInteger(value.expiresAtMs, `${field}.expiresAtMs`, { positive: true });
+  return clone(value);
+}
+
+function validateSenderPrivateKey(value, field) {
+  const CryptoKeyClass = globalThis.CryptoKey;
+  if (
+    typeof CryptoKeyClass !== 'function'
+    || !(value instanceof CryptoKeyClass)
+    || value.type !== 'private'
+    || value.extractable !== false
+    || value.algorithm?.name !== 'ECDSA'
+    || value.algorithm?.namedCurve !== 'P-256'
+    || value.usages?.length !== 1
+    || value.usages[0] !== 'sign'
+  ) {
+    throw corrupt(`custody field ${field} is not a non-extractable P-256 signing key`, { field });
+  }
+  return value;
+}
+
+function validateSenderConstraint(value, field) {
+  if (value === null) return null;
+  assertExactKeys(value, [
+    'formatVersion',
+    'protocol',
+    'custodyGeneration',
+    'privateKey',
+    'publicJwk',
+    'thumbprint',
+    'nonce',
+  ], field);
+  if (value.formatVersion !== 1 || value.protocol !== SENDER_PROTOCOL) {
+    throw corrupt(`custody field ${field} has an unsupported sender protocol`, { field });
+  }
+  assertSafeInteger(value.custodyGeneration, `${field}.custodyGeneration`, { positive: true });
+  const privateKey = validateSenderPrivateKey(value.privateKey, `${field}.privateKey`);
+  const publicJwk = canonicalSenderPublicJwk(value.publicJwk, `${field}.publicJwk`);
+  if (!BASE64URL_32.test(value.thumbprint ?? '')) {
+    throw corrupt(`custody field ${field}.thumbprint is invalid`, { field });
+  }
+  const nonce = validateSenderNonce(value.nonce, `${field}.nonce`);
+  return {
+    formatVersion: 1,
+    protocol: SENDER_PROTOCOL,
+    custodyGeneration: value.custodyGeneration,
+    privateKey,
+    publicJwk,
+    thumbprint: value.thumbprint,
+    nonce,
+  };
+}
+
+// @ref LLP 0077#browser-custody — a stored non-extractable handle is accepted
+// only when a live signature binds it to the exact public JWK and thumbprint.
+export async function validateAuthCustodySenderKeys(record, expectedAppId = null) {
+  const validated = validateAuthCustody(record, expectedAppId);
+  const constraints = [validated.senderConstraint, validated.pendingSenderConstraint]
+    .filter((value) => value !== null && value !== undefined);
+  const subtle = globalThis.crypto?.subtle;
+  if (constraints.length > 0 && !subtle) {
+    throw corrupt('sender-constrained custody requires WebCrypto');
+  }
+  for (const constraint of constraints) {
+    const digest = new Uint8Array(await subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(constraint.publicJwk)),
+    ));
+    let binary = '';
+    for (const byte of digest) binary += String.fromCharCode(byte);
+    const thumbprint = btoa(binary)
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replace(/=+$/u, '');
+    if (thumbprint !== constraint.thumbprint) {
+      throw corrupt('sender-constrained custody thumbprint does not bind its public key');
+    }
+    let publicKey;
+    try {
+      publicKey = await subtle.importKey(
+        'jwk',
+        { ...constraint.publicJwk, ext: true, key_ops: ['verify'] },
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['verify'],
+      );
+      const signature = await subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        constraint.privateKey,
+        SENDER_SELF_CHECK,
+      );
+      if (
+        new Uint8Array(signature).byteLength !== 64
+        || !await subtle.verify(
+          { name: 'ECDSA', hash: 'SHA-256' },
+          publicKey,
+          signature,
+          SENDER_SELF_CHECK,
+        )
+      ) throw new Error('key mismatch');
+    } catch {
+      throw corrupt('sender-constrained custody private and public keys do not match');
+    }
+  }
+  return validated;
+}
+
 export function validateAuthCustody(record, expectedAppId = null) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw corrupt('durable custody is not an object');
   }
-  assertExactKeys(record, [
+  const commonKeys = [
     'formatVersion',
     'appId',
     'authorityEpoch',
@@ -408,11 +578,23 @@ export function validateAuthCustody(record, expectedAppId = null) {
     'pendingBearer',
     'refreshAfterMs',
     'transitionIntent',
-  ], 'custody');
-  if (record.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION) {
+  ];
+  const senderFormat = record.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION;
+  assertExactKeys(
+    record,
+    senderFormat ? [...commonKeys, 'senderConstraint', 'pendingSenderConstraint'] : commonKeys,
+    'custody',
+  );
+  if (
+    record.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
+    && !senderFormat
+  ) {
     throw corrupt('durable custody format version is unsupported', {
       storedVersion: record.formatVersion ?? null,
-      supportedVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+      supportedVersions: [
+        SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+        SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
+      ],
     });
   }
   const appId = canonicalAppId(record.appId);
@@ -431,6 +613,12 @@ export function validateAuthCustody(record, expectedAppId = null) {
   const pendingAuthority = record.pendingAuthority === null
     ? null
     : normalizeClientAuthority(record.pendingAuthority);
+  const senderConstraint = senderFormat
+    ? validateSenderConstraint(record.senderConstraint, 'senderConstraint')
+    : null;
+  const pendingSenderConstraint = senderFormat
+    ? validateSenderConstraint(record.pendingSenderConstraint, 'pendingSenderConstraint')
+    : null;
   const bearerValid = (value) => value === null || (typeof value === 'string' && value.length > 0);
   if (!bearerValid(record.bearer) || !bearerValid(record.pendingBearer)) {
     throw corrupt('custody bearer fields must be non-empty strings or null');
@@ -443,18 +631,31 @@ export function validateAuthCustody(record, expectedAppId = null) {
       || record.pendingBearer !== null
       || record.refreshAfterMs !== null
       || transitionIntent !== null
+      || senderConstraint !== null
+      || pendingSenderConstraint !== null
     ) {
       throw corrupt('exhausted custody must contain no publishable authority or credential state');
     }
   } else if (record.phase === 'settled') {
-    if (authority === null || pendingAuthority !== null || record.pendingBearer !== null) {
+    if (
+      authority === null
+      || pendingAuthority !== null
+      || record.pendingBearer !== null
+      || pendingSenderConstraint !== null
+    ) {
       throw corrupt('settled custody has inconsistent current or pending fields');
     }
-    if (authority.kind === 'anonymous' && (record.bearer !== null || record.refreshAfterMs !== null)) {
+    if (
+      authority.kind === 'anonymous'
+      && (record.bearer !== null || record.refreshAfterMs !== null || senderConstraint !== null)
+    ) {
       throw corrupt('anonymous settled custody cannot contain bearer custody or a refresh time');
     }
     if (authority.kind === 'session' && (record.bearer === null || record.refreshAfterMs === null)) {
       throw corrupt('session settled custody requires a bearer and refresh time');
+    }
+    if (senderFormat && authority.kind === 'session' && senderConstraint === null) {
+      throw corrupt('sender custody session requires its sender constraint');
     }
     if (transitionIntent !== null && (
       transitionIntent.nextEpoch !== record.authorityEpoch
@@ -462,6 +663,16 @@ export function validateAuthCustody(record, expectedAppId = null) {
       || !sameClientAuthority(transitionIntent.nextAuthority, authority)
     )) {
       throw corrupt('settled custody does not match its retained transition successor');
+    }
+    if (
+      senderFormat
+      && transitionIntent !== null
+      && (
+        transitionIntent.formatVersion !== 2
+        || transitionIntent.senderConstraintThumbprint !== senderConstraint?.thumbprint
+      )
+    ) {
+      throw corrupt('settled sender custody does not match its retained transition constraint');
     }
     const maximumEpochWithExactMinimumRevision = Math.floor((Number.MAX_SAFE_INTEGER - 1) / 2);
     const minimumSettledRevision = record.authorityEpoch <= maximumEpochWithExactMinimumRevision
@@ -475,6 +686,9 @@ export function validateAuthCustody(record, expectedAppId = null) {
         record.revision - 2,
         transitionIntent.nextEpoch,
         transitionIntent.nextAuthorityKey,
+        transitionIntent.formatVersion === 2
+          ? transitionIntent.senderConstraintThumbprint
+          : undefined,
       )
     ) {
       throw corrupt('settled custody transition identifier does not match its derivable predecessor');
@@ -485,7 +699,12 @@ export function validateAuthCustody(record, expectedAppId = null) {
         field: 'authorityEpoch',
       });
     }
-    if (authority !== null || record.bearer !== null || pendingAuthority === null) {
+    if (
+      authority !== null
+      || record.bearer !== null
+      || senderConstraint !== null
+      || pendingAuthority === null
+    ) {
       throw corrupt('clearing custody has inconsistent current or pending fields');
     }
     if (
@@ -502,6 +721,9 @@ export function validateAuthCustody(record, expectedAppId = null) {
         predecessorRevision,
         transitionIntent.nextEpoch,
         transitionIntent.nextAuthorityKey,
+        transitionIntent.formatVersion === 2
+          ? transitionIntent.senderConstraintThumbprint
+          : undefined,
       )
     ) {
       // The clearing revision is exactly one greater than its settled
@@ -516,6 +738,23 @@ export function validateAuthCustody(record, expectedAppId = null) {
     if (pendingAuthority.kind === 'session' && (record.pendingBearer === null || record.refreshAfterMs === null)) {
       throw corrupt('session clearing successor requires a bearer and refresh time');
     }
+    if (senderFormat) {
+      if (
+        transitionIntent.formatVersion !== 2
+        || transitionIntent.senderConstraintThumbprint !== (pendingSenderConstraint?.thumbprint ?? null)
+      ) {
+        throw corrupt('sender custody clearing intent does not bind its pending sender constraint', {
+          intentThumbprint: transitionIntent.senderConstraintThumbprint ?? null,
+          pendingThumbprint: pendingSenderConstraint?.thumbprint ?? null,
+        });
+      }
+      if (pendingAuthority.kind === 'session' && pendingSenderConstraint === null) {
+        throw corrupt('sender custody session successor requires its pending sender constraint');
+      }
+      if (pendingAuthority.kind === 'anonymous' && pendingSenderConstraint !== null) {
+        throw corrupt('anonymous clearing successor cannot contain a sender constraint');
+      }
+    }
   }
   if (record.phase !== 'exhausted' && record.revision === MAX_SAFE) {
     throw coordinatorError(
@@ -525,7 +764,7 @@ export function validateAuthCustody(record, expectedAppId = null) {
     );
   }
   return clone({
-    formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+    formatVersion: record.formatVersion,
     appId,
     authorityEpoch: record.authorityEpoch,
     revision: record.revision,
@@ -536,10 +775,14 @@ export function validateAuthCustody(record, expectedAppId = null) {
     pendingBearer: record.pendingBearer,
     refreshAfterMs: record.refreshAfterMs,
     transitionIntent,
+    ...(senderFormat ? {
+      senderConstraint,
+      pendingSenderConstraint,
+    } : {}),
   });
 }
 
-function normalizeSuccessor(successor) {
+async function normalizeSuccessor(successor) {
   const candidate = successor?.authority ? successor : { authority: successor };
   const authority = normalizeClientAuthority(candidate.authority);
   const bearer = candidate.bearer ?? null;
@@ -552,7 +795,30 @@ function normalizeSuccessor(successor) {
   } else if (typeof bearer !== 'string' || bearer.length === 0 || refreshAfterMs === null) {
     throw corrupt('session successor requires a non-empty bearer and refresh time');
   }
-  return { authority, bearer, refreshAfterMs };
+  const senderConstraint = candidate.senderConstraint === undefined
+    ? null
+    : validateSenderConstraint(candidate.senderConstraint, 'successor.senderConstraint');
+  if (authority.kind === 'anonymous' && senderConstraint !== null) {
+    throw corrupt('anonymous successor cannot contain a sender constraint');
+  }
+  if (senderConstraint !== null) {
+    await validateAuthCustodySenderKeys({
+      formatVersion: SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
+      appId: 'snapback.internal/sender-successor-validation',
+      authorityEpoch: 0,
+      revision: 1,
+      phase: 'settled',
+      authority,
+      pendingAuthority: null,
+      bearer,
+      pendingBearer: null,
+      refreshAfterMs,
+      transitionIntent: null,
+      senderConstraint,
+      pendingSenderConstraint: null,
+    });
+  }
+  return { authority, bearer, refreshAfterMs, senderConstraint };
 }
 
 function captureFor(appId, record) {
@@ -624,7 +890,7 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
       await prior;
       const owner = createSerialOwner(
         () => Object.hasOwn(state.custody, canonicalId) ? state.custody[canonicalId] : null,
-        (expectedRevision, next) => {
+        async (expectedRevision, next) => {
           const current = Object.hasOwn(state.custody, canonicalId)
             ? state.custody[canonicalId]
             : null;
@@ -636,9 +902,9 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
               { expectedRevision, actualRevision },
             );
           }
-          const validated = validateAuthCustody(next, canonicalId);
+          const validated = await validateAuthCustodySenderKeys(next, canonicalId);
           if (current !== null) {
-            const previous = validateAuthCustody(current, canonicalId);
+            const previous = await validateAuthCustodySenderKeys(current, canonicalId);
             if (validated.revision !== previous.revision + 1) {
               throw corrupt('custody replacement did not increment revision exactly once');
             }
@@ -791,6 +1057,38 @@ export class AuthCoordinator {
       bearer: this.#record.bearer,
       refreshAfterMs: this.#record.refreshAfterMs,
       revision: this.#record.revision,
+    });
+  }
+
+  /**
+   * Internal v2 transport read: bearer, proof key, and nonce share one capture.
+   * @ref LLP 0077#browser-custody — transport inputs come from one exact
+   * custody revision rather than independently readable side records.
+   */
+  senderCredentialFor(capture) {
+    this.#assertUsable();
+    if (!captureMatches(this.#appId, this.#record, capture, { revision: true })) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'sender credential capture does not name the current custody revision',
+      );
+    }
+    if (
+      this.#record.formatVersion !== SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+      || this.#record.authority.kind !== 'session'
+      || this.#record.senderConstraint === null
+    ) {
+      throw coordinatorError(
+        'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+        'current custody is not a sender-constrained session',
+      );
+    }
+    return Object.freeze({
+      authority: clone(this.#record.authority),
+      bearer: this.#record.bearer,
+      refreshAfterMs: this.#record.refreshAfterMs,
+      revision: this.#record.revision,
+      senderConstraint: clone(this.#record.senderConstraint),
     });
   }
 
@@ -1180,6 +1478,12 @@ export class AuthCoordinator {
       if (current.authority.kind !== 'session') {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot rotate a bearer');
       }
+      if (current.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+          'sender-constrained custody must rotate its credential and nonce atomically',
+        );
+      }
       let revision;
       try {
         revision = nextRevision(current.revision);
@@ -1203,6 +1507,79 @@ export class AuthCoordinator {
     });
   }
 
+  async compareAndRotateSenderCredential(capture, {
+    bearer,
+    refreshAfterMs,
+    nonce,
+    expectedSenderGeneration,
+  }) {
+    // @ref LLP 0077#nonce-protocol — the response successor nonce and bearer
+    // become current in one revision- and sender-generation-fenced write.
+    this.#assertOperationAllowed();
+    if (typeof bearer !== 'string' || bearer.length === 0) {
+      throw new TypeError('compareAndRotateSenderCredential requires a non-empty bearer');
+    }
+    validateRefreshTime(refreshAfterMs, 'refreshAfterMs');
+    if (refreshAfterMs === null) {
+      throw new TypeError('compareAndRotateSenderCredential requires refreshAfterMs');
+    }
+    const validatedNonce = validateSenderNonce(nonce, 'nonce');
+    assertSafeInteger(expectedSenderGeneration, 'expectedSenderGeneration', { positive: true });
+    return this.#withOwnership(async (owner) => {
+      const current = await this.#readOwned(owner);
+      if (!captureMatches(this.#appId, current, capture, { revision: true })) {
+        return { rotated: false };
+      }
+      if (
+        current.formatVersion !== SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+        || current.authority.kind !== 'session'
+        || current.senderConstraint === null
+      ) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+          'current custody is not a sender-constrained session',
+        );
+      }
+      if (
+        current.senderConstraint.custodyGeneration !== expectedSenderGeneration
+        || validatedNonce.generation !== current.senderConstraint.nonce.generation + 1
+      ) {
+        return { rotated: false };
+      }
+      if (
+        expectedSenderGeneration >= MAX_SAFE
+        || current.senderConstraint.nonce.generation >= MAX_SAFE
+      ) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_GENERATION_EXHAUSTED',
+          'sender custody generation is exhausted and requires a new session',
+        );
+      }
+      let revision;
+      try {
+        revision = nextRevision(current.revision);
+      } catch (error) {
+        if (!isCounterExhaustion(error)) throw error;
+        await this.#terminalizeOwned(owner, current, error);
+        throw error;
+      }
+      const next = await owner.replace(current.revision, {
+        ...current,
+        revision,
+        bearer,
+        refreshAfterMs,
+        senderConstraint: {
+          ...current.senderConstraint,
+          custodyGeneration: expectedSenderGeneration + 1,
+          nonce: validatedNonce,
+        },
+      });
+      this.#adoptSettled(next, { expose: !this.#publicationPaused });
+      this.#publish(next);
+      return { rotated: true, capture: captureFor(this.#appId, next) };
+    });
+  }
+
   /**
    * Serialize refresh across contexts and keep successor plaintext private
    * until the exact predecessor revision is durably replaced.
@@ -1218,6 +1595,12 @@ export class AuthCoordinator {
       const current = record;
       if (current.authority.kind !== 'session') {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot refresh a bearer');
+      }
+      if (current.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+          'sender-constrained refresh must use its proof-and-nonce rotation path',
+        );
       }
       return Object.freeze({
         bearer: current.bearer,
@@ -1244,6 +1627,146 @@ export class AuthCoordinator {
     return committed.rotated
       ? { ...committed, value: candidate.value }
       : { rotated: false };
+  }
+
+  async withSenderCredentialRotation(capture, rotate) {
+    this.#assertOperationAllowed();
+    if (typeof rotate !== 'function') {
+      throw new TypeError('withSenderCredentialRotation requires a callback');
+    }
+    const prepared = await this.#withOwnership(async (owner) => {
+      const record = await this.#readOwned(owner);
+      if (!captureMatches(this.#appId, record, capture, { revision: true })) {
+        return null;
+      }
+      if (
+        record.formatVersion !== SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+        || record.authority.kind !== 'session'
+        || record.senderConstraint === null
+      ) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+          'sender-constrained refresh requires sender custody',
+        );
+      }
+      return Object.freeze({
+        bearer: record.bearer,
+        authority: clone(record.authority),
+        refreshAfterMs: record.refreshAfterMs,
+        senderConstraint: clone(record.senderConstraint),
+      });
+    });
+    if (prepared === null) return { rotated: false };
+
+    // @ref LLP 0077#issuance-refresh-and-recovery — network I/O occurs outside
+    // custody ownership; the successor bearer and response nonce become
+    // visible only through the exact revision+sender-generation CAS below.
+    const candidate = await rotate(prepared);
+    if (
+      !candidate
+      || typeof candidate.bearer !== 'string'
+      || candidate.bearer.length === 0
+      || !candidate.nonce
+    ) {
+      throw coordinatorError(
+        'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+        'sender refresh returned no complete successor',
+      );
+    }
+    const committed = await this.compareAndRotateSenderCredential(capture, {
+      bearer: candidate.bearer,
+      refreshAfterMs: candidate.refreshAfterMs,
+      nonce: candidate.nonce,
+      expectedSenderGeneration: prepared.senderConstraint.custodyGeneration,
+    });
+    return committed.rotated
+      ? { ...committed, value: candidate.value }
+      : { rotated: false };
+  }
+
+  /**
+   * Serialize one sender-proof flight across every same-origin context.
+   *
+   * This uses a lock namespace distinct from custody ownership: the network
+   * callback may acquire ordinary custody ownership to commit its successor
+   * nonce without re-entering the serialization lock. Web Locks release on
+   * context death; the IndexedDB fallback renews and fences the equivalent
+   * lease row.
+   */
+  // @ref LLP 0077#browser-custody — one custody lineage permits one proof flight through successor commit.
+  async withSenderRequestSerialization(expectedCapture, operation) {
+    this.#assertOperationAllowed();
+    if (typeof operation !== 'function') {
+      throw new TypeError('withSenderRequestSerialization requires a callback');
+    }
+    const serializationKey = `\u0000snapback.sender-request.v2\u0000${this.#appId}`;
+    return this.#storage.withOwnership(serializationKey, async () => {
+      this.#assertOperationAllowed();
+      const prepared = await this.#withOwnership(async (owner) => {
+        const record = await this.#readOwned(owner);
+        if (!captureMatches(this.#appId, record, expectedCapture)) return null;
+        if (
+          record.formatVersion !== SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+          || record.authority.kind !== 'session'
+          || record.senderConstraint === null
+        ) {
+          throw coordinatorError(
+            'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+            'serialized sender request requires sender custody',
+          );
+        }
+        return Object.freeze({
+          capture: captureFor(this.#appId, record),
+          credential: Object.freeze({
+            authority: clone(record.authority),
+            bearer: record.bearer,
+            refreshAfterMs: record.refreshAfterMs,
+            senderConstraint: clone(record.senderConstraint),
+          }),
+        });
+      });
+      if (prepared === null) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'sender request authority changed before serialization',
+        );
+      }
+      return operation(prepared);
+    });
+  }
+
+  // @ref LLP 0077#websocket-and-connection-binding — browser 101 responses retain the flight until an observable terminal edge.
+  async beginSenderRequestSerialization(expectedCapture) {
+    let enter;
+    let rejectEnter;
+    const entered = new Promise((resolve, reject) => {
+      enter = resolve;
+      rejectEnter = reject;
+    });
+    let releaseOperation;
+    const released = new Promise((resolve) => {
+      releaseOperation = resolve;
+    });
+    const completion = this.withSenderRequestSerialization(
+      expectedCapture,
+      async (prepared) => {
+        enter(prepared);
+        await released;
+      },
+    );
+    completion.catch(rejectEnter);
+    const prepared = await entered;
+    let releaseStarted = false;
+    return Object.freeze({
+      ...prepared,
+      release: async () => {
+        if (!releaseStarted) {
+          releaseStarted = true;
+          releaseOperation();
+        }
+        await completion;
+      },
+    });
   }
 
   async waitForNewerRevision(capture, {
@@ -1308,7 +1831,7 @@ export class AuthCoordinator {
 
   async transition(expected, successor, reason = 'authority_change') {
     this.#assertOperationAllowed();
-    const normalized = normalizeSuccessor(successor);
+    const normalized = await normalizeSuccessor(successor);
     const owned = await this.#withOwnership(async (owner) => {
       let current = await this.#readOwned(owner);
       if (current === null) {
@@ -1316,6 +1839,18 @@ export class AuthCoordinator {
       }
       const successorKey = canonicalAuthorityKey(this.#appId, normalized.authority);
       if (current.phase === 'settled' && canonicalAuthorityKey(this.#appId, current.authority) === successorKey) {
+        if (
+          normalized.senderConstraint !== null
+          && (
+            current.formatVersion !== SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+            || current.senderConstraint.thumbprint !== normalized.senderConstraint.thumbprint
+          )
+        ) {
+          throw coordinatorError(
+            'SNAPBACK_AUTH_SENDER_CUSTODY_STALE',
+            'same-authority confirmation cannot replace its sender constraint',
+          );
+        }
         const currentCapture = captureFor(this.#appId, current);
         const localAlreadyExact = this.#record?.phase === 'settled'
           && captureMatches(this.#appId, this.#record, currentCapture, { revision: true });
@@ -1357,6 +1892,26 @@ export class AuthCoordinator {
       if (!captureMatches(this.#appId, current, expected)) {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'authority changed before transition');
       }
+      if (
+        current.formatVersion === SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
+        && current.authority.kind === 'session'
+        && normalized.senderConstraint !== null
+      ) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_UPGRADE_REQUIRED',
+          'an existing bearer-only session cannot gain a sender constraint in place',
+        );
+      }
+      const senderFormat = (
+        current.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+        || normalized.senderConstraint !== null
+      );
+      if (senderFormat && normalized.authority.kind === 'session' && normalized.senderConstraint === null) {
+        throw coordinatorError(
+          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+          'a sender-constrained session transition requires its new sender constraint',
+        );
+      }
       let nextEpoch;
       let clearingRevision;
       try {
@@ -1371,9 +1926,16 @@ export class AuthCoordinator {
         throw error;
       }
       const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, current.authority);
+      const senderConstraintThumbprint = normalized.senderConstraint?.thumbprint ?? null;
       const transitionIntent = {
-        formatVersion: 1,
-        transitionId: transitionIdFor(this.#appId, current.revision, nextEpoch, successorKey),
+        formatVersion: senderFormat ? 2 : 1,
+        transitionId: transitionIdFor(
+          this.#appId,
+          current.revision,
+          nextEpoch,
+          successorKey,
+          senderFormat ? senderConstraintThumbprint : undefined,
+        ),
         expectedEpoch: current.authorityEpoch,
         expectedAuthorityKey,
         nextEpoch,
@@ -1382,9 +1944,12 @@ export class AuthCoordinator {
         disposition: 'delete',
         previousAuthority: clone(current.authority),
         nextAuthority: clone(normalized.authority),
+        ...(senderFormat ? { senderConstraintThumbprint } : {}),
       };
       const clearing = await owner.replace(current.revision, {
-        formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+        formatVersion: senderFormat
+          ? SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+          : SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
         appId: this.#appId,
         authorityEpoch: nextEpoch,
         revision: clearingRevision,
@@ -1395,6 +1960,10 @@ export class AuthCoordinator {
         pendingBearer: normalized.bearer,
         refreshAfterMs: normalized.refreshAfterMs,
         transitionIntent,
+        ...(senderFormat ? {
+          senderConstraint: null,
+          pendingSenderConstraint: normalized.senderConstraint,
+        } : {}),
       });
       return this.#finishClearingOwned(owner, clearing, {
         expectedEpoch: current.authorityEpoch,
@@ -1570,15 +2139,31 @@ export class AuthCoordinator {
       this.#runSyncPhase('blank', barrier);
       this.#runSyncPhase('clearMemory', barrier);
       await this.#runAwaitedPhase('commitDurable', barrier);
-      const settled = await owner.replace(validated.revision, {
-        ...validated,
+      const retainSenderConstraint = (
+        validated.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+        && validated.pendingSenderConstraint !== null
+      );
+      const settledBase = {
+        formatVersion: !retainSenderConstraint
+          ? SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
+          : SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
+        appId: validated.appId,
+        authorityEpoch: validated.authorityEpoch,
         revision: settledRevision,
         phase: 'settled',
         authority: validated.pendingAuthority,
         pendingAuthority: null,
         bearer: validated.pendingBearer,
         pendingBearer: null,
+        refreshAfterMs: validated.refreshAfterMs,
         transitionIntent: validated.transitionIntent,
+      };
+      const settled = await owner.replace(validated.revision, {
+        ...settledBase,
+        ...(!retainSenderConstraint ? {} : {
+          senderConstraint: validated.pendingSenderConstraint,
+          pendingSenderConstraint: null,
+        }),
       });
       this.#adoptSettled(settled, { expose: false });
       this.#publish(settled);
@@ -1720,9 +2305,17 @@ export class AuthCoordinator {
         captureFor(this.#appId, settled),
         'owner_transition_preconfirm_failed',
       );
+      const resumeCoordinator = this;
       const resumeContext = Object.freeze({
         ...barrier,
-        capture: captureFor(this.#appId, confirmed),
+        // A sender-successor nonce may rotate the exact settled record while
+        // the transport participant resumes. Later participants must receive
+        // that current same-authority revision rather than the pre-network
+        // capture. The final durable confirmation below still rejects any
+        // unobserved peer change.
+        get capture() {
+          return captureFor(resumeCoordinator.#appId, resumeCoordinator.#record);
+        },
         authority: clone(confirmed.authority),
         stagePublication: (capture, commit) => this.#stagePublication(
           barrierState,
@@ -1733,15 +2326,27 @@ export class AuthCoordinator {
       for (;;) {
         await this.#runAwaitedPhase('resume', resumeContext, { reverse: true });
         try {
+          const locallyExpected = validateAuthCustody(this.#record, this.#appId);
+          if (
+            locallyExpected.phase !== 'settled'
+            || locallyExpected.authorityEpoch !== confirmed.authorityEpoch
+            || canonicalAuthorityKey(this.#appId, locallyExpected.authority)
+              !== canonicalAuthorityKey(this.#appId, confirmed.authority)
+          ) {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_STALE',
+              'authority changed during transition resume',
+            );
+          }
           const final = await this.#confirmDurableExact(
-            captureFor(this.#appId, confirmed),
+            captureFor(this.#appId, locallyExpected),
             'owner_transition_postconfirm_failed',
             () => {
               this.#assertBarrierPhaseClosure(
                 barrierState,
                 ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
               );
-              this.#flushStagedPublications(barrierState, confirmed);
+              this.#flushStagedPublications(barrierState, locallyExpected);
               this.#assertBarrierPhaseClosure(
                 barrierState,
                 ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
@@ -1932,7 +2537,7 @@ export class AuthCoordinator {
     try {
       raw = await owner.read();
       if (raw === null) return { record: null, terminal: null };
-      const record = validateAuthCustody(raw, this.#appId);
+      const record = await validateAuthCustodySenderKeys(raw, this.#appId);
       if (record.phase === 'exhausted') {
         return {
           record: null,

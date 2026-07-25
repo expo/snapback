@@ -50,8 +50,9 @@ export declare function defineOwnedCrud<
   createDefaults?: TrustedDefaults<Fields>;
   updateDefaults?: TrustedDefaults<Fields>;
   immutable?: Array<FieldName<Fields>>;
-  listOrder?: FieldName<Fields> | SystemOrderField;
+  listIndex: string;
   listLimit?: number;
+  discloseUniqueConflicts?: string[];
 }): PatternDefinitions<Names[keyof CrudNames]>;
 
 export declare function defineOwnedUniqueLookup<

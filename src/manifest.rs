@@ -1526,6 +1526,20 @@ pub struct FunctionDefinition {
     pub read_set_summary: DependencySummary,
     #[serde(default, rename = "writeSetSummary", alias = "write_set_summary")]
     pub write_set_summary: DependencySummary,
+    /// The versioned conservative effect ceiling. Codegen computes it by a
+    /// total default-deny traversal of the closed plan vocabulary for
+    /// HostPlans (`basis: "static"`) and records author declarations for
+    /// opaque handlers (`basis: "declared"`). Optional so pre-ceiling
+    /// manifests keep loading; enforcement remains the runtime subset check.
+    /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
+    #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
+    pub effect_ceiling: Option<EffectCeiling>,
+    /// Stable versioned standard-pattern identity — which generated helper
+    /// and visibility profile produced this function (e.g. `owned-crud.v1`,
+    /// `owner.v1`). Absent on free-form definitions.
+    /// @ref LLP 0065#3-common-pattern-contracts — versioned identifiers.
+    #[serde(default, rename = "standardPattern", alias = "standard_pattern")]
+    pub standard_pattern: Option<StandardPatternIdentity>,
     #[serde(
         default,
         rename = "permissionEpochBumps",
@@ -1566,6 +1580,8 @@ impl FunctionDefinition {
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
+            effect_ceiling: None,
+            standard_pattern: None,
             permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
             uses: Vec::new(),
@@ -1617,6 +1633,138 @@ pub struct SourceSpan {
     pub file: String,
     pub line: u32,
     pub column: u32,
+}
+
+/// EffectCeilingV1 (LLP 0065 §1): the versioned conservative effect ceiling —
+/// operations, tables, index ranges, host operations, and authorization
+/// dependencies — recorded per generated function. `basis` is `"static"`
+/// when the ceiling was proved by codegen's total default-deny traversal of
+/// the closed plan vocabulary and `"declared"` when it restates author
+/// declarations for an opaque handler.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeiling {
+    pub version: String,
+    pub basis: String,
+    #[serde(default)]
+    pub reads: Vec<EffectCeilingRead>,
+    #[serde(default)]
+    pub writes: Vec<EffectCeilingWrite>,
+    #[serde(default, rename = "hostOperations", alias = "host_operations")]
+    pub host_operations: Vec<String>,
+    #[serde(
+        default,
+        rename = "authorizationInputs",
+        alias = "authorization_inputs"
+    )]
+    pub authorization_inputs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeilingRead {
+    pub table: String,
+    /// `"point"` or `"query"`.
+    pub access: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeilingWrite {
+    pub table: String,
+    pub operations: Vec<String>,
+}
+
+/// The versioned helper/profile identity a standard-pattern function carries
+/// (LLP 0065 §3).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternIdentity {
+    pub helper: String,
+    pub profile: String,
+}
+
+/// LLP 0080 §1 — the closed first relational profile: one root table, exactly
+/// one unique-joined table, at most four equality pairs, explicit
+/// visibility on both sources, index-served root access, deterministic
+/// root ordering, and a bounded `take`. Evaluation follows the normative
+/// `root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor
+/// boundary → root order → take N roots → join + joined visibility →
+/// projection. `take` bounds consumed authorized roots, not emitted rows.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RelationalQueryPlan {
+    pub root: String,
+    #[serde(rename = "rootAlias", alias = "root_alias")]
+    pub root_alias: String,
+    pub joined: String,
+    #[serde(rename = "joinedAlias", alias = "joined_alias")]
+    pub joined_alias: String,
+    #[serde(rename = "joinKind", alias = "join_kind")]
+    pub join_kind: JoinKind,
+    /// 1..=4 equality pairs; declaration order preserved. A null in any
+    /// join-key position never matches (LLP 0080 §2).
+    #[serde(rename = "joinOn", alias = "join_on")]
+    pub join_on: Vec<JoinEquality>,
+    /// Non-security root filters from the portable vocabulary, index-served.
+    #[serde(default, rename = "rootFilters", alias = "root_filters")]
+    pub root_filters: Vec<FilterExpr>,
+    /// The root visibility predicate, composed before ordering and `take`
+    /// so an invisible root cannot occupy a bounded-result slot. Empty for
+    /// an explicitly declared `public-read` root.
+    #[serde(default, rename = "rootVisibility", alias = "root_visibility")]
+    pub root_visibility: Vec<FilterExpr>,
+    /// The joined-source visibility predicate, executed per joined row
+    /// before projection: an invisible joined row behaves as absent.
+    #[serde(default, rename = "joinedVisibility", alias = "joined_visibility")]
+    pub joined_visibility: Vec<FilterExpr>,
+    /// Explicit projection whose leaves are literals or qualified source
+    /// fields; declaration order is the result field order.
+    pub projection: Vec<ProjectionLeaf>,
+    /// Root scalar order fields; the storage layer's `_id` tie-break
+    /// totalizes it exactly as for single-table queries.
+    #[serde(default)]
+    pub order: Vec<OrderExpr>,
+    /// Consumed-authorized-roots bound, `0..=1024`.
+    pub take: u32,
+    /// The declared root access index proving bounded, index-served access.
+    #[serde(rename = "rootIndex", alias = "root_index")]
+    pub root_index: String,
+    /// The declared unique joined index whose complete ordered key is
+    /// exactly the joined-field sequence — the cardinality proof.
+    #[serde(rename = "joinedIndex", alias = "joined_index")]
+    pub joined_index: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum JoinKind {
+    Inner,
+    Left,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct JoinEquality {
+    #[serde(rename = "rootField", alias = "root_field")]
+    pub root_field: String,
+    #[serde(rename = "joinedField", alias = "joined_field")]
+    pub joined_field: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectionLeaf {
+    pub name: String,
+    pub source: ProjectionSource,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProjectionSource {
+    RootField(String),
+    JoinedField(String),
+    Literal(Value),
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1905,6 +2053,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             syncability_class,
             read_set_summary,
             write_set_summary,
+            effect_ceiling: _,
+            standard_pattern: _,
             permission_epoch_bumps,
             bundle_entrypoint,
             uses,
@@ -2962,13 +3112,16 @@ pub struct SupportedArtifactAuthPair {
 /// App artifacts retain string fields for v0 compatibility; every v1 string
 /// is parsed through this enum before target support is consulted.
 ///
-/// @ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed to eight ids.
+/// @ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed and
+/// LLP 0076 adds the ninth id with an exact positive runtime predicate.
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 pub enum TargetCapabilityId {
     #[serde(rename = "auth.sessions.v1")]
     AuthSessionsV1,
+    #[serde(rename = "bounded_response_stream_v1")]
+    BoundedResponseStreamV1,
     #[serde(rename = "cron")]
     Cron,
     #[serde(rename = "cron_action_run_mutation")]
@@ -2986,8 +3139,9 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::AuthSessionsV1,
+        Self::BoundedResponseStreamV1,
         Self::Cron,
         Self::CronActionRunMutation,
         Self::HostPlanRuntime,
@@ -3000,6 +3154,7 @@ impl TargetCapabilityId {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::AuthSessionsV1 => "auth.sessions.v1",
+            Self::BoundedResponseStreamV1 => "bounded_response_stream_v1",
             Self::Cron => "cron",
             Self::CronActionRunMutation => "cron_action_run_mutation",
             Self::HostPlanRuntime => "host_plan_runtime",
@@ -3022,6 +3177,12 @@ impl TargetCapabilityId {
                 facts.paired_v1_parser_registered
                     && facts.shared_invocation_gate_registered
                     && facts.staged_mode_registered
+            }
+            // @ref LLP 0076#target-contract — the stream capability is an
+            // instance-live predicate: the implementation must be registered
+            // AND this exact process must have outbound egress enabled.
+            Self::BoundedResponseStreamV1 => {
+                manifest.outbound_actions && facts.bounded_response_stream_v1_registered
             }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
@@ -3065,6 +3226,7 @@ impl FromStr for TargetCapabilityId {
 /// turn assertions into target authority.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
+    bounded_response_stream_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3077,6 +3239,7 @@ pub struct TargetCapabilityFacts {
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
         Self {
+            bounded_response_stream_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -3284,6 +3447,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "external_auth".to_owned(),
         "assets".to_owned(),
         "outbound_actions".to_owned(),
+        "bounded_response_stream_v1".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -3373,6 +3537,41 @@ impl CapabilityManifest {
                     name: "action_wall_clock_timeout".to_owned(),
                     status: ResourceLimitStatus::Enforced,
                 },
+                // @ref LLP 0076#surface — the v1 bounded response-stream
+                // profile limits the local host actually checks. The 64 KiB
+                // buffered-bytes bound is enforced structurally (one
+                // in-flight 16 KiB pull per cursor x the 4-cursor cap) and
+                // witnessed by a real per-invocation materialized-byte
+                // counter with a slow-consumer high-water-mark test; the
+                // wall row is the absolute mid-read ceiling.
+                ResourceLimit {
+                    name: "bounded_response_stream_total_bytes".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_buffered_bytes".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_read_bytes".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_open_cursors".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_wall_clock".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_idle_timeout".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_progress_rate".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
                 ResourceLimit {
                     name: "cpu_budget".to_owned(),
                     status: ResourceLimitStatus::Missing,
@@ -3406,6 +3605,34 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
+        manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
+        manifest
+    }
+
+    /// The code-owned declaration for a local process configured with the
+    /// outbound-action gate enabled. Codegen embeds this exact variant when
+    /// its matching authoring switch is on, while `/inspect` remains the
+    /// authority for the process that actually serves the artifact.
+    pub fn local_v0_outbound_actions_declared() -> Self {
+        Self::local_v0_instance(local_v0_default_capability_gaps(), true)
+    }
+
+    /// Apply the process-live outbound-action gate to the local declaration.
+    /// The committed target artifact remains conservative; `/inspect` is the
+    /// authority for whether this exact process enabled egress and therefore
+    /// the bounded response-stream profile.
+    // @ref LLP 0076#target-contract — capability truth is instance-live, not
+    // a static declaration: the served manifest reflects this process.
+    pub(crate) fn local_v0_instance(
+        mut capability_gaps: Vec<String>,
+        outbound_actions: bool,
+    ) -> Self {
+        if outbound_actions {
+            capability_gaps
+                .retain(|gap| gap != "outbound_actions" && gap != "bounded_response_stream_v1");
+        }
+        let mut manifest = Self::local_v0(capability_gaps);
+        manifest.outbound_actions = outbound_actions;
         manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
         manifest
     }
@@ -3542,6 +3769,7 @@ impl CapabilityManifest {
             "handler_captured_read_set_validation".to_owned(),
             "assets".to_owned(),
             "outbound_actions".to_owned(),
+            "bounded_response_stream_v1".to_owned(),
             "notifications".to_owned(),
             "cron".to_owned(),
             "ephemeral_realtime".to_owned(),
@@ -3709,6 +3937,25 @@ impl ArtifactDiagnosticExt for SnapbackError {
 mod membership_manifest_grammar_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn bounded_stream_capability_requires_both_implementation_and_live_egress() {
+        let declared = CapabilityManifest::local_v0_declared();
+        assert!(!declared.outbound_actions);
+        assert!(
+            !declared
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+
+        let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
+        assert!(enabled.outbound_actions);
+        assert!(
+            enabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+    }
 
     fn table_json() -> Value {
         json!({

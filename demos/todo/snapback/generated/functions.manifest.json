@@ -1,13 +1,28 @@
 {
   "appId": "todo",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:c56c10f77ae99200",
+  "bundleHash": "sha256:2c7ef089d9b50cae",
   "config": [],
   "cronJobs": [],
   "functions": [
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "createTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "createTodo",
       "id": "todo:createTodo",
       "kind": "Mutation",
@@ -42,6 +57,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "deleteTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "deleteTodo",
       "id": "todo:deleteTodo",
       "kind": "Mutation",
@@ -78,6 +113,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "editTitle",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "editTitle",
       "id": "todo:editTitle",
       "kind": "Mutation",
@@ -133,6 +188,21 @@
         "userId"
       ],
       "bundleEntrypoint": "listTodos",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listTodos",
       "id": "todo:listTodos",
       "kind": "LiveQuery",
@@ -170,6 +240,22 @@
         "userId"
       ],
       "bundleEntrypoint": "listTodosOnce",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listTodosOnce",
       "id": "todo:listTodosOnce",
       "kind": "Query",
@@ -220,6 +306,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "setCompleted",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "setCompleted",
       "id": "todo:setCompleted",
       "kind": "Mutation",
@@ -255,7 +361,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "d2356c97a90f1335c2c3ed3bc40f1156002b2bf5c5b6587197d49567906f39e1",
+  "inputsHash": "7fcca98fa8066f2f93735aef055808c0a6b7b7c4769d42a7382c798c77381167",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

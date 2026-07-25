@@ -22,10 +22,15 @@ Every app states its authoring stack in the UI ("built with …").
 
 Where the AI call lives is part of the comparison:
 
-- **Snapback** — a `defineAction` with `fetch` inside the backend
-  (`SNAPBACK_OUTBOUND_ACTIONS=1`), committing through mutations. The Ibex
-  runtime has no `ReadableStream`, so the reply lands as **one commit** —
-  a recorded authoring gap vs the streaming columns.
+- **Snapback** — a `defineAction` with `ctx.fetchStream` inside the backend
+  (`SNAPBACK_OUTBOUND_ACTIONS=1`; LLP 0076 bounded streamed actions):
+  the action consumes OpenRouter's SSE incrementally and commits throttled
+  token deltas through mutations, so streaming rides the ordinary
+  live-query fan-out — same shape as the Convex cell. Commits are paced by
+  the reader's trusted `elapsedMs` (actions have no wall clock) to stay
+  under the ten-commits-per-second progress-rate fence; the platform's
+  boundedness contract (1 MiB total, 30 s wall, 5 s idle) surfaces as an
+  honest truncated reply if a ceiling is hit.
 - **Convex** — `sendMessage` schedules an internal action; the action streams
   OpenRouter tokens and commits throttled `applyDelta` patches.
 - **Supabase / SQLite** — no server function runtime of their own; the

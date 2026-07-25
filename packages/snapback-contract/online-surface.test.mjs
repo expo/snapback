@@ -39,7 +39,13 @@ function mockRuntime() {
             observers.set(name, set);
           }
           set.add(observer);
-          const emit = (rows) => observer({ status: 'ready', value: rows, rows, empty: rows.length === 0 });
+          const emit = (rows) => observer({
+            status: 'ready',
+            value: rows,
+            rows,
+            empty: rows.length === 0,
+            connection: 'connecting',
+          });
           emit(options.queries[name](args, boundary));
           const off = boundary.listen(name, emit);
           return { dispose() { off(); set.delete(observer); } };
@@ -82,7 +88,7 @@ const client = {
   liveQuery(name, options) {
     const handle = {
       rows: [{ _id: options.args.eventId ?? 'feed' }],
-      connection: 'live',
+      connection: 'connecting',
       disposed: false,
       dispose() { this.disposed = true; },
     };
@@ -111,6 +117,9 @@ const cells = [];
 const subscription = surface.links.eventDetails({ eventId: 'event-a' })
   .subscribe((cell) => cells.push(cell));
 assert.equal(cells.at(-1).value[0]._id, 'event-a');
+assert.equal(cells.at(-1).connection, 'connecting');
+opens[0].handle.connection = 'live';
+opens[0].options.onConnectionChange('live', { transport: 'stream' });
 assert.equal(cells.at(-1).connection, 'live');
 opens[0].options.onUpdate([{ _id: 'event-a', title: 'updated' }]);
 assert.equal(cells.at(-1).value[0].title, 'updated');

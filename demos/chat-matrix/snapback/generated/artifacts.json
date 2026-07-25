@@ -5,6 +5,9 @@
     "schema.manifest.json",
     "functions.manifest.json",
     "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
@@ -30,7 +33,7 @@
     "contract/thread.query.ts",
     "contract/thread.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:97195a0b1e2459a1",
+  "bundleHash": "sha256:b1265a77e3c5c36f",
   "config": [
     {
       "name": "openrouter",
@@ -78,8 +81,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "3d2311dd52c6a315ab8053b004038286fb8f1dca1596585fa4763cb5939ce78e",
-  "schemaHash": "sha256:575e44bb29e4e248",
+  "inputsHash": "92797fd2160e60915762de99f7bb12eec60e4ed6a98b4963c9eff23a9ab18403",
+  "schemaHash": "sha256:882aee2bdb6c63f3",
   "schemaVersion": "snapback.v0",
   "tables": [
     "conversations",

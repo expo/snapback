@@ -15,12 +15,12 @@ const postRow = (row: any) => ({ _id: row.id, eventId: row.event_id, authorId: r
 // redirect "ephemeral" runs at the shared public fixture.
 export const EPHEMERAL_SCHEMA_PREFIX = 'partiful_matrix_test_';
 
-export async function createSupabaseAdapter(databaseUrl: string, { schema }: { schema?: string } = {}) {
+export async function createSupabaseAdapter(databaseUrl: string, { schema, prepare = true }: { schema?: string; prepare?: boolean } = {}) {
   if (schema && !new RegExp(`^${EPHEMERAL_SCHEMA_PREFIX}[a-z0-9_]+$`).test(schema)) {
     throw new Error(`ephemeral Supabase schema must match ${EPHEMERAL_SCHEMA_PREFIX}[a-z0-9_]+: ${schema}`);
   }
   const ns = schema ?? 'public';
-  const sql = new SQL(databaseUrl);
+  const sql = new SQL({ url: databaseUrl, prepare });
   const events = () => sql`${sql(ns)}.${sql('partiful_matrix_events')}`;
   const rsvps = () => sql`${sql(ns)}.${sql('partiful_matrix_rsvps')}`;
   const posts = () => sql`${sql(ns)}.${sql('partiful_matrix_posts')}`;

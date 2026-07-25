@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c157afa266c0f5c961039a3aba6282405bbd70e0"
+    "commit": "87d1a9eea99b46e993bc9001b9e0fe56ed969843"
   },
   "nav": {
     ".": [
@@ -79,6 +79,11 @@
         "id": "backend.standard-patterns",
         "order": 25,
         "title": "Safe standard data patterns"
+      },
+      {
+        "id": "backend.streamed-actions",
+        "order": 35,
+        "title": "Streamed actions"
       }
     ],
     "clients": [
@@ -430,9 +435,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-18",
+      "reviewed": "2026-07-24",
       "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
-      "sha256": "955d45ead31446c4abed1b2e14bd479d49d5a2403df4dd592972273daef3dca3",
+      "sha256": "d71660056280b35d8b1a2bf5f8d1184d3baf78edb5392d5513c3464713aabd08",
       "snippets": [
         {
           "lang": "js",
@@ -612,7 +617,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "27e3689a239c52a01a01ddf51f52ec4221ea7a86",
-      "sha256": "d4b6ba4e8f5c68e3bcd06aecc4afcfea5413b308f5b6fb4ed2419500e4e14da4",
+      "sha256": "76663ec27712c04d7b26cc538e69c0e1734385809d2b20945b776a134d15cbd4",
       "snippets": [
         {
           "lang": "js",
@@ -633,6 +638,52 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        }
+      ]
+    },
+    "backend.streamed-actions": {
+      "path": "guide/backend/streamed-actions.md",
+      "title": "Streamed actions",
+      "order": 35,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.streamed-actions"
+      ],
+      "authorities": [
+        "llp/0076-bounded-streamed-actions.rfc.md",
+        "llp/0075-convex-checkpoint-protocol.spec.md",
+        "src/stream_attempt.rs",
+        "src/server.rs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "demos/competitive-checkpoint/snapback/handlers.mjs",
+        "cloudflare/app/all-aboard.app.js"
+      ],
+      "examples": [
+        "demos/competitive-checkpoint",
+        "cloudflare/test/acceptance.egress.mjs"
+      ],
+      "reviewed": "2026-07-24",
+      "reviewedCommit": "HEAD",
+      "sha256": "15033cc08d9274c55a37f12159914e7a48d1c1c618822d17e2fdd3ee1c78b46e",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "cloudflare/app/all-aboard.app.js"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
         }
       ]
     },
@@ -659,7 +710,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "33d4d42cf3ebdd07cbc5c715745707dd90925ba7521afef8d2eb0d3afb74351e",
+      "sha256": "18bb0514601468856270154b74173a998f24b5c2969e94c7049767a8d8e9d8c8",
       "snippets": []
     },
     "clients.app-cli": {
@@ -800,7 +851,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "913b82ffbf8eb500a611cb977b8069acc0a25b4631d0fe540e5d0e959040cf52",
+      "sha256": "f3215f2b86560342fc819f8db2f80e312e52c5552cc34dc0e02b617d22740e6b",
       "snippets": [
         {
           "lang": "js",
@@ -1067,7 +1118,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "8befb72745dd14b01ce19751d0a3763b08eaa6f6811fc82fa0b3914bbe1be384",
+      "sha256": "02e15086da5e2dc1f7e793f1aa4c712d937f9b719a442e84b23bc8c18a9ac372",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1532,6 +1583,7 @@
       "backend.schema",
       "backend.seed",
       "backend.standard-patterns",
+      "backend.streamed-actions",
       "clients.app-cli",
       "clients.contract",
       "clients.contract-keyed-scopes",
@@ -1562,7 +1614,7 @@
   },
   "surfaces": {
     "routes": 68,
-    "hostOps": 13
+    "hostOps": 19
   },
-  "contentHash": "d688d245300ef2bc85064a45748bdcb88a9ed31b51950bafdf4b598d14534f1c"
+  "contentHash": "7b78ccdb9a242c05d15deb2ecfbf5e53954467d42b082ccfe716feb8b1935bd9"
 }

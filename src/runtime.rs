@@ -83,6 +83,78 @@ pub struct IbexQueryRun {
     pub read_dependencies: Vec<CapturedReadDependency>,
 }
 
+/// One bounded response-stream request crossing the action-only host seam.
+/// Header/body values are application data and must never be copied into
+/// diagnostics; implementations report only shape and limit facts.
+// @ref LLP 0076#surface — the shared harness exposes one pull-driven reader
+// over these target-neutral open/read/cancel host operations.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamRequest {
+    pub url: String,
+    #[serde(default = "default_stream_method")]
+    pub method: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
+    /// Optional host-issued `StreamAttemptV1` token binding this upstream
+    /// request as a child cursor of the named attempt (LLP 0076 decision 3).
+    #[serde(default)]
+    pub attempt_token: Option<String>,
+    /// LLP 0036 opaque placement slots, same shape as ordinary host-mediated
+    /// fetch: each slot names a placement (`header`/`query-param`), a target
+    /// name, and the opaque secret descriptor the HOST resolves at its own
+    /// boundary. Descriptor resolution is a hosted-profile capability; the
+    /// local value-mode profile refuses descriptor slots with a typed
+    /// diagnostic rather than silently dropping them.
+    #[serde(default)]
+    pub secret_slots: Vec<StreamSecretSlot>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamSecretSlot {
+    #[serde(default)]
+    pub placement: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub secret: Option<Value>,
+}
+
+fn default_stream_method() -> String {
+    "GET".to_owned()
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamOpened {
+    pub stream_id: String,
+    pub status: u16,
+    pub status_text: String,
+    pub url: String,
+    pub headers: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamChunk {
+    pub done: bool,
+    pub bytes: Vec<u8>,
+    pub total_bytes: u64,
+    /// Host-owned monotonic milliseconds since the stream opened (LLP 0076
+    /// author decision 6): the supported progress clock that lets an action
+    /// obey the 100 ms commit spacing without an ambient wall clock.
+    #[serde(default)]
+    pub elapsed_ms: u64,
+    /// Milliseconds since the previous delivered byte on this cursor.
+    #[serde(default)]
+    pub delta_ms: u64,
+}
+
 /// The seam through which an action reaches instance state. Actions can
 /// mutate only through an explicitly named mutation; direct reads are not a
 /// capability of this host at all. The Rust host-call dispatcher separately
@@ -94,6 +166,57 @@ pub trait IbexActionHost {
     /// not only a nested mutation commit, to its staging app generation.
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()>;
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
+    // @ref LLP 0076#target-contract — a target that does not implement the
+    // bounded response-stream profile must refuse with the stable
+    // `_UNSUPPORTED` code rather than buffering or silently degrading.
+    fn open_response_stream(
+        &mut self,
+        _request: ActionStreamRequest,
+    ) -> SnapbackResult<ActionStreamOpened> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    fn read_response_stream(&mut self, _stream_id: &str) -> SnapbackResult<ActionStreamChunk> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    fn cancel_response_stream(&mut self, _stream_id: &str) -> SnapbackResult<()> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+    // control plane: opaque attempt tokens, the single-runner lease, and
+    // compare-and-set terminal settlement returned verbatim.
+    fn start_stream_attempt(
+        &mut self,
+        _client_key: &str,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptStart> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement stream attempt settlement",
+        ))
+    }
+    fn settle_stream_attempt(
+        &mut self,
+        _attempt_token: &str,
+        _cause: crate::stream_attempt::StreamAttemptCause,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement stream attempt settlement",
+        ))
+    }
 }
 
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
@@ -714,6 +837,12 @@ pub(crate) struct IbexHostContext<'a> {
     ///   denial; @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 — delivered
     ///   by the existing TerminalAuthorization deny, no new trusted code.
     terminal_denial: Option<SnapbackError>,
+    /// The last host-built stream refusal (LLP 0076 §Diagnostics), recorded
+    /// out-of-band because the structured, value-free details cannot survive
+    /// the JS error round-trip. When the handler surfaces the SAME code, the
+    /// outer result-assembly restores this trusted representation; a handler
+    /// that forges a stream code without a recorded refusal gets no details.
+    stream_refusal: Option<SnapbackError>,
 }
 
 /// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
@@ -768,6 +897,7 @@ impl<'a> IbexHostContext<'a> {
             recorded_ids: Vec::new(),
             replay,
             terminal_denial: None,
+            stream_refusal: None,
         })
     }
 
@@ -821,6 +951,7 @@ impl<'a> IbexHostContext<'a> {
             recorded_ids: Vec::new(),
             replay: None,
             terminal_denial: None,
+            stream_refusal: None,
         })
     }
 
@@ -1290,6 +1421,122 @@ impl<'a> IbexHostContext<'a> {
                     .ok_or_else(action_host_missing)?;
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
+            }
+            "action.streamOpen" => {
+                self.ensure_action("fetchStream")?;
+                if !outbound_actions_enabled() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+                        "runtime",
+                        "ctx.fetchStream requires the deployment's outbound-actions capability",
+                    )
+                    .with_details(json!({
+                        "operation": "open",
+                        "expected": "SNAPBACK_OUTBOUND_ACTIONS=1",
+                        "received": "outbound actions disabled",
+                        "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                    })));
+                }
+                let request =
+                    serde_json::from_value::<ActionStreamRequest>(args).map_err(|_error| {
+                        SnapbackError::error(
+                            "SNAPBACK_ACTION_STREAM_INVALID",
+                            "runtime",
+                            "ctx.fetchStream received an invalid request shape",
+                        )
+                        .with_details(json!({
+                            "operation": "open",
+                            "expected": "{url, method?, headers?, body?, idempotencyKey?}",
+                            "received": "nonconforming request object",
+                            "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                        }))
+                    })?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.open_response_stream(request)?).map_err(|_error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the bounded response stream metadata could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "open" }))
+                })
+            }
+            "action.streamRead" => {
+                self.ensure_action("fetchStream.read")?;
+                let stream_id = required_string(&args, "streamId")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.read_response_stream(&stream_id)?).map_err(|_error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the bounded response stream chunk could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "read" }))
+                })
+            }
+            "action.streamCancel" => {
+                self.ensure_action("fetchStream.cancel")?;
+                let stream_id = required_string(&args, "streamId")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                host.cancel_response_stream(&stream_id)?;
+                Ok(Value::Null)
+            }
+            "action.streamAttemptStart" => {
+                self.ensure_action("streamAttempt.start")?;
+                let client_key = required_string(&args, "clientKey")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.start_stream_attempt(&client_key)?).map_err(|_error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the stream attempt record could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "attemptStart" }))
+                })
+            }
+            "action.streamAttemptSettle" => {
+                self.ensure_action("streamAttempt.settle")?;
+                let attempt_token = required_string(&args, "attemptToken")?;
+                let cause = required_string(&args, "cause")?;
+                let Some(cause) = crate::stream_attempt::StreamAttemptCause::parse(&cause) else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "stream attempt settlement requires one of the five terminal causes",
+                    )
+                    .with_details(json!({
+                        "operation": "settle",
+                        "expected": "complete|failed|cancelled|timed_out|ambiguous",
+                        "received": "unknown cause",
+                        "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                    })));
+                };
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.settle_stream_attempt(&attempt_token, cause)?).map_err(
+                    |_error| {
+                        SnapbackError::error(
+                            "SNAPBACK_ACTION_STREAM_INVALID",
+                            "runtime",
+                            "the stream attempt terminal record could not be serialized",
+                        )
+                        .with_details(json!({ "operation": "settle" }))
+                    },
+                )
             }
             // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
             // The imperative twin, decomposed so LLP 0053's one-class-per-op
@@ -1789,6 +2036,14 @@ pub(crate) fn dispatch_host_call(
     let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
     let traced_args = if tracing { Some(args.clone()) } else { None };
     let result = ctx.handle_host_call(op, args);
+    // @ref LLP 0076#diagnostics — record the structured stream refusal
+    // out-of-band so it can be restored past the JS error round-trip.
+    if let Err(error) = &result
+        && (error.diagnostic.code.starts_with("SNAPBACK_ACTION_STREAM_")
+            || error.diagnostic.code == "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED")
+    {
+        ctx.stream_refusal = Some(error.clone());
+    }
     if let Some(args) = traced_args {
         HOST_CALL_TRACE.with(|slot| {
             if let Some(trace) = slot.borrow_mut().as_mut() {
@@ -1910,7 +2165,31 @@ fn run_ibex_handler_with_context_until(
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
-    parse_handler_output(module, output)
+    restore_stream_refusal(invocation, parse_handler_output(module, output))
+}
+
+/// Restore the host-built structured stream refusal when the handler's final
+/// error carries the same code (LLP 0076 §Diagnostics): the trusted
+/// representation — operation, limit, value-free received summary, repair
+/// anchor — survives the FFI/envelope round-trip, while a handler-forged
+/// stream code with no recorded host refusal gets nothing attached.
+fn restore_stream_refusal(
+    invocation: &mut IbexHostContext<'_>,
+    result: SnapbackResult<Value>,
+) -> SnapbackResult<Value> {
+    match result {
+        Err(error) => {
+            match invocation
+                .stream_refusal
+                .take()
+                .filter(|recorded| recorded.diagnostic.code == error.diagnostic.code)
+            {
+                Some(recorded) => Err(recorded),
+                None => Err(error),
+            }
+        }
+        ok => ok,
+    }
 }
 
 /// Evaluate one module in a fresh, non-callable VM and prove that its named
@@ -2421,7 +2700,7 @@ fn warm_setup_source(module: &IbexModule) -> String {
 /// mutations stay fully denied. This is the [LLP 0027#external-data-and-action-egress]
 /// seam — sandbox-policy territory owned by [LLP 0009], so the default posture is
 /// unchanged (everything denied, strict).
-fn outbound_actions_enabled() -> bool {
+pub(crate) fn outbound_actions_enabled() -> bool {
     matches!(
         std::env::var("SNAPBACK_OUTBOUND_ACTIONS").ok().as_deref(),
         Some("1") | Some("true") | Some("TRUE")
@@ -2766,6 +3045,17 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"
+        // @ref LLP 0076#diagnostics — every promised stream refusal family
+        // must survive the handler envelope with its exact code.
+        | "SNAPBACK_ACTION_STREAM_CANCELLED"
+        | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_INVALID"
+        | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
+        | "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"

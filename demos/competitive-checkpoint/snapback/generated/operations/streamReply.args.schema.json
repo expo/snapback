@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/streamReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "streamUrl": {
+      "type": "string"
+    },
+    "upstreamIdempotent": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "attemptId",
+    "streamUrl",
+    "method",
+    "upstreamIdempotent"
+  ],
+  "title": "competitive-checkpoint:streamReply arguments",
+  "type": "object"
+}

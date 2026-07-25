@@ -5,7 +5,107 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (additive prior-art comparison against InstantDB
+**Revised:** 2026-07-24 (gate-2 remainder pass: LLP 0075 protocol amendment
+v0.5 reconciles the frozen fixture with the StreamAttemptV1 control plane
+and certainty mirror (instrument 7/7); per-bullet acceptance receipts landed
+with three explicit gaps; the guide gains `backend/streamed-actions` with a
+`partial` capability row and the repair anchor now resolves — ENG-25423).
+2026-07-24 (the last two implementable residues closed: the
+ServicePrincipal tier of the per-read fence is witnessed end to end — a
+real scoped-token authority prepared through the production admission and
+invocation machinery, a real service terminal gate committed while a pull
+was blocked, late bytes discarded with the exact
+`SNAPBACK_AUTH_SCOPED_TOKEN_INVALID`, and post-terminal opens refused —
+and the Workerd admission leg landed: function resolution (the loader seam
+of a deploy-time-compiled target) refuses known registry ids the served
+manifest does not support with a typed 503 before any handler runs,
+witnessed positively and negatively through Miniflare. The
+per-read-authority-fence ticket closes; capability-honesty narrows to the
+single open author decision — the LLP 0058 maturity-marker design — which
+this revision deliberately does not make; status remains Draft).
+2026-07-24 (the stranded Workerd/Cloudflare streaming arm is
+re-landed on main, ported from the primary checkout's uncommitted working
+tree and adapted to the landed contract: the decision-4 rename and
+decision-5 safe-method-only downgrade, decision-6 `elapsedMs`/`deltaMs` on
+read results, pre- and post-pull abandonment revalidation with late-byte
+discard, one-in-flight-pull-per-cursor, invocation-wide carry-over
+accounting with a 64 KiB refusal path, fail-closed refusal of stream
+attempt tokens (this target has no StreamAttemptV1 control plane), the LLP
+0036 descriptor placement seam at the coordinator stream-open boundary with
+the authored-URL rule, and an honest all-aboard manifest (six enforced
+limit rows, no wall row, witness-bounded runtime fact). Witnessed by ten
+stream checks in the Miniflare/workerd egress acceptance (27/27) including
+secret placement value-freeness, the renamed progress-rate fence, the
+4-cursor cap, and the exact idle-timeout code; the Workerd residue rows
+below narrow accordingly; status remains Draft). 2026-07-24 (capability honesty advanced on the local arm:
+admission now resolves every declared requirement against the served
+instance manifest in one preflight shared by all local loader paths, with
+outbound-disabled negative and egress-enabled positive witnesses; codegen
+stream inference is AST-derived (aliases detected, comments ignored); the
+overclaim ledger row narrows to the open maturity-marker design question,
+deferred to the LLP 0058 review loop). 2026-07-24 (secret scrubbing landed on the local arm: streamed
+requests place secrets exactly like ordinary local actions — staged values
+with the LLP 0036 redactor on every stream error envelope, witnessed in both
+the rethrown-leak and untouched-refusal directions through the real HTTP
+path; `secretSlots` parity added to the bridge with a typed local refusal
+for unresolvable descriptor slots; residue: the hosted descriptor seam and
+retained-receipt scans). 2026-07-24 (diagnostic envelope landed on the local arm: all
+nine promised codes survive both envelope allowlists; an out-of-band recorder
+restores the host-built structured refusal past the JS round-trip while
+forged stream codes fold to the generic handler failure; raw serde text
+removed from stream diagnostics; witnessed through the real HTTP action path
+plus the mutations-cannot-stream executed negative; residue: the Workerd
+handler transport's detail discard). 2026-07-24 (boundedness landed on the local arm: per-cursor
+reader threads behind one-slot rendezvous channels make the 30 s wall an
+absolute mid-read ceiling with 2 s settlement grace reserved ahead of the
+watchdog, serialize one in-flight pull per cursor, and carry a real
+per-invocation materialized-byte counter whose four-cursor slow-consumer
+witness stays under the 64 KiB domain — defined as host-materialized bytes,
+kernel buffers excluded; decision 6's monotonic `elapsedMs`/`deltaMs` now
+rides every read result; local manifest rows updated (buffered-bytes
+`Enforced`, read-size/cursor/wall rows added); residue: the Workerd arm).
+2026-07-24 (per-read authority fence landed on the local arm:
+pre- and post-pull revalidation of abandonment/generation/deadline plus the
+lock-free process-fence tier of service authority, late-byte discard on a
+blocked read, and the direct attempt-to-cursor cancellation signal with
+physical upstream-socket closure — drain-bounded by the idle ceiling, not an
+abort; residue: the ServicePrincipal-tier end-to-end witness and the Workerd
+arm; the fence ticket stays open on those two). 2026-07-24 (write-ahead `initiationState` landed on the local
+arm: the `_snapback_stream_attempts` SQLite substrate durably pre-marks an
+attempt-bound cursor `initiation_possible` before the send, narrows only on
+provable pre-send failures, advances to the absorbing `response_observed` on
+metadata, and a startup reconciler settles orphaned rows `failed` with the
+conservative effect fold; decision 5's declaration-or-downgrade also landed —
+a bare idempotency key no longer downgrades `ambiguous` to `failed`; the
+initiationState and two-axis-settlement(host-side) ledger rows move to
+landed-local; status remains Draft). 2026-07-24 (StreamAttemptV1 control plane landed on the local
+arm: host-owned attempt registry with opaque tokens
+(`ctx.streamAttempt.start`/`settle`, `attemptToken` on the stream request),
+atomic single-runner lease with dead-holder takeover, trusted compare-and-set
+terminalizer across the watchdog/fence-loss/forfeiture legs, retry refusal
+after the first durable progress commit, and the automatic-retry cron
+exclusion; the terminalizer/lease/StreamAttemptV1 ledger rows move to
+landed-local with named residue — crash-durable substrate, Workerd arm, and
+fixture reconciliation remain open; status remains Draft). 2026-07-23 (the shared reader-surface baseline previously
+implemented only in a non-landed working tree is now landed on main via the
+gate-2 program worktree: runtime stream DTOs + host-op dispatch, the local
+detached-host implementation with total/idle/wall/read-boundary checks and the
+conservative nested-mutation rate fence, envelope passthrough for the seven
+stream codes, reviewed HTTP statuses, the instance-live
+`bounded_response_stream_v1` capability predicate with regenerated committed
+manifests, codegen admission requirements, and the `ctx.fetchStream` bridge;
+the progress-rate code lands renamed `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`
+per §Author decisions item 4, with the fixture's authored handler updated in
+the same change under protocol amendment v0.4; the LLP 0075 local-streaming
+instrument passes 6/6 against this baseline. The Workerd arm and every staged
+gap below remain open; status remains Draft). 2026-07-23 (author decisions: open questions 1, 2, 3, 4, 5, 8, 9,
+and 10 resolved — see §Author decisions — 2026-07-23; OQ6 and OQ7 remain
+open; the certainty column is host-persisted, attempts gain per-cursor child
+records, non-GET retry idempotency becomes declaration-or-downgrade, the
+progress-rate code is renamed profile-neutral, reads carry monotonic
+elapsedMs, gate 2 targets `single-instance-container-vm.v1`, and
+ReadableStream/resumable-cursor adoption is deferred with named triggers).
+2026-07-23 (additive prior-art comparison against InstantDB
 Streams — resumability, writer discipline, authorization defaults, retention —
 added as a dated subsection under LLP 0086 CC-5; no contract text changed;
 LLP 0082 and LLP 0086 added to Related). 2026-07-23 (fifth model-family review round — Fable NOT READY
@@ -111,7 +211,7 @@ for (;;) {
   // `Date.now()`, and `ctx.runtime.now` is fixed per invocation — so flushing
   // every two reads keeps spacing above the fence against the witness cadence
   // (chunks every 80 ms; fixture floor ~50 ms). A per-chunk commit would trip
-  // SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED. A host-provided progress helper that
+  // SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED. A host-provided progress helper that
   // owns coalescing and the terminal CAS is the intended v1 direction.
   if (++sinceCommit >= 2) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; sinceCommit = 0; }
 }
@@ -268,14 +368,18 @@ inference and the durable row's committed terminal state disagree — for
 example a cancellation/timeout race — the durable winner is authoritative and
 the action must return it.
 
-Classification currently keys on whether the request carries an idempotency
-key: a keyed non-GET is treated as idempotent-class and a transport failure on
-it settles `failed`, not `ambiguous`. That is the author's assertion that the
-provider recognizes the key, not a machine-checked fact (open question 2), and
-it is why an unrecognized key can under-report uncertainty. Making key
-recognition a trusted, provider-founded declaration — after which only a
-recognized key downgrades `ambiguous` to `failed` — is the intended
-direction, tracked as a gap.
+Classification no longer keys on whether the request carries an idempotency
+key (decision 5, landed 2026-07-24): a bare authored key does not confer
+idempotency, so a keyed non-GET whose transport failure cannot be proven
+pre-send settles `ambiguous` exactly like an unkeyed one, while a provable
+pre-send failure (DNS, connection refused, an unusable URL) settles `failed`
+on any method and narrows the cursor's pre-mark to
+`definitely_not_initiated`. The key is still forwarded provider-visible as
+the `Idempotency-Key` header. The deployment-pinned provider idempotency
+declaration — provider identity, key header, scope, verified by the host,
+binding the effective key and a canonical request digest into the attempt
+record, after which a recognized key may downgrade `ambiguous` to `failed`
+and re-earn retry semantics — remains staged work.
 
 For the fence promise (no late continuation writes after cancellation,
 timeout, deployment change, or authority loss) to hold, the model specifies
@@ -353,11 +457,13 @@ be a profile change.
 
 The host additionally rate-fences **all** nested mutations while any cursor
 is open — not only the progress pattern's — emitting
-`SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` as a conservative transport-level
+`SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` as a conservative transport-level
 guard; the pattern's own row-level throttle reuses the same code for the
-application commit protocol. The shared, fixture-flavored name is a v1
-compromise; whether it is renamed before the code becomes load-bearing in
-receipts is an open question.
+application commit protocol. The code is the profile-neutral host name
+resolved by §Author decisions item 4 (2026-07-23); the retired
+fixture-flavored `SNAPBACK_REPLY_*` spelling no longer exists in code, and
+protocol amendment v0.4 records that receipts treat the two spellings as the
+same diagnostic across the rename boundary.
 
 Existing generation, authority, and action-watchdog diagnostics retain
 precedence when they are the real cause.
@@ -405,13 +511,49 @@ logs, or a single terminal replacement cannot pass.
 
 The living record of what is witnessed versus staged, so the Draft does not
 overstate itself; new revisions add entries here rather than treating it as a
-historical annex. Seeded from the `llp/reviews/0076-*` reviews. Witnessed today: the happy path through the real
+historical annex. Seeded from the `llp/reviews/0076-*` reviews.
+
+2026-07-23 (baseline landing): the reader-surface implementation this ledger
+describes as witnessed previously existed only as uncommitted work in a
+non-landed working tree — main itself had no `ctx.fetchStream`, no stream host
+ops, and no `bounded_response_stream_v1` registry entry. The gate-2 program
+worktree ported the local arm onto main (runtime DTOs/dispatch/envelope, the
+detached-host reader with total/idle/wall/read-boundary enforcement and the
+nested-mutation rate fence, reviewed HTTP statuses, the instance-live
+capability predicate with regenerated committed manifests, codegen admission
+requirements, and the harness bridge), applied the decision-4 rename
+(`SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, fixture updated in the same change
+under protocol amendment v0.4), and re-ran the LLP 0075 local-streaming
+instrument: PASS 6/6 (three-plus intermediate native-push commits, start-row
+idempotency, durable cancellation with zero late patches, idle `timed_out`,
+`failed` versus `ambiguous`). The Workerd/Cloudflare arm of the same baseline
+remains unlanded (still only in that working tree); every staged gap below is
+unchanged by this landing.
+
+Witnessed today: the happy path through the real
 action → nested mutation → commit → native-push chain with three-plus
 intermediate commits and a blocked negative actor; start-row idempotency;
 durable cancellation with the late-patch fence; idle settlement;
 failed-versus-ambiguous labels; the total-byte, idle, wall, and progress-rate
 codes in unit tests; and on Workerd, pulling, visible chunk size, the
 total-byte refusal, and idempotent cancel.
+
+2026-07-24 (gate-2 remainder pass): protocol amendment v0.5 reconciles the
+frozen fixture with this authority — the authored pattern adopts the
+StreamAttemptV1 control plane and the read-only certainty mirror, the
+instrument gains the certainty-mirror check (7/7 PASS), the decision-5
+downgrade is recorded, and the generated-CRUD expectations track LLP 0065's
+Accepted anti-probing posture. Per-bullet acceptance receipts now exist at
+`demos/competitive-checkpoint/acceptance/llp0076-acceptance-receipts.v1.json`,
+mapping every §Acceptance bullet to named witnesses per target with three
+explicit gaps (the hosted `single-instance-container-vm.v1` receipt, the
+author's maturity-marker decision, and the Workerd structural bounds).
+Retained checkpoint receipts were scanned for fixture secret values (clean);
+durable-row scans on the hosted target ride the hosted receipt. The guide
+now covers the surface (`guide/backend/streamed-actions.md`, capability row
+`backend.streamed-actions`, maturity `partial`), and the diagnostics' repair
+anchor `guide/backend/actions-and-fetch#stream-a-response` resolves
+(ENG-25423).
 
 Not yet mechanically witnessed, staged before gate 2 can close: slow-consumer
 buffering under the 64 KiB bound (including the exact accounting domain —
@@ -426,102 +568,223 @@ acceptance item to a named witness.
 Known implementation gaps against this authority's contract, each requiring
 a fix before gate 2:
 
-- **Per-read authority fence.** Local host-op validation checks abandonment,
-  generation, and deadline but not service authority, and a blocking read has
-  no post-read revalidation before exposing bytes; Workerd checks only before
-  the operation. An authority terminalization that lands during a blocked read
-  can still return bytes. The contract requires an exact permit held through
-  pull and byte handoff, or an equivalent fenced post-pull check.
-- **Trusted terminalizer (specified above; unimplemented).** The contract now
-  requires a trusted compare-and-set terminalizer or lease-expiry reconciler
-  and a direct attempt-to-cursor cancellation signal, raced for every
-  lifecycle cause. The reference pattern still leaves durable terminal
-  settlement to an authored mutation that cannot run once the action is
-  abandoned, so the attempt row can remain `running`; closing this is required
-  before gate 2.
-- **Single-runner lease and retry fencing (specified above; unimplemented).**
-  `ActionStreamRequest` carries no attempt identity or execution generation,
-  and the reference `startReply` returns the same attempt to concurrent
-  callers without a lease, so two callers can reopen the upstream request
-  before either commits progress. The contract requires distinct
-  client-operation-key / Snapback-attempt-id / provider-key identities, the
-  atomic single-runner lease binding every progress and terminal mutation, and
-  duplicate-sequence acceptance only when byte offset and digest agree. Until
-  it lands, automatically retried cron/LLP 0070 durable invocations are
-  excluded from streamed actions.
-- **Host `initiationState` write-ahead mark (specified above; unimplemented).**
-  The host does not yet durably pre-mark `initiation_possible` before the send
-  or expose the three-state `initiationState`; today the open path infers
-  retry-safety from method/idempotency-key alone. The write-ahead mark is what
-  makes the effect-certainty axis crash-safe and transport-agnostic.
-- **Host-owned `StreamAttemptV1` record (specified above; unimplemented).**
-  `ActionStreamRequest` carries no attempt token, and the reference progress
-  schema owns the status field itself; the fence-critical fields must move to
-  a host-owned attempt record with an opaque token so the trusted terminalizer
-  and lease can act after the authored action is gone.
-- **Absolute wall-clock enforcement.** The local host bounds the upstream
-  request timeout at the idle window and checks the wall limit only at read
-  boundaries, so a productive stream can fail near 5 s and be mislabeled, and
-  the 30 s ceiling is not enforced as an absolute bound on the read itself.
-  Separate overall, idle, connect, and per-read timers are required.
-- **64 KiB buffer accounting.** The accounting domain is undefined and the
-  local host has no buffered-byte counter at all (only Workerd enforces a
-  per-chunk bound); the shared reader permits unlimited concurrent `read()`
-  calls from its single owner. The contract must define per-cursor-versus-
-  invocation scope and which host/bridge/VM/network queues count, serialize
-  pulls per cursor, and mark the manifest row non-enforced until a
-  slow-consumer witness passes.
-- **Capability admission.** The raw dev loader installs a stream-requiring
-  artifact without resolving `require_capabilities`, while complete-pair
-  preflight checks a static declaration instead of the live instance
-  manifest — one path over-admits with egress disabled, the other
-  under-admits when egress is enabled. Both must resolve against the same
-  served instance manifest before any handler runs, with an
-  outbound-disabled negative admission witness. Codegen inference is also a
-  textual `fetchStream(` match; an AST-derived or explicit function
-  capability would close the alias gap.
-- **Two-axis settlement.** The durable row carries only a single status
-  today; the required orthogonal upstream-effect-certainty axis is
-  unimplemented in the reference pattern and both hosts, there is no
-  host-exposed `initiated` fact for the authored mutation to read, and the
-  fixture's `requiredSettlementKinds` is single-axis. The host must expose the
-  initiation fact and the pattern must record the certainty, with the
-  acceptance bullet above witnessing it, before gate 2.
-- **Secret scrubbing on streamed fetch.** `ctx.fetchStream` forwards raw URL,
-  headers, body, and key and performs none of the LLP 0036 opaque-descriptor
-  resolution and value-aware redaction that ordinary `ctx.fetch` does, so a
-  secret-bearing streamed request to an AI provider cannot yet place a secret
-  the way an ordinary action can. v1 must add the same per-function opaque
-  placement seam to streamed requests and witness it (excluding secret-bearing
-  streams instead would gut the intended AI-provider use case).
-- **Positive capability overclaim.** `bounded_response_stream_v1` is published
-  as a positive `supportedCapabilities` entry — which LLP 0058 reads as
-  present server support and LLP 0074 forbids for a Draft authority without
-  executable conformance — while the pattern's terminal, throttle, and retry
-  guarantees are not host-enforced; the manifest also marks buffered-bytes
-  `Enforced` with no accounting and omits the read-size and cursor limits, and
-  the Cloudflare runtime fact claims idle/wall/progress/watchdog/settlement
-  evidence its witness does not earn. Until conformance the capability should
-  carry a proposed/experimental maturity admission cannot treat as support,
-  and unproved limit rows should read `Missing`.
-- **Diagnostic envelope coverage.** `SNAPBACK_ACTION_STREAM_UNSUPPORTED` and
-  the host rate-fence code are absent from the handler-envelope allowlists and
-  can fold to `SNAPBACK_HANDLER_FAILED`; every promised code must survive both
-  envelopes, and capability-admission refusal
-  (`SNAPBACK_CAPABILITY_UNSUPPORTED`) must stay distinct from runtime
-  `_UNSUPPORTED`.
-- **Cross-authority accuracy.** The Workerd open path's Begin/Initiated cut
-  does not visibly match LLP 0059's normalize-before-Begin rule; the Workerd
-  manifest claims idle, wall, progress-rate, watchdog, and typed-settlement
-  evidence its witness does not earn; and the retained local witness still
-  hardcodes the retired `local-ibex-sqlite.v1` target alias that LLP 0075's
-  protocol amendment prohibits, so it must derive identity from the served
-  manifest and rerun prospectively.
+- **Per-read authority fence (local arm largely landed 2026-07-24; two named
+  residues).** The local read path now revalidates the full predicate —
+  abandonment, generation, deadline, and the lock-free process-fence tier of
+  the service-authority check — both BEFORE and AFTER awaiting bytes; late
+  bytes are discarded (the authority refusal, not the data, reaches the
+  action, and the cursor closes), witnessed by a blocked-read
+  terminalization-during-read test. The direct attempt-to-cursor
+  cancellation signal also landed: a committed terminal settlement closes
+  the cursor at the next pull boundary, physically dropping the upstream
+  reader, decoupled from progress mutations (witnessed, including an
+  observable upstream-socket-close test against an indefinite
+  no-more-bytes source; the local in-flight pull drains rather than aborts,
+  bounded by the 5 s idle ceiling). Residue: the ServicePrincipal tier's
+  end-to-end witness needs the full service-connection fixture (the
+  predicate logic is shared with the reviewed
+  `validate_prepared_service_authority` process-fence tier, but a
+  streamed-action run under real scoped-token authority has not been
+  executed — CLOSED 2026-07-24: the witness now exists; a real prepared
+  scoped-token authority, a real terminal-gate commit racing a blocked
+  pull, late-byte discard with the exact authority code, and pre-open
+  refusal are all executed in
+  `service_principal_terminalization_fences_stream_open_and_discards_late_bytes`).
+  The Workerd leg landed 2026-07-24: reads revalidate the
+  action-abandonment signal before AND after the pull, discarding late
+  bytes, and on that target the abandonment signal is the complete
+  revalidation predicate — hosted auth (and with it scoped-token service
+  authority) is `unavailable` on `cloudflare-do-sqlite-v8`, so no
+  service-authority tier exists there to check.
+- **Trusted terminalizer (landed on the local arm 2026-07-24; residue
+  tracked).** The local host now owns a compare-and-set terminalizer with
+  three legs: watchdog abandonment (linearized under the commit gate, so no
+  progress commit can land after the terminal write), fence-loss completion
+  (generation retirement and authority terminalization map to `cancelled` when
+  the invocation ends), and authored forfeiture (an action that returns
+  without settling gets `failed`). A durable winner therefore always exists
+  for every attempt a local invocation opened, and the action receives the
+  committed winner verbatim — witnessed by unit, barrier-race, and
+  real-action-path tests including a hung-action watchdog witness. Residue:
+  the direct attempt-to-cursor cancellation signal (aborting an in-flight
+  pull) stays with the per-read-authority-fence ticket, and the Workerd arm
+  has no attempt control plane at all.
+- **Single-runner lease and retry fencing (landed on the local arm
+  2026-07-24; residue tracked).** `StreamAttemptV1` binds an atomic
+  single-runner lease at start: a concurrent `start` on the same client key
+  receives the same attempt without the lease and cannot commit progress or
+  settle; lease takeover requires a dead holder and bumps the runner
+  generation; retry after the first durable progress commit is refused at
+  cursor bind. `ActionStreamRequest` now carries an optional `attemptToken`
+  binding the upstream request as a child cursor. Automatically re-dispatched
+  cron invocations (attempt > 1 or recovery trigger) are refused
+  `fetchStream` outright — the conservative exclusion stays until resumable
+  retry semantics exist. Residue: duplicate-sequence acceptance by byte
+  offset and digest remains authored-pattern work, and the frozen LLP 0075
+  fixture still uses its legacy authored row (reconciliation rides the
+  prospective LLP 0075 amendment noted below); the lease refusal deliberately
+  rides the `SNAPBACK_ACTION_STREAM_INVALID` family rather than minting a
+  ninth code.
+- **Host `initiationState` write-ahead mark (landed on the local arm
+  2026-07-24).** The substrate is the `_snapback_stream_attempts` table in
+  the instance SQLite: an attempt-bound cursor is durably pre-marked
+  `initiation_possible` under a short instance-lock write BEFORE any request
+  byte reaches the outbound stack (the open refuses to proceed if the
+  pre-mark cannot commit), narrows to `definitely_not_initiated` only on a
+  provable pre-send failure (DNS, connection refused, unusable URL), and
+  advances to the absorbing `response_observed` on metadata. Hot-path cost:
+  at most two short instance-lock upserts per upstream open and none per
+  read; terminalizer and close paths flush best-effort (a skipped write
+  leaves the conservative on-disk reading). A startup reconciler settles any
+  orphaned non-terminal row `failed` with the effect fact folded from the
+  persisted cursor pre-marks, witnessed by a two-process-life recovery test.
+  Residue: attempt-less streams (no `attemptToken`) have no durable
+  settlement row by design — the authored pattern's adoption rides the
+  prospective LLP 0075 amendment; the Workerd arm has no substrate.
+- **Host-owned `StreamAttemptV1` record (landed on the local arm 2026-07-24;
+  residue tracked).** The runtime now owns the attempt identity, runner
+  lease, per-cursor `initiationState`, and terminal cause+certainty in a
+  host-owned registry, issuing an opaque token via
+  `ctx.streamAttempt.start`/`settle` and binding cursors through the
+  request's `attemptToken` (decisions 2 and 3: certainty persists on the host
+  record; parent attempt with per-cursor children whose certainty folds
+  pessimistically). Residue: the record is process-durable, not yet
+  crash-durable — the durable write-ahead substrate rides the
+  initiation-state ticket; the Workerd arm has no attempt record; and the
+  reference authored pattern does not yet reference the token.
+- **Absolute wall-clock enforcement (local arm landed 2026-07-24).** Each
+  cursor now owns a dedicated reader thread behind a one-slot rendezvous
+  channel: the host's `recv_timeout` against the per-stream wall deadline
+  bounds the pull itself, firing mid-read even while the socket read is
+  still blocked (witnessed by a blocked-read test that trips the ceiling in
+  ~300 ms against a 5 s idle window). Timers are now separate: connect and
+  metadata ride the idle window, per-read idle rides the socket timeout,
+  and the wall deadline is absolute — computed as
+  `min(open + 30 s, watchdog deadline − 2 s settlement grace)`, so a
+  default action can reach and durably settle its stream timeout before
+  abandonment (witnessed). The Workerd leg landed 2026-07-24: the pull is
+  race-bounded by `min(idle, wall remaining)`, so the ceiling fires
+  mid-read; that bound is structural (no 30 s witness is retained and no
+  wall manifest row is published), and settle grace is meaningless on a
+  target without the attempt control plane — both stated in the manifest's
+  runtime fact.
+- **64 KiB buffer accounting (local arm landed 2026-07-24).** The
+  accounting domain is defined as host-materialized bytes per invocation —
+  the one queued chunk per cursor plus the handoff copy — summed across
+  cursors; kernel/socket buffers are excluded by definition (bounded by the
+  TCP window, never application-visible). Enforcement is structural: one
+  in-flight 16 KiB pull per cursor (rendezvous channel; an overlapping pull
+  is refused, and the shared bridge reader also serializes `read()`) times
+  the 4-cursor cap is exactly the 64 KiB ceiling. A real counter witnesses
+  it: a four-cursor slow-consumer test records a peak-buffered high-water
+  mark under the bound and full ordered delivery. The local manifest's
+  buffered-bytes row flips to `Enforced`, with read-size, cursor-cap, and
+  wall rows added. The Workerd leg landed 2026-07-24: one in-flight pull
+  per cursor is refused structurally, the 16 KiB visible-chunk cap and
+  4-cursor cap are witnessed through real workerd, and host-retained
+  carry-over is accounted invocation-wide with a 64 KiB refusal path;
+  residue: that refusal path is structural, not a witnessed high-water
+  counter (stated in the manifest's runtime fact).
+- **Capability admission (local arm landed 2026-07-24).** Every local
+  loader path — raw dev, complete-pair provisioning, direct embedding —
+  funnels through one preflight that resolves every declared
+  `requiredCapabilities` id (functions and cron jobs) against the SAME
+  served instance manifest `/inspect` reports for the exact process, before
+  any handler or nested-mutation code runs. Witnessed in both directions: an
+  egress-disabled instance refuses a stream-requiring artifact with
+  `SNAPBACK_CAPABILITY_UNSUPPORTED` and installs nothing (the
+  outbound-disabled negative), and an egress-enabled instance admits the
+  same requirement (positive twin in the envelope integration suite).
+  Codegen inference is now AST-derived via the bundle parser: member access,
+  computed string access, and destructuring aliases of `fetchStream` mark
+  the module while comments and unrelated strings do not (an unparseable
+  bundle falls back to the conservative textual scan, which can only
+  over-require). The Workerd admission leg landed 2026-07-24: this target
+  is deploy-time compiled, so `/app/ensure` only hash-gates posted
+  artifacts and never installs them; the loader seam is function
+  resolution, and `functionByName` now refuses any known registry id the
+  served manifest does not support with a typed 503
+  `SNAPBACK_CAPABILITY_UNSUPPORTED` before the handler runs — witnessed
+  positively (the stream probes declare the capability and run) and
+  negatively (a probe declaring `auth.sessions.v1` is refused) through
+  Miniflare. No admission residue remains on either target.
+- **Two-axis settlement (host side landed on the local arm 2026-07-24;
+  authored-pattern side open).** The host-owned attempt record now carries
+  `terminalCause` plus the orthogonal `effectMayHaveExecuted` certainty
+  (decision 2), derived from the write-ahead cursor pre-marks and returned to
+  the action on every start/settle — the host-exposed initiation fact exists.
+  Witnessed: cancelled-after-initiation and timed-out-after-initiation carry
+  the effect fact while a provable pre-initiation `failed` does not (host
+  tests), and the crash path folds conservatively (recovery test). Open: the
+  reference authored pattern's durable row is still single-status — its
+  mirror of the certainty rides the prospective LLP 0075 amendment — and the
+  frozen fixture's `requiredSettlementKinds` stays the five kinds unchanged
+  (the certainty is retained evidence, not a sixth kind).
+- **Secret scrubbing on streamed fetch (local arm landed 2026-07-24; hosted
+  descriptor seam open).** On the local value-mode profile a streamed request
+  now places secrets exactly the way an ordinary action does — staged values
+  via `ctx.secrets` handles, with the LLP 0036 staged-value redactor applied
+  to every stream error envelope — witnessed through the real HTTP action
+  path in both directions: a handler that rethrows a refusal with the secret
+  embedded surfaces only `[REDACTED]`, and an untouched structured stream
+  refusal with the secret in the URL and headers stays value-free (no secret,
+  no URL structure). `ctx.fetchStream` also accepts the same
+  `secretSlots` placement shape as ordinary host-mediated fetch and forwards
+  descriptors opaquely; the local profile refuses descriptor slots with a
+  typed diagnostic (they resolve only at a hosted fetch boundary — the same
+  posture as local `ctx.fetch`, which has no host-fetch op at all). The
+  hosted descriptor seam landed 2026-07-24: the coordinator resolves stream
+  secret slots at its own open boundary exactly like ordinary host-mediated
+  fetch, returns the handler-authored URL (never the substituted one), and
+  the Miniflare witness proves the placement authenticates the upstream
+  while the resolved value never re-enters the isolate or the action
+  result. Residue: secret/private-data scans over RETAINED stream receipts
+  (durable rows) remain with the acceptance-receipts work.
+- **Positive capability overclaim (substantially narrowed 2026-07-24;
+  maturity marker still open).** The substance of the overclaim is resolved
+  on the local arm: the terminal/lease guarantees are now host-enforced
+  (StreamAttemptV1 control plane), every published local limit row is
+  genuinely enforced and witnessed (including buffered-bytes via the real
+  counter), and main's Cloudflare manifest claims nothing beyond an honest
+  `bounded_response_stream_v1` gap row (the overclaiming Workerd manifest
+  never landed on main). What remains open is the marker itself: whether the
+  capability should carry an explicit proposed/experimental maturity field
+  while LLP 0076 is Draft is an LLP 0058 registry-semantics design choice
+  (schema change) deferred to the author/review loop rather than decided
+  here; until then the instance-live predicate plus the per-bullet witnesses
+  are the honesty mechanism.
+- **Diagnostic envelope coverage (local arm landed 2026-07-24).** All nine
+  promised codes — the eight stream families plus
+  `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` — now survive both the runtime and
+  harness envelope allowlists, and `SNAPBACK_CAPABILITY_UNSUPPORTED` stays a
+  distinct code with its own reviewed status. The structured representation
+  survives the JS round-trip via an out-of-band host recorder: the last
+  host-built stream refusal is restored at result assembly when the surfaced
+  code matches, so operation/expected/received/repair reach the action
+  result; a handler-authored throw that merely spells a stream code folds to
+  `SNAPBACK_HANDLER_FAILED` (the settle wrapper trusts only the
+  `__snapbackCode` brand) — both witnessed through the real HTTP action path
+  (`tests/action_stream_envelope_v0.rs`), along with the mutations-cannot-
+  stream executed negative. Raw serde parser text no longer enters stream
+  diagnostics. Residue: the Workerd handler transport still discards
+  structured details (unlanded Workerd baseline), and per-family HTTP-path
+  shape witnesses beyond INVALID ride the existing unit and instrument
+  coverage.
+- **Cross-authority accuracy (largely resolved).** The Workerd manifest
+  now claims only what its witness earns (2026-07-24: witness-bounded
+  runtime fact, six enforced rows, no wall row); the retained local witness
+  alias defect was fixed by the LLP 0075 instrument corrections (identity
+  derived from the served manifest). Remaining: the Workerd open path's
+  Begin/Initiated cut versus LLP 0059's normalize-before-Begin rule —
+  moot in practice on this target (no service-authority fence exists
+  there), revisit if hosted auth reaches the Cloudflare profile.
 
-The reference fixture also uses string mutation names and a client-key start
-dedup, which a prospective LLP 0075 amendment must reconcile with that Spec's
-generated-reference-only rule and server-issued attempt-identity wording
-before the checkpoint reruns.
+The reference-fixture reconciliation is done: protocol amendment v0.5
+(2026-07-24) adopts the attempt token as the fence-critical identity keyed
+by the server-issued authored attemptId, scopes the generated-reference-only
+rule to the client arm (nested host-side `ctx.runMutation`-by-name is the
+shipped server authoring surface), and authorizes the seven-check
+instrument.
 
 ## Non-goals
 
@@ -602,30 +865,88 @@ disagreement about any single property.
   decoded vs. retained copies) remains **open question 7**, but that governs
   accounting, not the bounded-versus-unbounded disposition.
 
+## Author decisions — 2026-07-23
+
+Recorded by the author (Charlie Cheever) against
+`issues/20260723-llp0076-semantics-decisions.md`; each resolves the numbered
+open question below. Outcome-affecting requirement changes additionally owe a
+prospective LLP 0075 / `protocol.v0.json` amendment when their implementation
+ticket lands (noted per item). None of these is implemented by this revision;
+the Evidence-status ledger stays authoritative for what exists.
+
+1. **`ambiguous` (OQ4a) — kept, precisely defined.** `ambiguous` remains a
+   first-class terminal settlement kind denoting exactly: a non-idempotent
+   request (no verified idempotency declaration and not a safe method) that
+   reached `initiation_possible` and produced no provable terminal outcome —
+   the one kind whose effect fact can never be refined by evidence. It is not
+   a compatibility alias; `failed` continues to require provable
+   non-completion of the transport phase.
+2. **Certainty persistence (OQ4b) — host-owned attempt record.** The
+   effect-certainty column is persisted on the host-owned `StreamAttemptV1`
+   record (the row that owns the terminalizer and lease). Authored progress
+   rows MAY mirror it read-only; the host record is the authority the
+   late-effect fence reads.
+3. **Attempt shape (OQ10) — parent attempt plus per-cursor children.** Each
+   upstream request (cursor) gets a child record carrying its own
+   `initiationState` and certainty; the parent attempt owns settlement and
+   lease, and its certainty is the pessimistic fold of its children.
+4. **Progress-rate code (OQ5) — renamed now.**
+   `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` is the host-owned, profile-neutral
+   code. The reference fixture's authored
+   `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` is updated by the implementation
+   ticket in the same change (prospective protocol note rides with it; the
+   retained receipt does not name the code, so nothing frozen breaks).
+5. **Idempotency (OQ2) — declaration or downgrade.** Safe methods (GET/HEAD)
+   are idempotent by grammar. A non-GET request earns retry semantics only
+   through a deployment-pinned provider idempotency declaration (provider
+   identity, key header, scope) verified by the host, which binds the
+   effective key and a canonical request digest into the attempt record. A
+   bare authored `upstreamIdempotent` assertion no longer confers idempotency:
+   such requests are treated as non-idempotent and settle `ambiguous` when
+   unprovable. (Outcome-affecting: prospective protocol amendment rides the
+   implementation ticket; the frozen fixture is behaviorally unaffected — its
+   GET leg is idempotent by method, its POST leg already asserts false.)
+6. **Progress clock (OQ8) — monotonic `elapsedMs` on every read.** Every
+   stream read result carries host-owned monotonic elapsed milliseconds since
+   attempt start (plus per-chunk delta). Authored code gates its progress
+   commits on that value; the host rate refusal stays as the enforcement
+   backstop. No new ambient time primitive is added to the runtime surface.
+7. **Gate-2 adapter (OQ9) — `single-instance-container-vm.v1`.** The LLP 0074
+   gate-2 receipt is produced on LLP 0075's selected hosted target. Cloudflare
+   remains a narrow proof and is not gate-bearing. Gate 2 therefore also
+   waits on the 0075 program-ownership decision that picks the concrete
+   provider for the first remote drill.
+8. **Surface deferrals (OQ1, OQ3) — both deferred with named triggers.** v1
+   keeps the small pull-reader contract, and durable jobs restart only at
+   provider-defined idempotent boundaries. Reopen triggers: a concrete
+   consumer requiring pipe/tee semantics reopens OQ1; a provider with
+   verified range-resume semantics plus the OQ2 declaration mechanism reopens
+   OQ3.
+
 ## Open questions
 
-1. Does a later profile adopt the complete Web `ReadableStream` surface or keep
+1. *(Resolved 2026-07-23 — deferred with a named trigger; see §Author decisions item 8.)* Does a later profile adopt the complete Web `ReadableStream` surface or keep
    this smaller reader contract?
-2. Which provider idempotency-key declarations can make non-GET retries
+2. *(Resolved 2026-07-23 — declaration-or-downgrade; see §Author decisions item 5.)* Which provider idempotency-key declarations can make non-GET retries
    machine-checkable rather than authored assertions?
-3. Should durable jobs persist resumable upstream cursor metadata, or restart
+3. *(Resolved 2026-07-23 — restart at idempotent boundaries only; see §Author decisions item 8.)* Should durable jobs persist resumable upstream cursor metadata, or restart
    only at provider-defined idempotent boundaries?
-4. What exact fact does `ambiguous` add beyond effect-may-have-executed once
+4. *(Resolved 2026-07-23 — kept and precisely defined; certainty persists on the host attempt record; see §Author decisions items 1-2.)* What exact fact does `ambiguous` add beyond effect-may-have-executed once
    the two axes are separated? (The host *derives* the certainty via the
    `initiationState` write-ahead mark — that is settled; the open part is only
    which layer *persists* the certainty column, the host-owned attempt record
    or the authored progress row.)
-5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
+5. *(Resolved 2026-07-23 — renamed to `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`; see §Author decisions item 4.)* Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
    host code before it becomes load-bearing in retained receipts?
 6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
    target, and through the same opaque-placement seam as ordinary fetch?
 7. Are the 1 MiB and 64 KiB bounds measured on wire bytes, decoded bytes, or
    all retained VM/bridge copies, and how are concurrent cursors charged?
-8. Which supported monotonic elapsed-time source or host progress helper lets
+8. *(Resolved 2026-07-23 — monotonic `elapsedMs` on every read result; see §Author decisions item 6.)* Which supported monotonic elapsed-time source or host progress helper lets
    an action obey the 100 ms spacing without a wall clock?
-9. Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
+9. *(Resolved 2026-07-23 — `single-instance-container-vm.v1`; see §Author decisions item 7.)* Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
    narrow proof and LLP 0075 selected `single-instance-container-vm.v1`?
-10. Does one durable attempt cover all four concurrent cursors, or does each
+10. *(Resolved 2026-07-23 — parent attempt with per-cursor child records; see §Author decisions item 3.)* Does one durable attempt cover all four concurrent cursors, or does each
     upstream request get a child record under a parent attempt? A single
     scalar `initiationState`/certainty cannot represent four cursors in
     different phases.

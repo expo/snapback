@@ -1,7 +1,7 @@
 {
   "appId": "rbac",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:b8052e8915f7becad83dc2180af05eca807b3cd52e9ff4d905a71bdebc0af0a2",
+  "bundleHash": "snapback.v1:sessions:function:sha256:f8ba5407a7705da6496d96c644f2753269acef07919b41f72fc134d5f4b7eb32",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -9,6 +9,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "acceptInvite",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "acceptInvite",
       "id": "rbac:acceptInvite",
       "kind": "Mutation",
@@ -44,6 +59,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "inviteApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "inviteApp",
       "id": "rbac:inviteApp",
       "kind": "Mutation",
@@ -79,6 +109,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "joinApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "joinApp",
       "id": "rbac:joinApp",
       "kind": "Mutation",
@@ -114,6 +159,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "leaveApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "leaveApp",
       "id": "rbac:leaveApp",
       "kind": "Mutation",
@@ -151,6 +211,21 @@
         "userId"
       ],
       "bundleEntrypoint": "listAnnouncements",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "announcements"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listAnnouncements",
       "id": "rbac:listAnnouncements",
       "kind": "LiveQuery",
@@ -207,6 +282,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "postAnnouncement",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "announcements"
+          }
+        ]
+      },
       "exportedName": "postAnnouncement",
       "id": "rbac:postAnnouncement",
       "kind": "Mutation",
@@ -244,6 +339,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "rawJoin",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "rawJoin",
       "id": "rbac:rawJoin",
       "kind": "Mutation",
@@ -277,7 +387,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:e6059b43bd323b9db57de1c5cecd8daa366c03162eae63e4e38354291e3ab20d",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:258cfd2de9e9ad7a69cb8b24303379d9e4965057a00b22e3ae8da6242ad5a484",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

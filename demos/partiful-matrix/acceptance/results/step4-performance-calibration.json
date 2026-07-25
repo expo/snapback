@@ -1,0 +1,5806 @@
+{
+  "schemaVersion": "partitime.step4-performance.v1",
+  "claimId": "STEP4.BUDGETS.PROSPECTIVE_PERFORMANCE",
+  "cohort": "calibration",
+  "claimEligible": true,
+  "quick": false,
+  "recordedAt": "2026-07-22T08:51:16.560Z",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+    "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+  },
+  "sampling": {
+    "warmups": 2,
+    "samples": 7,
+    "idleWindowMs": 3000
+  },
+  "repository": {
+    "snapbackRevision": "3b2b204a70cda1a73097e3d9bab708d2a99bb2dc",
+    "exactRevision": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1",
+    "calibrationRevision": null
+  },
+  "environment": {
+    "node": "v25.9.0",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "Google Chrome 150.0.7871.130",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "cleanupErrors": [],
+  "cells": {
+    "react:snapback": {
+      "cell": "react:snapback",
+      "transport": "push",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 91.29999999701977,
+            "firstAuthoritativeDataMs": 100.3999999910593,
+            "firstLiveDataMs": 100.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.959666666666667,
+              "networkBytes": 57949,
+              "networkBytesPerSecond": 19316.333333333332
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1464040,
+            "memoryPerActiveSubscriptionBytes": 1464040,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 80.40000000596046,
+            "firstAuthoritativeDataMs": 94.6000000089407,
+            "firstLiveDataMs": 94.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.20033333333333478,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1464040,
+            "memoryPerActiveSubscriptionBytes": 1464040,
+            "update": {
+              "fanout": 7,
+              "patches": 14
+            }
+          },
+          {
+            "startupMs": 94.40000000596046,
+            "firstAuthoritativeDataMs": 110.09999999403954,
+            "firstLiveDataMs": 110.09999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.866333333333333,
+              "networkBytes": 17546,
+              "networkBytesPerSecond": 5848.666666666667
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1464040,
+            "memoryPerActiveSubscriptionBytes": 1464040,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 90.29999999701977,
+            "firstAuthoritativeDataMs": 104.8999999910593,
+            "firstLiveDataMs": 104.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.114333333333335,
+              "networkBytes": 42198,
+              "networkBytesPerSecond": 14066
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1464052,
+            "memoryPerActiveSubscriptionBytes": 1464052,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 86.80000001192093,
+            "firstAuthoritativeDataMs": 102.20000000298023,
+            "firstLiveDataMs": 102.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.0609999999999986,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1463636,
+            "memoryPerActiveSubscriptionBytes": 1463636,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 80.5,
+            "firstAuthoritativeDataMs": 96.20000000298023,
+            "firstLiveDataMs": 96.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.819999999999999,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1464052,
+            "memoryPerActiveSubscriptionBytes": 1464052,
+            "update": {
+              "fanout": 3,
+              "patches": 7
+            }
+          },
+          {
+            "startupMs": 87.09999999403954,
+            "firstAuthoritativeDataMs": 101.8999999910593,
+            "firstLiveDataMs": 101.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.095333333333333,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1463624,
+            "memoryPerActiveSubscriptionBytes": 1463624,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 34.69999998807907,
+            "firstAuthoritativeDataMs": 37.19999998807907,
+            "firstLiveDataMs": 37.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.20566666666666708,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1954380,
+            "memoryPerActiveSubscriptionBytes": 1954380,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 36.20000000298023,
+            "firstAuthoritativeDataMs": 40.599999994039536,
+            "firstLiveDataMs": 40.599999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.168333333333334,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1942408,
+            "memoryPerActiveSubscriptionBytes": 1942408,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 44.8999999910593,
+            "firstAuthoritativeDataMs": 50.29999999701977,
+            "firstLiveDataMs": 50.599999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.21400000000000008,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1950420,
+            "memoryPerActiveSubscriptionBytes": 1950420,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 37.30000001192093,
+            "firstAuthoritativeDataMs": 40.5,
+            "firstLiveDataMs": 40.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.17466666666666672,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1954692,
+            "memoryPerActiveSubscriptionBytes": 1954692,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 34.5,
+            "firstAuthoritativeDataMs": 37.19999998807907,
+            "firstLiveDataMs": 37.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.16000000000000042,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1942408,
+            "memoryPerActiveSubscriptionBytes": 1942408,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 36.599999994039536,
+            "firstAuthoritativeDataMs": 39,
+            "firstLiveDataMs": 39,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2133333333333333,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1941936,
+            "memoryPerActiveSubscriptionBytes": 1941936,
+            "update": {
+              "fanout": 3,
+              "patches": 7
+            }
+          },
+          {
+            "startupMs": 35.70000000298023,
+            "firstAuthoritativeDataMs": 38.20000000298023,
+            "firstLiveDataMs": 38.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.15233333333333302,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1941996,
+            "memoryPerActiveSubscriptionBytes": 1941996,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            91.29999999701977,
+            80.40000000596046,
+            94.40000000596046,
+            90.29999999701977,
+            86.80000001192093,
+            80.5,
+            87.09999999403954
+          ],
+          "median": 87.09999999403954,
+          "p95": 94.40000000596046
+        },
+        "warmStartupMs": {
+          "samples": [
+            34.69999998807907,
+            36.20000000298023,
+            44.8999999910593,
+            37.30000001192093,
+            34.5,
+            36.599999994039536,
+            35.70000000298023
+          ],
+          "median": 36.20000000298023,
+          "p95": 44.8999999910593
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            100.3999999910593,
+            94.6000000089407,
+            110.09999999403954,
+            104.8999999910593,
+            102.20000000298023,
+            96.20000000298023,
+            101.8999999910593
+          ],
+          "median": 101.8999999910593,
+          "p95": 110.09999999403954
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            100.3999999910593,
+            94.6000000089407,
+            110.09999999403954,
+            104.8999999910593,
+            102.20000000298023,
+            96.20000000298023,
+            101.8999999910593
+          ],
+          "median": 101.8999999910593,
+          "p95": 110.09999999403954
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.20566666666666708,
+            0.168333333333334,
+            0.21400000000000008,
+            0.17466666666666672,
+            0.16000000000000042,
+            0.2133333333333333,
+            0.15233333333333302
+          ],
+          "median": 0.17466666666666672,
+          "p95": 0.21400000000000008
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1954380,
+            1942408,
+            1950420,
+            1954692,
+            1942408,
+            1941936,
+            1941996
+          ],
+          "median": 1942408,
+          "p95": 1954692
+        },
+        "updateFanoutCount": {
+          "samples": [
+            9,
+            9,
+            9,
+            9,
+            9,
+            3,
+            9
+          ],
+          "median": 9,
+          "p95": 9
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            18,
+            18,
+            18,
+            18,
+            18,
+            7,
+            18
+          ],
+          "median": 18,
+          "p95": 18
+        }
+      }
+    },
+    "react:supabase": {
+      "cell": "react:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 77.29999999701977,
+            "firstAuthoritativeDataMs": 184.40000000596046,
+            "firstLiveDataMs": 184.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.3666666666666685,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267044,
+            "memoryPerActiveSubscriptionBytes": 1267044,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 88.19999998807907,
+            "firstAuthoritativeDataMs": 193.3999999910593,
+            "firstLiveDataMs": 193.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.3759999999999994,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267428,
+            "memoryPerActiveSubscriptionBytes": 1267428,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 84,
+            "firstAuthoritativeDataMs": 182.6000000089407,
+            "firstLiveDataMs": 182.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4000000000000004,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267416,
+            "memoryPerActiveSubscriptionBytes": 1267416,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 105.79999999701977,
+            "firstAuthoritativeDataMs": 210.59999999403954,
+            "firstLiveDataMs": 210.59999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.555,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267428,
+            "memoryPerActiveSubscriptionBytes": 1267428,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 81.20000000298023,
+            "firstAuthoritativeDataMs": 181.70000000298023,
+            "firstLiveDataMs": 181.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.513,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267428,
+            "memoryPerActiveSubscriptionBytes": 1267428,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 78,
+            "firstAuthoritativeDataMs": 180.40000000596046,
+            "firstLiveDataMs": 180.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.43,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267032,
+            "memoryPerActiveSubscriptionBytes": 1267032,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 159.70000000298023,
+            "firstAuthoritativeDataMs": 270.70000000298023,
+            "firstLiveDataMs": 270.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.810666666666666,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1268068,
+            "memoryPerActiveSubscriptionBytes": 1268068,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 31.299999997019768,
+            "firstAuthoritativeDataMs": 121.5,
+            "firstLiveDataMs": 121.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5293333333333337,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638456,
+            "memoryPerActiveSubscriptionBytes": 1638456,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 31.700000002980232,
+            "firstAuthoritativeDataMs": 123.3999999910593,
+            "firstLiveDataMs": 123.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5276666666666664,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638116,
+            "memoryPerActiveSubscriptionBytes": 1638116,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 31.399999991059303,
+            "firstAuthoritativeDataMs": 120.29999999701977,
+            "firstLiveDataMs": 120.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.543,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651236,
+            "memoryPerActiveSubscriptionBytes": 1651236,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 30.299999997019768,
+            "firstAuthoritativeDataMs": 124,
+            "firstLiveDataMs": 124,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5596666666666666,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651628,
+            "memoryPerActiveSubscriptionBytes": 1651628,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 29.099999994039536,
+            "firstAuthoritativeDataMs": 120.59999999403954,
+            "firstLiveDataMs": 120.59999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5520000000000004,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638508,
+            "memoryPerActiveSubscriptionBytes": 1638508,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 29.099999994039536,
+            "firstAuthoritativeDataMs": 129,
+            "firstLiveDataMs": 129,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.546666666666667,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638068,
+            "memoryPerActiveSubscriptionBytes": 1638068,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 30.700000002980232,
+            "firstAuthoritativeDataMs": 123.40000000596046,
+            "firstLiveDataMs": 123.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5399999999999999,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1652484,
+            "memoryPerActiveSubscriptionBytes": 1652484,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            77.29999999701977,
+            88.19999998807907,
+            84,
+            105.79999999701977,
+            81.20000000298023,
+            78,
+            159.70000000298023
+          ],
+          "median": 84,
+          "p95": 159.70000000298023
+        },
+        "warmStartupMs": {
+          "samples": [
+            31.299999997019768,
+            31.700000002980232,
+            31.399999991059303,
+            30.299999997019768,
+            29.099999994039536,
+            29.099999994039536,
+            30.700000002980232
+          ],
+          "median": 30.700000002980232,
+          "p95": 31.700000002980232
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            184.40000000596046,
+            193.3999999910593,
+            182.6000000089407,
+            210.59999999403954,
+            181.70000000298023,
+            180.40000000596046,
+            270.70000000298023
+          ],
+          "median": 184.40000000596046,
+          "p95": 270.70000000298023
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            184.40000000596046,
+            193.3999999910593,
+            182.6000000089407,
+            210.59999999403954,
+            181.70000000298023,
+            180.40000000596046,
+            270.70000000298023
+          ],
+          "median": 184.40000000596046,
+          "p95": 270.70000000298023
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.5293333333333337,
+            0.5276666666666664,
+            0.543,
+            0.5596666666666666,
+            0.5520000000000004,
+            0.546666666666667,
+            0.5399999999999999
+          ],
+          "median": 0.543,
+          "p95": 0.5596666666666666
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666
+          ],
+          "median": 700.6666666666666,
+          "p95": 700.6666666666666
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1638456,
+            1638116,
+            1651236,
+            1651628,
+            1638508,
+            1638068,
+            1652484
+          ],
+          "median": 1638508,
+          "p95": 1652484
+        },
+        "updateFanoutCount": {
+          "samples": [
+            9,
+            9,
+            9,
+            9,
+            9,
+            9,
+            9
+          ],
+          "median": 9,
+          "p95": 9
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            18,
+            18,
+            18,
+            18,
+            18,
+            18,
+            18
+          ],
+          "median": 18,
+          "p95": 18
+        }
+      }
+    },
+    "react:convex": {
+      "cell": "react:convex",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 76,
+            "firstAuthoritativeDataMs": 184,
+            "firstLiveDataMs": 184,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.5946666666666673,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1266992,
+            "memoryPerActiveSubscriptionBytes": 1266992,
+            "update": {
+              "fanout": 3,
+              "patches": 7
+            }
+          },
+          {
+            "startupMs": 88.90000000596046,
+            "firstAuthoritativeDataMs": 196.79999999701977,
+            "firstLiveDataMs": 196.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5350000000000007,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267040,
+            "memoryPerActiveSubscriptionBytes": 1267040,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 85.6000000089407,
+            "firstAuthoritativeDataMs": 191.79999999701977,
+            "firstLiveDataMs": 191.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4613333333333323,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267424,
+            "memoryPerActiveSubscriptionBytes": 1267424,
+            "update": {
+              "fanout": 3,
+              "patches": 7
+            }
+          },
+          {
+            "startupMs": 84.20000000298023,
+            "firstAuthoritativeDataMs": 194.20000000298023,
+            "firstLiveDataMs": 194.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.3813333333333335,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267040,
+            "memoryPerActiveSubscriptionBytes": 1267040,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 76.79999999701977,
+            "firstAuthoritativeDataMs": 189.79999999701977,
+            "firstLiveDataMs": 189.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.8863333333333343,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267424,
+            "memoryPerActiveSubscriptionBytes": 1267424,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 84.40000000596046,
+            "firstAuthoritativeDataMs": 197.20000000298023,
+            "firstLiveDataMs": 197.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.67,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267040,
+            "memoryPerActiveSubscriptionBytes": 1267040,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 77.79999999701977,
+            "firstAuthoritativeDataMs": 191.5,
+            "firstLiveDataMs": 191.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.3949999999999996,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267424,
+            "memoryPerActiveSubscriptionBytes": 1267424,
+            "update": {
+              "fanout": 3,
+              "patches": 7
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 32.79999999701977,
+            "firstAuthoritativeDataMs": 128.79999999701977,
+            "firstLiveDataMs": 128.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.614,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638112,
+            "memoryPerActiveSubscriptionBytes": 1638112,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 37.20000000298023,
+            "firstAuthoritativeDataMs": 147.20000000298023,
+            "firstLiveDataMs": 147.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5596666666666666,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638088,
+            "memoryPerActiveSubscriptionBytes": 1638088,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 32,
+            "firstAuthoritativeDataMs": 138.6000000089407,
+            "firstLiveDataMs": 138.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5533333333333333,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1652064,
+            "memoryPerActiveSubscriptionBytes": 1652064,
+            "update": {
+              "fanout": 7,
+              "patches": 14
+            }
+          },
+          {
+            "startupMs": 30.100000008940697,
+            "firstAuthoritativeDataMs": 135.70000000298023,
+            "firstLiveDataMs": 135.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5613333333333338,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651712,
+            "memoryPerActiveSubscriptionBytes": 1651712,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 37.6000000089407,
+            "firstAuthoritativeDataMs": 142.79999999701977,
+            "firstLiveDataMs": 142.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5326666666666668,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638528,
+            "memoryPerActiveSubscriptionBytes": 1638528,
+            "update": {
+              "fanout": 7,
+              "patches": 14
+            }
+          },
+          {
+            "startupMs": 32.400000005960464,
+            "firstAuthoritativeDataMs": 136.80000001192093,
+            "firstLiveDataMs": 136.80000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5326666666666668,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638528,
+            "memoryPerActiveSubscriptionBytes": 1638528,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          },
+          {
+            "startupMs": 28.700000002980232,
+            "firstAuthoritativeDataMs": 135.6000000089407,
+            "firstLiveDataMs": 135.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5513333333333331,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638528,
+            "memoryPerActiveSubscriptionBytes": 1638528,
+            "update": {
+              "fanout": 6,
+              "patches": 11
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            76,
+            88.90000000596046,
+            85.6000000089407,
+            84.20000000298023,
+            76.79999999701977,
+            84.40000000596046,
+            77.79999999701977
+          ],
+          "median": 84.20000000298023,
+          "p95": 88.90000000596046
+        },
+        "warmStartupMs": {
+          "samples": [
+            32.79999999701977,
+            37.20000000298023,
+            32,
+            30.100000008940697,
+            37.6000000089407,
+            32.400000005960464,
+            28.700000002980232
+          ],
+          "median": 32.400000005960464,
+          "p95": 37.6000000089407
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            184,
+            196.79999999701977,
+            191.79999999701977,
+            194.20000000298023,
+            189.79999999701977,
+            197.20000000298023,
+            191.5
+          ],
+          "median": 191.79999999701977,
+          "p95": 197.20000000298023
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            184,
+            196.79999999701977,
+            191.79999999701977,
+            194.20000000298023,
+            189.79999999701977,
+            197.20000000298023,
+            191.5
+          ],
+          "median": 191.79999999701977,
+          "p95": 197.20000000298023
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.614,
+            0.5596666666666666,
+            0.5533333333333333,
+            0.5613333333333338,
+            0.5326666666666668,
+            0.5326666666666668,
+            0.5513333333333331
+          ],
+          "median": 0.5533333333333333,
+          "p95": 0.614
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666
+          ],
+          "median": 700.6666666666666,
+          "p95": 700.6666666666666
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1638112,
+            1638088,
+            1652064,
+            1651712,
+            1638528,
+            1638528,
+            1638528
+          ],
+          "median": 1638528,
+          "p95": 1652064
+        },
+        "updateFanoutCount": {
+          "samples": [
+            6,
+            6,
+            7,
+            9,
+            7,
+            6,
+            6
+          ],
+          "median": 6,
+          "p95": 9
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            11,
+            11,
+            14,
+            18,
+            14,
+            11,
+            11
+          ],
+          "median": 11,
+          "p95": 18
+        }
+      }
+    },
+    "react:sqlite": {
+      "cell": "react:sqlite",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 74.8999999910593,
+            "firstAuthoritativeDataMs": 86.8999999910593,
+            "firstLiveDataMs": 86.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.314333333333332,
+              "networkBytes": 20699,
+              "networkBytesPerSecond": 6899.666666666667
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1266976,
+            "memoryPerActiveSubscriptionBytes": 1266976,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 74,
+            "firstAuthoritativeDataMs": 86.29999999701977,
+            "firstLiveDataMs": 86.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.7156666666666665,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267356,
+            "memoryPerActiveSubscriptionBytes": 1267356,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 66.3999999910593,
+            "firstAuthoritativeDataMs": 78.19999998807907,
+            "firstLiveDataMs": 78.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4840000000000013,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267360,
+            "memoryPerActiveSubscriptionBytes": 1267360,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 74.09999999403954,
+            "firstAuthoritativeDataMs": 86.29999999701977,
+            "firstLiveDataMs": 86.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.8183333333333334,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267360,
+            "memoryPerActiveSubscriptionBytes": 1267360,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 78.20000000298023,
+            "firstAuthoritativeDataMs": 90.70000000298023,
+            "firstLiveDataMs": 90.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6216666666666685,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267360,
+            "memoryPerActiveSubscriptionBytes": 1267360,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 82.40000000596046,
+            "firstAuthoritativeDataMs": 94.79999999701977,
+            "firstLiveDataMs": 94.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.650666666666668,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267360,
+            "memoryPerActiveSubscriptionBytes": 1267360,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 71.59999999403954,
+            "firstAuthoritativeDataMs": 83.5,
+            "firstLiveDataMs": 83.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4210000000000007,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267360,
+            "memoryPerActiveSubscriptionBytes": 1267360,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 31.19999998807907,
+            "firstAuthoritativeDataMs": 34.5,
+            "firstLiveDataMs": 34.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.7153333333333335,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638048,
+            "memoryPerActiveSubscriptionBytes": 1638048,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 29,
+            "firstAuthoritativeDataMs": 32.20000000298023,
+            "firstLiveDataMs": 32.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6956666666666668,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651688,
+            "memoryPerActiveSubscriptionBytes": 1651688,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 32.29999999701977,
+            "firstAuthoritativeDataMs": 35.70000000298023,
+            "firstLiveDataMs": 35.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.8396666666666662,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651232,
+            "memoryPerActiveSubscriptionBytes": 1651232,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 29,
+            "firstAuthoritativeDataMs": 32.29999999701977,
+            "firstLiveDataMs": 32.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.9109999999999997,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651644,
+            "memoryPerActiveSubscriptionBytes": 1651644,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 28.799999997019768,
+            "firstAuthoritativeDataMs": 32.29999999701977,
+            "firstLiveDataMs": 32.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.0146666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651648,
+            "memoryPerActiveSubscriptionBytes": 1651648,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 28.399999991059303,
+            "firstAuthoritativeDataMs": 31.599999994039536,
+            "firstLiveDataMs": 31.599999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.2043333333333333,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1651948,
+            "memoryPerActiveSubscriptionBytes": 1651948,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          },
+          {
+            "startupMs": 32.3999999910593,
+            "firstAuthoritativeDataMs": 35.8999999910593,
+            "firstLiveDataMs": 35.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.183,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1638452,
+            "memoryPerActiveSubscriptionBytes": 1638452,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            74.8999999910593,
+            74,
+            66.3999999910593,
+            74.09999999403954,
+            78.20000000298023,
+            82.40000000596046,
+            71.59999999403954
+          ],
+          "median": 74.09999999403954,
+          "p95": 82.40000000596046
+        },
+        "warmStartupMs": {
+          "samples": [
+            31.19999998807907,
+            29,
+            32.29999999701977,
+            29,
+            28.799999997019768,
+            28.399999991059303,
+            32.3999999910593
+          ],
+          "median": 29,
+          "p95": 32.3999999910593
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            86.8999999910593,
+            86.29999999701977,
+            78.19999998807907,
+            86.29999999701977,
+            90.70000000298023,
+            94.79999999701977,
+            83.5
+          ],
+          "median": 86.29999999701977,
+          "p95": 94.79999999701977
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            86.8999999910593,
+            86.29999999701977,
+            78.19999998807907,
+            86.29999999701977,
+            90.70000000298023,
+            94.79999999701977,
+            83.5
+          ],
+          "median": 86.29999999701977,
+          "p95": 94.79999999701977
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.7153333333333335,
+            0.6956666666666668,
+            0.8396666666666662,
+            0.9109999999999997,
+            1.0146666666666666,
+            1.2043333333333333,
+            1.183
+          ],
+          "median": 0.9109999999999997,
+          "p95": 1.2043333333333333
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            700.6666666666666
+          ],
+          "median": 1051,
+          "p95": 1051
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1638048,
+            1651688,
+            1651232,
+            1651644,
+            1651648,
+            1651948,
+            1638452
+          ],
+          "median": 1651644,
+          "p95": 1651948
+        },
+        "updateFanoutCount": {
+          "samples": [
+            9,
+            9,
+            9,
+            9,
+            9,
+            9,
+            9
+          ],
+          "median": 9,
+          "p95": 9
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            18,
+            18,
+            18,
+            18,
+            18,
+            18,
+            18
+          ],
+          "median": 18,
+          "p95": 18
+        }
+      }
+    },
+    "contract:snapback": {
+      "cell": "contract:snapback",
+      "transport": "push",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 37.099999994039536,
+            "firstAuthoritativeDataMs": 37.099999994039536,
+            "firstLiveDataMs": 59.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2803333333333338,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063092,
+            "memoryPerActiveSubscriptionBytes": 2063092,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 42.5,
+            "firstAuthoritativeDataMs": 42.5,
+            "firstLiveDataMs": 63.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.25233333333333124,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2071328,
+            "memoryPerActiveSubscriptionBytes": 2071328,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 43.70000000298023,
+            "firstAuthoritativeDataMs": 43.70000000298023,
+            "firstLiveDataMs": 65.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.11099999999999999,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063252,
+            "memoryPerActiveSubscriptionBytes": 2063252,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 39.70000000298023,
+            "firstAuthoritativeDataMs": 39.70000000298023,
+            "firstLiveDataMs": 62.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.21200000000000152,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063252,
+            "memoryPerActiveSubscriptionBytes": 2063252,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 40.79999999701977,
+            "firstAuthoritativeDataMs": 40.79999999701977,
+            "firstLiveDataMs": 65.09999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.21466666666666626,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063236,
+            "memoryPerActiveSubscriptionBytes": 2063236,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 41.099999994039536,
+            "firstAuthoritativeDataMs": 41.099999994039536,
+            "firstLiveDataMs": 65.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.24433333333333251,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2072240,
+            "memoryPerActiveSubscriptionBytes": 2072240,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 39.599999994039536,
+            "firstAuthoritativeDataMs": 39.599999994039536,
+            "firstLiveDataMs": 61.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2206666666666676,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063252,
+            "memoryPerActiveSubscriptionBytes": 2063252,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 27,
+            "firstAuthoritativeDataMs": 27,
+            "firstLiveDataMs": 37.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2680000000000003,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063720,
+            "memoryPerActiveSubscriptionBytes": 2063720,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 27.100000008940697,
+            "firstAuthoritativeDataMs": 27.100000008940697,
+            "firstLiveDataMs": 37.1000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.24766666666666629,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063700,
+            "memoryPerActiveSubscriptionBytes": 2063700,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 30,
+            "firstAuthoritativeDataMs": 30,
+            "firstLiveDataMs": 40.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2296666666666662,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063688,
+            "memoryPerActiveSubscriptionBytes": 2063688,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 29.5,
+            "firstAuthoritativeDataMs": 29.5,
+            "firstLiveDataMs": 40.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.21366666666666642,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063572,
+            "memoryPerActiveSubscriptionBytes": 2063572,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 28.299999997019768,
+            "firstAuthoritativeDataMs": 28.299999997019768,
+            "firstLiveDataMs": 39,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.20633333333333326,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063516,
+            "memoryPerActiveSubscriptionBytes": 2063516,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 33.099999994039536,
+            "firstAuthoritativeDataMs": 33.099999994039536,
+            "firstLiveDataMs": 44,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.187666666666667,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2063708,
+            "memoryPerActiveSubscriptionBytes": 2063708,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          },
+          {
+            "startupMs": 31.599999994039536,
+            "firstAuthoritativeDataMs": 31.599999994039536,
+            "firstLiveDataMs": 43.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.19733333333333292,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2062780,
+            "memoryPerActiveSubscriptionBytes": 2062780,
+            "update": {
+              "fanout": 57,
+              "patches": 531
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            37.099999994039536,
+            42.5,
+            43.70000000298023,
+            39.70000000298023,
+            40.79999999701977,
+            41.099999994039536,
+            39.599999994039536
+          ],
+          "median": 40.79999999701977,
+          "p95": 43.70000000298023
+        },
+        "warmStartupMs": {
+          "samples": [
+            27,
+            27.100000008940697,
+            30,
+            29.5,
+            28.299999997019768,
+            33.099999994039536,
+            31.599999994039536
+          ],
+          "median": 29.5,
+          "p95": 33.099999994039536
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            37.099999994039536,
+            42.5,
+            43.70000000298023,
+            39.70000000298023,
+            40.79999999701977,
+            41.099999994039536,
+            39.599999994039536
+          ],
+          "median": 40.79999999701977,
+          "p95": 43.70000000298023
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            59.8999999910593,
+            63.70000000298023,
+            65.40000000596046,
+            62.20000000298023,
+            65.09999999403954,
+            65.20000000298023,
+            61.8999999910593
+          ],
+          "median": 63.70000000298023,
+          "p95": 65.40000000596046
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.2680000000000003,
+            0.24766666666666629,
+            0.2296666666666662,
+            0.21366666666666642,
+            0.20633333333333326,
+            0.187666666666667,
+            0.19733333333333292
+          ],
+          "median": 0.21366666666666642,
+          "p95": 0.2680000000000003
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            2063720,
+            2063700,
+            2063688,
+            2063572,
+            2063516,
+            2063708,
+            2062780
+          ],
+          "median": 2063688,
+          "p95": 2063720
+        },
+        "updateFanoutCount": {
+          "samples": [
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57
+          ],
+          "median": 57,
+          "p95": 57
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            531,
+            531,
+            531,
+            531,
+            531,
+            531,
+            531
+          ],
+          "median": 531,
+          "p95": 531
+        }
+      }
+    },
+    "contract:supabase": {
+      "cell": "contract:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 52.30000001192093,
+            "firstAuthoritativeDataMs": 52.30000001192093,
+            "firstLiveDataMs": 52.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.7566666666666657,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 51.099999994039536,
+            "firstAuthoritativeDataMs": 51.099999994039536,
+            "firstLiveDataMs": 51.099999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5906666666666662,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 50.80000001192093,
+            "firstAuthoritativeDataMs": 50.80000001192093,
+            "firstLiveDataMs": 50.80000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6383333333333343,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 58.6000000089407,
+            "firstAuthoritativeDataMs": 58.6000000089407,
+            "firstLiveDataMs": 58.6000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.724666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753644,
+            "memoryPerActiveSubscriptionBytes": 1753644,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 52.599999994039536,
+            "firstAuthoritativeDataMs": 52.599999994039536,
+            "firstLiveDataMs": 52.599999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.741666666666668,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 58.400000005960464,
+            "firstAuthoritativeDataMs": 58.400000005960464,
+            "firstLiveDataMs": 58.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.8033333333333328,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 53.5,
+            "firstAuthoritativeDataMs": 53.5,
+            "firstLiveDataMs": 53.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6406666666666674,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753804,
+            "memoryPerActiveSubscriptionBytes": 1753804,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 31.799999997019768,
+            "firstAuthoritativeDataMs": 31.799999997019768,
+            "firstLiveDataMs": 31.799999997019768,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5390000000000004,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481048,
+            "memoryPerActiveSubscriptionBytes": 2481048,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 37.29999999701977,
+            "firstAuthoritativeDataMs": 37.29999999701977,
+            "firstLiveDataMs": 37.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.657666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481016,
+            "memoryPerActiveSubscriptionBytes": 2481016,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 33.19999998807907,
+            "firstAuthoritativeDataMs": 33.19999998807907,
+            "firstLiveDataMs": 33.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5596666666666665,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481016,
+            "memoryPerActiveSubscriptionBytes": 2481016,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 34.70000000298023,
+            "firstAuthoritativeDataMs": 34.70000000298023,
+            "firstLiveDataMs": 34.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6953333333333334,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481016,
+            "memoryPerActiveSubscriptionBytes": 2481016,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 30.299999997019768,
+            "firstAuthoritativeDataMs": 30.299999997019768,
+            "firstLiveDataMs": 30.299999997019768,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6096666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481048,
+            "memoryPerActiveSubscriptionBytes": 2481048,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 30.099999994039536,
+            "firstAuthoritativeDataMs": 30.099999994039536,
+            "firstLiveDataMs": 30.099999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6100000000000003,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481016,
+            "memoryPerActiveSubscriptionBytes": 2481016,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 31.100000008940697,
+            "firstAuthoritativeDataMs": 31.100000008940697,
+            "firstLiveDataMs": 31.100000008940697,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6756666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481048,
+            "memoryPerActiveSubscriptionBytes": 2481048,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            52.30000001192093,
+            51.099999994039536,
+            50.80000001192093,
+            58.6000000089407,
+            52.599999994039536,
+            58.400000005960464,
+            53.5
+          ],
+          "median": 52.599999994039536,
+          "p95": 58.6000000089407
+        },
+        "warmStartupMs": {
+          "samples": [
+            31.799999997019768,
+            37.29999999701977,
+            33.19999998807907,
+            34.70000000298023,
+            30.299999997019768,
+            30.099999994039536,
+            31.100000008940697
+          ],
+          "median": 31.799999997019768,
+          "p95": 37.29999999701977
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            52.30000001192093,
+            51.099999994039536,
+            50.80000001192093,
+            58.6000000089407,
+            52.599999994039536,
+            58.400000005960464,
+            53.5
+          ],
+          "median": 52.599999994039536,
+          "p95": 58.6000000089407
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            52.30000001192093,
+            51.099999994039536,
+            50.80000001192093,
+            58.6000000089407,
+            52.599999994039536,
+            58.400000005960464,
+            53.5
+          ],
+          "median": 52.599999994039536,
+          "p95": 58.6000000089407
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            1.5390000000000004,
+            1.657666666666666,
+            1.5596666666666665,
+            1.6953333333333334,
+            1.6096666666666666,
+            1.6100000000000003,
+            1.6756666666666666
+          ],
+          "median": 1.6100000000000003,
+          "p95": 1.6953333333333334
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            1051
+          ],
+          "median": 1051,
+          "p95": 1051
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            2481048,
+            2481016,
+            2481016,
+            2481016,
+            2481048,
+            2481016,
+            2481048
+          ],
+          "median": 2481016,
+          "p95": 2481048
+        },
+        "updateFanoutCount": {
+          "samples": [
+            24,
+            24,
+            24,
+            24,
+            24,
+            24,
+            24
+          ],
+          "median": 24,
+          "p95": 24
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            202,
+            202,
+            202,
+            202,
+            202,
+            202,
+            202
+          ],
+          "median": 202,
+          "p95": 202
+        }
+      }
+    },
+    "contract:convex": {
+      "cell": "contract:convex",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 52.20000000298023,
+            "firstAuthoritativeDataMs": 52.20000000298023,
+            "firstLiveDataMs": 52.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6623333333333339,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753788,
+            "memoryPerActiveSubscriptionBytes": 1753788,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 62.5,
+            "firstAuthoritativeDataMs": 62.5,
+            "firstLiveDataMs": 62.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.797,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753628,
+            "memoryPerActiveSubscriptionBytes": 1753628,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 52.20000000298023,
+            "firstAuthoritativeDataMs": 52.20000000298023,
+            "firstLiveDataMs": 52.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5536666666666663,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753628,
+            "memoryPerActiveSubscriptionBytes": 1753628,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 54.79999999701977,
+            "firstAuthoritativeDataMs": 54.79999999701977,
+            "firstLiveDataMs": 54.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6540000000000006,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753788,
+            "memoryPerActiveSubscriptionBytes": 1753788,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 58.5,
+            "firstAuthoritativeDataMs": 58.5,
+            "firstLiveDataMs": 58.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6670000000000018,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753788,
+            "memoryPerActiveSubscriptionBytes": 1753788,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 54,
+            "firstAuthoritativeDataMs": 54,
+            "firstLiveDataMs": 54,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.7493333333333319,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753752,
+            "memoryPerActiveSubscriptionBytes": 1753752,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 51.19999998807907,
+            "firstAuthoritativeDataMs": 51.19999998807907,
+            "firstLiveDataMs": 51.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6773333333333327,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1753788,
+            "memoryPerActiveSubscriptionBytes": 1753788,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 30.30000001192093,
+            "firstAuthoritativeDataMs": 30.30000001192093,
+            "firstLiveDataMs": 30.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.7086666666666661,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480984,
+            "memoryPerActiveSubscriptionBytes": 2480984,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 33.70000000298023,
+            "firstAuthoritativeDataMs": 33.70000000298023,
+            "firstLiveDataMs": 33.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6593333333333333,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480984,
+            "memoryPerActiveSubscriptionBytes": 2480984,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 39.30000001192093,
+            "firstAuthoritativeDataMs": 39.30000001192093,
+            "firstLiveDataMs": 39.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6946666666666672,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480824,
+            "memoryPerActiveSubscriptionBytes": 2480824,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 32.400000005960464,
+            "firstAuthoritativeDataMs": 32.400000005960464,
+            "firstLiveDataMs": 32.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.753666666666666,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480984,
+            "memoryPerActiveSubscriptionBytes": 2480984,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 30.899999991059303,
+            "firstAuthoritativeDataMs": 30.899999991059303,
+            "firstLiveDataMs": 30.899999991059303,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5270000000000004,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2481016,
+            "memoryPerActiveSubscriptionBytes": 2481016,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 31.899999991059303,
+            "firstAuthoritativeDataMs": 31.899999991059303,
+            "firstLiveDataMs": 31.899999991059303,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.5593333333333332,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480984,
+            "memoryPerActiveSubscriptionBytes": 2480984,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          },
+          {
+            "startupMs": 31.69999998807907,
+            "firstAuthoritativeDataMs": 31.69999998807907,
+            "firstLiveDataMs": 31.69999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.6243333333333327,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2480984,
+            "memoryPerActiveSubscriptionBytes": 2480984,
+            "update": {
+              "fanout": 24,
+              "patches": 202
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            52.20000000298023,
+            62.5,
+            52.20000000298023,
+            54.79999999701977,
+            58.5,
+            54,
+            51.19999998807907
+          ],
+          "median": 54,
+          "p95": 62.5
+        },
+        "warmStartupMs": {
+          "samples": [
+            30.30000001192093,
+            33.70000000298023,
+            39.30000001192093,
+            32.400000005960464,
+            30.899999991059303,
+            31.899999991059303,
+            31.69999998807907
+          ],
+          "median": 31.899999991059303,
+          "p95": 39.30000001192093
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            52.20000000298023,
+            62.5,
+            52.20000000298023,
+            54.79999999701977,
+            58.5,
+            54,
+            51.19999998807907
+          ],
+          "median": 54,
+          "p95": 62.5
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            52.20000000298023,
+            62.5,
+            52.20000000298023,
+            54.79999999701977,
+            58.5,
+            54,
+            51.19999998807907
+          ],
+          "median": 54,
+          "p95": 62.5
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            1.7086666666666661,
+            1.6593333333333333,
+            1.6946666666666672,
+            1.753666666666666,
+            1.5270000000000004,
+            1.5593333333333332,
+            1.6243333333333327
+          ],
+          "median": 1.6593333333333333,
+          "p95": 1.753666666666666
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            1051,
+            1051
+          ],
+          "median": 1051,
+          "p95": 1051
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            2480984,
+            2480984,
+            2480824,
+            2480984,
+            2481016,
+            2480984,
+            2480984
+          ],
+          "median": 2480984,
+          "p95": 2481016
+        },
+        "updateFanoutCount": {
+          "samples": [
+            24,
+            24,
+            24,
+            24,
+            24,
+            24,
+            24
+          ],
+          "median": 24,
+          "p95": 24
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            202,
+            202,
+            202,
+            202,
+            202,
+            202,
+            202
+          ],
+          "median": 202,
+          "p95": 202
+        }
+      }
+    },
+    "contract:sqlite": {
+      "cell": "contract:sqlite",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 51.19999998807907,
+            "firstAuthoritativeDataMs": 51.19999998807907,
+            "firstLiveDataMs": 51.19999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.7050000000000018,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825180,
+            "memoryPerActiveSubscriptionBytes": 1825180,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 59.3999999910593,
+            "firstAuthoritativeDataMs": 59.3999999910593,
+            "firstLiveDataMs": 59.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6563333333333329,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825212,
+            "memoryPerActiveSubscriptionBytes": 1825212,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 51.5,
+            "firstAuthoritativeDataMs": 51.5,
+            "firstLiveDataMs": 51.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.899333333333333,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825196,
+            "memoryPerActiveSubscriptionBytes": 1825196,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 51.69999998807907,
+            "firstAuthoritativeDataMs": 51.69999998807907,
+            "firstLiveDataMs": 51.69999998807907,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.7776666666666673,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825212,
+            "memoryPerActiveSubscriptionBytes": 1825212,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 52.599999994039536,
+            "firstAuthoritativeDataMs": 52.599999994039536,
+            "firstLiveDataMs": 52.599999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.0569999999999977,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1824956,
+            "memoryPerActiveSubscriptionBytes": 1824956,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 52.1000000089407,
+            "firstAuthoritativeDataMs": 52.1000000089407,
+            "firstLiveDataMs": 52.1000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6813333333333347,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825436,
+            "memoryPerActiveSubscriptionBytes": 1825436,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 49.5,
+            "firstAuthoritativeDataMs": 49.5,
+            "firstLiveDataMs": 49.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6326666666666657,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1825220,
+            "memoryPerActiveSubscriptionBytes": 1825220,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 29.900000005960464,
+            "firstAuthoritativeDataMs": 29.900000005960464,
+            "firstLiveDataMs": 29.900000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.8966666666666665,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564760,
+            "memoryPerActiveSubscriptionBytes": 2564760,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 32.70000000298023,
+            "firstAuthoritativeDataMs": 32.70000000298023,
+            "firstLiveDataMs": 32.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5113333333333335,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564924,
+            "memoryPerActiveSubscriptionBytes": 2564924,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 38.79999999701977,
+            "firstAuthoritativeDataMs": 38.79999999701977,
+            "firstLiveDataMs": 38.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6033333333333336,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564920,
+            "memoryPerActiveSubscriptionBytes": 2564920,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 30.600000008940697,
+            "firstAuthoritativeDataMs": 30.600000008940697,
+            "firstLiveDataMs": 30.600000008940697,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.0616666666666663,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564660,
+            "memoryPerActiveSubscriptionBytes": 2564660,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 31.5,
+            "firstAuthoritativeDataMs": 31.5,
+            "firstLiveDataMs": 31.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5973333333333334,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564920,
+            "memoryPerActiveSubscriptionBytes": 2564920,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 33,
+            "firstAuthoritativeDataMs": 33,
+            "firstLiveDataMs": 33,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6043333333333328,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564916,
+            "memoryPerActiveSubscriptionBytes": 2564916,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          },
+          {
+            "startupMs": 31.400000005960464,
+            "firstAuthoritativeDataMs": 31.400000005960464,
+            "firstLiveDataMs": 31.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.529,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 2564820,
+            "memoryPerActiveSubscriptionBytes": 2564820,
+            "update": {
+              "fanout": 56,
+              "patches": 1133
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            51.19999998807907,
+            59.3999999910593,
+            51.5,
+            51.69999998807907,
+            52.599999994039536,
+            52.1000000089407,
+            49.5
+          ],
+          "median": 51.69999998807907,
+          "p95": 59.3999999910593
+        },
+        "warmStartupMs": {
+          "samples": [
+            29.900000005960464,
+            32.70000000298023,
+            38.79999999701977,
+            30.600000008940697,
+            31.5,
+            33,
+            31.400000005960464
+          ],
+          "median": 31.5,
+          "p95": 38.79999999701977
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            51.19999998807907,
+            59.3999999910593,
+            51.5,
+            51.69999998807907,
+            52.599999994039536,
+            52.1000000089407,
+            49.5
+          ],
+          "median": 51.69999998807907,
+          "p95": 59.3999999910593
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            51.19999998807907,
+            59.3999999910593,
+            51.5,
+            51.69999998807907,
+            52.599999994039536,
+            52.1000000089407,
+            49.5
+          ],
+          "median": 51.69999998807907,
+          "p95": 59.3999999910593
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.8966666666666665,
+            0.5113333333333335,
+            0.6033333333333336,
+            1.0616666666666663,
+            0.5973333333333334,
+            0.6043333333333328,
+            0.529
+          ],
+          "median": 0.6033333333333336,
+          "p95": 1.0616666666666663
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            1051,
+            700.6666666666666,
+            700.6666666666666,
+            1051,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666
+          ],
+          "median": 700.6666666666666,
+          "p95": 1051
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            2564760,
+            2564924,
+            2564920,
+            2564660,
+            2564920,
+            2564916,
+            2564820
+          ],
+          "median": 2564916,
+          "p95": 2564924
+        },
+        "updateFanoutCount": {
+          "samples": [
+            56,
+            56,
+            56,
+            56,
+            56,
+            56,
+            56
+          ],
+          "median": 56,
+          "p95": 56
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            1133,
+            1133,
+            1133,
+            1133,
+            1133,
+            1133,
+            1133
+          ],
+          "median": 1133,
+          "p95": 1133
+        }
+      }
+    },
+    "vanilla:snapback": {
+      "cell": "vanilla:snapback",
+      "transport": "push",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 81.6000000089407,
+            "firstAuthoritativeDataMs": 96.70000000298023,
+            "firstLiveDataMs": 96.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.311666666666665,
+              "networkBytes": 33443,
+              "networkBytesPerSecond": 11147.666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 798192,
+            "memoryPerActiveSubscriptionBytes": 798192,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 75.20000000298023,
+            "firstAuthoritativeDataMs": 87.20000000298023,
+            "firstLiveDataMs": 87.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 8.306333333333333,
+              "networkBytes": 57949,
+              "networkBytesPerSecond": 19316.333333333332
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 798192,
+            "memoryPerActiveSubscriptionBytes": 798192,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 77.8999999910593,
+            "firstAuthoritativeDataMs": 91,
+            "firstLiveDataMs": 91,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.17666666666666755,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 797884,
+            "memoryPerActiveSubscriptionBytes": 797884,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 77.3999999910593,
+            "firstAuthoritativeDataMs": 91.09999999403954,
+            "firstLiveDataMs": 91.09999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.21666666666666826,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 797908,
+            "memoryPerActiveSubscriptionBytes": 797908,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 83.6000000089407,
+            "firstAuthoritativeDataMs": 96.80000001192093,
+            "firstLiveDataMs": 96.80000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.076,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 797896,
+            "memoryPerActiveSubscriptionBytes": 797896,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 79.70000000298023,
+            "firstAuthoritativeDataMs": 93.09999999403954,
+            "firstLiveDataMs": 93.09999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4713333333333334,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 797896,
+            "memoryPerActiveSubscriptionBytes": 797896,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 79.90000000596046,
+            "firstAuthoritativeDataMs": 93,
+            "firstLiveDataMs": 93,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.1053333333333346,
+              "networkBytes": 8791,
+              "networkBytesPerSecond": 2930.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 797884,
+            "memoryPerActiveSubscriptionBytes": 797884,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 39,
+            "firstAuthoritativeDataMs": 44.900000005960464,
+            "firstLiveDataMs": 44.900000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.20966666666666645,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1130996,
+            "memoryPerActiveSubscriptionBytes": 1130996,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 39.5,
+            "firstAuthoritativeDataMs": 45.29999999701977,
+            "firstLiveDataMs": 45.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.17666666666666642,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1131008,
+            "memoryPerActiveSubscriptionBytes": 1131008,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 35.69999998807907,
+            "firstAuthoritativeDataMs": 40.3999999910593,
+            "firstLiveDataMs": 40.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2053333333333334,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1131008,
+            "memoryPerActiveSubscriptionBytes": 1131008,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 37.6000000089407,
+            "firstAuthoritativeDataMs": 40.20000000298023,
+            "firstLiveDataMs": 40.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.187666666666667,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1131008,
+            "memoryPerActiveSubscriptionBytes": 1131008,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 35.70000000298023,
+            "firstAuthoritativeDataMs": 38.099999994039536,
+            "firstLiveDataMs": 41.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.15866666666666693,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1131948,
+            "memoryPerActiveSubscriptionBytes": 1131948,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 35.20000000298023,
+            "firstAuthoritativeDataMs": 39.30000001192093,
+            "firstLiveDataMs": 39.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.2006666666666667,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1130984,
+            "memoryPerActiveSubscriptionBytes": 1130984,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          },
+          {
+            "startupMs": 33.900000005960464,
+            "firstAuthoritativeDataMs": 38.400000005960464,
+            "firstLiveDataMs": 38.400000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.17433333333333303,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1130996,
+            "memoryPerActiveSubscriptionBytes": 1130996,
+            "update": {
+              "fanout": 1,
+              "patches": 10
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            81.6000000089407,
+            75.20000000298023,
+            77.8999999910593,
+            77.3999999910593,
+            83.6000000089407,
+            79.70000000298023,
+            79.90000000596046
+          ],
+          "median": 79.70000000298023,
+          "p95": 83.6000000089407
+        },
+        "warmStartupMs": {
+          "samples": [
+            39,
+            39.5,
+            35.69999998807907,
+            37.6000000089407,
+            35.70000000298023,
+            35.20000000298023,
+            33.900000005960464
+          ],
+          "median": 35.70000000298023,
+          "p95": 39.5
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            96.70000000298023,
+            87.20000000298023,
+            91,
+            91.09999999403954,
+            96.80000001192093,
+            93.09999999403954,
+            93
+          ],
+          "median": 93,
+          "p95": 96.80000001192093
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            96.70000000298023,
+            87.20000000298023,
+            91,
+            91.09999999403954,
+            96.80000001192093,
+            93.09999999403954,
+            93
+          ],
+          "median": 93,
+          "p95": 96.80000001192093
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.20966666666666645,
+            0.17666666666666642,
+            0.2053333333333334,
+            0.187666666666667,
+            0.15866666666666693,
+            0.2006666666666667,
+            0.17433333333333303
+          ],
+          "median": 0.187666666666667,
+          "p95": 0.20966666666666645
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1130996,
+            1131008,
+            1131008,
+            1131008,
+            1131948,
+            1130984,
+            1130996
+          ],
+          "median": 1131008,
+          "p95": 1131948
+        },
+        "updateFanoutCount": {
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "median": 1,
+          "p95": 1
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10
+          ],
+          "median": 10,
+          "p95": 10
+        }
+      }
+    },
+    "vanilla:supabase": {
+      "cell": "vanilla:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 70.79999999701977,
+            "firstAuthoritativeDataMs": 166.1000000089407,
+            "firstLiveDataMs": 166.1000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6816666666666661,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 75.70000000298023,
+            "firstAuthoritativeDataMs": 177.8999999910593,
+            "firstLiveDataMs": 177.8999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.661,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 4
+            }
+          },
+          {
+            "startupMs": 76.80000001192093,
+            "firstAuthoritativeDataMs": 186.20000000298023,
+            "firstLiveDataMs": 186.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.571,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 74.69999998807907,
+            "firstAuthoritativeDataMs": 174.79999999701977,
+            "firstLiveDataMs": 174.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4169999999999985,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 67,
+            "firstAuthoritativeDataMs": 166.09999999403954,
+            "firstLiveDataMs": 166.09999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.353666666666667,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614912,
+            "memoryPerActiveSubscriptionBytes": 614912,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 77.29999999701977,
+            "firstAuthoritativeDataMs": 172.70000000298023,
+            "firstLiveDataMs": 172.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.076000000000001,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 129.29999999701977,
+            "firstAuthoritativeDataMs": 223.59999999403954,
+            "firstLiveDataMs": 223.59999999403954,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.735,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 621344,
+            "memoryPerActiveSubscriptionBytes": 621344,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 31.599999994039536,
+            "firstAuthoritativeDataMs": 119.40000000596046,
+            "firstLiveDataMs": 119.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5693333333333331,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 27.299999997019768,
+            "firstAuthoritativeDataMs": 115.70000000298023,
+            "firstLiveDataMs": 115.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5566666666666665,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 28.200000002980232,
+            "firstAuthoritativeDataMs": 121.80000001192093,
+            "firstLiveDataMs": 121.80000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5463333333333332,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845648,
+            "memoryPerActiveSubscriptionBytes": 845648,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 28.599999994039536,
+            "firstAuthoritativeDataMs": 117.79999999701977,
+            "firstLiveDataMs": 117.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5383333333333334,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 31,
+            "firstAuthoritativeDataMs": 123.20000000298023,
+            "firstLiveDataMs": 123.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5813333333333336,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845648,
+            "memoryPerActiveSubscriptionBytes": 845648,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 30.200000002980232,
+            "firstAuthoritativeDataMs": 120.70000000298023,
+            "firstLiveDataMs": 120.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6296666666666667,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845648,
+            "memoryPerActiveSubscriptionBytes": 845648,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 35.400000005960464,
+            "firstAuthoritativeDataMs": 137.20000000298023,
+            "firstLiveDataMs": 137.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5439999999999999,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845648,
+            "memoryPerActiveSubscriptionBytes": 845648,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            70.79999999701977,
+            75.70000000298023,
+            76.80000001192093,
+            74.69999998807907,
+            67,
+            77.29999999701977,
+            129.29999999701977
+          ],
+          "median": 75.70000000298023,
+          "p95": 129.29999999701977
+        },
+        "warmStartupMs": {
+          "samples": [
+            31.599999994039536,
+            27.299999997019768,
+            28.200000002980232,
+            28.599999994039536,
+            31,
+            30.200000002980232,
+            35.400000005960464
+          ],
+          "median": 30.200000002980232,
+          "p95": 35.400000005960464
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            166.1000000089407,
+            177.8999999910593,
+            186.20000000298023,
+            174.79999999701977,
+            166.09999999403954,
+            172.70000000298023,
+            223.59999999403954
+          ],
+          "median": 174.79999999701977,
+          "p95": 223.59999999403954
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            166.1000000089407,
+            177.8999999910593,
+            186.20000000298023,
+            174.79999999701977,
+            166.09999999403954,
+            172.70000000298023,
+            223.59999999403954
+          ],
+          "median": 174.79999999701977,
+          "p95": 223.59999999403954
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.5693333333333331,
+            0.5566666666666665,
+            0.5463333333333332,
+            0.5383333333333334,
+            0.5813333333333336,
+            0.6296666666666667,
+            0.5439999999999999
+          ],
+          "median": 0.5566666666666665,
+          "p95": 0.6296666666666667
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666
+          ],
+          "median": 700.6666666666666,
+          "p95": 700.6666666666666
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            845672,
+            845672,
+            845648,
+            845672,
+            845648,
+            845648,
+            845648
+          ],
+          "median": 845648,
+          "p95": 845672
+        },
+        "updateFanoutCount": {
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "median": 1,
+          "p95": 1
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "median": 8,
+          "p95": 8
+        }
+      }
+    },
+    "vanilla:convex": {
+      "cell": "vanilla:convex",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 69.20000000298023,
+            "firstAuthoritativeDataMs": 175.20000000298023,
+            "firstLiveDataMs": 175.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.3376666666666672,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 4
+            }
+          },
+          {
+            "startupMs": 77.79999999701977,
+            "firstAuthoritativeDataMs": 178.29999999701977,
+            "firstLiveDataMs": 178.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.513,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 76.1000000089407,
+            "firstAuthoritativeDataMs": 181.29999999701977,
+            "firstLiveDataMs": 181.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.428333333333334,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 76,
+            "firstAuthoritativeDataMs": 175.30000001192093,
+            "firstLiveDataMs": 175.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.5303333333333344,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614992,
+            "memoryPerActiveSubscriptionBytes": 614992,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 71,
+            "firstAuthoritativeDataMs": 176.90000000596046,
+            "firstLiveDataMs": 176.90000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4273333333333333,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615004,
+            "memoryPerActiveSubscriptionBytes": 615004,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 69.40000000596046,
+            "firstAuthoritativeDataMs": 171.70000000298023,
+            "firstLiveDataMs": 171.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4219999999999993,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 4
+            }
+          },
+          {
+            "startupMs": 78.5,
+            "firstAuthoritativeDataMs": 191.3999999910593,
+            "firstLiveDataMs": 191.3999999910593,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4059999999999993,
+              "networkBytes": 10853,
+              "networkBytesPerSecond": 3617.6666666666665
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615016,
+            "memoryPerActiveSubscriptionBytes": 615016,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 30.200000002980232,
+            "firstAuthoritativeDataMs": 141.40000000596046,
+            "firstLiveDataMs": 141.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5476666666666662,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 851360,
+            "memoryPerActiveSubscriptionBytes": 851360,
+            "update": {
+              "fanout": 1,
+              "patches": 4
+            }
+          },
+          {
+            "startupMs": 27.399999991059303,
+            "firstAuthoritativeDataMs": 127,
+            "firstLiveDataMs": 127,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5446666666666667,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845648,
+            "memoryPerActiveSubscriptionBytes": 845648,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 28.600000008940697,
+            "firstAuthoritativeDataMs": 126.30000001192093,
+            "firstLiveDataMs": 126.30000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5503333333333332,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 32.30000001192093,
+            "firstAuthoritativeDataMs": 127.70000000298023,
+            "firstLiveDataMs": 127.70000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6336666666666666,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 847748,
+            "memoryPerActiveSubscriptionBytes": 847748,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 29.600000008940697,
+            "firstAuthoritativeDataMs": 127.1000000089407,
+            "firstLiveDataMs": 127.1000000089407,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6073333333333336,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 31.400000005960464,
+            "firstAuthoritativeDataMs": 145.80000001192093,
+            "firstLiveDataMs": 145.80000001192093,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5529999999999996,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 851360,
+            "memoryPerActiveSubscriptionBytes": 851360,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 31.400000005960464,
+            "firstAuthoritativeDataMs": 123.29999999701977,
+            "firstLiveDataMs": 123.29999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5423333333333333,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 849236,
+            "memoryPerActiveSubscriptionBytes": 849236,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            69.20000000298023,
+            77.79999999701977,
+            76.1000000089407,
+            76,
+            71,
+            69.40000000596046,
+            78.5
+          ],
+          "median": 76,
+          "p95": 78.5
+        },
+        "warmStartupMs": {
+          "samples": [
+            30.200000002980232,
+            27.399999991059303,
+            28.600000008940697,
+            32.30000001192093,
+            29.600000008940697,
+            31.400000005960464,
+            31.400000005960464
+          ],
+          "median": 30.200000002980232,
+          "p95": 32.30000001192093
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            175.20000000298023,
+            178.29999999701977,
+            181.29999999701977,
+            175.30000001192093,
+            176.90000000596046,
+            171.70000000298023,
+            191.3999999910593
+          ],
+          "median": 176.90000000596046,
+          "p95": 191.3999999910593
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            175.20000000298023,
+            178.29999999701977,
+            181.29999999701977,
+            175.30000001192093,
+            176.90000000596046,
+            171.70000000298023,
+            191.3999999910593
+          ],
+          "median": 176.90000000596046,
+          "p95": 191.3999999910593
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.5476666666666662,
+            0.5446666666666667,
+            0.5503333333333332,
+            0.6336666666666666,
+            0.6073333333333336,
+            0.5529999999999996,
+            0.5423333333333333
+          ],
+          "median": 0.5503333333333332,
+          "p95": 0.6336666666666666
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666
+          ],
+          "median": 700.6666666666666,
+          "p95": 700.6666666666666
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            851360,
+            845648,
+            845672,
+            847748,
+            845672,
+            851360,
+            849236
+          ],
+          "median": 847748,
+          "p95": 851360
+        },
+        "updateFanoutCount": {
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "median": 1,
+          "p95": 1
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            4,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "median": 8,
+          "p95": 8
+        }
+      }
+    },
+    "vanilla:sqlite": {
+      "cell": "vanilla:sqlite",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 75.29999999701977,
+            "firstAuthoritativeDataMs": 86.20000000298023,
+            "firstLiveDataMs": 86.20000000298023,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 8.769666666666666,
+              "networkBytes": 60051,
+              "networkBytesPerSecond": 20017
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615208,
+            "memoryPerActiveSubscriptionBytes": 615208,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 71.80000001192093,
+            "firstAuthoritativeDataMs": 83,
+            "firstLiveDataMs": 83,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.666333333333333,
+              "networkBytes": 61102,
+              "networkBytesPerSecond": 20367.333333333332
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 615184,
+            "memoryPerActiveSubscriptionBytes": 615184,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 69.20000000298023,
+            "firstAuthoritativeDataMs": 80.40000000596046,
+            "firstLiveDataMs": 80.40000000596046,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.688666666666667,
+              "networkBytes": 61102,
+              "networkBytesPerSecond": 20367.333333333332
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614924,
+            "memoryPerActiveSubscriptionBytes": 614924,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 77.79999999701977,
+            "firstAuthoritativeDataMs": 88.79999999701977,
+            "firstLiveDataMs": 88.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 3.4860000000000007,
+              "networkBytes": 11944,
+              "networkBytesPerSecond": 3981.3333333333335
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614924,
+            "memoryPerActiveSubscriptionBytes": 614924,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 68.40000000596046,
+            "firstAuthoritativeDataMs": 79,
+            "firstLiveDataMs": 79,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.472666666666666,
+              "networkBytes": 52347,
+              "networkBytesPerSecond": 17449
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614900,
+            "memoryPerActiveSubscriptionBytes": 614900,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 69.8999999910593,
+            "firstAuthoritativeDataMs": 81,
+            "firstLiveDataMs": 81,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 4.253333333333333,
+              "networkBytes": 36596,
+              "networkBytesPerSecond": 12198.666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614900,
+            "memoryPerActiveSubscriptionBytes": 614900,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 75.19999998807907,
+            "firstAuthoritativeDataMs": 86.5,
+            "firstLiveDataMs": 86.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6519999999999998,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614924,
+            "memoryPerActiveSubscriptionBytes": 614924,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 27.299999997019768,
+            "firstAuthoritativeDataMs": 30.5,
+            "firstLiveDataMs": 30.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.1190000000000002,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845956,
+            "memoryPerActiveSubscriptionBytes": 845956,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 28.900000005960464,
+            "firstAuthoritativeDataMs": 32.099999994039536,
+            "firstLiveDataMs": 32.099999994039536,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6073333333333336,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845956,
+            "memoryPerActiveSubscriptionBytes": 845956,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 29.5,
+            "firstAuthoritativeDataMs": 32.79999999701977,
+            "firstLiveDataMs": 32.79999999701977,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5926666666666667,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 27.599999994039536,
+            "firstAuthoritativeDataMs": 30.799999997019768,
+            "firstLiveDataMs": 30.799999997019768,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.6920000000000005,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 30.700000002980232,
+            "firstAuthoritativeDataMs": 33.900000005960464,
+            "firstLiveDataMs": 33.900000005960464,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 1.1030000000000004,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845956,
+            "memoryPerActiveSubscriptionBytes": 845956,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 28.599999994039536,
+            "firstAuthoritativeDataMs": 31.799999997019768,
+            "firstLiveDataMs": 31.799999997019768,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.5850000000000005,
+              "networkBytes": 2102,
+              "networkBytesPerSecond": 700.6666666666666
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845956,
+            "memoryPerActiveSubscriptionBytes": 845956,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          },
+          {
+            "startupMs": 31.899999991059303,
+            "firstAuthoritativeDataMs": 35.5,
+            "firstLiveDataMs": 35.5,
+            "idle": {
+              "windowMs": 3000,
+              "cpuTaskMsPerSecond": 0.7006666666666667,
+              "networkBytes": 3153,
+              "networkBytesPerSecond": 1051
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 845672,
+            "memoryPerActiveSubscriptionBytes": 845672,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            75.29999999701977,
+            71.80000001192093,
+            69.20000000298023,
+            77.79999999701977,
+            68.40000000596046,
+            69.8999999910593,
+            75.19999998807907
+          ],
+          "median": 71.80000001192093,
+          "p95": 77.79999999701977
+        },
+        "warmStartupMs": {
+          "samples": [
+            27.299999997019768,
+            28.900000005960464,
+            29.5,
+            27.599999994039536,
+            30.700000002980232,
+            28.599999994039536,
+            31.899999991059303
+          ],
+          "median": 28.900000005960464,
+          "p95": 31.899999991059303
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            86.20000000298023,
+            83,
+            80.40000000596046,
+            88.79999999701977,
+            79,
+            81,
+            86.5
+          ],
+          "median": 83,
+          "p95": 88.79999999701977
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            86.20000000298023,
+            83,
+            80.40000000596046,
+            88.79999999701977,
+            79,
+            81,
+            86.5
+          ],
+          "median": 83,
+          "p95": 88.79999999701977
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            1.1190000000000002,
+            0.6073333333333336,
+            0.5926666666666667,
+            0.6920000000000005,
+            1.1030000000000004,
+            0.5850000000000005,
+            0.7006666666666667
+          ],
+          "median": 0.6920000000000005,
+          "p95": 1.1190000000000002
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            700.6666666666666,
+            700.6666666666666,
+            700.6666666666666,
+            1051,
+            700.6666666666666,
+            700.6666666666666,
+            1051
+          ],
+          "median": 700.6666666666666,
+          "p95": 1051
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            845956,
+            845956,
+            845672,
+            845672,
+            845956,
+            845956,
+            845672
+          ],
+          "median": 845956,
+          "p95": 845956
+        },
+        "updateFanoutCount": {
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "median": 1,
+          "p95": 1
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "median": 8,
+          "p95": 8
+        }
+      }
+    }
+  },
+  "buildCells": {
+    "react:snapback": {
+      "cell": "react:snapback",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 555.066917,
+            "stdoutSha256": "8089a889ed8edba4133c05b728ba8ccf4654a96a72346d137d989dbc9206ac05",
+            "stderrSha256": "7d2dc5fae0d248e5e61d4005fc77ddb57b4c79feece1394842032e6e9f2e7695"
+          },
+          {
+            "durationMs": 575.574167,
+            "stdoutSha256": "c9b0c34c8d4ac48b9783446544857e7b1e324a3bc990729b5e843bef55213af6",
+            "stderrSha256": "a80de8f4ca03247fbd4bad1fe29e3bc9fb414e060bdef1f7b440862a298ed536"
+          },
+          {
+            "durationMs": 571.404333,
+            "stdoutSha256": "3e4d21b343d56e25557328960a156a238f9f13b40d06f626912f522b1d67cfd2",
+            "stderrSha256": "afa52c23de86802f711e38a4920d04f3af8d103fb23577f24ab58c200f3b310a"
+          },
+          {
+            "durationMs": 572.010458,
+            "stdoutSha256": "f38ea2c6d0305b0e41648479ab28fe9d33d7feb933f6578d40822321d47a04fc",
+            "stderrSha256": "94a5219639d386a7a648e43cda1c6f709e450f9a47e354dfebc3480136f9a890"
+          },
+          {
+            "durationMs": 549.613416,
+            "stdoutSha256": "c15e264fc2bf1cc33f3bd9341fbd1e6e8e074136cb7a4c227f618670f2db493b",
+            "stderrSha256": "0601a3c2bccba66a9c9c3d4d6f81a9ac070acb7e14232757ca8116d21a947300"
+          },
+          {
+            "durationMs": 553.746833,
+            "stdoutSha256": "de7b6f192461970e22e052a1fcc7c8c635853652e383c7551ce1567fac3d6ec2",
+            "stderrSha256": "2dad552bcafbe54df8dc3077afc3f44646ca246a464dcb10d7c08c0719ba85de"
+          },
+          {
+            "durationMs": 550.682709,
+            "stdoutSha256": "a226535d6abf9a9b7baab06618ff191e0480a67aca61ea1a93dc91a64fd98772",
+            "stderrSha256": "cc68eff4594fba9c94ce765223d343fcd1df3428b56aed24c1d57b621a4cd22b"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 239
+          },
+          {
+            "durationMs": 230
+          },
+          {
+            "durationMs": 231
+          },
+          {
+            "durationMs": 260
+          },
+          {
+            "durationMs": 245
+          },
+          {
+            "durationMs": 237
+          },
+          {
+            "durationMs": 238
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            555.066917,
+            575.574167,
+            571.404333,
+            572.010458,
+            549.613416,
+            553.746833,
+            550.682709
+          ],
+          "median": 555.066917,
+          "p95": 575.574167
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            239,
+            230,
+            231,
+            260,
+            245,
+            237,
+            238
+          ],
+          "median": 238,
+          "p95": 260
+        }
+      }
+    },
+    "react:supabase": {
+      "cell": "react:supabase",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 534.160334,
+            "stdoutSha256": "9fcd059db2ff6d98128a0d1df5f2abc084cc18a1aef2a6f4dc09237f71f9a3a2",
+            "stderrSha256": "8431dfff61fc4329872106af8a7d003d3534f06a0232c63f24611f0da93da720"
+          },
+          {
+            "durationMs": 515.088417,
+            "stdoutSha256": "652d6ebddb9194995b029cf96ec5a318f07bf1c28b34728b33064284bdd1176f",
+            "stderrSha256": "c905c34d1e68c74b451f43f59115ea6510f41e4f0a7eaf0af1872beae1d04f1c"
+          },
+          {
+            "durationMs": 502.782167,
+            "stdoutSha256": "f4880d6fa1543ba83a29072a1566aa3733d87e4f5b56a015f0e8ac09935901e9",
+            "stderrSha256": "646b6cbb69ca8708005c832fa210379f0bb37d7e0b750098ec23f17faa571228"
+          },
+          {
+            "durationMs": 509.790583,
+            "stdoutSha256": "20959a02eb6b97fbc6ceb3dea64d457f5a762cc6318a82cb8e072b35c29597e8",
+            "stderrSha256": "99ec726217b93dbbec4ab9620f57598cf9446851ff353d701d523edbc2a32626"
+          },
+          {
+            "durationMs": 516.443708,
+            "stdoutSha256": "d2233ae2b71a585d2fb5115ad64f3c0306d77172a605aa1476b84e940258a910",
+            "stderrSha256": "3f315ab614c0a29718bfaf74fb33b9f01e2469eecd54c304d75dc3d5860c405b"
+          },
+          {
+            "durationMs": 557.23975,
+            "stdoutSha256": "36303a92d936d00456ea12fd2d730b4a706a876c800536d896eebe672adeb735",
+            "stderrSha256": "5ed292d0fd6d10aea11dbc068642b071d77b11271bf0fecea88afd707e316592"
+          },
+          {
+            "durationMs": 531.116,
+            "stdoutSha256": "e62102c393fe682000868ea58b441e6cb7db5d7969688f2f25d04aedc4f6201d",
+            "stderrSha256": "24ceee0be8468aad19e25cba88a6e80dc6cf622f9178d4e71f55e62390ed392b"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 195
+          },
+          {
+            "durationMs": 187
+          },
+          {
+            "durationMs": 183
+          },
+          {
+            "durationMs": 184
+          },
+          {
+            "durationMs": 192
+          },
+          {
+            "durationMs": 191
+          },
+          {
+            "durationMs": 189
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            534.160334,
+            515.088417,
+            502.782167,
+            509.790583,
+            516.443708,
+            557.23975,
+            531.116
+          ],
+          "median": 516.443708,
+          "p95": 557.23975
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            195,
+            187,
+            183,
+            184,
+            192,
+            191,
+            189
+          ],
+          "median": 189,
+          "p95": 195
+        }
+      }
+    },
+    "react:convex": {
+      "cell": "react:convex",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 522.240958,
+            "stdoutSha256": "8ca782f7ecfaa26cf5b1c44d32499afcaf7257435bc947e9f7a2b2a561fe28b7",
+            "stderrSha256": "e1464cb3dced8337519432cf076bd49bd3fb49b794576ae05dceaaae9d845c91"
+          },
+          {
+            "durationMs": 518.425875,
+            "stdoutSha256": "9f0063046bc59160129e04f659f8eb5481e51013f66a1e26afb38e1a9e6dcb3a",
+            "stderrSha256": "73a3296546323de40c6eebc401e194fc3af7ee4e1650b41e02b61e1755857542"
+          },
+          {
+            "durationMs": 526.055458,
+            "stdoutSha256": "559e4334571d68621a944deee867cdbd6fbf3b2949faf798ab4c97e98da97917",
+            "stderrSha256": "895bca8e4c909156d2d0629695caac606bb12ac158761690a47e2c27fbda1c0a"
+          },
+          {
+            "durationMs": 531.733083,
+            "stdoutSha256": "c1a8b84c8a23f237d5bb81624ae1975d42c2b8e64ebc0fa05eb235131ad070bf",
+            "stderrSha256": "475c4c7e18d507c48bb5e71de85e71eb12cf4e7b35955b869cd1a9a596a91e78"
+          },
+          {
+            "durationMs": 575.861917,
+            "stdoutSha256": "8d7ddb59bd6b8abfbd0fb758145e1335e4ac527acfd5456dd5b03be950397cd0",
+            "stderrSha256": "d6348ac4fc59b2cddd2ce0815d87ca93803fd7bf37838c3f61edebade035a99d"
+          },
+          {
+            "durationMs": 632.567833,
+            "stdoutSha256": "242cc3269e0cada133ca4d55732ea59a7ca665e36ce2e824432e1f972842d670",
+            "stderrSha256": "ba6afde6b4c7a47ae2b85899b595b107c8b718baad38de5896f66c6999aadb0f"
+          },
+          {
+            "durationMs": 574.6745,
+            "stdoutSha256": "2c97b7505f87a1acf02275dbcd8b3a2a0162df348b53b60eba44ccabc41ebaf7",
+            "stderrSha256": "1271efbc49381258b51477bc833ae1891e36d115359bc06158fcd1cb0cd270aa"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 188
+          },
+          {
+            "durationMs": 186
+          },
+          {
+            "durationMs": 188
+          },
+          {
+            "durationMs": 194
+          },
+          {
+            "durationMs": 200
+          },
+          {
+            "durationMs": 193
+          },
+          {
+            "durationMs": 185
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            522.240958,
+            518.425875,
+            526.055458,
+            531.733083,
+            575.861917,
+            632.567833,
+            574.6745
+          ],
+          "median": 531.733083,
+          "p95": 632.567833
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            188,
+            186,
+            188,
+            194,
+            200,
+            193,
+            185
+          ],
+          "median": 188,
+          "p95": 200
+        }
+      }
+    },
+    "react:sqlite": {
+      "cell": "react:sqlite",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 538.143875,
+            "stdoutSha256": "d7f87534da1af3a53af800229d94f46eff8fc0e444607781db7f106de803add8",
+            "stderrSha256": "fa0c33c25efe718db6fca2f799d60067600929a93778d495cd87e754c3ea0cc4"
+          },
+          {
+            "durationMs": 514.165875,
+            "stdoutSha256": "76ed275f032bfaa1b0c7632dfe72efb8ceeb043d20ed0bf50785215dfa799a6d",
+            "stderrSha256": "3adc573632fe43cc89c2313d484acb6f9694893e1ecef5a6219414fd0f35b6f3"
+          },
+          {
+            "durationMs": 506.810959,
+            "stdoutSha256": "d498860a221a0c723fddaa66b166d051113682658269591945cd42f706dcb909",
+            "stderrSha256": "7896e597b52e94aab34b87fb85550566c6ef34137f6fc9bfa883b01362428502"
+          },
+          {
+            "durationMs": 532.581417,
+            "stdoutSha256": "9b1d16b78ccbab1e440d8ba21ff04857781b572c8992190f2a39f099b7da265d",
+            "stderrSha256": "5a9d6f1e155326f638e99d50f106dd917357662c907f89897a1f2abc7c29e683"
+          },
+          {
+            "durationMs": 515.332458,
+            "stdoutSha256": "82622115243dd89612d8b93761b2533934ac1d3cc716b40c2c43e3f5c343be87",
+            "stderrSha256": "8d1222bbecb56a217cbe7e84e7d66dccfb1ec5cc3dd65fa7437db084eeed9e06"
+          },
+          {
+            "durationMs": 520.226458,
+            "stdoutSha256": "56964f03c870a6b792dc432fff9f32b5d5e83cba23c54bb064bfddfbd2c8b24b",
+            "stderrSha256": "4ebf1be064643f11acd98f0ccb527b1b4a806b2c3e5098239b5ffa73903cf70c"
+          },
+          {
+            "durationMs": 519.076958,
+            "stdoutSha256": "27dc5f20ca2871546554b550a4abb7ce94a7c7f7431f3e0ee1ed9b300867a94a",
+            "stderrSha256": "df06120a1c17b3809fdcaf68ed5425dd5c846a539cab019c2cb0e5cac16b0307"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 191
+          },
+          {
+            "durationMs": 188
+          },
+          {
+            "durationMs": 182
+          },
+          {
+            "durationMs": 187
+          },
+          {
+            "durationMs": 192
+          },
+          {
+            "durationMs": 187
+          },
+          {
+            "durationMs": 183
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            538.143875,
+            514.165875,
+            506.810959,
+            532.581417,
+            515.332458,
+            520.226458,
+            519.076958
+          ],
+          "median": 519.076958,
+          "p95": 538.143875
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            191,
+            188,
+            182,
+            187,
+            192,
+            187,
+            183
+          ],
+          "median": 187,
+          "p95": 192
+        }
+      }
+    },
+    "contract:snapback": {
+      "cell": "contract:snapback",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 529.724625,
+            "stdoutSha256": "3cdb892af4eab26129c8abc2001b9c34f965086eec04b058007382cd9909b6a7",
+            "stderrSha256": "7268977f4acb804c4c7a8669b1e0c9786dde617e794a4a81ed713edfebd7c85c"
+          },
+          {
+            "durationMs": 526.176333,
+            "stdoutSha256": "5f13c6534690820084b87f2e696e2f88e3cd10c858e50a2c864a68da71935bf0",
+            "stderrSha256": "cdf9365c7060111dd422586104fd0a09390ff8cb2f6099200a1a673f001cba48"
+          },
+          {
+            "durationMs": 536.735125,
+            "stdoutSha256": "00faebbbe04a2547a6a54dceca9c9ca13f179d4ce0dcc5139cb961d001026afb",
+            "stderrSha256": "7268977f4acb804c4c7a8669b1e0c9786dde617e794a4a81ed713edfebd7c85c"
+          },
+          {
+            "durationMs": 534.386083,
+            "stdoutSha256": "0a93e57656da77690e6e9eaf29db1c242960040f25689c2b00e8221f6749481e",
+            "stderrSha256": "cdf9365c7060111dd422586104fd0a09390ff8cb2f6099200a1a673f001cba48"
+          },
+          {
+            "durationMs": 528.581583,
+            "stdoutSha256": "54093b51e867f1235e368b95755bb5a9c4d007fa2ed30e07e9bdcb88cc5102e4",
+            "stderrSha256": "cdf9365c7060111dd422586104fd0a09390ff8cb2f6099200a1a673f001cba48"
+          },
+          {
+            "durationMs": 550.978167,
+            "stdoutSha256": "02560806e02c7625861f3be3913a232df4402edc82dca3f1cd9a485c13953d5b",
+            "stderrSha256": "cdf9365c7060111dd422586104fd0a09390ff8cb2f6099200a1a673f001cba48"
+          },
+          {
+            "durationMs": 541.583667,
+            "stdoutSha256": "0a897bb3ab3ffee2182e19232e1a16e25138da2af28bedab5ab740860b11ffdd",
+            "stderrSha256": "7268977f4acb804c4c7a8669b1e0c9786dde617e794a4a81ed713edfebd7c85c"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 104
+          },
+          {
+            "durationMs": 103
+          },
+          {
+            "durationMs": 104
+          },
+          {
+            "durationMs": 95
+          },
+          {
+            "durationMs": 100
+          },
+          {
+            "durationMs": 98
+          },
+          {
+            "durationMs": 101
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            529.724625,
+            526.176333,
+            536.735125,
+            534.386083,
+            528.581583,
+            550.978167,
+            541.583667
+          ],
+          "median": 534.386083,
+          "p95": 550.978167
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            104,
+            103,
+            104,
+            95,
+            100,
+            98,
+            101
+          ],
+          "median": 101,
+          "p95": 104
+        }
+      }
+    },
+    "contract:supabase": {
+      "cell": "contract:supabase",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 470.659833,
+            "stdoutSha256": "98916ba70a7673730a41b3e2ea555d12352ea3c044a9b7b46d6205e2f5845806",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 463.576208,
+            "stdoutSha256": "430cc9aaf633b27dadc17b9c9eea66de978354477abd1807ca2b09db0177b54f",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 462.909291,
+            "stdoutSha256": "58e9533d2f777d9af9a40b1195e9d5aa935cebfc69220dc9c43bfcd750a08c7e",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          },
+          {
+            "durationMs": 486.408125,
+            "stdoutSha256": "2cf9bf1ed8c8f974c07393a76f99359a3e92f78402bba93711037c51b85a2106",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 454.302,
+            "stdoutSha256": "43d10d16c365a3995a0019df5ac7ca90123fe237991b2f68c7cd53804d85fc77",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          },
+          {
+            "durationMs": 460.568,
+            "stdoutSha256": "4e5263b8a802fa03d4b6b9c52b363a2331a80bb49b92c468e665e847643a4d94",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          },
+          {
+            "durationMs": 459.170708,
+            "stdoutSha256": "d54c31820bd614fd3f112fa3e8349b676cfe4fd424866567c83618c132e1ef13",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 58
+          },
+          {
+            "durationMs": 58
+          },
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 60
+          },
+          {
+            "durationMs": 60
+          },
+          {
+            "durationMs": 61
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            470.659833,
+            463.576208,
+            462.909291,
+            486.408125,
+            454.302,
+            460.568,
+            459.170708
+          ],
+          "median": 462.909291,
+          "p95": 486.408125
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            61,
+            58,
+            58,
+            61,
+            60,
+            60,
+            61
+          ],
+          "median": 60,
+          "p95": 61
+        }
+      }
+    },
+    "contract:convex": {
+      "cell": "contract:convex",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 472.832166,
+            "stdoutSha256": "8c8fe601c71cb8ebdfdded271397c12465e8553705f24228e616c00cc631a15f",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          },
+          {
+            "durationMs": 532.630875,
+            "stdoutSha256": "7c08473b4d1259edc352d2776fa8aa12b1c513b5c4ee03cb62d73fdc3055c873",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 543.109875,
+            "stdoutSha256": "ef7cb15a16f52abe79d35be81bf8e22e051d03466f9d24a65c158c15da4a5d41",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 490.027334,
+            "stdoutSha256": "8ccc25f0e6e3c2b40e43e76ee7f2e98b61c8dad826006a751e9479014710f953",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 502.366041,
+            "stdoutSha256": "f13acb7ecf28de0d5f10f1c9b77ad33eecb025f103c1481b1cfd7349089b7852",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 470.637541,
+            "stdoutSha256": "21db4ade45d80ca6273265fd9e633cb8dcfc98e5a9f188a89bcc5bbc7971dca9",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 461.67875,
+            "stdoutSha256": "51c7726334d66175d5c4fcbe6634e5af9382941ce5b1bab960c5bcacd883afde",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 60
+          },
+          {
+            "durationMs": 59
+          },
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 57
+          },
+          {
+            "durationMs": 62
+          },
+          {
+            "durationMs": 59
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            472.832166,
+            532.630875,
+            543.109875,
+            490.027334,
+            502.366041,
+            470.637541,
+            461.67875
+          ],
+          "median": 490.027334,
+          "p95": 543.109875
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            61,
+            60,
+            59,
+            61,
+            57,
+            62,
+            59
+          ],
+          "median": 60,
+          "p95": 62
+        }
+      }
+    },
+    "contract:sqlite": {
+      "cell": "contract:sqlite",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 466.942375,
+            "stdoutSha256": "679caa26fe3b62c31328dce787449ad28b83be186c2bb70787ad7cbe9589dabc",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 460.510292,
+            "stdoutSha256": "cf77f29ad5da117834e468d22f96fb024457c6722ec018ccb896d998e7e2c69d",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 465.066166,
+            "stdoutSha256": "70c4807478d096652f362ee8679d8e3156ffaa5658e4c83b91e301c9f9eef500",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 466.0385,
+            "stdoutSha256": "f8216c2b786e806c51751d51399eaff5d50684b9ace3a5ac477d9860ef0d4d84",
+            "stderrSha256": "1711e6caa5940fbcd5c63314b940ad28ceb3db12e52d2666a3e541877faf1ffe"
+          },
+          {
+            "durationMs": 460.363333,
+            "stdoutSha256": "c9d01ba39b6af58842866f0776246a49770a710528cd5a96bc98c13be5e4e99a",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 467.978041,
+            "stdoutSha256": "62e51142fd05a4e8919f5e76eac68a43f480cbc3d4a20c4406202387d217edad",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          },
+          {
+            "durationMs": 466.579291,
+            "stdoutSha256": "b44748319e9e0abc9553d9159c2c189dd0848f225a226f5ac6e1a9437df27bf2",
+            "stderrSha256": "544f402ca5124503eb382c68eadb2e8ab7c2a75764f618b6bf54bee2088ea6e2"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 60
+          },
+          {
+            "durationMs": 62
+          },
+          {
+            "durationMs": 58
+          },
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 58
+          },
+          {
+            "durationMs": 57
+          },
+          {
+            "durationMs": 58
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            466.942375,
+            460.510292,
+            465.066166,
+            466.0385,
+            460.363333,
+            467.978041,
+            466.579291
+          ],
+          "median": 466.0385,
+          "p95": 467.978041
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            60,
+            62,
+            58,
+            61,
+            58,
+            57,
+            58
+          ],
+          "median": 58,
+          "p95": 62
+        }
+      }
+    },
+    "vanilla:snapback": {
+      "cell": "vanilla:snapback",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 333.574083,
+            "stdoutSha256": "8134a85b06351a3ea50494ce3fe63193d833897f45294830ecf02c08f5ff6344",
+            "stderrSha256": "0999bb5617ed93e2564575081614050e913efa475f88d0b17219f2482ec5ab4f"
+          },
+          {
+            "durationMs": 334.245083,
+            "stdoutSha256": "4caaf03d23ce52a4dc35e37c8415237f156e567de0145db336356ac89f2e1a03",
+            "stderrSha256": "914eeefcbb0fa62fb567fed088b730108316056b0883eeea54457699b2a544df"
+          },
+          {
+            "durationMs": 328.339709,
+            "stdoutSha256": "2c3a8b9e010bee9d4d9e2b5e106a3f0330e865af7fdb2a4a8ea21518344b9c55",
+            "stderrSha256": "ff1450581acfd283feb5d7a81f4bbf94dafa73bda1df1374237f55dec2a97ebc"
+          },
+          {
+            "durationMs": 337.532042,
+            "stdoutSha256": "c0ec3f4281b04c29e6444adc39df93b3128c57ed48bf0de1634a61e0806b4b7e",
+            "stderrSha256": "a3964ef2707f608168a7cd3a01496baf5a3f1d065f13f161100466ce2f452d67"
+          },
+          {
+            "durationMs": 326.285042,
+            "stdoutSha256": "01ae1ef2571682d3f990a4b083e6070515cba3046093d00471d1b19930aa54de",
+            "stderrSha256": "e7ea34072c0d5350fa303d6bdf6447f511414932a88b9df6f62f15d8cf17a9da"
+          },
+          {
+            "durationMs": 326.232583,
+            "stdoutSha256": "32aab0d5ef06ff8f2e0dc751044561fa49a01d5c5d8aebea15aca0fa354ac576",
+            "stderrSha256": "2232e189b2ff3f73c6074df1022d8b6f9eddeec4258a080ab3101eee815dd3a6"
+          },
+          {
+            "durationMs": 325.768791,
+            "stdoutSha256": "8b01d10ee78257ff5adc7d8b3595a213d2e1fd0d9ebadfacf563e577864edd84",
+            "stderrSha256": "2b7d062d777575984730fb2234830d3b6481113e09091c32dc63227e783d8270"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 99
+          },
+          {
+            "durationMs": 97
+          },
+          {
+            "durationMs": 95
+          },
+          {
+            "durationMs": 98
+          },
+          {
+            "durationMs": 95
+          },
+          {
+            "durationMs": 99
+          },
+          {
+            "durationMs": 96
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            333.574083,
+            334.245083,
+            328.339709,
+            337.532042,
+            326.285042,
+            326.232583,
+            325.768791
+          ],
+          "median": 328.339709,
+          "p95": 337.532042
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            99,
+            97,
+            95,
+            98,
+            95,
+            99,
+            96
+          ],
+          "median": 97,
+          "p95": 99
+        }
+      }
+    },
+    "vanilla:supabase": {
+      "cell": "vanilla:supabase",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 264.3875,
+            "stdoutSha256": "ab5372d652009d2865b393814070783ae01ccc4604a8e248705f7c7b54683615",
+            "stderrSha256": "ca8b7f41ffccef57fdd7654d2d7e8095d9f6963e5aa9797b7389fc67fad64f94"
+          },
+          {
+            "durationMs": 266.883833,
+            "stdoutSha256": "e58008b39edc4b7bdb3ad3138445824f148a816ada50e96fbc03482517501a69",
+            "stderrSha256": "0b7a5c208d1165bf553df772eb58d724f7f4ad7a3a541cce7c91ce12dce9c8f2"
+          },
+          {
+            "durationMs": 269.476875,
+            "stdoutSha256": "aad1d0b9580ee2bd1f597f12a6a164f05d79be0df2acf347bd8d21bc8952e7e2",
+            "stderrSha256": "bfe1fe762b859b5f767a95ef1bc3aa64ad460c13283ec775b72d38eba06c715a"
+          },
+          {
+            "durationMs": 273.60025,
+            "stdoutSha256": "bf3cda4891b70b5822cb71eb5d465f5004b6bfb04ff35e8d38a1ca4fb0b22e43",
+            "stderrSha256": "c919718fe13fc8924691d7be26d2fc3bc6f59a50f6bf141b8b38a85dcbe49d8d"
+          },
+          {
+            "durationMs": 268.26,
+            "stdoutSha256": "e3d553fa6fda76376080284556a188dcccfa36a7af0c4c5bd8f1a4309b189ce8",
+            "stderrSha256": "fc6a32f97d9638f4f47a7ffece96a8df8e19cdcf198d395b348dfa436021b77f"
+          },
+          {
+            "durationMs": 272.153584,
+            "stdoutSha256": "1dbd3b4703a912e11c76cfffbc119c40a44b419f7dd610ef914d4b22da8d6a36",
+            "stderrSha256": "900dc6443349be83e41d1c56afda86e73238bd2b3465a69d81531a9953563b39"
+          },
+          {
+            "durationMs": 267.620417,
+            "stdoutSha256": "4f8ff49d6284a31de55a559f3f9c3837d1a0d0a1cbe8da2823f9f22adf425a08",
+            "stderrSha256": "e1f41f3ee87d9713f4be9b84aad4b1ff9eff70947b24118785c69e8eee95b9bf"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 56
+          },
+          {
+            "durationMs": 52
+          },
+          {
+            "durationMs": 57
+          },
+          {
+            "durationMs": 56
+          },
+          {
+            "durationMs": 51
+          },
+          {
+            "durationMs": 55
+          },
+          {
+            "durationMs": 54
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            264.3875,
+            266.883833,
+            269.476875,
+            273.60025,
+            268.26,
+            272.153584,
+            267.620417
+          ],
+          "median": 268.26,
+          "p95": 273.60025
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            56,
+            52,
+            57,
+            56,
+            51,
+            55,
+            54
+          ],
+          "median": 55,
+          "p95": 57
+        }
+      }
+    },
+    "vanilla:convex": {
+      "cell": "vanilla:convex",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 275.20775,
+            "stdoutSha256": "7b7eee268dd009cbdd7ee867f2194521f835a9f4e3f0fd6acaa2acccc7e2d02b",
+            "stderrSha256": "792e753ac3c44a97408def6fd5d44f2d69b7d9d3f054da7ca45ec2fbdf306fc5"
+          },
+          {
+            "durationMs": 283.706542,
+            "stdoutSha256": "269c90128767454be383b20cde969cfbf606130b15fa47a08d06c06c09af11eb",
+            "stderrSha256": "f91f3d19351f2179a18bfec87827ced2f204f1ac4228b8f0fe56e19e765fbe0b"
+          },
+          {
+            "durationMs": 302.206083,
+            "stdoutSha256": "0fc2af25d853eb33d0fa3962d703c05551968d0758092ec9b8fc81e2171d48e4",
+            "stderrSha256": "81eec665035230dc8bb36534d2bbe5444b48a3ec178bf55a84417c6b3a2ba1a3"
+          },
+          {
+            "durationMs": 337.793042,
+            "stdoutSha256": "e89a04e4d89c240258baf9a89394edb680dcc726d1e75fa00617c205579ef09d",
+            "stderrSha256": "39c37467c146a08ecf6cf9a3e47eef310b51ddbe309c08abe4ff52304b7a43af"
+          },
+          {
+            "durationMs": 337.300292,
+            "stdoutSha256": "6b58d4f5af324f28a85cdc77e87a8a3f05ea11ab415cf77802f99d301e63a7e1",
+            "stderrSha256": "dac5dff6b787bc2b002fcbc19615a3cecbd7c1c18110b798bd13658cdc00677d"
+          },
+          {
+            "durationMs": 297.607666,
+            "stdoutSha256": "79ef0e94607f38238dcb98dba9e90d72e65016302c37e11b56ef006e35455352",
+            "stderrSha256": "634cf920a82439ecd2e8de90cac91ae32e46de5b7e7ab89dca00305927360f05"
+          },
+          {
+            "durationMs": 279.425583,
+            "stdoutSha256": "6bb8cd5d8ab312cb7c920c6574ec981f977d0b06258d3ead1eaabce9096ca2fd",
+            "stderrSha256": "42c70e6d77d038f3175f8bbc012ff4e66df8a2460df4305f242288af2cab891a"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 52
+          },
+          {
+            "durationMs": 55
+          },
+          {
+            "durationMs": 55
+          },
+          {
+            "durationMs": 52
+          },
+          {
+            "durationMs": 55
+          },
+          {
+            "durationMs": 50
+          },
+          {
+            "durationMs": 54
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            275.20775,
+            283.706542,
+            302.206083,
+            337.793042,
+            337.300292,
+            297.607666,
+            279.425583
+          ],
+          "median": 297.607666,
+          "p95": 337.793042
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            52,
+            55,
+            55,
+            52,
+            55,
+            50,
+            54
+          ],
+          "median": 54,
+          "p95": 55
+        }
+      }
+    },
+    "vanilla:sqlite": {
+      "cell": "vanilla:sqlite",
+      "samples": {
+        "production": [
+          {
+            "durationMs": 269.650917,
+            "stdoutSha256": "220b8a4dc54f3d965f41a5640bd27a750cc5795741b7413d4380f15edc9a6e5b",
+            "stderrSha256": "de7c1f85c7eb7d31448eb9f4fe3e051a1e983cb6a68ea0bd28170d14ce02943a"
+          },
+          {
+            "durationMs": 279.095542,
+            "stdoutSha256": "cf9f3d2e12d28062e72fccadfaaf1829625fdc1884116a2ccc7eab6cc1534089",
+            "stderrSha256": "9c0e37467ceda46fb62cd153055e03c9b3f4ca8dcce98a2b957c1d180b24b710"
+          },
+          {
+            "durationMs": 285.875291,
+            "stdoutSha256": "2dffa3bb378b30759c4a4c53f071947ab787f23f4d9483fc75683964bd07e8a6",
+            "stderrSha256": "a2ecce09dac511ad6ed4ab73f341e90de6991fb2a98c9957f6de54c75c37fc4d"
+          },
+          {
+            "durationMs": 270.374084,
+            "stdoutSha256": "00430b7096a47fa81801bedfa1a8d9eddda4a40b647c09d12bfc775c4329f0f7",
+            "stderrSha256": "f9d91eb43d7d6ec0560c0a1765eec020dab025e4bd3b9c152520e6f06905a4f9"
+          },
+          {
+            "durationMs": 267.588667,
+            "stdoutSha256": "6d6f720d0fdd2d229343f6d8f09d976242c300c23c01686ba55f6f5897d802d1",
+            "stderrSha256": "56e79b7caeaf422f9a6f098679a4237ad5432ef9313c3b9aa04aebb4a211efa3"
+          },
+          {
+            "durationMs": 264.762625,
+            "stdoutSha256": "69899f1df1267d0f4e6dcd6b59ca943e27cc21c980349fe29e405007d0bb7c1f",
+            "stderrSha256": "ac5ea11ad907a0e7b03269d91617b00ecba2bf447440a8af0da2ebdf1f04cf26"
+          },
+          {
+            "durationMs": 271.022583,
+            "stdoutSha256": "7b35ef75a25d72469cf2eb3c0bb5bf86d42166d138d4ca5b6ac2825b373d15fc",
+            "stderrSha256": "fafb3eb21790e8ba3e03071de365c5b718a9236ed118085012acd4d9ea9433a5"
+          }
+        ],
+        "incremental": [
+          {
+            "durationMs": 61
+          },
+          {
+            "durationMs": 62
+          },
+          {
+            "durationMs": 70
+          },
+          {
+            "durationMs": 69
+          },
+          {
+            "durationMs": 90
+          },
+          {
+            "durationMs": 60
+          },
+          {
+            "durationMs": 63
+          }
+        ]
+      },
+      "aggregate": {
+        "productionBuildMs": {
+          "samples": [
+            269.650917,
+            279.095542,
+            285.875291,
+            270.374084,
+            267.588667,
+            264.762625,
+            271.022583
+          ],
+          "median": 270.374084,
+          "p95": 285.875291
+        },
+        "incrementalBuildMs": {
+          "samples": [
+            61,
+            62,
+            70,
+            69,
+            90,
+            60,
+            63
+          ],
+          "median": 63,
+          "p95": 90
+        }
+      }
+    }
+  },
+  "thresholds": {
+    "contract:snapback": {
+      "coldStartupMs": 103,
+      "warmStartupMs": 49,
+      "firstAuthoritativeDataMs": 121,
+      "firstLiveDataMs": 121,
+      "idleCpuTaskMsPerSecond": 0.2247000000000001,
+      "idleNetworkBytesPerSecond": 0,
+      "memoryPerActiveSubscriptionBytes": 2150161,
+      "updateFanoutCount": 9,
+      "domOrHostPatchCount": 19,
+      "productionBuildMs": 633,
+      "incrementalBuildMs": 286
+    },
+    "contract:supabase": {
+      "coldStartupMs": 175,
+      "warmStartupMs": 34,
+      "firstAuthoritativeDataMs": 297,
+      "firstLiveDataMs": 297,
+      "idleCpuTaskMsPerSecond": 0.58765,
+      "idleNetworkBytesPerSecond": 735.7,
+      "memoryPerActiveSubscriptionBytes": 1817732,
+      "updateFanoutCount": 9,
+      "domOrHostPatchCount": 19,
+      "productionBuildMs": 612,
+      "incrementalBuildMs": 214
+    },
+    "contract:convex": {
+      "coldStartupMs": 97,
+      "warmStartupMs": 41,
+      "firstAuthoritativeDataMs": 216,
+      "firstLiveDataMs": 216,
+      "idleCpuTaskMsPerSecond": 0.6447,
+      "idleNetworkBytesPerSecond": 735.7,
+      "memoryPerActiveSubscriptionBytes": 1817270,
+      "updateFanoutCount": 9,
+      "domOrHostPatchCount": 19,
+      "productionBuildMs": 695,
+      "incrementalBuildMs": 220
+    },
+    "contract:sqlite": {
+      "coldStartupMs": 90,
+      "warmStartupMs": 35,
+      "firstAuthoritativeDataMs": 104,
+      "firstLiveDataMs": 104,
+      "idleCpuTaskMsPerSecond": 1.26455,
+      "idleNetworkBytesPerSecond": 1103.55,
+      "memoryPerActiveSubscriptionBytes": 1817142,
+      "updateFanoutCount": 9,
+      "domOrHostPatchCount": 19,
+      "productionBuildMs": 591,
+      "incrementalBuildMs": 211
+    }
+  },
+  "holdoutValidation": null,
+  "ok": true
+}

@@ -40,7 +40,24 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
   'auth', 'authorityIndependent', 'retainable', 'authScopeField', 'membership',
+  'standardPattern',
 ]);
+
+// @ref LLP 0065#3-common-pattern-contracts — every standard-pattern helper
+//   and profile carries a stable versioned identifier recorded in generated
+//   artifacts. Free-form definitions never carry one.
+function normalizeStandardPattern(spec, kind) {
+  if (spec.standardPattern === undefined) return {};
+  const value = spec.standardPattern;
+  assert(
+    value && typeof value === 'object' && !Array.isArray(value)
+      && typeof value.helper === 'string' && value.helper.length > 0
+      && typeof value.profile === 'string' && value.profile.length > 0
+      && Object.keys(value).length === 2,
+    `${kind} standardPattern must be { helper, profile } version identifiers`,
+  );
+  return { standardPattern: { helper: value.helper, profile: value.profile } };
+}
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable',
@@ -634,6 +651,7 @@ function queryDef(kind, spec) {
     // out of binding live by default; livePush capability is unaffected.
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     ...(spec.authScopeField !== undefined ? { authScopeField: spec.authScopeField } : {}),
+    ...normalizeStandardPattern(spec, kind),
     plan: {
       table: spec.table,
       filters: spec.filter ?? [],
@@ -756,6 +774,7 @@ export function defineMutation(spec) {
     __kind: 'Mutation',
     ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
+    ...normalizeStandardPattern(spec, 'Mutation'),
     plan: { steps, return_value: spec.returns ?? null },
   };
 }

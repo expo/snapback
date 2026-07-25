@@ -29,7 +29,9 @@ export {
   deriveServiceAuthorityInstanceId,
   normalizeClientAuthority,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+  SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   validateAuthCustody,
+  validateAuthCustodySenderKeys,
 } from './auth-coordinator.mjs';
 
 export { createIndexedDbAuthCustodyStorage } from './auth-custody-indexeddb.mjs';

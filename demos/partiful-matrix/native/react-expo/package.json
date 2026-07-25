@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@snapback/client": "file:../../../../packages/snapback-client",
+    "@snapback/contract": "file:../../../../packages/snapback-contract",
     "expo": "~57.0.7",
     "react": "^19.2.3",
     "react-native": "0.86.0"

@@ -46,6 +46,13 @@ pub struct ExchangeRequest {
     pub challenge_id: String,
     #[schemars(with = "String")]
     pub(crate) code: SecretInput,
+    /// Hosted browser exchange binds a fresh non-extractable key before the
+    /// credential can be published. Local bearer-v1 exchange omits this
+    /// member; a hosted target requires it at the route boundary.
+    ///
+    /// @ref LLP 0077#issuance-refresh-and-recovery — an existing bearer is
+    /// never upgraded by attaching a key after issuance.
+    pub(crate) sender_constraint: Option<SenderExchangeConstraint>,
 }
 
 impl fmt::Debug for ExchangeRequest {
@@ -54,7 +61,41 @@ impl fmt::Debug for ExchangeRequest {
             .debug_struct("ExchangeRequest")
             .field("challenge_id", &self.challenge_id)
             .field("code", &"[REDACTED]")
+            .field(
+                "sender_constraint",
+                &self.sender_constraint.as_ref().map(|_| "[REDACTED]"),
+            )
             .finish()
+    }
+}
+
+#[derive(Clone, Deserialize, Eq, JsonSchema, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SenderPublicJwk {
+    pub(crate) crv: String,
+    pub(crate) kty: String,
+    pub(crate) x: String,
+    pub(crate) y: String,
+}
+
+impl fmt::Debug for SenderPublicJwk {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SenderPublicJwk([REDACTED])")
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SenderExchangeConstraint {
+    pub(crate) protocol: String,
+    pub(crate) public_jwk: SenderPublicJwk,
+    #[schemars(with = "String")]
+    pub(crate) proof: SecretInput,
+}
+
+impl fmt::Debug for SenderExchangeConstraint {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SenderExchangeConstraint([REDACTED])")
     }
 }
 
