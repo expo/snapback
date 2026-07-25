@@ -107,7 +107,7 @@ of re-running:
   if (attempt.terminal) {
     // A durable winner already exists (a previous runner settled, or the
     // trusted terminalizer did): return it verbatim, never re-run.
-    await ctx.runMutation('settleReply', {
+    await runReconciled(ctx, 'settleReply', {
       attemptId: args.attemptId,
       status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,
       effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,
@@ -146,7 +146,7 @@ coalesce chunks between commits:
       readsSinceCommit += 1;
       if (readsSinceCommit >= 2) {
         sequence += 1;
-        const progress = await ctx.runMutation('applyReplyProgress', {
+        const progress = await runReconciled(ctx, 'applyReplyProgress', {
           attemptId: args.attemptId,
           sequence,
           delta: pending,
@@ -155,7 +155,7 @@ coalesce chunks between commits:
           await reader.cancel();
           const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);
           if (settled) {
-            await ctx.runMutation('settleReply', {
+            await runReconciled(ctx, 'settleReply', {
               attemptId: args.attemptId,
               status: settled.cause === 'complete' ? progress.status : settled.cause,
               effectMayHaveExecuted: settled.effectMayHaveExecuted,
