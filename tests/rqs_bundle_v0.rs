@@ -505,13 +505,16 @@ async fn bundle_refusals_are_coded() {
 fn bundle_cut_is_single_commit_under_racing_mutations() {
     let snapback = configured_memory();
     let shared = Arc::new(Mutex::new(snapback));
-    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(0);
+    let (done_tx, done_rx) = std::sync::mpsc::sync_channel(0);
     let writer = {
         let shared = Arc::clone(&shared);
-        let stop = Arc::clone(&stop);
         thread::spawn(move || {
-            let mut count = 0_u32;
-            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+            for count in 0..25_u32 {
+                // Rendezvous before every attempt so the reader and writer
+                // genuinely contend for the cut without allowing an
+                // unbounded reacquire loop to starve either thread.
+                ready_tx.send(()).expect("signal racing mutation");
                 let mut snapback = shared.lock().expect("writer lock");
                 snapback
                     .invoke_mutation(
@@ -519,9 +522,8 @@ fn bundle_cut_is_single_commit_under_racing_mutations() {
                         input(json!({ "title": format!("racer {count}") }), "user_1"),
                     )
                     .expect("racing mutation");
-                count += 1;
                 drop(snapback);
-                thread::yield_now();
+                done_tx.send(()).expect("complete racing mutation");
             }
         })
     };
@@ -539,6 +541,7 @@ fn bundle_cut_is_single_commit_under_racing_mutations() {
         ..Default::default()
     };
     for _ in 0..25 {
+        ready_rx.recv().expect("await racing mutation");
         let mut snapback = shared.lock().expect("bundle lock");
         let response = snapback
             .app_bundle_read_dev(&route_entry, &BTreeMap::new(), "/home", &auth)
@@ -555,9 +558,8 @@ fn bundle_cut_is_single_commit_under_racing_mutations() {
             .as_ref()
             .expect("eligible entry mints resume");
         assert_eq!(minted.meta.version, response.commit_version);
-        thread::yield_now();
+        done_rx.recv().expect("join racing mutation");
     }
-    stop.store(true, std::sync::atomic::Ordering::Relaxed);
     writer.join().expect("writer");
 }
 
