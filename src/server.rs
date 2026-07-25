@@ -20059,6 +20059,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_SOURCE_INVALID"
         // LLP 0080 slice 1: a malformed relational plan is author input.
         | "SNAPBACK_RELATIONAL_PLAN_INVALID"
+        // LLP 0065 §1: a HostPlan whose observed operations exceed its
+        // admitted EffectCeilingV1 is a doctored/under-declared artifact.
+        | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
         | "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE"
         | "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
@@ -32260,6 +32263,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
+        "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
         "SNAPBACK_PLAN_SOURCE_INVALID",
         "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
         "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",

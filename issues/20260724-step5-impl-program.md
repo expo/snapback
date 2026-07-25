@@ -27,6 +27,17 @@ dependency of both the 0065 and 0080 lanes.
   boilerplate from every app and feeds `STEP5.DECLARATION_REDUCTION`;
   bounded joins are the most user-visible gap. No maintained-projection or
   migration machinery required.
+  **Status (2026-07-25): executed.** 0007 suffix, the full 0065 lane
+  (candidate-conformance, conditional lowering, effect ceiling incl. the
+  new runtime subset enforcement, DTO identities, opaque keyset cursors,
+  principal profile-class admission, and the §6 suite index in
+  `20260724-step5-impl-0065-conformance-suite.md`), and the 0080 callable
+  slice (plan codegen, root-window evaluator with opaque cursors +
+  `RelationalResultEncodingV1`, live/0053 inheritance + retention
+  default-deny + capability facts) are landed and witnessed. Named
+  residuals live in the 0065 suite ticket and the 0080 live-0053 ticket
+  (retention successor class, disabled-skip capability record,
+  Sessions-mode negative matrix, acceptance corpus).
 - **Phase B (next):** maintained projections + rebuild, the minimal 0081
   slice they force (barrier/executor, journal events, plan artifact +
   approval for `RebuildMaintainedProjection`), and the coupled suite.
