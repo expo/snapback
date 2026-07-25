@@ -3,16 +3,16 @@
   "kind": "p0a-preregistration",
   "protocol": {
     "id": "partitime-method-rubric-v2",
-    "sha256": "25101bbcaabfcd69e5ebaa72d958598130672db4a7292e5e11042633584904d1",
+    "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4",
     "schemaSha256": "ff33f7a8086b14701cb875ee276eacaddf09560f98ab4ee3763c12153d4b352c",
-    "receiptSchemaSha256": "ce0ffe6f85242a7402b5eab1d2e2947d1e8a6abc47071e4adc5e55f1ed13251a",
+    "receiptSchemaSha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708",
     "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v2",
     "thresholdFormulaSetId": "partitime-threshold-formulas-v2",
     "collectorId": "partitime-chrome-cdp-memory-and-dom-v2"
   },
   "source": {
-    "snapbackRevision": "98a98c949a921e7d7e54f70ce4907058f0736324",
-    "exactRevision": "9798611d6d424d4d2eb1351c7cf4ed5fbeb42f87",
+    "snapbackRevision": "37aec9f805f4eac175671159028d4eb6f80768f1",
+    "exactRevision": "de9ad834c6dd768918317ccb1b4900de51e56cab",
     "snapbackDirty": false,
     "exactDirty": false,
     "packageLockSha256": "4b64ab1d1c2d5991196a91ba3a0cb68e71186395f91b81b80f0492f348cece86"
@@ -36,7 +36,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
-      "sha256": "25101bbcaabfcd69e5ebaa72d958598130672db4a7292e5e11042633584904d1"
+      "sha256": "f4c8159c9d7b05df37db42be2f32bb3ae9bca0b60befb7053b4d8ba40acddab4"
     },
     {
       "kind": "protocol-constant",
@@ -46,7 +46,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
-      "sha256": "ce0ffe6f85242a7402b5eab1d2e2947d1e8a6abc47071e4adc5e55f1ed13251a"
+      "sha256": "6beab26cca3eab989aca3b0e6021f0b32dd41a24c390617ecebf4c0466e50708"
     },
     {
       "kind": "authority-amendment",
@@ -61,12 +61,12 @@
     {
       "kind": "authority-amendment",
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "1a660a54d2a49df01473cb8092a81c1e274d44e494bdf11ca24be44788399b3c"
+      "sha256": "49f5ea83f3664fe768ce1953dc30d46c11bee8b5c6cf0142fedfa0a583839237"
     },
     {
       "kind": "collector",
       "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-      "sha256": "293b9066826fb295b8101ddaead73fc131f1d800df29aa43cb35ebcac32e808d"
+      "sha256": "aca32de1a02e74ea7379afddaf0b6250b7fc77d964319547a013e1fe91317aa8"
     },
     {
       "kind": "collector",
@@ -81,7 +81,7 @@
     {
       "kind": "collector",
       "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
-      "sha256": "5d8576c4ba1fe1fd6154718d5d712c5b42e0c8cd73b568120e7cab1bd0cbabb3"
+      "sha256": "f581ffd096c0da3b28cd0265b391ce089be950d636ce993961f1a66b6a0ac5a4"
     },
     {
       "kind": "collector",
@@ -101,7 +101,7 @@
     {
       "kind": "fixture",
       "path": "demos/partiful-matrix/surfaces/react",
-      "sha256": "c21a3ade339bae22408a966038cd6c2a564553c69e847a11ab9d8d9cbccb3705"
+      "sha256": "8a8b30bb648ad12ed25c25aeb8558bfe7775694eac88a28044b19a2367371d43"
     },
     {
       "kind": "fixture",
@@ -115,16 +115,16 @@
     }
   ],
   "p0a": {
-    "protocolFrozenAtRevision": "c07d06450d364ff10355f02ceee20d5c84c464aa",
+    "protocolFrozenAtRevision": "a6a26909466522e9b7a2e1f95a0e378e5d8bc63b",
     "protocolFrozenBeforeCollector": true,
     "governedSamplesCollected": false,
     "authorityBindingsVerified": 3,
     "fixtureTreesVerified": 3,
-    "collectorSha256": "6c2a8214c609034440c3241efd409fe9a1d16731a6fb113ec640858f5c20f6b5",
+    "collectorSha256": "1023cb21542cbffa897e5364d4752ab67c3e0774f06e810f06ec76be1974769f",
     "collectorManifest": [
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-        "sha256": "293b9066826fb295b8101ddaead73fc131f1d800df29aa43cb35ebcac32e808d"
+        "sha256": "aca32de1a02e74ea7379afddaf0b6250b7fc77d964319547a013e1fe91317aa8"
       },
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-math.mjs",
@@ -136,7 +136,7 @@
       },
       {
         "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
-        "sha256": "5d8576c4ba1fe1fd6154718d5d712c5b42e0c8cd73b568120e7cab1bd0cbabb3"
+        "sha256": "f581ffd096c0da3b28cd0265b391ce089be950d636ce993961f1a66b6a0ac5a4"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/performance-v2.html",
@@ -155,6 +155,15 @@
       {
         "arm": "react:snapback",
         "activeSubscriptions": 8,
+        "settledSchedule": [
+          0,
+          8,
+          1,
+          16,
+          2,
+          32,
+          4
+        ],
         "apiMethods": [
           "reset",
           "awaitStable",
@@ -170,6 +179,15 @@
       {
         "arm": "contract:snapback",
         "activeSubscriptions": 8,
+        "settledSchedule": [
+          0,
+          8,
+          1,
+          16,
+          2,
+          32,
+          4
+        ],
         "apiMethods": [
           "reset",
           "awaitStable",
