@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "partitime.performance-v2-instrument-disposition.v1",
+  "protocolId": "partitime-method-rubric-v2",
+  "protocolSha256": "e61be362acfbb9c0050982ab39f31576aa757d7a3e600df4818993600706f22b",
+  "status": "red-instrument-unavailable",
+  "phase": "P0c-comparator",
+  "arm": "react:snapback",
+  "environment": {
+    "osProduct": "macOS",
+    "osVersion": "26.5.2",
+    "osBuild": "25F84",
+    "cpu": "Apple M5 Max",
+    "memoryBytes": 137438953472,
+    "browserName": "Google Chrome",
+    "browserVersion": "150.0.7871.186",
+    "bunVersion": "1.3.12",
+    "acPowerRequired": true,
+    "lowPowerModeRequired": false
+  },
+  "source": {
+    "snapbackRevision": "78394bda089a0d66eb7923de728db3643d16df25",
+    "exactRevision": "a314331aa0971b353655783e52493a854f7098d7",
+    "p0aReceiptSha256": "60fad86bcf21bdc9747da9830ec82ed51def93cbd2546236813467b9f8cedbaf",
+    "p0bReceiptSha256": "463d89fcb06c9b923485780991f41fc77f56e659c303f4db2c5d0849895bd0f3"
+  },
+  "attempts": [
+    {
+      "amendment": "pre-A2",
+      "artifactDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/invalid/p0c-comparator-instrument-red-v2-original",
+      "manifestSha256": "40cf553e43b6b85b457bb2361ab6159d2e7cd39c9fd36ad30ebb200c46612f59",
+      "acceptedWarmups": 0,
+      "acceptedSamples": 0,
+      "stop": "three invalid warmup-one attempts"
+    },
+    {
+      "amendment": "A2",
+      "artifactDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/invalid/p0c-comparator-instrument-red-v2-a2",
+      "manifestSha256": "d7a9f688d7d3bb2fb2f9039ea65ef598ad7b1e76cf08ed5182ea9f192fa9409f",
+      "acceptedWarmups": 2,
+      "acceptedSamples": 2,
+      "stop": "three invalid sample-three attempts"
+    },
+    {
+      "amendment": "A3",
+      "artifactDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/invalid/p0c-comparator-instrument-red-v2-a3",
+      "manifestSha256": "9f04f07e97efd15be4c4863d82890ea0b2776985099c79a57a1fbcf58cfaf1c0",
+      "acceptedWarmups": 2,
+      "acceptedSamples": 2,
+      "stop": "three invalid sample-three attempts"
+    },
+    {
+      "amendment": "A4",
+      "artifactDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/invalid/p0c-comparator-instrument-red-v2-a4-final",
+      "manifestSha256": "39c2daf5a988e2ba6f82647cb98f00e79f1e36e23b865c2659ddf786006d9ac4",
+      "acceptedWarmups": 2,
+      "acceptedSamples": 2,
+      "stop": "three invalid sample-three attempts"
+    }
+  ],
+  "recordedButUngated": {
+    "acceptedWarmupReceipts": 6,
+    "acceptedSampleReceipts": 6,
+    "eligibleForAggregation": 0,
+    "reason": "Every partial run stopped before the complete two-warmup/seven-sample matrix; invalid-run policy forbids partial-cycle or cross-identity reuse."
+  },
+  "conclusion": {
+    "thresholdDerived": false,
+    "thresholdSetId": null,
+    "contractHoldoutOpened": false,
+    "governedContractSamples": 0,
+    "claimEligible": false,
+    "gateDisposition": "red",
+    "nextAction": "stop-v2-measurement-and-report"
+  },
+  "limitations": [
+    "The repeated failure occurs after four complete fresh browser contexts, when the next React context cannot settle its first subscription schedule.",
+    "A3 corrected asynchronous active-handle accounting and A4 added an observed zero-subscription teardown barrier; neither removed the repeated boundary.",
+    "No retained partial value may be used to infer comparator targets or Contract performance."
+  ]
+}

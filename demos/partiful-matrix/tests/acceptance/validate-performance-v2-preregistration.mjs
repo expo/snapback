@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -46,6 +46,18 @@ const gitShow = (cwd, revision, path) => runGit(cwd, ['show', `${revision}:${pat
 const gitObject = (cwd, revision, path) => runGit(cwd, ['rev-parse', `${revision}:${path}`])
   .toString('utf8')
   .trim();
+const jsonFilesUnder = (root) => readdirSync(root, { withFileTypes: true })
+  .flatMap((entry) => {
+    const path = resolve(root, entry.name);
+    if (entry.isDirectory()) return jsonFilesUnder(path);
+    return entry.isFile() && entry.name.endsWith('.json') ? [path] : [];
+  })
+  .sort();
+const receiptDirectoryManifestSha256 = (root) => sha256(Buffer.from(
+  jsonFilesUnder(root)
+    .map((path) => `${sha256(readFileSync(path))}  ${relative(repoRoot, path)}\n`)
+    .join(''),
+));
 
 const schemaPath = resolve(acceptanceRoot, 'comparison-protocol.v2.schema.json');
 const protocolPath = resolve(acceptanceRoot, 'comparison-protocol.v2.json');
@@ -313,6 +325,51 @@ if (existsSync(p0aReceiptPath)) {
   }
 }
 
+const dispositionPath = resolve(
+  acceptanceRoot,
+  'results/performance-v2-instrument-disposition.json',
+);
+let instrumentDisposition = null;
+if (existsSync(dispositionPath)) {
+  instrumentDisposition = readJson(dispositionPath);
+  assert.equal(instrumentDisposition.status, 'red-instrument-unavailable');
+  assert.equal(instrumentDisposition.protocolSha256, sha256(protocolBytes));
+  assert.equal(instrumentDisposition.phase, 'P0c-comparator');
+  assert.equal(instrumentDisposition.arm, 'react:snapback');
+  assert.equal(instrumentDisposition.attempts.length, 4);
+  for (const attempt of instrumentDisposition.attempts) {
+    assert.equal(
+      receiptDirectoryManifestSha256(resolve(repoRoot, attempt.artifactDirectory)),
+      attempt.manifestSha256,
+      `${attempt.amendment} invalid receipt manifest drifted`,
+    );
+  }
+  assert.equal(instrumentDisposition.conclusion.thresholdDerived, false);
+  assert.equal(instrumentDisposition.conclusion.contractHoldoutOpened, false);
+  assert.equal(instrumentDisposition.conclusion.governedContractSamples, 0);
+  assert.equal(instrumentDisposition.conclusion.claimEligible, false);
+  assert.equal(
+    existsSync(resolve(repoRoot, protocol.artifacts.thresholdReceiptPath)),
+    false,
+    'red instrument disposition cannot coexist with a threshold receipt',
+  );
+  assert.equal(
+    existsSync(resolve(repoRoot, protocol.artifacts.holdoutRawDirectory)),
+    false,
+    'red instrument disposition cannot coexist with an opened Contract holdout',
+  );
+  if (exactCheckout) {
+    assert.equal(
+      sha256(readFileSync(resolve(
+        exactCheckout,
+        'docs/reports/contract-production-p0b-v2-receipt.v1.json',
+      ))),
+      instrumentDisposition.source.p0bReceiptSha256,
+      'red disposition P0b dependency drifted',
+    );
+  }
+}
+
 const result = {
   ok: true,
   schemaVersion: 'partitime.performance-v2-preregistration-check.v1',
@@ -352,6 +409,7 @@ const result = {
   exactMirrorVerified,
   governedSamplesCollected: false,
   p0aComplete: p0aReceipt !== null,
+  instrumentDisposition: instrumentDisposition === null ? null : instrumentDisposition.status,
   remainingP0aInputs: p0aReceipt === null
     ? ['valid immutable pre-fix correctness receipt']
     : [],
