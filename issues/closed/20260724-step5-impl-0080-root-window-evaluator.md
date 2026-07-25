@@ -1,6 +1,6 @@
 # 0080: root-window-v1 evaluation across evaluators + result encoding + cursors
 
-**Status:** Open
+**Status:** Resolved (2026-07-25) — residuals redirected below
 **Severity:** P2
 **Systems:** Query planning, Storage, Client integration
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -38,13 +38,34 @@ the guide page documents the pagination contract. Witnesses:
 `relational_keyset_pages_without_skip_or_duplicate`,
 `keyset_lowering_totalizes_nulls_and_tiebreak`,
 `relational_cursor_pages_and_refuses_end_to_end`.
-**Remaining here:** `RelationalResultEncodingV1` + golden vectors;
-buffered/pure evaluator parity plus the concurrent-mutation no-skip bound
-witness; the retained/lease arm deliberately drops cursors
-(decode-only snapshots). A session-identity partition transition is
-witnessed via the permission-epoch roll; the dev-admitted path
-canonicalizes sessions away, so the session-axis case belongs to the
-conformance suite's Sessions-mode matrix.
+**Progress (2026-07-25, slices 5-6 — resolved):**
+`RelationalResultEncodingV1` landed (`src/rqs.rs`
+`relational_result_encoding_v1`, committed golden vectors at
+`schemas/relational.result-encoding-v1.json` generated through the encoder
+and drift-gated; exact bytes pinned by
+`relational_result_encoding_v1_pins_golden_bytes` and the executor
+witnessed by `relational_rows_encode_under_result_encoding_v1`).
+Evaluator-arm parity on the local target: the write lane and lock-free
+read lane share one implementation — identical result bytes and
+cross-lane cursor interchange witnessed by
+`relational_lanes_share_bytes_and_cursors`; the buffered
+read-your-writes overlay is witnessed unreachable by construction
+(`relational_plans_cannot_enter_the_buffered_overlay` — ctx.db admits
+only single-table plans, so §2's buffered arm is satisfied without a
+second evaluator); the §2 concurrent-mutation bound is witnessed by
+`relational_keyset_bound_survives_concurrent_mutations`. The retained
+live re-run path executes relational plans through the same dispatch;
+retained *stored-bytes* surfaces refuse relational plans (retention is
+the 0080-live ticket's scope), and hosted targets report the
+`relational_query_v1` capability gap.
+
+**Residuals (redirected):** cross-target byte-identity through hosted
+evaluators and the instrumented index-served bound fixtures belong to
+`20260724-step5-impl-0080-acceptance-corpus.md`; retention
+(`opaque-authorized-snapshot-v1`) and live/0053 inheritance belong to
+`20260724-step5-impl-0080-live-0053.md`. A Sessions-mode session-axis
+stale-authority case belongs to the conformance suite's auth-mode
+matrix.
 
 **Progress (2026-07-24):** slice 1 landed — `RelationalQueryPlan` closed
 manifest types (manifest.rs) and the SQLite `root-window-v1` executor

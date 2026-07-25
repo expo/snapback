@@ -16934,6 +16934,182 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    // @ref LLP 0080#2-portable-evaluation-semantics — evaluator parity on
+    //   the local target: the write lane and the lock-free read lane share
+    //   one relational implementation, so the same plan produces the same
+    //   RelationalResultEncodingV1 bytes on both, and a continuation minted
+    //   by one lane resumes through the other (shared keyring + binding).
+    //   The buffered read-your-writes overlay is witnessed separately as
+    //   unreachable: ctx.db host calls admit only single-table plans.
+    #[test]
+    fn relational_lanes_share_bytes_and_cursors() {
+        use crate::manifest::{
+            FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind, ProjectionLeaf,
+            ProjectionSource, RelationalQueryPlan, TableManifest,
+        };
+        let dir =
+            std::env::temp_dir().join(format!("snapback-rel-lanes-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        let path = dir.join("rel-lanes.sqlite");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
+
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        let schema = SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned(), ],
+                        unique: true,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let owner_filter = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        let plan = RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind: JoinKind::Inner,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_filter("ownerId")],
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            take: 1,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        };
+
+        let mut snapback = LocalSnapback::open(&path).expect("open file-backed fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "pagedBooks",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "lane fixture must activate: {diagnostics:?}"
+        );
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        ],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed lane rows");
+        let lane = snapback.read_lane();
+        assert!(lane.available(), "file-backed fixture has a read lane");
+
+        let input = |args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let field_order = vec!["title".to_owned()];
+        let write_page = snapback
+            .invoke_query("pagedBooks", input(json!({})))
+            .expect("write-lane page");
+        let read_page = lane
+            .invoke_query("pagedBooks", input(json!({})))
+            .expect("read-lane page");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &write_page.rows)
+                .expect("write rows encode"),
+            crate::rqs::relational_result_encoding_v1(&field_order, &read_page.rows)
+                .expect("read rows encode"),
+            "both lanes produce identical RelationalResultEncodingV1 bytes",
+        );
+
+        // Cross-lane continuation: a cursor minted on the read lane resumes
+        // on the write lane, and vice versa — one keyring, one binding.
+        let read_cursor = read_page.cursor.expect("read lane mints");
+        let write_cursor = write_page.cursor.expect("write lane mints");
+        let via_write = snapback
+            .invoke_query("pagedBooks", input(json!({ "cursor": read_cursor })))
+            .expect("read-lane cursor resumes on the write lane");
+        let via_read = lane
+            .invoke_query("pagedBooks", input(json!({ "cursor": write_cursor })))
+            .expect("write-lane cursor resumes on the read lane");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &via_write.rows)
+                .expect("write continuation encodes"),
+            crate::rqs::relational_result_encoding_v1(&field_order, &via_read.rows)
+                .expect("read continuation encodes"),
+        );
+        assert_eq!(via_write.rows[0]["title"], json!("beta"));
+    }
+
     // @ref LLP 0065#3-the-generated-operations — defineOwnedKeysetPages'
     //   continuation is an opaque versioned cursor bound to the app, the
     //   pair plan identity, and the caller's authority partition: first
