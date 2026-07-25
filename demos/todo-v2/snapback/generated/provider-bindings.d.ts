@@ -3,6 +3,8 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type ListTodosArgs = Record<string, never>;
 export type ListTodosResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>;
+export type ListTodosByPriorityArgs = { "priority": string };
+export type ListTodosByPriorityResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>;
 export type ListTodosOnceArgs = Record<string, never>;
 export type ListTodosOnceResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>;
 export type TodoPresenceArgs = { "listId": string };
@@ -15,6 +17,7 @@ export type SetPriorityArgs = { "id": string; "priority": string };
 
 export interface ProviderQueryBindings {
   "listTodos": { args: ListTodosArgs; result: ListTodosResult };
+  "listTodosByPriority": { args: ListTodosByPriorityArgs; result: ListTodosByPriorityResult };
   "listTodosOnce": { args: ListTodosOnceArgs; result: ListTodosOnceResult };
   "todoPresence": { args: TodoPresenceArgs; result: TodoPresenceResult };
 }

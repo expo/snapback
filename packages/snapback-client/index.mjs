@@ -60,6 +60,7 @@ export {
 } from './rqs-store.mjs';
 export {
   createRqsPreloadRegistry,
+  createRqsRegisteredRegistry,
   readInlineBootPayload,
   readRqsPreloadRegistry,
   RQS_BOOT_ELEMENT_ID,
@@ -4157,6 +4158,17 @@ export class SnapbackClient {
     // Channel A seam: an inlined/preloaded candidate ({ rows, resume }) to
     // arbitrate against the persisted entry per LLP 0090 D3.
     preloadedResume = null,
+    // Channel C register-mode seam (LLP 0090 D4 rollout step 7): a
+    // subscription this connection ALREADY owns from a register-mode bundle
+    // (`{ subscriptionId, rows, version, resume }` — see rqs-preload.mjs
+    // createRqsRegisteredRegistry). The bundle response IS the LLP
+    // 0053-mandated fresh snapshot taken at the registration cut, so the
+    // handle adopts it as current state and opens NO fresh
+    // snapshot-with-subscribe; the socket attach presents the bundle grant
+    // (adopted by fetchBundle) and receives only deltas. Any later socket
+    // loss or resync re-enters through the ordinary fresh subscribe,
+    // superseding the adopted registration.
+    registeredSubscription = null,
   } = {}) {
     const name = functionName(ref);
     const client = this;
@@ -5614,20 +5626,82 @@ export class SnapbackClient {
     // first steals the updates" gap).
     const unregisterDurable = client.registerDurableConsumer(connectionId, applyDurable);
 
+    // Register-mode adoption (LLP 0090 D4 / LLP 0031 dated amendment): the
+    // bundle already created this subscription at its single-commit cut and
+    // returned the fresh snapshot in the same response — adopting it here is
+    // what makes "no duplicate fresh snapshot" true on the wire. Sessions-mode
+    // auth-invalidation expectations need the full subscribe-output
+    // projections (scope identity negotiation), which the bundle entry does
+    // not carry in v1; those handles fall back to an ordinary fresh
+    // subscribe rather than adopting partially.
+    const adoptRegisteredSubscription = () => {
+      if (!registeredSubscription || queryNamespace !== null) return false;
+      const { subscriptionId, rows, version, resume } = registeredSubscription;
+      if (typeof subscriptionId !== 'string' || subscriptionId.length === 0) return false;
+      handle.subscriptionId = subscriptionId;
+      handle.rows = Array.isArray(rows) ? rows : [];
+      handle.version = typeof version === 'number' ? version : 0;
+      // Auth-scoped entries carry `resume: null` in both modes (LLP 0092
+      // §0D.1) — the handle simply holds no token, exactly like a fresh
+      // subscribe that minted none.
+      handle.rqsResume = resume && typeof resume.token === 'string' ? resume : null;
+      // The bundle snapshot is authoritative (LLP 0053's fresh snapshot,
+      // taken once): 'current', never retained/pending.
+      handle.freshness = 'current';
+      schedulePersist();
+      deliverAuthorityObservation(() => {
+        onUpdate?.(handle.rows, {
+          version: handle.version,
+          kind: 'registered',
+          freshness: 'current',
+        });
+      });
+      return true;
+    };
+
     // On subscribe failure the attached stream must not leak (LLP 0034 review
     // fix 5): detach (dropping manager demand closes the shared socket when
     // this was its only consumer), mark the handle disposed, and rethrow —
     // liveQuery() fails loudly and leaves nothing running.
     const establish = async () => {
       setConnection('connecting');
+      const adoptedRegistration = adoptRegisteredSubscription();
       // Channel B relaunch flow (LLP 0090 D3): load + verify the persisted
       // entry, render-first as retained, and let the fresh subscribe below
       // carry the seeded token. Seeding failures leave today's cold boot.
-      if ((resumeStore && resumeStoreKey) || preloadedResume) {
+      // An adopted register-mode bundle IS the fresh authoritative state, so
+      // persisted/preloaded candidates are not consulted for it.
+      if (!adoptedRegistration && ((resumeStore && resumeStoreKey) || preloadedResume)) {
         try { await seedFromResumeState(); } catch { /* cold boot */ }
       }
       if (transport === 'stream') {
         detachStream = attachStream();
+      }
+      if (adoptedRegistration) {
+        // No fresh subscribe: the registration is live server-side under the
+        // pending owner (or, after attach, the socket session); deltas reach
+        // this handle through the shared lane router by subscription id.
+        if (transport === 'stream') {
+          const manager = client.liveStreamManager(connectionId, streamOptions);
+          if (manager.isOpen()) {
+            streamedSinceSubscribe = true;
+            setConnection('live');
+            emitEstablishedOnce();
+          } else if (fellBack) {
+            emitEstablishedOnce();
+          } else {
+            const budget = streamOptions.freshnessBudgetMs ?? LIVE_FRESHNESS_BUDGET_MS;
+            establishTimer = setTimeout(() => {
+              establishTimer = null;
+              emitEstablishedOnce();
+            }, budget);
+            establishTimer.unref?.();
+          }
+        } else {
+          setConnection('polling');
+          emitEstablishedOnce();
+        }
+        return;
       }
       try {
         await subscribeFresh();

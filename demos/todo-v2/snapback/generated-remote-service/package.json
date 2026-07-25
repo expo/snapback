@@ -16,6 +16,7 @@
     "./remote-auth-capability": "./remote-auth-capability.manifest.json",
     "./remote-data-capability": "./remote-data-capability.manifest.json",
     "./remote-service-profile": "./remote-service.profile.json",
+    "./routes": "./routes.manifest.json",
     "./schema": "./schema.manifest.json"
   },
   "type": "module"

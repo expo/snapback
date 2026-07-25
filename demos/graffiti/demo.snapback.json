@@ -48,6 +48,14 @@
       "runner": "node demos/graffiti/tests/acceptance/headless.mjs",
       "toolchain": "node>=22 (built-in fetch + WebSocket); cargo to build/run the local server"
     },
+    "widget": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/graffiti/tests/acceptance/widget-read-mode.mjs",
+      "entrypoint": "demos/graffiti/surfaces/widget/render.mjs",
+      "toolchain": "node>=22 (plain fetch only — deliberately no client kit and no WebSocket)",
+      "note": "LLP 0090 D4 rollout step 7 (ENG-25458): the socket-less Channel C consumer — one anonymous read-mode POST /app/bundle against the parameterized /board/:boardId route (params-v1), render, exit. v1 rule: publicInline-class bundles only; an anonymous register-mode request refuses to read mode."
+    },
     "contract": {
       "requirement": "optional",
       "runner": "bun demos/graffiti/tests/acceptance/contract.mjs",

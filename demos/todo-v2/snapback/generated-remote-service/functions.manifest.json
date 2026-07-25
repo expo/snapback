@@ -1,7 +1,7 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:7947710779cd996c",
+  "bundleHash": "sha256:6493b1def1888b90",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -293,6 +293,83 @@
       "authorizationDependence": [
         "userId"
       ],
+      "bundleEntrypoint": "listTodosByPriority",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user_priority",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listTodosByPriority",
+      "id": "todo-v2:listTodosByPriority",
+      "kind": "LiveQuery",
+      "name": "listTodosByPriority",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "priority",
+                "op": "Eq",
+                "value": {
+                  "Arg": "priority"
+                }
+              }
+            ],
+            "indexed_by": "by_user_priority",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "todos"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
       "bundleEntrypoint": "listTodosOnce",
       "effectCeiling": {
         "authorizationInputs": [
@@ -503,7 +580,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "ea26b8f6c1bd4c4045a4e94dd1870875ddc869efa24f4fc7c0211c339810e97c",
+  "inputsHash": "2c0b418051b2111dfa05dbaa3f0228584237926182b056f9367a4a0a68ee4054",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

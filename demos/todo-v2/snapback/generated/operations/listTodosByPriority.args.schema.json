@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/todo-v2/listTodosByPriority.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "priority": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "priority"
+  ],
+  "title": "todo-v2:listTodosByPriority arguments",
+  "type": "object"
+}

@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (§0D.6 witness-bytes reservation replaced by the
+**Revised:** 2026-07-24 (step-7 landing notes appended to the
+step-2/step-3 dated amendment: Channel C consumption on the local arm —
+todo-v2's authenticated register-mode boot with the client
+`registeredSubscription` adoption seam, and graffiti's socket-less widget
+read-mode surface; no contract changes, two recorded observations,
+ENG-25458). 2026-07-24 (§0D.6 witness-bytes reservation replaced by the
 caps LLP 0091's rung-2 amendment pinned, ENG-25457; the dated
 step-2/step-3 amendment: the six reported step-2 divergences folded in and
 the step-3 0C/0E landing notes — see "Dated amendment: step-2/step-3
@@ -795,6 +800,29 @@ ENG-25454):**
   step-1 reconciliation item 3 remains the standing rule (the swap is now
   expected with the step-4 Cloudflare arm, where deploy-time artifact
   identity exists anyway).
+
+**Step-7 landing notes (Channel C consumption; ENG-25458, 2026-07-24).**
+Rollout step 7 landed the two D4 consumers on the local arm with no contract
+changes: todo-v2's authenticated web boot (shell + one register-mode bundle;
+the surface adopts each registration via the kit's new
+`registeredSubscription` seam — `packages/snapback-client/index.mjs`,
+`createRqsRegisteredRegistry` in `rqs-preload.mjs`, `rqsRegistered` on
+`createSnapbackContractSurface` — and the socket attaches under the
+bundle-adopted grant with nothing delivered at attach), and graffiti's
+socket-less widget read-mode surface (`demos/graffiti/surfaces/widget/`,
+plain `fetch`, public/`publicInline` entries only, anonymous register
+refused to an explicit read retry). Wire-instrumented acceptance:
+`demos/todo-v2/tests/acceptance/register-boot.mjs` and
+`demos/graffiti/tests/acceptance/widget-read-mode.mjs`, both in the local
+proof. Two observations, neither a divergence: (a) for *ordered* queries the
+post-boot result-changing lane is replace-only (0090 D1.3), so D4's
+"receives only deltas" reads as "receives only new state past the bundle's
+commit cut" there — the acceptance pins version monotonicity plus
+nothing-at-attach; (b) the endpoint serves `Cache-Control: no-store,
+private`, strictly stronger than §0D.7's `no-store`. Register-mode adoption
+under a negotiated auth-invalidation protocol falls back to an ordinary
+fresh subscribe (the bundle `authorization` projection is not yet wired into
+the client fence path) — the recorded follow-on for the sessions arm.
 
 ## Dated amendment: step-4 Cloudflare arm (2026-07-24, ENG-25455)
 

@@ -80,3 +80,54 @@ export function createRqsPreloadRegistry(payload) {
 export function readRqsPreloadRegistry(options = {}) {
   return createRqsPreloadRegistry(readInlineBootPayload(options));
 }
+
+/**
+ * Build a registered-boot registry from a register-mode bundle response
+ * (LLP 0090 D4 rollout step 7; contract LLP 0092 §0D.1). Every register-mode
+ * entry carries a `subscriptionId`; entries are keyed like the preload
+ * registry and consumed one-shot into `liveQuery`'s `registeredSubscription`
+ * seam, so each subscription is adopted exactly once per boot. The entry's
+ * `version` is the bundle's single `commitVersion` (every snapshot was
+ * evaluated at that one cut), and `resume` stays `null` for auth-scoped
+ * entries — the closed union rides through unchanged.
+ *
+ * The connection facts (`connectionId`, `grant`, `attachDeadline`) are
+ * surfaced so the boot can hand `connectionId` to its surface/handles; the
+ * grant itself was already adopted into the client's connection-grant cache
+ * by `fetchBundle`.
+ */
+export function createRqsRegisteredRegistry(bundle) {
+  const entries = new Map();
+  const commitVersion = typeof bundle?.commitVersion === 'number' ? bundle.commitVersion : 0;
+  for (const entry of bundle?.entries ?? []) {
+    if (!entry || typeof entry.function !== 'string') continue;
+    if (typeof entry.subscriptionId !== 'string' || entry.subscriptionId.length === 0) continue;
+    const key = rqsEntryKey(entry.function, entry.args ?? {});
+    if (key === null) continue;
+    entries.set(key, {
+      subscriptionId: entry.subscriptionId,
+      rows: Array.isArray(entry.rows) ? entry.rows : [],
+      version: commitVersion,
+      resume: entry.resume && typeof entry.resume.token === 'string' ? entry.resume : null,
+    });
+  }
+  return {
+    connection: bundle?.connection ?? null,
+    generation: typeof bundle?.generation === 'string' ? bundle.generation : null,
+    versionStream: typeof bundle?.versionStream === 'string' ? bundle.versionStream : null,
+    get size() {
+      return entries.size;
+    },
+    lookup(name, args = {}) {
+      const key = rqsEntryKey(name, args);
+      return key === null ? null : entries.get(key) ?? null;
+    },
+    consume(name, args = {}) {
+      const key = rqsEntryKey(name, args);
+      if (key === null) return null;
+      const entry = entries.get(key) ?? null;
+      if (entry !== null) entries.delete(key);
+      return entry;
+    },
+  };
+}

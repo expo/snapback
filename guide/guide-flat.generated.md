@@ -2638,6 +2638,16 @@ external publication remains a later packaged-loop gate in LLP 0063.
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
+    // Register-mode adoption: the bound query consumes its bundle
+    // registration (one-shot) and the shared socket presents the
+    // bundle-minted grant for the atomic pending-registration handoff.
+    ...(registeredBoot
+      ? {
+          connectionId: registeredBoot.connection.connectionId,
+          rqsRegistered: (name: string, args: Record<string, unknown>) =>
+            registeredBoot.consume(name, args),
+        }
+      : {}),
   });
   activeSurface = surface;
 ```
@@ -2645,11 +2655,20 @@ external publication remains a later packaged-loop gate in LLP 0063.
 Then hand the surface's links to the generated registry —
 `configureSnapbackContractLinks(surface.links)` — and mount. Before the
 surface, boot runs `client.health()` and the **idempotent**
-`client.ensureApp({ schema, functions, seed })` (provisions only what's
-missing, seeds only empty tables — a reload never resets data; LLP 0034
-§5). If the backend is unreachable, the surface may still boot from an
+`client.ensureApp({ schema, functions, seed, routes })` (provisions only
+what's missing, seeds only empty tables — a reload never resets data; LLP
+0034 §5). If the backend is unreachable, the surface may still boot from an
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
+
+The `registeredBoot` spread is the optional **Channel C register-mode boot**
+(LLP 0090 D4): one `client.fetchBundle({ route, mode: 'register', userId })`
+returns every query's snapshot plus its live registration and the connection
+grant at a single commit cut; `createRqsRegisteredRegistry(bundle)` keys the
+entries, and the surface adopts each one instead of opening its own
+snapshot-with-subscribe (zero `/live/*/subscribe` round trips at boot). Any
+failure degrades to the ordinary fresh-subscribe boot, so the spread is
+strictly an optimization.
 
 Agent clients use the same surface constructor. A `SnapbackClient` configured
 with `AgentAuthorityFence` is resolved as explicit custody; Contract does not
