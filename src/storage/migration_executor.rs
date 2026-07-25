@@ -974,6 +974,12 @@ impl LocalDatabase {
                     }
                 }
             }
+            // §6: retained server-resident work must prove its declared
+            // posture under the barrier, before the fence admits the plan.
+            crate::storage::prove_retained_work_posture(
+                &tx,
+                artifact.body.retained_work_posture,
+            )?;
             let lease_epoch = current_lease_epoch(&tx)? + 1;
             upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
             let fence = MigrationFenceV1 {

@@ -8908,6 +8908,31 @@ fn validate_read_set(
     read_set: &[ReadDependency],
     maximum: u64,
 ) -> SnapbackResult<()> {
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
+    //   pre-publication baseline replays through the raised retention
+    //   floor: under a successor-only publication, an offline mutation
+    //   whose isolation baseline predates the floor receives the stable
+    //   resync-before-replay refusal (its payload is client-custodied and
+    //   quarantined by the client; the server neither silently replays nor
+    //   drops it). Compatible postures keep the ordinary conflict rules.
+    if let Some(stalest) = read_set.iter().map(|dependency| dependency.version).min() {
+        let floor = retention_floor_at_most(tx, current_version_on(tx)?)?;
+        if stalest < floor
+            && let Some(transition) = schema_transition_events_on(tx, 0)?.into_iter().last()
+            && matches!(
+                transition.body.compatibility_posture,
+                crate::migration::CompatibilityPosture::SuccessorOnly
+            )
+            && stalest < transition.body.retention_floor
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
+                "storage",
+                "this mutation's read baseline predates a successor-only schema publication; \
+                 resync before replaying client-custodied offline work",
+            ));
+        }
+    }
     for dependency in read_set {
         let table = schema_table(schema, &dependency.table)?;
         let current = get_row_version(tx, table, &dependency.id, maximum)?;
@@ -12585,6 +12610,84 @@ impl LocalDatabase {
     }
 }
 
+/// Barrier-time retained-work proof (LLP 0081 §6): v1's local profile can
+/// prove exactly one posture — `empty` — by counting the server-resident
+/// work stores this target actually holds (retained client-mutation
+/// records and durable auth-invalidation retry episodes). `dual-compatible`
+/// binds predecessor/successor payload validators that no owning subsystem
+/// models on this profile yet, so a non-empty store under it fails closed
+/// rather than admitting unproven work; `transformed` was already refused
+/// at plan validation. Draining currently runnable work does not erase
+/// scheduled-future payloads from this check — the counts are of durable
+/// rows, not of what happens to be runnable.
+pub(crate) fn prove_retained_work_posture(
+    tx: &Transaction<'_>,
+    posture: crate::migration::RetainedWorkPosture,
+) -> SnapbackResult<()> {
+    let count = |table: &str| -> SnapbackResult<i64> {
+        if !sqlite_table_exists(tx, table)? {
+            return Ok(0);
+        }
+        Ok(tx.query_row(&format!("SELECT COUNT(*) FROM {}", quote_ident(table)?), [], |row| {
+            row.get(0)
+        })?)
+    };
+    let retained_mutations = count("_snapback_client_mutations")?;
+    let retry_episodes = count("_snapback_auth_retry_episodes")?;
+    let empty = retained_mutations == 0 && retry_episodes == 0;
+    match posture {
+        crate::migration::RetainedWorkPosture::Empty
+        | crate::migration::RetainedWorkPosture::DualCompatible
+            if empty => Ok(()),
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE",
+            "storage",
+            format!(
+                "the target holds retained server-resident work the declared posture cannot \
+                 prove ({retained_mutations} retained mutation records, {retry_episodes} retry \
+                 episodes); the local profile proves only the empty posture"
+            ),
+        )),
+    }
+}
+
+/// Test-only seam: manufacture one publication cut (typed transition
+/// event, version bump, floor raise) outside the executor, for the posture
+/// and floor witnesses in `local`.
+#[cfg(test)]
+pub(crate) fn publish_schema_transition_for_test(
+    db: &mut LocalDatabase,
+    posture: crate::migration::CompatibilityPosture,
+    predecessor_schema_hash: &str,
+) -> u64 {
+    let tx = db
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .expect("transition tx");
+    let version = current_version_on(&tx).expect("head") + 1;
+    record_schema_transition_event(
+        &tx,
+        version,
+        SchemaTransitionKind::SchemaResync,
+        &SchemaTransitionEventBodyV1 {
+            operation_id: "operation-v1:posture-test".to_owned(),
+            plan_id: "migration-v1:posture-test".to_owned(),
+            predecessor_schema_hash: predecessor_schema_hash.to_owned(),
+            successor_schema_hash: "s".repeat(64),
+            predecessor_generation: 1,
+            successor_generation: 2,
+            retention_floor: version,
+            compatibility_posture: posture,
+        },
+        1_000,
+    )
+    .expect("record transition");
+    set_version(&tx, version).expect("set version");
+    save_retention_floor_on(&tx, version).expect("raise floor");
+    tx.commit().expect("commit transition");
+    version
+}
+
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -13557,6 +13660,63 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time
+    //   retained-work proof: the local profile proves exactly the `empty`
+    //   posture by counting the durable server-resident work stores; a
+    //   non-empty store fails closed under either admitted posture because
+    //   no owning subsystem models dual-compatible payload validators yet.
+    #[test]
+    fn retained_work_posture_is_proven_not_assumed() {
+        use crate::migration::RetainedWorkPosture;
+        let mut db = database();
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("tx");
+            prove_retained_work_posture(&tx, RetainedWorkPosture::Empty)
+                .expect("an empty target proves the empty posture");
+            prove_retained_work_posture(&tx, RetainedWorkPosture::DualCompatible)
+                .expect("an empty target trivially satisfies dual-compatible");
+        }
+        // Retain one client-mutation record, then both postures fail closed.
+        let identity = ClientMutationIdentity {
+            id: "m-1".to_owned(),
+            function: "createTodo".to_owned(),
+            auth_fingerprint: "sha256:test".to_owned(),
+            authority_instance_id: Uuid::now_v7().to_string(),
+            input_fingerprint: "sha256:input".to_owned(),
+        };
+        db.execute_mutation_idempotent(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Literal(json!("retained")),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+            &identity,
+        )
+        .expect("retained mutation");
+        let tx = db
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .expect("tx");
+        for posture in [RetainedWorkPosture::Empty, RetainedWorkPosture::DualCompatible] {
+            let error = prove_retained_work_posture(&tx, posture)
+                .expect_err("retained work must fail closed");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE"
+            );
+        }
     }
 
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the

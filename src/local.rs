@@ -4637,6 +4637,26 @@ impl LocalSnapback {
             bundle_hash: active_deployment.bundle_hash,
             inputs_hash: active_deployment.inputs_hash,
         };
+        // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+        //   posture-aware handshake: a client attesting the predecessor
+        //   artifacts of a successor-only publication receives the stable
+        //   upgrade-required refusal, never a generic mismatch it might
+        //   answer by re-provisioning the predecessor over the successor.
+        if active != requested
+            && let Some(transition) = self.db.latest_schema_transition()?
+            && matches!(
+                transition.body.compatibility_posture,
+                crate::migration::CompatibilityPosture::SuccessorOnly
+            )
+            && requested.schema_hash == transition.body.predecessor_schema_hash
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_UPGRADE_REQUIRED",
+                "runtime",
+                "this application published a successor-only migration; upgrade the client \
+                 artifacts and resync before replaying offline work",
+            ));
+        }
         Ok(EnsureAppAttestOutcome {
             intent: EnsureAppIntent::Attest,
             matched: active == requested,
@@ -11156,6 +11176,25 @@ impl LocalSnapback {
         approval: &crate::migration::MigrationApprovalV1,
         successor_schema: &SchemaManifest,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+        //   publication must fire LLP 0053's activation obligations for
+        //   auth-scoped state, not a generic resync. The dev profile below
+        //   fires the unscoped activation consequence; the durable
+        //   auth-scoped disposition integration belongs to the sessions
+        //   activation machinery, so publishing under live auth-scoped
+        //   subscriptions fails closed instead of substituting a resync.
+        if self
+            .subscriptions
+            .values()
+            .any(|subscription| subscription.authorization.is_some())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+                "storage",
+                "migration publication under live auth-scoped subscriptions requires the \
+                 sessions activation-obligation integration; drain those subscriptions first",
+            ));
+        }
         let audience = self.migrate_resolved_audience()?;
         let receipt = self.db.migrate_apply(
             crate::storage::migration_executor::MigrationApplyRequest {
@@ -11167,8 +11206,12 @@ impl LocalSnapback {
             },
         )?;
         // The successor is authoritative: refresh every schema projection
-        // the serving process holds.
+        // the serving process holds, then retire every retained live
+        // subscription with a clear-retained resync — no predecessor
+        // result, retained row, or pre-publication cursor survives the
+        // raised floor.
         self.refresh_read_manifests();
+        self.retire_live_subscriptions_for_publication()?;
         Ok(receipt)
     }
 
@@ -11186,6 +11229,60 @@ impl LocalSnapback {
         // The republished predecessor is authoritative again.
         self.refresh_read_manifests();
         Ok(receipt)
+    }
+
+    /// The dev-profile publication consequence: every retained live
+    /// subscription is disposed and told to resync with retained state
+    /// cleared. Mirrors the activation path's unscoped retirement; the
+    /// auth-scoped durable-disposition variant is the sessions residual
+    /// recorded in the journal-events ticket.
+    fn retire_live_subscriptions_for_publication(&mut self) -> SnapbackResult<()> {
+        let subscriptions = self.subscriptions.values().cloned().collect::<Vec<_>>();
+        if subscriptions.is_empty() {
+            return Ok(());
+        }
+        let snapshot_version = Some(self.db.current_version()?);
+        let received_at_ms = now_millis();
+        for subscription in subscriptions {
+            let payload = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                reason: "schema_publication".to_owned(),
+                subscription_id: Some(subscription.id.clone()),
+                scope: Some(String::new()),
+                epoch: Some(0),
+                clear_retained: true,
+            })
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                    "realtime",
+                    "publication resync message could not be serialized",
+                )
+                .with_details(json!({ "error": error.to_string() }))
+            })?;
+            self.subscriptions.remove(&subscription.id);
+            self.receipts.push_global(
+                Receipt::Subscription {
+                    event: SubscriptionReceiptEvent::Disposed,
+                    reason: Some("schema_publication".to_owned()),
+                    subscription_id: Some(subscription.id.clone()),
+                    superseded_by: None,
+                    lane: None,
+                    binding_id: None,
+                    collection: None,
+                    removed: None,
+                    scope: subscription.input.args.clone(),
+                    snapshot_version,
+                    correlation: None,
+                    received_at_ms,
+                }
+                .into_value(),
+            );
+            self.enqueue_subscription_durable(&subscription, payload);
+            self.live_delivery.total_deliveries += 1;
+            self.live_delivery.last_deliveries += 1;
+        }
+        self.refresh_auth_scoped_live_connections();
+        Ok(())
     }
 
     pub fn read_lane(&self) -> ReadLane {
@@ -15924,6 +16021,217 @@ mod tests {
             })),
         )];
         (schema, functions)
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
+    //   pre-publication baseline replays through the raised floor: under a
+    //   successor-only publication an offline mutation whose read baseline
+    //   predates the floor receives the stable resync-before-replay
+    //   refusal; a dual-compatible publication keeps the ordinary rules.
+    #[test]
+    fn successor_only_publication_gates_stale_replay_baselines() {
+        let build = |posture: crate::migration::CompatibilityPosture| {
+            let (schema, functions, _plan) = projection_fixture(5);
+            let mut snapback = LocalSnapback::memory().expect("memory replay fixture");
+            snapback.apply_schema(schema).expect("apply schema");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+                "{diagnostics:?}"
+            );
+            snapback
+                .invoke_mutation(
+                    "addAuthor",
+                    HandlerInput {
+                        args: json!({ "slug": "ada", "name": "Ada" }),
+                        ..HandlerInput::default()
+                    },
+                )
+                .expect("seed author");
+            let row = snapback
+                .db
+                .query(
+                    &QueryPlan {
+                        table: "authors".to_owned(),
+                        filters: Vec::new(),
+                        membership_filters: Vec::new(),
+                        order: Vec::new(),
+                        limit: None,
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("read author")
+                .rows[0]
+                .clone();
+            let baseline = crate::manifest::ReadDependency {
+                table: "authors".to_owned(),
+                id: row["_id"].as_str().expect("id").to_owned(),
+                version: row["_version"].as_u64().expect("version"),
+            };
+            crate::storage::publish_schema_transition_for_test(
+                &mut snapback.db,
+                posture,
+                &"p".repeat(64),
+            );
+            (snapback, baseline, row)
+        };
+
+        // Successor-only: the pre-publication baseline refuses, stable.
+        let (mut snapback, baseline, row) =
+            build(crate::migration::CompatibilityPosture::SuccessorOnly);
+        let error = snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": baseline.id, "name": "Ada Lovelace" }),
+                    read_set: vec![baseline.clone()],
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("stale baseline must refuse under successor-only");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_RESYNC_REQUIRED");
+        assert_eq!(
+            snapback
+                .db
+                .get("authors", row["_id"].as_str().expect("id"))
+                .expect("read back")
+                .expect("row survives")["name"],
+            json!("Ada"),
+            "the refused replay wrote nothing",
+        );
+
+        // Dual-compatible: ordinary conflict rules apply — the unchanged
+        // baseline validates and the replay commits.
+        let (mut snapback, baseline, row) =
+            build(crate::migration::CompatibilityPosture::DualCompatible);
+        snapback
+            .invoke_mutation(
+                "renameAuthor",
+                HandlerInput {
+                    args: json!({ "id": baseline.id, "name": "Ada Lovelace" }),
+                    read_set: vec![baseline],
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("dual-compatible replay admits");
+        assert_eq!(
+            snapback
+                .db
+                .get("authors", row["_id"].as_str().expect("id"))
+                .expect("read back")
+                .expect("row survives")["name"],
+            json!("Ada Lovelace"),
+        );
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+    //   publication consequence on retained live state: every subscription
+    //   is disposed with a clear-retained resync; no predecessor result or
+    //   retained row survives the boundary.
+    #[test]
+    fn publication_retires_live_subscriptions_with_clear_retained_resync() {
+        let (schema, functions) = relational_live_fixture_functions(10);
+        let mut snapback = LocalSnapback::memory().expect("memory publication fixture");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "{diagnostics:?}"
+        );
+        snapback
+            .subscribe_live(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "conn-pub".to_owned(),
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe");
+        assert_eq!(snapback.subscriptions.len(), 1);
+
+        snapback
+            .retire_live_subscriptions_for_publication()
+            .expect("retire for publication");
+        assert!(snapback.subscriptions.is_empty(), "no subscription survives");
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-pub");
+        let resync = envelopes
+            .iter()
+            .find(|envelope| envelope["kind"] == "resync_required")
+            .expect("resync envelope delivered");
+        assert_eq!(resync["reason"], json!("schema_publication"));
+        assert_eq!(resync["clear_retained"], json!(true));
+    }
+
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+    //   posture-aware attest handshake: after a successor-only publication,
+    //   a client attesting the predecessor schema artifact receives the
+    //   stable upgrade-required refusal, while the successor pair still
+    //   attests matched.
+    #[test]
+    fn attest_refuses_predecessor_artifacts_after_successor_only_publication() {
+        let (schema, functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let active = snapback
+            .db
+            .auth_mode_snapshot()
+            .expect("snapshot")
+            .state
+            .active_deployment
+            .expect("active deployment");
+        let pair = |schema_hash: &str| super::EnsureAppPairIdentity {
+            schema: super::EnsureAppSchemaIdentity {
+                artifact_kind: "schemaManifest".to_owned(),
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                schema_hash: schema_hash.to_owned(),
+                inputs_hash: active.inputs_hash.clone(),
+            },
+            functions: super::EnsureAppFunctionIdentity {
+                artifact_kind: "functionManifest".to_owned(),
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                bundle_hash: active.bundle_hash.clone(),
+                inputs_hash: active.inputs_hash.clone(),
+            },
+        };
+        // Craft a format-valid predecessor hash distinct from the active one.
+        let predecessor_hash = {
+            let mut hash = active.schema_hash.clone();
+            let flipped = if hash.ends_with('0') { "1" } else { "0" };
+            hash.truncate(hash.len() - 1);
+            hash.push_str(flipped);
+            hash
+        };
+        crate::storage::publish_schema_transition_for_test(
+            &mut snapback.db,
+            crate::migration::CompatibilityPosture::SuccessorOnly,
+            &predecessor_hash,
+        );
+
+        let error = snapback
+            .attest_app(EnsureAppMode::Sessions, pair(&predecessor_hash))
+            .expect_err("predecessor artifacts must refuse after successor-only publication");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+
+        // The successor (active) pair still attests, matched.
+        let outcome = snapback
+            .attest_app(EnsureAppMode::Sessions, pair(&active.schema_hash))
+            .expect("active pair attests");
+        assert!(outcome.matched, "the successor pair stays matched");
     }
 
     fn settled_sessions_activation_snapback(
