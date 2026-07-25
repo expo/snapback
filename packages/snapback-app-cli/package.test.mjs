@@ -146,7 +146,16 @@ try {
     '/auth/session',
     '/query/listTodosOnce',
   ]);
-  assert.equal(calls.slice(2).every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'), true);
+  const liveSubscribe = calls.find(({ path }) => path === '/live/listTodos/subscribe');
+  assert.equal(liveSubscribe.authorization, null, 'connection-token live requests must not duplicate the bearer');
+  assert.equal(
+    calls
+      .slice(2)
+      .filter(({ path }) => path !== '/live/listTodos/subscribe')
+      .every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'),
+    true,
+    'ordinary agent requests retain the scoped bearer',
+  );
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
 } finally {
   await new Promise((resolve) => server.close(resolve));
