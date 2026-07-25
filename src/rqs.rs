@@ -52,6 +52,14 @@ pub const RESUME_WITNESS_MAX_WIRE_BYTES: usize = 1024 * 1024;
 pub const RESUME_KEYRING_FILE_NAME: &str = "resume-keyring.json";
 
 const MAC_DOMAIN: &str = "snapback.resume-token.v1";
+/// Relational-cursor wire prefix (LLP 0080 §2: opaque and versioned).
+pub const RELATIONAL_CURSOR_WIRE_PREFIX: &str = "sbrc1";
+/// Maximum accepted relational-cursor wire size in bytes.
+pub const RELATIONAL_CURSOR_MAX_WIRE_BYTES: usize = 1024;
+/// Staleness backstop for presented relational cursors (same window as
+/// resume tokens; an over-age cursor refuses like any other invalid cursor).
+pub const RELATIONAL_CURSOR_MAX_AGE_MS: u64 = RESUME_TOKEN_MAX_AGE_MS;
+const RELATIONAL_CURSOR_MAC_DOMAIN: &str = "snapback.relational-cursor.v1";
 const ROW_HASH_TAG: &[u8] = b"snapback-rqs-row-v1\0";
 const LEAF_TAG: &[u8] = b"snapback-rqs-leaf-v1\0";
 const XOF_TAG: &[u8] = b"snapback-rqs-xof-v1\0";
@@ -270,6 +278,142 @@ pub fn jcs(value: &Value) -> Result<String, MintRefusal> {
     let mut out = String::new();
     jcs_into(&mut out, value)?;
     Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// RelationalResultEncodingV1 (LLP 0080 §2)
+// ---------------------------------------------------------------------------
+
+/// Version identifier for the pinned relational result-byte encoding.
+pub const RELATIONAL_RESULT_ENCODING_VERSION: &str = "relational-result-encoding-v1";
+
+/// Why a row set cannot be encoded under `RelationalResultEncodingV1`.
+/// Both arms are server invariants — the executor only emits projected
+/// scalar members — so a refusal here is a bug, never a client class.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RelationalEncodingRefusal {
+    /// A row was not an object, or carried a member outside the projection
+    /// declaration. Encoding must be total over the declared shape;
+    /// dropping unknown members silently would un-pin the bytes.
+    RowShapeInvalid,
+    /// A member value failed canonicalization (non-finite number or an
+    /// integer outside the safe band) — the same values `jcs` refuses.
+    NonCanonicalValue,
+}
+
+/// Encode result rows as the pinned `RelationalResultEncodingV1` bytes
+/// (LLP 0080 §2): UTF-8 JSON with no insignificant whitespace, RFC 8785
+/// number spelling and string escaping over LLP 0051's canonical value
+/// mapping, object members in the projection declaration's order — an
+/// explicit, named divergence from JCS key sorting — absent expressed by
+/// omission and null by the literal. V1 projects only scalar leaves, so no
+/// nested-object ordering question arises (nested values still encode
+/// canonically if they ever appear).
+pub fn relational_result_encoding_v1(
+    field_order: &[String],
+    rows: &[Value],
+) -> Result<String, RelationalEncodingRefusal> {
+    let mut out = String::from("[");
+    for (row_index, row) in rows.iter().enumerate() {
+        if row_index > 0 {
+            out.push(',');
+        }
+        let Value::Object(members) = row else {
+            return Err(RelationalEncodingRefusal::RowShapeInvalid);
+        };
+        if members
+            .keys()
+            .any(|member| !field_order.iter().any(|field| field == member))
+        {
+            return Err(RelationalEncodingRefusal::RowShapeInvalid);
+        }
+        out.push('{');
+        let mut first = true;
+        for field in field_order {
+            let Some(value) = members.get(field) else {
+                // Absent is expressed by omission (null stays the literal).
+                continue;
+            };
+            if !first {
+                out.push(',');
+            }
+            first = false;
+            jcs_escape_into(&mut out, field);
+            out.push(':');
+            jcs_into(&mut out, value)
+                .map_err(|_| RelationalEncodingRefusal::NonCanonicalValue)?;
+        }
+        out.push('}');
+    }
+    out.push(']');
+    Ok(out)
+}
+
+/// The committed `schemas/relational.result-encoding-v1.json` artifact:
+/// the encoding rules plus executable golden vectors, generated through the
+/// encoder itself so the committed file cannot drift from the
+/// implementation (the drift gate re-runs this; the unit tests pin the
+/// exact bytes so the encoder cannot drift either).
+pub fn relational_result_encoding_artifact() -> Value {
+    let vector = |name: &str, field_order: &[&str], rows: Value| {
+        let fields: Vec<String> = field_order.iter().map(|s| (*s).to_owned()).collect();
+        let rows_vec = rows.as_array().cloned().expect("vector rows are an array");
+        let bytes = relational_result_encoding_v1(&fields, &rows_vec)
+            .expect("golden vectors encode");
+        serde_json::json!({
+            "name": name,
+            "fieldOrder": fields,
+            "rows": rows_vec,
+            "bytes": bytes,
+        })
+    };
+    serde_json::json!({
+        "version": RELATIONAL_RESULT_ENCODING_VERSION,
+        "authority": "llp/0080-portable-relational-queries-and-projections.rfc.md#2-portable-evaluation-semantics",
+        "rules": [
+            "UTF-8 JSON with no insignificant whitespace",
+            "RFC 8785 number spelling and string escaping over LLP 0051's canonical value mapping",
+            "object members in the projection declaration's order (a named divergence from JCS key sorting)",
+            "absent expressed by omission; null by the literal",
+        ],
+        "vectors": [
+            vector(
+                "declaration-order-not-sorted",
+                &["title", "authorName", "shelf"],
+                serde_json::json!([
+                    { "title": "alpha", "authorName": "Ada", "shelf": "fiction" },
+                ]),
+            ),
+            vector(
+                "absent-omitted-null-literal",
+                &["title", "authorName", "shelf"],
+                serde_json::json!([
+                    { "title": "beta", "authorName": null },
+                    {},
+                ]),
+            ),
+            vector(
+                "number-spelling",
+                &["int", "half", "big", "tiny", "negzero"],
+                serde_json::json!([
+                    { "int": 42, "half": 0.5, "big": 1e21, "tiny": 1e-7, "negzero": -0.0 },
+                ]),
+            ),
+            vector(
+                "string-escaping-and-unicode",
+                &["control", "quote", "nfc", "nfd"],
+                serde_json::json!([
+                    {
+                        "control": "a\u{8}b\tc\u{1f}",
+                        "quote": "say \"hi\" \\ done",
+                        "nfc": "caf\u{e9}",
+                        "nfd": "cafe\u{301}",
+                    },
+                ]),
+            ),
+            vector("empty-result", &["title"], serde_json::json!([])),
+        ],
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -706,6 +850,128 @@ pub fn mint_token_wire(key: &[u8], key_id: &str, body: &ResumeTokenBody) -> Stri
 }
 
 // ---------------------------------------------------------------------------
+// Relational pagination cursor (LLP 0080 §2)
+// ---------------------------------------------------------------------------
+
+/// The opaque relational continuation body. The cursor binds the app, the
+/// plan, the normalized non-cursor arguments, the order schema, and the
+/// caller's authority partition — all folded into `binding` — and carries the
+/// last consumed root's order-key values (which may include fields the
+/// application projection does not expose; the MAC is what keeps them
+/// opaque). `deny_unknown_fields` is safe because only the minting server
+/// family decodes its own cursors; new fields require `sbrc2`.
+///
+/// @ref LLP 0080#2-portable-evaluation-semantics — the cursor is opaque and
+///   versioned; a malformed, cross-plan, cross-argument-set,
+///   authority-crossing, or order-schema-invalid cursor is refused with
+///   `SNAPBACK_RELATIONAL_CURSOR_INVALID`, never repositioned.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RelationalCursorBody {
+    pub app: String,
+    /// `sha256:` digest over the canonical binding object (app, plan,
+    /// normalized non-cursor args, order schema, authority partition).
+    pub binding: String,
+    /// Order-key values of the last consumed root, aligned 1:1 with the
+    /// plan's order fields; `null` marks a null/absent component.
+    pub boundary: Vec<Value>,
+    /// The `_id` tie-break of the last consumed root.
+    pub id: String,
+    pub issued_at: u64,
+}
+
+fn relational_cursor_mac(key: &[u8], key_id: &str, body: &RelationalCursorBody) -> HmacSha256 {
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    put_string(&mut mac, RELATIONAL_CURSOR_MAC_DOMAIN);
+    put_string(&mut mac, key_id);
+    put_string(&mut mac, &body.app);
+    put_string(&mut mac, &body.binding);
+    put_u64(&mut mac, body.boundary.len() as u64);
+    for value in &body.boundary {
+        // Boundary values are canonical JSON scalars; a non-canonicalizable
+        // value was refused at mint time, so this frame is total here.
+        put_string(&mut mac, &jcs(value).unwrap_or_default());
+    }
+    put_string(&mut mac, &body.id);
+    put_u64(&mut mac, body.issued_at);
+    mac
+}
+
+/// Mint the wire cursor. Returns `None` when a boundary value cannot be
+/// canonicalized (non-finite or unsafe numbers) or the wire form would
+/// exceed the size cap — the caller must fail closed rather than serve a
+/// full page without its continuation.
+pub fn mint_relational_cursor(
+    key: &[u8],
+    key_id: &str,
+    body: &RelationalCursorBody,
+) -> Option<String> {
+    for value in &body.boundary {
+        if jcs(value).is_err() {
+            return None;
+        }
+    }
+    let body_value = serde_json::to_value(body).ok()?;
+    let body_json = jcs(&body_value).ok()?;
+    let mac = relational_cursor_mac(key, key_id, body).finalize().into_bytes();
+    let wire = format!(
+        "{RELATIONAL_CURSOR_WIRE_PREFIX}.{key_id}.{}.{}",
+        URL_SAFE_NO_PAD.encode(body_json.as_bytes()),
+        URL_SAFE_NO_PAD.encode(mac)
+    );
+    (wire.len() <= RELATIONAL_CURSOR_MAX_WIRE_BYTES).then_some(wire)
+}
+
+/// The one relational-cursor refusal. Deliberately cause-free: the six
+/// refusal classes of LLP 0080 §2 all answer with one byte-identical
+/// `SNAPBACK_RELATIONAL_CURSOR_INVALID`, so no layer may produce
+/// distinguishable causes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RelationalCursorRefusal;
+
+/// Decode and cryptographically verify a presented relational cursor.
+/// Semantic admission (binding digest, boundary-versus-order-schema
+/// validation) is the caller's.
+pub fn decode_and_verify_relational_cursor(
+    token_wire: &str,
+    keyring: &ResumeKeyring,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<RelationalCursorBody, RelationalCursorRefusal> {
+    const REFUSED: RelationalCursorRefusal = RelationalCursorRefusal;
+    if token_wire.len() > RELATIONAL_CURSOR_MAX_WIRE_BYTES {
+        return Err(REFUSED);
+    }
+    let mut parts = token_wire.split('.');
+    let (Some(prefix), Some(key_id), Some(body_part), Some(mac_part), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Err(REFUSED);
+    };
+    if prefix != RELATIONAL_CURSOR_WIRE_PREFIX || ResumeKeyId::parse(key_id).is_err() {
+        return Err(REFUSED);
+    }
+    let body_bytes = URL_SAFE_NO_PAD.decode(body_part).map_err(|_| REFUSED)?;
+    let mac_bytes = URL_SAFE_NO_PAD.decode(mac_part).map_err(|_| REFUSED)?;
+    if mac_bytes.len() != 32 {
+        return Err(REFUSED);
+    }
+    let body: RelationalCursorBody = serde_json::from_slice(&body_bytes).map_err(|_| REFUSED)?;
+    let key = keyring.verification_key(key_id, now_ms).map_err(|_| REFUSED)?;
+    relational_cursor_mac(key.secret.as_ref(), key_id, &body)
+        .verify_slice(&mac_bytes)
+        .map_err(|_| REFUSED)?;
+    if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
+        return Err(REFUSED);
+    }
+    Ok(body)
+}
+
+// ---------------------------------------------------------------------------
 // Resume keyring (separate ring and file from the auth keyring)
 // ---------------------------------------------------------------------------
 
@@ -867,6 +1133,17 @@ impl ResumeKeyring {
         Some((key.key_id.clone(), key.secret.clone()))
     }
 
+    /// The active minting key without the rotation side effect — for mint
+    /// sites that hold only a shared reference (relational-cursor minting on
+    /// the read lanes). Rotation cadence is owned by the `&mut` resume-token
+    /// mint path; a slightly overdue key still verifies inside the retired
+    /// overlap window, so skipping rotation here is availability-neutral.
+    pub fn active_current(&self) -> Option<(String, Zeroizing<[u8; 32]>)> {
+        let index = self.active_index()?;
+        let key = &self.keys[index];
+        Some((key.key_id.clone(), key.secret.clone()))
+    }
+
     /// Resolve a presented key id for verification under the overlap window.
     fn verification_key(
         &self,
@@ -991,6 +1268,61 @@ pub fn decode_and_verify(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — the result bytes are
+    //   pinned as a versioned RelationalResultEncodingV1 with golden vectors
+    //   in the committed schema; these are the exact bytes.
+    #[test]
+    fn relational_result_encoding_v1_pins_golden_bytes() {
+        let artifact = relational_result_encoding_artifact();
+        let vectors: std::collections::BTreeMap<&str, &str> = artifact["vectors"]
+            .as_array()
+            .expect("vectors array")
+            .iter()
+            .map(|vector| {
+                (
+                    vector["name"].as_str().expect("vector name"),
+                    vector["bytes"].as_str().expect("vector bytes"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            vectors["declaration-order-not-sorted"],
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+            "members follow the projection declaration, not JCS sorting",
+        );
+        assert_eq!(
+            vectors["absent-omitted-null-literal"],
+            r#"[{"title":"beta","authorName":null},{}]"#,
+        );
+        assert_eq!(
+            vectors["number-spelling"],
+            r#"[{"int":42,"half":0.5,"big":1e+21,"tiny":1e-7,"negzero":0}]"#,
+        );
+        assert_eq!(
+            vectors["string-escaping-and-unicode"],
+            "[{\"control\":\"a\\bb\\tc\\u001f\",\"quote\":\"say \\\"hi\\\" \\\\ done\",\
+             \"nfc\":\"caf\u{e9}\",\"nfd\":\"cafe\u{301}\"}]",
+            "JCS short escapes, \\u for other controls, and no unicode normalization",
+        );
+        assert_eq!(vectors["empty-result"], "[]");
+
+        // Refusals are server invariants: rows must be objects over the
+        // declared members, and values must canonicalize.
+        let field = vec!["a".to_owned()];
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!(3)]),
+            Err(RelationalEncodingRefusal::RowShapeInvalid),
+        );
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!({ "b": 1 })]),
+            Err(RelationalEncodingRefusal::RowShapeInvalid),
+        );
+        assert_eq!(
+            relational_result_encoding_v1(&field, &[json!({ "a": 9_007_199_254_740_993_i64 })]),
+            Err(RelationalEncodingRefusal::NonCanonicalValue),
+        );
+    }
 
     #[test]
     fn jcs_number_serialization_matches_ecmascript() {

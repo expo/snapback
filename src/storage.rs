@@ -4,7 +4,8 @@ use crate::manifest::{
     AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
     CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-    MutationOutput, MutationPlan, MutationStep, OrderDirection, PORTABLE_STORAGE_VERSION_MAX,
+    MutationOutput, MutationPlan, MutationStep, OrderDirection, OrderExpr,
+    PORTABLE_STORAGE_VERSION_MAX,
     QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
     QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
     auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
@@ -2273,8 +2274,9 @@ impl LocalDatabase {
         &self,
         plan: &crate::manifest::RelationalQueryPlan,
         input: &HandlerInput,
-    ) -> SnapbackResult<QueryOutput> {
-        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input))
+        cursor: Option<&KeysetAfter>,
+    ) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
+        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input, cursor))
     }
 
     /// Run one complete query invocation against a snapshot-bound view of this
@@ -2847,6 +2849,8 @@ impl LocalDatabase {
                         now_ms,
                         Some(&next_id),
                         None,
+                        None,
+                        false,
                     )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
@@ -3936,6 +3940,133 @@ pub(crate) fn query_on(
     query_on_with_storage_limit(conn, schema, plan, input, effective_query_limit(plan))
 }
 
+/// A `root-window-v1` keyset boundary: the order-key values and `_id` of the
+/// last consumed root. `entries` aligns 1:1 with the plan's `order` fields —
+/// a `Value::Null` entry marks a null/absent component, which sorts last
+/// under either direction (`NULLS LAST`). The same shape serves both roles:
+/// the verified boundary a presented cursor decodes to, and the continuation
+/// the executor reports for the next mint.
+///
+/// @ref LLP 0080#2-portable-evaluation-semantics — continuation follows the
+///   root order key from the last consumed root, including roots omitted by
+///   an inner join; boundary keys may include fields the projection does not
+///   expose.
+#[derive(Clone, Debug, PartialEq)]
+pub struct KeysetAfter {
+    pub entries: Vec<(String, Value)>,
+    pub id: String,
+}
+
+/// Lower a keyset boundary to one WHERE clause selecting rows strictly after
+/// the boundary row under the plan's `(order…, _id ASC)` total order with
+/// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
+/// clauses so it composes with mixed directions and null boundary
+/// components; a plain SQL row-value comparison would inherit SQL null
+/// semantics and skip rows.
+fn build_keyset_after_sql(
+    table: &TableManifest,
+    order: &[OrderExpr],
+    keyset: &KeysetAfter,
+    filter_bindings: &mut usize,
+) -> SnapbackResult<(String, Vec<SqlValue>)> {
+    if keyset.entries.len() != order.len()
+        || keyset
+            .entries
+            .iter()
+            .zip(order)
+            .any(|((field, _), order)| field != &order.field)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "keyset boundary fields must match the plan's order fields exactly",
+        ));
+    }
+    let id_value = Value::String(keyset.id.clone());
+    validate_query_filter_value(table, "_id", &id_value)?;
+
+    let mut disjuncts: Vec<String> = Vec::new();
+    let mut values: Vec<SqlValue> = Vec::new();
+    // Equality clauses (and their bound values) for the already-walked
+    // prefix of the order key.
+    let mut prefix_clauses: Vec<String> = Vec::new();
+    let mut prefix_values: Vec<SqlValue> = Vec::new();
+
+    for ((field, value), order) in keyset.entries.iter().zip(order) {
+        ensure_orderable_field(table, field)?;
+        validate_query_filter_value(table, field, value)?;
+        let ident = quote_ident(field)?;
+        let ftype = field_type(table, field);
+        if value.is_null() {
+            // Nothing sorts after a null component except by later
+            // tie-breaks; contribute only the prefix equality.
+            prefix_clauses.push(format!("{ident} IS NULL"));
+            continue;
+        }
+        let comparator = match order.direction {
+            OrderDirection::Asc => ">",
+            OrderDirection::Desc => "<",
+        };
+        let mut clause = prefix_clauses.clone();
+        clause.push(format!("({ident} {comparator} ? OR {ident} IS NULL)"));
+        disjuncts.push(format!("({})", clause.join(" AND ")));
+        add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, field)?;
+        values.extend(prefix_values.iter().cloned());
+        values.push(json_to_sql_value(value, ftype)?);
+
+        prefix_clauses.push(format!("{ident} = ?"));
+        add_query_filter_bindings(filter_bindings, 1, field)?;
+        prefix_values.push(json_to_sql_value(value, ftype)?);
+    }
+
+    let mut final_clause = prefix_clauses;
+    final_clause.push("\"_id\" > ?".to_owned());
+    disjuncts.push(format!("({})", final_clause.join(" AND ")));
+    add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, "_id")?;
+    values.extend(prefix_values);
+    values.push(json_to_sql_value(&id_value, None)?);
+
+    Ok((format!("({})", disjuncts.join(" OR ")), values))
+}
+
+/// Validate a decoded cursor boundary against the plan's order schema and
+/// build the executor keyset. Every failure means the presented cursor does
+/// not fit this plan's order schema — the caller collapses it into the one
+/// uniform `SNAPBACK_RELATIONAL_CURSOR_INVALID` refusal (LLP 0080 §2:
+/// refused, never repositioned).
+pub(crate) fn validate_relational_boundary(
+    schema: &SchemaManifest,
+    plan: &crate::manifest::RelationalQueryPlan,
+    boundary: &[Value],
+    id: &str,
+) -> SnapbackResult<KeysetAfter> {
+    let table = schema_table(schema, &plan.root)?;
+    if boundary.len() != plan.order.len() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "cursor boundary arity does not match the plan's order schema",
+        ));
+    }
+    if id.is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_KEYSET_INVALID",
+            "query",
+            "cursor boundary requires a non-empty _id tie-break",
+        ));
+    }
+    let mut entries = Vec::with_capacity(boundary.len());
+    for (value, order) in boundary.iter().zip(&plan.order) {
+        ensure_orderable_field(table, &order.field)?;
+        validate_query_filter_value(table, &order.field, value)?;
+        entries.push((order.field.clone(), value.clone()));
+    }
+    Ok(KeysetAfter {
+        entries,
+        id: id.to_owned(),
+    })
+}
+
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
 //   0..=1024. Structural/type validation beyond this is generation's job;
@@ -3974,7 +4105,8 @@ pub(crate) fn query_relational_on(
     db: &DbRead<'_>,
     plan: &crate::manifest::RelationalQueryPlan,
     input: &HandlerInput,
-) -> SnapbackResult<QueryOutput> {
+    cursor: Option<&KeysetAfter>,
+) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
     use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
 
     validate_relational_plan_shape(plan)?;
@@ -3992,14 +4124,45 @@ pub(crate) fn query_relational_on(
             membership_filters: Vec::new(),
             indexed_by: Some(plan.root_index.clone()),
         };
-        db.query(&root_plan, input)?
+        db.query_keyset(&root_plan, input, cursor)?
     };
     if plan.take == 0 {
-        return Ok(QueryOutput {
-            version: root_window.version,
-            rows: Vec::new(),
-        });
+        return Ok((
+            QueryOutput {
+                version: root_window.version,
+                rows: Vec::new(),
+                cursor: None,
+            },
+            None,
+        ));
     }
+
+    // `take` bounds consumed authorized roots, not emitted rows. A full
+    // window continues from the last consumed root — even when every root
+    // in the window was omitted by an inner join — and a short window is
+    // terminal (LLP 0080 §2).
+    let continuation = if root_window.rows.len() == plan.take as usize {
+        root_window.rows.last().map(|last| {
+            let entries = plan
+                .order
+                .iter()
+                .map(|order| {
+                    (
+                        order.field.clone(),
+                        last.get(&order.field).cloned().unwrap_or(Value::Null),
+                    )
+                })
+                .collect();
+            let id = last
+                .get("_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            KeysetAfter { entries, id }
+        })
+    } else {
+        None
+    };
 
     let mut rows = Vec::with_capacity(root_window.rows.len());
     for root_row in &root_window.rows {
@@ -4064,28 +4227,34 @@ pub(crate) fn query_relational_on(
 
         // Field order inside the JSON value is serde-sorted here; the
         // declaration-order byte rule (RelationalResultEncodingV1) is the
-        // wire encoder's contract, not the storage row's.
+        // wire encoder's contract, not the storage row's. Absent is
+        // expressed by omission; a `left` join's missing joined row sets
+        // every joined leaf to the null literal (LLP 0080 §2).
         let mut projected = Map::new();
         for leaf in &plan.projection {
             let value = match &leaf.source {
-                ProjectionSource::Literal(value) => value.clone(),
-                ProjectionSource::RootField(field) => {
-                    root_row.get(field).cloned().unwrap_or(Value::Null)
-                }
-                ProjectionSource::JoinedField(field) => joined_row
-                    .as_ref()
-                    .and_then(|row| row.get(field).cloned())
-                    .unwrap_or(Value::Null),
+                ProjectionSource::Literal(value) => Some(value.clone()),
+                ProjectionSource::RootField(field) => root_row.get(field).cloned(),
+                ProjectionSource::JoinedField(field) => match &joined_row {
+                    Some(row) => row.get(field).cloned(),
+                    None => Some(Value::Null),
+                },
             };
-            projected.insert(leaf.name.clone(), value);
+            if let Some(value) = value {
+                projected.insert(leaf.name.clone(), value);
+            }
         }
         rows.push(Value::Object(projected));
     }
 
-    Ok(QueryOutput {
-        version: root_window.version,
-        rows,
-    })
+    Ok((
+        QueryOutput {
+            version: root_window.version,
+            rows,
+            cursor: None,
+        },
+        continuation,
+    ))
 }
 
 pub(crate) fn query_on_with_storage_limit(
@@ -4098,6 +4267,28 @@ pub(crate) fn query_on_with_storage_limit(
     query_on_with_storage_limit_visibility(conn, schema, plan, input, storage_limit, false)
 }
 
+/// The relational root window's entry: the generic validated query path with
+/// an optional keyset boundary and the always-total `(order…, _id ASC)`
+/// ordering `root-window-v1` continuation identity depends on.
+pub(crate) fn query_on_keyset(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    keyset: Option<&KeysetAfter>,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        effective_query_limit(plan),
+        false,
+        keyset,
+        true,
+    )
+}
+
 fn query_on_with_storage_limit_visibility(
     conn: &Connection,
     schema: &SchemaManifest,
@@ -4105,6 +4296,29 @@ fn query_on_with_storage_limit_visibility(
     input: &HandlerInput,
     storage_limit: usize,
     allow_private_membership: bool,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        storage_limit,
+        allow_private_membership,
+        None,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn query_on_with_storage_limit_visibility_keyset(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    storage_limit: usize,
+    allow_private_membership: bool,
+    keyset: Option<&KeysetAfter>,
+    force_id_order: bool,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
@@ -4163,6 +4377,8 @@ fn query_on_with_storage_limit_visibility(
             now_millis(),
             None,
             Some(storage_limit),
+            keyset,
+            force_id_order,
         )?;
         let mut statement = conn.prepare(&sql)?;
         let columns = statement
@@ -4182,6 +4398,7 @@ fn query_on_with_storage_limit_visibility(
         Ok(QueryOutput {
             version: snapshot_version,
             rows: output,
+            cursor: None,
         })
     })
 }
@@ -4558,6 +4775,19 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    /// Keyset-bounded, total-ordered query — the relational root window.
+    pub(crate) fn query_keyset(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        keyset: Option<&KeysetAfter>,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on_keyset(conn, schema, plan, input, keyset),
+            DbRead::Live(db) => query_on_keyset(&db.conn, &db.schema, plan, input, keyset),
         }
     }
 
@@ -6670,6 +6900,8 @@ fn build_query_sql(
     now_ms: u64,
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
     sql_limit: Option<usize>,
+    keyset: Option<&KeysetAfter>,
+    force_id_order: bool,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
     // itself be the query's primary table; without distinct aliases the inner
@@ -6840,12 +7072,22 @@ fn build_query_sql(
         values.extend(extra);
     }
 
+    if let Some(keyset) = keyset {
+        let (clause, keyset_values) =
+            build_keyset_after_sql(table, &plan.order, keyset, &mut filter_bindings)?;
+        where_parts.push(clause);
+        values.extend(keyset_values);
+    }
+
     if !where_parts.is_empty() {
         sql.push_str(" WHERE ");
         sql.push_str(&where_parts.join(" AND "));
     }
 
-    if !plan.order.is_empty() {
+    // `force_id_order` (the relational root window) keeps the total order —
+    // and therefore its keyset continuation — deterministic even when the
+    // plan declares no order fields: `_id ASC` alone is still a total order.
+    if !plan.order.is_empty() || force_id_order || keyset.is_some() {
         let mut order_parts = Vec::new();
         for order in &plan.order {
             ensure_orderable_field(table, &order.field)?;
@@ -11514,9 +11756,13 @@ mod guarded_commit_tests {
         // user-b, so the joined predicate makes her absent and b2 is
         // omitted; b3 has a null join key; b4 is another owner's root and
         // never occupies a window slot. Short page, no refill.
-        let inner = db
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+        let (inner, inner_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner relational query");
+        assert!(
+            inner_continuation.is_none(),
+            "a short page is terminal and returns no continuation",
+        );
         assert_eq!(
             inner.rows,
             vec![json!({
@@ -11528,8 +11774,8 @@ mod guarded_commit_tests {
 
         // Left: every visible root emits; missing/invisible/null-key joined
         // leaves are null — indistinguishable from one another.
-        let left = db
-            .query_relational(&relational_plan(JoinKind::Left, 10), &input)
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left relational query");
         let titles: Vec<(&str, bool)> = left
             .rows
@@ -11545,17 +11791,22 @@ mod guarded_commit_tests {
         // take bounds consumed authorized roots, not emitted rows: with
         // take=2 the window is [alpha, beta]; beta's author is invisible so
         // inner emits one row, and gamma is never consumed to refill.
-        let windowed = db
-            .query_relational(&relational_plan(JoinKind::Inner, 2), &input)
+        let (windowed, windowed_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
             .expect("windowed inner query");
         assert_eq!(windowed.rows.len(), 1);
         assert_eq!(windowed.rows[0]["title"], json!("alpha"));
+        // The window consumed its full take of authorized roots, so the
+        // short emitted page still carries a progressing continuation.
+        let continuation = windowed_continuation.expect("full window continues");
+        assert_eq!(continuation.id, "b2");
 
         // take: 0 is an empty page that consumes nothing.
-        let empty = db
-            .query_relational(&relational_plan(JoinKind::Inner, 0), &input)
+        let (empty, empty_continuation) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
+        assert!(empty_continuation.is_none());
 
         // Below-constraint duplicate injection: a second row under the
         // claimed-unique joined key is a storage-invariant refusal.
@@ -11587,7 +11838,7 @@ mod guarded_commit_tests {
             })
             .expect("seed duplicate authors");
         let error = corrupted
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect_err("duplicate unique key must refuse");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
 
@@ -11595,15 +11846,168 @@ mod guarded_commit_tests {
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
         no_pairs.join_on.clear();
         let error = db
-            .query_relational(&no_pairs, &input)
+            .query_relational(&no_pairs, &input, None)
             .expect_err("zero join pairs");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
         let mut too_big = relational_plan(JoinKind::Inner, 10);
         too_big.take = 1025;
         let error = db
-            .query_relational(&too_big, &input)
+            .query_relational(&too_big, &input, None)
             .expect_err("take over 1024");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — continuation follows
+    //   the root order key from the last consumed root: a full window
+    //   continues even when every root in it was omitted by the inner join
+    //   (all-omitted windows progress), and only a short window is terminal.
+    #[test]
+    fn relational_keyset_pages_without_skip_or_duplicate() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let plan = relational_plan(JoinKind::Inner, 1);
+
+        // Visible roots for user-a in title order: alpha(b1), beta(b2,
+        // author invisible), gamma(b3, null join key).
+        let (page1, cursor1) = db
+            .query_relational(&plan, &input, None)
+            .expect("first page");
+        assert_eq!(page1.rows.len(), 1);
+        assert_eq!(page1.rows[0]["title"], json!("alpha"));
+        let cursor1 = cursor1.expect("full window continues");
+        assert_eq!(cursor1.id, "b1");
+        assert_eq!(cursor1.entries, vec![("title".to_owned(), json!("alpha"))]);
+
+        // Window [beta]: consumed one root, emitted zero rows (invisible
+        // author), still progresses.
+        let (page2, cursor2) = db
+            .query_relational(&plan, &input, Some(&cursor1))
+            .expect("second page");
+        assert!(page2.rows.is_empty(), "all-omitted window emits no rows");
+        let cursor2 = cursor2.expect("all-omitted window still progresses");
+        assert_eq!(cursor2.id, "b2");
+
+        // Window [gamma]: null join key, same shape.
+        let (page3, cursor3) = db
+            .query_relational(&plan, &input, Some(&cursor2))
+            .expect("third page");
+        assert!(page3.rows.is_empty());
+        let cursor3 = cursor3.expect("full window continues");
+        assert_eq!(cursor3.id, "b3");
+
+        // Past the last root: consumes nothing, terminal — end-of-stream
+        // is an empty page with no continuation, exactly as pinned.
+        let (page4, cursor4) = db
+            .query_relational(&plan, &input, Some(&cursor3))
+            .expect("terminal page");
+        assert!(page4.rows.is_empty());
+        assert!(cursor4.is_none(), "a short window is terminal");
+
+        // No skip, no duplicate: the union of consumed roots across pages
+        // is exactly the unpaged window.
+        let (all, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("unpaged window");
+        assert_eq!(all.rows.len(), 3);
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — executor rows encode
+    //   byte-deterministically under RelationalResultEncodingV1: members in
+    //   projection declaration order, left-join nulls as the literal, and
+    //   the same bytes on every evaluation.
+    #[test]
+    fn relational_rows_encode_under_result_encoding_v1() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let field_order: Vec<String> = ["title", "authorName", "shelf"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        let (inner, _) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .expect("inner query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
+                .expect("inner rows encode"),
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+        );
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("left query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
+                .expect("left rows encode"),
+            concat!(
+                r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"},"#,
+                r#"{"title":"beta","authorName":null,"shelf":"fiction"},"#,
+                r#"{"title":"gamma","authorName":null,"shelf":"fiction"}]"#,
+            ),
+            "left-join nulls stay literal; members follow the declaration order",
+        );
+    }
+
+    // The keyset lowering matches Snapback's total order exactly: NULLS
+    // LAST in both directions and the `_id` tie-break, so a boundary can
+    // sit on a duplicate order key or a null component without skipping or
+    // duplicating rows.
+    #[test]
+    fn keyset_lowering_totalizes_nulls_and_tiebreak() {
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let plan = QueryPlan {
+            table: "books".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: vec![OrderExpr {
+                field: "authorSlug".to_owned(),
+                direction: OrderDirection::Asc,
+            }],
+            limit: None,
+            indexed_by: None,
+        };
+        let ids = |output: &QueryOutput| {
+            output
+                .rows
+                .iter()
+                .map(|row| row["_id"].as_str().expect("row id").to_owned())
+                .collect::<Vec<_>>()
+        };
+        let boundary = |value: Value, id: &str| KeysetAfter {
+            entries: vec![("authorSlug".to_owned(), value)],
+            id: id.to_owned(),
+        };
+        db.with_pinned_read_view(|view| {
+            // Total order: b1(ada), b4(ada), b2(grace), b3(null).
+            let full = view.query_keyset(&plan, &input, None)?;
+            assert_eq!(ids(&full), vec!["b1", "b4", "b2", "b3"]);
+            // Duplicate order key: the `_id` tie-break carries the boundary.
+            let after_b1 = view.query_keyset(&plan, &input, Some(&boundary(json!("ada"), "b1")))?;
+            assert_eq!(ids(&after_b1), vec!["b4", "b2", "b3"]);
+            // Nulls sort after every value, so they follow a non-null boundary.
+            let after_b2 =
+                view.query_keyset(&plan, &input, Some(&boundary(json!("grace"), "b2")))?;
+            assert_eq!(ids(&after_b2), vec!["b3"]);
+            // A null boundary component admits only later tie-breaks.
+            let after_b3 = view.query_keyset(&plan, &input, Some(&boundary(Value::Null, "b3")))?;
+            assert!(ids(&after_b3).is_empty());
+            // A boundary whose fields do not match the order schema is an
+            // internal invariant refusal, not a silent reposition.
+            let error = view
+                .query_keyset(
+                    &plan,
+                    &input,
+                    Some(&KeysetAfter {
+                        entries: vec![("title".to_owned(), json!("alpha"))],
+                        id: "b1".to_owned(),
+                    }),
+                )
+                .expect_err("mismatched boundary fields must refuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_KEYSET_INVALID");
+            Ok(())
+        })
+        .expect("pinned keyset probes");
     }
 
     // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
@@ -17824,6 +18228,8 @@ mod membership_write_tests {
             0,
             None,
             None,
+            None,
+            false,
         )
         .expect("lower internal semi-join");
         assert!(sql.contains("AS \"__snapback_outer\""));

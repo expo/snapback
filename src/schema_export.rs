@@ -335,13 +335,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// committed beside the schemas so a pinned git checkout is sufficient for a
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
-    vec![SchemaArtifact {
-        file: "data-tier.profile.json",
-        schema: sorted_keys(
-            serde_json::to_value(DataTierProfile::current())
-                .expect("data-tier profile serializes to JSON"),
-        ),
-    }]
+    vec![
+        SchemaArtifact {
+            file: "data-tier.profile.json",
+            schema: sorted_keys(
+                serde_json::to_value(DataTierProfile::current())
+                    .expect("data-tier profile serializes to JSON"),
+            ),
+        },
+        // RelationalResultEncodingV1 golden vectors (LLP 0080 §2): the
+        // committed vectors are generated through the encoder itself, so
+        // this file, the drift gate, and the runtime cannot diverge.
+        SchemaArtifact {
+            file: "relational.result-encoding-v1.json",
+            schema: sorted_keys(crate::rqs::relational_result_encoding_artifact()),
+        },
+    ]
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

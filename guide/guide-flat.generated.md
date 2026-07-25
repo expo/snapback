@@ -2125,8 +2125,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-24
-reviewed-commit: 52fba7049c1f3a44f2d13238494b03d611b53879
+reviewed: 2026-07-25
+reviewed-commit: e1edbbc1a706d0406de24646d2731b7e9fe93bd8
 ---
 
 # Relational queries (bounded joins)
@@ -2197,9 +2197,34 @@ Live subscriptions deliver whole-result replacement (`live_replace`): a
 commit touching either source re-runs the query. No incremental delta or
 skip proof is claimed, matching LLP 0080's deliberately conservative v1.
 
-Maintained projections (`defineMaintainedProjection`), opaque pagination
-cursors, and author-supplied root filters are specified by LLP 0080 but not
-yet implemented — see the Step 5 implementation program under `issues/`.
+## Pagination
+
+Every relational query accepts one implicit argument, `cursor`. When a page
+consumes its full `take` of authorized roots, the response carries an opaque
+versioned continuation cursor next to `rows`; pass it back as
+`{ cursor }` to resume from the last consumed root. The contract:
+
+- **`take` counts consumed roots, not emitted rows.** An `inner` join can
+  emit a short — even empty — page whose continuation still progresses, and
+  no page is refilled.
+- **A short page is terminal.** A page that consumed fewer than `take`
+  roots returns no cursor; `take: 0` returns an empty page with no cursor
+  and consumes nothing.
+- **Cursors are bound, not positional.** The cursor binds the app, the
+  plan, the argument set, the order schema, and the caller's authority
+  partition. A malformed, tampered, cross-plan, cross-argument,
+  cross-user, or stale-authority cursor — including one presented after an
+  authorization change — is refused with `SNAPBACK_RELATIONAL_CURSOR_INVALID`
+  (HTTP 400), never silently repositioned, and every refusal class answers
+  with byte-identical output.
+- **Pages are not snapshot-consistent with each other.** Continuation
+  guarantees no skipped and no duplicated root among roots untouched by
+  concurrent mutations; a concurrently mutated root may move relative to
+  the boundary.
+
+Maintained projections (`defineMaintainedProjection`) and author-supplied
+root filters are specified by LLP 0080 but not yet implemented — see the
+Step 5 implementation program under `issues/`.
 
 ---
 

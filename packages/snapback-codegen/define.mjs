@@ -876,7 +876,11 @@ export function defineRelationalQuery(spec) {
     [FN]: true,
     __kind: 'LiveQuery',
     auth: computedOutput === 'owner' ? 'authenticated' : 'public',
-    args: {},
+    // The one implicit argument every relational query accepts: the opaque
+    // versioned continuation cursor from a previous full page (LLP 0080 §2).
+    // Authors declare no arguments of their own in v1, so the name cannot
+    // collide.
+    args: { cursor: v.optional(v.string()) },
     ...(spec.defaultLive === false ? { defaultLive: false } : {}),
     relationalPlan: {
       root: rootFacts.name,

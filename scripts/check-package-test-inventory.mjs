@@ -44,7 +44,9 @@ const inventories = [
       'hosted-browser.test.mjs',
       'package.test.mjs',
       'rqs-digest-parity.test.mjs',
+      'rqs-resume-native.test.mjs',
       'rqs-resume.test.mjs',
+      'rqs-store-file.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
@@ -84,6 +86,7 @@ const inventories = [
       'protected-query-profile.test.mjs',
       'rbac-authoring.test.mjs',
       'receipt-capability.test.mjs',
+      'relational-authoring.test.mjs',
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
       'standard-patterns.test.mjs',
@@ -199,7 +202,13 @@ const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
 // 77 -> 79 (2026-07-24, ENG-25454): @snapback/vite gains channel-a.test.mjs
 // and rqs-serializer.test.mjs (LLP 0092 §0E Channel A seam + serializer).
-assert.equal(total, 79, 'reviewed package/admin test count changed');
+// 79 -> 82 (2026-07-25, ENG-25456): @snapback/client gains
+// rqs-store-file.test.mjs and rqs-resume-native.test.mjs (LLP 0090 step-5
+// native arm), and @snapback/codegen's relational-authoring.test.mjs
+// (landed f779c35c, LLP 0080 slice 3) is registered here — the landing
+// commit added the file and its test script entry without updating this
+// canonical inventory.
+assert.equal(total, 82, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -1718,7 +1718,6 @@
         "schemaVersion",
         "appId",
         "unsupportedDependencyDiagnostics",
-        "acknowledgedExperimentalCapabilities",
         "functions",
         "cronJobs",
         "config"
