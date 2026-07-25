@@ -139,7 +139,17 @@ pub fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
            ttl_ms          INTEGER
          );
          CREATE INDEX IF NOT EXISTS _snapback_branches_by_state
-           ON _snapback_branches(state);",
+           ON _snapback_branches(state);
+         -- @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app —
+         -- the typed ephemeral child version-stream: its own gap-free monotonic
+         -- versions and an independent replay floor, never comparable to the
+         -- canonical stream. One row per branch, keyed by branch_id.
+         CREATE TABLE IF NOT EXISTS _snapback_branch_versions (
+           branch_id       TEXT PRIMARY KEY
+                             REFERENCES _snapback_branches(branch_id) ON DELETE CASCADE,
+           current_version INTEGER NOT NULL CHECK(current_version >= 0),
+           replay_floor    INTEGER NOT NULL CHECK(replay_floor >= 0)
+         );",
     )?;
     Ok(())
 }
@@ -182,6 +192,12 @@ pub fn create_branch(
             record.ttl_ms,
         ],
     )?;
+    // Initialize the branch's child version stream at version 0, floor 0.
+    conn.execute(
+        "INSERT INTO _snapback_branch_versions (branch_id, current_version, replay_floor)
+         VALUES (?1, 0, 0)",
+        params![record.branch_id.0],
+    )?;
     Ok(record)
 }
 
@@ -221,6 +237,88 @@ pub fn mark_teardown(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<
         params![branch_id.0, BranchState::TearingDown.as_str()],
     )?;
     Ok(updated > 0)
+}
+
+// ---------------------------------------------------------------------------
+// Child version stream (LLP 0097 P0.2) — the typed ephemeral child stream.
+//
+// @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — gap-free
+// monotonic versions with an independent replay floor, NEVER numerically
+// comparable to the canonical stream. `base_version` on the branch record is a
+// fork pointer into canonical, not a shared coordinate with this stream.
+// ---------------------------------------------------------------------------
+
+/// The current (highest-allocated) version in a branch's child stream, or `None`
+/// if the branch has no version-stream row (never created, or torn down).
+pub fn child_current_version(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Option<u64>> {
+    ensure_branch_registry(conn)?;
+    let value: Option<i64> = conn
+        .query_row(
+            "SELECT current_version FROM _snapback_branch_versions WHERE branch_id = ?1",
+            params![branch_id.0],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(value.map(|n| n.max(0) as u64))
+}
+
+/// Allocate the next version in a branch's child stream — gap-free, monotonic,
+/// independent of canonical. Fails closed if the branch has no version stream.
+pub fn allocate_child_version(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<u64> {
+    ensure_branch_registry(conn)?;
+    let current = child_current_version(conn, branch_id)?.ok_or_else(|| {
+        invalid(format!("no child version stream for branch {:?}", branch_id.0))
+    })?;
+    // Reuse the canonical portable-max guard so a branch stream can never
+    // advance past the durable ordering domain either.
+    let next = crate::storage::next_storage_version(current)?;
+    conn.execute(
+        "UPDATE _snapback_branch_versions SET current_version = ?2 WHERE branch_id = ?1",
+        params![branch_id.0, next as i64],
+    )?;
+    Ok(next)
+}
+
+/// The replay floor of a branch's child stream (the oldest version a consumer may
+/// still resume from). `None` if the branch has no version stream.
+pub fn child_replay_floor(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<Option<u64>> {
+    ensure_branch_registry(conn)?;
+    let value: Option<i64> = conn
+        .query_row(
+            "SELECT replay_floor FROM _snapback_branch_versions WHERE branch_id = ?1",
+            params![branch_id.0],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(value.map(|n| n.max(0) as u64))
+}
+
+/// Advance a branch's child-stream replay floor. The floor is monotonic and may
+/// never exceed the current allocated version (fail-closed).
+pub fn set_child_replay_floor(
+    conn: &Connection,
+    branch_id: &BranchId,
+    floor: u64,
+) -> SnapbackResult<()> {
+    ensure_branch_registry(conn)?;
+    let current = child_current_version(conn, branch_id)?.ok_or_else(|| {
+        invalid(format!("no child version stream for branch {:?}", branch_id.0))
+    })?;
+    let existing = child_replay_floor(conn, branch_id)?.unwrap_or(0);
+    if floor < existing {
+        return Err(invalid("branch replay floor cannot move backward"));
+    }
+    if floor > current {
+        return Err(invalid("branch replay floor cannot exceed the current version"));
+    }
+    conn.execute(
+        "UPDATE _snapback_branch_versions SET replay_floor = ?2 WHERE branch_id = ?1",
+        params![branch_id.0, floor as i64],
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -298,5 +396,58 @@ mod tests {
         assert_eq!(after.state, BranchState::TearingDown);
         // Idempotent-ish: marking a missing branch reports false.
         assert!(!mark_teardown(&c, &BranchId("ghost".into())).expect("teardown missing"));
+    }
+
+    #[test]
+    fn child_stream_starts_at_zero_and_allocates_gap_free() {
+        let c = conn();
+        let (bid, cs) = ids("cs");
+        create_branch(&c, &bid, &cs, "canonical", 7, 1, None).expect("create");
+        assert_eq!(child_current_version(&c, &bid).expect("cur"), Some(0));
+        assert_eq!(allocate_child_version(&c, &bid).expect("a1"), 1);
+        assert_eq!(allocate_child_version(&c, &bid).expect("a2"), 2);
+        assert_eq!(allocate_child_version(&c, &bid).expect("a3"), 3);
+        assert_eq!(child_current_version(&c, &bid).expect("cur"), Some(3));
+    }
+
+    #[test]
+    fn child_streams_are_independent_per_branch() {
+        let c = conn();
+        let (b1, s1) = ids("i1");
+        let (b2, s2) = ids("i2");
+        create_branch(&c, &b1, &s1, "canonical", 1, 1, None).expect("b1");
+        create_branch(&c, &b2, &s2, "canonical", 1, 2, None).expect("b2");
+        allocate_child_version(&c, &b1).expect("b1 a1");
+        allocate_child_version(&c, &b1).expect("b1 a2");
+        allocate_child_version(&c, &b2).expect("b2 a1");
+        assert_eq!(child_current_version(&c, &b1).expect("b1"), Some(2));
+        assert_eq!(child_current_version(&c, &b2).expect("b2"), Some(1));
+    }
+
+    #[test]
+    fn allocate_on_missing_branch_fails_closed() {
+        let c = conn();
+        ensure_branch_registry(&c).expect("ensure");
+        assert!(allocate_child_version(&c, &BranchId("ghost".into())).is_err());
+        assert_eq!(child_current_version(&c, &BranchId("ghost".into())).expect("cur"), None);
+    }
+
+    #[test]
+    fn replay_floor_is_monotonic_and_bounded() {
+        let c = conn();
+        let (bid, cs) = ids("rf");
+        create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("create");
+        assert_eq!(child_replay_floor(&c, &bid).expect("floor"), Some(0));
+        for _ in 0..5 {
+            allocate_child_version(&c, &bid).expect("alloc");
+        }
+        set_child_replay_floor(&c, &bid, 3).expect("set 3");
+        assert_eq!(child_replay_floor(&c, &bid).expect("floor"), Some(3));
+        // Cannot move backward.
+        assert!(set_child_replay_floor(&c, &bid, 2).is_err());
+        // Cannot exceed current (5).
+        assert!(set_child_replay_floor(&c, &bid, 6).is_err());
+        set_child_replay_floor(&c, &bid, 5).expect("set 5 == current ok");
+        assert_eq!(child_replay_floor(&c, &bid).expect("floor"), Some(5));
     }
 }
