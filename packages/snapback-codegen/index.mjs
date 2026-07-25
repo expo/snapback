@@ -528,11 +528,18 @@ export async function generateInProcess(backendDir, options = {}) {
   // with string/Wasm code generation and nondeterministic globals disabled.
   const schemaBuild = await buildDefinitionBundle(schemaPath, backendRoot, diagnostics, 'schema', 'schema');
   const functionsBuild = await buildDefinitionBundle(functionsPath, backendRoot, diagnostics, 'function', 'functions');
+  // The optional route→query manifest declaration (LLP 0092 §0C.1): compiled
+  // under the same hashed-graph + isolated-evaluation discipline when
+  // `snapback/routes.mjs` exists.
+  const routesPath = join(backendRoot, 'routes.mjs');
+  const routesBuild = existsSync(routesPath)
+    ? await buildDefinitionBundle(routesPath, backendRoot, diagnostics, 'routes', 'routes')
+    : null;
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
 
-  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics);
+  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild);
   if (!evaluated || diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -540,6 +547,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const functionsGraph = functionsBuild.graph;
   const schemaModule = { default: evaluated.schema };
   const functionsModule = evaluated.functions;
+  const routesModule = routesBuild ? evaluated.routes : null;
 
   const schemaDef = schemaModule.default;
   if (!schemaDef || !schemaDef.__schema) {
@@ -1493,6 +1501,14 @@ export async function generateInProcess(backendDir, options = {}) {
     err,
   );
   const remoteServiceInputs = loadRemoteServiceInputs(backendRoot, appId, targetProfile, err);
+  // Compile the optional route→query manifest (LLP 0092 §0C.1) against the
+  // authored functions: unknown/non-query functions, pattern grammar,
+  // overlap, `params-v1` mapping rules, per-reference arg-schema typing, and
+  // required-arg coverage all refuse at compile time — the same rules the
+  // served instance re-enforces at ensure.
+  const routesManifest = routesModule
+    ? compileRoutesManifest(routesModule, functionsModule, appId, err)
+    : null;
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -1512,6 +1528,7 @@ export async function generateInProcess(backendDir, options = {}) {
   // emits different definitions from identical source under an old hash.
   const schemaEvaluation = stableJson(schemaDef);
   const functionsEvaluation = stableJson(functionsModule);
+  const routesGraphInputs = routesBuild ? moduleGraphIdentity(routesBuild.graph, backendRoot) : null;
   const inputs = [
     'schema-graph',
     ...schemaGraphInputs,
@@ -1521,6 +1538,13 @@ export async function generateInProcess(backendDir, options = {}) {
     ...functionsGraphInputs,
     'functions-isolated-evaluation',
     functionsEvaluation,
+    // Routes participate in the staleness marker only (never in schemaHash /
+    // bundleHash — the manifest has its own canonical routeManifestHash
+    // identity, LLP 0091 §0A.6); apps without routes.mjs hash identically to
+    // before the artifact existed.
+    ...(routesGraphInputs === null
+      ? []
+      : ['routes-graph', ...routesGraphInputs, 'routes-isolated-evaluation', stableJson(routesModule)]),
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     contractCapabilitiesSource,
@@ -1699,6 +1723,7 @@ export async function generateInProcess(backendDir, options = {}) {
     ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: artifactVersion }],
     ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: artifactVersion }],
     ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
+    ...(routesManifest ? [['routes.manifest.schema.json', routesManifest, {}]] : []),
   ]) {
     const { missing, problems } = validateArtifactAgainstSchema(schemaFile, instance, expected);
     if (missing) {
@@ -1781,6 +1806,7 @@ export async function generateInProcess(backendDir, options = {}) {
         types: './provider-bindings.d.ts',
         default: './provider-bindings.json',
       },
+      ...(routesManifest ? { './routes': './routes.manifest.json' } : {}),
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -1801,7 +1827,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1816,6 +1842,7 @@ export async function generateInProcess(backendDir, options = {}) {
       schemaManifest,
       functionManifest,
       capabilityManifest,
+      routesManifest,
       providerIntrospection,
       providerBindingMetadata,
       providerBindingTypes,
@@ -2912,6 +2939,7 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+    ...(def.publicInline === true ? { publicInline: true } : {}),
     ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
     ...(Array.isArray(def.authorizationDependence)
@@ -3055,6 +3083,18 @@ function validateFunctionAuthDefinition(name, def, err) {
     err('FUNCTION_AUTHORITY_INDEPENDENT_INVALID', 'auth', `${name}: authorityIndependent must be boolean`, { function: name });
     return;
   }
+  if (def.publicInline === true && def.authorityIndependent !== true) {
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    // the disclosure fact is accepted only beside a valid
+    // authorityIndependent declaration (which entails public); v1 keeps the
+    // narrower rule fail-closed.
+    err(
+      'FUNCTION_PUBLIC_INLINE_INVALID',
+      'auth',
+      `${name}: publicInline requires a valid authorityIndependent: true declaration`,
+      { function: name },
+    );
+  }
   if (def.authorityIndependent !== true) return;
 
   const queryKind = def.__kind === 'Query' || def.__kind === 'LiveQuery';
@@ -3075,6 +3115,153 @@ function validateFunctionAuthDefinition(name, def, err) {
       { function: name, kind: def.__kind, authRequirement: def.auth ?? 'optional-user' },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Route→query manifest compilation (LLP 0092 §0C.1 / §0E.6, ENG-25448).
+// ---------------------------------------------------------------------------
+
+const ROUTE_PARAM_IDENT = /^[A-Za-z0-9_]+$/;
+const ROUTE_PARAM_PRIMITIVES = new Set(['string', 'number', 'boolean']);
+
+/// Parse a v1 route pattern into its param names; null (with a diagnostic)
+/// when the pattern violates the exact grammar: `/`-separated static
+/// segments plus `:name` params, no wildcards/optional/trailing-slash forms.
+function parseRoutePattern(pattern, err) {
+  const invalid = (why) => {
+    err('ROUTES_PATTERN_INVALID', 'routes', `route pattern ${pattern} is invalid: ${why}`, { route: pattern });
+    return null;
+  };
+  if (typeof pattern !== 'string' || !pattern.startsWith('/')) return invalid('must start with /');
+  if (pattern === '/') return [];
+  if (pattern.endsWith('/')) return invalid('no trailing slash');
+  const params = [];
+  for (const segment of pattern.slice(1).split('/')) {
+    if (segment.length === 0) return invalid('empty segment');
+    if (segment.startsWith(':')) {
+      const name = segment.slice(1);
+      if (!ROUTE_PARAM_IDENT.test(name)) return invalid(`bad param name ${segment}`);
+      if (params.includes(name)) return invalid(`duplicate param ${name}`);
+      params.push(name);
+    } else if (segment.includes(':')) {
+      return invalid(`mid-segment colon in ${segment}`);
+    }
+  }
+  return params;
+}
+
+/// Two valid v1 patterns overlap when some concrete path matches both
+/// (LLP 0092 §0C.1's unambiguity rule; mirrors src/bundle.rs).
+function routePatternsOverlap(a, b) {
+  const split = (pattern) => (pattern === '/' ? [] : pattern.slice(1).split('/'));
+  const [left, right] = [split(a), split(b)];
+  if (left.length !== right.length) return false;
+  return left.every((segment, index) => (
+    segment.startsWith(':') || right[index].startsWith(':') || segment === right[index]
+  ));
+}
+
+function routeLiteralMatches(validator, value) {
+  if (!validator || validator.primitive === 'unknown') return true;
+  if (validator.primitive === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const fields = validator.fields ?? {};
+    for (const [name, field] of Object.entries(fields)) {
+      if (value[name] === undefined) {
+        if (!field?.optional) return false;
+      } else if (!routeLiteralMatches(field, value[name])) return false;
+    }
+    return Object.keys(value).every((name) => name in fields);
+  }
+  return typeof value === validator.primitive;
+}
+
+/// Compile the authored routes declaration into the routes.manifest.json
+/// artifact, validating against the authored functions (LLP 0092 §0C.1
+/// admission, run at compile time): function exists and is a query; the
+/// `params-v1` mapping grammar holds (references at top-level arg positions
+/// only, sole-`$param`-key rule, every reference naming a pattern param);
+/// each reference's target arg-schema type is string/number/boolean; literal
+/// portions validate statically; every required arg is covered.
+function compileRoutesManifest(routesModule, functionsModule, appId, err) {
+  if (!isIsolatedDefinition(routesModule, 'routes')) {
+    err('ROUTES_NO_DEFAULT_EXPORT', 'routes', 'snapback/routes.mjs must default-export defineRoutes([...])');
+    return null;
+  }
+  const compiled = [];
+  const seenPatterns = [];
+  for (const entry of routesModule.routes ?? []) {
+    const route = entry.route;
+    const params = parseRoutePattern(route, err);
+    if (params === null) continue;
+    for (const prior of seenPatterns) {
+      if (routePatternsOverlap(prior, route)) {
+        err('ROUTES_PATTERN_OVERLAP', 'routes', `route patterns ${prior} and ${route} can match the same path`, { routes: [prior, route] });
+      }
+    }
+    seenPatterns.push(route);
+    const queries = entry.queries ?? [];
+    if (queries.length === 0 || queries.length > 32) {
+      err('ROUTES_QUERY_COUNT_INVALID', 'routes', `route ${route} must declare 1..32 queries`, { route, count: queries.length });
+      continue;
+    }
+    for (const spec of queries) {
+      const fn = functionsModule[spec.function];
+      const fail = (code, message, extra = {}) =>
+        err(code, 'routes', `route ${route} query ${spec.function}: ${message}`, { route, function: spec.function, ...extra });
+      if (!fn || (fn.__kind !== 'Query' && fn.__kind !== 'LiveQuery')) {
+        fail('ROUTES_FUNCTION_INVALID', 'names an unknown or non-query function');
+        continue;
+      }
+      const fnArgs = fn.args ?? {};
+      const mapping = spec.args ?? {};
+      const assertLiteral = (value, where) => {
+        if (value && typeof value === 'object') {
+          if (!Array.isArray(value) && Object.hasOwn(value, '$param')) {
+            fail('ROUTES_ARGS_INVALID', `a $param reference at ${where} is nested inside a literal; references are typable only at top-level arg positions`);
+            return;
+          }
+          for (const [key, inner] of Object.entries(value)) assertLiteral(inner, `${where}.${key}`);
+        }
+      };
+      if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
+        if (Object.hasOwn(mapping, '$param')) {
+          fail('ROUTES_ARGS_INVALID', 'a bare top-level $param reference has no named arg position');
+          continue;
+        }
+        for (const [key, value] of Object.entries(mapping)) {
+          const validator = fnArgs[key];
+          if (value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, '$param')) {
+            if (Object.keys(value).length !== 1 || typeof value.$param !== 'string') {
+              fail('ROUTES_ARGS_INVALID', `the reference at ${key} must be a sole-key {"$param": name} object`);
+            } else if (!params.includes(value.$param)) {
+              fail('ROUTES_ARGS_INVALID', `references :${value.$param}, which is not in the route pattern`);
+            } else if (!validator || !ROUTE_PARAM_PRIMITIVES.has(validator.primitive)) {
+              fail('ROUTES_ARGS_INVALID', `references param into arg ${key}, whose schema type is not string/number/boolean`);
+            }
+          } else {
+            assertLiteral(value, key);
+            if (validator && !routeLiteralMatches(validator, value)) {
+              fail('ROUTES_ARGS_INVALID', `literal for arg ${key} does not match its arg schema`);
+            }
+          }
+        }
+        for (const [name, validator] of Object.entries(fnArgs)) {
+          if (!validator?.optional && mapping[name] === undefined) {
+            fail('ROUTES_ARGS_INVALID', `required arg ${name} is not covered by the mapping`);
+          }
+        }
+      } else {
+        assertLiteral(mapping, 'args');
+      }
+    }
+    compiled.push({
+      route,
+      queries: queries.map((spec) => ({ function: spec.function, args: spec.args ?? {} })),
+      ...(entry.persist === false ? { persist: false } : {}),
+    });
+  }
+  return { formatVersion: 1, app: appId, routes: compiled };
 }
 
 // The stable function id: a pure function of (appId, exported name), so
@@ -3119,6 +3306,7 @@ function decorateFunctions(appId, functions) {
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
+      ...(fn.publicInline === true ? { publicInline: true } : {}),
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
@@ -4962,7 +5150,7 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
       plugins: [{
         name: 'snapback-definition-graph',
         setup(build) {
-          build.onResolve({ filter: /^snapback-definition-(?:schema|functions):entry$/ }, (args) => ({
+          build.onResolve({ filter: /^snapback-definition-(?:schema|functions|routes):entry$/ }, (args) => ({
             path: args.path,
             namespace: facadeNamespace,
           }));
@@ -5063,13 +5251,14 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isTableDef } from ${define};`;
+  const imports = `import { isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isRoutesDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
+  if (isRoutesDef(value)) return 'routes';
   return null;
 }
 function __snapbackKnownMarkerKind(value) {
@@ -5154,6 +5343,11 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
   if (kind === 'schema') {
     return `${imports}\nimport schema from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(schema));\n`;
   }
+  if (kind === 'routes') {
+    // The route manifest declaration (LLP 0092 §0C.1): one default-exported
+    // defineRoutes(...) value, normalized under the same isolation rules.
+    return `${imports}\nimport routes from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(routes));\n`;
+  }
   return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nconst definitionNames = __snapbackObjectKeys(definitions);\nfor (let nameIndex = 0; nameIndex < definitionNames.length; nameIndex += 1) {\n  const name = definitionNames[nameIndex];\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
 }
 
@@ -5163,7 +5357,7 @@ function definitionLoader(path) {
   return 'js';
 }
 
-function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
+function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild = null) {
   if (!process.allowedNodeEnvironmentFlags.has('--permission')) {
     diagnostics.push({
       code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
@@ -5245,13 +5439,24 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics) {
         fail('isolated definition evaluator returned an invalid result shape');
         return;
       }
-      finish({ schema: response.values.schema, functions: response.values.functions });
+      if (routesBuild && (typeof response.values.routes !== 'object' || response.values.routes === null)) {
+        fail('isolated definition evaluator returned an invalid routes result shape');
+        return;
+      }
+      finish({
+        schema: response.values.schema,
+        functions: response.values.functions,
+        ...(routesBuild ? { routes: response.values.routes } : {}),
+      });
     });
     child.stdin.on('error', (error) => fail(`could not send definition bundles to the isolated evaluator: ${error.message}`));
     child.stdin.end(JSON.stringify({
       items: [
         { label: 'schema', bundle: schemaBuild.bundle, resultKey: schemaBuild.resultKey },
         { label: 'functions', bundle: functionsBuild.bundle, resultKey: functionsBuild.resultKey },
+        ...(routesBuild
+          ? [{ label: 'routes', bundle: routesBuild.bundle, resultKey: routesBuild.resultKey }]
+          : []),
       ],
     }));
   });
@@ -5347,6 +5552,7 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   capabilityManifest,
+  routesManifest,
   providerIntrospection,
   providerBindingMetadata,
   providerBindingTypes,
@@ -5367,6 +5573,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  if (routesManifest) {
+    writeFileSync(join(outDir, 'routes.manifest.json'), stableJson(routesManifest) + '\n');
+  }
   writeFileSync(join(outDir, 'provider-introspection.json'), serializeProviderIntrospection(providerIntrospection));
   writeFileSync(join(outDir, 'provider-bindings.json'), serializeProviderBindingMetadata(providerBindingMetadata));
   writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);

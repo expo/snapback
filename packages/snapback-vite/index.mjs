@@ -12,6 +12,14 @@ import { diagnosticError } from '@snapback/cli';
 
 import { APP_ROUTE_ALLOWLIST, matchAppRoute } from './allowlist.mjs';
 import {
+  matchManifestRoute,
+  snapbackChannelA,
+} from './channel-a.mjs';
+import {
+  htmlSafeJsonSerialize,
+  serializeBootPayload,
+} from './rqs-serializer.mjs';
+import {
   LIFECYCLE_MODES,
   createDiagnosticsChannel,
   createSnapbackViteLifecycle,
@@ -24,8 +32,12 @@ export {
   createDiagnosticsChannel,
   createSnapbackProxy,
   createSnapbackViteLifecycle,
+  htmlSafeJsonSerialize,
   matchAppRoute,
+  matchManifestRoute,
   refusalDiagnostic,
+  serializeBootPayload,
+  snapbackChannelA,
   unreachableDiagnostic,
 };
 

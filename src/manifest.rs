@@ -926,6 +926,7 @@ impl FunctionManifest {
 
             validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
+            validate_public_inline(function)?;
             validate_retainable_query(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
@@ -1127,6 +1128,93 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         "authScopeField": function.read_set_summary.auth_scope_field.as_deref(),
         "authorizationDependence": &function.authorization_dependence,
     })))
+}
+
+/// LLP 0092 §0C.3: `publicInline` is a disclosure permission accepted only on
+/// a query that also carries a *valid* `authorityIndependent: true`
+/// declaration (which entails `public` under the existing invariant —
+/// [`validate_authority_independent`] runs first, so reaching this check with
+/// `authority_independent` set means the declaration validated). v1 keeps the
+/// narrower rule fail-closed: no consumer exists for a
+/// public-but-authority-dependent inline query.
+fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !function.public_inline || function.authority_independent {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_PUBLIC_INLINE_INVALID",
+        "auth",
+        format!(
+            "function {} declares publicInline without a valid authorityIndependent declaration",
+            function.name
+        ),
+    )
+    .with_details(serde_json::json!({
+        "function": function.name,
+        "authRequirement": function.effective_auth_requirement().as_str(),
+    })))
+}
+
+/// The derived, never-authored `rqsEligible` served-manifest predicate
+/// (LLP 0090 Authorization scope; LLP 0092 §0C.2): declared
+/// `authorityIndependent` (entailing `public`) AND the LLP 0053
+/// closed-inputs/retainable proof — HostPlan query runtime, no ambient or
+/// membership dependency, and a complete `singleTable` read summary whose
+/// table set equals the plan's. Evaluated non-erroringly: a query failing the
+/// proof is simply not eligible, never a load error. Returns the digest kind
+/// the eligible query's `contentDigest` takes (LLP 0091 §0A.4's selector:
+/// DK-3-analyzable unordered → `mset1`; ordered/limited replace-only →
+/// `seq1`).
+///
+/// Everything keyed on the predicate — token minting, bundle `resume`
+/// presence, Channel B persistence, D1.1 admission — reads this one derived
+/// fact; there is no authored `rqsEligible` field anywhere (an authored field
+/// of that name refuses at load via `deny_unknown_fields`).
+pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+    if !function.authority_independent {
+        return None;
+    }
+    if function.kind != FunctionKind::LiveQuery {
+        return None;
+    }
+    if function.effective_auth_requirement() != AuthRequirement::Public {
+        return None;
+    }
+    if !function.uses.is_empty()
+        || function.read_set_summary.auth_scope_field.is_some()
+        || !function.authorization_dependence.is_empty()
+    {
+        return None;
+    }
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        return None;
+    };
+    if plan
+        .filters
+        .iter()
+        .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value))
+    {
+        return None;
+    }
+    if !plan.membership_filters.is_empty() {
+        return None;
+    }
+    // Closed-inputs proof (the `validate_retainable_query` obligations for the
+    // retainable class, reused as a measurement): a complete `singleTable`
+    // read summary whose table set equals the plan's.
+    let summary = &function.read_set_summary;
+    let summary_complete = summary.mode.as_deref() == Some("singleTable")
+        && summary.primary_table.as_deref() == Some(plan.table.as_str())
+        && summary.tables.len() == 1
+        && summary.tables.first() == Some(&plan.table);
+    if !summary_complete {
+        return None;
+    }
+    Some(if plan.order.is_empty() && plan.limit.is_none() {
+        crate::rqs::DigestKind::Mset1
+    } else {
+        crate::rqs::DigestKind::Seq1
+    })
 }
 
 pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
@@ -1583,6 +1671,21 @@ pub struct FunctionDefinition {
         skip_serializing_if = "is_false"
     )]
     pub authority_independent: bool,
+    /// Disclosure permission for Channel A / read-mode public bundles: this
+    /// already-public query's rows may be embedded in a tokenless HTML
+    /// response. Grants no invocation authority; accepted only beside a valid
+    /// `authorityIndependent` declaration.
+    ///
+    /// @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    ///   authored on the function definition, compiled by codegen, re-enforced
+    ///   at manifest load; never route-manifest authored.
+    #[serde(
+        default,
+        rename = "publicInline",
+        alias = "public_inline",
+        skip_serializing_if = "is_false"
+    )]
+    pub public_inline: bool,
     /// This entry point may reach a durable permission-backing write. The
     /// marker is part of delegated consent: changing it terminally invalidates
     /// scopes minted against the prior function basis.
@@ -1667,6 +1770,7 @@ impl FunctionDefinition {
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
+            public_inline: false,
             authority_creating: false,
             retainable: false,
             authorization_dependence: Vec::new(),
@@ -1995,6 +2099,14 @@ pub struct PublicFunctionDefinition {
     pub auth_requirement: Option<AuthRequirement>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
+    /// LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it
+    /// authorizes, so it rides the public projection.
+    #[serde(rename = "publicInline", skip_serializing_if = "is_false")]
+    pub public_inline: bool,
+    /// LLP 0092 §0C.2 derived predicate — never authored; clients key the
+    /// alias-key promotion check and token expectations on it.
+    #[serde(rename = "rqsEligible", skip_serializing_if = "is_false")]
+    pub rqs_eligible: bool,
     #[serde(rename = "authorityCreating", skip_serializing_if = "is_false")]
     pub authority_creating: bool,
     #[serde(skip_serializing_if = "is_false")]
@@ -2139,6 +2251,9 @@ impl From<ConfigEntryDefinition> for PublicConfigEntryDefinition {
 
 impl From<FunctionDefinition> for PublicFunctionDefinition {
     fn from(definition: FunctionDefinition) -> Self {
+        // Derived before the destructure: the served-manifest `rqsEligible`
+        // fact (LLP 0092 §0C.2) is computed, never carried.
+        let rqs_eligible = rqs_eligible_digest_kind(&definition).is_some();
         let FunctionDefinition {
             id,
             name,
@@ -2148,6 +2263,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
             authority_creating,
             retainable,
             authorization_dependence,
@@ -2169,6 +2285,8 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             required_capabilities,
             auth_requirement,
             authority_independent,
+            public_inline,
+            rqs_eligible,
             authority_creating,
             retainable,
             authorization_dependence,

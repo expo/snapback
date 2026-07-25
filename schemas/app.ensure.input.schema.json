@@ -221,6 +221,50 @@
       ],
       "type": "string"
     },
+    "BundleQuerySpec": {
+      "properties": {
+        "args": {
+          "default": null,
+          "description": "`params-v1` args mapping (LLP 0092 §0E.6): JSON literals plus\n`{\"$param\": \"name\"}` references."
+        },
+        "function": {
+          "description": "Exported function name in the served functions manifest.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "type": "object"
+    },
+    "BundleRouteEntry": {
+      "description": "One route entry: every query the route needs — the unit the bundle\nevaluates at one commit (LLP 0092 §0C.1).",
+      "properties": {
+        "persist": {
+          "description": "LLP 0091 §0A.5 per-entry persist opt-out (default true); carried for\nschema completeness — the client store consumes it.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "queries": {
+          "description": "1..=32 query specs (the 0D.2 query-count limit).",
+          "items": {
+            "$ref": "#/$defs/BundleQuerySpec"
+          },
+          "type": "array"
+        },
+        "route": {
+          "description": "Route pattern: `/`-separated static segments plus `:name` params.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "route",
+        "queries"
+      ],
+      "type": "object"
+    },
     "ConfigEntryDefinition": {
       "description": "@ref LLP 0036#declared-configuration-in-the-manifest — one declared config\nentry: names, purposes, and acquisition metadata are app source (public by\nconstruction); values never appear in any manifest.",
       "properties": {
@@ -751,6 +795,18 @@
           ],
           "default": null
         },
+        "routes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoutesManifest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The route→query manifest (LLP 0092 §0C.1), ensured beside the\nfunctions manifest on the local dev loop. Sessions-mode complete-pair\nprovisioning of routes rides the Cloudflare/deploy work of LLP 0090\nrollout step 4."
+        },
         "schema": {
           "anyOf": [
             {
@@ -1085,6 +1141,10 @@
             "$ref": "#/$defs/PermissionScopeExpr"
           },
           "type": "array"
+        },
+        "publicInline": {
+          "description": "Disclosure permission for Channel A / read-mode public bundles: this\nalready-public query's rows may be embedded in a tokenless HTML\nresponse. Grants no invocation authority; accepted only beside a valid\n`authorityIndependent` declaration.\n\n@ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —\n  authored on the function definition, compiled by codegen, re-enforced\n  at manifest load; never route-manifest authored.",
+          "type": "boolean"
         },
         "readSetSummary": {
           "$ref": "#/$defs/DependencySummary",
@@ -2329,6 +2389,33 @@
         "table",
         "subjectField",
         "scopeFields"
+      ],
+      "type": "object"
+    },
+    "RoutesManifest": {
+      "additionalProperties": false,
+      "description": "The served route→query manifest (LLP 0092 §0C.1): a schema-adjacent\ndeclaration compiled by codegen (`snapback/routes.mjs` →\n`snapback/generated/routes.manifest.json`) and admitted beside the\nfunctions manifest through the same ensure machinery. Its canonical hash\nis the `routeManifestHash` component of `resumeConfig` in `generation`\n(LLP 0091 §0A.6).\n\n@ref LLP 0092#0c1-routequery-manifest-artifact — the pinned artifact\n  schema, exact-pattern grammar, and admission obligations; a\n  route-manifest author selects queries for preload and can never widen\n  disclosure (`publicInline` is a function-level codegen fact, §0C.3).",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "formatVersion": {
+          "description": "Pinned `1`; implies the `params-v1` mapping grammar (LLP 0092 §0E.6).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "routes": {
+          "items": {
+            "$ref": "#/$defs/BundleRouteEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "app",
+        "routes"
       ],
       "type": "object"
     },

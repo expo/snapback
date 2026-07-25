@@ -6,7 +6,10 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
 **Revised:** 2026-07-24 (§0D.6 witness-bytes reservation replaced by the
-caps LLP 0091's rung-2 amendment pinned, ENG-25457)
+caps LLP 0091's rung-2 amendment pinned, ENG-25457; plus the dated
+step-2/step-3 amendment: the six reported step-2 divergences folded in and
+the step-3 0C/0E landing notes — see "Dated amendment: step-2/step-3
+implementation reconciliation", ENG-25454)
 **Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091
 
 ## Summary
@@ -677,6 +680,119 @@ screens: entity ids), keeps admission statically checkable against the arg
 schema, and keeps `argsHash` canonicalization trivial. The versioned
 grammar keeps the door open without leaving v1 holes.
 
+## Dated amendment: step-2/step-3 implementation reconciliation (2026-07-24)
+
+LLP 0090 rollout step 2 (ENG-25453, commit 1747a1e8) implemented cluster 0D
+and reported six divergences from the text above; rollout step 3 (ENG-25454)
+landed the deferred 0C pipeline plus the 0E seam and closed OQ-C. Per LLP
+0004 the docs track the code; the implemented behavior is normative and the
+sections above read as amended here.
+
+**Step-2 divergences (cluster 0D):**
+
+1. **§0D.5 read-mode cut is the serialized lane, not a pinned-read-snapshot
+   scope.** The local arm evaluates read-mode bundles under the instance's
+   exclusive borrow (`LocalSnapback::evaluate_bundle` holds `&mut self`, and
+   every mutation path requires the same access), which is
+   correctness-identical to the pinned-read-transaction phrasing: no commit
+   can fall between entry evaluations. Moving read-mode evaluation onto the
+   concurrent read lane inside `with_pinned_read_snapshot` is recorded
+   follow-up work, not a v1 obligation.
+2. **§0D.1 register-mode `authorization` shape is pinned.** The per-entry
+   `authorization` object for auth-scoped register entries is
+   `{ "scope": <LLP 0053 authorization-scope projection>, "invalidation":
+   <authorization-invalidation projection> }` — the two projections the
+   subscribe output already carries, under those exact keys.
+3. **§0D.4 attach-past-deadline refuses with the existing connection code.**
+   A socket presenting the grant after `attachDeadline` is reaped and
+   refused with `SNAPBACK_CONNECTION_TOKEN_INVALID` — the connection-grant
+   family's own code, since what expired is the grant's usability — not a
+   new `SNAPBACK_BUNDLE_*` code. The client's fallback (ordinary connection
+   open + fresh subscribes) is unchanged.
+4. **§0D.3 a retry racing the pending first execution refuses
+   transiently.** While a key's first execution is still evaluating (a
+   reservation is installed but not yet committed), a concurrent retry with
+   the same key answers `SNAPBACK_BUNDLE_PENDING_CAPACITY` rather than
+   atomically superseding an in-flight mint; supersession applies only to a
+   *committed* pending owner. The client retries after the first execution
+   settles.
+5. **§0D.1/§0D.2 NOT_PUBLIC posture, step-2 interim → step-3 satisfied.**
+   Step 2 refused every anonymous read fail-closed (`publicInline` did not
+   exist, so the publicInline-class route set was empty). With 0C landed,
+   the gate reads the codegen-compiled served-manifest facts: an anonymous
+   read of a route whose queries all carry `publicInline` succeeds; any
+   non-`publicInline` query on the entry refuses
+   `SNAPBACK_BUNDLE_NOT_PUBLIC` (acceptance in
+   `tests/rqs_routes_manifest_v0.rs`).
+6. **OQ-A interim: one shared anonymous bucket on the local arm.** The
+   endpoint's per-authority rate limiter keys anonymous callers into a
+   single `"anonymous"` bucket (per-client-address keying stays OQ-A, an
+   arm-level decision). The Channel A seam (§0E.5) applies its own
+   per-client-address 60/min degrade budget, so the anonymous pageload lane
+   does have an address-keyed bound.
+
+**Step-3 landing notes (clusters 0C + 0E; ENG-25448/ENG-25450 executed under
+ENG-25454):**
+
+- **§0C.1 authoring + admission landed as specified**, with these pins: the
+  kit helper is `defineRoutes([...])` + `routeParam(name)`
+  (`packages/snapback-codegen/define.mjs`); the served instance admits the
+  manifest through ensure (`routes` beside `schema`/`functions`/`seed` on
+  the legacy dev-loop ensure input; sessions complete-pair provisioning of
+  routes rides the step-4 Cloudflare/deploy work), refusing with
+  `SNAPBACK_ROUTES_MANIFEST_INVALID`; a routes manifest that no longer
+  validates after a later schema/functions ensure is dropped fail-closed
+  with a warning diagnostic. While a route manifest is served, the step-2
+  `devManifestEntry` dev/test form refuses by design
+  (`SNAPBACK_BUNDLE_ENTRY_INVALID`).
+- **§0C.2 `rqsEligible` is derived exactly as specified**; the fact (and
+  `publicInline`) ride the *public* manifest projection
+  (`PublicFunctionDefinition.rqsEligible`), and an authored `rqsEligible`
+  field refuses at load via `deny_unknown_fields` — the "never authored"
+  rule is mechanical. `publicInline` load validation refuses
+  `SNAPBACK_PUBLIC_INLINE_INVALID` (codegen:
+  `FUNCTION_PUBLIC_INLINE_INVALID`).
+- **§0E.6 typed decode landed with two sharpenings.** (a) The server's
+  per-arg types are **AST-derived**: a plan filter comparing a schema field
+  against `Arg(name)` types that arg from the schema field type
+  (`function_route_arg_types`, `src/bundle.rs`) — there is no
+  manifest-carried arg schema server-side; codegen validates the same rules
+  against the authored args validators at compile time. (b) References are
+  typable **only at top-level arg positions**: a `$param` nested inside an
+  array/object literal has no schema-typed target and refuses at admission
+  (`SNAPBACK_BUNDLE_PARAMS_INVALID` / codegen `ROUTES_ARGS_INVALID`) —
+  stricter than the section's original "mirroring the args shape" wording,
+  which is superseded. Number decode enforces the JCS round-trip rule;
+  integer-typed fields additionally require an integral in-band value.
+- **§0E.1 embedded payload shape, resolved wording:** the payload is the
+  read-mode bundle response body plus the matched `route` pattern; the
+  attestation facts (`generation`, `versionStream`) are already body fields
+  on the local arm, so no separate attestation object exists.
+- **§0E.3 seam landed as a composable plugin**
+  (`packages/snapback-vite/channel-a.mjs`, exported as `snapbackChannelA`
+  and from the package index): a `configureServer` middleware that owns the
+  ownership list and produces the document through Vite's own
+  `server.transformIndexHtml` pipeline, so it composes with other plugins'
+  HTML transforms and sees the pre-fallback path. It transforms only
+  `GET` requests whose `Accept` includes `text/html`. Seam-local degrade
+  codes are `SNAPBACK_INLINE_BUDGET_EXCEEDED` /
+  `SNAPBACK_INLINE_UNAVAILABLE` plus the runtime serializer property check
+  `SNAPBACK_INLINE_SERIALIZER_UNSAFE`; degrade counters key by code via the
+  plugin's `api.channelAState()`.
+- **OQ-C resolved: graffiti adopts the `snapback-vite` seam** beside the
+  untouched Exact `exactContractWeb` preset
+  (`demos/graffiti/surfaces/contract/vite.config.ts`); the preset learned
+  nothing. Acceptance is
+  `demos/graffiti/tests/acceptance/channel-a-browser.mjs` (degrade before
+  provisioning, no-store + payload bytes, first paint before any live
+  WebSocket frame, single identity-carrying resume from the anonymous token,
+  CurrentAsOf with no refetch, and the recorded §Scalability numbers).
+- **`queryArtifact` stays interim content-derived.** This 0C pass did not
+  add a manifest-carried per-function generated-artifact hash; LLP 0091's
+  step-1 reconciliation item 3 remains the standing rule (the swap is now
+  expected with the step-4 Cloudflare arm, where deploy-time artifact
+  identity exists anyway).
+
 ## Open questions
 
 - **OQ-A — anonymous rate-limit keying.** §0D.2/§0E.5 key anonymous limits
@@ -692,11 +808,9 @@ grammar keeps the door open without leaving v1 holes.
   therefore no Channel A; whether one is wanted (a `snapback serve` static
   lane, or Cloudflare-only for production) is undecided and belongs to the
   0090 D5/Q6 conversation, not this cluster.
-- **OQ-C — Exact preset adoption.** Whether graffiti adopts
-  `snapback-vite` or the Exact `exactContractWeb` preset learns the
-  `transformIndexHtml` hook is rollout-step-3 work (0090 D2 records both
-  options and the Cloudflare-first fallback); this spec's seam contract
-  applies identically either way.
+- **OQ-C — Exact preset adoption. RESOLVED (2026-07-24, rollout step 3):**
+  graffiti adopts the `snapback-vite` seam as a composable plugin beside the
+  untouched Exact preset — see the dated amendment above.
 
 (LLP 0091's OQ3 is closed in §0D.6: no v1 operator knob for resume-keyring
 rotation. 0090's Q4 — at-rest posture — and Q6/Q7 remain owned where 0090

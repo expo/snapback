@@ -1589,6 +1589,10 @@
           },
           "type": "array"
         },
+        "publicInline": {
+          "description": "LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it\nauthorizes, so it rides the public projection.",
+          "type": "boolean"
+        },
         "readSetSummary": {
           "$ref": "#/$defs/DependencySummary"
         },
@@ -1599,6 +1603,10 @@
           "type": "array"
         },
         "retainable": {
+          "type": "boolean"
+        },
+        "rqsEligible": {
+          "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
           "type": "boolean"
         },
         "runtime": {
@@ -1626,6 +1634,8 @@
         "kind",
         "requiredCapabilities",
         "authorityIndependent",
+        "publicInline",
+        "rqsEligible",
         "authorityCreating",
         "retainable",
         "authorizationDependence",

@@ -6105,6 +6105,7 @@ fn d4_ensure_app_provisions_once_and_seeds_only_if_empty() {
     let first = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: Some(seed.clone()),
@@ -6123,6 +6124,7 @@ fn d4_ensure_app_provisions_once_and_seeds_only_if_empty() {
     let second = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: Some(seed.clone()),
@@ -6183,6 +6185,7 @@ fn ensure_app_rejects_config_errors_before_loading_functions_or_seeding() {
     let error = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(functions.clone()),
                 seed: Some(seed.clone()),
@@ -6219,6 +6222,7 @@ fn d4_ensure_app_reports_gated_under_prod() {
     let gated = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: None,
@@ -6247,6 +6251,7 @@ fn d4_ensure_app_reports_gated_under_prod() {
     let fresh_prod = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: Some(seed),
@@ -6264,6 +6269,7 @@ fn d4_ensure_app_reports_gated_under_prod() {
     snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: None,
@@ -6275,6 +6281,7 @@ fn d4_ensure_app_reports_gated_under_prod() {
     let matched = snapback
         .ensure_app(
             EnsureAppInput {
+                routes: None,
                 schema: Some(todo_schema()),
                 functions: Some(todo_functions()),
                 seed: None,

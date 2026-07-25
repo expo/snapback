@@ -831,6 +831,12 @@ pub struct EnsureAppInput {
     pub functions: Option<FunctionManifest>,
     #[serde(default)]
     pub seed: Option<SeedData>,
+    /// The route→query manifest (LLP 0092 §0C.1), ensured beside the
+    /// functions manifest on the local dev loop. Sessions-mode complete-pair
+    /// provisioning of routes rides the Cloudflare/deploy work of LLP 0090
+    /// rollout step 4.
+    #[serde(default)]
+    pub routes: Option<crate::bundle::RoutesManifest>,
 }
 
 /// Auth mode explicitly named by an ensure intent. This is a wire fact, not
@@ -956,6 +962,10 @@ pub struct EnsureAppOutcome {
     pub functions: String,
     /// 'seeded' | 'skipped-nonempty' | 'gated' | 'skipped-absent'
     pub seed: String,
+    /// 'matched' | 'provisioned' | 'gated' — absent when no routes manifest
+    /// was posted (LLP 0092 §0C.1 ensure admission).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routes: Option<String>,
     /// The server profile the decision ran under.
     pub profile: String,
 }
@@ -1169,6 +1179,13 @@ impl EnsureAppInput {
         }
         if let Some(functions) = &self.functions {
             functions.validate_artifact()?;
+        }
+        if let Some(routes) = &self.routes {
+            // Shape half only; validation against the served functions
+            // manifest runs at install, after the functions half applies.
+            crate::bundle::validate_routes_manifest_shape(routes).map_err(|message| {
+                SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message)
+            })?;
         }
         Ok(())
     }
@@ -2445,6 +2462,13 @@ pub struct LocalSnapback {
     // change (the invalidation sites set this back to `None`), so a no-op
     // ensure reproduces the identical digest.
     rqs_generation: Option<String>,
+    // The served route→query manifest and its canonical hash (LLP 0092
+    // §0C.1), installed through ensure beside the functions manifest. The
+    // hash is the `routeManifestHash` component of `resumeConfig` in the
+    // generation digest; while served, the bundle endpoint resolves entries
+    // from it exclusively and refuses the inline `devManifestEntry` form.
+    routes: Option<crate::bundle::RoutesManifest>,
+    routes_manifest_hash: Option<String>,
     // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
     // per-instance warm VM pool (never process-global: two local app
     // instances must not share loaded code state). Shared with the read lane.
@@ -2614,57 +2638,59 @@ impl Default for RqsReplayPolicy {
     }
 }
 
-/// Interim `rqsEligible` predicate and digest-kind selector.
-///
-/// @ref LLP 0090#authorization-scope-v1 — interim eligibility, tightened by
-/// ENG-25448: LLP 0090's `rqsEligible` is `authorityIndependent` AND the LLP
-/// 0053 closed-inputs proof, but the closed-inputs fact is cluster-0C work
-/// that has not landed. Until it does, this gates on the declared
-/// `authorityIndependent` manifest fact AND a conservative closed-inputs
-/// check derived from the analyzable plan: only a `HostPlan` query none of
-/// whose filter values read authority or ambient inputs (`RuntimeNow`,
-/// `RuntimeId`, auth axes) qualifies. Opaque (`IbexModule`) plans fail
-/// closed even if declared authority-independent — no journal proof or
-/// replay is sound for them. TODO(ENG-25448): replace the derived check with
-/// the served manifest's closed-inputs fact once cluster 0C lands.
-///
-/// The digest kind is the manifest delta class (LLP 0091 §0A.4): the
-/// DK-3-analyzable unordered shape takes `mset1`; ordered/limited
-/// (replace-only) shapes take `seq1`.
+/// The `rqsEligible` predicate and digest-kind selector — the derived
+/// served-manifest fact of LLP 0092 §0C.2 (ENG-25448 landed the cluster-0C
+/// derivation, replacing the interim step-1 predicate with the strictly
+/// tighter form that also requires the LLP 0053 closed-inputs proof — the
+/// complete `singleTable` read summary). See
+/// [`crate::manifest::rqs_eligible_digest_kind`].
 fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
-    if !function.authority_independent {
-        return None;
+    crate::manifest::rqs_eligible_digest_kind(function)
+}
+
+fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_ROUTES_MANIFEST_INVALID", "runtime", message.into())
+}
+
+/// Collect the arg names a plan value expression reads (the AST-derived
+/// required-arg set for LLP 0092 §0E.6 coverage checking).
+fn collect_value_expr_arg_names(value: &ValueExpr, out: &mut BTreeSet<String>) {
+    match value {
+        ValueExpr::Arg(name) => {
+            out.insert(name.clone());
+        }
+        ValueExpr::Args
+        | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::MembershipExists(_) => {}
+        ValueExpr::Field { base, .. } => collect_value_expr_arg_names(base, out),
+        ValueExpr::Binary { left, right, .. } => {
+            collect_value_expr_arg_names(left, out);
+            collect_value_expr_arg_names(right, out);
+        }
+        ValueExpr::Unary { expr, .. } => collect_value_expr_arg_names(expr, out),
+        ValueExpr::If { cond, then, r#else } => {
+            collect_value_expr_arg_names(cond, out);
+            collect_value_expr_arg_names(then, out);
+            collect_value_expr_arg_names(r#else, out);
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect_value_expr_arg_names(value, out);
+            }
+        }
     }
-    if function.kind != FunctionKind::LiveQuery {
-        return None;
-    }
-    if function.effective_auth_requirement() != crate::manifest::AuthRequirement::Public {
-        return None;
-    }
-    if !function.uses.is_empty()
-        || function.read_set_summary.auth_scope_field.is_some()
-        || !function.authorization_dependence.is_empty()
-    {
-        return None;
-    }
-    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
-        return None;
-    };
-    if plan
-        .filters
-        .iter()
-        .any(|filter| crate::manifest::value_expr_uses_authority_or_ambient_input(&filter.value))
-    {
-        return None;
-    }
-    if !plan.membership_filters.is_empty() {
-        return None;
-    }
-    Some(if plan.order.is_empty() && plan.limit.is_none() {
-        crate::rqs::DigestKind::Mset1
-    } else {
-        crate::rqs::DigestKind::Seq1
-    })
 }
 
 impl LiveSubscription {
@@ -3572,7 +3598,7 @@ impl LocalSnapback {
             move |snapback| {
                 let ephemeral_collections = manifest.ephemeral_collections.clone();
                 let generation = next_app_generation()?;
-                let diagnostics = snapback.db.apply_schema(manifest)?;
+                let mut diagnostics = snapback.db.apply_schema(manifest)?;
                 let ephemeral = snapback.ephemeral.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
                     ephemeral
@@ -3581,6 +3607,23 @@ impl LocalSnapback {
                 });
                 snapback.install_app_generation(generation);
                 snapback.refresh_read_manifests();
+                // Schema-driven route-param typing depends on the schema
+                // (LLP 0092 §0E.6): a served route manifest that no longer
+                // validates against the new schema drops fail-closed.
+                if let Some(routes) = snapback.routes.clone()
+                    && let Err(error) = snapback.validate_routes_manifest(&routes)
+                {
+                    snapback.routes = None;
+                    snapback.routes_manifest_hash = None;
+                    diagnostics.push(Diagnostic::warning(
+                        "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                        "runtime",
+                        format!(
+                            "served route manifest dropped: it no longer validates against the new schema ({})",
+                            error.diagnostic.message
+                        ),
+                    ));
+                }
                 snapback.record_diagnostics(diagnostics.clone());
                 Ok(diagnostics)
             },
@@ -3630,6 +3673,25 @@ impl LocalSnapback {
         // prevents stale reuse, clearing also frees the old VMs' memory.
         self.warm_vms.clear();
         let mut diagnostics = preflight;
+        // A served route manifest that no longer validates against the new
+        // functions manifest is dropped fail-closed (LLP 0092 §0C.1): stale
+        // entries must not keep resolving; Channel A degrades to the shell
+        // and bundles answer ROUTE_UNKNOWN until a coherent manifest is
+        // ensured again.
+        if let Some(routes) = self.routes.clone()
+            && let Err(error) = self.validate_routes_manifest(&routes)
+        {
+            self.routes = None;
+            self.routes_manifest_hash = None;
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_ROUTES_MANIFEST_INVALID",
+                "runtime",
+                format!(
+                    "served route manifest dropped: it no longer validates against the new functions manifest ({})",
+                    error.diagnostic.message
+                ),
+            ));
+        }
 
         if self
             .functions
@@ -4415,6 +4477,25 @@ impl LocalSnapback {
             }
         };
 
+        // Routes install after the functions half so validation runs against
+        // the manifest this same ensure just applied (LLP 0092 §0C.1).
+        let routes_outcome = match input.routes {
+            None => None,
+            Some(manifest) => {
+                let incoming_hash = serde_json::to_value(&manifest)
+                    .ok()
+                    .and_then(|value| crate::rqs::sha256_identity(&value).ok());
+                if incoming_hash.is_some() && incoming_hash == self.routes_manifest_hash {
+                    Some("matched")
+                } else if provisioning_allowed {
+                    self.install_routes_manifest(manifest)?;
+                    Some("provisioned")
+                } else {
+                    Some("gated")
+                }
+            }
+        };
+
         let seed_outcome = match input.seed {
             None => "skipped-absent",
             // Gate BEFORE the emptiness scan (ENG-22527 FIX 2): when
@@ -4448,6 +4529,7 @@ impl LocalSnapback {
             schema: schema_outcome.to_owned(),
             functions: functions_outcome.to_owned(),
             seed: seed_outcome.to_owned(),
+            routes: routes_outcome.map(str::to_owned),
             profile: profile.to_owned(),
         })
     }
@@ -6088,7 +6170,7 @@ impl LocalSnapback {
     /// every ensure (`install_app_generation` clears the cache). A no-op
     /// ensure reproduces identical components and therefore an identical
     /// digest, so dev-loop ensures do not needlessly refuse tokens.
-    pub(crate) fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
+    pub fn rqs_generation_digest(&mut self) -> SnapbackResult<String> {
         if let Some(generation) = &self.rqs_generation {
             return Ok(generation.clone());
         }
@@ -6131,13 +6213,21 @@ impl LocalSnapback {
         let capability_identity =
             canonical_identity(&manifest_value(serde_json::to_value(&capability_manifest))?)?;
         let auth_mode = self.db.auth_mode_snapshot()?.state.active.as_str();
-        // The local arm has no route manifest yet (cluster 0C / LLP 0090 Q1)
-        // and its journal prune policy is a per-call maintenance argument
-        // rather than a named durable policy; both identities are pinned
-        // literals until those artifacts exist, so changing either model
-        // rotates the generation through this string.
-        let resume_config =
-            crate::rqs::resume_config_identity("caller-supplied-v0", auth_mode, "absent");
+        // The journal prune policy is a per-call maintenance argument rather
+        // than a named durable policy; its identity stays a pinned literal
+        // until that artifact exists, so changing the model rotates the
+        // generation through this string. `routeManifestHash` is the served
+        // route manifest's canonical hash (LLP 0092 §0C.1), or the pinned
+        // "absent" literal when no route manifest is served.
+        let route_manifest_hash = self
+            .routes_manifest_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let resume_config = crate::rqs::resume_config_identity(
+            "caller-supplied-v0",
+            auth_mode,
+            &route_manifest_hash,
+        );
         let generation = crate::rqs::generation_digest(
             &deployment_identity,
             &schema_identity,
@@ -6147,6 +6237,109 @@ impl LocalSnapback {
         );
         self.rqs_generation = Some(generation.clone());
         Ok(generation)
+    }
+
+    /// Install the served route→query manifest (LLP 0092 §0C.1 admission on
+    /// the local arm's ensure path): shape validation, then validation
+    /// against the served functions manifest. Installing (or replacing) the
+    /// manifest rotates the RQS `generation` through `routeManifestHash`.
+    pub fn install_routes_manifest(
+        &mut self,
+        manifest: crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        self.validate_routes_manifest(&manifest)?;
+        let value = serde_json::to_value(&manifest).map_err(|error| {
+            routes_manifest_error(format!("routes manifest is not serializable: {error}"))
+        })?;
+        let hash = crate::rqs::sha256_identity(&value).map_err(|_| {
+            routes_manifest_error("routes manifest is not canonically hashable".to_owned())
+        })?;
+        self.routes = Some(manifest);
+        self.routes_manifest_hash = Some(hash);
+        // Route-manifest identity is a `generation` component (LLP 0091
+        // §0A.6 resumeConfig): outstanding tokens minted under the previous
+        // route manifest refuse stale rather than resuming across it.
+        self.rqs_generation = None;
+        Ok(())
+    }
+
+    /// The served route manifest, if any (the bundle endpoint and tests).
+    pub fn routes_manifest(&self) -> Option<&crate::bundle::RoutesManifest> {
+        self.routes.as_ref()
+    }
+
+    /// LLP 0092 §0C.1 install-time validation against the served functions
+    /// manifest: every named function exists and is a query; every `$param`
+    /// reference targets a schema-typable top-level arg (the AST-derived
+    /// per-arg decode types of §0E.6); and every arg the query's plan reads
+    /// is covered by the mapping. Failures refuse the manifest with the
+    /// coded load error — per 0090 D1.4, manifest presence authorizes
+    /// preload selection only.
+    fn validate_routes_manifest(
+        &self,
+        manifest: &crate::bundle::RoutesManifest,
+    ) -> SnapbackResult<()> {
+        crate::bundle::validate_routes_manifest_shape(manifest)
+            .map_err(routes_manifest_error)?;
+        if manifest.app != self.functions.app_id {
+            return Err(routes_manifest_error(format!(
+                "routes manifest app {:?} does not match the served functions manifest app {:?}",
+                manifest.app, self.functions.app_id
+            )));
+        }
+        for entry in &manifest.routes {
+            for spec in &entry.queries {
+                let Some(function) = self.functions.function(&spec.function) else {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names unknown function {:?}",
+                        entry.route, spec.function
+                    )));
+                };
+                if !matches!(
+                    function.kind,
+                    crate::manifest::FunctionKind::Query | crate::manifest::FunctionKind::LiveQuery
+                ) {
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} names non-query function {:?}",
+                        entry.route, spec.function
+                    )));
+                }
+                let arg_types = crate::bundle::function_route_arg_types(function, self.db.schema());
+                if let Value::Object(map) = &spec.args {
+                    for (key, value) in map {
+                        let Value::Object(inner) = value else { continue };
+                        if inner.contains_key("$param") && !arg_types.contains_key(key.as_str()) {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} references param into arg {:?}, which has no schema-derived string/number/boolean type",
+                                entry.route, spec.function, key
+                            )));
+                        }
+                    }
+                }
+                // Coverage: every arg the plan's filters read must appear in
+                // the mapping (LLP 0092 §0E.6's required-arg rule, over the
+                // AST-derived required set).
+                if let crate::manifest::FunctionRuntime::HostPlan(
+                    crate::manifest::HandlerPlan::Query(plan),
+                ) = &function.runtime
+                {
+                    let mut required = std::collections::BTreeSet::new();
+                    for filter in &plan.filters {
+                        collect_value_expr_arg_names(&filter.value, &mut required);
+                    }
+                    for name in required {
+                        let covered = matches!(&spec.args, Value::Object(map) if map.contains_key(&name));
+                        if !covered {
+                            return Err(routes_manifest_error(format!(
+                                "route {:?} query {:?} does not cover required arg {:?}",
+                                entry.route, spec.function, name
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Mint one shared resume token at `(queryArtifact, argsHash, version,
@@ -6394,6 +6587,63 @@ impl LocalSnapback {
         Ok(ops)
     }
 
+    /// Resolve a bundle request's route entry (LLP 0092 §0C.1/§0D.1): while
+    /// a route manifest is served it is the ONLY source of entries — the
+    /// endpoint matches the presented pattern by string equality and the
+    /// inline `devManifestEntry` form is refused by design. Without a served
+    /// manifest the clearly-marked inline dev/test form is required.
+    pub fn resolve_bundle_route(
+        &self,
+        route: &str,
+        dev_manifest_entry: Option<&crate::bundle::BundleRouteEntry>,
+    ) -> SnapbackResult<crate::bundle::BundleRouteEntry> {
+        use crate::bundle::code;
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        match &self.routes {
+            Some(manifest) => {
+                if dev_manifest_entry.is_some() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "devManifestEntry is refused while a served route manifest exists (LLP 0092 §0C.1)",
+                    ));
+                }
+                manifest
+                    .routes
+                    .iter()
+                    .find(|entry| entry.route == route)
+                    .cloned()
+                    .ok_or_else(|| {
+                        refuse(
+                            code::ROUTE_UNKNOWN,
+                            "route pattern is absent from the served route manifest",
+                        )
+                    })
+            }
+            None => dev_manifest_entry.cloned().ok_or_else(|| {
+                refuse(
+                    code::ROUTE_UNKNOWN,
+                    "no served route manifest holds this route (inline devManifestEntry required on an instance serving no route manifest)",
+                )
+            }),
+        }
+    }
+
+    /// The anonymous-read admission fact (LLP 0092 §0D.1): every query the
+    /// entry names carries the codegen-compiled `publicInline` disclosure
+    /// fact in the served functions manifest. Checked against the served
+    /// facts, never the route-manifest author's word (0090 Authorization
+    /// scope).
+    pub fn bundle_entry_public_inline(&self, entry: &crate::bundle::BundleRouteEntry) -> bool {
+        !entry.queries.is_empty()
+            && entry.queries.iter().all(|spec| {
+                self.functions
+                    .function(&spec.function)
+                    .is_some_and(|function| function.public_inline)
+            })
+    }
+
     /// Dev-authority read-mode bundle evaluation (the library/test seam,
     /// mirroring [`Self::subscribe_live`]). Production HTTP composition
     /// prepares its authority in the route middleware and calls
@@ -6505,7 +6755,10 @@ impl LocalSnapback {
                         "register mode requires live queries",
                     ));
                 }
-                let args = bundle::substitute_params_v1(&spec.args, params)
+                // Schema-driven per-arg decode (LLP 0092 §0E.6): references
+                // decode by the AST-derived type of their target arg.
+                let arg_types = bundle::function_route_arg_types(&function, snapback.db.schema());
+                let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
                     .map_err(|code| refuse(code, "bundle args mapping refused"))?;
                 let (rows, resume, subscription_id, authorization) = match &register {
                     None => {
@@ -10701,6 +10954,8 @@ impl LocalSnapback {
             resume_keyring,
             rqs_replay_policy: RqsReplayPolicy::default(),
             rqs_generation: None,
+            routes: None,
+            routes_manifest_hash: None,
         })
     }
 
@@ -20343,6 +20598,14 @@ globalThis.__snapbackHandlers = {
         );
         function.authority_independent = true;
         function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        // The LLP 0092 §0C.2 closed-inputs proof: eligibility derivation
+        // requires the complete `singleTable` summary codegen always emits.
+        function.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some("todos".to_owned()),
+            tables: vec!["todos".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
         function
     }
 

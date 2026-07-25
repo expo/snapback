@@ -31,7 +31,7 @@ const inventories = [
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
   },
   {
     id: '@snapback/client',
@@ -197,7 +197,9 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 77, 'reviewed package/admin test count changed');
+// 77 -> 79 (2026-07-24, ENG-25454): @snapback/vite gains channel-a.test.mjs
+// and rqs-serializer.test.mjs (LLP 0092 §0E Channel A seam + serializer).
+assert.equal(total, 79, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -58,6 +58,12 @@ export {
   RQS_STORE_MAX_BYTES,
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
+export {
+  createRqsPreloadRegistry,
+  readInlineBootPayload,
+  readRqsPreloadRegistry,
+  RQS_BOOT_ELEMENT_ID,
+} from './rqs-preload.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -3390,13 +3396,17 @@ export class SnapbackClient {
   // manifests, provisions ONLY what is missing/mismatched, seeds only when
   // the seed's target tables are all empty — never reset-then-seed. Throws a
   // structured diagnostic when the server profile gates a needed half.
-  async ensureApp({ schema = null, functions = null, seed = null } = {}) {
+  async ensureApp({ schema = null, functions = null, seed = null, routes = null } = {}) {
     const outcome = await this.#req('POST', '/app/ensure', {
       ...(schema ? { schema } : {}),
       ...(functions ? { functions } : {}),
       ...(seed ? { seed } : {}),
+      // The route→query manifest (LLP 0092 §0C.1), ensured beside the
+      // functions manifest; its hash becomes the routeManifestHash
+      // generation component server-side.
+      ...(routes ? { routes } : {}),
     });
-    const gated = ['schema', 'functions', 'seed'].filter((part) => outcome[part] === 'gated');
+    const gated = ['schema', 'functions', 'seed', 'routes'].filter((part) => outcome[part] === 'gated');
     if (gated.length > 0) {
       const diag = {
         code: 'SNAPBACK_PROFILE_FORBIDS',

@@ -12,6 +12,7 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "routes.manifest.json",
     "operations/listCells.args.schema.json",
     "operations/paintCell.args.schema.json",
     "contract/runtime-links.ts",
@@ -24,7 +25,7 @@
     "contract/paintCell.mutation.ts",
     "contract/paintCell.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:e500de180d7352c5",
+  "bundleHash": "sha256:0704ffe4902171b2",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -43,8 +44,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "e3ad487a57910dc6bbb7d83ffe7f88778ab0d0efe2a7a1238912ace341357c57",
-  "schemaHash": "sha256:a31d26d1cf4f5a81",
+  "inputsHash": "2f98c1ea2c6e088aa9991a29515678feb16436a67d0ee3a02c84a00d23f038f5",
+  "schemaHash": "sha256:5a66fbbb753d51c8",
   "schemaVersion": "snapback.v0",
   "tables": [
     "cells"

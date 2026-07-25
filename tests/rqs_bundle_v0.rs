@@ -84,6 +84,14 @@ fn bundle_functions() -> FunctionManifest {
     );
     list_posts.auth_requirement = Some(AuthRequirement::Public);
     list_posts.authority_independent = true;
+    // The LLP 0092 §0C.2 closed-inputs proof: `rqsEligible` derivation
+    // requires the complete `singleTable` read summary codegen always emits.
+    list_posts.read_set_summary = snapback::manifest::DependencySummary {
+        primary_table: Some("posts".to_owned()),
+        tables: vec!["posts".to_owned()],
+        mode: Some("singleTable".to_owned()),
+        auth_scope_field: None,
+    };
 
     FunctionManifest {
         bundle_hash: Some("rqs-bundle-functions-v0".to_owned()),

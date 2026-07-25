@@ -7,10 +7,12 @@
 **Date:** 2026-07-24
 **Revised:** 2026-07-24 (dated amendments: step-1 implementation
 reconciliation — `sbrq_` key-id prefix, the symmetric integral-double
-refusal band, the interim content-derived `queryArtifact`; and the rung-2
+refusal band, the interim content-derived `queryArtifact`; the rung-2
 membership witness — wire format, caps, reconciliation rule, replay
 algorithm, and two new refusal codes, closing OQ1 / LLP 0090 Q7 for rollout
-steps 5a+6, ENG-25457)
+steps 5a+6, ENG-25457; and the step-5/step-3 reconciliation — the
+eviction-ordering pin, the `versionStream`-as-identity arbitration pin, and
+the standing interim `queryArtifact` note, ENG-25454)
 **Related:** LLP 0008, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0077, LLP 0090
 
 ## Summary
@@ -759,6 +761,33 @@ Observability (0090 §Scalability): `deltaReplayAnswers`, `replayOps`, and
 saturating — envelope overhead and the fresh token are identical between a
 rung-2 and rung-3 answer) join the step-1 counters, with refusals keyed by
 the W3 codes.
+
+## Dated amendment: step-5/step-3 reconciliation (2026-07-24)
+
+Rollout step 5's web arm (ENG-25456, commit b2570c91) and rollout step 3
+(ENG-25454) pinned three further points; per LLP 0004 the implemented
+behavior is normative:
+
+1. **§0A.5 eviction ordering.** "Least-recently-resumed first" is ascending
+   `resumedAt` with **never-resumed entries first** (their recency is 0),
+   and `savedAt` as the tiebreak. Recency is bumped *only* by a successful
+   authoritative resume — a mere persist write never refreshes it
+   (`evictionOrder`, `packages/snapback-client/rqs-store.mjs`).
+2. **`versionStream` is an identity axis in the D3 arbitration, never a
+   comparable.** The Channel A-vs-B arbitration compares `app`,
+   `generation`, `versionStream`, `queryArtifact`, and `argsHash` by exact
+   string equality; "higher `version` wins" applies only inside full
+   identity equality, and ANY mismatch — including `versionStream` —
+   discards both candidates for a fresh subscribe
+   (`arbitrateResumeCandidates`). A cross-stream version comparison is
+   never performed anywhere client-side; server admission separately
+   refuses `SNAPBACK_RESUME_STREAM_MISMATCH`.
+3. **The interim content-derived `queryArtifact` stands after cluster 0C.**
+   Step 3 landed 0C (routes manifest, `publicInline`, derived
+   `rqsEligible`) without adding a manifest-carried per-function
+   generated-artifact hash, so item 3 of the step-1 amendment above remains
+   the standing rule; the swap is now expected with the step-4 Cloudflare
+   arm (see LLP 0092's dated amendment).
 
 ## Open questions
 

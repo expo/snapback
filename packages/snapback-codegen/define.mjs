@@ -16,6 +16,7 @@
 // compatibility shim) must resolve to this one file.
 
 const FN = Symbol('snapback.fn');
+const ROUTES = Symbol('snapback.routes');
 const CRON = Symbol('snapback.cron');
 const CONFIG = Symbol('snapback.config');
 const TABLE = Symbol('snapback.table');
@@ -39,8 +40,8 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 ]);
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-  'auth', 'authorityIndependent', 'retainable', 'authScopeField', 'membership',
-  'standardPattern',
+  'auth', 'authorityIndependent', 'publicInline', 'retainable',
+  'authScopeField', 'membership', 'standardPattern',
 ]);
 
 // @ref LLP 0065#3-common-pattern-contracts — every standard-pattern helper
@@ -97,6 +98,14 @@ function authoredFunctionAuth(spec, kind) {
     assert(typeof spec.authorityIndependent === 'boolean', `${kind} authorityIndependent must be boolean`);
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be authorityIndependent`);
     fields.authorityIndependent = spec.authorityIndependent;
+  }
+  if (spec.publicInline !== undefined) {
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    // an HTML-embedding disclosure permission on an already-public query;
+    // accepted only beside a valid authorityIndependent declaration.
+    assert(typeof spec.publicInline === 'boolean', `${kind} publicInline must be boolean`);
+    assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be publicInline`);
+    fields.publicInline = spec.publicInline;
   }
   if (spec.authorityCreating !== undefined) {
     assert(typeof spec.authorityCreating === 'boolean', `${kind} authorityCreating must be boolean`);
@@ -864,6 +873,58 @@ export function defineCron(jobs) {
 }
 
 /**
+ * A `params-v1` route-param reference for `defineRoutes` args mappings: the
+ * `{"$param": name}` grammar of LLP 0092 §0E.6, usable only at a top-level
+ * arg position.
+ */
+export const routeParam = (name) => {
+  assert(typeof name === 'string' && name.length > 0, 'routeParam expects a param name');
+  return { $param: name };
+};
+
+/**
+ * Declare the app's route→query manifest (LLP 0092 §0C.1): which
+ * `(function, args)` pairs each route needs before app JS runs. Compiled by
+ * codegen into `generated/routes.manifest.json` and admitted beside the
+ * functions manifest; its canonical hash is the `routeManifestHash`
+ * generation component (LLP 0091 §0A.6). Authors select queries for preload
+ * only — inline disclosure is the function-level `publicInline` fact, never
+ * a route-manifest field.
+ *
+ * @ref LLP 0092#0c1-routequery-manifest-artifact — pattern grammar,
+ *   `params-v1` mapping rules, and the admission obligations.
+ */
+export function defineRoutes(routes) {
+  assert(Array.isArray(routes), 'defineRoutes expects an array of route entries');
+  const out = [];
+  for (const entry of routes) {
+    assert(entry && typeof entry === 'object' && !Array.isArray(entry), 'defineRoutes entries must be objects');
+    for (const key of Object.keys(entry)) {
+      assert(key === 'route' || key === 'queries' || key === 'persist', `defineRoutes entry has unknown field ${key}`);
+    }
+    assert(typeof entry.route === 'string' && entry.route.startsWith('/'), 'defineRoutes entries require a route pattern string');
+    assert(Array.isArray(entry.queries) && entry.queries.length > 0, `route ${entry.route} requires at least one query`);
+    const queries = entry.queries.map((spec) => {
+      assert(spec && typeof spec === 'object' && !Array.isArray(spec), `route ${entry.route} query specs must be objects`);
+      for (const key of Object.keys(spec)) {
+        assert(key === 'function' || key === 'args', `route ${entry.route} query spec has unknown field ${key}`);
+      }
+      assert(typeof spec.function === 'string' && spec.function.length > 0, `route ${entry.route} query specs require a function name`);
+      return { function: spec.function, args: spec.args ?? {} };
+    });
+    if (entry.persist !== undefined) {
+      assert(typeof entry.persist === 'boolean', `route ${entry.route} persist must be boolean`);
+    }
+    out.push({
+      route: entry.route,
+      queries,
+      ...(entry.persist === false ? { persist: false } : {}),
+    });
+  }
+  return { [ROUTES]: true, routes: out };
+}
+
+/**
  * Declare the app's config entries (API keys and deployment settings).
  * Names, purposes, and acquisition metadata are app source — public by
  * construction; values live only in the deployment's config store.
@@ -884,6 +945,10 @@ export function isFunctionDef(value) {
 
 export function isCronDef(value) {
   return !!(value && value[CRON]);
+}
+
+export function isRoutesDef(value) {
+  return !!(value && value[ROUTES]);
 }
 
 export function isConfigDef(value) {

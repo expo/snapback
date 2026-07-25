@@ -537,6 +537,13 @@ export async function createSnapbackContractSurface({
   // deduplication, refcounts, and fencing. Legacy name-keyed/preopened mode
   // remains the default until published Exact packages carry that runtime.
   keyedQueryScopes = false,
+  // Channel A preload lookup (LLP 0090 D2 rollout step 3): a
+  // `(name, args) => ({ rows, resume } | null)` function over the inlined
+  // boot payload (see @snapback/client rqs-preload.mjs). Each multi-live
+  // subscription passes its candidate to the kit's `preloadedResume` seam,
+  // which verifies, arbitrates against Channel B state, renders the winner
+  // retained-first, and subscribes with `resumeFromToken`.
+  rqsPreload = null,
 }) {
   const lifecycleGenerationSeeds = normalizeTestLifecycleGenerationSeeds(
     testLifecycleGenerationSeeds,
@@ -844,6 +851,7 @@ export async function createSnapbackContractSurface({
         diagnostics,
         pending,
         mountedHandles,
+        rqsPreload,
       });
     }
     if (!queryName || !boundaryKey) {
@@ -3876,6 +3884,7 @@ async function createMultiLiveContractSurface({
   diagnostics,
   pending,
   mountedHandles,
+  rqsPreload = null,
 }) {
   const liveHandles = new Map(); // query name -> kit live handle
   const authorizationHidden = new Set();
@@ -4137,11 +4146,24 @@ async function createMultiLiveContractSurface({
 
     const openMultiLiveHandle = async ({ name, args }, capture) => {
       if (coordinator) await preflightDurable(capture);
+      // Channel A alias-key consumption (LLP 0092 §0C.5): the preload was
+      // minted anonymously; this (possibly authenticated) subscription
+      // adopts it as its own store seed — one store, one subscription, the
+      // kit verifies and arbitrates before rendering it retained.
+      let preloadedResume = null;
+      if (typeof rqsPreload === 'function') {
+        try {
+          preloadedResume = rqsPreload(name, args) ?? null;
+        } catch {
+          preloadedResume = null; // preload is best-effort, never boot-fatal
+        }
+      }
       const handle = await client.liveQuery(name, {
         connectionId: sharedConnectionId,
         args,
         userId: activeUserId,
         authorityCapture: capture,
+        preloadedResume,
         transport: 'stream',
         fallbackToPoll: liveFallbackToPoll,
         stream: liveStreamOptions,
