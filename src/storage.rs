@@ -34,7 +34,7 @@ use uuid::Uuid;
 #[allow(dead_code)]
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
-pub(crate) mod migration_executor;
+pub mod migration_executor;
 
 // @ref LLP 0055#principal-kinds — agent-principal ownership and durable
 //   deactivation live in their own module beneath the auth catalog. Grant/token

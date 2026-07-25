@@ -78,6 +78,10 @@
     },
     {
       "from": "verifying",
+      "to": "verifying"
+    },
+    {
+      "from": "verifying",
       "to": "published-held"
     },
     {

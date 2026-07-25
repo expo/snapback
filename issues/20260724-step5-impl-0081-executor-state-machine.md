@@ -86,3 +86,15 @@ the 0007 grammar formalization + client handshake (the resync row is
 real but typed parsing/posture behavior is the journal-events ticket),
 physical cleanup in the cleanup-pending tail, and 0053 activation
 obligations at publication.
+
+**Wave 3b update (2026-07-25):** the recorded deferrals are closed —
+staged-generation steps (CopyTable/StageTableGeneration/RetireGeneration)
+and cross-table CopyField execute; verify is the §5 data proof; rollback
+is the §6 fast republish; systematic kill-point injection covers every
+happy-path transition interior. Two executor gaps found and fixed by the
+injection: crash-resume between `verifying` and `published-held` replayed
+the step loop into a refused transition (now journal-driven phase-skip
+resume, `verifying→verifying` added to the committed relation), and the
+publication-timestamp floor ignored staged CopyTable sources (now
+enforced). Physical cleanup of parked generations remains behind the
+cleanup-pending tail.

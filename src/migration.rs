@@ -421,6 +421,17 @@ pub struct MigrationConstants {
     /// `2^48` ms with `SNAPBACK_MIGRATION_PLAN_INVALID`.
     #[serde(rename = "publicationTimestampMs")]
     pub publication_timestamp_ms: u64,
+    /// The explicit rollback timestamp (LLP 0081 §6): required to execute
+    /// the fast rollback; admission requires it to be at least
+    /// `publicationTimestampMs` (and the restamp maximum), the same
+    /// monotonicity rule as forward publication. Absent bytes keep older
+    /// plan digests stable.
+    #[serde(
+        default,
+        rename = "rollbackTimestampMs",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub rollback_timestamp_ms: Option<u64>,
     /// Named literal constants backfill expressions may read via `Arg`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub values: BTreeMap<String, Value>,
@@ -1471,6 +1482,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
         },
         constants: MigrationConstants {
             publication_timestamp_ms: 1_784_000_000_000,
+            rollback_timestamp_ms: None,
             values: BTreeMap::from([
                 ("defaultDisplayName".to_owned(), json!("Unnamed")),
                 ("defaultRegion".to_owned(), json!("us-east-1")),

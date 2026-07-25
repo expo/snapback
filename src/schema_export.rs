@@ -129,6 +129,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(crate::storage::migration_executor::MigrationReceiptV1),
         ),
         finish(
+            "migration.rollback-receipt.schema.json",
+            schemars::schema_for!(crate::storage::migration_executor::MigrationRollbackReceiptV1),
+        ),
+        finish(
             "migration.journal-entry.schema.json",
             schemars::schema_for!(crate::storage::migration_executor::MigrationJournalEntryV1),
         ),

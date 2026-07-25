@@ -697,6 +697,11 @@ pub enum MigrateCommand {
         /// constants are explicit inputs; preview creates none.
         #[arg(long)]
         publication_timestamp_ms: u64,
+        /// The explicit rollback timestamp constant (ms) — required later
+        /// to execute the LLP 0081 §6 fast rollback; must be >= the
+        /// publication timestamp.
+        #[arg(long)]
+        rollback_timestamp_ms: Option<u64>,
         /// Optional JSON object of named literal constants.
         #[arg(long)]
         constants: Option<PathBuf>,
@@ -6345,6 +6350,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             intents,
             schema,
             publication_timestamp_ms,
+            rollback_timestamp_ms,
             constants,
             max_affected_rows,
             max_barrier_downtime_ms,
@@ -6398,6 +6404,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                 },
                 constants: crate::migration::MigrationConstants {
                     publication_timestamp_ms,
+                    rollback_timestamp_ms,
                     values: constant_values,
                 },
                 boundaries: Default::default(),
@@ -6521,15 +6528,16 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             Ok(snapback.migrate_verify_receipt(&operation_id)?)
         })()),
         MigrateCommand::Rollback { receipt, db } => migrate_emit("migrate.rollback", (|| {
-            let _receipt: Value = migrate_read_json(&receipt, "receipt")?;
-            let _snapback = crate::local::LocalSnapback::open(&db)?;
-            Err(crate::diagnostic::SnapbackError::error(
-                "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
-                "storage",
-                "rollback is the §6 verification wave on this profile; the predecessor \
-                 remains recoverable through the standard backup/restore machinery",
-            )
-            .into())
+            // The fast rollback runs under the original operation's
+            // approval, which acknowledged the rollback boundary by
+            // declaring the explicit rollback timestamp — so the input is
+            // the approved migration file (the same authority `apply`
+            // consumed), not a regenerated plan.
+            let approved: MigrateApprovedFile = migrate_read_json(&receipt, "approved file")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            let rollback =
+                snapback.migrate_rollback_artifact(&approved.artifact, &approved.approval)?;
+            Ok(serde_json::to_value(&rollback)?)
         })()),
     }
 }
