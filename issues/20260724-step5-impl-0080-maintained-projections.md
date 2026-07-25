@@ -50,9 +50,10 @@ barrier with the per-source non-key-moving bound. L-sized.
   admission rollback, key immutability) and
   `maintained_projection_activation_refusals`.
 
-**Remaining:** concurrent-admission race and 1,023/1,024-boundary
-fixtures for the coupled suite; capability-artifact facts for
-projections.
+**Remaining:** capability-artifact facts for projections. The
+concurrent-admission race and 1,023/1,024-boundary fixtures landed in
+`tests/relational_migration_coupled_suite_v0.rs` (2026-07-25; item→witness
+map in the coupled-suite ticket).
 
 **Authoring surface (2026-07-25, landed):** `defineMaintainedProjection`
 in packages/snapback-codegen (generation mirrors activation: chains,
