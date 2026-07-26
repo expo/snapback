@@ -5,8 +5,8 @@
 **Systems:** Documents, Collaboration, Sync, Offline, Realtime, Auth, Storage, Client integration, Code generation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-23 (research corroboration from the LLP 0082–0085 prior-art passes added — two first-party core-CRDT retreats and the industry convergence on typed-document carve-outs — plus an explicit build-vs-integrate section naming the Yjs alternative and a matching open question; no change to the proposed semantics). 2026-07-20 (initial proposal for LLP 0063's document pressure test)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0018, LLP 0022, LLP 0037, LLP 0043, LLP 0053, LLP 0063, LLP 0083, LLP 0084, LLP 0085
+**Revised:** 2026-07-26 (author-side review reconciliation: separate operation and atom identities, total block-move reduction, canonical bytes, mark and grapheme behavior, lease-bounded compaction, abuse bounds, and the bespoke canonical-model decision; remains Draft pending independent review and executable witnesses). 2026-07-23 (research corroboration from the LLP 0082–0085 prior-art passes added — two first-party core-CRDT retreats and the industry convergence on typed-document carve-outs — plus an explicit build-vs-integrate section naming the Yjs alternative and a matching open question; no change to the proposed semantics). 2026-07-20 (initial proposal for LLP 0063's document pressure test)
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0018, LLP 0022, LLP 0037, LLP 0043, LLP 0053, LLP 0063, LLP 0070, LLP 0071, LLP 0083, LLP 0084, LLP 0085
 
 ## Summary
 
@@ -100,14 +100,27 @@ and arbitrary third-party editor update formats. Image blocks reference LLP
 Every durable object carries an immutable, application-scoped identity:
 
 - `documentId` identifies the document;
-- `blockId` is a trusted Snapback id created with the block insertion;
-- `atomId` is `(authorityInstanceId, counter)`, where `counter` is strictly
-  increasing for one retained client outbox and `authorityInstanceId` is the
-  opaque, never-reused authority identity already required by LLP 0043;
-- `operationId` uses the same tuple and occupies the same sequence as atom ids;
+- `operationId` is `(authorityInstanceId, operationCounter)`, where the
+  unsigned 64-bit counter is strictly increasing for one retained client
+  outbox and the authority id is the opaque, never-reused 128-bit identity
+  already required by LLP 0043;
+- `blockId` is the `operationId` of its block insertion;
+- `placementId` and `markId` are the `operationId` of the operation that
+  creates them;
+- `atomId` is `(insertionOperationId, scalarOffset)`, where `scalarOffset` is
+  the zero-based unsigned 32-bit index in the insertion's canonical scalar
+  sequence;
 - `streamIncarnation` identifies the reset/artifact stream; and
 - `frontier` is a sparse map from authority identity to the greatest contiguous
-  counter incorporated for that authority.
+  **operation** counter incorporated for that authority.
+
+One durable operation consumes exactly one operation counter regardless of
+payload size. Atom ids do not consume counters and never appear as frontier
+keys. A text insert containing `N` Unicode scalars creates atom offsets
+`0..N-1`; an empty insertion is invalid. The next operation uses the next
+operation counter, not `counter + N`. This is the only identity allocation
+rule in v1. Authority ids are nonzero, counters start at one, and root/start/end
+sentinels use explicit schema tags outside the raw-id namespace.
 
 An operation must carry the application, database, target profile, stream
 incarnation, document, authorization witness, operation id, dependency
@@ -122,13 +135,35 @@ not a convergence input.
 
 ### Blocks
 
-The document root is a replicated growable array. An inserted block names the
-left neighbor it observed, or the root sentinel. Concurrent siblings are sorted
-by the unsigned byte ordering of their insertion operation ids. A deleted block
-keeps a tombstone until compaction makes its identity stable. Moving a block is
-one atomic operation that tombstones the old placement and inserts a placement
-for the same `blockId`; concurrent moves select the placement with the greatest
-operation id and leave losing placements as tombstones.
+The document root is a replicated growable array. A block insertion or move
+creates a placement naming the `blockId` of the left neighbor it observed, or
+the root sentinel. Anchors are block ids, never placement ids. A move also
+names the placement it observed for diagnostics, but stale observation does
+not make otherwise valid concurrent work order-dependent. Concurrent
+placements for one block select the placement with the greatest operation id;
+losing placements remain audit tombstones and cannot be future anchors.
+
+A block deletion is monotonic and wins over every concurrent or later move.
+Moving a deleted block settles as `blockDeleted` and never resurrects it; a
+user-visible reinsertion allocates a new block id. An operation may anchor
+after a block that is concurrently deleted or moved. Reduction first chooses
+the winning placement for every block, then materializes the order with this
+total algorithm:
+
+1. construct the one-parent graph for all blocks, including deleted blocks;
+2. find every cycle and redirect to the root the edge whose placement id is
+   greatest in that cycle, repeating until the full graph is acyclic;
+3. for a live block anchored to a deleted block, follow the now-acyclic chain
+   until reaching a live block or the root;
+4. exclude deleted blocks from visible output; and
+5. visit root children and then descendants depth-first, sorting siblings by
+   ascending placement-id bytes.
+
+Missing anchors whose insertion is not present remain dependency-blocked.
+Anchors proven outside the retained frontier use the compaction repair rules
+below. The golden corpus includes concurrent delete/move, anchors after
+deleted and moved blocks, `A-after-B`/`B-after-A` cycles, equal graphs delivered
+in every order, and an attempted anchor to a losing placement.
 
 Block attributes are last-writer-wins registers ordered by operation id. This
 limited rule is acceptable for presentation attributes such as heading level
@@ -138,23 +173,65 @@ block attributes.
 ### Text and marks
 
 Text within a block is another replicated growable array. Each insertion names
-the atom after which it was authored and carries one Unicode scalar value.
-Concurrent siblings use operation-id byte ordering. A deletion names atom ids;
-delete is monotonic and wins over concurrent or later presentation changes.
-The materialized string is a depth-first traversal from the root sentinel that
-omits tombstoned atoms.
+the atom after which it was authored and carries one or more Unicode scalar
+values. Its first atom names that authored anchor and each subsequent atom
+names the preceding offset from the same insertion. Concurrent siblings use
+atom-id byte ordering. A deletion names atom ids; delete is monotonic and wins
+over concurrent or later presentation changes. The materialized string is a
+depth-first traversal from the root sentinel that omits tombstoned atoms.
 
-Inline marks are immutable intervals whose endpoints are atom identities and
-whose kind and JSON value come from a generated, size-bounded schema. Deleting
-or superseding a mark names its identity. Concurrent overlapping marks of the
-same exclusive kind use the greatest operation id for each materialized atom;
-non-exclusive marks compose in operation-id order. Generated code rejects
-unknown mark kinds or values before enqueue and the server validates them
-again.
+Inline marks are immutable half-open intervals whose start and end are atom
+identities or the start/end sentinels and whose kind and JSON value come from a
+generated, size-bounded schema. Endpoints are interpreted in the full
+tombstone-preserving atom traversal at the mark operation's dependency
+frontier. A mark covers only atoms present in that frontier and in
+`[start, end)`; concurrent and later insertions do not inherit it. Deleting an
+endpoint therefore does not move the interval, and an editor extends a mark by
+issuing a superseding mark operation rather than relying on cursor affinity.
+Deleting or superseding a mark names its identity. Concurrent overlapping
+marks of the same exclusive kind use the greatest operation id for each
+materialized atom; non-exclusive marks compose in operation-id order.
+Generated code rejects reversed, missing, unknown, or out-of-frontier
+endpoints and unknown mark kinds or values before enqueue, and the server
+validates them again.
 
 Insert payloads may batch adjacent atoms for transport, but canonicalization
-expands the batch into consecutive atom identities before hashing or reduction.
-The batch is not a different semantic operation.
+decodes the exact UTF-8 string to Unicode scalar values and assigns consecutive
+scalar offsets before hashing or reduction. It does not normalize Unicode.
+Invalid UTF-8, surrogate code points, and non-scalar values fail closed. The
+batch is one operation and is not an alternative semantic representation.
+
+The wire reducer operates on scalars, not grapheme clusters. Generated editor
+adapters pin Unicode 15.1 extended-grapheme segmentation for selection,
+backspace, and delete: a user edit is translated to the complete current set
+of atom ids in the selected grapheme(s) before enqueue. Segmentation never
+changes the canonical reducer. Adapter fixtures cover combining marks, emoji
+ZWJ sequences, variation selectors, skin tones, and regional indicators.
+
+## Canonical bytes and ordering
+
+`authorityInstanceId` is 16 raw bytes, `operationCounter` is a big-endian
+unsigned 64-bit integer, and `scalarOffset` is a big-endian unsigned 32-bit
+integer. Operation ids compare lexicographically over the 24 concatenated raw
+bytes; atom ids compare by their operation id and then scalar offset. JSON
+representations use lowercase fixed-width hexadecimal strings for every raw id
+and integer, so no JavaScript number participates in identity.
+
+Every operation, frontier, snapshot, settlement, and anchor skeleton has a
+closed versioned schema serialized as RFC 8785 JCS UTF-8. Unknown fields,
+duplicate keys, invalid UTF-8, non-NFC schema/attribute names, and JSON numbers
+in integer fields are refused. User text remains byte-preserving and is not
+normalized. SHA-256 inputs are length-framed and domain-separated:
+
+`domain UTF-8 || 0x00 || uint64be(bodyLength) || canonicalBody`
+
+The domains are `snapback-document-operation-v1`,
+`snapback-document-frontier-v1`, `snapback-document-snapshot-v1`,
+`snapback-document-settlement-v1`, and
+`snapback-document-anchor-skeleton-v1`. Cross-language golden vectors include
+maximum counters, non-ASCII text and attributes, canonically equivalent but
+byte-distinct input, unknown-field refusal, domain-collision attempts, and
+changed-one-field digest rejection.
 
 ## Canonical reduction
 
@@ -191,16 +268,29 @@ The provider stores:
 - compaction and audit metadata.
 
 Admission of a batch, operation-id uniqueness, per-document version allocation,
-and outbox settlement commit in one storage transaction. The resulting ordinary
-Snapback commit version drives live-query invalidation. A client can therefore
-subscribe to a document head using the existing realtime lane, then fetch
-operations after its frontier; Snapback does not create a second unversioned
-push protocol.
+and creation of the server settlement record commit in one storage
+transaction. The resulting ordinary Snapback commit version drives live-query
+invalidation. A client can therefore subscribe to a document head using the
+existing realtime lane, then fetch operations after its frontier; Snapback
+does not create a second unversioned push protocol. Clearing a client outbox is
+a separate receipt step: after an ambiguous response the client reads the
+server settlement by operation id and clears only after its canonical payload
+digest and authoritative frontier match.
 
 Limits are target-profile facts. The initial required floor is 2 MiB of visible
 UTF-8 text, 10,000 blocks, 100 operations per batch, 256 KiB per canonical
 batch, and 32 concurrently connected editors. A target may publish higher
 limits, but lower or missing limits cannot claim `collaborative-document-v1`.
+
+Every claiming target also publishes hard bounds for total retained atoms,
+tombstones, placements, marks, comments, operation bytes, dependency gaps per
+authority, authorities per document, named history frontiers, unexpired
+retention leases, and reducer work per admission. Approaching a bound triggers
+bounded compaction or typed backpressure; crossing it returns
+`SNAPBACK_DOCUMENT_LIMIT_EXCEEDED` with the dimension and repair action before
+allocating unbounded memory or CPU. The deterministic abuse corpus proves that
+a tiny visible document with adversarial deletes, marks, gaps, and lease churn
+cannot evade those bounds.
 
 ## Offline replay and resynchronization
 
@@ -229,11 +319,12 @@ a new principal.
 ## Authorization and sharing
 
 Document metadata names owners, editors, commenters, and viewers through the
-LLP 0053 authorization model. Authorization is checked for every snapshot,
-operation fetch, operation admission, comment, history read, and ephemeral-room
-grant. Generated read and write sets include the membership and document rows
-that determine the decision so permission changes create invalidation
-obligations.
+LLP 0053 authorization model. V1 authorization is document-wide; block-level
+ACLs are not implied by atom-level operation inspection. Authorization is
+checked for every snapshot, operation fetch, operation admission, comment,
+history read, and ephemeral-room grant. Generated read and write sets include
+the membership and document rows that determine the decision so permission
+changes create invalidation obligations.
 
 The server never accepts an operation merely because its authority once edited
 the document. Offline replay presents the enqueue-time authority descriptor and
@@ -259,14 +350,30 @@ remains attached to its block and is marked orphaned rather than silently
 moving to unrelated text.
 
 Compaction may replace an operation prefix with a content-addressed canonical
-snapshot only after the server proves a stable frontier. For v1, stability is
-administrative: the server retains every operation newer than the oldest
-unexpired client-retention lease and never compacts past an outstanding replay
-settlement or authorization obligation. A reconnect behind the retained
-frontier receives the snapshot plus subsequent operations. Snapshot creation
-runs transactionally against a fixed document head, verifies reduction and
-hash equality before publication, and keeps the prior snapshot until the new
-one is durable.
+snapshot only after the server proves a stable frontier. Each retained
+authority receives a server-clocked lease containing `leaseId`, document and
+stream identity, observed frontier, and `expiresAt`. An offline operation is
+admissible only under the same still-unexpired lease from which it was
+authored. Renewal requires an authoritative sync; a client cannot extend a
+lease while offline.
+
+For every unexpired lease, the provider retains a content-addressed anchor
+skeleton containing all block, placement, atom, and mark tombstone topology
+that any operation based on that lease's frontier may legally name. Compaction
+may discard operation bodies below the cut, but not this topology, unsettled
+operation identities, authorization/audit obligations, or the prior snapshot
+needed to verify the new artifact. Skeleton publication is transactionally
+bound to a fixed document head and its snapshot hash.
+
+After a lease expires, an operation based on its old frontier fails with
+`SNAPBACK_DOCUMENT_RETENTION_EXPIRED` and is quarantined for export or discard.
+V1 never silently rewrites its anchor or replays it with a new operation id.
+A reconnect behind the retained frontier but holding an unexpired lease
+receives the current snapshot, its verified skeleton, and subsequent
+operations, then reduces its original operation unchanged. A compaction
+fixture deletes and compacts an offline edit's predecessor, reconnects both
+before and after lease expiry, proves convergence in the first case and typed
+quarantine in the second, and races lease renewal against skeleton retirement.
 
 Backups include document metadata, operation logs, snapshots, comments,
 membership, settlement records, and stream identity. Restore verification
@@ -304,8 +411,9 @@ Capability reports distinguish:
 - `OfflineRead`: retained snapshots, no local edits;
 - `OfflineWrite`: retained snapshots and queued edits, but no proven local
   deterministic reduction; and
-- `Parity`: deterministic local reduction, replay, rebase, authorization
-  fencing, and the complete acceptance suite.
+- `Parity`: deterministic local reduction, replay, resnapshot, typed
+  retention-expiry quarantine, authorization fencing, and the complete
+  acceptance suite.
 
 ## Acceptance
 
@@ -328,7 +436,11 @@ retained:
 - compaction racing with edit admission preserves the canonical hash, and a
   client behind the compacted frontier resnapshots then converges;
 - a 2 MiB/10,000-block fixture opens by window, edits without whole-document
-  transfer, and stays within preregistered memory, latency, and fan-out budgets;
+  transfer, and stays within preregistered memory, latency, CPU, log-growth,
+  and fan-out budgets;
+- an adversarial small-visible-document fixture reaches each declared history,
+  tombstone, gap, lease, and reducer-work bound with typed backpressure and no
+  unbounded allocation;
 - comments, orphan anchors, history restore, backup, destroy/replace, and
   restore preserve the pinned snapshot hash and authorization behavior;
 - cursor and selection presence works during edits but leaves no durable or
@@ -337,17 +449,23 @@ retained:
   least one non-web client.
 
 The reference application is a Notion/Docs-style document, not a toy textarea.
-Its retained receipt names the exact target profile, two repository revisions,
-schema/artifact hashes, client platforms, reducer corpus hash, snapshot hashes,
-limits, and every GAP.
+Before its judged candidate exists, a dated prospective instrument amendment
+must freeze the memory, latency, CPU, log-growth, and fan-out methods,
+thresholds, target/hardware identities, idle-host rule, calibration candidate,
+and untouched holdout. Calibration and holdout receipts are separate and
+revision-bound. Its retained receipt names the exact target profile, two
+repository revisions, schema/artifact hashes, client platforms, reducer corpus
+hash, snapshot and skeleton hashes, limits, instrument amendment, and every
+GAP.
 
-## Build vs integrate — the Yjs alternative, named
+## Canonical-model decision and editor adapters
 
-The Scope section excludes "arbitrary third-party editor update formats," which
-implicitly rejects integrating an existing CRDT library such as Yjs. The
-2026-07 research makes that a decision with a live, cheaper-than-before
-alternative rather than a default, so the trade is recorded here explicitly.
-[inferred]
+V1 chooses the bespoke canonical operation, wire, storage, and reducer model in
+this RFC. Applications edit through generated high-level editor adapters; the
+atom-level transport is not a general public mutation surface. A ProseMirror
+adapter is the first web integration and Exact Native is the mandatory
+non-web reducer gate. A Contract/Hermes reducer is additionally required
+before a Contract native carrier may claim this profile.
 
 **Integrating Yjs would buy:** a mature ecosystem of editor bindings
 (ProseMirror/TipTap, CodeMirror, and others) instead of building adapters atom
@@ -356,23 +474,18 @@ existing room server on Snapback's own substrate (Y-PartyServer,
 [LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md)).
 
 **Integrating Yjs would cost:** the properties this RFC is built around. Yjs
-updates are an opaque binary format, which defeats the atom-level authorization
-witnesses, the canonical reference reducer, the deterministic
-golden-corpus acceptance gates, and the bounded, inspectable operation payloads
-specified below; server-side validation would collapse to "accept the blob."
-Compaction, history, and per-block authorization would follow Yjs's model, not
-Snapback's. The bespoke model keeps the document lane inside Snapback's
-authorization and acceptance story at the price of building and proving the
-reducer on every client platform and writing editor adapters ourselves.
+updates are an opaque binary format, which precludes this RFC's atom-level
+admission and audit rules even though a room-authorized service could still
+validate bounded materialized state. Compaction and history would follow Yjs's
+model, not Snapback's. That is a valid different product, but not the v1
+profile selected here.
 
-A middle path exists and is already half-acknowledged by Open question 1: keep
-this RFC's canonical model as the wire and storage truth, and generate
-editor-facing adapters (including, potentially, a Yjs-compatible binding) over
-it. That preserves the authorization/acceptance properties while renting the
-editor ecosystem, at the cost of an adapter layer whose fidelity needs its own
-witnesses. The choice among bespoke-only, Yjs-integrated, and
-canonical-model-with-adapters is an author decision recorded as Open question
-5; this revision does not make it.
+An editor adapter may use a Yjs-backed editor internally only if it translates
+to and from this canonical model and passes bidirectional fidelity,
+authorization, compaction, and adversarial-update witnesses. Snapback does not
+ingest Yjs updates as authoritative bytes in v1. This decision preserves the
+authorization and acceptance contract at the acknowledged cost of building
+the reducer on every claiming platform and maintaining editor adapters.
 
 ## Non-goals and claim boundary
 
@@ -390,17 +503,15 @@ witnesses above.
 
 ## Open questions
 
-1. Should v1 expose the atom-level model publicly, or generate editor-specific
-   adapters over an opaque update type?
-2. Is the administrative stable-frontier rule sufficient for the first hosted
-   profile, or must connected clients explicitly acknowledge snapshot epochs?
-3. Which non-web platform should be the mandatory cross-platform reducer gate:
-   Exact Native, the Contract Hermes carrier, or both?
-4. Should block moves remain one winning placement register, or be represented
-   as delete-plus-insert with a newly allocated block identity?
-5. Bespoke-only, Yjs-integrated, or canonical-model-with-generated-adapters
-   (see "Build vs integrate")? The bespoke model preserves the authorization
-   and acceptance contract; Yjs rents the editor ecosystem and, on the hosted
-   target, Y-PartyServer ([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md));
-   the adapter path attempts both at the cost of a fidelity layer needing its
-   own witnesses.
+1. Which ProseMirror version and schema subset should be pinned for the first
+   generated adapter?
+2. What default hard limits should the first hosted target choose above the
+   mandatory 2 MiB/10,000-block claim floor?
+3. Should a later profile add an explicit, user-approved operation-rebase
+   protocol after retention expiry, or preserve export/discard as the product
+   boundary?
+
+These questions affect adapter packaging and target defaults, not v1 identity,
+reduction, compaction, or authorization semantics. This RFC remains Draft
+until independent non-GPT review and executable model/property tests validate
+the revised protocol.
