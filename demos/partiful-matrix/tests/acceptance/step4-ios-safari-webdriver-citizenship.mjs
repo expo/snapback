@@ -210,7 +210,7 @@ await runAcceptance(suite, async () => {
   await loadFeed(session);
 
   await suite.check(`contract × snapback traps and restores focus in ${environmentId}`, async () => {
-    await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
+    await session.execute(`document.querySelector('[data-testid="create-event"]')?.focus()`);
     await session.keys([press('\uE007')]);
     await session.wait(
       `document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`,
@@ -231,10 +231,10 @@ await runAcceptance(suite, async () => {
     `);
     if (
       initial !== 'create-close'
-      || reverseWrapped !== 'create-submit'
+      || reverseWrapped !== 'create-event-submit'
       || forwardWrapped !== 'create-close'
       || afterEscape.overlay
-      || afterEscape.active !== 'new-event'
+      || afterEscape.active !== 'create-event'
     ) {
       throw new Error(`focus scope mismatch: ${JSON.stringify({
         initial, reverseWrapped, forwardWrapped, afterEscape,

@@ -167,10 +167,10 @@ await runAcceptance(suite, async () => {
       // using the same keyboard path also avoids Safari returning success for
       // a pointer click that it does not dispatch from a non-frontmost
       // automation window.
-      await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
+      await session.execute(`document.querySelector('[data-testid="create-event"]')?.focus()`);
       await session.keys([press('\uE007')]);
     } else {
-      await session.click('[data-testid="new-event"]');
+      await session.click('[data-testid="create-event"]');
     }
     try {
       await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
@@ -181,7 +181,7 @@ await runAcceptance(suite, async () => {
           pathname: location.pathname,
           activeTestId: document.activeElement?.dataset?.testid ?? null,
           overlayPresent: Boolean(document.querySelector('[data-testid="create-overlay"]')),
-          openerPresent: Boolean(document.querySelector('[data-testid="new-event"]')),
+          openerPresent: Boolean(document.querySelector('[data-testid="create-event"]')),
           bodyHasFeed: document.body?.textContent?.includes('Sunset Supper Club') ?? false,
         };
       `);
@@ -195,7 +195,7 @@ await runAcceptance(suite, async () => {
     await session.keys([press('\uE00C')]);
     await sleep(500);
     const afterEscape = await session.execute(`return {overlay:Boolean(document.querySelector('[data-testid="create-overlay"]')),active:document.activeElement?.dataset?.testid ?? null}`);
-    if (initial !== 'create-close' || reverseWrapped !== 'create-submit' || forwardWrapped !== 'create-close' || afterEscape.overlay || afterEscape.active !== 'new-event') {
+    if (initial !== 'create-close' || reverseWrapped !== 'create-event-submit' || forwardWrapped !== 'create-close' || afterEscape.overlay || afterEscape.active !== 'create-event') {
       throw new Error(`focus scope mismatch: ${JSON.stringify({ initial, reverseWrapped, forwardWrapped, afterEscape })}`);
     }
     return { initial, reverseWrapped, forwardWrapped, restored: afterEscape.active, input: 'WebDriver key actions' };

@@ -37,7 +37,7 @@ device. Use the create-event form/dialog on `/partitime/`, the canonical
   eligible native controls. Values, validation linkage, and dialog state must
   remain intact.
 - Focus: Tab/Shift-Tab must remain inside the open dialog; Escape must close it
-  and restore focus to `new-event`.
+  and restore focus to `create-event`.
 - Bfcache: change authored state, navigate feed → event, leave the document,
   and return with browser back. Record the `pageshow.persisted` observation;
   the restored route must retain state and remain interactive.
