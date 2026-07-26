@@ -1,6 +1,6 @@
 # Run-capsule tree ordering is host-locale-dependent and internally unsatisfiable
 
-**Status:** Open
+**Status:** Resolved (2026-07-26)
 **Severity:** P1
 **Systems:** Competitive checkpoint, Acceptance testing, Instruments
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -96,3 +96,16 @@ shares a prefix with a sibling file.
 The capsule is still `candidate-unratified-blocks-timed-runs`, so no timed
 sample has been taken against the broken ordering and no published result is
 affected. This must land before any dated amendment ratifies a capsule digest.
+
+## Resolution
+
+The verifier now uses one explicit UTF-16 code-unit comparator for sorted
+manifest assertions, canonical object keys, filesystem traversal, and npm
+closure paths. `walkClosedTree` collects the complete flat path set before
+sorting it, so directory traversal order cannot disagree with the manifest.
+
+The fixed-vector test now puts `App.tsx` beside `app.json` and `src/x.txt`
+beside `src.txt`, and re-verifies the same capsule in a child Node process with
+`LC_ALL=sv_SE.UTF-8`. The candidate verifier lock was refreshed to sha256
+`eacf4cf8fcc5d871736dcac38e34902e010dfde64c33aef30dfd02ccafa1fe95`.
+The lock remains unratified and continues to block timed runs.

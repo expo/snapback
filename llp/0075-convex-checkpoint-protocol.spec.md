@@ -5,7 +5,13 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-26 (candidate-only instrument correction — runtime metric
+**Revised:** 2026-07-26 (candidate-only run-capsule verifier correction —
+manifest validation, filesystem walks, canonical JSON keys, and npm closure
+paths now share one host-independent UTF-16 code-unit order. The verifier
+contract lock was refreshed to
+`eacf4cf8fcc5d871736dcac38e34902e010dfde64c33aef30dfd02ccafa1fe95`;
+this is not a protocol amendment or ratification and authorizes no timed run).
+2026-07-26 (candidate-only instrument correction — runtime metric
 projection now rejects unknown sample outcomes and malformed command identity/
 authorship; gate evaluation now rejects missing or unknown categories and
 malformed run identity. The exact candidate locks were refreshed, but this is
@@ -71,7 +77,7 @@ The complete machine gate matrix also has an executable candidate locked by
 `gate-matrix-lock.candidate.v0.json` sha256
 `ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1`.
 A fail-closed run-capsule verifier contract is locked separately at sha256
-`73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`;
+`eacf4cf8fcc5d871736dcac38e34902e010dfde64c33aef30dfd02ccafa1fe95`;
 it is not the still-missing capsule. The mechanical scoring engine is locked
 at sha256
 `9ea895ab25213197565c3226c90d381a8803c3e822604d5a38ac7e1dd83419be`,
@@ -312,7 +318,7 @@ mutable machine images, incomplete or unsorted scaffold trees, drifted prompt/
 artifact/documentation bytes, non-exact package integrity, and any timed-run
 authorization not naming a dated ratifying amendment. Its verifier-contract
 lock sha256 is
-`73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`.
+`eacf4cf8fcc5d871736dcac38e34902e010dfde64c33aef30dfd02ccafa1fe95`.
 That digest does not satisfy `runCapsule`: the neutral prompt, scaffold trees,
 machine/network facts, providers, topologies, auth/hosting boundaries,
 credentials, assistance, and documentation corpora still need to be selected,

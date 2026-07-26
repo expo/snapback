@@ -26,6 +26,11 @@ const SECRET_VALUE_KEYS = new Set([
   'keymaterial',
 ]);
 
+// @ref LLP 0075#package-and-initial-state-freeze — capsule identity must use one host-independent path order
+function compareCodeUnits(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function assertKeys(value, required, optional, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
@@ -77,7 +82,7 @@ function assertRelativePath(value, label) {
 
 function assertSortedUnique(values, label) {
   if (new Set(values).size !== values.length) throw new Error(`${label} repeats a value`);
-  if (values.some((value, index) => index > 0 && values[index - 1].localeCompare(value) >= 0)) {
+  if (values.some((value, index) => index > 0 && compareCodeUnits(values[index - 1], value) >= 0)) {
     throw new Error(`${label} must be strictly sorted`);
   }
 }
@@ -97,7 +102,7 @@ export function canonicalJson(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   return `{${Object.keys(value)
-    .sort()
+    .sort(compareCodeUnits)
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
     .join(',')}}`;
 }
@@ -372,25 +377,30 @@ async function readVerifiedArtifact(baseDir, artifact, label) {
   return bytes;
 }
 
-async function walkClosedTree(root, prefix = '') {
-  const entries = await readdir(root, { withFileTypes: true });
-  entries.sort((left, right) => left.name.localeCompare(right.name));
+async function walkClosedTree(root) {
   const files = [];
-  for (const entry of entries) {
-    const path = join(root, entry.name);
-    const relativePath = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
-    const info = await lstat(path);
-    if (info.isSymbolicLink()) throw new Error(`tree crosses a symbolic link: ${relativePath}`);
-    if (info.isDirectory()) {
-      files.push(...await walkClosedTree(path, relativePath));
-    } else if (info.isFile() && info.nlink === 1) {
-      files.push(relativePath);
-    } else {
-      throw new Error(`tree contains a non-regular or multiply-linked entry: ${relativePath}`);
+
+  async function collect(directory, prefix = '') {
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) => compareCodeUnits(left.name, right.name));
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      const relativePath = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
+      const info = await lstat(path);
+      if (info.isSymbolicLink()) throw new Error(`tree crosses a symbolic link: ${relativePath}`);
+      if (info.isDirectory()) {
+        await collect(path, relativePath);
+      } else if (info.isFile() && info.nlink === 1) {
+        files.push(relativePath);
+      } else {
+        throw new Error(`tree contains a non-regular or multiply-linked entry: ${relativePath}`);
+      }
+      if (files.length > MAX_TREE_FILES) throw new Error('tree exceeds the file-count bound');
     }
-    if (files.length > MAX_TREE_FILES) throw new Error('tree exceeds the file-count bound');
   }
-  return files;
+
+  await collect(root);
+  return files.sort(compareCodeUnits);
 }
 
 async function verifyTreeBytes(baseDir, tree, label) {
@@ -470,7 +480,9 @@ async function verifyPackageClosure(baseDir, closure, label) {
     throw new Error(`${label}.lockfile must be one npm package-lock v3 install closure`);
   }
   const entries = [];
-  for (const path of Object.keys(lockfile.packages).filter((path) => path !== '').sort()) {
+  for (const path of Object.keys(lockfile.packages)
+    .filter((path) => path !== '')
+    .sort(compareCodeUnits)) {
     assertRelativePath(path, `${label}.lockfile.packages path`);
     const pkg = lockfile.packages[path];
     if (

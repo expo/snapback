@@ -5,7 +5,11 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-25 (hosted-auth admission leg resolved: LLP 0098's
+**Revised:** 2026-07-26 (claim-boundary reconciliation: the LLP 0098
+loopback-terminated target admits hosted auth as a partial pass; it does not
+claim `hostedAuthCapable` or the complete trusted-single-tenant profile while
+two attested facts remain unenforced and the LLP 0077 matrix remains unrun).
+2026-07-25 (hosted-auth admission leg resolved: LLP 0098's
 `loopback-terminated-single-instance.v1` profile admits on the served origin;
 partial pass, two attested facts unenforced, 0077 matrix not run); 2026-07-25
 (first adapter instantiation recorded: the LLP
@@ -657,10 +661,11 @@ gate-2 streaming drill, and now the hosted admission leg — NOT this RFC's
 acceptance corpus. No control-plane
 adapter operations (release manifests, activation generations, restore locks,
 inspection contract) exist for this target;
-`trusted-single-tenant-app-complete.v1` remains unsupported, and the
-hosted-auth leg on this target refuses with
-`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` because no adapter owns the LLP 0060
-hosted-edge attestation.
+`trusted-single-tenant-app-complete.v1` remains unsupported. The hosted-auth
+admission leg no longer refuses on this target: it admits under LLP 0098's
+signed, deployment-bound hosted-edge attestation. That partial admission does
+not establish `hostedAuthCapable`, because the two enforcement gaps above
+remain and the LLP 0077 matrix has not run against a hosted-auth deployment.
 
 ## Acceptance
 

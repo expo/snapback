@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   mkdtemp,
@@ -35,6 +36,7 @@ const baseDir = await mkdtemp(join(tmpdir(), 'snapback-run-capsule-'));
 const fakeSri = `sha512-${Buffer.alloc(64, 7).toString('base64')}`;
 for (const directory of [
   'scaffolds/snapback',
+  'scaffolds/snapback/src',
   'scaffolds/convex',
   'docs/snapback',
   'docs/convex',
@@ -43,6 +45,10 @@ for (const directory of [
   await mkdir(join(baseDir, directory), { recursive: true });
 }
 await writeFile(join(baseDir, 'prompt.md'), 'Build the exact frozen fixture.\n');
+await writeFile(join(baseDir, 'scaffolds/snapback/App.tsx'), 'export default function App() {}\n');
+await writeFile(join(baseDir, 'scaffolds/snapback/app.json'), '{}\n');
+await writeFile(join(baseDir, 'scaffolds/snapback/src.txt'), 'sibling file\n');
+await writeFile(join(baseDir, 'scaffolds/snapback/src/x.txt'), 'nested file\n');
 await writeFile(join(baseDir, 'scaffolds/snapback/package.json'), '{"private":true}\n');
 await writeFile(join(baseDir, 'scaffolds/convex/package.json'), '{"private":true}\n');
 await writeFile(
@@ -143,7 +149,14 @@ const normative = Object.fromEntries(normativeArtifacts.map((value) => [value.pa
 const content = {
   neutralPrompt: await artifact('prompt.md'),
   startingScaffolds: {
-    snapback: await tree('scaffolds/snapback', ['package-lock.json', 'package.json']),
+    snapback: await tree('scaffolds/snapback', [
+      'App.tsx',
+      'app.json',
+      'package-lock.json',
+      'package.json',
+      'src.txt',
+      'src/x.txt',
+    ]),
     convex: await tree('scaffolds/convex', ['package-lock.json', 'package.json']),
   },
   normativeArtifacts,
@@ -260,6 +273,32 @@ assert.deepEqual(await verifyRunCapsule(capsule, { baseDir }), {
   contentSha256: capsule.contentSha256,
   authorization: 'candidate-unratified-blocks-timed-runs',
 });
+
+await writeFile(join(baseDir, 'capsule.json'), `${JSON.stringify(capsule)}\n`);
+const localeVerification = spawnSync(
+  process.execPath,
+  [
+    '--input-type=module',
+    '--eval',
+    `import { readFile } from 'node:fs/promises';
+import { verifyRunCapsule } from ${JSON.stringify(new URL('./run-capsule.v0.mjs', sourceDir).href)};
+if (!new Intl.Collator().resolvedOptions().locale.toLowerCase().startsWith('sv')) {
+  throw new Error('child process did not select the requested Swedish ICU locale');
+}
+const capsule = JSON.parse(await readFile(${JSON.stringify(join(baseDir, 'capsule.json'))}, 'utf8'));
+await verifyRunCapsule(capsule, { baseDir: ${JSON.stringify(baseDir)} });`,
+  ],
+  {
+    env: { ...process.env, LANG: 'sv_SE.UTF-8', LC_ALL: 'sv_SE.UTF-8' },
+    encoding: 'utf8',
+  },
+);
+assert.equal(
+  localeVerification.status,
+  0,
+  `run-capsule verification changed under sv_SE.UTF-8:\n${localeVerification.stderr}`,
+);
+
 await assert.rejects(
   () => authorizeTimedRun(capsule, { baseDir }),
   /not ratified by a dated amendment/,
@@ -323,7 +362,7 @@ symlinked.content.assistance.documentationCorpora.snapback.files.push({
   sha256: sha256('not allowed\n'),
 });
 symlinked.content.assistance.documentationCorpora.snapback.files.sort((left, right) =>
-  left.path.localeCompare(right.path));
+  left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
 symlinked.content.assistance.documentationCorpora.snapback.treeSha256 = treeDigest(
   symlinked.content.assistance.documentationCorpora.snapback.files,
 );
