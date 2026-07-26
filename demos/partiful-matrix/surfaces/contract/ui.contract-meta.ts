@@ -1,10 +1,10 @@
 import { defineContractModule, pure, styleRecipe } from '@exact/contract/exports';
 
 export default defineContractModule('./ui.ts', {
-  backgroundFor: pure({ params: ['variant'], result: 'string', depends: 'args' }),
-  textFor: pure({ params: ['variant'], result: 'string', depends: 'args' }),
-  mutedFor: pure({ params: ['variant'], result: 'string', depends: 'args' }),
-  accentFor: pure({ params: ['variant'], result: 'string', depends: 'args' }),
+  backgroundFor: pure({ params: ['variant'], result: 'string', depends: ['palette'] }),
+  textFor: pure({ params: ['variant'], result: 'string', depends: ['palette'] }),
+  mutedFor: pure({ params: ['variant'], result: 'string', depends: ['palette'] }),
+  accentFor: pure({ params: ['variant'], result: 'string', depends: ['palette'] }),
   surfaceStyle: styleRecipe({
     component: 'PartitimeSurface',
     params: ['variant', 'tone'],

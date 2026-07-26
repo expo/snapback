@@ -1,6 +1,6 @@
 import { capability, defineContractModule, pure } from '@exact/contract/exports';
 export default defineContractModule('./helpers.ts', {
-  fmtWhen: pure({ params: ['ms'], result: 'string', depends: 'args' }),
+  fmtWhen: pure({ params: ['ms'], result: 'string', depends: ['partitimeWhenFormatter'] }),
   statusLabel: pure({ params: ['status'], result: 'string', depends: 'args' }),
   goingCount: pure({ params: ['rows'], result: 'number', depends: 'args' }),
   myStatus: pure({ params: ['rows','userId'], result: 'string', depends: 'args' }),

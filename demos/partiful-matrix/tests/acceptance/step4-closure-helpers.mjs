@@ -127,10 +127,38 @@ export function gitRevision(root = repoRoot) {
 
 export function validateRetainedWebReceipt(receipt) {
   assert.equal(receipt.ok, true, 'retained Step 0 web receipt is not green');
-  assert.equal(receipt.passed, 43, 'retained Step 0 web receipt pass count drifted');
   assert.equal(receipt.failed, 0, 'retained Step 0 web receipt contains failures');
-  assert.equal(receipt.skipped, 0, 'retained Step 0 web receipt contains skips');
   assert.equal(receipt.total, 43, 'retained Step 0 web receipt check count drifted');
+  assert.equal(receipt.expectedChecks, 43, 'retained Step 0 expected-check count drifted');
+  assert.equal(receipt.results?.length, 43, 'retained Step 0 result inventory drifted');
+  assert.equal(
+    receipt.passed + receipt.skipped,
+    receipt.total,
+    'retained Step 0 pass/skip accounting does not close',
+  );
+  assert.equal(receipt.cleanupErrorCount, 0, 'retained Step 0 cleanup contains failures');
+  assert.deepEqual(receipt.cleanupErrors, [], 'retained Step 0 cleanup error inventory drifted');
+
+  const skipped = receipt.results.filter(({ outcome }) => outcome === 'skip');
+  assert.equal(skipped.length, receipt.skipped, 'retained Step 0 skip count does not match results');
+  for (const entry of skipped) {
+    assert.equal(
+      entry.details?.skipClass,
+      'remote-dependency',
+      `retained Step 0 result has forbidden skip class: ${entry.name}`,
+    );
+    assert(
+      entry.details?.backend === 'supabase' || entry.details?.backend === 'convex',
+      `retained Step 0 remote skip names an unexpected backend: ${entry.name}`,
+    );
+    assert.equal(entry.details?.health?.ok, false);
+    assert.equal(entry.details?.health?.skipClass, 'remote-dependency');
+    assert.equal(entry.details?.health?.stage, 'initialization');
+    assert.equal(
+      entry.details?.health?.errorCode,
+      'BACKEND_ADAPTER_INITIALIZATION_FAILED',
+    );
+  }
   for (const entry of receipt.testInventory ?? []) {
     assert.deepEqual(identity(entry.path), entry, `retained Step 0 input drifted: ${entry.path}`);
   }

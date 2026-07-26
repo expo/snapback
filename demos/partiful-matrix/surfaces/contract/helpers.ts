@@ -12,12 +12,12 @@ export function fmtWhen(ms: number): string {
   // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
   // static Bun output and hydrated browser output must be byte-identical; ICU
   // owns the calendar fields, while the product owns their punctuation.
-  const fields = Object.fromEntries(
-    partitimeWhenFormatter
-      .formatToParts(new Date(ms))
-      .filter(({ type }) => type !== 'literal')
-      .map(({ type, value }) => [type, value]),
-  );
+  const fields: Record<string, string> = {};
+  for (const part of partitimeWhenFormatter.formatToParts(ms)) {
+    if (part.type !== 'literal') {
+      fields[part.type] = part.value;
+    }
+  }
   return `${fields.weekday}, ${fields.month} ${fields.day}, ${fields.hour}:${fields.minute} ${fields.dayPeriod}`;
 }
 export function statusLabel(status: string): string {
