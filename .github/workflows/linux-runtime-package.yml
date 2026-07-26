@@ -63,6 +63,12 @@ jobs:
           cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           node packages/snapback-runtime-linux-x64/package.test.mjs
+          status="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$status" ]; then
+            printf '%s\n' "$status"
+            printf 'Linux runtime preparation dirtied the source checkout\n' >&2
+            exit 1
+          fi
 
       - name: Pack and cold-install the Linux public-alias closure
         env:

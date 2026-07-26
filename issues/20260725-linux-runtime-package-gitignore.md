@@ -78,3 +78,9 @@ leaves the tree clean, nor that the packaged binary launches with
 `LD_LIBRARY_PATH` absent. Keep this ticket open until the remote Linux workflow
 retains that evidence. The lower-priority cross-host publisher flag/usage
 question above also remains outside this fix.
+
+The Linux workflow now fails explicitly if runtime preparation leaves any
+tracked or untracked source-tree change after the package-local ignore rules
+take effect. Its existing package test launches the prepared binary with
+`LD_LIBRARY_PATH` removed; together those two checks make the remaining remote
+proof sufficient to close this ticket.
