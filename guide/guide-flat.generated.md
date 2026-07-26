@@ -39,7 +39,8 @@ with the Snapback label and `guide-gap` in the title.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
-| backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
+| backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
+| backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
@@ -259,8 +260,11 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
+  server-authored timestamps and IDs in JavaScript handlers, closed operation
+  arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
-  unique lookup, keyset pages, and server-derived time and IDs.
+  unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
@@ -1994,6 +1998,144 @@ portable maximum instead of wrapping.
 
 ---
 
+<!-- snapback-guide-source: guide/backend/trusted-runtime-values.md -->
+---
+title: Trusted runtime time and identifiers
+id: backend.runtime-values
+order: 24
+audience: agent-first
+capabilities: [backend.runtime-values]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs]
+examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-26
+reviewed-commit: HEAD
+---
+
+# Trusted runtime time and identifiers
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+When a JavaScript handler needs a creation/update time or a fresh opaque
+identifier, derive it inside the handler. Do not accept it from a client and
+do not call ambient `Date` or `Math.random`.
+
+## Stamp a write inside the handler
+
+Use `ctx.runtime.now()` for an integer Unix timestamp in milliseconds. The
+value is frozen for the invocation, so store one result in a local when several
+writes describe the same event. Use `ctx.runtime.id()` for a fresh string on
+each call:
+
+```js source=demos/competitive-checkpoint/snapback/handlers.mjs
+  const now = ctx.runtime.now();
+  const attemptId = ctx.runtime.id();
+  await ctx.db.insert('messages', {
+    ownerId: ctx.auth.userId,
+    conversationId: args.conversationId,
+    role: 'user',
+    content: args.content,
+    status: 'complete',
+    attemptId: ctx.runtime.id(),
+    idempotencyKey: 'user:' + args.idempotencyKey,
+    sequence: 0,
+    lastProgressAt: now,
+    pageKey: ctx.runtime.id(),
+  });
+```
+
+The host records these answers and reuses them if it replays the invocation.
+That is why ambient clock and randomness APIs are not interchangeable with the
+context methods. An `id()` result belongs in a plain required string field; it
+is not a principal and does not manufacture a table foreign key.
+
+For owner-scoped generated CRUD, declare the same policy as
+`createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
+handler. The [safe standard patterns](./standard-patterns.md) page covers that
+narrow helper profile.
+
+## Keep generated fields out of operation arguments
+
+Declare only client-authored values in a mutation's `args`. The generated
+operation schema is closed, while trusted fields such as `attemptId`,
+`lastProgressAt`, and `pageKey` are absent:
+
+```json source=demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/startReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "conversationId": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "content",
+    "idempotencyKey"
+  ],
+  "title": "competitive-checkpoint:startReply arguments",
+  "type": "object"
+}
+```
+
+A caller that tries to supply an omitted timestamp or identifier is therefore
+rejected as an additional property instead of silently overriding the server
+value.
+
+## Repair ambient dependency diagnostics
+
+- `BUNDLE_UNSUPPORTED_TIME` for `Date.now()` or `new Date()` means: call
+  `ctx.runtime.now()` and keep the stored field an integer millisecond value.
+- `BUNDLE_UNSUPPORTED_RANDOM` for `Math.random()` means: use
+  `ctx.runtime.id()` only when the intent is a fresh identifier. For other
+  values, pass an explicit deterministic input; Snapback does not expose a
+  general randomness primitive.
+- `BUNDLE_UNSUPPORTED_TIMER` means an ambient timer is not valid in that
+  handler profile. `ctx.runtime.now()` supplies a timestamp, not a delay or
+  scheduler.
+
+The diagnostic message includes this page's path. Assert on its stable code,
+not its repair prose; see [diagnostics](../operating/diagnostics.md).
+
+## Move a client-authored field to the runtime
+
+For future writes, replace the handler's use of `args.createdAt` or
+`args.generatedId` with the appropriate context call, then remove that field
+from the operation's `args`. Regenerate the operation schemas and update
+callers together: the closed schema deliberately rejects an old client that
+continues sending the removed property. Existing stored values can remain;
+the trust boundary changes at the write path.
+
+Snapback does not currently provide a general schema-migration or backfill
+workflow. For disposable local data, reset and reseed after changing the
+schema. If preserved data must be reshaped or backfilled, treat that as an
+application-specific migration with its own authorization and acceptance
+plan; this guide makes no hosted rollout or zero-downtime migration claim.
+
+## Anti-patterns
+
+- Do not put `createdAt`, `updatedAt`, or generated IDs in public arguments
+  when the server is their authority.
+- Do not substitute `Date.now()`, `new Date()`, or `Math.random()` inside a
+  handler.
+- Do not reuse one `ctx.runtime.id()` result for distinct logical records.
+- Do not type a runtime-generated string as a principal or foreign key.
+- Do not infer a supported migration workflow from the runtime-value APIs.
+
+---
+
 <!-- snapback-guide-source: guide/backend/standard-patterns.md -->
 ---
 title: Safe standard data patterns
@@ -2006,8 +2148,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: 6fe11376af0429eb2154627c253586224be063bb
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Safe standard data patterns
@@ -2021,10 +2163,10 @@ single-owner shape. The helpers generate declarative queries and mutations;
 they do not add a second runtime or hide handwritten JavaScript behind the
 API.
 
-This surface is partial while its governing soundness RFC is Draft and its
-full server-backed cross-user acceptance remains open. The implemented v1
-profile is intentionally narrow: owner visibility only, with authorization
-and visibility always declared by the caller.
+This surface is partial because the implemented v1 profile is intentionally
+narrow: owner visibility only, with authorization and visibility always
+declared by the caller. Its governing soundness RFC is Implemented; “partial”
+describes the helper's limited profile, not unfinished enforcement.
 
 ## Declare the owner and continuation boundary
 
@@ -2058,7 +2200,9 @@ inside the transaction.
 `createDefaults` and `updateDefaults` use trusted runtime values. `now` becomes
 server-derived `runtimeNow()` and `id` becomes server-derived `runtimeId()`;
 neither field appears in the public argument schema, so a client cannot forge
-it.
+it. For the direct JavaScript handler form, including runtime diagnostics and
+transitioning an existing client-authored field, see
+[trusted runtime time and identifiers](./trusted-runtime-values.md).
 
 ```js source=packages/snapback-codegen/standard-patterns.test.mjs
 export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = defineOwnedCrud({
@@ -4951,13 +5095,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 0ef40d4a2c1856b841585474602878b6d96a3c59
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Diagnostics and local doctoring
@@ -5007,6 +5151,16 @@ export async function assertThrows(fn, code, message) {
 
 Messages may improve without a compatibility event. A code change is a
 contract change and must update its schemas, callers, tests, and docs together.
+
+## Repair ambient time and identifier diagnostics
+
+During handler generation, `BUNDLE_UNSUPPORTED_TIME`,
+`BUNDLE_UNSUPPORTED_RANDOM`, and `BUNDLE_UNSUPPORTED_TIMER` include a
+suggested repair and route to
+[trusted runtime time and identifiers](../backend/trusted-runtime-values.md).
+Use `ctx.runtime.now()` for a trusted integer timestamp and
+`ctx.runtime.id()` for a fresh identifier. Neither method is a general
+replacement for randomness, delay, or scheduling.
 
 ## Diagnose the vendored Ibex runtime first
 

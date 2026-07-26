@@ -3565,6 +3565,23 @@ function egressAllowedAtCodegen() {
   return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
 }
 
+// @ref LLP 0051#d1-the-ctx-answer-ledger-recordable-replayable-deterministic-ops — ambient time and entropy are
+// refused before bundle load, so the diagnostic must steer authors to the
+// host-recorded context values that preserve replay.
+function unsupportedAmbientDependencyMessage(code, token) {
+  const guide = 'guide/backend/trusted-runtime-values.md';
+  if (code === 'BUNDLE_UNSUPPORTED_TIME') {
+    return `unsupported ambient dependency ${token}; use ctx.runtime.now() for a trusted integer timestamp (${guide})`;
+  }
+  if (code === 'BUNDLE_UNSUPPORTED_RANDOM') {
+    return `unsupported ambient dependency ${token}; use ctx.runtime.id() for a fresh identifier, or pass an explicit deterministic input for other values (${guide})`;
+  }
+  if (code === 'BUNDLE_UNSUPPORTED_TIMER') {
+    return `unsupported ambient dependency ${token}; do not wait on ambient timers in this handler—use ctx.runtime.now() only when you need a trusted timestamp (${guide})`;
+  }
+  return `unsupported ambient dependency ${token}`;
+}
+
 function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
   if (/\.(?:ts|mts)$/iu.test(sourcePath)) {
     return scanUnsupportedTypeScriptHandlerSource(source, sourcePath);
@@ -3617,7 +3634,7 @@ function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
     'requestAnimationFrame',
   ]);
 
-  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+  function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -3917,7 +3934,7 @@ function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
     'requestAnimationFrame',
   ]);
 
-  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+  function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
     if (seen.has(key)) return;
     seen.add(key);

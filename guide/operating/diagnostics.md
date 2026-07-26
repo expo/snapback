@@ -4,13 +4,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 0ef40d4a2c1856b841585474602878b6d96a3c59
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Diagnostics and local doctoring
@@ -60,6 +60,16 @@ export async function assertThrows(fn, code, message) {
 
 Messages may improve without a compatibility event. A code change is a
 contract change and must update its schemas, callers, tests, and docs together.
+
+## Repair ambient time and identifier diagnostics
+
+During handler generation, `BUNDLE_UNSUPPORTED_TIME`,
+`BUNDLE_UNSUPPORTED_RANDOM`, and `BUNDLE_UNSUPPORTED_TIMER` include a
+suggested repair and route to
+[trusted runtime time and identifiers](../backend/trusted-runtime-values.md).
+Use `ctx.runtime.now()` for a trusted integer timestamp and
+`ctx.runtime.id()` for a fresh identifier. Neither method is a general
+replacement for randomness, delay, or scheduling.
 
 ## Diagnose the vendored Ibex runtime first
 

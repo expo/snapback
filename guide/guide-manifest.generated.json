@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "cbbff8a4bd25d7cfd48254487174e2358adff3ff"
+    "commit": "68b31f825a72e8187b2a741aec97e13ae094b14a"
   },
   "nav": {
     ".": [
@@ -74,6 +74,11 @@
         "id": "backend.cron",
         "order": 4,
         "title": "Scheduled execution with cron"
+      },
+      {
+        "id": "backend.runtime-values",
+        "order": 24,
+        "title": "Trusted runtime time and identifiers"
       },
       {
         "id": "backend.standard-patterns",
@@ -676,9 +681,9 @@
       "examples": [
         "packages/snapback-codegen/standard-patterns.test.mjs"
       ],
-      "reviewed": "2026-07-25",
-      "reviewedCommit": "6fe11376af0429eb2154627c253586224be063bb",
-      "sha256": "ac547433d5abe88da94b5f07a6886bd3290536d2fc3b818ca5a39f9f9a74b9aa",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "79fe957aa94206b1bad0b261463b2e3693859c8582ca25af093c991c119b47e3",
       "snippets": [
         {
           "lang": "js",
@@ -748,6 +753,44 @@
         }
       ]
     },
+    "backend.runtime-values": {
+      "path": "guide/backend/trusted-runtime-values.md",
+      "title": "Trusted runtime time and identifiers",
+      "order": 24,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.runtime-values"
+      ],
+      "authorities": [
+        "llp/0051-language-neutral-data-tier.rfc.md",
+        "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "packages/snapback-codegen/index.mjs"
+      ],
+      "examples": [
+        "demos/competitive-checkpoint/snapback/handlers.mjs",
+        "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json"
+      ],
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "889ec6515bc8a39fdd8ee8a92fe5f9037a5ed7e971806373496474848a0fb9df",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
+        },
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json"
+        }
+      ]
+    },
     "meta.capabilities": {
       "path": "guide/capabilities.md",
       "title": "Capability index",
@@ -771,7 +814,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "15d4dff19bf90b5db299f74ab21462df47dee3c8c0cbb972342b29c8f239ad43",
+      "sha256": "11614f4c29efae1d40b352f0f825acd993786bb6e55be8b562a9adf29598f3a6",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1232,7 +1275,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "d10863aea89f7c2c84aac094bba2d37eacd42c49c83ed88304e0b38722c368dd",
+      "sha256": "c17fa6ad8e076252588c36fde1dd89cbcf2f64a00a652dae831fe5dc2717b941",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1285,16 +1328,18 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "src/diagnostic.rs",
+        "packages/snapback-codegen/index.mjs",
         "demos/_kit/harness.mjs",
         "scripts/ibex-doctor",
         "scripts/bootstrap-ibex-runtime"
       ],
       "examples": [
-        "demos/todo/tests/acceptance/headless.mjs"
+        "demos/todo/tests/acceptance/headless.mjs",
+        "packages/snapback-codegen/authoring-validation.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
-      "sha256": "9209e2da160f9940380aa311e95af51f430a4a1fdf3b03b538b982b6d68473b9",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "7042a38996ba7292f75cbfd05fcd9b33ca32c5d8ab02657bdd11f80b547eb47c",
       "snippets": [
         {
           "lang": "js",
@@ -1709,6 +1754,7 @@
       "backend.provisioning",
       "backend.query-semantics",
       "backend.relational-queries",
+      "backend.runtime-values",
       "backend.schema",
       "backend.seed",
       "backend.standard-patterns",
@@ -1749,5 +1795,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "7f5740db60008da4f00654a8debf2fd890f90838ed1e2e0fa06afb6f4b483498"
+  "contentHash": "2cc5a4acbf1e5466a5b81701a6fb78747681dd54c0f488be554c385cad1c2c78"
 }
