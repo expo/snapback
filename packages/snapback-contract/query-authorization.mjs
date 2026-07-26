@@ -24,6 +24,7 @@ import {
   validateQueryNamespace,
   validateResolutionTicket,
   validateResyncObligation,
+  validateScopeId,
   validateScopeRetirement,
 } from './auth-invalidation.mjs';
 
@@ -206,6 +207,8 @@ export function createLiveQueryAuthorizationFence({
   authorityGeneration,
   authorityInstanceId = null,
   issuerId,
+  authorizationScope = null,
+  connectionGeneration = null,
   authorization,
   versionStream,
   initialSnapshot,
@@ -229,6 +232,32 @@ export function createLiveQueryAuthorizationFence({
       'issuer and authorization expectation cross incarnations',
     );
   }
+  const normalizedAuthorizationScope = authorizationScope === null
+    ? null
+    : validateScopeId(authorizationScope, 'authorizationScope');
+  if (
+    normalizedAuthorizationScope !== null
+    && (
+      normalizedAuthorizationScope.kind !== 'subscription'
+      || !same(normalizedAuthorizationScope.namespace, normalizedNamespace)
+      || !same(normalizedAuthorizationScope.issuerId, normalizedIssuer)
+      || (
+        connectionGeneration !== null
+        && normalizedAuthorizationScope.connectionGeneration !== connectionGeneration
+      )
+    )
+  ) {
+    throw queryAuthorizationError(
+      'SNAPBACK_AUTH_INVALIDATION_CORRUPT',
+      'authorization scope does not match the authenticated query/connection expectation',
+    );
+  }
+  if (
+    connectionGeneration !== null
+    && (!Number.isSafeInteger(connectionGeneration) || connectionGeneration < 1)
+  ) {
+    throw new TypeError('connectionGeneration must be null or a safe positive integer');
+  }
   const initial = validateSnapshot(
     initialSnapshot,
     normalizedAuthorization,
@@ -242,6 +271,8 @@ export function createLiveQueryAuthorizationFence({
     queryGeneration: 0,
     authorityInstanceId,
     expectedIssuerId: clone(normalizedIssuer),
+    expectedAuthorizationScope: clone(normalizedAuthorizationScope),
+    expectedConnectionGeneration: connectionGeneration,
     expectedAuthorization: clone(normalizedAuthorization),
     expectedVersionStream: versionStream,
     effectiveDisposition: 'retain',
@@ -293,6 +324,15 @@ export function createLiveQueryAuthorizationFence({
       throw queryAuthorizationError(
         'SNAPBACK_AUTH_QUERY_FENCE_STALE',
         'retiring or removed query cannot receive an ordinary obligation',
+      );
+    }
+    if (
+      state.expectedAuthorizationScope !== null
+      && !same(obligation.scopeId, state.expectedAuthorizationScope)
+    ) {
+      throw queryAuthorizationError(
+        'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID',
+        'query invalidation does not name the exact held subscription scope',
       );
     }
     assertNamespace(state, obligation.scopeId, 'query invalidation');
@@ -412,6 +452,16 @@ export function createLiveQueryAuthorizationFence({
         disposition: state.effectiveDisposition,
       });
     }
+    const snapshotPresent = snapshot !== null && snapshot !== undefined;
+    if (
+      (resolution.kind === 'snapshot' && !snapshotPresent)
+      || (resolution.kind === 'terminalDelete' && snapshotPresent)
+    ) {
+      throw queryAuthorizationError(
+        'SNAPBACK_AUTH_INVALIDATION_CORRUPT',
+        'resolution kind and snapshot presence disagree',
+      );
+    }
     const destructive = resolution.kind === 'terminalDelete'
       || resolution.maxDisposition === 'delete';
     if (state.lifecycle === 'retiring' && resolution.kind !== 'terminalDelete') {
@@ -420,7 +470,7 @@ export function createLiveQueryAuthorizationFence({
         'retirement cannot synthesize or apply a snapshot resolution',
       );
     }
-    const normalizedSnapshot = destructive
+    const normalizedSnapshot = resolution.kind === 'terminalDelete'
       ? null
       : validateSnapshot(
           snapshot,
@@ -428,10 +478,27 @@ export function createLiveQueryAuthorizationFence({
           state.expectedVersionStream,
           'resolution.snapshot',
         );
-    if (!destructive && !witnessCovers(normalizedSnapshot.witness, entry.obligation.witness)) {
+    if (
+      normalizedSnapshot !== null
+      && (
+        !witnessCovers(normalizedSnapshot.witness, entry.obligation.witness)
+        || !witnessCovers(normalizedSnapshot.witness, resolution.witness)
+      )
+    ) {
       throw queryAuthorizationError(
         'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE',
-        'resolution snapshot does not cover the obligation witness',
+        'resolution snapshot does not cover the obligation and resolution witnesses',
+      );
+    }
+    if (
+      normalizedSnapshot !== null
+      && state.accepted !== null
+      && state.accepted.witness.data.versionStream === normalizedSnapshot.witness.data.versionStream
+      && normalizedSnapshot.version < state.accepted.version
+    ) {
+      throw queryAuthorizationError(
+        'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE',
+        'resolution snapshot moves backward in the held data stream',
       );
     }
 
@@ -561,6 +628,8 @@ export function createLiveQueryAuthorizationFence({
   // authenticated retirement plus a fresh snapshot closes their continuity.
   const replaceAuthenticatedExpectation = ({
     issuerId: nextIssuerValue,
+    authorizationScope: nextAuthorizationScopeValue = null,
+    connectionGeneration: nextConnectionGeneration = null,
     authorization: nextAuthorizationValue,
     versionStream: nextVersionStream,
     snapshot,
@@ -572,10 +641,35 @@ export function createLiveQueryAuthorizationFence({
         'retiring or removed query cannot replace its authenticated expectation',
       );
     }
+    if (state.terminalDeleted) {
+      throw queryAuthorizationError(
+        'SNAPBACK_AUTH_QUERY_FENCE_STALE',
+        'a terminally deleted query instance cannot install another authenticated expectation',
+      );
+    }
     const nextIssuer = validateIssuerId(nextIssuerValue);
     const nextAuthorization = validateAuthorizationVersion(nextAuthorizationValue);
+    const nextAuthorizationScope = nextAuthorizationScopeValue === null
+      ? null
+      : validateScopeId(nextAuthorizationScopeValue, 'replacement.authorizationScope');
     if (
       nextIssuer.authorizationIncarnation !== nextAuthorization.incarnation
+      || (
+        nextAuthorizationScope !== null
+        && (
+          nextAuthorizationScope.kind !== 'subscription'
+          || !same(nextAuthorizationScope.namespace, state.namespace)
+          || !same(nextAuthorizationScope.issuerId, nextIssuer)
+          || (
+            nextConnectionGeneration !== null
+            && nextAuthorizationScope.connectionGeneration !== nextConnectionGeneration
+          )
+        )
+      )
+      || (
+        nextConnectionGeneration !== null
+        && (!Number.isSafeInteger(nextConnectionGeneration) || nextConnectionGeneration < 1)
+      )
       || typeof nextVersionStream !== 'string'
       || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/.test(nextVersionStream)
     ) {
@@ -606,6 +700,8 @@ export function createLiveQueryAuthorizationFence({
         };
       }
       state.expectedIssuerId = clone(nextIssuer);
+      state.expectedAuthorizationScope = clone(nextAuthorizationScope);
+      state.expectedConnectionGeneration = nextConnectionGeneration;
       state.expectedAuthorization = clone(nextAuthorization);
       state.expectedVersionStream = nextVersionStream;
       if (destructiveTransition) {

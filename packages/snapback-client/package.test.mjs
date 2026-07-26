@@ -71,14 +71,24 @@ assert.throws(
 );
 const externalTransitionEvents = [];
 let settleExternalRelease;
+let reentrantExternalReplacement;
 const externalHandle = {
+  paused: false,
   pause() {
     externalTransitionEvents.push('pause');
+    reentrantExternalReplacement = externalClient.replaceBearerToken('sbs_reentrant_replacement');
+    reentrantExternalReplacement.catch(() => {});
     return new Promise((resolve) => { settleExternalRelease = resolve; });
   },
   async resume() { externalTransitionEvents.push('resume'); },
 };
+const prePausedExternalHandle = {
+  paused: true,
+  pause() { assert.fail('a pre-paused handle must not be paused by bearer custody'); },
+  resume() { assert.fail('a pre-paused handle must not resume during bearer custody'); },
+};
 externalClient.__externalBearerHandles.add(externalHandle);
+externalClient.__externalBearerHandles.add(prePausedExternalHandle);
 const unregisterExternalMaterialization = externalClient.registerAuthMaterialization({
   capture: () => null,
   blank: () => externalTransitionEvents.push('blank'),
@@ -94,13 +104,27 @@ const externalReplacement = externalClient.replaceBearerToken('sbs_external_repl
 await Promise.resolve();
 assert.deepEqual(
   externalTransitionEvents,
-  ['pause', 'blank'],
-  'predecessor rows blank before asynchronous unsubscribe settlement',
+  ['pause', 'blank', 'close'],
+  'predecessor rows blank and transports cut before asynchronous unsubscribe settlement',
 );
 assert.equal(
   externalClient.bearerToken,
   'sbs_external_package_test',
   'successor bearer is not installed before predecessor release settles',
+);
+await assert.rejects(reentrantExternalReplacement, /cannot overlap/u);
+await assert.rejects(
+  () => externalClient.replaceBearerToken('sbs_overlapping_replacement'),
+  /cannot overlap/u,
+);
+assert.throws(
+  () => externalClient.__registerExternalBearerHandle({
+    paused: false,
+    pause() {},
+    resume() {},
+  }),
+  /admission is closed/u,
+  'a handle cannot join after the transition participant set was captured',
 );
 settleExternalRelease();
 await externalReplacement;
@@ -109,6 +133,7 @@ assert.deepEqual(externalTransitionEvents, ['pause', 'blank', 'close', 'resume']
 assert.equal(externalClient.__connectionGrants.size, 0);
 assert.equal(externalClient.__liveStreamManagers.size, 0);
 externalClient.__externalBearerHandles.delete(externalHandle);
+externalClient.__externalBearerHandles.delete(prePausedExternalHandle);
 unregisterExternalMaterialization();
 const appStateListeners = new Set();
 const appState = {

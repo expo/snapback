@@ -110,20 +110,14 @@ const authorizationErrors = [];
 const outbox = [];
 const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged', 'discharged', 'discharged'];
 let failQueueRevision3 = true;
-let blockedScopeSequence = null;
-let blockedQueueStarted = null;
-let releaseBlockedQueue = null;
 let namespace;
 let scopeId;
+let subscribeCalls = 0;
 
 const queue = {
   async applyObligation(value) {
     order.push(`queue-apply:${value.revision}`);
     appliedScopeSequences.push(value.scopeId.scopeSequence);
-    if (value.scopeId.scopeSequence === blockedScopeSequence) {
-      blockedQueueStarted?.();
-      await new Promise((resolve) => { releaseBlockedQueue = resolve; });
-    }
     if (value.revision === 3 && failQueueRevision3) {
       failQueueRevision3 = false;
       throw new Error('injected queue custody failure');
@@ -159,6 +153,7 @@ try {
       });
     }
     if (path === '/live/listTodos/subscribe') {
+      subscribeCalls += 1;
       const body = JSON.parse(init.body);
       namespace = body.authorizationNamespace;
       scopeId = {
@@ -377,54 +372,93 @@ try {
     'same exact ticket does not report a stale-resolution fault',
   );
 
-  // Independent scope roots coexist. A slow durable delete for scope A must
-  // not be cancelled merely because a retain+resolution for scope B arrives
-  // while A's queue write is pending.
-  const scopeA = { ...scopeId, scopeSequence: 41 };
-  const scopeB = { ...scopeId, scopeSequence: 42 };
-  const slowDelete = {
-    ...obligation(scopeA, 1, 15),
+  // A matching subscription id is not ownership. Scope sequence and
+  // connection generation are part of the exact held scope; foreign frames
+  // diagnose without touching queue custody or acknowledging for another
+  // owner.
+  const queueApplicationsBeforeForeign = appliedScopeSequences.length;
+  const acknowledgementsBeforeForeign = order.filter((entry) => entry.startsWith('ack:')).length;
+  for (const foreignScope of [
+    { ...scopeId, scopeSequence: scopeId.scopeSequence + 1 },
+    { ...scopeId, connectionGeneration: scopeId.connectionGeneration + 1 },
+  ]) {
+    const foreign = obligation(foreignScope, 1, 15);
+    outbox.push([{ Durable: { payload: JSON.stringify({
+      kind: 'authorization_invalidation',
+      obligation: foreign,
+      resolution: resolution(foreign, `ack_foreign_${foreignScope.scopeSequence}`),
+      snapshot: {
+        subscriptionId: 'sub_auth',
+        function: 'listTodos',
+        version: 15,
+        rows: [{ _id: 'foreign_scope_row' }],
+      },
+    }) } }]);
+    await handle.poll();
+  }
+  await waitFor(
+    () => assert.equal(authorizationErrors.length, errorsBeforeExactRefire + 2),
+    'foreign exact scopes did not surface protocol diagnostics',
+  );
+  assert.equal(appliedScopeSequences.length, queueApplicationsBeforeForeign);
+  assert.equal(
+    order.filter((entry) => entry.startsWith('ack:')).length,
+    acknowledgementsBeforeForeign,
+  );
+  assert.deepEqual(handle.rows, [{ _id: 'row_14' }], 'foreign scopes do not alter owned rows');
+  assert.equal(ackOutcomes.length, 1);
+
+  // Terminal deletion is a one-way fence for this exact query instance. Every
+  // ordinary live/lifecycle recovery input is diagnosed and ignored; a caller
+  // that wants the canonical query again must construct a fresh handle and
+  // therefore allocate a fresh queryInstanceId.
+  const terminalObligation = {
+    ...obligation(scopeId, 5, 15),
     maxDisposition: 'delete',
   };
-  const independentRetain = {
-    ...obligation(scopeB, 1, 15),
-    maxDisposition: 'retain',
+  const terminalResolution = {
+    ...resolution(terminalObligation, 'ack_terminal_5'),
+    kind: 'terminalDelete',
   };
-  blockedScopeSequence = scopeA.scopeSequence;
-  const queueStarted = new Promise((resolve) => { blockedQueueStarted = resolve; });
   outbox.push([{ Durable: { payload: JSON.stringify({
     kind: 'authorization_invalidation',
-    obligation: slowDelete,
-    resolution: null,
+    obligation: terminalObligation,
+    resolution: terminalResolution,
     snapshot: null,
   }) } }]);
   await handle.poll();
-  await queueStarted;
-  outbox.push([{ Durable: { payload: JSON.stringify({
-    kind: 'authorization_invalidation',
-    obligation: independentRetain,
-    resolution: resolution(independentRetain, 'ack_5'),
-    snapshot: {
-      subscriptionId: 'sub_auth',
-      function: 'listTodos',
-      version: 15,
-      rows: [{ _id: 'scope_b_only' }],
-    },
-  }) } }]);
-  await handle.poll();
-  releaseBlockedQueue();
   await waitFor(
-    () => assert.equal(order.filter((entry) => entry === 'ack:ack_5').length, 1),
-    'independent retain scope did not discharge after the slow delete root',
+    () => assert(order.includes('ack:ack_terminal_5')),
+    'terminal delete did not commit before acknowledgement',
   );
-  assert(appliedScopeSequences.includes(41), 'slow delete root reached durable queue custody');
-  assert.deepEqual(handle.rows, [], 'unresolved delete scope keeps the aggregate boundary blank');
-  assert.equal(
-    authorizationErrors.length,
-    errorsBeforeExactRefire,
-    'coexisting scope roots do not manufacture a stale-task fault',
+  assert.deepEqual(handle.rows, []);
+  const errorsBeforeTerminalReuse = authorizationErrors.length;
+  const subscribesBeforeTerminalReuse = subscribeCalls;
+  outbox.push([
+    { Durable: { payload: JSON.stringify({
+      kind: 'live_replace',
+      subscription_id: 'sub_auth',
+      version: 16,
+      rows: [{ _id: 'must_not_resurrect' }],
+    }) } },
+    { Durable: { payload: JSON.stringify({
+      kind: 'current_as_of',
+      subscription_id: 'sub_auth',
+      version: 17,
+    }) } },
+    { Durable: { payload: JSON.stringify({
+      kind: 'resync_required',
+      subscription_id: 'sub_auth',
+      reason: 'terminal-reuse-probe',
+    }) } },
+  ]);
+  await handle.poll();
+  await waitFor(
+    () => assert.equal(authorizationErrors.length, errorsBeforeTerminalReuse + 3),
+    'terminal ordinary frames did not surface protocol diagnostics',
   );
-  assert.equal(ackOutcomes.length, 0);
+  assert.deepEqual(handle.rows, []);
+  assert.equal(subscribeCalls, subscribesBeforeTerminalReuse);
 
   // Pause is an exact demand release, not query retirement. Its signed scope
   // retirement still advances local queue/fence custody while the query
@@ -444,6 +478,13 @@ try {
     `pause applies the server-returned scope retirement to the active query fence: ${JSON.stringify(pausedAuthorizationState)}`,
   );
   assert.equal(pausedAuthorizationState.lifecycle, 'active');
+  await handle.resume();
+  assert.equal(
+    subscribeCalls,
+    subscribesBeforeTerminalReuse,
+    'foreground resume cannot reuse a terminally deleted query instance',
+  );
+  assert.equal(handle.paused, true);
 
   handle.dispose();
   await new Promise((resolve) => setTimeout(resolve, 0));

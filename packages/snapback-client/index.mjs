@@ -1655,13 +1655,27 @@ export class SnapbackClient {
     if (this.__externalBearerTransition) {
       throw new TypeError('replaceBearerToken cannot overlap another bearer transition');
     }
-    const transition = (async () => {
-      const handles = [...this.__externalBearerHandles];
+    let settleTransition;
+    let failTransition;
+    const transition = new Promise((resolve, reject) => {
+      settleTransition = resolve;
+      failTransition = reject;
+    });
+    // Install the completion before invoking pause/blank callbacks. Those
+    // callbacks are app-observable and may re-enter this client synchronously;
+    // a transition that is not already visible there is not a closed barrier.
+    this.__externalBearerTransition = transition;
+    void (async () => {
+      const handles = [...this.__externalBearerHandles].map((handle) => ({
+        handle,
+        wasPaused: handle.paused === true,
+      }));
+      const handlesPausedByTransition = handles.filter((entry) => !entry.wasPaused);
       const failures = [];
       // pause() quiesces locally and starts T-UNSUB synchronously. Blank in
       // this same turn; network release settlement is not a confidentiality
       // gate and may take arbitrarily long.
-      const releasePromises = handles.map((handle) => {
+      const releasePromises = handlesPausedByTransition.map(({ handle }) => {
         try {
           return Promise.resolve(handle.pause());
         } catch (error) {
@@ -1677,14 +1691,17 @@ export class SnapbackClient {
       } catch (error) {
         failures.push(error);
       }
-      const releases = await Promise.allSettled(releasePromises);
-      for (const outcome of releases) {
-        if (outcome.status === 'rejected') failures.push(outcome.reason);
-      }
+      // Cut predecessor requests/streams immediately after local pause+blank.
+      // Waiting for a remote unsubscribe first would let an old finite result
+      // publish after the visible delete boundary.
       try {
         this.__authTransportParticipant.quiesce(context);
       } catch (error) {
         failures.push(error);
+      }
+      const releases = await Promise.allSettled(releasePromises);
+      for (const outcome of releases) {
+        if (outcome.status === 'rejected') failures.push(outcome.reason);
       }
       // Preserve lane-consumer registrations owned by the paused handles;
       // resume reuses them. Everything that can carry or publish predecessor
@@ -1700,7 +1717,11 @@ export class SnapbackClient {
       this.bearerToken = token;
 
       if (token !== null) {
-        const resumes = await Promise.allSettled(handles.map((handle) => handle.resume()));
+        const resumes = await Promise.allSettled(
+          handlesPausedByTransition
+            .filter(({ handle }) => this.__externalBearerHandles.has(handle))
+            .map(({ handle }) => handle.resume()),
+        );
         for (const outcome of resumes) {
           if (outcome.status === 'rejected') failures.push(outcome.reason);
         }
@@ -1711,8 +1732,7 @@ export class SnapbackClient {
           'external bearer custody transition completed with lifecycle failures',
         );
       }
-    })();
-    this.__externalBearerTransition = transition;
+    })().then(settleTransition, failTransition);
     try {
       await transition;
     } finally {
@@ -1725,6 +1745,11 @@ export class SnapbackClient {
   __registerExternalBearerHandle(handle) {
     if (this.authCoordinator || this.agentAuthority || this.authProtocols.authClient !== 1) {
       return () => {};
+    }
+    if (this.__externalBearerTransition) {
+      throw new TypeError(
+        'external bearer live-query admission is closed during a custody transition',
+      );
     }
     this.__externalBearerHandles.add(handle);
     return () => this.__externalBearerHandles.delete(handle);
@@ -2904,11 +2929,11 @@ export class SnapbackClient {
         if (senderAttempt !== null && !senderNonceRotated) {
           throw senderIndeterminateSuccessError();
         }
-        if (!this.authorityFence || !capture) return result;
         if (
           requestTransportGeneration !== this.__authTransportGeneration
-          || !this.authorityFence.isCurrent(capture)
         ) throw staleAuthorityError();
+        if (!this.authorityFence || !capture) return result;
+        if (!this.authorityFence.isCurrent(capture)) throw staleAuthorityError();
         const committed = await this.commitAuthorityPublication(capture, () => (
           markAuthorityCapture(result, capture)
         ));
@@ -4404,6 +4429,9 @@ export class SnapbackClient {
     // superseding the adopted registration.
     registeredSubscription = null,
   } = {}) {
+    if (this.__externalBearerTransition) {
+      await this.__externalBearerTransition;
+    }
     const name = functionName(ref);
     const client = this;
     // @ref LLP 0053#client-fences — every auth-scoped materialization owns a
@@ -4502,12 +4530,29 @@ export class SnapbackClient {
       get connection() {
         return connection;
       },
+      get paused() {
+        return paused;
+      },
       get authorizationNamespace() {
         return queryNamespace;
       },
       authorizationState() {
         return authorizationFence?.snapshot?.() ?? null;
       },
+    };
+    const terminalQueryDeleted = () => (
+      authorizationFence?.snapshot?.().terminalDeleted === true
+    );
+    const reportTerminalReuse = (kind) => {
+      const error = new Error(
+        `SNAPBACK_AUTH_QUERY_FENCE_STALE: ${kind} cannot reuse a terminally deleted query instance`,
+      );
+      error.code = 'SNAPBACK_AUTH_QUERY_FENCE_STALE';
+      error.diagnostic = {
+        code: error.code,
+        message: `${kind} cannot reuse a terminally deleted query instance`,
+      };
+      reportAuthorizationError(error);
     };
 
     const deliverAuthorityObservation = (effect, capture = handleAuthorityCapture) => {
@@ -4842,6 +4887,17 @@ export class SnapbackClient {
           'SNAPBACK_AUTH_INVALIDATION_SNAPSHOT_STALE',
         ].includes(errorCode)
       ) return;
+      if (errorCode === 'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID') {
+        try {
+          await commitAuthorizationTask(
+            taskState,
+            () => deliverIsolated(onAuthorizationError, error),
+          );
+        } catch {
+          // A later lifecycle owns both rows and diagnostics.
+        }
+        return;
+      }
       try {
         await commitAuthorizationTask(taskState, () => reportAuthorizationError(error));
       } catch {
@@ -4917,7 +4973,7 @@ export class SnapbackClient {
             const value = authorizationFence.applyResolution({
               fence: received.fence,
               resolution: projection.resolution,
-              snapshot: projection.resolution.kind === 'terminalDelete'
+              snapshot: snapshotValue === null
                 ? null
                 : authorizationSnapshot(snapshotValue),
               commit: commitAuthorizationBoundary,
@@ -5021,6 +5077,8 @@ export class SnapbackClient {
             namespace: queryNamespace,
             authorityGeneration,
             issuerId: normalizedConnection.issuerId,
+            authorizationScope: normalizedScope,
+            connectionGeneration: normalizedConnection.connectionGeneration,
             authorization: normalizedConnection.authorization,
             versionStream: normalizedConnection.versionStream,
             initialSnapshot: freshSnapshot,
@@ -5028,6 +5086,8 @@ export class SnapbackClient {
         } else {
           authorizationFence.replaceAuthenticatedExpectation({
             issuerId: normalizedConnection.issuerId,
+            authorizationScope: normalizedScope,
+            connectionGeneration: normalizedConnection.connectionGeneration,
             authorization: normalizedConnection.authorization,
             versionStream: normalizedConnection.versionStream,
             snapshot: freshSnapshot,
@@ -5285,6 +5345,10 @@ export class SnapbackClient {
         // touching rows; never regress on a lower version (T5); duplicate
         // delivery of the same frame is an idempotent no-op (T4).
         if (update.subscription_id !== handle.subscriptionId) return;
+        if (terminalQueryDeleted()) {
+          reportTerminalReuse(LIVE_DURABLE_KINDS.CURRENT_AS_OF);
+          return;
+        }
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
@@ -5387,6 +5451,10 @@ export class SnapbackClient {
         // resyncs (permission epoch changes, fan-out failures) do. Either
         // way the recovery is the same: fresh snapshot-with-subscribe.
         if (update.subscription_id && update.subscription_id !== handle.subscriptionId) return;
+        if (terminalQueryDeleted()) {
+          reportTerminalReuse(LIVE_DURABLE_KINDS.RESYNC_REQUIRED);
+          return;
+        }
         // clear_retained purges the persisted RQS copy too (LLP 0090 D3):
         // retained continuity is gone, so relaunch must not resume from it.
         if (update.clear_retained === true || update.clearRetained === true) {
@@ -5654,6 +5722,12 @@ export class SnapbackClient {
     // its updates are ignored by subscription-id filtering above.
     const resubscribe = async (reason) => {
       if (disposed || paused) return false;
+      if (terminalQueryDeleted()) {
+        needsResubscribe = false;
+        clearResubscribeRetry();
+        setConnection('disconnected');
+        return false;
+      }
       if (resubscribing) {
         // A resync demand arrived while another fresh subscribe is in
         // flight (e.g. the connection's one-shot overflow sentinel drained
@@ -6042,6 +6116,10 @@ export class SnapbackClient {
       // A caller may invoke resume without awaiting pause. Serialize the
       // fresh superseding subscribe after the old demand-release attempt.
       try { await pauseReleasePromise; } catch { /* fresh supersession can recover */ }
+      if (terminalQueryDeleted()) {
+        setConnection('disconnected');
+        return;
+      }
       paused = false;
       beginSubscribeLifecycle();
       const resumeLifecycleEpoch = subscribeLifecycleEpoch;
