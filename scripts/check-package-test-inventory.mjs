@@ -32,6 +32,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'adapters/fly-machines-vm-driver.test.mjs',
       'dev-loop.test.mjs',
       'hosted-admission-producer.test.mjs',
       'mcp-control.test.mjs',
@@ -230,7 +231,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // and the CLI hosted-admission producer suite alongside current main.
 // 85 -> 86 (LLP 0081 §6): @snapback/contract gains the maintained
 // migration-boundary quarantine regression.
-assert.equal(total, 86, 'reviewed package/admin test count changed');
+// 86 -> 87 (LLP 0072 Fly adapter landing): @snapback/cli gains the
+// maintained Fly Machines VM driver suite.
+assert.equal(total, 87, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
