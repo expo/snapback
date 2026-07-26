@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-chrome-find.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_CHROME.FIND",
-  "recordedAt": "2026-07-25T18:32:51.364Z",
+  "recordedAt": "2026-07-26T20:05:07.240Z",
   "repository": {
-    "revision": "4354417d0daf470ebc2cc3ce6dd1f7e51aeff09c",
+    "revision": "172995c393d67ca667afe46bfc3501ecabf9cc3d",
     "dirty": false
   },
   "claimEligible": true,
@@ -11,18 +11,18 @@
     "contract:snapback"
   ],
   "environment": {
-    "node": "v25.9.0",
-    "bun": "1.3.10",
+    "node": "v24.18.0",
+    "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.182",
-    "cpu": "Apple M4"
+    "chromeVersion": "Google Chrome 150.0.7871.186",
+    "cpu": "Apple M5 Max"
   },
   "artifacts": [
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "b12e6e238e74c2dccddc8895632f30d60e31c9740b54273d403c2ca8ee7711c1",
-      "bytes": 16194
+      "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683",
+      "bytes": 18295
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -31,13 +31,13 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "7fa4266b8a5da1e93157643aae0cff09309011f07c0e9c046b99ecc2dc79f3ff",
-      "bytes": 9103
+      "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29",
+      "bytes": 12295
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363",
-      "bytes": 7216
+      "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e",
+      "bytes": 15740
     }
   ],
   "testInventory": [
