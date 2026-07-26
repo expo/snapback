@@ -76,6 +76,44 @@ fn resume_wire(version: u64) -> ResumeWire {
     }
 }
 
+fn fixture_invalidation_issuer() -> IssuerId {
+    IssuerId {
+        authorization_incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
+        boot_sequence: 1,
+        boot_nonce: "AAAAAAAAAAAAAAAAAAAAAA".to_owned(),
+    }
+}
+
+fn fixture_invalidation_namespace(query_instance_id: u64) -> QueryNamespace {
+    QueryNamespace {
+        client_store_id: "store-fixture".to_owned(),
+        query_key: "listTodos:{}".to_owned(),
+        query_instance_id,
+    }
+}
+
+fn fixture_invalidation_scope(subscription_id: &str, query_instance_id: u64) -> ScopeId {
+    ScopeId::Subscription {
+        issuer_id: fixture_invalidation_issuer(),
+        namespace: fixture_invalidation_namespace(query_instance_id),
+        scope_sequence: 1,
+        connection_generation: 1,
+        subscription_id: subscription_id.to_owned(),
+    }
+}
+
+fn fixture_authorization_expectation(epoch: u64) -> Value {
+    json!({
+        "issuerId": wire(&fixture_invalidation_issuer()),
+        "connectionGeneration": 1,
+        "authorization": {
+            "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+            "epoch": epoch
+        },
+        "versionStream": "fixture-stream"
+    })
+}
+
 fn invalidation_envelope(
     subscription_id: &str,
     version: u64,
@@ -84,21 +122,30 @@ fn invalidation_envelope(
     resolution: Option<(ResolutionKind, &str)>,
     snapshot_title: Option<&str>,
 ) -> LiveEnvelope {
-    let scope_id = ScopeId::Subscription {
-        issuer_id: IssuerId {
-            authorization_incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
-            boot_sequence: 1,
-            boot_nonce: "AAAAAAAAAAAAAAAAAAAAAA".to_owned(),
-        },
-        namespace: QueryNamespace {
-            client_store_id: "store-fixture".to_owned(),
-            query_key: "listTodos:{}".to_owned(),
-            query_instance_id: 1,
-        },
-        scope_sequence: 1,
-        connection_generation: 1,
-        subscription_id: subscription_id.to_owned(),
-    };
+    invalidation_envelope_custom(
+        subscription_id,
+        1,
+        1,
+        version,
+        authorization_epoch,
+        max_disposition,
+        resolution,
+        snapshot_title.map(|title| (version, title)),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn invalidation_envelope_custom(
+    subscription_id: &str,
+    query_instance_id: u64,
+    revision: u64,
+    witness_floor: u64,
+    authorization_epoch: u64,
+    max_disposition: InvalidationDisposition,
+    resolution: Option<(ResolutionKind, &str)>,
+    snapshot: Option<(u64, &str)>,
+) -> LiveEnvelope {
+    let scope_id = fixture_invalidation_scope(subscription_id, query_instance_id);
     let witness = CompositeWitness {
         authorization: AuthorizationVersion {
             incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
@@ -106,14 +153,14 @@ fn invalidation_envelope(
         },
         data: Some(DataWitness {
             version_stream: "fixture-stream".to_owned(),
-            min_commit_version: version,
+            min_commit_version: witness_floor,
         }),
     };
     let owner_continuity_id = Some("owner_fixture_1".to_owned());
     let obligation = ResyncObligation {
         protocol_version: 1,
         scope_id: scope_id.clone(),
-        revision: 1,
+        revision,
         max_disposition,
         witness: witness.clone(),
         retry_episode_id: None,
@@ -123,13 +170,13 @@ fn invalidation_envelope(
         protocol_version: 1,
         kind,
         scope_id,
-        revision: 1,
+        revision,
         witness,
         max_disposition,
         ack_token: ack_token.to_owned(),
         owner_continuity_id,
     });
-    let snapshot = snapshot_title.map(|title| AuthorizationInvalidationSnapshot {
+    let snapshot = snapshot.map(|(version, title)| AuthorizationInvalidationSnapshot {
         subscription_id: subscription_id.to_owned(),
         function: "listTodos".to_owned(),
         version,
@@ -249,6 +296,71 @@ pub fn wire_fixture_corpus() -> Value {
             "ack_fixture_terminal_delete_1",
         )),
         None,
+    ));
+    let held_authorization_scope = wire(&fixture_invalidation_scope("sub_fixture_1", 1));
+    let held_authorization_namespace = wire(&fixture_invalidation_namespace(1));
+    let mismatched_authorization_namespace = wire(&fixture_invalidation_namespace(2));
+    let authorization_expectation_epoch_1 = fixture_authorization_expectation(1);
+    let authorization_expectation_epoch_2 = fixture_authorization_expectation(2);
+    let post_terminal_replace = wire(&LiveEnvelope::LiveReplace {
+        subscription_id: "sub_fixture_1".to_owned(),
+        function: "listTodos".to_owned(),
+        version: 44,
+        rows: vec![json!({ "_id": "todo_1", "title": "must not resurrect" })],
+        resume: None,
+    });
+    let newer_unresolved_invalidation = wire(&invalidation_envelope_custom(
+        "sub_fixture_1",
+        1,
+        2,
+        44,
+        2,
+        InvalidationDisposition::Quarantine,
+        None,
+        None,
+    ));
+    let older_resolved_invalidation = wire(&invalidation_envelope_custom(
+        "sub_fixture_1",
+        1,
+        1,
+        43,
+        2,
+        InvalidationDisposition::Quarantine,
+        Some((ResolutionKind::Snapshot, "ack_fixture_stale_revision_1")),
+        Some((43, "stale resolved row")),
+    ));
+    let mismatched_scope_invalidation = wire(&invalidation_envelope_custom(
+        "sub_fixture_1",
+        2,
+        1,
+        43,
+        2,
+        InvalidationDisposition::Quarantine,
+        Some((ResolutionKind::Snapshot, "ack_fixture_mismatched_scope_1")),
+        Some((43, "foreign namespace row")),
+    ));
+    let below_floor_invalidation = wire(&invalidation_envelope_custom(
+        "sub_fixture_1",
+        1,
+        1,
+        45,
+        2,
+        InvalidationDisposition::Quarantine,
+        Some((ResolutionKind::Snapshot, "ack_fixture_below_floor_1")),
+        Some((44, "below witness floor")),
+    ));
+    let terminal_delete_with_snapshot_invalidation = wire(&invalidation_envelope_custom(
+        "sub_fixture_1",
+        1,
+        1,
+        45,
+        2,
+        InvalidationDisposition::Quarantine,
+        Some((
+            ResolutionKind::TerminalDelete,
+            "ack_fixture_terminal_with_snapshot_1",
+        )),
+        Some((45, "terminal delete must not carry rows")),
     ));
 
     // Lane-P framing: the SAME durable envelope, wrapped in the drain's
@@ -408,11 +520,18 @@ pub fn wire_fixture_corpus() -> Value {
                 }
             ],
             "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
                 "subscriptions": [
                     {
                         "id": "sub_fixture_1",
                         "state": "live",
                         "version": 42,
+                        "authorizationScope": held_authorization_scope,
+                        "authorizationNamespace": held_authorization_namespace,
+                        "acceptedAuthorization": {
+                            "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                            "epoch": 1
+                        },
                         "rows": [{ "_id": "todo_1", "title": "pre-invalidation row" }]
                     }
                 ]
@@ -469,18 +588,14 @@ pub fn wire_fixture_corpus() -> Value {
                 }
             ],
             "given": {
-                "authorizationExpectation": {
-                    "authorization": {
-                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
-                        "epoch": 2
-                    },
-                    "versionStream": "fixture-stream"
-                },
+                "authorizationExpectation": authorization_expectation_epoch_2,
                 "subscriptions": [
                     {
                         "id": "sub_fixture_1",
                         "state": "live",
                         "version": 42,
+                        "authorizationScope": held_authorization_scope,
+                        "authorizationNamespace": held_authorization_namespace,
                         "acceptedAuthorization": {
                             "incarnation": "0198c7aa-1234-7000-8000-000000000001",
                             "epoch": 1
@@ -545,18 +660,14 @@ pub fn wire_fixture_corpus() -> Value {
                 }
             ],
             "given": {
-                "authorizationExpectation": {
-                    "authorization": {
-                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
-                        "epoch": 2
-                    },
-                    "versionStream": "fixture-stream"
-                },
+                "authorizationExpectation": authorization_expectation_epoch_2,
                 "subscriptions": [
                     {
                         "id": "sub_fixture_1",
                         "state": "live",
                         "version": 42,
+                        "authorizationScope": held_authorization_scope,
+                        "authorizationNamespace": held_authorization_namespace,
                         "acceptedAuthorization": {
                             "incarnation": "0198c7aa-1234-7000-8000-000000000001",
                             "epoch": 1
@@ -582,6 +693,255 @@ pub fn wire_fixture_corpus() -> Value {
             "notes": "A terminalDelete resolution carries no snapshot (wire omission and JSON null both decode as absent). The client first makes rows unreadable, atomically destroys the exact materialization and installs its terminal fence, and only then acknowledges the exact token. Exact redelivery re-acknowledges without repeating destruction."
         },
         {
+            "name": "auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": terminal_delete_authorization_invalidation,
+                    "expect": {
+                        "transitions": [{
+                            "subscription": "sub_fixture_1",
+                            "to": "terminal_deleted",
+                            "rows": "destroyed"
+                        }],
+                        "actions": [
+                            "quarantine_rows",
+                            "apply_invalidation_terminal_delete",
+                            "acknowledge_obligation"
+                        ],
+                        "orderedActions": [
+                            "quarantine_rows",
+                            "apply_invalidation_terminal_delete",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                },
+                {
+                    "frame": post_terminal_replace,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_protocol_diagnostic", "ignore_frame"],
+                        "forbiddenActions": ["replace_rows"]
+                    }
+                }
+            ],
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_2,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    },
+                    "rows": [{ "_id": "todo_1", "title": "must be destroyed" }]
+                }]
+            },
+            "expect": {
+                "transitions": [{
+                    "subscription": "sub_fixture_1",
+                    "to": "terminal_deleted",
+                    "rows": "destroyed"
+                }],
+                "actions": [
+                    "quarantine_rows",
+                    "apply_invalidation_terminal_delete",
+                    "acknowledge_obligation",
+                    "surface_protocol_diagnostic",
+                    "ignore_frame"
+                ],
+                "forbiddenActions": ["replace_rows"]
+            },
+            "notes": "TERMINAL_DELETED is a one-way materialization fence. Even a numerically newer ordinary live_replace for the same subscription id is diagnosed and ignored; it cannot resurrect rows. Recreating the query requires a fresh queryInstanceId and fresh subscribe."
+        },
+        {
+            "name": "auth.live.invalidation_newer_pending_rejects_older_resolution",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": newer_unresolved_invalidation,
+                    "expect": {
+                        "transitions": [{
+                            "subscription": "sub_fixture_1",
+                            "to": "resync_pending",
+                            "rows": "retained_unreadable",
+                            "pendingRevision": 2,
+                            "pendingWitnessFloor": 44
+                        }],
+                        "actions": ["quarantine_rows"]
+                    }
+                },
+                {
+                    "frame": older_resolved_invalidation,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_protocol_diagnostic", "ignore_frame"],
+                        "forbiddenActions": [
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                }
+            ],
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_2,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    },
+                    "rows": [{ "_id": "todo_1", "title": "held pending row" }]
+                }]
+            },
+            "expect": {
+                "transitions": [{
+                    "subscription": "sub_fixture_1",
+                    "to": "resync_pending",
+                    "rows": "retained_unreadable",
+                    "pendingRevision": 2,
+                    "pendingWitnessFloor": 44
+                }],
+                "actions": [
+                    "quarantine_rows",
+                    "surface_protocol_diagnostic",
+                    "ignore_frame"
+                ],
+                "forbiddenActions": [
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ]
+            },
+            "notes": "Accepting revision 2 persists the exact scope/revision/witness high-water before quarantine. A later revision-1 frame with an apparently complete resolution is stale: it cannot apply rows, lower the pending floor, or acknowledge."
+        },
+        {
+            "name": "auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": mismatched_scope_invalidation,
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_2,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    },
+                    "rows": [{ "_id": "todo_1", "title": "owned row" }]
+                }]
+            },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_protocol_diagnostic", "ignore_frame"],
+                "forbiddenActions": [
+                    "quarantine_rows",
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ],
+                "mismatchedNamespace": mismatched_authorization_namespace
+            },
+            "notes": "Matching subscriptionId is insufficient. The frame's full scope names queryInstanceId 2 while the held subscription owns queryInstanceId 1, so the client diagnoses and ignores it without changing or acknowledging the owned materialization."
+        },
+        {
+            "name": "auth.live.invalidation_invalid_resolution_never_acknowledged",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": below_floor_invalidation,
+                    "expect": {
+                        "transitions": [{
+                            "subscription": "sub_fixture_1",
+                            "to": "resync_pending",
+                            "rows": "retained_unreadable",
+                            "pendingRevision": 1,
+                            "pendingWitnessFloor": 45
+                        }],
+                        "actions": ["quarantine_rows", "surface_protocol_diagnostic"],
+                        "forbiddenActions": [
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                },
+                {
+                    "frame": terminal_delete_with_snapshot_invalidation,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["surface_protocol_diagnostic", "ignore_frame"],
+                        "forbiddenActions": [
+                            "apply_invalidation_terminal_delete",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                }
+            ],
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_2,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    },
+                    "rows": [{ "_id": "todo_1", "title": "must stay unreadable" }]
+                }]
+            },
+            "expect": {
+                "transitions": [{
+                    "subscription": "sub_fixture_1",
+                    "to": "resync_pending",
+                    "rows": "retained_unreadable",
+                    "pendingRevision": 1,
+                    "pendingWitnessFloor": 45
+                }],
+                "actions": [
+                    "quarantine_rows",
+                    "surface_protocol_diagnostic",
+                    "ignore_frame"
+                ],
+                "forbiddenActions": [
+                    "apply_invalidation_snapshot",
+                    "apply_invalidation_terminal_delete",
+                    "acknowledge_obligation"
+                ]
+            },
+            "notes": "Step 1 accepts the valid obligation and quarantines, but its snapshot version 44 is below witness floor 45, so the resolution is diagnosed and not applied or acknowledged. Step 2 keeps that quarantine: terminalDelete plus a snapshot violates the kind/snapshot relation and the whole conflicting resolution frame is diagnosed and ignored."
+        },
+        {
             "name": "auth.live.invalidation_without_snapshot_quarantines",
             "family": "live.envelope.schema.json",
             "lane": "core",
@@ -590,7 +950,20 @@ pub fn wire_fixture_corpus() -> Value {
             "direction": "server_to_client",
             "schemaValid": true,
             "frame": authorization_invalidation_without_snapshot,
-            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    }
+                }]
+            },
             "expect": {
                 "transitions": [{ "subscription": "sub_fixture_1", "to": "resync_pending", "rows": "retained_unreadable" }],
                 "actions": ["quarantine_rows"],
@@ -607,7 +980,20 @@ pub fn wire_fixture_corpus() -> Value {
             "direction": "server_to_client",
             "schemaValid": true,
             "frame": foreign_authorization_invalidation,
-            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    }
+                }]
+            },
             "expect": {
                 "transitions": [],
                 "actions": ["surface_protocol_diagnostic", "ignore_frame"],
@@ -768,7 +1154,7 @@ pub fn wire_fixture_corpus() -> Value {
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack, equal-data-version authorization replacement, terminal delete, quarantine, and exact duplicate re-ACK, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, and exact duplicate re-ACK, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
         "fixtures": fixtures,
     })
 }

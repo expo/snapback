@@ -14,7 +14,9 @@ the invalidation-ack routes no longer demand the `auth/replay` offer, and
 recipe completion: offer scope, namespace, casing/outcomes/refusals,
 connection-bound authority, and client-vs-readiness status split);
 2026-07-26 (equal-data-version snapshot application, terminal-delete
-delete-before-ACK, and exact duplicate resolution identity)
+delete-before-ACK, and exact duplicate resolution identity); 2026-07-26
+(Swift adversarial review: exact held scope/expectation, pending high-water,
+resolution floor/shape validation, terminal no-reuse, and supersession witness)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
 LLP 0094, LLP 0095
@@ -255,6 +257,13 @@ one subscription's obligation on another's behalf. Reusing an instance id
 for different state is non-conformant even if the server accepts the scalar
 shape. Absence refuses
 `SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` (HTTP 400).
+Reconnect repeats the exact active tuple, but the client retains its
+predecessor until the subscribe response carries either the exact
+`superseded` witness or a typed `supersessionRefusal`; HTTP success or a
+replacement snapshot alone is not disposal evidence. A terminally deleted
+tuple is never used for reconnect, foreground/background restoration, or
+another live callback. Recreating that canonical query allocates a fresh
+never-reused `queryInstanceId` and performs a fresh subscribe.
 
 - **Conformance obligations** (protocol semantics owned by LLP 0053,
   referenced): apply a superseding snapshot atomically before
@@ -263,9 +272,21 @@ shape. Absence refuses
   ordinary live-frame strict-greater version guard: a first-seen exact
   resolution may apply a snapshot at the **same** data version when its
   witness covers the obligation and its authorization expectation is
-  current. A `terminalDelete` resolution has no snapshot; destroy the
-  exact materialization and install its terminal fence before
-  acknowledging. Wire omission and JSON `null` both mean no snapshot.
+  current. Bind by complete held `scopeId` plus the authenticated issuer,
+  connection generation, namespace, authorization pair, and version
+  stream — matching `subscriptionId` alone is never sufficient. Persist an
+  accepted obligation's exact scope/revision/witness high-water before
+  quarantine; quarantine cannot lower it, so an older resolved ticket
+  remains stale while a newer obligation is unresolved.
+
+  A `snapshot` resolution requires a present snapshot whose version covers
+  the resolution data floor and the obligation floor. A `terminalDelete`
+  resolution requires no snapshot; wire omission and JSON `null` are the
+  two absent forms. Any kind/shape or floor mismatch is diagnosed and
+  never applied or acknowledged. A valid terminal delete destroys the
+  exact materialization and installs its terminal fence before
+  acknowledging; ordinary live/current/resync frames, reconnect,
+  background reuse, and retained callbacks cannot resurrect it.
   Exact redelivery reuses the original token without repeating snapshot
   application or deletion; a conflicting ticket/token identity is never
   acknowledged. Honor quarantine semantics (hide from render and block
@@ -305,6 +326,10 @@ shape. Absence refuses
   `auth.live.invalidation_snapshot_apply_then_ack`,
   `auth.live.invalidation_authorization_snapshot_same_data_version`,
   `auth.live.invalidation_terminal_delete_apply_then_ack`,
+  `auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse`,
+  `auth.live.invalidation_newer_pending_rejects_older_resolution`,
+  `auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged`,
+  `auth.live.invalidation_invalid_resolution_never_acknowledged`,
   `auth.live.invalidation_without_snapshot_quarantines`, and
   `auth.live.foreign_obligation_never_acknowledged` are seeded in the
   format-v2 corpus. `auth.live.ack_requires_negotiated_connection` and

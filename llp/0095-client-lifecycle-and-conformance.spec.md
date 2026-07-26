@@ -11,7 +11,9 @@ Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance);
 2026-07-26 (format-v2 explicit populations, committed-kind transitions,
 auth-invalidation state machine, and reconnect witnesses); 2026-07-26
 (equal-data-version authorization replacement, terminal-delete state/action,
-and exact duplicate re-ACK fixtures)
+and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
+terminal no-resurrection, pending high-water, exact scope/expectation binding,
+resolution floor/shape validation, and mandatory supersession witness)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
 
 ## Summary
@@ -73,7 +75,7 @@ A client holds at most one state per connection:
 | `PENDING` | `subscribe_live` in flight. The snapshot rides the subscribe response — snapshot-with-subscribe, one operation, no prime race (LLP 0034 §1). |
 | `LIVE(version)` | Holding rows current as of `version` (the storage commit version — not a protocol version, LLP 0093 inventory item 6). |
 | `RESYNC_PENDING` | A resync or unresolved authorization obligation is held. Rows may be retained internally but are unreadable and must not render until a satisfying snapshot is atomically applied. |
-| `TERMINAL_DELETED` | The exact authorization-scoped materialization has been destructively retired and fenced by a `terminalDelete` resolution. It has no readable rows and ordinary live frames cannot resurrect it. Only exact duplicate resolution re-ACK and explicit lifecycle cleanup remain; recreating the query allocates a new `queryInstanceId` and fresh-subscribes. |
+| `TERMINAL_DELETED` | The exact authorization-scoped materialization has been destructively retired and fenced by a `terminalDelete` resolution. It has no readable rows. Ordinary `live_replace`, `live_delta`, `current_as_of`, `resync_required`, reconnect/supersession, foreground/background reuse, and retained callbacks are diagnosed and ignored rather than resurrecting it. Only exact duplicate resolution re-ACK and explicit lifecycle cleanup remain; recreating the query allocates a fresh never-reused `queryInstanceId` and fresh-subscribes without reusing the terminal predecessor. |
 | `DROPPED` | The server no longer holds the subscription (socket loss — D3 fact 2). Client-side demand may still exist; re-entry is T-RECONNECT. |
 | `RELEASED` | Explicitly unsubscribed (the only *normal* release path). |
 
@@ -173,6 +175,9 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   "SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN"`. Success without either
   witness does not prove predecessor disposal and the client must surface a
   protocol diagnostic rather than silently forgetting the predecessor.
+  The predecessor remains retained until that mandatory response witness is
+  processed; request success, a replacement snapshot, reconnect completion,
+  or backgrounding alone is never permission to forget it.
   The reattach route
   (`resume_live`) and RQS token resume are decided ground documented as-is
   (LLP 0090/0091 §0B.4; reattach local-arm-only; no first-party client
@@ -225,12 +230,25 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   version guard. Fixture:
   `durable.current_as_of.adopts_token_without_rows`.
 - **T-AUTH-INVALIDATION** (auth/live; level-triggered): locate the exact
-  held subscription from the obligation scope and immediately make held
-  rows unreadable. Validate a resolution against the exact full
+  held subscription by the complete bound `scopeId`, not
+  `subscriptionId` alone, and require its issuer/connection generation,
+  namespace, and authorization/data expectation to match the authenticated
+  current connection. A same-id frame with a different namespace or
+  expectation is foreign: diagnose and ignore it without quarantine or ACK.
+  For an accepted obligation, persist its exact scope, revision, and witness
+  high-water **before** immediately making held rows unreadable. Quarantine
+  never discards or lowers that pending high-water; an older resolved ticket
+  cannot apply or acknowledge while a newer obligation remains unresolved.
+
+  Validate a resolution against the exact full
   `scopeId`, revision, authorization witness, data stream/floor,
   disposition, owner continuity, kind, and token before applying it.
-  If a satisfying `snapshot` resolution is present, its data version must
-  be nondecreasing against the held version; atomically apply its
+  `kind: "snapshot"` requires a present snapshot and its version must cover
+  `resolution.witness.data.minCommitVersion` as well as the obligation
+  floor. `kind: "terminalDelete"` requires snapshot absent/`null`; either
+  kind/shape mismatch is diagnosed and never applied or acknowledged.
+  If a satisfying snapshot resolution is present, its data version must be
+  nondecreasing against the held version; atomically apply its
   rows/version and return to `LIVE` even when the data version is equal
   but the authenticated authorization expectation is new. Only after that
   apply succeeds may the client acknowledge the exact resolution
@@ -256,6 +274,10 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `auth.live.invalidation_snapshot_apply_then_ack`,
   `auth.live.invalidation_authorization_snapshot_same_data_version`,
   `auth.live.invalidation_terminal_delete_apply_then_ack`,
+  `auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse`,
+  `auth.live.invalidation_newer_pending_rejects_older_resolution`,
+  `auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged`,
+  `auth.live.invalidation_invalid_resolution_never_acknowledged`,
   `auth.live.invalidation_without_snapshot_quarantines`, and
   `auth.live.foreign_obligation_never_acknowledged`.
 - **T-AUTH-TERM** (`→ TERMINAL_AUTH`): `auth_error` frame / close code
@@ -368,7 +390,8 @@ The positive corpus now covers all five committed `LiveEnvelope` kinds:
 T-CURRENT-AS-OF and T-AUTH-INVALIDATION rather than by the tolerance floor.
 The auth/live class includes first application at an equal data version,
 snapshot and terminal-delete exact duplicate re-ACK, quarantine without a
-resolution, and foreign-scope refusal.
+resolution, terminal no-resurrection, pending revision/witness high-water,
+snapshot-floor and kind/shape refusal, and foreign exact-scope refusal.
 
 The full inventory LLP 0093 D2/P-1 enumerates, with seeding status:
 

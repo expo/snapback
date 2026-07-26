@@ -138,6 +138,10 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         "auth.live.invalidation_snapshot_apply_then_ack",
         "auth.live.invalidation_authorization_snapshot_same_data_version",
         "auth.live.invalidation_terminal_delete_apply_then_ack",
+        "auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse",
+        "auth.live.invalidation_newer_pending_rejects_older_resolution",
+        "auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged",
+        "auth.live.invalidation_invalid_resolution_never_acknowledged",
         "auth.live.invalidation_without_snapshot_quarantines",
         "auth.live.foreign_obligation_never_acknowledged",
         "durable.resync_required.connection_wide_clear_retained",
@@ -373,5 +377,126 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
             .as_array()
             .expect("forbidden actions")
             .contains(&Value::from("acknowledge_obligation"))
+    );
+}
+
+#[test]
+fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
+    let fixtures = fixtures();
+
+    for fixture in fixtures
+        .iter()
+        .filter(|fixture| fixture["profiles"][0] == "auth/live")
+    {
+        let name = fixture["name"].as_str().expect("auth/live fixture name");
+        let expectation = &fixture["given"]["authorizationExpectation"];
+        assert!(
+            expectation["issuerId"].is_object()
+                && expectation["connectionGeneration"].is_u64()
+                && expectation["authorization"].is_object()
+                && expectation["versionStream"].is_string(),
+            "{name}: auth/live fixture must pin the full authenticated expectation"
+        );
+        for subscription in fixture["given"]["subscriptions"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{name}: auth/live fixture must pin subscriptions"))
+        {
+            assert!(
+                subscription["authorizationScope"].is_object()
+                    && subscription["authorizationNamespace"].is_object()
+                    && subscription["acceptedAuthorization"].is_object(),
+                "{name}: held auth/live subscription must pin scope, namespace, and accepted authorization"
+            );
+        }
+    }
+
+    let no_resurrection = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"] == "auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse"
+        })
+        .expect("terminal no-resurrection fixture");
+    assert_eq!(
+        no_resurrection["steps"][1]["frame"]["kind"],
+        "live_replace"
+    );
+    assert_eq!(
+        no_resurrection["steps"][1]["expect"]["actions"],
+        serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
+    );
+    assert_eq!(
+        no_resurrection["expect"]["transitions"][0]["to"],
+        "terminal_deleted"
+    );
+
+    let high_water = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"] == "auth.live.invalidation_newer_pending_rejects_older_resolution"
+        })
+        .expect("pending high-water fixture");
+    assert_eq!(
+        high_water["steps"][0]["frame"]["obligation"]["revision"],
+        2
+    );
+    assert_eq!(
+        high_water["steps"][0]["frame"]["obligation"]["witness"]["data"]["minCommitVersion"],
+        44
+    );
+    assert_eq!(
+        high_water["steps"][1]["frame"]["obligation"]["revision"],
+        1
+    );
+    assert_eq!(
+        high_water["steps"][1]["expect"]["actions"],
+        serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
+    );
+
+    let mismatched = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"]
+                == "auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged"
+        })
+        .expect("owned-id mismatched-scope fixture");
+    assert_eq!(
+        mismatched["frame"]["obligation"]["scopeId"]["subscriptionId"],
+        mismatched["given"]["subscriptions"][0]["id"]
+    );
+    assert_ne!(
+        mismatched["frame"]["obligation"]["scopeId"]["namespace"],
+        mismatched["given"]["subscriptions"][0]["authorizationNamespace"]
+    );
+    assert_eq!(
+        mismatched["expect"]["actions"],
+        serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
+    );
+
+    let invalid = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"] == "auth.live.invalidation_invalid_resolution_never_acknowledged"
+        })
+        .expect("invalid resolution fixture");
+    let below_floor = &invalid["steps"][0]["frame"];
+    assert!(
+        below_floor["snapshot"]["version"].as_u64().expect("snapshot version")
+            < below_floor["resolution"]["witness"]["data"]["minCommitVersion"]
+                .as_u64()
+                .expect("resolution floor")
+    );
+    assert_eq!(
+        invalid["steps"][0]["expect"]["actions"],
+        serde_json::json!(["quarantine_rows", "surface_protocol_diagnostic"])
+    );
+    let terminal_with_snapshot = &invalid["steps"][1]["frame"];
+    assert_eq!(
+        terminal_with_snapshot["resolution"]["kind"],
+        "terminalDelete"
+    );
+    assert!(terminal_with_snapshot["snapshot"].is_object());
+    assert_eq!(
+        invalid["steps"][1]["expect"]["actions"],
+        serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
     );
 }
