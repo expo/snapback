@@ -1,6 +1,6 @@
 # 0081: schema-transition journal events, 0053 activation, client handshake
 
-**Status:** Open — narrowed 2026-07-26 to the client-side quarantine UX residual (server protocol complete; LLP 0093 adjacency). LLP 0081 is Implemented.
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, Storage, Live Queries, Auth
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -51,13 +51,13 @@ replays through the raised floor. M/L-sized.
   subscriptions exist, rather than substituting a generic resync for the
   0053 durable dispositions.
 
-**Residuals:** the sessions-profile durable auth-scoped dispositions at
-publication (currently fail-closed above; wire into the activation
-obligation machinery); the JS client-side quarantine UX; blind
-(read-set-free) predecessor writes are undetectable without artifact
-identity on the mutation wire (LLP 0093 adjacency); the auth-scoped
-precheck ordering is covered by inspection pending the 0081 corpus, which
-builds full artifacts and should add that case.
+**Residuals (as recorded at Wave 3a; all since dispatched):** the
+sessions-profile durable auth-scoped dispositions landed in the Phase D
+closure below; the JS client-side quarantine UX landed in the 2026-07-26
+resolution below; blind (read-set-free) predecessor writes moved to their
+own ticket (`20260726-0093-mutation-wire-artifact-identity.md`, LLP 0093
+lane); the auth-scoped precheck ordering case landed with the 0081
+acceptance corpus (closed 2026-07-26).
 
 **Phase D closure (2026-07-25):** the sessions-profile publication tail
 landed. Publication now fires LLP 0053's machinery for auth-scoped state
@@ -91,3 +91,42 @@ pass under every posture, witnessed both ways in
 `successor_only_publication_gates_stale_replay_baselines`. JS
 client-side quarantine UX remains the recorded residual (server protocol
 is complete).
+
+## Resolution (2026-07-26)
+
+The last residual — the JS client-side quarantine UX — landed in
+`packages/snapback-contract`:
+
+- The two stable migration-boundary codes are classified as lifecycle
+  states, not mutation outcomes: a receipted
+  `SNAPBACK_MIGRATION_RESYNC_REQUIRED` or
+  `SNAPBACK_MIGRATION_UPGRADE_REQUIRED` refusal (direct delivery, replay,
+  or the resync read) never settles the record `failed` and never drops
+  it — the durable queue holds, the replay pass halts in order, and the
+  app renders the state via the new `surface.migrationBoundary()`
+  accessor (`null` | `{ kind: 'resync-required' | 'upgrade-required',
+  code, since, ... }`), with the server code published once as a surface
+  diagnostic.
+- Resync-before-replay mirrors the engine settlement witness: the next
+  `reconnect()` resyncs, re-presents the SAME `clientMutationId` with
+  read-set baselines refreshed from the successor snapshot (only for
+  records the floor actually refused — never for ordinary conflicts),
+  and settles exactly once.
+- `upgrade-required` is stable across retries for the artifact-bound
+  surface (no retry storm, queue intact). Across the artifact upgrade
+  itself, payload custody follows the client store’s committed privacy
+  boundary (`scopeToArtifacts`): the successor surface receives an
+  explicit redacted `SNAPBACK_CLIENT_ARTIFACT_STALE` entry for app
+  re-entry — the witness caught and fixed a real store defect here (the
+  tombstone was written without a rebound `cursor`, making it invisible
+  to `failedMutations()` and rejectable by the reload validator — silent
+  loss of the re-entry surface).
+- Witness: `packages/snapback-contract/migration-quarantine.test.mjs`
+  (three scenarios: resync-required settles through resync-before-replay
+  with the re-baselined read set; upgrade-required is stable, preserved,
+  and surfaces the redacted tombstone across the upgrade for re-entry;
+  the boundary also enters from a refused resync read). Guide:
+  `guide/sync/offline-and-retention.md` §"Migration boundaries".
+- Automatic cross-artifact replay is deliberately NOT implemented: it
+  requires mutation-wire artifact identity
+  (`20260726-0093-mutation-wire-artifact-identity.md`).

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "383a6782683b6d27838137b19a75d47f5c450248"
+    "commit": "6aa857a8f426e0618c09e09f9f35fbfd72438638"
   },
   "nav": {
     ".": [
@@ -1663,9 +1663,9 @@
         "demos/todo-v2/surfaces/contract",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "5488d546bff84a4e1f5b003136272bb4a4394b01762f3cdab060848ccd60d3bc",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "8299c6ddb1c9019c08a72545c8e74998aeb2b5f5",
+      "sha256": "4e4e7644d929b23702a93a7dea3210d6172e4bfe8d08be6e97f33a8c41b533c8",
       "snippets": [
         {
           "lang": "js",
@@ -1681,6 +1681,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-contract/offline-replay.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-contract/migration-quarantine.test.mjs"
         }
       ]
     },
@@ -1795,5 +1800,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "85657a25bbae0747f8889d0da8371bc247b8a992db3e2112b47030a6db5a55f4"
+  "contentHash": "f7cc4b7948621ee74d0a43278cd5a16d58769231c6879404ba45f2b898b8df54"
 }
