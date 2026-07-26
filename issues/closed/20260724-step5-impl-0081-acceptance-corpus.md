@@ -1,6 +1,6 @@
 # 0081: acceptance corpus (0081 half of the coupled suite)
 
-**Status:** Deferred (phase C)
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Testing, Migrations, Storage
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -104,3 +104,17 @@ reopen regression in tests/migration_corpus_v0.rs). Gate reruns ride
 witnessed; remaining flip residuals are the JS client quarantine UX,
 hosted/DO items (deferred profiles), and the `transformed` posture
 (spec-deferred).
+
+## Resolution (2026-07-26)
+
+The 0081 §Acceptance corpus is complete on the local SQLite admission
+profile (the RFC's own Step 5 scope): artifact vectors, admission matrix,
+executor/journal/fence, §5 proof, §6 rollback, settlement, rehearsal, and
+ordering fixtures are green, and the Step 5 application witness executed a
+real reviewed v0→v1 schema change on the admitted fixture
+(acceptance/results/schema-evolution.v1.json). LLP 0081 flipped to
+**Implemented** 2026-07-26. Hosted/DO arms stay deferred in
+`20260724-step5-impl-0081-hosted-do-executor.md`; spec frictions
+consolidated in `20260726-0081-spec-amendment-frictions.md`; the client
+quarantine UX residual stays in
+`20260724-step5-impl-0081-journal-events.md`.

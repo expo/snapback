@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:0085f0bcc2f4c198a0e26a55f55faed0341988b7da8feca3d92b13018d05d01c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:cceb9249d85caaf7bc0db16b59ffb504f6d4d1dd9e78704ecbd2ac69b396cb2c",
   "manifestVersion": 2,
   "mutations": {
     "acceptInvite": {

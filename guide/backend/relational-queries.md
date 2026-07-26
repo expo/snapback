@@ -9,18 +9,18 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
+reviewed: 2026-07-26
+reviewed-commit: 383a6782683b6d27838137b19a75d47f5c450248
 ---
 
 # Relational queries (bounded joins)
 
-> **Local target only, experimental capability.** Relational queries require
-> the `relational_query_v1` target capability, which is **experimental**
-> until LLP 0080's coupled acceptance suite passes: generated artifacts
-> acknowledge the experimental contract automatically, and a target without
-> the executor (for example the Cloudflare path) refuses at generation with
-> a machine-readable capability gap, never at runtime.
+> **Local target only.** Relational queries require the
+> `relational_query_v1` target capability — **stable** since LLP 0080/0081
+> flipped to Implemented (2026-07-26); no experimental acknowledgment is
+> emitted or required. A target without the executor (for example the
+> Cloudflare path) refuses at generation with a machine-readable capability
+> gap, never at runtime.
 
 Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is

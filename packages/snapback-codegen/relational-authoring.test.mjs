@@ -122,8 +122,10 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
   assert.deepEqual(defined.relationalPlan.order.map((o) => o.field), ['title']);
 }
 
-// Generation emits the serialized closed plan, the experimental capability
-// requirement, and a both-table static effect ceiling — byte-identically.
+// Generation emits the serialized closed plan, the relational capability
+// requirement (stable since the 2026-07-26 LLP 0080/0081 promotion — no
+// experimental acknowledgment), and a both-table static effect ceiling —
+// byte-identically.
 const dir = mkdtempSync(join(tmpdir(), 'snapback-relational-'));
 try {
   writeFileSync(join(dir, 'schema.mjs'), `

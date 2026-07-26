@@ -1,6 +1,6 @@
 # 0081: schema-transition journal events, 0053 activation, client handshake
 
-**Status:** In progress (Wave 3a core landed 2026-07-25)
+**Status:** Open — narrowed 2026-07-26 to the client-side quarantine UX residual (server protocol complete; LLP 0093 adjacency). LLP 0081 is Implemented.
 **Severity:** P2
 **Systems:** Migrations, Storage, Live Queries, Auth
 **Author:** Claude (Fable 5), directed by Charlie Cheever

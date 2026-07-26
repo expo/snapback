@@ -1,11 +1,20 @@
 # LLP 0080 — Portable relational queries and maintained projections
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+**Revised:** 2026-07-26 (Implemented: every §Acceptance item is witnessed — the
+RELATIONAL_MIGRATION_COUPLED_SUITE_V1 and relational corpora are green, the
+retention lease class, obligation-fault recovery, and examined-entries
+instrumentation landed 2026-07-25, and the final item closed when
+demos/competitive-checkpoint was admitted as the Step 5 fixture (LLP 0063
+Revised 2026-07-26): both §7 generated helpers run there in production shape
+with the source/glue-reduction record and cumulative gate reruns pinned in
+acceptance/results/step5-both-helpers.v1.json; hosted arms remain vacuous —
+no hosted target claims the capability; `relational_query_v1` promoted to
+stable in both registries as the same act); 2026-07-24 (Accepted by the author after the dual-family
 LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
 semantic per §Acceptance and lands with the same-landing LLP 0004/0007
 amendments including the implicit `_id` index-suffix rule; the

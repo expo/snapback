@@ -56,11 +56,11 @@
   "pinnedReceipts": {
     "schemaEvolution": {
       "file": "acceptance/results/schema-evolution.v1.json",
-      "sha256": "acf421d862cac9463923721fa07b2512493eb71e478c62c0ff2d46a53ea875a2"
+      "sha256": "4d1c7c3236d6160f686ebf0076149e8cb204d18d9ce8fdd200045f6068b13baf"
     },
     "relationalConversations": {
       "file": "acceptance/results/relational-conversations.v1.json",
-      "sha256": "63565b8d6969fb6399de2e526d8d0307e55d9ef6e486ece686d34eebaea589a4"
+      "sha256": "51063ae24aa0add94fefa87b187d25fceb427b71c2dab2a1eb917d9c15b01f96"
     },
     "localStreamingRerun": {
       "file": "acceptance/results/local-streaming.v0.rerun-20260726.json",

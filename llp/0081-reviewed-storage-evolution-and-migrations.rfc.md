@@ -1,11 +1,21 @@
 # LLP 0081 — Reviewed storage evolution and migrations
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+**Revised:** 2026-07-26 (Implemented on the local SQLite admission profile, this RFC's own
+Step 5 admission scope: the durable executor/journal/fence corpus,
+quarantined-mutation settlement, restore-derived rehearsal, and
+dual-compatible/predeploy ordering fixtures are green, and the Step 5
+application witness reviewed and executed a real v0→v1 schema change on the
+admitted fixture through preview→approve→apply with gate reruns
+(acceptance/results/schema-evolution.v1.json) — the witness also found and
+fixed the migrate-CLI async-guard panic and the dual-slot schema-manifest
+publication defect; hosted/DO items stay deferred to separately versioned
+conformance profiles per the closing paragraph; `migration_keyset_scan_v1`
+promoted to stable as the same act); 2026-07-24 (Accepted by the author after the dual-family
 LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
 semantic per §Acceptance and lands with the same-landing LLP 0007
 journal-grammar and LLP 0072 `generationRepublish` amendments; the

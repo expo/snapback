@@ -44,7 +44,7 @@ await runAcceptance(suite, async () => {
   const functionManifest = generated('functions.manifest.json');
   const capabilityManifest = generated('capability.manifest.json');
 
-  await suite.check('the generated artifact pair carries the experimental relational capability honestly', async () => {
+  await suite.check('the generated artifact pair carries the promoted relational capability honestly', async () => {
     const relational = functionManifest.functions.find((fn) => fn.name === 'conversationsWithModel');
     assert(
       relational?.requiredCapabilities?.includes('relational_query_v1'),
@@ -54,22 +54,24 @@ await runAcceptance(suite, async () => {
       relational.readSetSummary?.mode === 'relational',
       'the generated read-set summary must declare the relational mode',
     );
-    // @ref LLP 0080#7-generated-authoring-surface — the capability is
-    // experimental until both RFCs flip; generation acknowledges the
-    // experimental contract rather than silently depending on it.
+    // @ref LLP 0080#7-generated-authoring-surface — `relational_query_v1`
+    // is stable since LLP 0080/0081 flipped to Implemented (2026-07-26):
+    // the requirement is plain 0058 support, so the bundle must NOT carry
+    // an experimental acknowledgment and the target's maturity map must
+    // not mark the id. Both assertions are the promotion regression.
     assert(
-      functionManifest.acknowledgedExperimentalCapabilities?.includes('relational_query_v1'),
-      'the generated bundle must acknowledge the experimental capability contract',
+      !(functionManifest.acknowledgedExperimentalCapabilities ?? []).includes('relational_query_v1'),
+      'a promoted capability must not be acknowledged as experimental by fresh generation',
     );
     assertEqual(
       capabilityManifest.capabilityMaturity?.relational_query_v1,
-      'experimental',
-      'the paired target artifact records the capability maturity honestly',
+      undefined,
+      'the paired target artifact must not mark the promoted capability non-stable',
     );
     return {
       helper: 'defineRelationalQuery',
       capability: 'relational_query_v1',
-      acknowledgedExperimental: true,
+      maturity: 'stable (promoted 2026-07-26)',
     };
   });
 

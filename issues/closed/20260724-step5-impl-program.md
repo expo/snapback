@@ -1,6 +1,6 @@
 # Step 5 semantics implementation program (LLP 0065/0080/0081) — index
 
-**Status:** Open
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Codegen, Storage, Query planning, Live Queries, Authorization, Migrations, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -144,6 +144,30 @@ dependency of both the 0065 and 0080 lanes.
   the Step 5 fixture is an author decision. The 0080/0081 Implemented
   flips therefore still wait on that admission (or a ratified 0080
   amendment) plus the 0081 fixtures in flight.
+  **Final record (2026-07-26):** Charlie admitted
+  `demos/competitive-checkpoint` as the admitted Step 5 fixture (LLP 0063
+  Revised 2026-07-26; LLP 0075 protocol amendment v0.8, prospective — no
+  timed run has occurred). The fixture adopted the callable
+  `defineRelationalQuery` helper in production shape and executed a real
+  reviewed v0→v1 schema change through `snapback migrate
+  preview→approve→apply` (receipts:
+  `step5-both-helpers.v1.json`, `schema-evolution.v1.json`,
+  `relational-conversations.v1.json` under the fixture's
+  acceptance/results/). The witness found and fixed two engine defects:
+  the migrate-CLI async-worker-guard panic and the dual-slot
+  schema-manifest publication bug that bricked migrated stores on reopen.
+  With those last two §Acceptance items witnessed, the item-by-item audit
+  came back clean and the flips executed: **LLP 0080 and LLP 0081 are
+  Implemented**, and `relational_query_v1` + `migration_keyset_scan_v1`
+  promoted to stable in both registries (src/manifest.rs non-stable table
+  emptied; codegen's EXPERIMENTAL_TARGET_CAPABILITY_IDS emptied; all
+  capability manifests, demo artifacts, and the guide regenerated; the
+  fixture witnesses re-run green against the promoted artifacts). The
+  program is complete. Still open, each in its own ticket: projection
+  capability-artifact facts (0080-maintained-projections), client
+  quarantine UX (0081-journal-events), the hosted DO executor
+  (0081-hosted-do-executor), and the 0081 spec-amendment frictions
+  (20260726-0081-spec-amendment-frictions).
 - Step 0's exit remains the critical path for *claiming* any Step 5 gate
   and outranks Phase B/C work when capacity is contended.
 

@@ -1,7 +1,6 @@
 # 0080: acceptance corpus (0080 half of the coupled suite)
 
-**Status:** Open — callable-query half landed 2026-07-25; projection/rebuild
-half lands with Phase B
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Testing, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -100,3 +99,16 @@ measurement and the cumulative gate reruns is
 `demos/competitive-checkpoint/acceptance/results/step5-both-helpers.v1.json`.
 The final 0080 §Acceptance item is witnessed; the flip decision moves to
 the audited flip landing.
+
+## Resolution (2026-07-26)
+
+Every LLP 0080 §Acceptance item is witnessed: the callable-query and
+projection/rebuild corpora landed Phases A/B, the retention lease class,
+obligation-fault recovery, and examined-entries instrumentation landed in
+the Phase D flip-closure package, and the final item — the admitted Step 5
+fixture demonstrating both §7 generated helpers with the source/glue
+reduction record and cumulative gate reruns — closed 2026-07-26
+(demos/competitive-checkpoint/acceptance/results/step5-both-helpers.v1.json).
+LLP 0080 flipped to **Implemented** the same day. Projection
+capability-artifact facts remain tracked in
+`20260724-step5-impl-0080-maintained-projections.md`.

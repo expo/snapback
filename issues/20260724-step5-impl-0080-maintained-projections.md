@@ -1,6 +1,6 @@
 # 0080: transactionally maintained projections + global fan-out proof
 
-**Status:** In progress (Phase B, core landed 2026-07-25)
+**Status:** Open — narrowed 2026-07-26 to capability-artifact facts for projections (everything else landed; LLP 0080 is Implemented)
 **Severity:** P2
 **Systems:** Storage, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -50,7 +50,7 @@ barrier with the per-source non-key-moving bound. L-sized.
   admission rollback, key immutability) and
   `maintained_projection_activation_refusals`.
 
-**Remaining:** capability-artifact facts for projections. The
+**Remaining (the only open item, 2026-07-26):** capability-artifact facts for projections — the generated bundle does not surface a projection-carrying schema as a target capability requirement, so a non-relational target refuses only at activation, not at generation/admission. The
 concurrent-admission race and 1,023/1,024-boundary fixtures landed in
 `tests/relational_migration_coupled_suite_v0.rs` (2026-07-25; item→witness
 map in the coupled-suite ticket).

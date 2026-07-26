@@ -1,6 +1,6 @@
 # RELATIONAL_MIGRATION_COUPLED_SUITE_V1 — join gate for 0080/0081 Implemented
 
-**Status:** Deferred (phase B)
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Testing, Migrations, Query planning
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -92,3 +92,19 @@ step already bridges the two lanes (a migration step delegating to the
 claim completion: Wave 3a's journal-grammar/client-handshake conformance,
 retained-work postures, hosted arms, and the LLP status/maturity flips —
 which stay author decisions.
+
+## Resolution (2026-07-26)
+
+`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` is green end to end
+(`tests/relational_migration_coupled_suite_v0.rs` 4/4 plus the relational
+and migration corpora and the src witnesses mapped above), every honest
+residual listed here closed — the retention lease class, the
+obligation-fault e2e, and examined-entries instrumentation landed
+2026-07-25 (Phase D); the full 0081 local-profile lane landed in Phase C;
+and the Step 5 application witness ran on the admitted fixture
+(demos/competitive-checkpoint, LLP 0063 Revised 2026-07-26). Step 0's
+refreshed ledger closed 2026-07-25. The author-delegated flips executed
+2026-07-26: LLP 0080 and LLP 0081 are **Implemented**, and
+`relational_query_v1` + `migration_keyset_scan_v1` promoted to stable in
+both registries in the same landing. Hosted arms stay with
+`20260724-step5-impl-0081-hosted-do-executor.md`.

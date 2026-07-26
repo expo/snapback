@@ -10,12 +10,12 @@
   "ok": true,
   "results": [
     {
-      "name": "the generated artifact pair carries the experimental relational capability honestly",
+      "name": "the generated artifact pair carries the promoted relational capability honestly",
       "ok": true,
       "details": {
         "helper": "defineRelationalQuery",
         "capability": "relational_query_v1",
-        "acknowledgedExperimental": true
+        "maturity": "stable (promoted 2026-07-26)"
       }
     },
     {

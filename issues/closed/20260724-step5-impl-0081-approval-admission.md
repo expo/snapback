@@ -1,6 +1,6 @@
 # 0081: approval/admission records + migrate CLI surface
 
-**Status:** In progress (types landed 2026-07-25; CLI + enforcement are Wave 2)
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, CLI, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -63,3 +63,14 @@ removed+added field pairs (RenameField — a diff cannot distinguish a
 rename), required→optional loosening, and index removal/alteration
 (outside the closed vocabulary). Witness:
 `schema_diff_derivation_is_deterministic_and_closed`.
+
+## Resolution (2026-07-26)
+
+Wave 2 landed the CLI and semantic approval/admission enforcement; Phase D
+added deterministic schema-diff intent derivation; and the Step 5
+application witness drove the full reviewed path (preview → tampered
+approval refused → approve → apply → verify) on the admitted fixture. The
+witness also surfaced and fixed the migrate-CLI async-worker-guard panic
+that had kept every subcommand from running outside tests. CLI-verb
+frictions (`release`/`rehearse`) moved to
+`20260726-0081-spec-amendment-frictions.md`. LLP 0081 is Implemented.

@@ -41,7 +41,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
-| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, experimental capability) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
@@ -2322,18 +2322,18 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
+reviewed: 2026-07-26
+reviewed-commit: 383a6782683b6d27838137b19a75d47f5c450248
 ---
 
 # Relational queries (bounded joins)
 
-> **Local target only, experimental capability.** Relational queries require
-> the `relational_query_v1` target capability, which is **experimental**
-> until LLP 0080's coupled acceptance suite passes: generated artifacts
-> acknowledge the experimental contract automatically, and a target without
-> the executor (for example the Cloudflare path) refuses at generation with
-> a machine-readable capability gap, never at runtime.
+> **Local target only.** Relational queries require the
+> `relational_query_v1` target capability — **stable** since LLP 0080/0081
+> flipped to Implemented (2026-07-26); no experimental acknowledgment is
+> emitted or required. A target without the executor (for example the
+> Cloudflare path) refuses at generation with a machine-readable capability
+> gap, never at runtime.
 
 Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is

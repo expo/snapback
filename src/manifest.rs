@@ -3847,21 +3847,16 @@ impl TargetCapabilityId {
     /// admission refuses it unless the requiring artifact acknowledges the
     /// experimental contract.
     pub const fn maturity(self) -> CapabilityMaturity {
-        match self {
-            // LLP 0076 was Accepted 2026-07-25 (author ratification, gate-2
-            // receipts complete): `bounded_response_stream_v1` fell out of
-            // this non-stable table as the acceptance act — positive presence
-            // is now the plain 0058 compatibility assertion. Artifacts that
-            // still acknowledge it are unaffected (stable acknowledgment is a
-            // no-op).
-            // LLP 0080 is Accepted (semantics), but its executable witnesses
-            // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
-            // relational profile's id stays `experimental`; flipping it to
-            // `Stable` is the Implemented act.
-            Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
-            Self::MigrationKeysetScanV1 => CapabilityMaturity::Experimental,
-            _ => CapabilityMaturity::Stable,
-        }
+        // LLP 0076 was Accepted 2026-07-25 and LLP 0080/0081 flipped to
+        // Implemented 2026-07-26 (coupled suite green, admitted Step 5
+        // fixture witnesses complete): `bounded_response_stream_v1`, then
+        // `relational_query_v1` and `migration_keyset_scan_v1`, fell out of
+        // the non-stable table as those acceptance/Implemented acts —
+        // positive presence is now the plain 0058 compatibility assertion
+        // for every registered id. Artifacts that still acknowledge a
+        // promoted id are unaffected (stable acknowledgment is a no-op).
+        // The next non-stable id restores a `match self` here.
+        CapabilityMaturity::Stable
     }
 
     /// Evaluate the id's named positive predicate for one exact target/runtime
@@ -4920,94 +4915,65 @@ mod membership_manifest_grammar_tests {
         );
     }
 
-    // @ref LLP 0058#capability-maturity — the maturity map annotates exactly
-    // the emitted support set, and an experimental entry is not plain
-    // support: admission requires the artifact's explicit acknowledgment.
+    // @ref LLP 0058#capability-maturity — the maturity map annotates the
+    // emitted support set with every non-stable id; stable ids never appear.
+    // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as
+    // LLP 0080/0081's Implemented act (2026-07-26), the registry has no
+    // non-stable id left: the empty map below IS the promotion regression,
+    // exactly as `bounded_response_stream_v1`'s absence was for LLP 0076.
     #[test]
-    fn experimental_maturity_is_published_and_gates_admission() {
-        // The maturity map annotates the emitted set: experimental ids appear
-        // exactly when they are supported, and stable ids never appear. The
-        // stream id left this map when LLP 0076 was Accepted (2026-07-25) —
-        // its absence below is the promotion regression.
+    fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
         let disabled = CapabilityManifest::local_v0_declared();
-        // The relational profile is supported by the local runtime and its
-        // id is experimental until the coupled suite passes, so even the
-        // outbound-disabled declared manifest carries that one entry.
-        assert_eq!(
+        // Both promoted ids stay supported by the local runtime…
+        assert!(
             disabled
-                .capability_maturity
-                .get(&TargetCapabilityId::RelationalQueryV1),
-            Some(&CapabilityMaturity::Experimental)
+                .supported_capabilities
+                .contains(&TargetCapabilityId::RelationalQueryV1)
         );
-        // The privileged migration scan (LLP 0081 §3) is likewise
-        // experimental until its executor and corpus land.
-        assert_eq!(
+        assert!(
             disabled
-                .capability_maturity
-                .get(&TargetCapabilityId::MigrationKeysetScanV1),
-            Some(&CapabilityMaturity::Experimental)
+                .supported_capabilities
+                .contains(&TargetCapabilityId::MigrationKeysetScanV1)
         );
-        assert_eq!(disabled.capability_maturity.len(), 2);
-        // The stream id is supported by the egress-enabled instance but is
-        // stable since LLP 0076's acceptance: it must NOT appear in the
-        // maturity map (positive presence is the plain 0058 assertion).
+        // …and the maturity map is empty: no registered id is non-stable.
+        assert!(disabled.capability_maturity.is_empty());
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert!(
             enabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
         );
-        assert!(
-            !enabled
-                .capability_maturity
-                .contains_key(&TargetCapabilityId::BoundedResponseStreamV1)
-        );
-        assert_eq!(enabled.capability_maturity.len(), 2);
+        assert!(enabled.capability_maturity.is_empty());
 
-        // Serialization: the annotated manifest carries the field; the
-        // all-stable manifest omits it, and an omitted field round-trips to
-        // an empty map (older manifests predate the dimension).
-        let serialized = serde_json::to_value(&enabled).expect("serialize");
-        assert_eq!(
-            serialized["capabilityMaturity"],
-            json!({
-                "migration_keyset_scan_v1": "experimental",
-                "relational_query_v1": "experimental",
-            })
-        );
-        // An all-stable manifest omits the field, and an omitted field
-        // round-trips to an empty map (older manifests predate the
-        // dimension).
-        let mut all_stable = CapabilityManifest::local_v0_declared();
-        all_stable
-            .supported_capabilities
-            .retain(|id| id.maturity() == CapabilityMaturity::Stable);
-        all_stable.capability_maturity.clear();
-        let plain = serde_json::to_value(&all_stable).expect("serialize");
+        // Serialization: an all-stable manifest omits the field, and an
+        // omitted field round-trips to an empty map (older manifests predate
+        // the dimension).
+        let plain = serde_json::to_value(&enabled).expect("serialize");
         assert!(plain.get("capabilityMaturity").is_none());
         let round_tripped: CapabilityManifest =
             serde_json::from_value(plain).expect("deserialize without the field");
         assert!(round_tripped.capability_maturity.is_empty());
 
-        // Admission: unacknowledged experimental support is refused exactly
-        // like unsupported (with the maturity named in the details) …
-        let refusal = enabled
+        // Promoted ids are plain support: they admit with NO acknowledgment
+        // at all — before 2026-07-26 the first two refusals below were the
+        // experimental-gate witnesses.
+        enabled
             .require_capability("relational_query_v1")
-            .expect_err("experimental support is not plain support");
-        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
-        assert_eq!(refusal.diagnostic.details["maturity"], "experimental");
-        assert_eq!(refusal.diagnostic.details["acknowledged"], false);
-
-        // … while the promoted stream id is now plain support: it admits
-        // with NO acknowledgment at all (LLP 0076 Accepted 2026-07-25).
+            .expect("promoted relational support admits without acknowledgment");
+        enabled
+            .require_capability("migration_keyset_scan_v1")
+            .expect("promoted migration-scan support admits without acknowledgment");
         enabled
             .require_capability("bounded_response_stream_v1")
             .expect("stable support admits without acknowledgment");
 
-        // The acknowledging artifact admits, acknowledging a stable id —
+        // Pre-promotion artifacts survive: acknowledging a stable id —
         // including one promoted after the artifact was generated — is a
         // harmless no-op, and an acknowledgment can never make an
-        // unsupported capability supported.
+        // unsupported capability supported. (The experimental refusal arm in
+        // `require_capability_acknowledging` has no live non-stable id to
+        // exercise it until the next one lands; `auth_artifacts_v1`'s
+        // registry sweep re-arms automatically when it does.)
         let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
             "relational_query_v1",
             "bounded_response_stream_v1",
@@ -5016,9 +4982,6 @@ mod membership_manifest_grammar_tests {
         ]);
         enabled
             .require_capability_acknowledging("relational_query_v1", &acknowledged)
-            .expect("acknowledged experimental requirement admits");
-        enabled
-            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
             .expect("a surviving pre-promotion acknowledgment stays a no-op");
         enabled
             .require_capability_acknowledging("live_subscriptions", &acknowledged)

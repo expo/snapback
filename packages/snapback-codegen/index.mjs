@@ -114,9 +114,11 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
-  // LLP 0080 is Accepted (semantics); the id stays experimental until the
-  // coupled suite passes and both RFCs flip to Implemented.
-  'relational_query_v1',
+  // Empty since 2026-07-26: `relational_query_v1` left this set as LLP
+  // 0080/0081's Implemented act (coupled suite green, admitted Step 5
+  // fixture witnesses complete), mirroring src/manifest.rs's non-stable
+  // table. Generated bundles stop acknowledging promoted ids; surviving
+  // pre-promotion acknowledgments are a no-op at admission.
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';

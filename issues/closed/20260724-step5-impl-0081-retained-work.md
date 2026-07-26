@@ -1,6 +1,6 @@
 # 0081: retained-work postures (empty / dual-compatible)
 
-**Status:** Deferred (phase C)
+**Status:** Resolved (2026-07-26)
 **Severity:** P3
 **Systems:** Migrations, Background work
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -58,3 +58,14 @@ receipt custody is structural on the local profile (operator file);
 control-plane receipt authentication, the LLP 0072 backup manifest
 binding, and a dedicated `migrate rehearse` CLI verb (the §2 list has no
 rehearse verb — same friction class as `release`) are 0072-lane work.
+
+## Resolution (2026-07-26)
+
+Retained-work postures landed in Phase C (empty and proven
+dual-compatible admitted; declared-but-unproven `transformed` refused as
+unsupported — the spec-deferred posture stays a refusal, witnessed) and
+the rehearsal machinery above landed 2026-07-25. The 0072-lane custody
+residuals (control-plane receipt authentication, backup-manifest binding)
+and the missing `rehearse` verb are recorded in
+`20260726-0081-spec-amendment-frictions.md`. LLP 0081 is Implemented on
+the local profile.
