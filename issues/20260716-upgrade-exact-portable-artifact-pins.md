@@ -34,10 +34,9 @@ the skip instead of failing until the lock-owned suite is upgraded.
 
 ## Blocker and evidence
 
-This work is blocked on a published, lockstep Exact release containing the
-portable-artifact fixes. On 2026-07-16, the public npm registry reported
-`0.1.4` as both `latest` and the newest published version for each package
-these surfaces consume directly:
+This work remains blocked, but the blocker moved on 2026-07-26. The public npm
+registry now carries a coherent `0.1.6` suite for every package these surfaces
+consume directly:
 
 - `@ccheever/exact-contract`
 - `@ccheever/exact-core`
@@ -45,32 +44,73 @@ these surfaces consume directly:
 - `@ccheever/exact-renderer`
 - `@ccheever/exact-router`
 
-`npm view @ccheever/exact-contract versions time --json` listed only
-`0.1.0` through `0.1.4`. The Exact changes for ENG-24452 and ENG-25004 landed
-after the `0.1.4` publication, so no published package currently satisfies the
-ticket's `0.1.5+` portability requirement. An ambient Exact checkout, local
-tarball, git dependency, or hand-edited `dist/` would violate LLP 0015's
-lock-owned published-package and frozen-install constraints; the existing
-pre-portability allowlist must therefore remain until the release exists.
+Both surface manifests were temporarily pinned to that registry suite, their
+locks were regenerated, and `bun install --frozen-lockfile` completed without
+changes in each surface. The required production builds nevertheless exposed
+an incompatibility inside the published suite:
 
-Reverified on 2026-07-17: the public registry still reports `0.1.4` as the
-newest version for all five required `@ccheever/exact-*` packages listed above.
-The blocker and safe-resume sequence are unchanged.
+- All Aboard first required the expected source migration for Exact 0.1.6's
+  pager grammar: each `pager` now needs a stable scalar `value=` identity.
+  After supplying `station.id` and `board.hero.id`, the build advanced and
+  failed because `@exact/router@0.1.6/src/contract.ts` imports
+  `defineCapability`, `onFlush`, `registerNativeContractKeyBinding`, `signal`,
+  and other symbols from `@exact/contract/runtime`, while
+  `@exact/devtools@0.1.6` redirects that client import to
+  `@exact/contract/runtime/production`. The published
+  `@exact/contract@0.1.6` production entry does not export those symbols.
+- Cursors Web failed at the same production-runtime boundary:
+  `main.ts` imports `getContractDataflowSnapshot` from
+  `@exact/contract/runtime` for its acceptance/debug facts, but the redirected
+  `@exact/contract@0.1.6` production entry does not export it.
+
+The reproductions were:
+
+```text
+node scripts/check-required-surface-builds.mjs
+[MISSING_EXPORT] "defineCapability" is not exported by
+node_modules/@exact/contract/src/runtime/production.ts
+...
+[required-surface-builds] FAIL: all-aboard/contract: production build failed
+
+bun run --cwd demos/cursors-web/surfaces/contract build
+[MISSING_EXPORT] "getContractDataflowSnapshot" is not exported by
+node_modules/@exact/contract/src/runtime/production.ts
+```
+
+This is not an incoherent lock or an ambient-checkout resolution: all five
+installed All Aboard packages and all three installed Cursors packages reported
+version `0.1.6` from the surfaces' own `node_modules` trees. A Snapback-local
+alias to the full runtime, a compatibility shim, a local tarball, or hand-edited
+`dist/` would bypass the Exact production-runtime boundary and violate LLP
+0015's published-package, lock-owned acceptance rule. The attempted pins,
+locks, pager edits, and generated-output changes were therefore reverted, and
+the pre-portability allowlist remains necessary.
+
+The original publication blocker was verified on 2026-07-16 and 2026-07-17,
+when the registry still stopped at `0.1.4`. Exact `0.1.6` removed that
+availability blocker on 2026-07-25, but cannot satisfy the production-build
+acceptance above.
 
 ## Safe resume steps
 
-1. Publish one coherent Exact suite version `0.1.5` or newer containing both
-   ENG-24452 and ENG-25004, then verify the required package versions from the
-   public npm registry.
-2. Pin every direct `@exact/*` alias in both surface `package.json` files to
+1. Fix the Exact production-runtime/package boundary, add a registry-package
+   integration test that production-builds an external `exactContractWeb`
+   surface using `@exact/router/contract`, and publish the fix as one coherent
+   suite newer than `0.1.6`. The release must also provide a supported path for
+   Cursors' production acceptance facts (a production-safe observability seam
+   or an explicit dev-only split).
+2. Verify the corrected release from the public npm registry; do not validate
+   this ticket with an ambient Exact checkout or local package override.
+3. Pin every direct `@exact/*` alias in both surface `package.json` files to
    that same suite version and regenerate each `bun.lock` from the registry.
-3. Run `bun install --frozen-lockfile` in each surface and confirm the installed
-   packages resolve inside that surface's own `node_modules` tree.
-4. Rebuild both tracked production `dist/` trees and review the hashed assets,
+4. Apply the pager `value=` migration required by the corrected suite, migrate
+   Cursors' dataflow acceptance facts if the release uses a new supported seam,
+   and run `bun install --frozen-lockfile` in each surface.
+5. Rebuild both production `dist/` trees and review the hashed assets,
    sourcemaps, and native/static manifests.
-5. Run `node scripts/check-required-surface-builds.mjs` and then
+6. Run `node scripts/check-required-surface-builds.mjs` and then
    `node scripts/check-artifact-path-hygiene.mjs`; both surfaces must be scanned
    without findings or skips.
-6. Only after both pins are upgraded, delete the pre-portability allowlist,
+7. Only after both pins are upgraded, delete the pre-portability allowlist,
    replace its skip regression with a rollback-fails regression, update the
    affected demo diaries, and close this ticket with the proof results.
