@@ -4915,6 +4915,31 @@ mod membership_manifest_grammar_tests {
         );
     }
 
+    // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
+    // has no function carrier: codegen surfaces its relational-engine
+    // dependence as a schema-level `relational_query_v1` requirement, and
+    // the load path chains schema-level requirements through the same
+    // `require_capabilities` gate as function requirements. A target
+    // without the relational engine therefore refuses the projection
+    // bundle at admission, never as a late activation surprise.
+    #[test]
+    fn projection_schema_requirement_refuses_without_relational_support() {
+        let supported = CapabilityManifest::local_v0_declared();
+        supported
+            .require_capability("relational_query_v1")
+            .expect("the local target serves projection-carrying bundles");
+
+        let mut stripped = CapabilityManifest::local_v0_declared();
+        stripped
+            .supported_capabilities
+            .retain(|id| *id != TargetCapabilityId::RelationalQueryV1);
+        let refusal = stripped
+            .require_capabilities(["relational_query_v1"], &BTreeSet::new())
+            .expect_err("a projection bundle refuses on a target without the relational engine");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(refusal.diagnostic.details["capability"], "relational_query_v1");
+    }
+
     // @ref LLP 0058#capability-maturity — the maturity map annotates the
     // emitted support set with every non-stable id; stable ids never appear.
     // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as

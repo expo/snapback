@@ -2323,7 +2323,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-26
-reviewed-commit: 383a6782683b6d27838137b19a75d47f5c450248
+reviewed-commit: 6aa857a8f426e0618c09e09f9f35fbfd72438638
 ---
 
 # Relational queries (bounded joins)
@@ -2436,6 +2436,11 @@ versioned continuation cursor next to `rows`; pass it back as
 output table the runtime maintains inside **every source mutation's own
 commit** — source and projection either commit together or not at all,
 with no background repair and no separately visible projection version.
+A projection has no function carrier, so the generated bundle records its
+relational-engine dependence as a schema-level `relational_query_v1`
+requirement (derived from the projection's presence — never authored):
+a target without the engine refuses at generation and admission, not at
+activation.
 
 ```js source=demos/competitive-checkpoint/snapback/functions.mjs
 export const conversationCardsProjection = defineMaintainedProjection({

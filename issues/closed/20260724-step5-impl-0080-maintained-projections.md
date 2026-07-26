@@ -1,6 +1,6 @@
 # 0080: transactionally maintained projections + global fan-out proof
 
-**Status:** Open — narrowed 2026-07-26 to capability-artifact facts for projections (everything else landed; LLP 0080 is Implemented)
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Storage, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -65,3 +65,27 @@ read/write fences all refuse at generation;
 an acceptance check proving root-commit materialization, joined-side
 reverse-index fan-out, and owner scoping end to end; guide page +
 capability index updated.
+
+## Resolution (2026-07-26)
+
+The last item landed: a projection-carrying generated bundle now surfaces
+its relational-engine dependence as a schema-level `relational_query_v1`
+requirement, derived from the projection's presence (packages/
+snapback-codegen/index.mjs, immediately after `buildMaintainedProjections`).
+The id is derived, never authored — `defineSchema`'s closed authorable
+capability set refuses a hand-written entry, so no duplication channel
+exists. Enforcement needed no new Rust surface: schema-level requirements
+already chain through `require_capabilities` at load (src/local.rs) and
+through `validateTargetArtifactAuthSupport` at generation, so a target
+without the relational engine refuses at generation and admission with
+`SNAPBACK_CAPABILITY_UNSUPPORTED`, never as a late activation surprise.
+Witnesses: the generation matrix in
+packages/snapback-codegen/maintained-projections.test.mjs (emitted exactly
+once; authored entry refused; projection-free bundle emits nothing) and
+`projection_schema_requirement_refuses_without_relational_support`
+(src/manifest.rs). demos/competitive-checkpoint regenerated (its
+schema.manifest.json now carries the requirement) with its acceptance
+witnesses re-run green (relational-conversations 5/5; local-streaming 8/8,
+rerun receipt local-streaming.v0.rerun-20260726-projection-facts.json —
+base receipt untouched). Guide §Maintained projections states the
+contract.
