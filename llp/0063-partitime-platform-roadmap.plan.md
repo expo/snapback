@@ -34,6 +34,23 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 compact Contract runtime checkpoint):** 2026-07-26 (Exact
+revision `fc44b105b…`, published to Exact `origin/main`, flattens ordinary
+generated element/collection prop and event plans, binds lazy plan factories
+directly to generated mount functions, and restores the lightweight
+production web host's omission of ten native/compatibility-only fields per
+mounted element. Registered Exact execution, codegen, list-virtualization,
+and production-web-host checks plus the three-profile TypeScript check pass;
+the broad Contract corpus passes 2,333 tests, with its four failures
+reproduced on pristine Exact `origin/main` before the checkpoint (two
+loaded-host native build timeouts and two stale/pre-existing assertions). A
+source-linked Partitime SQLite production diagnostic moves from 236,355 /
+70,099 deterministic-gzip JavaScript bytes to 234,243 / 69,996, down 2,112 /
+103 but still red by 20,760 / 2,750 against the frozen 213,483 / 67,246
+limits. Snapback's committed consumer remains the published Exact 0.1.6
+closure; no claim-grade heap sample or Step 4 receipt was regenerated on the
+loaded local host. This records the landed upstream dependency and its
+nonclaim diagnostic only: thresholds and claims do not move.)
 **Revised (Step 4 July 23 authority ratification):** 2026-07-24 (Charlie
 Cheever supplied the exact preregistered statements ratifying
 `partitime-ws8-memory-construct-v2-2026-07-23`,
