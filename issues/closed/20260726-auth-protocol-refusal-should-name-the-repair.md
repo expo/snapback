@@ -1,7 +1,8 @@
 # `SNAPBACK_AUTH_POLICY_UNAVAILABLE` described the violation without naming the repair
 
 **Filed:** 2026-07-26 · **Source:** Partitime matrix
-**Status:** message improved in this change; the class of problem is worth a sweep
+**Status:** resolved 2026-07-26; the broader refusal-message sweep remains open
+in the related tickets below
 
 ## What happened
 
@@ -39,3 +40,9 @@ client author will look). A refusal that a client can only fix by reading
 Related: `SNAPBACK_AUTH_RESERVATION_STALE` answers 503 with no `retry-after`,
 though it is a routine retryable write conflict — see
 `20260726-reservation-stale-is-a-503-without-retry-after.md`.
+
+## Resolution
+
+`session_online_protocol_refusal` now names the exact HTTP header and
+WebSocket subprotocol that repair the refusal. A focused server assertion pins
+the actionable message so it cannot silently regress.

@@ -1,7 +1,8 @@
 # `AUTH_ADDRESS_REQUEST_LIMIT` made the capture-mailbox code ceremony unusable for a demo fleet
 
 **Filed:** 2026-07-26 · **Source:** Partitime matrix (`demos/partitime`), 7 web cells blocked
-**Status:** fixed in this change; filed for the record and for the Prod-side question
+**Status:** open — the proposed code is preserved off `main` pending a dated
+LLP 0057 amendment and author ratification
 
 ## What happened
 
@@ -17,21 +18,32 @@ POST /auth/request-code (ada@partitime.test) attempts 1..7 -> 429 SNAPBACK_AUTH_
 A whole 19-check acceptance suite collapsed from that one throttled call
 (`vue/snapback FAIL 9/19`, every downstream check skipped).
 
-## Fix applied
+## Proposed fix (not landed)
 
-`AuthProviderProfile::exempt_from_address_request_limit()` — exempts `Dev` and
-`Demo`. Those profiles deliver every code to the in-process capture mailbox,
-which has no recipient, so the spam the limit exists to prevent cannot occur.
+`AuthProviderProfile::exempt_from_address_request_limit()` would exempt `Dev`
+and `Demo`. Those profiles deliver every code to the in-process capture
+mailbox, which has no recipient, so the spam the limit exists to prevent cannot
+occur.
 
 - `Test` deliberately keeps the limit, so
   `request_code_has_exact_window_supersession_and_no_app_stream_effect` retains
   its coverage. 350 `auth::` tests pass.
-- `Prod` is untouched.
+- `Prod` would be untouched.
 - Not an unbounded-issuance hole: the global request window and the capture
   mailbox capacity budget still apply. Measured on Dev after the change, 140
   request-codes across 140 distinct addresses in one minute answered
   `82x200 / 58x429 SNAPBACK_AUTH_THROTTLED`.
-- Measured: 25 consecutive full ceremonies for one seeded email, 0 throttled.
+- Measured in the preserved experiment: 25 consecutive full ceremonies for one
+  seeded email, 0 throttled.
+
+## Why it remains gated
+
+Accepted LLP 0057 fixes the per-address budget at five accepted requests per
+rolling ten minutes and applies it in the request-code transaction without a
+profile exception. Landing the proposed branch would therefore change an
+Accepted security contract. The experiment is preserved locally in this clone
+on `checkpoint/local-partitime-clients-20260726`, but `main` keeps the ratified
+limit until a dated amendment is reviewed and ratified.
 
 ## Open question for the owner
 

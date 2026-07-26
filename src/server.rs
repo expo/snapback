@@ -25068,12 +25068,17 @@ globalThis.__snapbackHandlers = {
         );
 
         assert!(super::session_online_protocol_refusal(stream, &state, &headers).is_none());
+        let refusal = super::session_online_protocol_refusal(ordinary_http, &state, &headers)
+            .expect("ordinary HTTP must ignore WebSocket protocol tokens");
         assert_eq!(
-            super::session_online_protocol_refusal(ordinary_http, &state, &headers)
-                .expect("ordinary HTTP must ignore WebSocket protocol tokens")
-                .diagnostic
-                .code,
+            refusal.diagnostic.code,
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            refusal.diagnostic.message,
+            "add the request header `x-snapback-auth-client-protocol: 1`: this request \
+             does not offer the exact supported auth-client protocol (on a WebSocket \
+             upgrade, offer the `snapback.auth-client.1` subprotocol instead)"
         );
     }
 
