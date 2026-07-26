@@ -900,9 +900,17 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.key('ArrowDown');
       const second = await taskPage.active();
       const secondDescendant = await taskPage.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
-      const moved = first.role === 'listbox'
-        ? firstDescendant && secondDescendant && firstDescendant !== secondDescendant
-        : second.testId !== first.testId && second.role === 'option';
+      // Both WAI-ARIA listbox focus strategies are valid here: React keeps
+      // DOM focus on the listbox and advances aria-activedescendant, while
+      // Contract uses roving focus and enters the first option from the
+      // initially focused listbox. A merge had accidentally restored the
+      // older mutually-exclusive predicate and rejected that second model.
+      const movedByDescendant = firstDescendant
+        && secondDescendant
+        && firstDescendant !== secondDescendant;
+      const movedByOptionFocus = second.role === 'option'
+        && second.testId !== first.testId;
+      const moved = movedByDescendant || movedByOptionFocus;
       if (!moved) throw new Error(`guest-list arrow navigation failed: ${JSON.stringify({ first, second, firstDescendant, secondDescendant })}`);
       await taskPage.key('Escape');
       await assertFocused(taskPage, 'guest-list-trigger', 'guest sheet Escape');
