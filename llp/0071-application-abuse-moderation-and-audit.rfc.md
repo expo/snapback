@@ -5,7 +5,15 @@
 **Systems:** Abuse controls, Rate limits, Moderation, Audit, Auth, Runtime, Storage, Realtime, Admin, Privacy, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 (initial proposal for LLP 0063's hosted security foundation)
+**Revised:** 2026-07-26 (author-side review reconciliation: staged request
+identity, atomic composed admission reservations, portable integer token-bucket
+semantics, bounded key allocation and proxy derivation, idempotent automated
+enforcement, a deterministic scoped moderation reducer, downstream visibility
+frontiers, segmented audit integrity with durable-work effect linkage,
+non-rollbackable privacy restore reconciliation, legal-hold lifecycle, and
+snapshot-bound bulk operations are specified. The RFC remains Draft pending
+independent security/privacy review and implementation). 2026-07-20 (initial
+proposal for LLP 0063's hosted security foundation)
 **Related:** LLP 0004, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0031, LLP 0036, LLP 0047, LLP 0053, LLP 0055, LLP 0056, LLP 0060, LLP 0063, LLP 0070
 
 ## Summary
@@ -51,7 +59,19 @@ does not imply complete moderation.
 
 ## Trusted request identity
 
-Every admitted request derives a closed identity envelope at the server edge:
+Request identity refines through two closed, versioned envelopes. The edge
+envelope exists before authentication and contains only:
+
+- app, database, deployment, target profile, and stream/restore incarnation;
+- directly observed transport and validated trusted-proxy facts;
+- connection id where one already exists;
+- route/function/operation class; and
+- a server-generated request id and trusted receipt time.
+
+Pre-authentication admission uses only that envelope. A verified authentication
+transition then appends exactly one coded outcome: an authenticated principal
+and opaque authority instance, an agent principal and scoped grant, anonymous,
+or invalid. The refined envelope used by post-authentication admission contains:
 
 - app, database, deployment, target profile, and stream incarnation;
 - authenticated principal and opaque authority instance when present;
@@ -67,6 +87,19 @@ and arbitrary bucket keys are never admission authority. Anonymous identity is
 deployment-scoped and combines a privacy-preserving network prefix digest with
 a rotating server epoch; it is intentionally imperfect and must not be
 presented as person identity.
+
+Every decision records the envelope version and which stage it consumed.
+Authentication failure never copies unverified token claims into a durable key,
+diagnostic, signal, or audit event.
+
+Trusted-proxy derivation is versioned. Configuration pins trusted hop
+identities/CIDRs, an accepted single-header grammar, right-to-left trusted-hop
+removal, multi-header rejection, direct-peer fallback, IPv4-mapped-IPv6
+normalization, and target-specific IPv4/IPv6 prefix lengths. Configuration
+rollout is generation-fenced and audited. Anonymous digests use HMAC-SHA256
+with an operator-custodied epoch key and overlap adjacent epochs by charging
+the stricter of old/new buckets for one refill window, so rotation neither
+mints a second full allowance nor creates a stable cross-period identifier.
 
 ## Admission rate limits
 
@@ -90,9 +123,31 @@ search, document operations, chat sends, reports, and admin operations each
 have independent policies so saturation in one class cannot consume every
 control path.
 
-The first algorithm is a server-time token bucket with an atomic compare/update.
-It returns `allowed`, `remaining`, `retryAfter`, policy id/version, and a
-redacted decision id. Target profiles declare whether state is process-local,
+One generated admission transaction resolves an immutable effective-policy
+version, canonicalizes and bounds every trusted key, samples trusted time once,
+and checks every component bucket plus concurrency ceiling. It either commits
+all token charges and one leased execution reservation or commits none.
+Rejected requests consume only a separately declared outer defensive bucket;
+they never partially charge the requested operation's component buckets. The
+reservation carries target/restore epoch, request, policy generation, and a
+strictly increasing fence. Completion releases it under that fence; crash,
+disconnect, stream abandonment, and durable-job transfer expire or hand it off
+under the same generated protocol.
+
+The first bucket algorithm is `snapback-token-bucket-v1`: integer microtokens,
+integer milliseconds, capacity/refill numerator and denominator, floor after
+one checked 128-bit multiply/divide, saturation at capacity, and a maximum
+credited elapsed interval declared by the operator ceiling. Trusted time is
+clamped to `max(lastObservedMs, nowMs)`; rollback adds no tokens, overflow
+fails closed, and `retryAfterMs` rounds up. Restore advances an external
+rate-limit epoch and starts buckets no fuller than their restored balance.
+Golden JS/Rust/SQLite/Postgres vectors cover rollback, long downtime,
+saturation, rounding, and numeric limits.
+
+The public decision view returns only `allowed`, a policy-safe coarsened
+`retryAfter`, policy id/version, and opaque decision id. Exact component
+`remaining` values and rejecting dimensions are restricted to scoped audited
+inspection. Target profiles declare whether state is process-local,
 database-durable, or shared. Only durable state qualifies for the hosted v1
 profile; process-local limits are `Advisory` and reset on restart.
 
@@ -103,7 +158,13 @@ capability reports.
 
 Rate-limit responses do not disclose whether a protected resource exists or
 which identity dimension triggered the limit. High-cardinality key admission is
-bounded; unknown caller strings cannot create unlimited durable buckets.
+bounded. A low-cardinality outer bucket over network epoch, verified principal,
+or deployment-scoped anonymous class must admit before any resource-key bucket
+is allocated. Each policy pins per-outer-key and global resource-bucket quotas,
+missing-resource negative-cache bounds, eviction tombstones, and overflow
+behavior. Unknown caller strings cannot create unlimited durable buckets.
+Ordinary traffic fails closed at capacity while independently bounded
+authentication-recovery and operator lanes remain available.
 
 ## Abuse signals and enforcement
 
@@ -124,6 +185,22 @@ Signals may feed policy, but automated enforcement must be declared as one of:
 Every non-observe transition records the exact policy version and input signal
 ids. A score alone cannot delete content, ban a principal, or change ownership.
 Unknown classifier/provider outputs default to observe or manual review.
+
+Automated enforcement uses a canonical identity over policy id/version,
+subject/resource, sorted input-signal digest set, and evaluation generation.
+Applying the same identity is idempotent inside the moderation transaction.
+Signal correction, provider retraction, or evidence deletion appends a typed
+fact and schedules a new evaluation; it never rewrites old evidence or
+decisions. Any provider confidence that affects more than `observe` carries a
+bounded typed model/rule identity, version, provenance, and calibrated
+confidence class.
+
+Report admission has per-reporter, per-subject/resource, and deployment bounds,
+plus declared clustering/deduplication. Report volume alone cannot cross a
+destructive enforcement threshold. Assignment records moderator conflicts and
+recusal; applications may require dual control for named destructive or bulk
+decisions. Revoking moderator authority immediately invalidates assignment and
+blocks settlement, while leaving an auditable attempted action.
 
 Blocks and mutes are ordinary authorization inputs with generated semantics:
 who stops seeing or notifying whom, whether shared rooms remain visible, and
@@ -153,6 +230,26 @@ The first decision vocabulary is `noAction`, `label`, `limitDistribution`,
 and which scoped role/grant may make each one. "Moderator" is not a magic global
 bypass.
 
+Every decision names an expected moderation-projection revision and commits by
+CAS. Rejected stale attempts are audited but never enter the authoritative
+decision set. The reducer composes active decisions independently over four
+axes:
+
+- visibility: `public < limited < hidden < removed`;
+- mutation: `writable < locked`;
+- principal admission: `active < suspended < banned`; and
+- labels: a canonical sorted set of active label decision ids.
+
+Account, room, resource, and distribution scopes each keep a monotonic
+revision. A materialized content state takes the strongest applicable value on
+each axis; ties are ordered by scope specificity, effective server time,
+decision id, then policy version. `restore` names the exact decision ids it
+revokes and cannot clear an unrelated restriction. Effective-interval
+activation/expiry, appeal outcomes, superseding authority, and policy migration
+append decisions and CAS the same reducer. Golden vectors cover concurrent
+branches, late expiry, overlapping account/room/content restrictions, partial
+restore, appeal, and policy migration.
+
 A moderation mutation appends its decision and updates the projected content or
 principal state in one Snapback transaction. Generated read/write sets include
 the policy and resource authorization facts. Realtime delivery publishes the
@@ -160,6 +257,17 @@ visibility change under LLP 0053 obligations. Search index, notification, asset,
 and cache consumers receive durable follow-up jobs; until they acknowledge the
 new policy version, public serving paths fail closed or recheck the authoritative
 moderation projection.
+
+The generated visibility authority is
+`(app, database, target/restore epoch, principalAuthorityGeneration,
+accountRevision, roomRevision?, resourceRevision?, policyDigest)`. Each
+derived consumer records the exact tuple it materialized and compares every
+relevant monotonic frontier before release. A stale global/account frontier
+does not unnecessarily invalidate unrelated resources, while an account or
+room restriction cannot be missed by checking only a resource revision.
+Already sent notifications and externally cached assets are reported as
+non-recallable outcomes; revocation blocks future release and requests, but the
+platform never claims to undo bytes already delivered outside its authority.
 
 Deleting or editing the underlying content never deletes the case or decision
 history. Evidence snapshots are references plus hashes by default; retaining
@@ -180,19 +288,39 @@ events include:
 - asset, notification, job, document, and payment privileged operations; and
 - destructive or bulk recovery actions.
 
+Audit partitions use the closed key
+`(app, database, targetIncarnation, restoreEpoch, retentionClass, partitionDay)`.
+Each bounded segment begins with a genesis/continuity record, then allocates a
+strictly increasing sequence and previous digest by CAS in the same transaction
+that appends the event. Canonical bytes use RFC 8785 JSON over a closed schema,
+length-framed with domain `snapback-audit-event-v1`, and SHA-256. Rotation seals
+the segment with event count, first/last sequence, root digest, previous sealed
+root, schema/policy digest, and custody generation. Concurrency and crash tests
+must prove there is one chain or an explicit detected fork, never two silently
+valid heads.
+
 Each event carries deployment and stream identity, server time, request/job id,
 actor authority, generated type/version, redacted canonical payload, previous
-event digest within its partition, and its own digest. The chain detects
-accidental loss or modification inside a retained partition; it is not called
-tamper-proof because the same operator may control storage and signing keys.
-Targets may add an external append-only sink or checkpoint signature and report
-that as a stronger independent capability.
+event digest within its segment, and its own digest. The chain detects
+accidental loss or modification of retained bytes and continuity records; it is
+not called tamper-proof because the same operator may control storage and
+signing keys. Targets may add an external append-only sink or checkpoint
+signature and report that as a stronger independent capability. A separately
+bounded recovery partition and reserved quota prevent ordinary audit traffic
+from consuming the lane needed to report or repair saturation.
 
 Audit writes required for a privileged database mutation commit in the same
 transaction. For pre-database edge rejects and external effects, a bounded
 durable audit intake must succeed before the action proceeds when policy marks
 the event mandatory. At capacity the system fails closed for privileged actions
 and preserves a reserved operator-recovery lane.
+
+Mandatory external effects route through LLP 0070 durable work: one stable
+operation id transactionally commits domain intent, mandatory audit enqueue,
+and the job; provider idempotency and a fenced outcome record distinguish
+attempt from completion. A direct effect without that protocol must declare an
+`ambiguous` disposition and manual reconciliation. Audit intent is never
+evidence that an external effect completed.
 
 Audit queries require explicit event-type and application scopes. Values with
 secret, credential, raw payment, private message, document body, or unrestricted
@@ -207,12 +335,37 @@ Targets publish concrete windows and deletion behavior. Expiry uses durable
 jobs and leaves only the minimum tombstone needed for idempotency and chain
 continuity.
 
+Chained audit bytes are never rewritten in place. Sensitive payload members are
+encrypted under per-subject or per-retention-class data keys; stable
+non-sensitive tombstone facts remain in the canonical event. Pseudonymization
+or erasure appends a typed event, retires the relevant key generation, and
+updates a deletion manifest. Sealed-segment roots and deletion manifests retain
+continuity without pretending that cryptographically erased payload bytes
+remain verifiable. Capability reports distinguish retained-byte verification,
+segment continuity, deletion-manifest verification, and externally anchored
+roots.
+
+A control authority outside the restorable application snapshot owns monotonic
+privacy generation, deletion manifests, legal holds, encryption-key status,
+audit segment roots, and rate-limit/restore epochs. A restored target remains
+paused in a new target/restore epoch until it imports that authority, reconciles
+policy versions and holds, reapplies required erasure/pseudonymization, proves
+retired keys cannot decrypt restored bytes, and opens a new audit segment
+linked to the restore record. Stale clients, workers, exports, and backup
+readers are fenced by the new generations.
+
 Application export projects only data the requesting subject is entitled to
 receive; it does not expose other reporters, moderators' private notes, network
 prefixes, security signals, or unrelated audit actors. Deletion requests
 pseudonymize eligible actor/subject fields while preserving legal or security
 records according to declared policy. Legal hold is an explicit privileged,
 reasoned, time-reviewed state—not an undeletable default.
+
+A legal hold records issuer authority/scope, reason class, bounded
+subject/resource ceiling, start/review/expiry, renewal generation, release
+authority, and affected retention classes. It takes precedence over ordinary
+expiry only for those classes. Review, renewal, release, and expiry are audited;
+expiry schedules reconciliation and cannot silently preserve data forever.
 
 Reporters learn a bounded case status, not moderator identity, internal signals,
 or actions against another person's account. Moderators see the minimum evidence
@@ -229,6 +382,14 @@ Bulk moderation and emergency controls use dry-run selectors, exact target and
 profile preflight, result count/hash, same-version apply, bounded batch size,
 reason, expiry, and rollback/restore semantics. There is no arbitrary SQL or
 "set user banned" bypass behind the product API.
+
+The dry run binds target/stream/restore epoch, schema and policy digest,
+snapshot/version frontier, canonical selector bytes and query-plan identity,
+the ordered affected identity/revision set, and actor authority generation.
+Apply revalidates actor authority, reproduces the reviewed selector, and CASes
+each row against its reviewed revision. Partial conflicts are returned
+explicitly and never widen the selection; a new dry run is required to include
+changed or newly matching rows.
 
 An incident mode can lower admission ceilings, disable named integration
 classes, revoke scoped grants, or require manual moderation. It cannot disable
@@ -252,9 +413,17 @@ Each lane reports independently:
 - `ExternallyCheckpointed` for an audit chain independently anchored outside
   the application deployment.
 
+Four lane profiles qualify independently:
+`application-admission-single-tenant-v1`,
+`application-signals-single-tenant-v1`,
+`application-moderation-single-tenant-v1`, and
+`application-audit-privacy-single-tenant-v1`. A vertical may name only the
+lanes it actually exercises, but its omitted lanes remain explicit nonclaims.
 `application-safety-single-tenant-v1` requires durable enforced admission,
-moderation, and audit on the admitted single-tenant target. It makes no shared
-multi-process or independent-tamper-evidence claim.
+signals/enforcement, moderation, and audit/privacy on the admitted
+single-tenant target. LLP 0063 Step 6's platform foundation requires that
+conjunction even if one vertical can admit a narrower lane profile. It makes no
+shared multi-process or independent-tamper-evidence claim.
 
 ## Acceptance
 
@@ -263,9 +432,18 @@ The implementation must retain executable evidence that:
 - authenticated, anonymous, realtime, webhook, auth-code, asset, search,
   document, chat, report, and admin policies enforce their declared ceilings
   before expensive or side-effectful work;
+- pre-auth decisions consume only the edge envelope, unverified credential
+  claims never become durable identity, and the refined envelope is append-only
+  and stage-auditable;
 - spoofed forwarding headers, caller-selected bucket keys, authority changes,
   restart, clock rollback, high-cardinality input, and concurrent requests
   cannot bypass or multiply allowance;
+- composed buckets and concurrency reservations commit all-or-none and release
+  by fence across completion, crash, disconnect, stream abandonment, and job
+  transfer;
+- JS/Rust/SQLite/Postgres token-bucket vectors agree on rollback, saturation,
+  refill, rounding, and overflow, while outer-key quotas bound resource-bucket
+  allocation;
 - platform ceilings cannot be raised by app source and emergency overrides
   expire and remain visible;
 - duplicate reports/signals are idempotent, automated policy is versioned, and
@@ -277,8 +455,13 @@ The implementation must retain executable evidence that:
   cross-app/database/deployment/stream access never reveals case existence;
 - appeal, superseding decision, expiry, content edit/delete, and evidence
   orphaning preserve deterministic history;
+- concurrent scoped moderation decisions, expiry, appeal, and partial restore
+  match the reducer golden vectors and stale CAS attempts never enter the
+  authoritative set;
 - required audit and privileged mutations commit together, edge audit capacity
   failures block the privileged action, and stale/bulk selectors cannot apply;
+- external effects join LLP 0070 intent/idempotency/outcome receipts or remain
+  explicit `ambiguous` nonclaims;
 - secret, credential, payment, private-content, raw-provider, and network facts
   obey their redaction and access rules across rows, logs, diagnostics, exports,
   backups, and receipts;
@@ -286,7 +469,8 @@ The implementation must retain executable evidence that:
   event while honestly reporting that same-operator replacement remains outside
   the base profile;
 - retention, pseudonymization, legal hold, backup, destroy/replace, and restore
-  preserve the declared policy and a pinned audit/case corpus; and
+  preserve the declared policy and a pinned audit/case corpus, and an older
+  backup cannot resurrect retired keys or sensitive facts; and
 - the chat, document, and commerce pressure tests each exercise their relevant
   abuse and audit paths, not merely the generic unit corpus.
 
@@ -310,9 +494,10 @@ acceptance and a target-specific executable witness are both required.
 
 1. Which audit events are mandatory enough that intake failure must block the
    initiating operation, and which may use a bounded loss-reporting buffer?
-2. Should network-prefix buckets persist raw prefixes encrypted, keyed digests,
-   or only rotating aggregates on the first hosted target?
-3. Which retention defaults are safe enough to ship without implying one
+2. Which retention defaults are safe enough to ship without implying one
    jurisdiction's policy is universal?
-4. Must the first hosted profile anchor audit checkpoints outside the deployment,
-   or is honest same-operator limitation sufficient for Step 6?
+
+The first profile stores only rotating keyed network-prefix digests, never raw
+prefixes. Step 6 requires the honest same-operator retained-byte/segment
+integrity profile; external checkpoint anchoring remains an independently
+reported stronger capability.
