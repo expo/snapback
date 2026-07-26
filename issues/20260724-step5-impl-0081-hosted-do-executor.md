@@ -1,6 +1,6 @@
 # 0081: hosted Durable Object executor profile (deferred)
 
-**Status:** Open — decision package recorded 2026-07-26; awaiting the LLP 0072 hosted-adapter selection for the migration-executor profile (LLP 0081 open question 7)
+**Status:** Open — OQ7 answered 2026-07-26 (container-VM first, DO explicit second; both must reach production quality). Slice 1 (profile LLP) in flight; slices 2-3 gated on the LLP 0072 container-VM drill earning remote evidence.
 **Severity:** P3
 **Systems:** Migrations, Deployment, Cloudflare
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -5,7 +5,14 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (post-Implemented spec reconciliation, ticket
+**Revised:** 2026-07-26 (open question 7 answered — author decision, delegated:
+`single-instance-container-vm.v1` carries the first separately admitted
+migration-executor conformance profile, aligning with LLP 0072's recorded
+first-adapter selection; the Durable Object profile is the explicit second
+target under the author directive that both hosted lines must reach
+production quality; DO-specific acceptance items stay parked with LLP 0014;
+conformance claiming remains gated on the container-VM adapter earning remote
+drill evidence under LLP 0072); 2026-07-26 (post-Implemented spec reconciliation, ticket
 20260726-0081-spec-amendment-frictions: §2's CLI list gains the implemented
 `rehearse` verb (thin wrapper over the §7 rehearsal machinery, receipt
 consumed by `apply --rehearsal-receipt`) and records the decision that
@@ -811,3 +818,15 @@ control-plane or LLP 0063's Step 5/6 claims without their own receipts.
    `transformed` adapters?
 7. Which hosted adapter, if any, should be the first separately admitted
    migration-executor conformance profile?
+   **Answered 2026-07-26 (author decision, Charlie Cheever, delegated):**
+   `single-instance-container-vm.v1` — the adapter LLP 0072's first-adapter
+   decision (2026-07-22) already selected — carries the first
+   migration-executor conformance profile. The Durable Object profile is
+   the explicit second target, not a discard: the author directive is that
+   both the container-VM and DO lines must reach production quality; the
+   DO-specific items (eviction and alarm contention through LLP 0014's
+   shared dispatcher) stay parked with LLP 0014 and travel with the
+   Cloudflare line whenever it qualifies under LLP 0072. Sequencing is
+   unchanged: the profile is buildable as a spec now, but its conformance
+   corpus can only be claimed after the container-VM adapter passes the
+   LLP 0072 drill corpus with remote evidence.
