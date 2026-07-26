@@ -48,6 +48,17 @@ export interface SnapbackQueryResult<Row = unknown> extends ExternalStoreSnapsho
 }
 
 export const SNAPBACK_EXTERNAL_STORE_PROTOCOL: 'snapback.external-store.v1';
+export function bindSnapbackAppLifecycle(
+  appState: {
+    readonly currentState?: string | null;
+    addEventListener(
+      event: 'change',
+      listener: (state: string) => void,
+    ): { remove(): void } | (() => void);
+  },
+  handle: { pause(): void | Promise<void>; resume(): void | Promise<void> },
+  options?: { activeState?: string; onError?: (error: unknown) => void },
+): { dispose(): void; settled(): Promise<void> };
 export function useExternalQueryStore<Row = unknown>(store: ExternalQueryStore<Row>): ExternalStoreSnapshot<Row>;
 export function useSnapbackQuery<Row = unknown>(options: {
   provider: SnapbackReactProvider;

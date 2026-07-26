@@ -56,6 +56,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | GAP (owner: Charlie, review: 2026-08-31) |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
+| auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
@@ -64,7 +65,12 @@ with the Snapback label and `guide-gap` in the title.
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
 | auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
+| clients.protocol | Versioned route/envelope/lifecycle contract and language-neutral conformance corpus | wire protocol, native client, conformance, snapback.v1 | local | shipped | `ClientStateMachine` in clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift | llp/0093, llp/0094, llp/0095, llp/0096 | protocol/client-protocol.md |
+| clients.swift | SwiftPM protocol client for iOS/macOS; poll/local and live/local with session auth | swift, swiftui, ios, macos | local | partial | `SnapbackClient` in clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift | llp/0064, llp/0093 | clients/swift.md |
+| clients.non-js | Published and maintained non-JS clients beyond Swift (Kotlin and Dart) | kotlin, compose, dart, flutter | local | partial | llp/0093-client-protocol-and-native-clients.rfc.md | llp/0093, llp/0064 | GAP (owner: Charlie, review: 2026-08-31) |
+| clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Framework-neutral current-value/subscription store, keyed sibling sharing, lifecycle scope | external store, lifecycle, vanilla, strict mode | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
+| clients.framework-bindings | Binding contract and shipped React/Contract projections; Vue/Svelte/Solid packages remain unclaimed | vue, svelte, solid, framework adapter | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
@@ -287,6 +293,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Authenticate a native app](./auth/native-apps.md) — local email-code or
+  the supported external identity-broker seam, exact bearer carriage, and
+  the production boundary.
 - [Protecting live and retained data](./auth/protecting-data.md) —
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
@@ -297,8 +306,13 @@ you never build around a feature because you didn't know it existed.
   honesty; how to check the server instead of trusting prose.
 
 ### Clients
+- [The client protocol](./protocol/client-protocol.md) — route and envelope
+  families, delivery lanes, version guards, auth invalidation, heartbeat,
+  and the conformance corpus.
 - [The headless client](./clients/headless.md) — the complete
   `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
+- [The Swift client](./clients/swift.md) — SwiftPM for iOS/macOS,
+  `poll/local` + `live/local`, session auth, invalidation, and lifecycle.
 - [The app CLI](./clients/app-cli.md) — discover generated operations and run
   the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
@@ -307,6 +321,8 @@ you never build around a feature because you didn't know it existed.
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
 - [React Expo Online clients](./clients/react-expo.md) — the shared React
   projection on native carriers, per-OS evidence, and Online/Parity honesty.
+- [Framework bindings](./clients/framework-bindings.md) — build on the
+  external store and own identity, reconnect, error, lifecycle, and teardown.
 
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
@@ -642,8 +658,7 @@ is the trusted-local convenience where tests pass `userId:` directly;
 ## Sign in: email code → session credential
 
 The client requests a code and exchanges it. In tests, the code is read
-from the server's admin-gated mailbox (a real mail sender fills that role
-outside tests):
+from the server's admin-gated mailbox:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
   const requested = await client.authRequestCode(email);
@@ -659,6 +674,13 @@ outside tests):
 From then on the client carries the session credential; `AuthCoordinator`
 (from `@snapback/contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
+
+The shipped provider has no production mail adapter yet. For a local native
+app whose identity front door lives in trusted server code, use the sanctioned
+[external identity-broker seam](./native-apps.md): the broker invokes the
+gated non-production session-mint host operation and the first-party client
+adopts the resulting bearer with exact protocol offers. Neither path is a
+hosted-production auth claim.
 
 ## Queries are scoped by the server, not by arguments
 
@@ -1426,6 +1448,89 @@ token in its returned result.
 - Do not persist bearer plaintext in the durable custody ledger or print it in
   diagnostics.
 - Do not retry `SNAPBACK_AUTH_GRANT_INVALID` as if it were pending.
+
+---
+
+<!-- snapback-guide-source: guide/auth/native-apps.md -->
+---
+title: Authenticate a native app
+id: auth.native-apps
+order: 6
+audience: agent-first
+capabilities: [auth.external-identity-broker]
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, packages/snapback-client/index.mjs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-26
+reviewed-commit: HEAD
+---
+
+# Authenticate a native app
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](./targets.md).
+
+Snapback supports two native session-entry shapes on the local target:
+
+1. a reachable email-code delivery surface drives `/auth/request-code` and
+   `/auth/exchange`; or
+2. a trusted server-side identity broker authenticates the user through its
+   own front door, invokes `auth.mintSession`, and returns the resulting
+   Snapback session bearer to that user.
+
+The second shape is the sanctioned bridge for native development and demos
+whose identity system is outside Snapback. It is no longer necessary to
+hand-write a second Snapback protocol client after the bearer is issued:
+JavaScript uses `createExternalSessionClient(baseUrl, { bearerToken })`, while
+Swift sets `Configuration.sessionBearer`.
+
+## Keep the broker server-side
+
+`auth.mintSession` is a host operation available only in dev/test/demo. It
+requires all three independent authorities: the ordinary AdminWrite token, the
+process-bound impersonation capability, and active sessions mode. The broker
+must live in the trusted server deployment that can hold those authorities.
+It authenticates the external user, maps that identity to the email passed to
+the host operation, and releases the returned bearer only to that same user.
+
+Never put the admin token, impersonation capability, ready-file, or mailbox
+reader in a browser or native bundle. Never expose a generic “mint for email”
+endpoint without the broker's own user authentication and abuse controls.
+
+## Carry the adopted bearer
+
+An external bearer is ordinary protocol-client custody, not
+`AuthCoordinator` browser custody and not sender-constrained custody. The
+client must offer `auth/rr`; auth-scoped live work must additionally offer
+`auth/live`, create an authorization namespace, process invalidation snapshots,
+and acknowledge them after apply. The first-party JS factory and Swift client
+do this.
+
+Replacing or clearing a bearer is an authority transition: dispose protected
+handles and blank predecessor rows before publishing successor data. A broker
+that rotates credentials supplies the replacement bearer explicitly; the
+external-bearer seam does not silently assume refresh ownership.
+
+## Know the production boundary
+
+The shipped email provider's capture mailbox and `auth.mintSession` are
+non-production only. LLP 0045's production delivery adapter remains unbuilt,
+and the Cloudflare arm exposes no sessions routes. This page therefore does
+not claim hosted production native auth.
+
+On a sender-constrained deployment, a generic native bearer is also
+insufficient: LLP 0077 defines browser WebCrypto custody only, and native
+Secure Enclave/Keystore proof transport remains a named design gap.
+
+## Anti-patterns
+
+- Do not fetch the process-local mailbox from a phone.
+- Do not ship broker/admin authority in the app.
+- Do not describe an external bearer as sender constrained.
+- Do not infer hosted support from the local broker seam.
 
 ---
 
@@ -3189,10 +3294,19 @@ additional exports are required.
 ```
 
 `baseUrl` is the running server. `adminToken` is only for explicit
-development/operations methods. In sessions mode, pass an
-`AuthCoordinator`; do not also pass `bearerToken`, because that would
-bypass coordinator custody. `clientStoreId` binds authorization and retained
-query namespaces to one durable client store.
+development/operations methods. Browser-owned sessions use an
+`AuthCoordinator`; do not also pass `bearerToken`, because that would bypass
+coordinator custody. `clientStoreId` binds authorization and retained query
+namespaces to one durable client store.
+
+When a trusted server-side identity broker returns a genuine Snapback session,
+construct the explicit protocol-client arm with
+`createExternalSessionClient(baseUrl, { bearerToken })`. It repeats the exact
+`auth/rr` and `auth/live` offers, including connection-open invalidation
+negotiation. This is ordinary bearer custody: it does not refresh or logout
+through an `AuthCoordinator`, and it must not be substituted for the dedicated
+sender-constrained hosted browser constructor. See
+[native authentication](../auth/native-apps.md).
 
 `senderConstrained` is an internal composition option for the dedicated
 `@snapback/client/hosted-browser` entrypoint. Local applications should not set
@@ -3319,6 +3433,14 @@ all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
 
+The managed stream sends application ping frames every five seconds and forces
+reconnect only after its 15-second freshness budget is missed. A quiet socket
+is not stale merely because no data rows changed. Mobile hosts map observable
+lifecycle to `handle.pause()` and `await handle.resume()`: pause releases
+demand and quiesces transport; resume obtains a fresh subscription snapshot.
+Do this once in the provider/framework binding, not in every view. See
+[framework bindings](./framework-bindings.md).
+
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
@@ -3389,8 +3511,10 @@ captured predecessor; a peer-installed successor is preserved and makes the
 call stale instead of being reported as logout success. Non-transient custody
 diagnostics remain exact.
 
-`setBearerToken` and `clearAuthSession` support the uncoordinated legacy/dev
-surface. Do not use them to bypass an `AuthCoordinator`.
+`setBearerToken` and `clearAuthSession` support an uncoordinated protocol
+client, including replacement of a broker-issued external session. Prefer
+`createExternalSessionClient` for construction so the exact auth offers cannot
+be forgotten. Do not use either method to bypass an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
@@ -3409,7 +3533,7 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
@@ -3650,6 +3774,99 @@ the same connection axis described by [live queries](../realtime/live-queries.md
 
 ---
 
+<!-- snapback-guide-source: guide/clients/swift.md -->
+---
+title: Swift client
+id: clients.swift
+order: 2
+audience: agent-first
+capabilities: [clients.swift]
+authorities: [llp/0064-native-client-surfaces.rfc.md, llp/0093-client-protocol-and-native-clients.rfc.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, clients/swift/SnapbackClient/Package.swift, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
+examples: [clients/swift/SnapbackClient]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-26
+reviewed-commit: HEAD
+---
+
+# Swift client
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+`clients/swift/SnapbackClient` is the first non-JavaScript proving client. It
+ships as a SwiftPM library for macOS 13+ and iOS 16+ and claims `poll/local`
+and `live/local`. It does not yet claim `live/hosted`, offline `Parity`, or
+sender-constrained native custody.
+
+## Construct a client
+
+Create `SnapbackClient.Configuration(baseURL:)`. For sessions mode, set
+`sessionBearer` to a genuine Snapback session obtained through email-code auth
+or the [supported external identity-broker seam](../auth/native-apps.md).
+The client then:
+
+- carries the bearer only in `Authorization`;
+- offers `auth/rr` and `auth/live` at every exact boundary;
+- omits caller-selected `userId` body auth;
+- creates a stable authorization namespace per live query; and
+- retries only HTTP 409 `SNAPBACK_AUTH_RESERVATION_STALE`, with a configurable
+  40-attempt short-jitter budget.
+
+Never package the server's admin token or impersonation capability in the app.
+
+## Subscribe and receive every row lane
+
+Call `openConnection()`, then `subscribe(function:args:)`. Start either
+`startDrainLoop()` or `openLiveStream()`. `onUpdate` receives ordinary
+replace/delta rows and authorization-invalidation snapshots through the same
+callback.
+
+The client version-guards all three row lanes. An auth invalidation snapshot is
+applied before its acknowledgement. Duplicate level-triggered delivery is
+acknowledged again without regressing held rows. Missing snapshots quarantine
+the old materialization and re-enter through a fresh subscription.
+
+## Bind app lifecycle
+
+Call `pauseForBackground()` from the app's background/inactive transition. It
+releases subscription demand, stops polling and heartbeat work, and closes the
+socket while retaining the desired query specifications. Call
+`resumeAfterForeground()` after the app becomes active; it reattaches the lane
+and obtains fresh snapshots before resuming live publication.
+
+These are platform-neutral methods. A SwiftUI host can map `scenePhase` to
+them; UIKit can map the corresponding application notifications. Do not put
+reconnect logic in individual views.
+
+## Verify changes
+
+From `clients/swift/SnapbackClient`, run `swift test`. The suite replays the
+committed conformance corpus and adds client-specific coverage for invalidation
+apply-before-ack, duplicate redelivery, body-auth omission, and reservation
+retry exhaustion/eventual success.
+
+## Support status
+
+Swift is the maintained proving client in this repository. Kotlin and Dart
+implementations produced during the Partitime clean-room run are reference
+evidence, not committed or published first-party artifacts. Do not tell users
+to depend on them until their packaging, ownership, and CI gates land; the
+[capability index](../capabilities.md) keeps that gap explicit.
+
+## Anti-patterns
+
+- Do not embed admin or impersonation secrets in a native bundle.
+- Do not set `userId` in sessions-mode bodies.
+- Do not reconnect without fresh subscription snapshots.
+- Do not ACK an unapplied authorization snapshot.
+- Do not claim hosted or sender-constrained native auth from local bearer
+  evidence.
+
+---
+
 <!-- snapback-guide-source: guide/clients/react-expo.md -->
 ---
 title: React Expo Online clients
@@ -3748,6 +3965,13 @@ transitions in addition to the OS events. It does not claim the durable queue,
 local execution, replay/rebase, or authority-safe retained store required for
 Exact Native Parity.
 
+Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@snapback/react`
+(or `@snapback/client/online`) when a provider exposes the first-party
+`liveQuery` handle. The helper has no React Native package dependency: it
+serializes AppState changes onto the handle's `pause()` / `resume()` methods
+and removes the listener on disposal. This is the supported replacement for a
+timer that tears down a merely quiet socket.
+
 ## Anti-patterns
 
 - **Do not transfer evidence between operating systems.** Native evidence is
@@ -3760,6 +3984,88 @@ Exact Native Parity.
   generated API is the cross-surface contract.
 - **Do not ship emulator port bridging as endpoint security.** It is local
   acceptance infrastructure only.
+
+---
+
+<!-- snapback-guide-source: guide/clients/framework-bindings.md -->
+---
+title: Framework bindings
+id: clients.framework-bindings
+order: 8
+audience: agent-first
+capabilities: [clients.framework-bindings]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0053-authorization-invalidation.rfc.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/external-store.mjs, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs]
+examples: [demos/partiful-matrix/surfaces/vanilla]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-26
+reviewed-commit: HEAD
+---
+
+# Framework bindings
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+A query hook is the small part. React and Contract bindings ship today; no
+first-party Vue, Svelte, or Solid package is claimed. Those systems can
+adapt “current rows plus subscribe” in well under 100 lines. A valuable
+Snapback binding centralizes the lifecycle and failure behavior that otherwise
+fails silently.
+
+## Build on the external store
+
+Use `snapback.external-store.v1` from `@snapback/client/external-store`.
+It owns canonical query identity, same-key sibling sharing, late-handle
+resolution, stale-generation fencing, error/connection snapshots, optimistic
+settlement, refcounts, and final disposal. Project that store into the
+framework's native subscription primitive.
+
+Do not add a second query cache, socket owner, or mutation settlement model.
+
+## Own the hard transitions
+
+A binding must cover:
+
+| Transition | Required behavior |
+| --- | --- |
+| identity changes | retire predecessor scope, synchronously blank protected rows, subscribe under successor authority |
+| socket loss | surface stale/connecting state, obtain a fresh grant when needed, fresh subscribe with supersession |
+| background | call the provider handle's `pause()`; release demand and quiesce retries |
+| foreground | call `resume()`; reconcile authority, reconnect, and fresh-subscribe |
+| invalidation | publish the atomic replacement only after version guard; ACK after apply |
+| transient reservation conflict | retry only the exact typed refusal within the client budget |
+| terminal auth | expose an error state and blank predecessor materialization before callbacks resume |
+| scope disposal | release every handle even if an observer throws |
+
+The headless JS handle already supplies `pause()`, `resume()`, `dispose()`,
+connection events, and error state. Native clients expose equivalent
+provider-level lifecycle hooks. Bind host lifecycle once at the provider
+boundary, not in every component.
+
+## Keep errors as state
+
+A rejected setup promise is not enough: after initial render, reconnect,
+authorization, and server diagnostics are ongoing state. The framework
+projection should expose rows, connection phase, and the latest structured
+error together. Preserve the diagnostic code; do not reduce it to a boolean.
+
+## Test the binding, not its syntax
+
+The acceptance suite should prove identity rotation, background/foreground,
+socket-loss re-grant, version regression refusal, typed retry, observer-throw
+cleanup, and final unmount disposal. A hook unit test that only receives one
+row update does not establish a useful binding.
+
+## Anti-patterns
+
+- Do not publish a framework package whose only value is a query hook.
+- Do not let view mount/unmount own server demand directly.
+- Do not preserve predecessor rows across an authority change.
+- Do not swallow structured diagnostics into console logging.
+- Do not reconnect a socket without re-establishing its subscriptions.
 
 ---
 
@@ -5380,6 +5686,132 @@ admin binding layer.
   Snapback-served admin URL.
 - **Do not persist admin or secret-read credentials in UI state/storage.**
 - **Do not bypass generated Contract bindings with a second admin UI.**
+
+---
+
+<!-- snapback-guide-source: guide/protocol/client-protocol.md -->
+---
+title: Client protocol
+id: clients.protocol
+order: 1
+audience: agent-first
+capabilities: [clients.protocol]
+authorities: [llp/0093-client-protocol-and-native-clients.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, schemas/live.envelope.schema.json, schemas/live.socket-server.schema.json, schemas/live.wire-fixtures.v1.json]
+examples: [clients/swift/SnapbackClient]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-26
+reviewed-commit: HEAD
+---
+
+# Client protocol
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this page when a platform cannot run `@snapback/client`. The committed JSON
+Schemas are the exact wire shapes; the
+[`snapback.v1` fixture corpus](repo:schemas/live.wire-fixtures.v1.json) is the
+language-neutral conformance entry point. The protocol does not make a client
+safe by itself: lifecycle, demand release, auth invalidation, and retries are
+part of conformance.
+
+## Choose a delivery lane
+
+- `poll/local`: open a connection, subscribe, and drain
+  `GET /outbox/{connectionId}` on one non-overlapping declared cadence.
+- `live/local`: open a connection, subscribe, and attach
+  `GET /live/{connectionId}/stream` as a WebSocket.
+- `live/hosted`: specified, but each hosted target must prove it separately.
+- `poll/hosted`: not claimable. Hosted demand is socket-owned today.
+
+Both local lanes begin with `POST /connection/open`. Offer
+`wireVersion: "snapback.v1"` and carry the returned connection token on every
+connection-scoped request. A WebSocket offers `snapback.v1` plus
+`snapback.connection-token.<token>` as subprotocols.
+
+## Keep the envelope families distinct
+
+The casing differences are wire contract, not style:
+
+| Family | Where | Tag and casing |
+| --- | --- | --- |
+| `LiveEnvelope` | durable updates | `kind`, mostly `snake_case` |
+| `LiveSocketServerFrame` | socket control | `kind`, mostly `camelCase` members |
+| `RealtimeEnvelope` | HTTP drain wrapper | externally tagged `Durable` / `Ephemeral` |
+
+Socket durable frames are unwrapped. HTTP drain durable frames are byte payloads
+inside `{"Durable": {"payload": [...]}}`; decode the bytes, then dispatch the
+inner `LiveEnvelope`. Unknown kinds and unknown fields are skipped. A known kind
+missing required fields after the drain ownership cut is data loss and forces
+connection-wide resync.
+
+## Apply versions and recover deliberately
+
+Track the last applied version per subscription. Drop an ordinary
+`live_replace`, `live_delta`, or `current_as_of` whose version is not newer.
+Apply delta operations by row id. `resync_required` re-enters the named
+subscription through fresh snapshot-with-subscribe; an absent subscription id
+means every subscription and retained ephemeral overlay must resync.
+
+The socket has an application heartbeat: send `{"type":"ping"}` every five
+seconds and require a `pong` or other activity inside the 15-second freshness
+budget. A missed budget forces socket loss and reconnect. Reconnect is always a
+fresh subscribe with `supersedes`; it is not implicit resume.
+
+On mobile, do not infer death from a quiet socket. Backgrounding explicitly
+releases demand and quiesces transport. Foregrounding reconnects and performs
+fresh snapshot-with-subscribe. The
+[Swift client](../clients/swift.md) exposes this as
+`pauseForBackground()` / `resumeAfterForeground()`; JS live-query handles use
+`pause()` / `resume()`.
+
+## Offer session auth exactly
+
+A client holding a Snapback session bearer repeats
+`x-snapback-auth-client-protocol: 1` on authenticated request/response work.
+This includes `POST /connection/open`: the route is Public for credential
+classification, but sessions mode still applies the `auth/rr` capability gate.
+Auth-scoped live additionally requires:
+
+1. `authInvalidationProtocol: 1` in `POST /connection/open`;
+2. `x-snapback-auth-invalidation-protocol: 1` on every live subscribe and
+   unsubscribe (a client cannot infer target independence);
+3. a stable `authorizationNamespace` with `clientStoreId`, `queryKey`, and
+   positive `queryInstanceId`; and
+4. handling `authorization_invalidation` as the primary row-delivery lane.
+
+Apply the invalidation frame's camelCase `snapshot` atomically, then POST
+`{connectionId, ackToken}` to
+`/live/authorization-invalidation/acknowledge`. Never acknowledge a snapshot
+that was not applied. A duplicate redelivery whose version is already held is
+safe to acknowledge again; do not regress rows.
+
+Session mode rejects client-selected identity in bodies. Carry the bearer in
+`Authorization`; omit `auth.user_id`.
+
+After connection open, connection-scoped HTTP and WebSocket routes authenticate
+the returned connection grant and ignore a session bearer. A changed identity
+therefore opens a fresh grant and establishes fresh subscriptions; replacing a
+bearer on an old connection cannot change its bound authority.
+
+## Release demand
+
+Normal shutdown and backgrounding unsubscribe explicitly. Socket close releases
+server demand, and the local idle reaper is a crash backstop, not a lifecycle
+API. There is exactly one drain owner per connection.
+
+## Anti-patterns
+
+- Do not normalize the mixed casing.
+- Do not pass bearer or connection tokens in URLs.
+- Do not treat a quiet socket as dead without heartbeat evidence.
+- Do not handle only `live_replace`; auth-scoped rows arrive through
+  `authorization_invalidation`.
+- Do not claim a lane/target tuple that the fixture corpus and a live witness
+  did not prove.
 
 ---
 

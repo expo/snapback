@@ -48,10 +48,19 @@ additional exports are required.
 ```
 
 `baseUrl` is the running server. `adminToken` is only for explicit
-development/operations methods. In sessions mode, pass an
-`AuthCoordinator`; do not also pass `bearerToken`, because that would
-bypass coordinator custody. `clientStoreId` binds authorization and retained
-query namespaces to one durable client store.
+development/operations methods. Browser-owned sessions use an
+`AuthCoordinator`; do not also pass `bearerToken`, because that would bypass
+coordinator custody. `clientStoreId` binds authorization and retained query
+namespaces to one durable client store.
+
+When a trusted server-side identity broker returns a genuine Snapback session,
+construct the explicit protocol-client arm with
+`createExternalSessionClient(baseUrl, { bearerToken })`. It repeats the exact
+`auth/rr` and `auth/live` offers, including connection-open invalidation
+negotiation. This is ordinary bearer custody: it does not refresh or logout
+through an `AuthCoordinator`, and it must not be substituted for the dedicated
+sender-constrained hosted browser constructor. See
+[native authentication](../auth/native-apps.md).
 
 `senderConstrained` is an internal composition option for the dedicated
 `@snapback/client/hosted-browser` entrypoint. Local applications should not set
@@ -178,6 +187,14 @@ all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
 
+The managed stream sends application ping frames every five seconds and forces
+reconnect only after its 15-second freshness budget is missed. A quiet socket
+is not stale merely because no data rows changed. Mobile hosts map observable
+lifecycle to `handle.pause()` and `await handle.resume()`: pause releases
+demand and quiesces transport; resume obtains a fresh subscription snapshot.
+Do this once in the provider/framework binding, not in every view. See
+[framework bindings](./framework-bindings.md).
+
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
@@ -248,8 +265,10 @@ captured predecessor; a peer-installed successor is preserved and makes the
 call stale instead of being reported as logout success. Non-transient custody
 diagnostics remain exact.
 
-`setBearerToken` and `clearAuthSession` support the uncoordinated legacy/dev
-surface. Do not use them to bypass an `AuthCoordinator`.
+`setBearerToken` and `clearAuthSession` support an uncoordinated protocol
+client, including replacement of a broker-issued external session. Prefer
+`createExternalSessionClient` for construction so the exact auth offers cannot
+be forgotten. Do not use either method to bypass an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
@@ -268,7 +287,7 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |

@@ -1,6 +1,6 @@
 # Improvement: the capability index and guide have no rows or pages for the client protocol or non-JS clients
 
-**Status:** Open · **Kind:** improvement (docs) · **Filed:** 2026-07-26
+**Status:** Resolved 2026-07-26 · **Kind:** improvement (docs) · **Filed:** 2026-07-26
 **Related:** LLP 0093 D5, `issues/20260724-llp-0093-rollout-execution.md`
 **Evidence:** `demos/partitime/REPORT.md`, three clean-room client builds
 
@@ -47,3 +47,16 @@ place people are told to look.
 
 Every trap the three implementers hit was already written down *somewhere* —
 usually an LLP or a Rust source comment. The failure was routing, not knowledge.
+
+## Resolution
+
+The capability index now carries `clients.protocol`, `clients.swift`,
+`clients.non-js`, and `clients.poll-hosted`, with honest partial/GAP status for
+unpublished Kotlin/Dart clients and unclaimable hosted polling. New guide pages
+route authors through the protocol, Swift client, native authentication, and
+framework-binding lifecycle contract. The protocol page covers the route and
+envelope families, mixed casing, version guards, heartbeat, invalidation lane,
+exact auth offers, demand release, and the committed conformance corpus.
+
+`node scripts/check-guide.mjs` passes with all generated guide projections
+refreshed.

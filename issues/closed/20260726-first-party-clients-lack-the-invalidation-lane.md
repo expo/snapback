@@ -1,6 +1,6 @@
 # Improvement: first-party clients don't implement the lane that carries all the rows
 
-**Status:** Open · **Kind:** improvement (roadmap) · **Filed:** 2026-07-26
+**Status:** Resolved 2026-07-26 · **Kind:** improvement (roadmap) · **Filed:** 2026-07-26
 **Evidence:** `demos/partitime/REPORT.md` §6, `demos/partitime/native/swiftui/NOTES.md`,
 `clients/kotlin/NOTES.md`, `clients/dart/NOTES.md`
 
@@ -52,3 +52,19 @@ problem."*
 
 Item 3 is the durable fix: today a client can pass every fixture and still
 receive no data from a real server.
+
+## Resolution
+
+The maintained Swift client now implements the complete session-auth live
+path: exact offers, body-auth omission, stable authorization namespaces,
+version-guarded `authorization_invalidation` snapshots, quarantine-before-
+apply, apply-before-ACK ordering, duplicate re-ACK, foreign-obligation refusal,
+and bounded jittered retry only for HTTP 409
+`SNAPBACK_AUTH_RESERVATION_STALE`. `Package.swift` now declares iOS 16 and
+macOS 13.
+
+The format-v2 conformance harness replays explicit subscription populations
+and multi-step fixtures. It passes the regenerated corpus, including
+replace-to-delta `_id` continuity and invalidation apply-then-ACK/redelivery.
+Kotlin and Dart remain explicitly reference-only; they are not published or
+claimed as maintained first-party artifacts.

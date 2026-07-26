@@ -465,17 +465,22 @@ try {
     return { rejectedAxes: cases.length };
   });
 
-  await suite.check('auth-client protocol 1 requires an explicit custody owner and cannot be suppressed', async () => {
-    const error = await assertThrows(
-      () => new SnapbackClient('http://stub', { authClientProtocol: 1 }),
-      undefined,
-      'protocol 1 without coordinator custody must fail construction',
-    );
-    assert(error instanceof TypeError, 'the invalid construction is a caller type error');
-    assert(
-      error.message.includes('requires browser or agent authority custody'),
-      'the refusal names the missing custody owner',
-    );
+  await suite.check('auth-client protocol 1 supports an explicit external bearer and coordinated custody cannot suppress it', async () => {
+    let externalHeaders = null;
+    globalThis.fetch = async (url, init) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      externalHeaders = init.headers ?? {};
+      return response(handshake({ activeMode: 'sessions' }));
+    };
+    const external = new SnapbackClient('http://stub', {
+      bearerToken: 'sbs_external',
+      authClientProtocol: 1,
+      authInvalidationProtocol: 1,
+    });
+    await external.authSession();
+    assertEqual(externalHeaders.authorization, 'Bearer sbs_external');
+    assertEqual(externalHeaders[PROTOCOL_HEADERS.authClient], '1');
+    assertEqual(externalHeaders[PROTOCOL_HEADERS.authInvalidation], '1');
 
     let observedHeaders = null;
     globalThis.fetch = async (url, init) => {
@@ -490,7 +495,7 @@ try {
     await db.authSession();
     assertEqual(observedHeaders[PROTOCOL_HEADERS.authClient], '1');
     assertEqual(observedHeaders[PROTOCOL_HEADERS.authorityDescriptor], undefined);
-    return { rejectedUncoordinated: true, coordinatedOffer: 1 };
+    return { externalOffer: 1, coordinatedOffer: 1 };
   });
 
   await suite.check('a fresh durable agent request binds its transport fence after validated bootstrap', async () => {

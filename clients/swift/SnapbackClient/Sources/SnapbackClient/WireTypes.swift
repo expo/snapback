@@ -36,6 +36,41 @@ public struct Decoded<Value> {
     public var hadUnknownFields: Bool
 }
 
+/// The camelCase snapshot nested inside the otherwise snake_case
+/// `authorization_invalidation` durable envelope.
+public struct AuthorizationInvalidationSnapshot: Equatable, Sendable {
+    public var subscriptionId: String
+    public var function: String
+    public var version: UInt64
+    public var rows: [JSONValue]
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationSnapshot? {
+        guard let subscriptionId = json["subscriptionId"]?.stringValue,
+              let function = json["function"]?.stringValue,
+              let version = json["version"]?.uint64Value,
+              let rows = json["rows"]?.arrayValue
+        else { return nil }
+        return AuthorizationInvalidationSnapshot(
+            subscriptionId: subscriptionId,
+            function: function,
+            version: version,
+            rows: rows
+        )
+    }
+}
+
+/// The post-commit ticket paired atomically with an authorization snapshot.
+/// A client may acknowledge only after the matching snapshot has been applied.
+public struct AuthorizationInvalidationResolution: Equatable, Sendable {
+    public var ackToken: String
+    public var raw: JSONValue
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationResolution? {
+        guard let ackToken = json["ackToken"]?.stringValue else { return nil }
+        return AuthorizationInvalidationResolution(ackToken: ackToken, raw: json)
+    }
+}
+
 /// The durable-lane fan-out envelope (`live.envelope.schema.json`).
 public enum LiveEnvelope: Equatable, Sendable {
     case liveReplace(subscriptionId: String, function: String, version: UInt64, rows: [JSONValue], resume: JSONValue?)
@@ -44,7 +79,11 @@ public enum LiveEnvelope: Equatable, Sendable {
     /// `reason` is deliberately an open string (LLP 0095 T-RESYNC): recovery
     /// is identical for every reason, known or not.
     case resyncRequired(subscriptionId: String?, reason: String, clearRetained: Bool, scope: String?, epoch: UInt64?)
-    case authorizationInvalidation(obligation: JSONValue, snapshot: JSONValue?, resolution: JSONValue?)
+    case authorizationInvalidation(
+        obligation: JSONValue,
+        snapshot: AuthorizationInvalidationSnapshot?,
+        resolution: AuthorizationInvalidationResolution?
+    )
 
     public static let knownKinds: Set<String> = [
         "live_replace", "live_delta", "current_as_of", "resync_required",
@@ -112,7 +151,22 @@ public enum LiveEnvelope: Equatable, Sendable {
             )
         case "authorization_invalidation":
             guard let obligation = members["obligation"] else { return nil }
-            return Decoded(value: .authorizationInvalidation(obligation: obligation, snapshot: nonNull("snapshot"), resolution: nonNull("resolution")), hadUnknownFields: extraFields)
+            let snapshotValue = nonNull("snapshot")
+            let resolutionValue = nonNull("resolution")
+            let snapshot = snapshotValue.flatMap(AuthorizationInvalidationSnapshot.from)
+            let resolution = resolutionValue.flatMap(AuthorizationInvalidationResolution.from)
+            // These nested types are closed and action-bearing. A present but
+            // undecodable value is not an ignorable unknown-field extension.
+            if snapshotValue != nil && snapshot == nil { return nil }
+            if resolutionValue != nil && resolution == nil { return nil }
+            return Decoded(
+                value: .authorizationInvalidation(
+                    obligation: obligation,
+                    snapshot: snapshot,
+                    resolution: resolution
+                ),
+                hadUnknownFields: extraFields
+            )
         default:
             return nil
         }

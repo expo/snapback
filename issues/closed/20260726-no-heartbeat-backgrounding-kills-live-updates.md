@@ -1,6 +1,6 @@
 # Improvement: no heartbeat, so backgrounding silently kills live updates — and the documented remedy makes it worse
 
-**Status:** Open · **Kind:** improvement (client + docs) · **Filed:** 2026-07-26
+**Status:** Resolved 2026-07-26 · **Kind:** improvement (client + docs) · **Filed:** 2026-07-26
 **Evidence:** `demos/partitime/native/expo/NOTES.md`, `demos/partitime/REPORT.md` §6
 
 ## What
@@ -42,3 +42,18 @@ The shipped fix reconnects on observable signals plus `AppState`.
 This is the failure mode least likely to be caught by any test suite in this
 repo — it requires a real OS suspending a real process. It was invisible across
 110 backend checks, the fixture corpus, and 24 browser cells.
+
+## Resolution
+
+The protocol guide now distinguishes active liveness from OS lifecycle:
+clients send the existing application ping every five seconds and force the
+loss/reconnect path only after the 15-second freshness budget; they never tear
+down a merely quiet socket. Background/inactive is an observable host signal,
+so it explicitly quiesces transport and releases demand; foreground reattaches
+and obtains fresh subscription snapshots.
+
+The JS client exports `bindSnapbackAppLifecycle` for an AppState-compatible
+source and serializes live-handle `pause()`/`resume()`. The Swift client exposes
+`pauseForBackground()` and `resumeAfterForeground()`, stopping its poll/socket/
+heartbeat work while preserving query specifications for fresh re-entry.
+Focused JS lifecycle tests and the Swift package suite pass.

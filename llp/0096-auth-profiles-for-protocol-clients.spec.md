@@ -5,7 +5,9 @@
 **Systems:** Auth, Wire Protocol, Client SDK, Native Clients, Realtime, Live Queries, HTTP surface
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial draft; §7 hosted floor decided —
+**Revised:** 2026-07-26 (external session-bearer adoption and the trusted
+local identity-broker seam are pinned separately from browser/native sender
+constraint). 2026-07-25 (initial draft; §7 hosted floor decided —
 LLP 0093 OQ5 ratified as recommended; §8.1 decided as defect and fixed —
 the invalidation-ack routes no longer demand the `auth/replay` offer, and
 §2.2's interop instruction is retired)
@@ -489,6 +491,29 @@ native clients** to protected surfaces — this is a real, named adoption
 gap for the P-2 Swift client on sender-constrained deployments, recorded
 here rather than papered over. Native clients against non-sender-bound
 sessions deployments are unaffected (bearer custody per LLP 0057/0064).
+
+### 5.1 External session-bearer adoption (non-sender-bound)
+
+A protocol client may receive a genuine Snapback session bearer from a trusted
+server-side identity broker rather than driving `/auth/request-code` and
+`/auth/exchange` itself. The carrier's origin does not change the profile
+contract: the client repeats `auth/rr` on every protected request and, when it
+subscribes, the complete `auth/live` open/subscribe/unsubscribe/invalidation
+acknowledgement sequence. Connection-scoped routes use the bound grant and
+ignore the bearer; an identity replacement therefore opens a fresh grant and
+fresh subscriptions.
+
+The first-party JS constructor for this posture is
+`createExternalSessionClient`, and the Swift client accepts the same posture as
+`Configuration.sessionBearer`. Both are **ordinary bearer custody**, not
+`AuthCoordinator` ownership and not `auth/sender`; they cannot access a
+sender-constrained deployment.
+
+On the current local target, a sanctioned broker may use
+`auth.mintSession` only in dev/test/demo with AdminWrite plus the process-bound
+impersonation capability (LLP 0024/0057). Those authorities stay server-side.
+This resolves the native/demo session-entry seam without making a production
+mail or hosted-auth claim; LLP 0045 still owns production challenge delivery.
 
 ## 6. Integration index: provider auth lifecycle routes
 

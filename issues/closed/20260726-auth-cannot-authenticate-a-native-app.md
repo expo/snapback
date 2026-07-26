@@ -1,6 +1,6 @@
 # Improvement: the only shipped auth provider cannot authenticate a native app
 
-**Status:** Open · **Kind:** improvement (product gap) · **Filed:** 2026-07-26
+**Status:** Resolved 2026-07-26 · **Kind:** improvement (product gap) · **Filed:** 2026-07-26
 **Blocked by:** LLP 0045 (notifications outbox), Draft
 **Evidence:** `demos/partitime/SPEC.md` §4b, `demos/partitime/native/*/NOTES.md`
 
@@ -57,3 +57,18 @@ Any one of these unblocks it; they are not exclusive:
 
 Related: `20260726-snapback-client-cannot-carry-an-external-bearer` — option 2
 is only useful if the client can then carry the resulting bearer.
+
+## Resolution
+
+Option 2 is now the sanctioned local dev/test/demo bridge. LLP 0045 and
+LLP 0096 define a trusted server-side identity broker as a separate
+session-entry seam: the broker owns AdminWrite plus the process-bound
+impersonation capability, invokes the existing `auth.mintSession` host
+operation, and releases the genuine bearer only to the user it authenticated.
+`guide/auth/native-apps.md` documents the security boundary and explicitly
+does not claim production delivery or hosted support.
+
+The first-party JS and Swift clients now adopt the resulting bearer with the
+exact auth protocol offers, so the bridge no longer requires a hand-written
+protocol client. Production delivery under LLP 0045 remains a named gap rather
+than being implied by this resolution.

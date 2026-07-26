@@ -621,6 +621,11 @@ clients in demand order.
   claim; 0051 retains local execution (mutation IR, WASM handlers). A
   core+lane client executes nothing locally.
 
+**Status (2026-07-26): landed.** The guide now exposes the protocol and Swift
+client pages, capability rows for the protocol and Swift artifact, and dated
+GAP rows for additional non-JS distributions and `poll/hosted`. The headless
+page routes external-bearer and lifecycle users into the same contract.
+
 ## Rollout sketch
 
 Follow-on Spec clusters, 0091/0092-style, in landing order:

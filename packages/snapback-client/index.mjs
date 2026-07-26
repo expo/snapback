@@ -1091,6 +1091,90 @@ const authorityCommitReentrantError = (message) => {
   return error;
 };
 
+/// Construct the generic client around a session bearer minted by a trusted
+/// server-side identity broker. This is the explicit non-custodial protocol
+/// client seam: it offers the exact auth/rr + auth/live protocol versions at
+/// every boundary, but it does not claim browser sender-constrained custody.
+///
+/// @ref LLP 0096#2-per-profile-contract — external protocol clients repeat
+///   the exact auth offers independently of how the bearer was obtained.
+export function createExternalSessionClient(baseUrl, {
+  bearerToken,
+  ...options
+} = {}) {
+  if (typeof bearerToken !== 'string' || bearerToken.length === 0) {
+    throw new TypeError('createExternalSessionClient requires a non-empty bearerToken');
+  }
+  if (options.authCoordinator || options.agentAuthority || options.senderConstrained) {
+    throw new TypeError(
+      'external session bearer custody is mutually exclusive with browser, agent, and sender-constrained custody',
+    );
+  }
+  return new SnapbackClient(baseUrl, {
+    ...options,
+    bearerToken,
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+  });
+}
+
+/// Bind a first-party live-query handle to a React Native/Expo-style AppState
+/// source without taking a react-native package dependency. The source must
+/// expose `currentState` and `addEventListener('change', listener)`; the
+/// handle must expose the provider-owned pause/resume lifecycle.
+///
+/// @ref LLP 0064#5-host-lifecycle — host events translate once into provider
+///   policy; view code never owns reconnection.
+export function bindSnapbackAppLifecycle(appState, handle, {
+  activeState = 'active',
+  onError = () => {},
+} = {}) {
+  if (!appState || typeof appState.addEventListener !== 'function') {
+    throw new TypeError('bindSnapbackAppLifecycle requires an AppState-compatible event source');
+  }
+  if (!handle || typeof handle.pause !== 'function' || typeof handle.resume !== 'function') {
+    throw new TypeError('bindSnapbackAppLifecycle requires a live handle with pause() and resume()');
+  }
+  if (typeof onError !== 'function') {
+    throw new TypeError('bindSnapbackAppLifecycle onError must be a function');
+  }
+  let disposed = false;
+  let observedState = appState.currentState ?? null;
+  let transition = Promise.resolve();
+  const apply = (state) => {
+    if (disposed || state === observedState) return transition;
+    observedState = state;
+    transition = transition.then(async () => {
+      if (disposed) return;
+      if (state === activeState) await handle.resume();
+      else await handle.pause();
+    }).catch((error) => {
+      try { onError(error); } catch { /* observation never owns lifecycle */ }
+    });
+    return transition;
+  };
+  const subscription = appState.addEventListener('change', apply);
+  // Bind the current non-active state immediately. Active handles begin in
+  // their ordinary attached state and need no synthetic resume.
+  if (observedState !== null && observedState !== activeState) {
+    const initial = observedState;
+    observedState = null;
+    void apply(initial);
+  }
+  return Object.freeze({
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      if (typeof subscription === 'function') subscription();
+      else subscription?.remove?.();
+    },
+    settled() {
+      return transition;
+    },
+  });
+}
+
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
@@ -1127,8 +1211,15 @@ export class SnapbackClient {
       throw new TypeError('senderConstrained browser transport requires AuthCoordinator custody');
     }
     if (senderConstrained) canonicalSenderExternalUri(this.baseUrl, '/auth/session');
-    if (authClientProtocol === 1 && !authCoordinator && !agentAuthority) {
-      throw new TypeError('authClientProtocol v1 requires browser or agent authority custody');
+    if (
+      authClientProtocol === 1
+      && !authCoordinator
+      && !agentAuthority
+      && (typeof bearerToken !== 'string' || bearerToken.length === 0)
+    ) {
+      throw new TypeError(
+        'authClientProtocol v1 requires browser, agent, or explicit external-bearer custody',
+      );
     }
     if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
     if (!Number.isSafeInteger(authCounterCeiling) || authCounterCeiling < 1) {

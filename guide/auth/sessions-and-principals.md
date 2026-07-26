@@ -35,8 +35,7 @@ is the trusted-local convenience where tests pass `userId:` directly;
 ## Sign in: email code → session credential
 
 The client requests a code and exchanges it. In tests, the code is read
-from the server's admin-gated mailbox (a real mail sender fills that role
-outside tests):
+from the server's admin-gated mailbox:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
   const requested = await client.authRequestCode(email);
@@ -52,6 +51,13 @@ outside tests):
 From then on the client carries the session credential; `AuthCoordinator`
 (from `@snapback/contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
+
+The shipped provider has no production mail adapter yet. For a local native
+app whose identity front door lives in trusted server code, use the sanctioned
+[external identity-broker seam](./native-apps.md): the broker invokes the
+gated non-production session-mint host operation and the first-party client
+adopts the resulting bearer with exact protocol offers. Neither path is a
+hosted-production auth claim.
 
 ## Queries are scoped by the server, not by arguments
 

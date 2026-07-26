@@ -9,7 +9,8 @@ Exports:
 - `@snapback/client/hosted-browser` — the hosted app-browser constructor,
   structurally limited to coordinator-owned, sender-constrained session
   custody;
-- `@snapback/client/online` — the same `SnapbackClient` class through a narrow
+- `@snapback/client/online` — the same `SnapbackClient` class plus
+  `createExternalSessionClient` and `bindSnapbackAppLifecycle` through a narrow
   browser entry that does not retain optional package exports;
 - `@snapback/client/agent-authority` — scoped agent-authority custody;
 - `@snapback/client/external-store` —
@@ -31,6 +32,38 @@ correlate a live row set with the pending mutation; that closes the valid race
 where the query update arrives before the mutation response. See
 `guide/clients/headless.md` and
 `guide/clients/react.md` for the supported composition.
+
+## Externally brokered sessions
+
+When a trusted server-side identity broker has already minted a Snapback
+session, adopt its bearer with the explicit protocol-client constructor:
+
+```js
+import { createExternalSessionClient } from '@snapback/client/online';
+
+const client = createExternalSessionClient('http://127.0.0.1:5173', {
+  bearerToken: session.bearer,
+});
+```
+
+The constructor offers the exact auth-client, invalidation, and authority
+descriptor protocols. It is ordinary bearer custody, not browser
+sender-constraint, and does not make hosted auth production-ready. See
+`guide/auth/native-apps.md`.
+
+For mobile hosts, bind the platform lifecycle to a live-query handle:
+
+```js
+import { bindSnapbackAppLifecycle } from '@snapback/client/online';
+
+const binding = bindSnapbackAppLifecycle(AppState, liveHandle);
+// Later:
+binding.dispose();
+```
+
+The binding serializes `pause()` and `resume()`. The transport's application
+heartbeat handles silent socket failure while active; lifecycle signals handle
+OS suspension and foreground re-entry.
 
 ## Hosted browser custody
 

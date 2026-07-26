@@ -1,7 +1,7 @@
 # `@snapback/client` has no supported way to use an externally-minted session bearer
 
 **Filed:** 2026-07-26 · **Source:** building `demos/partitime/backends/snapback`
-**Status:** open
+**Status:** Resolved 2026-07-26
 
 ## What happened
 
@@ -40,3 +40,17 @@ not blocked.
    credential under coordinator custody, so refresh/logout/barrier still work.
 2. An explicit `authClientProtocol: 1` + `bearerToken` construction that is
    supported (not "legacy/dev"), documented in `guide/clients/headless.md`.
+
+## Resolution
+
+Fix candidate 2 landed as
+`createExternalSessionClient(baseUrl, { bearerToken })`. The constructor
+requires a non-empty explicit bearer, excludes coordinator/agent/sender-bound
+custody, and forces the exact auth-client, auth-invalidation, and authority-
+descriptor v1 offers. Generic protocol-v1 construction without any custody
+owner remains rejected.
+
+The online entry point re-exports the factory, the headless/native-auth guides
+document ordinary bearer custody and its non-production boundary, and the
+auth-handshake suite proves that the bearer and exact offer headers reach the
+wire.

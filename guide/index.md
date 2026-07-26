@@ -85,6 +85,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Authenticate a native app](./auth/native-apps.md) — local email-code or
+  the supported external identity-broker seam, exact bearer carriage, and
+  the production boundary.
 - [Protecting live and retained data](./auth/protecting-data.md) —
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
@@ -95,8 +98,13 @@ you never build around a feature because you didn't know it existed.
   honesty; how to check the server instead of trusting prose.
 
 ### Clients
+- [The client protocol](./protocol/client-protocol.md) — route and envelope
+  families, delivery lanes, version guards, auth invalidation, heartbeat,
+  and the conformance corpus.
 - [The headless client](./clients/headless.md) — the complete
   `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
+- [The Swift client](./clients/swift.md) — SwiftPM for iOS/macOS,
+  `poll/local` + `live/local`, session auth, invalidation, and lifecycle.
 - [The app CLI](./clients/app-cli.md) — discover generated operations and run
   the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
@@ -105,6 +113,8 @@ you never build around a feature because you didn't know it existed.
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
 - [React Expo Online clients](./clients/react-expo.md) — the shared React
   projection on native carriers, per-OS evidence, and Online/Parity honesty.
+- [Framework bindings](./clients/framework-bindings.md) — build on the
+  external store and own identity, reconnect, error, lifecycle, and teardown.
 
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,

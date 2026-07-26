@@ -108,4 +108,81 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertEqual(machine.ingestFrame(json, postOwnershipCut: true).actions, [.replaceRows])
         XCTAssertEqual(machine.subscriptions["s1"]?.state, .live(version: 11))
     }
+
+    func testWireIdentityUsesUnderscoreIdWhenApplicationIdCollides() {
+        let machine = ClientStateMachine()
+        machine.applySnapshot(
+            subscriptionId: "s_identity",
+            function: "f",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [
+                    .object(["_id": .string("row_a"), "id": .string("same")]),
+                    .object(["_id": .string("row_b"), "id": .string("same")]),
+                ],
+                cursor: nil
+            )
+        )
+        XCTAssertEqual(machine.subscriptions["s_identity"]?.rows.count, 2)
+        XCTAssertNotNil(machine.subscriptions["s_identity"]?.rows["row_a"])
+        XCTAssertNotNil(machine.subscriptions["s_identity"]?.rows["row_b"])
+    }
+
+    func testAuthorizationInvalidationAppliesBeforeAckAndDuplicateAcksAgain() throws {
+        let machine = ClientStateMachine()
+        machine.applySnapshot(
+            subscriptionId: "sub_auth",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 4,
+                rows: [.object(["id": .string("old"), "value": .string("old")])],
+                cursor: nil
+            ),
+            authorizationNamespace: .object([
+                "clientStoreId": .string("swift_test"),
+                "queryKey": .string("listPrivate:{}"),
+                "queryInstanceId": .int(1),
+            ])
+        )
+        let frame = try JSONValue.parse(
+            """
+            {
+              "kind": "authorization_invalidation",
+              "obligation": {
+                "scopeId": {"kind": "clientQuery"},
+                "maxDisposition": "quarantine"
+              },
+              "snapshot": {
+                "subscriptionId": "sub_auth",
+                "function": "listPrivate",
+                "version": 5,
+                "rows": [{"id": "new", "value": "new"}]
+              },
+              "resolution": {"ackToken": "ack_auth_5"}
+            }
+            """
+        )
+
+        let applied = machine.ingestFrame(frame, postOwnershipCut: true)
+        XCTAssertEqual(
+            applied.actions,
+            [.quarantineRows, .applyInvalidationSnapshot, .acknowledgeObligation]
+        )
+        XCTAssertEqual(applied.acknowledgements, ["ack_auth_5"])
+        XCTAssertEqual(
+            machine.subscriptions["sub_auth"]?.orderedRows,
+            [.object(["id": .string("new"), "value": .string("new")])]
+        )
+
+        let duplicate = machine.ingestFrame(frame, postOwnershipCut: true)
+        XCTAssertEqual(
+            duplicate.actions,
+            [.acknowledgeObligation]
+        )
+        XCTAssertEqual(duplicate.acknowledgements, ["ack_auth_5"])
+        XCTAssertEqual(
+            machine.subscriptions["sub_auth"]?.orderedRows,
+            [.object(["id": .string("new"), "value": .string("new")])]
+        )
+    }
 }

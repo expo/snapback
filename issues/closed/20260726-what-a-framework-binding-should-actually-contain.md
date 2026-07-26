@@ -1,6 +1,6 @@
 # Improvement: if we ship more framework bindings, the valuable content is not the query hook
 
-**Status:** Open · **Kind:** improvement (design input) · **Filed:** 2026-07-26
+**Status:** Resolved 2026-07-26 · **Kind:** improvement (design input) · **Filed:** 2026-07-26
 **Evidence:** `demos/partitime/web/{vue,solid,svelte,react-vite}/NOTES.md`,
 `demos/partitime/REPORT.md` §4, §6
 
@@ -61,3 +61,16 @@ author currently rebuilds, usually incorrectly and silently.
 The higher-leverage item remains
 `20260726-snapback-client-cannot-carry-an-external-bearer`: one constructor
 option unblocks every framework at once.
+
+## Resolution
+
+`guide/clients/framework-bindings.md` and LLP 0064 now define a binding around
+the provider/external-store lifecycle rather than around hook syntax. The
+contract covers identity retirement and blanking, socket re-grant plus fresh
+subscribe, background/foreground, invalidation apply-before-ACK, typed
+reservation retry, terminal-auth error state, and scope disposal.
+
+The capability is marked partial: React and Contract projections ship, while
+Vue/Svelte/Solid packages are deliberately not claimed. The shared JS client
+now supplies the external-bearer constructor and lifecycle bridge that future
+framework projections should reuse.

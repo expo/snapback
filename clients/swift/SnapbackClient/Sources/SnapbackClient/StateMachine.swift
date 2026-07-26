@@ -23,6 +23,11 @@ public enum ClientAction: String, Sendable, Hashable {
     case ignoreUnknownFields = "ignore_unknown_fields"
     case surfaceTerminalAuth = "surface_terminal_auth"
     case reopenConnection = "reopen_connection"
+    case adoptResumeToken = "adopt_resume_token"
+    case quarantineRows = "quarantine_rows"
+    case applyInvalidationSnapshot = "apply_invalidation_snapshot"
+    case acknowledgeObligation = "acknowledge_obligation"
+    case surfaceProtocolDiagnostic = "surface_protocol_diagnostic"
 }
 
 /// Per-subscription states (LLP 0095 §1.3).
@@ -37,6 +42,10 @@ public enum SubscriptionState: Equatable, Sendable {
 public struct SubscriptionEntry: Sendable {
     public var function: String
     public var state: SubscriptionState
+    /// Original arguments and store-owned authorization namespace survive
+    /// socket/background loss so fresh re-subscribe is semantically exact.
+    public var args: JSONValue = .null
+    public var authorizationNamespace: JSONValue? = nil
     public var rows: [String: JSONValue] = [:]
     /// Row order as last replaced; deltas are unordered by contract.
     public var rowOrder: [String] = []
@@ -71,6 +80,21 @@ public struct MachineEvent: Sendable {
     /// `supersedes` where the id survives client-side).
     public var resubscribe: [String]
     public var diagnostics: [String]
+    /// Post-commit invalidation tickets whose matching snapshots were applied
+    /// synchronously by this event. The transport ACKs these afterward.
+    public var acknowledgements: [String]
+
+    public init(
+        actions: [ClientAction],
+        resubscribe: [String],
+        diagnostics: [String],
+        acknowledgements: [String] = []
+    ) {
+        self.actions = actions
+        self.resubscribe = resubscribe
+        self.diagnostics = diagnostics
+        self.acknowledgements = acknowledgements
+    }
 }
 
 public final class ClientStateMachine {
@@ -107,8 +131,18 @@ public final class ClientStateMachine {
         return toReenter
     }
 
-    public func registerPending(subscriptionId: String, function: String) {
-        subscriptions[subscriptionId] = SubscriptionEntry(function: function, state: .pending)
+    public func registerPending(
+        subscriptionId: String,
+        function: String,
+        args: JSONValue = .null,
+        authorizationNamespace: JSONValue? = nil
+    ) {
+        subscriptions[subscriptionId] = SubscriptionEntry(
+            function: function,
+            state: .pending,
+            args: args,
+            authorizationNamespace: authorizationNamespace
+        )
     }
 
     func removeSubscription(id: String) {
@@ -117,15 +151,26 @@ public final class ClientStateMachine {
 
     /// Snapshot-with-subscribe (LLP 0034 §1): the subscribe response carries
     /// the authoritative snapshot; no prime race.
-    public func applySnapshot(subscriptionId: String, function: String, snapshot: QuerySnapshot, authUserId: String? = nil) {
+    public func applySnapshot(
+        subscriptionId: String,
+        function: String,
+        snapshot: QuerySnapshot,
+        authUserId: String? = nil,
+        args: JSONValue? = nil,
+        authorizationNamespace: JSONValue? = nil
+    ) {
         var entry = subscriptions[subscriptionId] ?? SubscriptionEntry(function: function, state: .pending)
         entry.function = function
         if let authUserId { entry.authUserId = authUserId }
+        if let args { entry.args = args }
+        if let authorizationNamespace { entry.authorizationNamespace = authorizationNamespace }
         entry.state = .live(version: snapshot.version)
         entry.rows = [:]
         entry.rowOrder = []
         for row in snapshot.rows {
-            let id = row["id"]?.stringValue ?? row["_id"]?.stringValue ?? UUID().uuidString
+            // `_id` is wire row identity. An app field named `id` is ordinary
+            // data and may collide across rows without changing membership.
+            let id = row["_id"]?.stringValue ?? row["id"]?.stringValue ?? UUID().uuidString
             entry.rows[id] = row
             entry.rowOrder.append(id)
         }
@@ -135,6 +180,13 @@ public final class ClientStateMachine {
     /// T-UNSUB: explicit release, the only normal demand-release path.
     public func noteReleased(subscriptionId: String) {
         subscriptions[subscriptionId]?.state = .released
+    }
+
+    public func noteSuspended(subscriptionIds: [String]) {
+        phase = .closed
+        for id in subscriptionIds where subscriptions[id] != nil {
+            subscriptions[id]?.state = .dropped
+        }
     }
 
     // MARK: durable-envelope ingestion (both lanes, post-unwrap)
@@ -180,6 +232,7 @@ public final class ClientStateMachine {
             if admitVersion(subscriptionId, version), var entry = subscriptions[subscriptionId] {
                 entry.state = .live(version: version)
                 subscriptions[subscriptionId] = entry
+                actions.append(.adoptResumeToken)
             }
         case .resyncRequired(let subscriptionId, _, let clearRetained, _, _):
             if let subscriptionId {
@@ -196,10 +249,99 @@ public final class ClientStateMachine {
                 resubscribe.append(contentsOf: event.resubscribe)
                 _ = clearRetained
             }
-        case .authorizationInvalidation:
-            // Auth profiles are out of the P-2 unauthenticated scope; the
-            // envelope is decoded (never crashes) and surfaced.
-            diagnostics.append("authorization_invalidation received (auth profile not claimed)")
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — snapshot application precedes acknowledgement; foreign and unsatisfied obligations never settle.
+        case .authorizationInvalidation(let obligation, let snapshot, let resolution):
+            let scopeSubscriptionId =
+                obligation["scopeId"]?["subscriptionId"]?.stringValue
+            if let scopeSubscriptionId,
+               subscriptions[scopeSubscriptionId] == nil
+                    || (snapshot != nil && snapshot?.subscriptionId != scopeSubscriptionId) {
+                // The obligation is addressed to a materialization this
+                // client does not own (or the attached snapshot contradicts
+                // its scope). Never settle another owner's level-triggered
+                // obligation.
+                diagnostics.append(
+                    "authorization invalidation names foreign or inconsistent subscription \(scopeSubscriptionId)"
+                )
+                return MachineEvent(
+                    actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                    resubscribe: [],
+                    diagnostics: diagnostics
+                )
+            }
+            guard let snapshot else {
+                // No superseding snapshot means the old materialization is no
+                // longer publishable. Quarantine/delete both blank before a
+                // fresh subscribe; retain still re-enters so the obligation
+                // cannot become a silent terminal state.
+                if let subscriptionId = scopeSubscriptionId,
+                   var entry = subscriptions[subscriptionId] {
+                    entry.rows.removeAll()
+                    entry.rowOrder.removeAll()
+                    entry.state = .resyncPending
+                    subscriptions[subscriptionId] = entry
+                } else {
+                    for (id, var entry) in subscriptions where entry.state != .released {
+                        entry.rows.removeAll()
+                        entry.rowOrder.removeAll()
+                        entry.state = .resyncPending
+                        subscriptions[id] = entry
+                    }
+                }
+                actions.append(.quarantineRows)
+                diagnostics.append(
+                    "authorization invalidation has no superseding snapshot; materialization quarantined"
+                )
+                if resolution != nil {
+                    diagnostics.append(
+                        "authorization invalidation resolution withheld: no snapshot was applied"
+                    )
+                }
+                return MachineEvent(
+                    actions: dedupe(actions),
+                    resubscribe: resubscribe,
+                    diagnostics: diagnostics
+                )
+            }
+            guard admitVersion(snapshot.subscriptionId, snapshot.version) else {
+                diagnostics.append(
+                    "dropped stale authorization snapshot for \(snapshot.subscriptionId)"
+                )
+                if let resolution {
+                    // A duplicate/older redelivery cannot regress rows, but
+                    // the held newer snapshot already satisfies the
+                    // apply-before-ack obligation. ACK again so the
+                    // level-triggered server lane can settle.
+                    actions.append(.acknowledgeObligation)
+                    return MachineEvent(
+                        actions: actions,
+                        resubscribe: resubscribe,
+                        diagnostics: diagnostics,
+                        acknowledgements: [resolution.ackToken]
+                    )
+                }
+                break
+            }
+            actions.append(.quarantineRows)
+            applySnapshot(
+                subscriptionId: snapshot.subscriptionId,
+                function: snapshot.function,
+                snapshot: QuerySnapshot(
+                    version: snapshot.version,
+                    rows: snapshot.rows,
+                    cursor: nil
+                )
+            )
+            actions.append(.applyInvalidationSnapshot)
+            if let resolution {
+                actions.append(.acknowledgeObligation)
+                return MachineEvent(
+                    actions: actions,
+                    resubscribe: resubscribe,
+                    diagnostics: diagnostics,
+                    acknowledgements: [resolution.ackToken]
+                )
+            }
         }
         return MachineEvent(actions: actions, resubscribe: resubscribe, diagnostics: diagnostics)
     }
@@ -268,6 +410,7 @@ public final class ClientStateMachine {
         var actions: [ClientAction] = []
         var resubscribe: [String] = []
         var diagnostics: [String] = []
+        var acknowledgements: [String] = []
         var sawMalformed = false
         var deliveredRemainder = false
         for item in items {
@@ -289,6 +432,7 @@ public final class ClientStateMachine {
                     continue
                 }
                 let event = ingestFrame(inner, postOwnershipCut: true)
+                acknowledgements.append(contentsOf: event.acknowledgements)
                 if sawMalformed {
                     // Remainder delivery after a malformed item: the item is
                     // still fully processed (state mutates, resubscribes and
@@ -309,7 +453,23 @@ public final class ClientStateMachine {
         if deliveredRemainder {
             actions.append(.deliverBatchRemainder)
         }
-        return MachineEvent(actions: dedupe(actions), resubscribe: resubscribe, diagnostics: diagnostics)
+        // @ref LLP 0095#43-the-poll-lane-analogue-of-fact-2b--symmetric — post-cut malformed drain data finishes in the connection-wide resync equivalence class.
+        if sawMalformed {
+            // The remainder is still decoded and dispatched so diagnostics,
+            // invalidation obligations, and other non-state work are not
+            // silently dropped. But no later item in the already-consumed
+            // batch can repair the unattributable loss: finish in the same
+            // connection-wide resync equivalence class.
+            let finalResync = forceConnectionWideResync()
+            actions.append(contentsOf: finalResync.actions)
+            resubscribe.append(contentsOf: finalResync.resubscribe)
+        }
+        return MachineEvent(
+            actions: dedupe(actions),
+            resubscribe: resubscribe,
+            diagnostics: diagnostics,
+            acknowledgements: acknowledgements
+        )
     }
 
     // MARK: shared transitions
