@@ -13,6 +13,7 @@ assert.deepEqual(workflowNames, [
   'deployment-identity.yml',
   'linux-runtime-package.yml',
   'local-proof.yml',
+  'public-package-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
 ]);
@@ -135,8 +136,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 5, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 23, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 31, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
