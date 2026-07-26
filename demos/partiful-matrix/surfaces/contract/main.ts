@@ -406,10 +406,13 @@ function mountCurrentRoute(focusTestId?: string) {
       // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
       // route remounts replace the overlay opener, so restore to the new
       // semantic target only after the replacement tree has committed.
-      await new Promise<void>((resolveFocus) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      // Safari may suspend animation-frame callbacks while the route teardown
+      // removes the focused overlay. A zero-delay task runs after the
+      // replacement tree commits without depending on a paint callback.
+      await new Promise<void>((resolveFocus) => setTimeout(() => {
         document.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focusTestId)}"]`)?.focus();
         resolveFocus();
-      })));
+      }, 0));
     }
     return result;
   }).catch((error) => {
