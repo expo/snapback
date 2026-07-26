@@ -1,6 +1,6 @@
 # Reclaim Linux proof-runner disk before native builds
 
-**Status:** In Progress
+**Status:** Resolved (2026-07-26)
 **Severity:** P1
 **Systems:** CI, Build, Native runtime, Acceptance testing
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -43,3 +43,11 @@ local proof script.
 
 Keep this ticket open until a replacement `main` run completes the canonical
 proof on the reclaimed GitHub-hosted runner.
+
+## Resolution
+
+Canonical `main` local-proof run
+[30191116596](https://github.com/ccheever/snapback/actions/runs/30191116596)
+passed at commit `d5944bc96abb54d323f48395c7d78bac2d8c0dbe`. The
+reviewed cleanup ran on the hosted Linux worker, measured 35,873,144 KiB
+available against the 20 GiB floor, and the full proof completed successfully.

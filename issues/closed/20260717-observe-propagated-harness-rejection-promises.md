@@ -1,6 +1,6 @@
 # Observe propagated harness rejection promises on Hermes
 
-**Status:** In Progress
+**Status:** Resolved (2026-07-26)
 **Severity:** P1
 **Systems:** Runtime, Security, Auth/RBAC, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -44,3 +44,13 @@ so the ignored guard child always fulfills; the original child remains the
 value native `await` consumes. A focused malformed-host-call regression pins
 the exact `return await` shape alongside the existing immediate-rejection,
 detached-chain, and `Function.prototype.call` poisoning cases.
+
+## Resolution
+
+Canonical `main` local-proof run
+[30191116596](https://github.com/ccheever/snapback/actions/runs/30191116596)
+passed at commit `d5944bc96abb54d323f48395c7d78bac2d8c0dbe`. Its
+37-test unhandled-rejection suite preserved immediate typed host rejections,
+kept native-await and handled-rejection paths successful, and retained the
+detached-rejection floor. The cross-engine harness-control-plane suite also
+passed.

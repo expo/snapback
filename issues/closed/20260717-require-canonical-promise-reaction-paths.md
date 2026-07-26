@@ -1,6 +1,6 @@
 # Require canonical Promise reaction paths before trusting handling
 
-**Status:** In Progress
+**Status:** Resolved (2026-07-26)
 **Severity:** P0
 **Systems:** Runtime, Security, Storage, Auth/RBAC, Workerd
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -48,3 +48,14 @@ only through a canonical observer, and clears a source only from a running
 sealed reaction. The adversarial corpus covers a genuine decoy Promise, no-op
 child capabilities, and both own and inherited hostile constructors on Hermes
 and V8, with exact rejection reasons and zero committed rows.
+
+## Resolution
+
+Canonical `main` local-proof run
+[30191116596](https://github.com/ccheever/snapback/actions/runs/30191116596)
+passed at commit `d5944bc96abb54d323f48395c7d78bac2d8c0dbe`. The
+37-test unhandled-rejection suite passed the no-op child-capability,
+constructor-poisoning, missing-reaction, source-binding, and normal
+catch/await cases. The cross-engine workerd twin also passed the hostile
+Promise-constructor and harness-control-plane regressions, with the enclosing
+Rust proof reporting zero failures.
