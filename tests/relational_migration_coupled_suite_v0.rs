@@ -9,7 +9,7 @@
 //! and whole-mutation crash equivalence. The callable-query half lives in
 //! `tests/relational_corpus_v0.rs`; the engine and activation unit
 //! witnesses live in `src/local.rs`. The complete item→witness map is
-//! `issues/20260724-step5-impl-coupled-suite.md`.
+//! `issues/closed/20260724-step5-impl-coupled-suite.md`.
 //!
 //! @ref LLP 0080#5-transactionally-maintained-projections — the counted
 //!   unit, the reverse-index-entry counting rule, the 1,024-write mutation
@@ -658,7 +658,7 @@ fn materialize_all_oracle_over_1100_roots_matches_independent_digest() {
 fn relational_migration_coupled_suite_v1_summary() {
     let ticket = std::fs::read_to_string(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("issues/20260724-step5-impl-coupled-suite.md"),
+            .join("issues/closed/20260724-step5-impl-coupled-suite.md"),
     )
     .expect("read coupled-suite ticket");
     for witness in [
