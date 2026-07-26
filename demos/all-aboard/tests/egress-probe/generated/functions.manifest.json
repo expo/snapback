@@ -1,5 +1,5 @@
 {
-  "appId": "tests",
+  "appId": "all-aboard",
   "artifactKind": "functionManifest",
   "bundleHash": "sha256:5d1a9f41dce74dcb",
   "config": [
@@ -29,7 +29,7 @@
         "writes": []
       },
       "exportedName": "egressProbe",
-      "id": "tests:egressProbe",
+      "id": "all-aboard:egressProbe",
       "kind": "Action",
       "name": "egressProbe",
       "readSetSummary": {
@@ -79,7 +79,7 @@
         "writes": []
       },
       "exportedName": "queryProbe",
-      "id": "tests:queryProbe",
+      "id": "all-aboard:queryProbe",
       "kind": "Query",
       "name": "queryProbe",
       "readSetSummary": {
@@ -110,7 +110,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "27609473c866f0cee62f4e626d3a958dbd972b635a84ea851326a1ee97ed5b7a",
+  "inputsHash": "cd5463d858296e70cf1bd402434b89e044b464f9f3c69a8e35cfadcd397134e8",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
