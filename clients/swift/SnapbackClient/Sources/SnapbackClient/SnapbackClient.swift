@@ -201,6 +201,22 @@ public actor SnapbackClient {
         guard let output = LiveSubscribeOutput.from(json) else {
             throw ClientError.undecodableResponse("live subscribe output")
         }
+        // @ref LLP 0059#typed-terminal-auth-error — durable authority deletion is a terminal publication fence, including across actor reentrancy.
+        // The request above is an actor reentrancy point. A durable terminal
+        // invalidation may retire the namespace while the subscribe is in
+        // flight, so validate custody again before admitting its response.
+        if let namespace,
+           machine.hasTerminalRetiredNamespace(namespace) {
+            _ = try? await unsubscribe(
+                function: function,
+                subscriptionId: output.subscriptionId,
+                userId: userId
+            )
+            machine.removeSubscription(id: output.subscriptionId)
+            throw ClientError.invalidState(
+                "terminally retired authorization namespace cannot be reused; allocate a new queryInstanceId"
+            )
+        }
         if machine.subscriptions[output.subscriptionId]?.state
             == .terminalDeleted {
             _ = try? await unsubscribe(
@@ -295,8 +311,9 @@ public actor SnapbackClient {
             grant.authorizationInvalidation?.authorization
         let versionStream =
             grant.authorizationInvalidation?.versionStream
+        let installed: Bool
         if let snapshot = output.snapshot {
-            machine.applySnapshot(
+            installed = machine.applySnapshot(
                 subscriptionId: output.subscriptionId,
                 function: function,
                 snapshot: snapshot,
@@ -308,7 +325,7 @@ public actor SnapbackClient {
                 authorizationVersionStream: versionStream
             )
         } else {
-            machine.registerPending(
+            installed = machine.registerPending(
                 subscriptionId: output.subscriptionId,
                 function: function,
                 args: args,
@@ -316,6 +333,18 @@ public actor SnapbackClient {
                 authorizationScope: output.authorizationScope,
                 acceptedAuthorization: acceptedAuthorization,
                 authorizationVersionStream: versionStream
+            )
+        }
+        guard installed else {
+            throw await rejectedSubscribeOutput(
+                function: function,
+                successorSubscriptionId: output.subscriptionId,
+                userId: userId,
+                predecessorSubscriptionId: supersedes,
+                predecessorDisposalWitnessed:
+                    predecessorDisposalWitnessed,
+                detail:
+                    "subscribe response crossed terminal retirement"
             )
         }
         if let projection = output.authorizationInvalidation {

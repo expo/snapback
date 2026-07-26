@@ -265,6 +265,104 @@ private final class ResponseQueueStubProtocol: URLProtocol, @unchecked Sendable 
     override func stopLoading() {}
 }
 
+private final class HeldSubscribeStubProtocol:
+    URLProtocol, @unchecked Sendable
+{
+    private static let lock = NSLock()
+    private static var heldSubscribe: HeldSubscribeStubProtocol?
+    private static var releaseRequested = false
+    private static var recordedPaths: [String] = []
+
+    static func reset() {
+        lock.lock()
+        heldSubscribe = nil
+        releaseRequested = false
+        recordedPaths = []
+        lock.unlock()
+    }
+
+    static var paths: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedPaths
+    }
+
+    static var isSubscribeHeld: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return heldSubscribe != nil
+    }
+
+    static func releaseSubscribe() {
+        lock.lock()
+        releaseRequested = true
+        let held = heldSubscribe
+        heldSubscribe = nil
+        lock.unlock()
+        held?.respond(
+            status: 200,
+            body: custodySubscribeOutput(
+                id: "sub_held_new",
+                scopeSequence: 2,
+                superseded: "sub_held_old"
+            )
+        )
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        let path = request.url?.path ?? "?"
+        Self.lock.lock()
+        Self.recordedPaths.append(path)
+        if path == "/live/listPrivate/subscribe" {
+            let releaseImmediately = Self.releaseRequested
+            if !releaseImmediately {
+                Self.heldSubscribe = self
+            }
+            Self.lock.unlock()
+            if releaseImmediately {
+                respond(
+                    status: 200,
+                    body: custodySubscribeOutput(
+                        id: "sub_held_new",
+                        scopeSequence: 2,
+                        superseded: "sub_held_old"
+                    )
+                )
+            }
+            return
+        }
+        Self.lock.unlock()
+
+        if path == "/connection/open" {
+            respond(status: 200, body: custodyGrant)
+        } else {
+            respond(status: 200, body: #"{"receipt":null}"#)
+        }
+    }
+
+    override func stopLoading() {}
+
+    private func respond(status: Int, body: String) {
+        client?.urlProtocol(
+            self,
+            didReceive: HTTPURLResponse(
+                url: request.url!,
+                statusCode: status,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["content-type": "application/json"]
+            )!,
+            cacheStoragePolicy: .notAllowed
+        )
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
 private let custodyNamespace: JSONValue = .object([
     "clientStoreId": .string("swift_custody_test"),
     "queryKey": .string("listPrivate:null"),
@@ -985,6 +1083,94 @@ final class ClientBehaviorTests: XCTestCase {
             malformedEvent.diagnostics.contains {
                 $0.contains("classified as carrier")
             }
+        )
+    }
+
+    func testSubscribeResponseCannotCrossTerminalNamespaceRetirement()
+        async throws
+    {
+        HeldSubscribeStubProtocol.reset()
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [
+            HeldSubscribeStubProtocol.self,
+        ]
+        var configuration = SnapbackClient.Configuration(
+            baseURL: URL(string: "https://snapback.invalid")!
+        )
+        configuration.sessionBearer = "sbs_native_test"
+        let subject = SnapbackClient(
+            configuration: configuration,
+            session: URLSession(configuration: sessionConfiguration)
+        )
+        _ = try await subject.openConnection()
+        let expectation =
+            await subject.machine.authorizationInvalidationConnection!
+        let oldScope =
+            custodyTerminalFrame("sub_held_old")["obligation"]?["scopeId"]
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_held_old",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            ),
+            authorizationNamespace: custodyNamespace,
+            authorizationScope: oldScope,
+            acceptedAuthorization: expectation.authorization,
+            authorizationVersionStream: expectation.versionStream
+        )
+
+        let subscribe = Task {
+            try await subject.subscribe(
+                function: "listPrivate",
+                supersedes: "sub_held_old",
+                authorizationNamespace: custodyNamespace
+            )
+        }
+        for _ in 0..<100 where !HeldSubscribeStubProtocol.isSubscribeHeld {
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertTrue(HeldSubscribeStubProtocol.isSubscribeHeld)
+
+        _ = await subject.machine.noteTerminalAuth(
+            code: "SNAPBACK_AUTH_STREAM_RESET",
+            reason: "reset",
+            disposition: "durableDelete"
+        )
+        let retired =
+            await subject.machine.subscriptions["sub_held_old"]
+        XCTAssertEqual(retired?.state, .terminalDeleted)
+        XCTAssertTrue(retired?.rows.isEmpty == true)
+
+        HeldSubscribeStubProtocol.releaseSubscribe()
+        do {
+            _ = try await subscribe.value
+            XCTFail("in-flight subscribe crossed terminal retirement")
+        } catch let SnapbackClient.ClientError.invalidState(detail) {
+            XCTAssertTrue(detail.contains("terminally retired"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertEqual(
+            subscriptions["sub_held_old"]?.state,
+            .terminalDeleted
+        )
+        XCTAssertTrue(
+            subscriptions["sub_held_old"]?.rows.isEmpty == true
+        )
+        XCTAssertNil(subscriptions["sub_held_new"])
+        let terminalNamespace =
+            await subject.machine.hasTerminalRetiredNamespace(
+                custodyNamespace
+            )
+        XCTAssertTrue(terminalNamespace)
+        XCTAssertTrue(
+            HeldSubscribeStubProtocol.paths.contains(
+                "/live/listPrivate/unsubscribe"
+            )
         )
     }
 

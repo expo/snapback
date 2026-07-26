@@ -572,10 +572,30 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertTrue(machine.forceConnectionWideResync().resubscribe.isEmpty)
         machine.noteGrantLost()
         machine.noteSuspended(subscriptionIds: ["sub_auth"])
+        machine.noteReleased(subscriptionId: "sub_auth")
+        machine.removeSubscription(id: "sub_auth")
+        XCTAssertFalse(
+            machine.applySnapshot(
+                subscriptionId: "sub_auth",
+                function: "listPrivate",
+                snapshot: QuerySnapshot(
+                    version: 6,
+                    rows: [.object(["_id": .string("resurrected")])],
+                    cursor: nil
+                )
+            )
+        )
+        XCTAssertFalse(
+            machine.registerPending(
+                subscriptionId: "sub_auth",
+                function: "listPrivate"
+            )
+        )
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?.state,
             .terminalDeleted
         )
+        XCTAssertTrue(machine.subscriptions["sub_auth"]?.rows.isEmpty == true)
     }
 
     func testPendingAuthorizationObligationBlocksEveryOrdinaryDataFrame() throws {
@@ -670,7 +690,7 @@ final class TolerantDecodingTests: XCTestCase {
         )
     }
 
-    func testAppliedInvalidationRejectsOlderAndConflictingSameScopeRevision() {
+    func testAppliedInvalidationAdmitsNewerObligationBeforeRejectingReusedAckToken() {
         let machine = ClientStateMachine()
         seedInvalidationCustody(
             machine,
@@ -721,18 +741,23 @@ final class TolerantDecodingTests: XCTestCase {
             ])
         }
 
-        let newest = machine.ingestFrame(
-            frame(revision: 2, epoch: 2, row: "authorized_2", ack: "ack_2"),
+        let first = machine.ingestFrame(
+            frame(
+                revision: 1,
+                epoch: 2,
+                row: "authorized_1",
+                ack: "ack_shared"
+            ),
             postOwnershipCut: true
         )
-        XCTAssertEqual(newest.acknowledgements, ["ack_2"])
+        XCTAssertEqual(first.acknowledgements, ["ack_shared"])
 
         let reusedToken = machine.ingestFrame(
             frame(
-                revision: 3,
+                revision: 2,
                 epoch: 2,
                 row: "wrong_ticket",
-                ack: "ack_2"
+                ack: "ack_shared"
             ),
             postOwnershipCut: true
         )
@@ -740,6 +765,23 @@ final class TolerantDecodingTests: XCTestCase {
             reusedToken.actions.contains(.surfaceProtocolDiagnostic)
         )
         XCTAssertTrue(reusedToken.acknowledgements.isEmpty)
+        XCTAssertEqual(
+            machine.subscriptions["sub_order"]?.state,
+            .resyncPending
+        )
+        XCTAssertEqual(
+            machine.subscriptions["sub_order"]?
+                .invalidationRevisionHighWater,
+            2
+        )
+        XCTAssertEqual(
+            machine.subscriptions["sub_order"]?
+                .pendingAuthorizationObligation?["revision"]?.uint64Value,
+            2
+        )
+        XCTAssertTrue(
+            machine.subscriptions["sub_order"]?.rows.isEmpty == true
+        )
 
         let older = machine.ingestFrame(
             frame(revision: 1, epoch: 1, row: "stale", ack: "ack_1"),
@@ -747,7 +789,7 @@ final class TolerantDecodingTests: XCTestCase {
         )
         XCTAssertEqual(older.actions, [.surfaceProtocolDiagnostic, .ignoreFrame])
         XCTAssertTrue(older.acknowledgements.isEmpty)
-        XCTAssertNotNil(machine.subscriptions["sub_order"]?.rows["authorized_2"])
+        XCTAssertTrue(machine.subscriptions["sub_order"]?.rows.isEmpty == true)
         XCTAssertNil(machine.subscriptions["sub_order"]?.rows["stale"])
 
         let conflicting = machine.ingestFrame(
@@ -756,7 +798,58 @@ final class TolerantDecodingTests: XCTestCase {
         )
         XCTAssertEqual(conflicting.actions, [.surfaceProtocolDiagnostic, .ignoreFrame])
         XCTAssertTrue(conflicting.acknowledgements.isEmpty)
-        XCTAssertNotNil(machine.subscriptions["sub_order"]?.rows["authorized_2"])
+        XCTAssertTrue(machine.subscriptions["sub_order"]?.rows.isEmpty == true)
         XCTAssertNil(machine.subscriptions["sub_order"]?.rows["conflict"])
+    }
+
+    func testOlderAcknowledgementFailurePreservesNewerPendingObligation() {
+        let machine = ClientStateMachine()
+        seedInvalidationCustody(
+            machine,
+            subscriptionId: "sub_ack_race",
+            expectedEpoch: 2
+        )
+        let applied = machine.ingestFrame(
+            invalidationTestFrame(
+                subscriptionId: "sub_ack_race",
+                revision: 1,
+                epoch: 2,
+                floor: 4,
+                snapshotVersion: 4,
+                ackToken: "ack_old"
+            ),
+            postOwnershipCut: true
+        )
+        XCTAssertEqual(applied.acknowledgements, ["ack_old"])
+
+        let pending = machine.ingestFrame(
+            invalidationTestFrame(
+                subscriptionId: "sub_ack_race",
+                revision: 2,
+                epoch: 2,
+                floor: 5
+            ),
+            postOwnershipCut: true
+        )
+        XCTAssertTrue(pending.actions.contains(.quarantineRows))
+
+        _ = machine.noteAuthorizationAcknowledgementUndischarged(
+            ackToken: "ack_old",
+            diagnostic: "late acknowledgement refusal"
+        )
+        let entry = machine.subscriptions["sub_ack_race"]
+        XCTAssertEqual(entry?.state, .resyncPending)
+        XCTAssertEqual(entry?.invalidationRevisionHighWater, 2)
+        XCTAssertEqual(
+            entry?.pendingAuthorizationObligation?["revision"]?.uint64Value,
+            2
+        )
+        XCTAssertEqual(
+            entry?.pendingAuthorizationObligation?["witness"]?["data"]?[
+                "minCommitVersion"
+            ]?.uint64Value,
+            5
+        )
+        XCTAssertTrue(entry?.rows.isEmpty == true)
     }
 }

@@ -181,6 +181,7 @@ public final class ClientStateMachine {
         return toReenter
     }
 
+    @discardableResult
     public func registerPending(
         subscriptionId: String,
         function: String,
@@ -189,7 +190,11 @@ public final class ClientStateMachine {
         authorizationScope: JSONValue? = nil,
         acceptedAuthorization: AuthorizationVersion? = nil,
         authorizationVersionStream: String? = nil
-    ) {
+    ) -> Bool {
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — terminal retirement is one-way for the exact materialization instance.
+        guard subscriptions[subscriptionId]?.state != .terminalDeleted else {
+            return false
+        }
         subscriptions[subscriptionId] = SubscriptionEntry(
             function: function,
             state: .pending,
@@ -199,14 +204,17 @@ public final class ClientStateMachine {
             acceptedAuthorization: acceptedAuthorization,
             authorizationVersionStream: authorizationVersionStream
         )
+        return true
     }
 
     func removeSubscription(id: String) {
+        guard subscriptions[id]?.state != .terminalDeleted else { return }
         subscriptions.removeValue(forKey: id)
     }
 
     /// Snapshot-with-subscribe (LLP 0034 §1): the subscribe response carries
     /// the authoritative snapshot; no prime race.
+    @discardableResult
     public func applySnapshot(
         subscriptionId: String,
         function: String,
@@ -217,7 +225,11 @@ public final class ClientStateMachine {
         authorizationScope: JSONValue? = nil,
         acceptedAuthorization: AuthorizationVersion? = nil,
         authorizationVersionStream: String? = nil
-    ) {
+    ) -> Bool {
+        // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — terminal retirement is one-way for the exact materialization instance.
+        guard subscriptions[subscriptionId]?.state != .terminalDeleted else {
+            return false
+        }
         var entry = subscriptions[subscriptionId] ?? SubscriptionEntry(function: function, state: .pending)
         entry.function = function
         if let authUserId { entry.authUserId = authUserId }
@@ -245,10 +257,14 @@ public final class ClientStateMachine {
             entry.rowOrder.append(id)
         }
         subscriptions[subscriptionId] = entry
+        return true
     }
 
     /// T-UNSUB: explicit release, the only normal demand-release path.
     public func noteReleased(subscriptionId: String) {
+        guard subscriptions[subscriptionId]?.state != .terminalDeleted else {
+            return
+        }
         subscriptions[subscriptionId]?.state = .released
     }
 
@@ -387,19 +403,6 @@ public final class ClientStateMachine {
             }
 
             if let resolution,
-               let accepted = appliedAuthorizationInvalidationsByAckToken[
-                resolution.ackToken
-               ],
-               accepted != AppliedAuthorizationInvalidation(
-                obligation: obligation.raw,
-                resolution: resolution.raw
-               ) {
-                return protocolInvalidationDiagnostic(
-                    "authorization invalidation reused an accepted ACK token with changed ticket fields"
-                )
-            }
-
-            if let resolution,
                scopedEntry.appliedAuthorizationInvalidation
                 == AppliedAuthorizationInvalidation(
                     obligation: obligation.raw,
@@ -461,6 +464,27 @@ public final class ClientStateMachine {
             }
             if let authorization = obligation.authorization {
                 scopedEntry.acceptedAuthorization = authorization
+            }
+
+            // Resolution corruption cannot prevent a valid newer obligation
+            // from advancing its high-water and quarantining the rows. Token
+            // validation deliberately follows obligation admission.
+            if let resolution,
+               let accepted = appliedAuthorizationInvalidationsByAckToken[
+                resolution.ackToken
+               ],
+               accepted != AppliedAuthorizationInvalidation(
+                obligation: obligation.raw,
+                resolution: resolution.raw
+               ) {
+                return quarantineInvalidation(
+                    subscriptionId: scopeSubscriptionId,
+                    entry: scopedEntry,
+                    diagnostic:
+                        "authorization invalidation reused an accepted ACK token with changed ticket fields",
+                    surfaceProtocolDiagnostic: true,
+                    ignoreFrame: true
+                )
             }
 
             guard let resolution else {
@@ -942,14 +966,10 @@ public final class ClientStateMachine {
         ackToken: String,
         diagnostic: String
     ) -> MachineEvent {
-        guard let (subscriptionId, matchedEntry) = subscriptions.first(
-            where: {
-                $0.value.appliedAuthorizationInvalidation?
-                    .resolution["ackToken"]?.stringValue == ackToken
-            }
-        ),
-              let applied =
-                matchedEntry.appliedAuthorizationInvalidation
+        guard let applied =
+                appliedAuthorizationInvalidationsByAckToken[ackToken],
+              let subscriptionId =
+                applied.obligation["scopeId"]?["subscriptionId"]?.stringValue
         else {
             return MachineEvent(
                 actions: [.surfaceProtocolDiagnostic],
@@ -974,10 +994,30 @@ public final class ClientStateMachine {
                 diagnostics: [diagnostic]
             )
         }
+        let appliedRevision =
+            applied.obligation["revision"]?.uint64Value ?? 0
+        let pendingRevision =
+            entry.pendingAuthorizationObligation?["revision"]?.uint64Value
+        let observedRevision =
+            entry.invalidationRevisionHighWater ?? 0
+        let newerPending =
+            pendingRevision.map { $0 > appliedRevision } ?? false
+        if observedRevision > appliedRevision,
+           !newerPending {
+            // A late failure for an older ACK cannot roll back a newer
+            // admitted resolution. The newer revision owns row state.
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [diagnostic]
+            )
+        }
         entry.rows.removeAll()
         entry.rowOrder.removeAll()
         entry.state = .resyncPending
-        entry.pendingAuthorizationObligation = applied.obligation
+        if !newerPending {
+            entry.pendingAuthorizationObligation = applied.obligation
+        }
         subscriptions[subscriptionId] = entry
         return MachineEvent(
             actions: [.quarantineRows, .surfaceProtocolDiagnostic],
