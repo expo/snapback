@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "1d41cd7ef773218a0230f9cb99f6684ac9d47363",
+    "snapback": "b37acb9d680cf4c4f7f6aa797627dd718410892f",
     "exact": "b458199579e62e6e19796c87186b8325815a3fa0"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -229,7 +229,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "53fed94cf81dd7793c5013966fa12772e70dc6f774d5c3bb9e309b7dc9977c86"
+      "sha256": "8023709ec100d8cc4632e47143d4085cd7ab4b01474cb59dbb04f0494f229f98"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -244,7 +244,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "b151c4e0dac14deef6f979eb6a3927b131539ee17ba6024580110f1271f7c246",
+  "testInventorySha256": "12cbf2f63b63f6d5c9fddec8e87b431be1063607c13c312ae6a0b3ed629a1154",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -270,7 +270,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-73244"
+      "/Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-63690"
     ],
     "exitStatus": 1,
     "signal": null

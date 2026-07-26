@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-26T22:36:31.118Z",
+  "generatedAt": "2026-07-26T22:48:42.908Z",
   "revisions": {
-    "snapback": "1d41cd7ef773218a0230f9cb99f6684ac9d47363",
+    "snapback": "b37acb9d680cf4c4f7f6aa797627dd718410892f",
     "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "oq9": {
@@ -12,7 +12,7 @@
   },
   "policy": {
     "skip": "forbidden",
-    "passRule": "Every automated OQ9 browser cell, applicable real-device manual row, and the recorded visual approval must pass. Missing evidence is red."
+    "passRule": "Current product sources must match the approved fixture revision, and every automated OQ9 browser cell, applicable real-device manual row, and the recorded visual approval must pass. Missing or stale evidence is red."
   },
   "engines": [
     {
@@ -774,11 +774,11 @@
   "inputs": {
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs",
-      "sha256": "cd1ab17c2bc693c6882f31b9ab56fb53243bfcaa8189924c6770bf368284f40c"
+      "sha256": "3fa7f9779707e86766d7d380bce23ffc5bd391f1b4701a967d0719e3eebd91c2"
     },
     "manualGateHelper": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-closure-helpers.mjs",
-      "sha256": "8633ff33a15cddef650d505fd6090bba73d959840bb3051a8f6ff97c3db70e02"
+      "sha256": "abe1edab60a400a145132a1dfec0d2ea39430e4719cf2d53722306850398e0f5"
     },
     "fixtureSourceParity": {
       "status": "red",
@@ -1323,7 +1323,8 @@
   "claimResults": [
     {
       "claimId": "STEP4.UI.RESPONSIVE",
-      "status": "pass",
+      "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1350,6 +1351,7 @@
     {
       "claimId": "STEP4.UI.KEYBOARD",
       "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1380,6 +1382,7 @@
     {
       "claimId": "STEP4.UI.FOCUS",
       "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1410,6 +1413,7 @@
     {
       "claimId": "STEP4.UI.REDUCED-MOTION",
       "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1436,6 +1440,7 @@
     {
       "claimId": "STEP4.UI.A11Y",
       "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1465,7 +1470,8 @@
     },
     {
       "claimId": "STEP4.UI.VISUAL",
-      "status": "pass",
+      "status": "red",
+      "reason": "fixture-source-parity-red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",

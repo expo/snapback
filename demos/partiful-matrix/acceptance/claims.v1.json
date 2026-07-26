@@ -231,7 +231,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/required-skip-nonpass.mjs --out demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "ca0018633aa51cf30db34ee76b3e7e48a8808b7c5f3549ced7832b28ab733cb3"
+        "sha256": "b87dbbc9d4e0540981578d8229905a911e39ed4b00a34e155c84d707a6b86eab"
       },
       "skip": "forbidden",
       "owner": "LLP 0010#ci-and-review-gates",
@@ -259,7 +259,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+        "sha256": "fb64edd4a3314266be6029e900698c0acd64abcd9f4ece3a4aa6a571eb4005b4"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#sequence",
@@ -287,7 +287,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+        "sha256": "fb64edd4a3314266be6029e900698c0acd64abcd9f4ece3a4aa6a571eb4005b4"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#evidence-and-limits",
@@ -306,7 +306,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+        "sha256": "fb64edd4a3314266be6029e900698c0acd64abcd9f4ece3a4aa6a571eb4005b4"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#evidence-and-limits",
@@ -342,7 +342,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+        "sha256": "fb64edd4a3314266be6029e900698c0acd64abcd9f4ece3a4aa6a571eb4005b4"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -428,7 +428,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "3ff9331d43244a395bbc99b0e1f2812a86c3494baf35f52a55bd75fa984e8bbb"
+        "sha256": "fe114823020903c129f8902ca7a2f683739f819b84be9bfb00c6667f8cdad92b"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -462,7 +462,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "6057c3daab41de99f3f03f082290abf50cd493e912668c56d39165a9456f2030"
+        "sha256": "58d881f98e045e613bb4bc2ecc70a999be9a8e96acc1e0dc8133c6aa23e7db3c"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
@@ -479,7 +479,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "a47c76d182deeb865ee213e6006275580bc3739753bf8008c0e469f3dd777076"
+        "sha256": "b0c60346747eb4221dc3ef6240feb6a8cc4374d305ebbda67e38cb2095883613"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
@@ -696,7 +696,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
@@ -721,7 +721,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
@@ -746,7 +746,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
@@ -770,7 +770,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
@@ -795,7 +795,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
@@ -820,7 +820,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
-        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+        "sha256": "312bba9d9332cdc74179b1ab908926fbcb69dbfd94f5197300411920a9daeca0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",

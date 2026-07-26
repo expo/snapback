@@ -4,7 +4,7 @@
   "ok": true,
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "e080b785a3e37c9d8701454045358261117c98c0ac7bbe8651bc13ce3be854ce",
+  "manifestSemanticSha256": "6e7d6f32cd29fed17be4045b49b2599f009d88d3d5adc163cdea662923ed3caa",
   "authority": {
     "repository": "snapback",
     "path": "demos/partiful-matrix/acceptance/claims.v1.json",
@@ -27,7 +27,7 @@
   "validators": {
     "snapback": {
       "path": "demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
-      "sha256": "85e4e05bd0f0295ca7235a74a5f10529b07d372f565571e3b13fdb473d448922",
+      "sha256": "bd39ce2f3798592669a5050d6505561049861e219629584025a53fa0a9f205bd",
       "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
       "resultSchemaVersion": "partitime.claim-manifest-validation.v1"
     },
@@ -39,7 +39,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "7abb9e7b1a62ca4d6b07fbaceb2b784efda820d3b6df5fa4373d7383f96f7085"
+        "sha256": "e0b288f9a347a8715565b71fc066b5a37e5ef8558eedb9af72c4515b065f8ebb"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -55,15 +55,15 @@
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "68eaeca6ddb261a25b9040648698ea8812f19bb30f14c9f1afe6a9ff09f6c20e"
+      "sha256": "1d2a31fb007888519acfb496c53e19b07c089e031e7538957736f80b3020315b"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "62c20f08b19fcb6168d8c8736943db3e27d953bb98174f0ef3b0719e248e1cb9"
+      "sha256": "d1e91ddce56586152f9b24ea9ebe3d146b2cc590ed94560a02d543a16200a672"
     }
   },
   "exact": {
-    "revision": "0c85c7a7c66dcdad5f1dac26edf34f5d035e6314",
+    "revision": "c4050b19ff59d526862b5d58a5e2bed03c898408",
     "dirty": false
   },
   "inputs": {
