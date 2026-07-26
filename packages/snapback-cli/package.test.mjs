@@ -159,6 +159,89 @@ try {
   assert.equal(defaultReused.state, 'reused');
   assert.equal(defaultReused.sourceDirty, false);
 
+  // Hosted runtime staging: a fabricated x86-64 ELF pair proves the plumbing
+  // (manifest fact, GAP narrowing, verify-time ELF re-check). The real
+  // artifacts arrive from the Linux build and are pinned by drill receipts,
+  // never by this fixture.
+  const runtimeDir = join(root, 'runtime-linux-x64');
+  mkdirSync(join(runtimeDir, 'bin'), { recursive: true });
+  mkdirSync(join(runtimeDir, 'lib'), { recursive: true });
+  const elfBytes = (machine) => {
+    const bytes = Buffer.alloc(24);
+    bytes[0] = 0x7f;
+    bytes.write('ELF', 1, 'ascii');
+    bytes[5] = 1;
+    bytes.writeUInt16LE(machine, 18);
+    return bytes;
+  };
+  writeFileSync(join(runtimeDir, 'bin', 'snapback'), elfBytes(62));
+  writeFileSync(join(runtimeDir, 'lib', 'libhermesvm.so'), elfBytes(62));
+  const runtimeRelease = await buildRelease({
+    backendDirectory: join(project, 'snapback'),
+    outputDirectory: releaseOutput,
+    runtimeArtifactDirectory: runtimeDir,
+    runtimePlatform: 'linux-x64',
+    hermesBundleIdentity: 'hermes-linux-x64-test-bundle-v1',
+  });
+  assert.notEqual(runtimeRelease.releaseId, release.releaseId);
+  const runtimeManifest = JSON.parse(readFileSync(join(runtimeRelease.releaseDirectory, 'release.manifest.json'), 'utf8'));
+  assert.equal(runtimeManifest.runtimeArtifact.platform, 'linux-x64');
+  assert.equal(runtimeManifest.runtimeArtifact.hermesBundleIdentity, 'hermes-linux-x64-test-bundle-v1');
+  assert.ok(runtimeManifest.components.some((component) => component.path === 'components/runtime/linux-x64/bin/snapback'));
+  assert.ok(runtimeManifest.components.some((component) => component.path === 'components/runtime/linux-x64/lib/libhermesvm.so'));
+  assert.ok(!runtimeManifest.gaps.some((gap) => gap.id === 'control-plane.runtime-artifact'));
+  assert.ok(runtimeManifest.gaps.some((gap) => gap.id === 'control-plane.runtime-artifact-adapter-verification' && gap.blocking));
+  assert.equal(verifyRelease(runtimeRelease.releaseDirectory).releaseId, runtimeRelease.releaseId);
+  writeFileSync(join(runtimeDir, 'bin', 'snapback'), elfBytes(183));
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: releaseOutput,
+      runtimeArtifactDirectory: runtimeDir,
+      runtimePlatform: 'linux-x64',
+      hermesBundleIdentity: 'hermes-linux-x64-test-bundle-v1',
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+  );
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: releaseOutput,
+      runtimePlatform: 'linux-x64',
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+  );
+  writeFileSync(join(runtimeDir, 'bin', 'snapback'), elfBytes(62));
+
+  // Secret scan: a token-shaped credential refuses; the vocabulary around
+  // credentials (a PEM header constant, a documentation placeholder) does
+  // not. The runtime binary embeds both benign forms via its crypto shim
+  // and guide text, so this boundary is what lets real artifacts stage.
+  const scanWeb = join(project, 'scan-web');
+  mkdirSync(scanWeb, { recursive: true });
+  writeFileSync(join(scanWeb, 'app.js'), 'export CLOUDFLARE_API_TOKEN=f00dfeedbeef1234deadbeefcafe5678\n');
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: releaseOutput,
+      webDirectory: scanWeb,
+      allowDirty: true,
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_SECRET_SCAN_FAILED',
+  );
+  writeFileSync(
+    join(scanWeb, 'app.js'),
+    'export CLOUDFLARE_API_TOKEN=...\nconst pemHeader = "-----BEGIN PRIVATE KEY-----\\n" + encode(body);\n',
+  );
+  const benignRelease = await buildRelease({
+    backendDirectory: join(project, 'snapback'),
+    outputDirectory: releaseOutput,
+    webDirectory: scanWeb,
+    allowDirty: true,
+  });
+  assert.equal(benignRelease.ok, true);
+  rmSync(scanWeb, { recursive: true, force: true });
+
   const controlRoot = join(root, 'control');
   const adapterDriver = join(root, 'fixture-vm-adapter.mjs');
   writeFileSync(adapterDriver, `#!/usr/bin/env node

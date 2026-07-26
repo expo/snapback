@@ -52,6 +52,18 @@ remote qualification, and the remote ephemeral corpus are still missing. The
 public target currently returns `SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED`, so
 the product receipt and ticket remain failed/open.
 
+**Runtime-artifact staging landed (2026-07-30):** `deploy build` now
+accepts `--runtime-artifact`/`--runtime-platform`/`--runtime-hermes-bundle`,
+staging the linux-x64 binary and libhermesvm.so into the immutable closure
+as scanned components plus a closed `runtimeArtifact` manifest fact with
+ELF-header platform authority at staging and verifyRelease time (salvaged
+from the interrupted 2026-07-26 lifecycle run, rebased across the bakeoff
+rework; the admission-keypair rotation that rode the original commit was
+superseded by hosted-v2-1 and dropped). This is the staging mechanism only:
+producing and pinning an actual Linux release-closure receipt through it,
+and the adapter-verification half of `control-plane.runtime-artifact`,
+remain open below.
+
 ## Bucket (b) — code exists, needs remote wiring
 
 - **`inspectAdmin` sourcing**: the driver refuses in-protocol; it needs the

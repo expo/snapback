@@ -711,11 +711,17 @@ function scanReleaseFile(path, releasePath) {
   }
   const bytes = readFileSync(path);
   const text = bytes.toString('utf8');
+  // Each pattern demands actual secret material, not the vocabulary around
+  // it: a PEM header must be followed by a base64 body (the header string
+  // alone is a constant in any code that FORMATS keys — the embedded crypto
+  // shim carries one), and a credential assignment must carry a token-shaped
+  // value (documentation placeholders like `...` are not credentials). Real
+  // keys and real tokens still refuse.
   const secretPatterns = [
-    /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----(?:\\r|\\n|\s)+[A-Za-z0-9+/=\\]{40,}/,
     /(?:^|[^A-Za-z0-9_])npm_[A-Za-z0-9]{30,}/,
     /(?:^|[^A-Za-z0-9_])gh[oprsu]_[A-Za-z0-9]{30,}/,
-    /(?:CLOUDFLARE_API_TOKEN|NPM_TOKEN)\s*=\s*[^\s"']+/,
+    /(?:CLOUDFLARE_API_TOKEN|NPM_TOKEN)\s*=\s*[A-Za-z0-9_-]{16,}/,
   ];
   if (secretPatterns.some((pattern) => pattern.test(text))) {
     throw diagnosticError(
@@ -760,6 +766,89 @@ function collectReleaseTree(root, releasePrefix) {
   };
   visit(releaseRoot);
   return files;
+}
+
+// EM_X86_64 is 62. The staged hosted runtime is validated by its ELF header
+// bytes, never by the packaging host's platform (LLP 0041 runtime
+// distribution rule, reused here for release staging).
+function elfMachineType(bytes) {
+  if (bytes.byteLength < 20 || bytes[0] !== 0x7f || bytes.toString('ascii', 1, 4) !== 'ELF') return null;
+  return bytes[5] === 1 ? bytes.readUInt16LE(18) : bytes.readUInt16BE(18);
+}
+
+const RUNTIME_ARTIFACT_PLATFORMS = new Map([
+  // platform → [expected ELF machine, component subpaths]
+  ['linux-x64', 62],
+]);
+
+// @ref LLP 0072#release-artifact — the hosted runtime/server artifact enters
+// the immutable closure as ordinary scanned components plus a closed
+// `runtimeArtifact` manifest fact (platform, digests, and the pinned Hermes
+// bundle identity), replacing the Dockerfile side-channel. Supplying it
+// narrows the `control-plane.runtime-artifact` GAP to the adapter-verification
+// half; it never claims on-target verification.
+function stageRuntimeArtifact(options) {
+  if (!options.runtimeArtifactDirectory) {
+    if (options.runtimePlatform || options.hermesBundleIdentity) {
+      throw diagnosticError(
+        'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+        '--runtime-platform and --runtime-hermes-bundle require --runtime-artifact',
+      );
+    }
+    return { components: [], fact: null };
+  }
+  const root = assertExistingDirectory(options.runtimeArtifactDirectory, 'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID');
+  const platform = options.runtimePlatform ?? null;
+  const expectedMachine = RUNTIME_ARTIFACT_PLATFORMS.get(platform);
+  if (expectedMachine === undefined) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+      'runtime artifact staging requires --runtime-platform naming an admitted platform',
+      { platform, admitted: [...RUNTIME_ARTIFACT_PLATFORMS.keys()] },
+    );
+  }
+  const identity = options.hermesBundleIdentity;
+  if (typeof identity !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{3,199}$/.test(identity)) {
+    throw diagnosticError(
+      'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+      'runtime artifact staging requires --runtime-hermes-bundle with the checksum-verified bundle identity',
+      { received: typeof identity },
+    );
+  }
+  const binarySource = join(root, 'bin', 'snapback');
+  const hermesSource = join(root, 'lib', 'libhermesvm.so');
+  for (const [path, name] of [[binarySource, 'bin/snapback'], [hermesSource, 'lib/libhermesvm.so']]) {
+    if (!existsSync(path)) {
+      throw diagnosticError(
+        'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+        `runtime artifact directory is missing ${name} (expected the @snapback/runtime-${platform} package layout)`,
+        { path: name },
+      );
+    }
+    const machine = elfMachineType(readFileSync(path));
+    if (machine !== expectedMachine) {
+      throw diagnosticError(
+        'SNAPBACK_RELEASE_RUNTIME_ARTIFACT_INVALID',
+        `runtime artifact ${name} is not a ${platform} ELF executable`,
+        { path: name, expectedMachine, observedMachine: machine },
+      );
+    }
+  }
+  const binaryComponent = scanReleaseFile(binarySource, `runtime/${platform}/bin/snapback`);
+  const hermesComponent = scanReleaseFile(hermesSource, `runtime/${platform}/lib/libhermesvm.so`);
+  return {
+    components: [binaryComponent, hermesComponent],
+    fact: {
+      platform,
+      hermesBundleIdentity: identity,
+      binaryPath: binaryComponent.path,
+      binarySha256: binaryComponent.sha256,
+      binaryBytes: binaryComponent.bytes,
+      hermesLibraryPath: hermesComponent.path,
+      hermesLibrarySha256: hermesComponent.sha256,
+      hermesLibraryBytes: hermesComponent.bytes,
+    },
+  };
 }
 
 function assertReleaseBudget(components) {
@@ -813,7 +902,7 @@ export function verifyRelease(releaseDirectory) {
   const manifestKeys = [
     'artifactKind', 'schemaVersion', 'releaseId', 'projectId', 'targetProfileId',
     'activationEligible', 'source', 'toolchain', 'compatibility', 'requiredCapabilities',
-    'components', 'scan', 'gaps',
+    'runtimeArtifact', 'components', 'scan', 'gaps',
   ];
   assertClosedKeys(manifest, manifestKeys, 'release manifest');
   assertClosedKeys(manifest.source, ['repositoryName', 'revision', 'sourceDateEpoch', 'dirty', 'dirtyPathsSha256'], 'release source');
@@ -920,6 +1009,45 @@ export function verifyRelease(releaseDirectory) {
       throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release component bytes do not match the retained digest', { path: component.path });
     }
     totalBytes += bytes.byteLength;
+  }
+  if (manifest.runtimeArtifact !== null) {
+    assertClosedKeys(
+      manifest.runtimeArtifact,
+      [
+        'platform', 'hermesBundleIdentity', 'binaryPath', 'binarySha256', 'binaryBytes',
+        'hermesLibraryPath', 'hermesLibrarySha256', 'hermesLibraryBytes',
+      ],
+      'release runtime artifact',
+    );
+    const fact = manifest.runtimeArtifact;
+    const expectedMachine = RUNTIME_ARTIFACT_PLATFORMS.get(fact.platform);
+    const byPath = new Map(manifest.components.map((component) => [component.path, component]));
+    if (
+      expectedMachine === undefined
+      || typeof fact.hermesBundleIdentity !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]{3,199}$/.test(fact.hermesBundleIdentity)
+    ) {
+      throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release runtime artifact has an unsupported platform or bundle identity');
+    }
+    for (const [pathField, shaField, bytesField] of [
+      ['binaryPath', 'binarySha256', 'binaryBytes'],
+      ['hermesLibraryPath', 'hermesLibrarySha256', 'hermesLibraryBytes'],
+    ]) {
+      const component = byPath.get(fact[pathField]);
+      if (!component || component.sha256 !== fact[shaField] || component.bytes !== fact[bytesField]) {
+        throw diagnosticError('SNAPBACK_RELEASE_MANIFEST_INVALID', 'release runtime artifact facts do not match a retained component', {
+          path: fact[pathField] ?? null,
+        });
+      }
+      // The staged bytes were already digest-verified above; the ELF header
+      // re-check keeps the platform claim honest against the actual closure.
+      const staged = readFileSync(join(root, ...component.path.split('/')));
+      if (elfMachineType(staged) !== expectedMachine) {
+        throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_TAMPERED', 'release runtime artifact is not the claimed platform ELF', {
+          path: component.path,
+        });
+      }
+    }
   }
   const observed = new Set();
   const visit = (directory) => {
@@ -1055,6 +1183,8 @@ export async function buildRelease(options = {}) {
     assertPathInside(projectRoot, webRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
     components.push(...collectReleaseTree(webRoot, 'web'));
   }
+  const runtimeArtifact = stageRuntimeArtifact(options);
+  components.push(...runtimeArtifact.components);
   components = components.sort((left, right) => left.path.localeCompare(right.path));
   const totalBytes = assertReleaseBudget(components);
   const gaps = [
@@ -1063,7 +1193,15 @@ export async function buildRelease(options = {}) {
       reason: `target capability manifest reports ${gap} as unsupported`,
       blocking: true,
     })),
-    ...RELEASE_CONTROL_GAPS.map(([id, reason]) => ({ id, reason, blocking: true })),
+    ...RELEASE_CONTROL_GAPS.map(([id, reason]) => (
+      id === 'control-plane.runtime-artifact' && runtimeArtifact.fact !== null
+        ? {
+          id: 'control-plane.runtime-artifact-adapter-verification',
+          reason: 'the staged hosted runtime artifact has not been verified on-target by the selected adapter',
+          blocking: true,
+        }
+        : { id, reason, blocking: true }
+    )),
   ].sort((left, right) => left.id.localeCompare(right.id));
   const content = {
     artifactKind: 'releaseManifest',
@@ -1086,6 +1224,7 @@ export async function buildRelease(options = {}) {
       inputsSha256: digestField(schemaManifest.inputsHash, 'schemaManifest.inputsHash'),
     },
     requiredCapabilities,
+    runtimeArtifact: runtimeArtifact.fact,
     components: components.map(({ sourcePath: _sourcePath, ...component }) => component),
     scan: {
       secretScan: 'passed',
@@ -2848,6 +2987,9 @@ export async function runCli(argv, options = {}) {
     const targetProfile = takeFlag(args, '--target-profile', 'local-dev-sqlite-ibex');
     const outputDirectory = takeFlag(args, '--output');
     const webDirectory = takeFlag(args, '--web-dist');
+    const runtimeArtifactDirectory = takeFlag(args, '--runtime-artifact');
+    const runtimePlatform = takeFlag(args, '--runtime-platform');
+    const hermesBundleIdentity = takeFlag(args, '--runtime-hermes-bundle');
     const allowDirty = takeBooleanFlag(args, '--allow-dirty');
     const backendDirectory = args[0]?.startsWith('--') ? 'snapback' : (args.shift() ?? 'snapback');
     if (args.length > 0) {
@@ -2859,6 +3001,9 @@ export async function runCli(argv, options = {}) {
       allowDirty,
       ...(outputDirectory ? { outputDirectory } : {}),
       ...(webDirectory ? { webDirectory } : {}),
+      ...(runtimeArtifactDirectory ? { runtimeArtifactDirectory } : {}),
+      ...(runtimePlatform ? { runtimePlatform } : {}),
+      ...(hermesBundleIdentity ? { hermesBundleIdentity } : {}),
       ...options,
     });
     printResult(result, json);
