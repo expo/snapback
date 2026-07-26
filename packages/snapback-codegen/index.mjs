@@ -1518,6 +1518,14 @@ export async function generateInProcess(backendDir, options = {}) {
   const cronJobs = buildCronJobs(cronDefs, functions, err);
   const projections = buildMaintainedProjections(projectionDefs, functions, err);
   const configEntries = buildConfigEntries(configDefs, functions, err);
+  // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
+  // has no function carrier, so its dependence on the relational engine
+  // rides the schema-level requirement: a target without
+  // `relational_query_v1` refuses at generation (below) and again at
+  // admission, never as a late activation surprise.
+  if (projections.length > 0 && !schemaRequiredCapabilities.includes('relational_query_v1')) {
+    schemaRequiredCapabilities.push('relational_query_v1');
+  }
 
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };

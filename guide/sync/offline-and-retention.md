@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-c
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: 8299c6ddb1c9019c08a72545c8e74998aeb2b5f5
 ---
 
 # Offline retention and mutation replay
@@ -150,6 +150,40 @@ received the acknowledgement. A Snapback-origin terminal receipt proves the
 origin saw the request and any piggyback acknowledgements. A receipt-less
 proxy/network failure proves neither, so both records remain durable for the
 next reconnect.
+
+## Migration boundaries: quarantine, don't fail
+
+A schema publication can refuse a replay with one of two stable codes, and
+neither is a mutation failure — the surface quarantines the write instead of
+settling it `failed`, and exposes the state for rendering via
+`surface.migrationBoundary()` (`null` in normal operation):
+
+- `SNAPBACK_MIGRATION_RESYNC_REQUIRED` — the record's read baseline predates
+  a successor-only publication and its row changed. The record stays
+  pending; the next `reconnect()` resyncs first, re-presents the **same**
+  `clientMutationId` with baselines refreshed from the successor snapshot,
+  and the server settles it exactly once.
+- `SNAPBACK_MIGRATION_UPGRADE_REQUIRED` — this client's artifacts predate a
+  successor-only publication. The state is stable for the lifetime of the
+  artifact-bound surface: the queue stays intact, nothing retries blindly,
+  and the app can render "update required".
+
+```js source=packages/snapback-contract/migration-quarantine.test.mjs
+  // Quarantine, not failure: the record is still pending, nothing entered
+  // the failed ledger, and the boundary state is app-renderable.
+  assert.equal(surface.pendingCount(), 1);
+  assert.deepEqual(await surface.failedMutations(), []);
+  const boundary = surface.migrationBoundary();
+  assert.equal(boundary?.kind, 'resync-required');
+  assert.equal(boundary?.code, 'SNAPBACK_MIGRATION_RESYNC_REQUIRED');
+```
+
+Across the artifact upgrade itself, payload custody follows the client
+store's privacy boundary: a write authored under predecessor artifacts is
+never blindly replayed under successor artifacts — the successor surface
+receives an explicit redacted `SNAPBACK_CLIENT_ARTIFACT_STALE` entry in
+`failedMutations()` (identity preserved, args discarded) for the app to
+re-enter, while the server keeps the refused `clientMutationId` fresh.
 
 ## Derive, then reconcile optimistic rows
 

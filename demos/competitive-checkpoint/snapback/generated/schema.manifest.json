@@ -9,6 +9,9 @@
   "generatedAt": 0,
   "inputsHash": "36738131457f873177a7256304e55ee0479216c7521fd2a11f4725012c5c040f",
   "portabilityFlags": [],
+  "requiredCapabilities": [
+    "relational_query_v1"
+  ],
   "schemaHash": "sha256:bdcfcd9c4e2f65a4",
   "schemaVersion": "snapback.v0",
   "tables": [

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { defineMaintainedProjection, defineSchema, defineTable, v } from './define.mjs';
+import { generate } from './index.mjs';
+
+const packageDir = dirname(fileURLToPath(import.meta.url));
+const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 
 // Authoring validation mirrors activation (LLP 0080 §5/§3): everything the
 // server would refuse at load refuses at generation with the same rules.
@@ -219,6 +227,116 @@ const refuses = (spec, pattern, label) => {
   );
   refuses({ ...base(tables), fanOutLimit: 0 }, /1 through 1023/, 'fanOutLimit 0');
   refuses({ ...base(tables), fanOutLimit: 1024 }, /1 through 1023/, 'fanOutLimit 1024');
+}
+
+// A projection has no function carrier, so the generated bundle surfaces
+// its relational-engine dependence as a schema-level requirement
+// (LLP 0080 §7): emitted exactly once, not duplicated over an authored
+// entry, and never emitted for a projection-free bundle.
+{
+  const schemaSource = (requiredCapabilities) => `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const books = defineTable({
+  title: v.string(),
+  authorSlug: v.optional(v.string()),
+  ownerId: v.principal(),
+})
+  .index('by_owner_title', ['ownerId', 'title'], { unique: true })
+  .index('by_author', ['authorSlug'])
+  .sync();
+export const authors = defineTable({
+  slug: v.string(),
+  name: v.string(),
+})
+  .index('by_slug', ['slug'], { unique: true })
+  .sync();
+export const bookCards = defineTable({
+  ownerId: v.principal(),
+  title: v.string(),
+  authorName: v.optional(v.string()),
+})
+  .index('cards_by_owner', ['ownerId'])
+  .sync();
+export default defineSchema(
+  { books, authors, bookCards },
+  { auth: { mode: 'dev' }${requiredCapabilities} },
+);
+`;
+  const projectionFunctions = `
+import schema from './schema.mjs';
+import { defineMaintainedProjection } from '${defineUrl}';
+
+export const bookCardsProjection = defineMaintainedProjection({
+  id: 'book-cards',
+  root: schema.tables.books,
+  joined: schema.tables.authors,
+  output: schema.tables.bookCards,
+  join: [{ root: 'authorSlug', joined: 'slug' }],
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: { kind: 'owner', field: 'ownerId' },
+  },
+  projection: {
+    ownerId: { root: 'ownerId' },
+    title: { root: 'title' },
+    authorName: { joined: 'name' },
+  },
+  rootReverseIndex: 'by_author',
+  fanOutLimit: 8,
+  sharedFanOutDisclosure: true,
+});
+`;
+  const generateCase = async (schemaExtra, functionsSource, { expectOk = true } = {}) => {
+    const dir = mkdtempSync(join(tmpdir(), 'snapback-projfacts-'));
+    try {
+      writeFileSync(join(dir, 'schema.mjs'), schemaSource(schemaExtra));
+      writeFileSync(join(dir, 'functions.mjs'), functionsSource);
+      const result = await generate(dir);
+      assert.equal(result.ok, expectOk, JSON.stringify(result.diagnostics));
+      if (!expectOk) return result;
+      return {
+        schema: JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'))),
+        functions: JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'))),
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  const carried = await generateCase('', projectionFunctions);
+  assert.deepEqual(
+    carried.schema.requiredCapabilities,
+    ['relational_query_v1'],
+    'a projection-carrying bundle requires the relational engine at schema level',
+  );
+  assert.equal(carried.functions.projections.length, 1);
+
+  // The id is derived from the projection's presence, never authored:
+  // defineSchema's closed authorable set refuses it at define time, so the
+  // emitted entry can only come from the derivation above (no duplication
+  // channel exists).
+  const authored = await generateCase(
+    ", requiredCapabilities: ['relational_query_v1']",
+    projectionFunctions,
+    { expectOk: false },
+  );
+  assert.match(
+    JSON.stringify(authored.diagnostics),
+    /unknown required target capability relational_query_v1/,
+    'hand-authoring the derived id refuses at define time',
+  );
+
+  const plain = await generateCase('', `
+import schema from './schema.mjs';
+export {};
+`);
+  assert.equal(
+    Object.hasOwn(plain.schema, 'requiredCapabilities'),
+    false,
+    'a projection-free bundle emits no schema-level relational requirement',
+  );
 }
 
 console.log('maintained-projections.test.mjs: all cases passed');

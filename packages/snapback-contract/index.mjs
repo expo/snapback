@@ -253,6 +253,20 @@ function staleContractAuthorityError() {
   return error;
 }
 
+// @ref LLP 0081#6-compatibility-and-deployment-ordering — the two stable
+//   migration-boundary refusals a client can receive across a schema
+//   publication. They are lifecycle states, not mutation outcomes: the
+//   quarantined write is preserved for resync-before-replay (or for replay
+//   after the app runs successor artifacts) and is never settled `failed`
+//   or silently dropped, unlike an ordinary receipted rejection.
+const CONTRACT_MIGRATION_BOUNDARY_KINDS = Object.freeze({
+  SNAPBACK_MIGRATION_RESYNC_REQUIRED: 'resync-required',
+  SNAPBACK_MIGRATION_UPGRADE_REQUIRED: 'upgrade-required',
+});
+const migrationBoundaryKindOf = (error) => (
+  CONTRACT_MIGRATION_BOUNDARY_KINDS[error?.diagnostic?.code ?? error?.code] ?? null
+);
+
 const CONTRACT_LIFECYCLE_GENERATION_MAX = Number.MAX_SAFE_INTEGER;
 const CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED =
   'SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED';
@@ -1139,6 +1153,35 @@ export async function createSnapbackContractSurface({
     }
     let durablePendingCount = 0;
     let retainedOffline = false;
+    // @ref LLP 0081#6-compatibility-and-deployment-ordering — the surface's
+    // observable migration-boundary state. Non-null exactly while queued
+    // work is quarantined behind a schema publication: `resync-required`
+    // clears when the refused record settles through resync-before-replay
+    // (same clientMutationId, baselines refreshed from the successor
+    // snapshot — the server settlement contract); `upgrade-required` is
+    // stable for the lifetime of this artifact-bound surface, holding the
+    // queue intact without retry storms or failed-settles. Payload custody
+    // across the artifact upgrade itself is the client store's committed
+    // privacy boundary (`scopeToArtifacts`): the successor surface receives
+    // explicit redacted `SNAPBACK_CLIENT_ARTIFACT_STALE` tombstones for app
+    // re-entry — never silent loss, and never blind cross-artifact replay
+    // (mutation-wire artifact identity is the LLP 0093-lane successor).
+    let migrationBoundary = null;
+    const rebaselineMutationIds = new Set();
+    const enterMigrationBoundary = (kind, error, details = {}) => {
+      const code = error?.diagnostic?.code ?? error?.code ?? null;
+      if (migrationBoundary?.kind !== kind) {
+        publishDiagnostic(code ?? 'SNAPBACK_MIGRATION_BOUNDARY', (
+          error?.diagnostic?.message
+          ?? (error instanceof Error ? error.message : String(error))
+        ), { boundary: kind, ...details });
+      }
+      migrationBoundary = { kind, code, since: Date.now(), ...details };
+    };
+    const clearMigrationBoundary = () => {
+      migrationBoundary = null;
+      rebaselineMutationIds.clear();
+    };
     let lastServerVersion = 0;
     const initialMutationQueueCapture = offlineReplayEnabled
       ? await clientStore.captureMutationQueue({
@@ -2037,6 +2080,22 @@ export async function createSnapbackContractSurface({
           await publishServerRows(errorCapture, lastServerRows, lastServerVersion);
           return mutationOutput;
         }
+        // A migration-boundary refusal is receipted but NOT a mutation
+        // outcome: the write intent survives the schema publication. Keep
+        // the record queued (never settle `failed`), surface the stable
+        // boundary state, and let the reconnect replay settle it through
+        // resync-before-replay (LLP 0081 §6).
+        const deliveryBoundaryKind = queued ? migrationBoundaryKindOf(error) : null;
+        if (deliveryBoundaryKind) {
+          retainedOffline = true;
+          if (deliveryBoundaryKind === 'resync-required') rebaselineMutationIds.add(queued.id);
+          await commitCurrent(errorCapture, () => enterMigrationBoundary(
+            deliveryBoundaryKind,
+            error,
+            { mutation: name, clientMutationId: queued.id },
+          ));
+          return { queued: true, clientMutationId: queued.id };
+        }
         if (queued && (isConnectivityFailure(error) || !error?.receipt)) {
           retainedOffline = true;
           publishDiagnostic(
@@ -2685,11 +2744,22 @@ export async function createSnapbackContractSurface({
       const capture = operationCapture();
 
       if (coordinator) await preflightDurable(capture);
-      const initialResync = await client.query(queryName, {
-        args: queryArgs,
-        userId: activeUserId,
-        authorityCapture: capture,
-      });
+      let initialResync;
+      try {
+        initialResync = await client.query(queryName, {
+          args: queryArgs,
+          userId: activeUserId,
+          authorityCapture: capture,
+        });
+      } catch (error) {
+        // An incompatible client refuses even the resync read: enter the
+        // stable upgrade-required boundary (queue intact, nothing settled)
+        // instead of surfacing a generic query failure the app might retry
+        // blindly (LLP 0081 §6).
+        const boundaryKind = migrationBoundaryKindOf(error);
+        if (boundaryKind) enterMigrationBoundary(boundaryKind, error, { operation: 'resync' });
+        throw error;
+      }
       const resyncCapture = captureForTransportValue(client, capture, initialResync);
       const resynced = await publishServerRows(
         resyncCapture,
@@ -2706,6 +2776,25 @@ export async function createSnapbackContractSurface({
       });
       let replayed = 0;
       let failed = 0;
+      const resyncedVersions = new Map(
+        (initialResync.rows ?? []).map((row) => [row._id, row._version]),
+      );
+      // A record previously refused `resync-required` re-presents the SAME
+      // logical mutation under the SAME clientMutationId with baselines
+      // refreshed from the successor snapshot — the server settlement
+      // contract's resync-before-replay form. Deps outside the bound
+      // surface stay as recorded for the server to adjudicate; records
+      // never refused keep their recorded baselines so ordinary conflict
+      // detection is not eroded.
+      const rebaselineReadSet = (record) => {
+        const readSet = record.readSet ?? [];
+        if (!rebaselineMutationIds.has(record.id) || readSet.length === 0) return readSet;
+        return readSet.map((dependency) => (
+          dependency.table === boundTable && resyncedVersions.has(dependency.id)
+            ? { ...dependency, version: resyncedVersions.get(dependency.id) }
+            : dependency
+        ));
+      };
       for (const record of queued) {
         const sentAcknowledgements = await clientStore.pendingMutationAcknowledgements(
           MAX_OFFLINE_LEDGER_IDS,
@@ -2721,7 +2810,7 @@ export async function createSnapbackContractSurface({
           const output = await client.mutate(record.function, {
             args: record.args,
             userId: activeUserId,
-            readSet: record.readSet ?? [],
+            readSet: rebaselineReadSet(record),
             correlation: surfaceCorrelation,
             clientMutationId: record.id,
             acknowledgedClientMutationIds: sentAcknowledgements,
@@ -2742,6 +2831,11 @@ export async function createSnapbackContractSurface({
           });
           await commitCurrent(resultCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);
+            // A settle under the current artifacts proves the boundary
+            // passed: resync-before-replay completed (or the upgraded
+            // client attested) for this queue position.
+            rebaselineMutationIds.delete(record.id);
+            if (migrationBoundary) clearMigrationBoundary();
           });
           await flushPendingAcknowledgements(resultCapture);
           replayed += 1;
@@ -2749,6 +2843,21 @@ export async function createSnapbackContractSurface({
           const errorCapture = captureForTransportValue(client, resyncCapture, error);
           if (coordinator && !coordinator.isCurrent(errorCapture)) {
             throw staleContractAuthorityError();
+          }
+          // Migration-boundary refusals preserve the record: quarantine is
+          // a lifecycle state, not a failure. Halt the pass (queue and
+          // order intact); the next reconnect resyncs first and re-baselines
+          // exactly the refused record (LLP 0081 §6).
+          const boundaryKind = migrationBoundaryKindOf(error);
+          if (boundaryKind) {
+            retainedOffline = true;
+            if (boundaryKind === 'resync-required') rebaselineMutationIds.add(record.id);
+            await commitCurrent(errorCapture, () => enterMigrationBoundary(
+              boundaryKind,
+              error,
+              { mutation: record.function, clientMutationId: record.id },
+            ));
+            throw error;
           }
           // Only a provider-core mutation receipt proves the request crossed
           // the origin handler's ACK stage. A proxy/load-balancer 4xx/5xx may
@@ -2870,6 +2979,17 @@ export async function createSnapbackContractSurface({
       diagnostics,
       pendingCount: () => Math.max(pending.size, durablePendingCount),
       retained: () => retainedOffline,
+      // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+      // app-renderable quarantine state. Null in normal operation;
+      // `{ kind: 'resync-required' | 'upgrade-required', code, since, ... }`
+      // while queued work is held behind a schema publication. A boundary
+      // refusal never terminally fails or drops the record: payloads stay
+      // durable in the pending queue (visible via pendingCount) for this
+      // surface's artifact generation, and `resync-required` settles on the
+      // next reconnect. After an artifact upgrade the store's privacy
+      // boundary surfaces undelivered predecessor writes as redacted
+      // `SNAPBACK_CLIENT_ARTIFACT_STALE` entries in failedMutations().
+      migrationBoundary: () => (migrationBoundary ? { ...migrationBoundary } : null),
       reconnect: () => track(replayAfterReconnect()),
       failedMutations: async () => {
         if (!clientStore?.failedMutations) return [];
