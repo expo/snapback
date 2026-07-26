@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-26T00:14:28.272Z",
+  "generatedAt": "2026-07-26T09:49:59.349Z",
   "revisions": {
-    "snapback": "d8a2411faaf12db19280775fa28b5621ee11f74f",
+    "snapback": "ef6d01d8ae44889ab60653bb34e9e026d50abaa1",
     "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "oq9": {
@@ -755,21 +755,145 @@
     }
   ],
   "manualDeviceGate": {
-    "status": "red",
-    "reason": "governed-device-receipt-invalid",
-    "validationError": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    path: 'docs/reports/web-citizenship-ime-forms.json',\n    repository: 'exact',\n+   sha256: '7a2d9c7acbfb24caf36bae0bf399ef25f63d9732636bb9ab767723eac70795a3'\n-   sha256: 'ca3b6523e7c019543ea449a6fe4c2621eecdff21ec5b075cb971680ffddb1a81'\n  }\n",
+    "status": "pass",
+    "reason": null,
+    "requiredRowIds": [
+      "ios-safari-current:autofill-password-manager",
+      "ios-safari-current:bfcache-restore",
+      "ios-safari-current:find-on-page",
+      "ios-safari-current:focus-trap-restore",
+      "ios-safari-current:ime-composition"
+    ],
+    "duplicateIds": [],
+    "rows": [
+      {
+        "id": "ios-safari-current:autofill-password-manager",
+        "environment": "ios-safari-current",
+        "assertion": "autofill-password-manager",
+        "acceptedFixtures": [
+          "facet-form-fixture"
+        ],
+        "status": "pass",
+        "issues": [],
+        "fixture": "facet-form-fixture",
+        "notes": "The operator selected a saved login through the real 1Password iOS extension; both named controls populated, the password stayed masked, and Contract exposed Credentials received by Contract state.",
+        "evidence": [
+          {
+            "kind": "physical-ios-attended-1password-screenshot-tree-and-result",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
+              "sha256": "ca92f81084f3e42b92905f70663455adae03ccc0bd43a5740f1bac4b156fe924"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ios-safari-current:bfcache-restore",
+        "environment": "ios-safari-current",
+        "assertion": "bfcache-restore",
+        "acceptedFixtures": [
+          "multi-route-bfcache"
+        ],
+        "status": "pass",
+        "issues": [],
+        "fixture": "multi-route-bfcache",
+        "notes": "Physical Mobile Safari restored the unchanged Caltrain to Forms to Back fixture with Millbrae state and Matches intact; the causal old-remount A/B reset to Mountain View.",
+        "evidence": [
+          {
+            "kind": "physical-ios-xcresult-screenshot-tree-and-causal-ab",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
+              "sha256": "709d1aa899d7c8395370022cdf59484cbf5f0b74ca41950270805890e1a89108"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ios-safari-current:find-on-page",
+        "environment": "ios-safari-current",
+        "assertion": "find-on-page",
+        "acceptedFixtures": [
+          "caltrain-contract-search"
+        ],
+        "status": "pass",
+        "issues": [],
+        "fixture": "caltrain-contract-search",
+        "notes": "Physical Mobile Safari Find on Page located visible Contract text Mountain View, reported 1 of 1, dismissed cleanly, and left the page usable.",
+        "evidence": [
+          {
+            "kind": "physical-ios-screenshot-tree-and-observation",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ios-safari-current:focus-trap-restore",
+        "environment": "ios-safari-current",
+        "assertion": "focus-trap-restore",
+        "acceptedFixtures": [
+          "facet-contract-overlay-fixture"
+        ],
+        "status": "pass",
+        "issues": [],
+        "fixture": "facet-contract-overlay-fixture",
+        "notes": "Physical Mobile Safari opened the Contract-owned dialog, retained focus inside it, dismissed through Done, removed the dialog, and restored focus to Open Contract dialog.",
+        "evidence": [
+          {
+            "kind": "physical-ios-screenshot-tree-and-observation",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
+              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ios-safari-current:ime-composition",
+        "environment": "ios-safari-current",
+        "assertion": "ime-composition",
+        "acceptedFixtures": [
+          "caltrain-contract-search",
+          "facet-form-fixture"
+        ],
+        "status": "pass",
+        "issues": [],
+        "fixture": "facet-form-fixture",
+        "notes": "The operator used the Japanese Romaji system keyboard in physical Mobile Safari to compose and commit 東京; Contract exposed Committed value: 東京 and Commit count: 1.",
+        "evidence": [
+          {
+            "kind": "physical-ios-attended-ime-screenshot-tree-and-result",
+            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
+            "artifact": {
+              "repository": "exact",
+              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
+              "sha256": "076ab65188fa6bcb980f16f3f059a9c916d38e4d8ca61b49348a0449c15f7c0a"
+            }
+          }
+        ]
+      }
+    ],
     "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-    "sha256": "666700f7c7158c0410aa77f3f7ee6c4b46619aab3f2422bae914ad4cfe4a48e4",
-    "rows": []
+    "sha256": "68fea2cc0656df20520de02d3adcea94b2a7cfa14e62a67287335f3a3cac877f"
   },
   "visualApproval": {
-    "status": "red",
+    "status": "pass",
     "captureComplete": true,
-    "approvalStatus": "pending-human-review",
+    "approvalStatus": "approved",
     "artifactCount": 156,
     "requiredArtifactCount": 156,
     "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-    "sha256": "3ce1696749c3720c54c2f1939f369ac90cb0be60420153d089c4f0dd9911d4ab"
+    "sha256": "a9b2a983a69785d9ef15bc1e021b277b7d33ddbe3f89ef2dd89ee0244843706d"
   },
   "inputs": {
     "generator": {
@@ -1356,13 +1480,13 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "red",
-        "reason": "governed-device-receipt-invalid"
+        "status": "pass",
+        "reason": null
       }
     },
     {
       "claimId": "STEP4.UI.FOCUS",
-      "status": "red",
+      "status": "pass",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1386,8 +1510,8 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "red",
-        "reason": "governed-device-receipt-invalid"
+        "status": "pass",
+        "reason": null
       }
     },
     {
@@ -1418,7 +1542,7 @@
     },
     {
       "claimId": "STEP4.UI.A11Y",
-      "status": "red",
+      "status": "pass",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1442,13 +1566,13 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "red",
-        "reason": "governed-device-receipt-invalid"
+        "status": "pass",
+        "reason": null
       }
     },
     {
       "claimId": "STEP4.UI.VISUAL",
-      "status": "red",
+      "status": "pass",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1472,13 +1596,13 @@
         }
       ],
       "visualApproval": {
-        "status": "red",
+        "status": "pass",
         "captureComplete": true,
-        "approvalStatus": "pending-human-review",
+        "approvalStatus": "approved",
         "artifactCount": 156,
         "requiredArtifactCount": 156,
         "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-        "sha256": "3ce1696749c3720c54c2f1939f369ac90cb0be60420153d089c4f0dd9911d4ab"
+        "sha256": "a9b2a983a69785d9ef15bc1e021b277b7d33ddbe3f89ef2dd89ee0244843706d"
       }
     }
   ],

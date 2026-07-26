@@ -51,13 +51,17 @@
   },
   "captureComplete": true,
   "approval": {
-    "status": "pending-human-review",
+    "status": "approved",
     "rule": "Each image must be reviewed against its visual-spec.v1 acceptance text. React is a measured control, never the Contract oracle.",
-    "approvedBy": null,
-    "approvedAt": null,
-    "specVersion": "partitime.visual.v1"
+    "approvedBy": "ccheever",
+    "approvedAt": "2026-07-26T09:39:32.010Z",
+    "specVersion": "partitime.visual.v1",
+    "artifact": {
+      "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/approval.json",
+      "sha256": "6219493fd00922caa799e425f061fb10b09fab07574b005fd47dd5a83736cebd"
+    }
   },
-  "outcome": "pending-human-review",
+  "outcome": "pass",
   "isolation": "fresh backend and browser process per arm × theme × viewport shard",
   "shardRuns": [
     {

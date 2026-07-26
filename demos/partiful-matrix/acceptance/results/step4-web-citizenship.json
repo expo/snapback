@@ -7,21 +7,21 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-25T23:12:21.910Z",
+  "recordedAt": "2026-07-26T09:49:57.256Z",
   "repository": {
-    "snapbackRevision": "410cf01342a1185ba3efce684e547881185f6aa7",
-    "exactRevision": "83ffa30bc56924252660fcefa7bf7185bf432c11"
+    "snapbackRevision": "ef6d01d8ae44889ab60653bb34e9e026d50abaa1",
+    "exactRevision": "1b4191d5453cde804ac4742a4823ba1f5ee7cd77"
   },
   "inputs": {
     "exactReport": {
       "repository": "exact",
       "path": "docs/reports/web-citizenship-ime-forms.json",
-      "sha256": "7a2d9c7acbfb24caf36bae0bf399ef25f63d9732636bb9ab767723eac70795a3"
+      "sha256": "de35759ed36a3d615e309dec0c4f49fbe4a291b017611d8305564a4092ff25ec"
     },
     "exactValidator": {
       "repository": "exact",
       "path": "scripts/check-web-citizenship-ime-forms.mjs",
-      "sha256": "015fd3f9437423ceac5b94bca71b3d7e2a8b23ff942db6c7de326dd62a2e36e6"
+      "sha256": "5d5a147ca70ef769cd027c332934dbd9fff300c716510ac91796f788e14df08c"
     },
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-web-citizenship.mjs",
@@ -31,8 +31,8 @@
   "sourceStatus": "pending-manual-device-matrix",
   "sourceRun": null,
   "summary": {
-    "passed": 9,
-    "red": 12,
+    "passed": 11,
+    "red": 10,
     "total": 21,
     "structuralFailures": 0
   },
@@ -304,9 +304,20 @@
       "acceptedFixtures": [
         "facet-form-fixture"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "facet-form-fixture",
+      "notes": "The operator selected a saved login through the real 1Password iOS extension; both named controls populated, the password stayed masked, and Contract exposed Credentials received by Contract state.",
+      "evidence": [
+        {
+          "kind": "physical-ios-attended-1password-screenshot-tree-and-result",
+          "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
+            "sha256": "ca92f81084f3e42b92905f70663455adae03ccc0bd43a5740f1bac4b156fe924"
+          }
+        }
       ]
     },
     {
@@ -386,9 +397,20 @@
         "caltrain-contract-search",
         "facet-form-fixture"
       ],
-      "status": "red",
-      "issues": [
-        "evidence-missing"
+      "status": "pass",
+      "issues": [],
+      "fixture": "facet-form-fixture",
+      "notes": "The operator used the Japanese Romaji system keyboard in physical Mobile Safari to compose and commit 東京; Contract exposed Committed value: 東京 and Commit count: 1.",
+      "evidence": [
+        {
+          "kind": "physical-ios-attended-ime-screenshot-tree-and-result",
+          "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
+            "sha256": "076ab65188fa6bcb980f16f3f059a9c916d38e4d8ca61b49348a0449c15f7c0a"
+          }
+        }
       ]
     }
   ],
