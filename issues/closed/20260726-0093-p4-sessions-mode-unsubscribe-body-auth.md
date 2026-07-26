@@ -57,7 +57,7 @@ is scoped to the modes where the client actually carries it.
 
 ## Related
 
-- `issues/20260726-0093-p4-live-auth-placement-asymmetry.md` (Dart P-4) —
+- `issues/closed/20260726-0093-p4-live-auth-placement-asymmetry.md` (Dart P-4) —
   the *placement* half of the same sentence: subscribe nests `auth` under
   `input`, unsubscribe carries it at top level.
 

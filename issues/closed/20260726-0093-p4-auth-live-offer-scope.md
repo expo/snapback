@@ -66,7 +66,7 @@ structured refusals are doing a lot of work that the prose is not.
 
 ## Related
 
-- `issues/20260726-0093-p4-authorization-namespace-undocumented.md` — the
+- `issues/closed/20260726-0093-p4-authorization-namespace-undocumented.md` — the
   other undocumented precondition on the same call.
 
 ## Resolution

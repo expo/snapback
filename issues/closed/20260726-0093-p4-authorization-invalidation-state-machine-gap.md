@@ -87,7 +87,7 @@ client, because there is no model to judge it against.
 
 ## Related
 
-- `issues/20260726-0093-p4-committed-kinds-outside-the-conformance-vocabulary.md`
+- `issues/closed/20260726-0093-p4-committed-kinds-outside-the-conformance-vocabulary.md`
   (Dart P-4, filed independently the same day) reaches the same structural
   conclusion from the corpus side — `current_as_of` and
   `authorization_invalidation` are committed kinds with no action vocabulary

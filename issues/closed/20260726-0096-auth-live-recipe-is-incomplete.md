@@ -8,9 +8,9 @@ apply-then-acknowledge cycle.
 
 > **Scope note.** The concurrent P-4 **Kotlin** build independently filed the
 > two larger `auth/live` gaps, and this ticket does not restate them:
-> `issues/20260726-0093-p4-authorization-namespace-undocumented.md`
+> `issues/closed/20260726-0093-p4-authorization-namespace-undocumented.md`
 > (`authorizationNamespace` is required and appears in no LLP) and
-> `issues/20260726-0093-p4-authorization-invalidation-state-machine-gap.md`
+> `issues/closed/20260726-0093-p4-authorization-invalidation-state-machine-gap.md`
 > (LLP 0095 has no transition for the only envelope an auth-scoped live
 > query delivers). Both reproduce exactly here — see the corroboration note
 > at the bottom. What follows is what remains once the acknowledge actually

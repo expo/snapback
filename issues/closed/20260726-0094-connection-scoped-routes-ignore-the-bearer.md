@@ -7,9 +7,9 @@
 
 > **Scope note.** The concurrent P-4 **Kotlin** build independently filed the
 > two adjacent findings this ticket does not restate:
-> `issues/20260726-0093-p4-connection-open-auth-rr-gate.md`
+> `issues/closed/20260726-0093-p4-connection-open-auth-rr-gate.md`
 > (`/connection/open` is labelled Public but demands the `auth/rr` offer)
-> and `issues/20260726-0093-p4-sessions-mode-unsubscribe-body-auth.md`
+> and `issues/closed/20260726-0093-p4-sessions-mode-unsubscribe-body-auth.md`
 > (T-UNSUB's recipe is dev-mode-only). Both reproduce here. This ticket is
 > the consequence neither of them draws out.
 
