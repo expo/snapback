@@ -1,6 +1,6 @@
 # 0081: hosted Durable Object executor profile (deferred)
 
-**Status:** Open — OQ7 answered 2026-07-26 (container-VM first, DO explicit second; both must reach production quality). Slice 1 (profile LLP) in flight; slices 2-3 gated on the LLP 0072 container-VM drill earning remote evidence.
+**Status:** Open — OQ7 answered 2026-07-26 (container-VM first, DO explicit second; both must reach production quality). Slice 1 done: LLP 0099 (`container-vm-migration-executor.v1`, Draft) specifies the profile, including the 0072-lane custody residuals below as spec. Slices 2-3 (executor arm, remote corpus) gated on LLP 0099 G1: the container-VM adapter passing the LLP 0072 drill corpus with remote evidence.
 **Severity:** P3
 **Systems:** Migrations, Deployment, Cloudflare
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -84,3 +84,15 @@ control-plane pieces the local profile cannot express — authenticated
 rehearsal-receipt custody as a control-plane record, and binding the
 rehearsal's `source_backup_identity` to a verified LLP 0072 backup manifest
 rather than an operator-asserted string.
+
+## Slice 1 record (2026-07-26)
+
+[LLP 0099](../llp/0099-container-vm-migration-executor-profile.spec.md)
+authored (Draft): identity binding (all nine audience fields required;
+approval as an audited LLP 0072 control-plane operation), executor
+placement on the single-instance lifecycle (supervisor-restart resume, no
+dispatcher/alarm machinery), the interruption-class mapping for the 0081
+fault matrix, control-plane custody for approvals and rehearsal receipts
+(closing the custody residuals above as spec), the remote-vs-local corpus
+split, and the G1→G2→G3 gate ladder. The custody residuals section above
+stays as the historical record; its normative home is now LLP 0099.
