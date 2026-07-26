@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-23
-**Revised:** 2026-07-23 (round-1 multi-family review: Gate 0 restated as a checklist; Miniflare sequencing pinned; LLP 0014 storage invariant pinned across topologies; authority boundaries corrected; Gate 2 split into entry/exit; artifact-security workstream added; concurrent spike progress note integrated. Round-2: trusted-code posture pinned; Gate 0 receipt named and adversarial two-app leg added; Gate 1 remote runners corrected; Phase 1 fixture-only artifact store; Phase 2 prerequisites extended to LLP 0060/0019 and fallback repointed off the handler op table; Gate 2 entry made conjunctive)
+**Revised:** 2026-07-25 (Phase 0 progress reconciled to the signed v2 probe list without advancing Gate 0); 2026-07-23 (round-1 multi-family review: Gate 0 restated as a checklist; Miniflare sequencing pinned; LLP 0014 storage invariant pinned across topologies; authority boundaries corrected; Gate 2 split into entry/exit; artifact-security workstream added; concurrent spike progress note integrated. Round-2: trusted-code posture pinned; Gate 0 receipt named and adversarial two-app leg added; Gate 1 remote runners corrected; Phase 1 fixture-only artifact store; Phase 2 prerequisites extended to LLP 0060/0019 and fallback repointed off the handler op table; Gate 2 entry made conjunctive)
 **Related:** LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0014, LLP 0018, LLP 0019, LLP 0024, LLP 0033, LLP 0040, LLP 0047, LLP 0048, LLP 0049, LLP 0060, LLP 0070, LLP 0083, LLP 0086, ENG-25387, https://developers.cloudflare.com/dynamic-workers/usage/durable-object-facets/
 
 ## Summary
@@ -153,6 +153,26 @@ documents, not gate passes here.
 > Gate 2. Still open for Gate 0: the LLP 0009 isolation review, real-platform
 > measurements (cold start, hibernation, alarms/PITR per facet, metered
 > billing), and facet class migration semantics.
+>
+> **Progress note (2026-07-23, later same day; reconciled 2026-07-25):**
+> the Phase 0 reconnaissance instruments now exist:
+> `cloudflare/spike-facets/harness.mjs` exercises partial, explicitly
+> non-gating shapes of P1/P2/P3/P4/P5/P7/P8 across A/B/C and the compiled-in
+> baseline, while `cloudflare/spike-facets/gate0-probe-list.md` v2 defines
+> the full P1–P13 suite-level and on-platform criteria. Local reconnaissance
+> observed green partial shapes for P1/P2/P3/P5/P8 in all three candidates
+> (including roughly 4–7 ms query p95 during a 1.5 s slow action), but those
+> results validate the instrument only and discharge no Gate 0 probe. P4
+> contention is not locally answerable: app 2 starved during app 1's CPU spin
+> in every topology, including the compiled-in control, so the authoritative
+> contention leg remains on-platform.
+>
+> The LLP 0009 pre-leg review is now complete: the recorded round-2 review
+> approved the v2 probe list with no required or advisory changes, so the
+> suite-level isolation leg may run. Gate 0 remains open pending that leg,
+> the on-platform measurements, the post-leg results review, and the other
+> lifecycle/economics findings enumerated below. No topology is selected and
+> no Phase 1 authorization follows from this progress.
 
 1. Land the ENG-25387 [LLP 0014](./0014-cloudflare-strategy.rfc.md)
    platform-fact refresh (dynamic code loading exists; storage billing
