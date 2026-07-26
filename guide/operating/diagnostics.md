@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed-commit: 5606ab06
 ---
 
 # Diagnostics and local doctoring

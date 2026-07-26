@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "68b31f825a72e8187b2a741aec97e13ae094b14a"
+    "commit": "4be4bbc36984e42f7047535837ebdf5c5ba243cb"
   },
   "nav": {
     ".": [
@@ -682,8 +682,8 @@
         "packages/snapback-codegen/standard-patterns.test.mjs"
       ],
       "reviewed": "2026-07-26",
-      "reviewedCommit": "HEAD",
-      "sha256": "79fe957aa94206b1bad0b261463b2e3693859c8582ca25af093c991c119b47e3",
+      "reviewedCommit": "5606ab06",
+      "sha256": "633c73db0672d6606c8267394a5f9355fcfe2b506f6da3b77be81594166c70f9",
       "snippets": [
         {
           "lang": "js",
@@ -776,8 +776,8 @@
         "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json"
       ],
       "reviewed": "2026-07-26",
-      "reviewedCommit": "HEAD",
-      "sha256": "889ec6515bc8a39fdd8ee8a92fe5f9037a5ed7e971806373496474848a0fb9df",
+      "reviewedCommit": "5606ab06",
+      "sha256": "5a16b6f1089c676635736960ca949e6ea186488328941306af30756f475e3978",
       "snippets": [
         {
           "lang": "js",
@@ -1338,8 +1338,8 @@
         "packages/snapback-codegen/authoring-validation.test.mjs"
       ],
       "reviewed": "2026-07-26",
-      "reviewedCommit": "HEAD",
-      "sha256": "7042a38996ba7292f75cbfd05fcd9b33ca32c5d8ab02657bdd11f80b547eb47c",
+      "reviewedCommit": "5606ab06",
+      "sha256": "4a46ff4301d8f33dd085dbca1ab1d45eb5596a3db2ffafb6e8368f7f3805fea6",
       "snippets": [
         {
           "lang": "js",
@@ -1795,5 +1795,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "2cc5a4acbf1e5466a5b81701a6fb78747681dd54c0f488be554c385cad1c2c78"
+  "contentHash": "4ac4b15fc1d6bce8744abfa88ec959e36d9a8b34b55119764e2a7ec88f410983"
 }
