@@ -246,6 +246,32 @@ export function inspectPartitimeEngineClaim(engine, claimId) {
   return { browserId: engine.browserId, status: 'pass', reason: null };
 }
 
+export function evaluatePartitimeUiClaim({
+  claimId,
+  automated,
+  manualStatus,
+  visualStatus,
+  fixtureSourceParityStatus,
+}) {
+  const needsManual = ['STEP4.UI.KEYBOARD', 'STEP4.UI.FOCUS', 'STEP4.UI.A11Y'].includes(claimId);
+  const passes = fixtureSourceParityStatus === 'pass'
+    && automated.every((cell) => cell.status === 'pass')
+    && (!needsManual || manualStatus === 'pass')
+    && (claimId !== 'STEP4.UI.VISUAL' || visualStatus === 'pass');
+  return {
+    status: passes ? 'pass' : 'red',
+    reason: fixtureSourceParityStatus !== 'pass'
+      ? 'fixture-source-parity-red'
+      : automated.some((cell) => cell.status !== 'pass')
+        ? 'automated-claim-red'
+        : needsManual && manualStatus !== 'pass'
+          ? 'manual-device-gate-red'
+          : claimId === 'STEP4.UI.VISUAL' && visualStatus !== 'pass'
+            ? 'visual-approval-red'
+            : null,
+  };
+}
+
 export function inspectAttendedTextEvidence(entries, expectedValues, operator) {
   const errors = [];
   if (!Array.isArray(entries) || entries.length !== expectedValues.length) {

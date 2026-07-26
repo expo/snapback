@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  evaluatePartitimeUiClaim,
   inspectAttendedTextEvidence,
   inspectPartitimeEngineClaim,
   inspectPartitimeManualDeviceGate,
@@ -69,14 +70,16 @@ const visualApproval = {
 const claimResults = claims.map((claimId) => {
   const automated = engineCells.map((engine) => inspectPartitimeEngineClaim(engine, claimId));
   const needsManual = ['STEP4.UI.KEYBOARD', 'STEP4.UI.FOCUS', 'STEP4.UI.A11Y'].includes(claimId);
-  const status = automated.every((cell) => cell.status === 'pass')
-    && (!needsManual || manual.status === 'pass')
-    && (claimId !== 'STEP4.UI.VISUAL' || visualApproval.status === 'pass')
-    ? 'pass'
-    : 'red';
+  const result = evaluatePartitimeUiClaim({
+    claimId,
+    automated,
+    manualStatus: manual.status,
+    visualStatus: visualApproval.status,
+    fixtureSourceParityStatus: fixtureSourceParity.status,
+  });
   return {
     claimId,
-    status,
+    ...result,
     automated,
     ...(needsManual ? { manualDeviceGate: { status: manual.status, reason: manual.reason } } : {}),
     ...(claimId === 'STEP4.UI.VISUAL' ? { visualApproval } : {}),
@@ -90,7 +93,7 @@ const report = {
   oq9: { path: relative(exactRoot, oq9Path), sha256: digest(oq9Path), status: oq9.status },
   policy: {
     skip: 'forbidden',
-    passRule: 'Every automated OQ9 browser cell, applicable real-device manual row, and the recorded visual approval must pass. Missing evidence is red.',
+    passRule: 'Current product sources must match the approved fixture revision, and every automated OQ9 browser cell, applicable real-device manual row, and the recorded visual approval must pass. Missing or stale evidence is red.',
   },
   engines: engineCells,
   manualDeviceGate: manual,

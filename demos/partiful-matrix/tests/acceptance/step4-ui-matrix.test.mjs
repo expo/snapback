@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  evaluatePartitimeUiClaim,
   inspectAttendedTextEvidence,
   inspectPartitimeEngineClaim,
   inspectPartitimeManualDeviceGate,
@@ -93,6 +94,52 @@ test('engine revision diagnostics retain the fixture mismatch reason', () => {
     receiptComplete: true,
     claimResults: [{ claimId: 'STEP4.UI.KEYBOARD', status: 'pass' }],
   }, 'STEP4.UI.KEYBOARD').reason, 'fixture-revision-mismatch');
+});
+
+test('every UI claim fails closed when current product sources drift from the approved fixture', () => {
+  for (const claimId of [
+    'STEP4.UI.RESPONSIVE',
+    'STEP4.UI.KEYBOARD',
+    'STEP4.UI.FOCUS',
+    'STEP4.UI.REDUCED-MOTION',
+    'STEP4.UI.A11Y',
+    'STEP4.UI.VISUAL',
+  ]) {
+    assert.deepEqual(evaluatePartitimeUiClaim({
+      claimId,
+      automated: [{ status: 'pass' }],
+      manualStatus: 'pass',
+      visualStatus: 'pass',
+      fixtureSourceParityStatus: 'red',
+    }), {
+      status: 'red',
+      reason: 'fixture-source-parity-red',
+    });
+  }
+});
+
+test('UI claim diagnostics distinguish engine, manual, and visual failures', () => {
+  assert.equal(evaluatePartitimeUiClaim({
+    claimId: 'STEP4.UI.RESPONSIVE',
+    automated: [{ status: 'red' }],
+    manualStatus: 'pass',
+    visualStatus: 'pass',
+    fixtureSourceParityStatus: 'pass',
+  }).reason, 'automated-claim-red');
+  assert.equal(evaluatePartitimeUiClaim({
+    claimId: 'STEP4.UI.FOCUS',
+    automated: [{ status: 'pass' }],
+    manualStatus: 'red',
+    visualStatus: 'pass',
+    fixtureSourceParityStatus: 'pass',
+  }).reason, 'manual-device-gate-red');
+  assert.equal(evaluatePartitimeUiClaim({
+    claimId: 'STEP4.UI.VISUAL',
+    automated: [{ status: 'pass' }],
+    manualStatus: 'pass',
+    visualStatus: 'red',
+    fixtureSourceParityStatus: 'pass',
+  }).reason, 'visual-approval-red');
 });
 
 test('attended text evidence requires operator soft-keyboard input and exact values', () => {

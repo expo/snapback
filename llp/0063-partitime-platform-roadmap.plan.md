@@ -1,5 +1,21 @@
 # LLP 0063: Partitime platform roadmap
 
+**Revised (Phase 4 upstream-integration checkpoint):** 2026-07-26 (the
+Phase 4 evidence branch merged Snapback `origin/main` revision
+`e87a630907a86494b56f7280ee2da0322ca295de` without rebasing or rewriting
+frozen artifacts; merge checkpoint
+`be0331f41f309fd3d84cc9cb29f0ec817fbe8f43` retains all 46 cumulative claims,
+and the structural manifest validator passes. The complete 156-artifact human
+visual approval remains preserved and digest-bound to its captured fixture
+revisions, Snapback `4f38a62e…` and Exact `5ea17e87…`; it is not carried
+forward as approval of the integrated product source. Sixteen governed fixture
+paths differ after the merge, so source parity is red. A collector defect that
+reported individual UI claims green despite that red parity was corrected and
+regression-tested; the current integrated OQ9 receipt therefore fails closed at
+0/6 until a new source-bound capture and the remaining device evidence are
+completed. No threshold, workload, mandatory-claim inventory, or gate status
+was weakened, and this checkpoint promotes no phase.)
+
 **Revised (WS6 baseline prose reconciled):** 2026-07-26 (the flagged 168-vs-190 discrepancy is resolved by inspection of the pinned freeze source, `demos/partiful-matrix/acceptance/results/step0-attribution.json` at revision 508956134f3517169735078272a846e5ac86ba5c, measured 2026-07-20: the frozen `snapbackBackendLines` inventory is FOUR files totaling 190 lines - schema.mjs 32, functions.mjs 75, handlers.mjs 61, seed.json 22 - and floor(190 * 0.80) = 152 is exactly the frozen threshold; WS6’s "about 168 handwritten lines" counted only the three handwritten code files (32+75+61 = 168), excluding the 22-line seed.json data fixture the formula’s inventory includes, so both figures were true of different file sets and the threshold derivation was never wrong; WS6 prose should be read as code-files-only color, the four-file inventory is the operative freeze; thresholds, method, thresholdId, and workloadVersion untouched - ticket 20260726-0081-spec-amendment-frictions item 5)
 
 **Revised (first remote-drill provider pinned):** 2026-07-24 (author decision, Charlie Cheever, against `issues/20260723-llp0075-program-ownership.md`: the first `single-instance-container-vm.v1` remote drill — the sequencing decision this Plan owns and LLP 0075's adjudication deferred here — is pinned by LLP 0075 protocol amendment v0.6 to provider fly.io (single Fly Machine VM), region default sjc, backup object store Fly's Tigris S3-compatible storage, and credential backend `FLY_API_TOKEN` from the git-ignored machine-local `.agent-local-secrets.md`. Recorded honestly as a decision, not provisioning: credential health is pending-not-provisioned, flyctl/Tigris package identities and the drill instrument version are unpinned-blocks-drill, and no live drill target exists or is claimed. Charlie Cheever is recorded as the named long-lived competitive-program owner/ratifier — a session-directed default subject to his own amendment. The Workstream 7 capability-matrix row updates in place; no v0 cutoff or evidence is rewritten.)
