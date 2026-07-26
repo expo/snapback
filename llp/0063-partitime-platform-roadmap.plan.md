@@ -34,6 +34,28 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 Exact production-program checkpoint):** 2026-07-26 (Exact
+revision `62a7338c8…`, published to Exact `origin/main`, lands the ratified,
+private, non-default LLP 0381 P1-to-P3 production-program slice, prospective
+IR/consumer/dev-boundary inventories, statement-backend calibration plus
+untouched holdout, and an independent production viewport-capability
+reachability fix. The statement evidence admits candidate B only, but the
+dated LLP 0185 §4.3.2 backend-selection proposal remains unratified, so no
+backend or default is selected. The fresh off-machine P3 census keeps its
+memory claim honestly red: paired projected heap savings lower-95 is 301,822
+bytes against the frozen 355,357-byte requirement, a 53,535-byte shortfall;
+bundle, timing, boundary, individual-holdout, and marginal-slope guards pass,
+but `p3Exited`, `p4Authorized`, defaults, and Step 4 claims remain false. The
+architecture-only continuation proposal is also unratified. Exact's full
+Contract corpus at this checkpoint passes 2,458 tests with 6 skipped and 3
+red: the sourcemap and built-in-tag diagnostics failures reproduce on pristine
+Exact main, while the edit-corpus timeout passes alone and is tracked by
+Exact issue `20260726-edit-corpus-property-test-borderline-timeout.md`.
+Registered P1, P3, statement, development-boundary, cross-engine,
+three-profile TypeScript, verify-registry, and guide gates pass. Snapback still
+consumes the published Exact 0.1.6 closure, so this records the safe upstream
+checkpoint and evidence without regenerating a package-bound Step 4 receipt or
+moving any frozen threshold or claim.)
 **Revised (Step 4 compact Contract runtime checkpoint):** 2026-07-26 (Exact
 revision `fc44b105b…`, published to Exact `origin/main`, flattens ordinary
 generated element/collection prop and event plans, binds lazy plan factories
