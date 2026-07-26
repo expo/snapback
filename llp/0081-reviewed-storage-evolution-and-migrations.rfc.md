@@ -5,7 +5,19 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (Implemented on the local SQLite admission profile, this RFC's own
+**Revised:** 2026-07-26 (post-Implemented spec reconciliation, ticket
+20260726-0081-spec-amendment-frictions: §2's CLI list gains the implemented
+`rehearse` verb (thin wrapper over the §7 rehearsal machinery, receipt
+consumed by `apply --rehearsal-receipt`) and records the decision that
+`released` is `apply`'s journaled tail on the local profile — no `release`
+verb, because the single-writer profile has no operator hold point; hosted
+hold-then-open flows define their own release operation; §2 gains the
+admission-timing profile note — timing is profile-defined, the
+`MigrationAdmissionV1` record, its under-fence ordering, and
+one-consumed-approval are normative; `cancel_requested` verified consistent
+across prose, executor serde, and the committed journal-machine schema, its
+snake_case spelling among kebab-case states recorded as frozen by the closed
+vocabulary rather than renamed); 2026-07-26 (Implemented on the local SQLite admission profile, this RFC's own
 Step 5 admission scope: the durable executor/journal/fence corpus,
 quarantined-mutation settlement, restore-derived rehearsal, and
 dual-compatible/predeploy ordering fixtures are green, and the Step 5
@@ -214,7 +226,15 @@ cancellation, and receipt recovery are all keyed by `operationId` plus its
 audience — never by bare plan digest. At barrier
 time, admission emits a `MigrationAdmissionV1` binding the actual predecessor
 head, the enforced resource bounds, and the approval it consumes; the receipt
-carries both records. Editing source schemas, declarations, constants,
+carries both records. Admission timing is profile-defined: the local SQLite
+profile admits at the publication barrier under its single serialized
+writer, while a hosted profile fixes its own admission point (for example a
+control-plane enqueue ahead of the barrier) in its separately versioned
+conformance profile. What is normative across every profile is the record
+and its ordering, not the clock: admission emits `MigrationAdmissionV1`
+under the closed fence before any physical step, binds the actual
+predecessor state it admitted against, and consumes exactly one unexpired
+approval. Editing source schemas, declarations, constants,
 target identity, or capabilities invalidates approval and requires a new
 preview. The observed commit version is informational rather than an equality
 precondition: under the execution barrier, apply re-proves every data-dependent
@@ -235,7 +255,9 @@ The CLI surface is:
 snapback migrate preview --app <id> --target <target-id> \
     --profile <profile-id> --out migration.json
 snapback migrate approve migration.json
-snapback migrate apply migration.json
+snapback migrate rehearse migration.json --rehearsal-plan rehearsal.json \
+    --out rehearsal-receipt.json
+snapback migrate apply migration.json [--rehearsal-receipt rehearsal-receipt.json]
 snapback migrate cancel migration.json
 snapback migrate verify migration.json
 snapback migrate rollback migration-receipt.json
@@ -245,7 +267,15 @@ Each command emits the shared structured result envelope and supports a
 machine-readable dry run. `apply` requires the approved file by path; it never
 regenerates a possibly different plan implicitly. `cancel` requests
 cancellation at the next admitted boundary and never leaves the state machine
-outside a named state.
+outside a named state. `rehearse` executes the approved production plan as
+§7's rehearsal against the one restore-derived database its sealed rehearsal
+plan binds — never production — and writes the rehearsal-marked receipt that
+`apply --rehearsal-receipt` later consumes. There is deliberately no
+`release` verb on the local profile: `released` is the journaled tail of
+`apply` (and of its crash-resume re-invocation from `published-held`), so a
+distinct verb would imply an operator hold point the local single-writer
+profile does not have; a hosted profile that admits a genuine hold-then-open
+flow defines its own release operation in its conformance profile.
 
 ### 3. Typed migration steps
 
