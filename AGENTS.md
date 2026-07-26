@@ -67,9 +67,10 @@ keeps its own LLP corpus under [`llp/`](./llp/).
   changed the shape of the work.
 - Land the diary update with the demo change that produced the observations.
 - When a diary entry records friction the guide should have prevented —
-  knowledge you needed and couldn't find in `guide/` — file it as a guide gap
-  (Linear, Exact project, Snapback label, `guide-gap` in the title) so a page
-  or capability-index row absorbs it (LLP 0061 §5).
+  knowledge you needed and couldn't find in `guide/` — file it as a filesystem
+  ticket under `issues/` with `guide-gap` in the title so a page or
+  capability-index row absorbs it (LLP 0061 §5). If it needs PM coordination,
+  graduate it to Linear in the Exact project with a Snapback label.
 
 ## Agent skills
 
@@ -110,6 +111,14 @@ silent wedge trap (ENG-22659).
 
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
+- Agents may use the machine fleet documented in
+  `~/Dropbox/APIKeys/MACHINE_FLEET.md` to speed up development. Read that file
+  for current availability, capabilities, and SSH commands. Prefer an
+  appropriate remote machine when builds or tests are resource-intensive, or
+  when controlled browsers, simulators, or macOS apps would steal focus and
+  make the primary computer difficult to use. Account for repository state and
+  platform requirements before dispatching work, and do not copy credentials
+  or other secrets into the repository or logs.
 - If `.agent-local-secrets.md` exists at the project root, read it when a task
   needs local credentials or API keys. It is intentionally ignored by git and
   must not be copied into LLPs, logs, commits, or generated artifacts.
@@ -117,11 +126,16 @@ silent wedge trap (ENG-22659).
 - Prefer updating an existing LLP over creating a new one when the topic is
   already covered.
 - Land doc updates in the same commit as the code change that motivated them.
-- When filing new Linear issues for this repository, assign them to the Exact
-  Linear project by default. Only use another project or no project when there
-  is a very explicit, clear reason to do so, and make that rationale obvious in
-  the issue. Add a Snapback label when it helps distinguish
-  repository-specific work.
+- Prefer filesystem tickets under `issues/` over Linear for repository-scoped
+  bugs, follow-ups, papercuts, and maintenance work. Use
+  `issues/YYYYMMDD-slug.md` for open tickets; when resolved, record the
+  resolution and move the file to `issues/closed/`. Linear is a good tracker,
+  but reserve it for work that benefits from human project-management state,
+  assignment, cycles, or cross-repository coordination. When a filesystem
+  ticket grows into that kind of work, graduate it to Linear, record the Linear
+  pointer in the file, and close the filesystem ticket rather than tracking the
+  same live state in both places. New Linear issues for this repository default
+  to the Exact project; add a Snapback label when useful.
 - Run the LLP corpus audit (`llp-maintain`-style) before each demo lands and
   after each LLP 0032 phase completes (LLP 0016's reconcile cadence).
 - Before running `cargo build`, `cargo test`, or `cargo run` on a clean checkout,
