@@ -94,7 +94,7 @@
     },
     {
       "path": "packages/snapback-codegen/authoring-validation.test.mjs",
-      "sha256": "d1b18e09d0f075b09c8bc1126733d07817bcdea81ffd34f3c6a0f8048aa83087"
+      "sha256": "1b52c61b2063ad0f6ac6b587bd7702dfbfe3eaf22461e5dc8738134957639217"
     },
     {
       "path": "packages/snapback-codegen/dependency-graph.test.mjs",

@@ -392,7 +392,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/no-exact-core.mjs --out demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "f923af087133a6dd1d505f3b78c17ef3aa0dcc1082d9e235bda19b8e6a10dbbe"
+        "sha256": "7cfd91b73801280f809d4f3636652ce7af80e41395da0c7099c361d7e1c257bf"
       },
       "skip": "forbidden",
       "owner": "LLP 0021#the-adapter-is-product-not-sample-code",
@@ -410,7 +410,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "4ed15fb89301e79dbe51d66b1f7c8c0ad60b04298b85575b10425b24fb9fadb2"
+        "sha256": "7518ac59543619c9f1a8a773a0548dd5aec1428c9429357bd8ff0ab14cb2eb34"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -444,7 +444,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "3bb02f2eabdec5443fa05cd8abb35ab57b411f4996d380e1c1bde0236feca06f"
+        "sha256": "529fee54c77581c29496527cfe0b771787c70ecf86e9217cec098e8a944c8be3"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
@@ -461,7 +461,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "c572db6809dd09bda0155b9f37b0b086d7aabc071c8801f2042a6aeb239ad2ba"
+        "sha256": "0ed941a68eea0848d1f31445e3da33cd729434c9c65a8769a9951d7f14f81ebb"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
