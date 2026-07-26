@@ -120,7 +120,7 @@ export const secondQuery = defineQuery({ table: 'things' });
 import { defineQuery } from '../../_kit/define.mjs';
 export const listThings = defineQuery({ table: 'things' });
 `,
-      demo: { app: { name: 'First Name' } },
+      demo: { id: 'first-demo', app: { name: 'Demo Identity' } },
     });
     const first = await generate(backend);
     assert(first.ok, `first codegen failed: ${JSON.stringify(first.diagnostics)}`);
@@ -130,7 +130,7 @@ export const listThings = defineQuery({ table: 'things' });
 import { defineQuery } from '../../_kit/define.mjs';
 export const listThings = defineQuery({ table: 'things' });
 `,
-      demo: { app: { name: 'Second Name' } },
+      demo: { id: 'second-demo', app: { name: 'Demo Identity' } },
     });
     const second = await generate(backend);
     assert(second.ok, `second codegen failed: ${JSON.stringify(second.diagnostics)}`);
