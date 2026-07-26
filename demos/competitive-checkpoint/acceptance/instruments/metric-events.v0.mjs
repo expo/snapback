@@ -1,5 +1,6 @@
 // Candidate LLP 0075 event-to-metric projection. Raw events remain the
 // authority; this module rejects ambiguous ledgers instead of guessing.
+// @ref LLP 0075#measurement-and-margins — raw sample ledgers and exact invalidation boundaries fail closed
 
 export const METRIC_EVENTS_IMPLEMENTATION_ID =
   'snapback.convex-checkpoint-metric-events.candidate.v0';
@@ -9,6 +10,7 @@ const PROTOCOL_ID = 'llp-0075-convex-checkpoint-v0';
 const PROTOCOL_VERSION = 'v0.4';
 const SHA256 = /^[a-f0-9]{64}$/;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const SAMPLE_OUTCOMES = new Set(['valid', 'instrument-invalid']);
 
 const CLASSIFICATION_KEYS = Object.freeze({
   'expected-refusal': 'expectedRefusals',
@@ -28,6 +30,10 @@ function canonicalUint(value, label) {
     throw new TypeError(`${label} must be a canonical unsigned decimal string`);
   }
   return BigInt(value);
+}
+
+function isIdentifier(value) {
+  return typeof value === 'string' && IDENTIFIER.test(value);
 }
 
 function requireSafeCount(value, label) {
@@ -54,8 +60,8 @@ export function deriveSampleMetrics(receipt) {
     || receipt.protocolId !== PROTOCOL_ID
     || receipt.protocolVersion !== PROTOCOL_VERSION
     || !SHA256.test(receipt.capsuleSha256 ?? '')
-    || !IDENTIFIER.test(receipt.runId ?? '')
-    || !IDENTIFIER.test(receipt.agentSessionId ?? '')
+    || !isIdentifier(receipt.runId)
+    || !isIdentifier(receipt.agentSessionId)
     || !['snapback', 'convex'].includes(receipt.arm)
     || !Number.isSafeInteger(receipt.executionSequence)
     || receipt.executionSequence < 0
@@ -108,6 +114,12 @@ export function deriveSampleMetrics(receipt) {
         workStarted = monotonic;
         break;
       case 'command-started':
+        if (!isIdentifier(event.commandId)) {
+          throw new TypeError('command-started requires a stable commandId');
+        }
+        if (typeof event.authored !== 'boolean') {
+          throw new TypeError('command-started authored must be boolean');
+        }
         if (commandStarts.has(event.commandId)) {
           throw new TypeError(`duplicate commandId ${event.commandId}`);
         }
@@ -175,6 +187,9 @@ export function deriveSampleMetrics(receipt) {
     if (!commandFinishes.has(commandId)) {
       throw new TypeError(`command ${commandId} lacks command-finished`);
     }
+  }
+  if (!SAMPLE_OUTCOMES.has(sampleFinished.outcome)) {
+    throw new TypeError(`unknown sample-finished outcome ${String(sampleFinished.outcome)}`);
   }
   const invalid = sampleFinished.outcome === 'instrument-invalid';
   if (invalid !== (counts.instrumentFailures > 0)) {

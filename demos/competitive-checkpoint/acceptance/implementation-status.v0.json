@@ -5,7 +5,7 @@
   "protocolSha256": "0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4",
   "adjudicatedProtocolVersion": "v0",
   "recordedAt": "2026-07-22",
-  "revisedAt": "2026-07-24",
+  "revisedAt": "2026-07-26",
   "adjudicator": "Charlie Cheever",
   "adjudicatedAt": "2026-07-22",
   "adjudicatorDecision": "reprioritize",
@@ -14,7 +14,7 @@
   "candidateInstruments": {
     "status": "implemented-unratified-blocks-timed-runs",
     "lock": "demos/competitive-checkpoint/acceptance/instruments/instrument-lock.candidate.v0.json",
-    "lockSha256": "8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4",
+    "lockSha256": "e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9",
     "covers": [
       "statistics-implementation",
       "metric-definitions",
@@ -23,7 +23,7 @@
       "mechanical-scoring-engine"
     ],
     "gateMatrixLock": "demos/competitive-checkpoint/acceptance/instruments/gate-matrix-lock.candidate.v0.json",
-    "gateMatrixLockSha256": "2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda",
+    "gateMatrixLockSha256": "ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1",
     "runCapsuleVerifierLock": "demos/competitive-checkpoint/acceptance/instruments/run-capsule-verifier-lock.candidate.v0.json",
     "runCapsuleVerifierLockSha256": "73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d",
     "scoringLock": "demos/competitive-checkpoint/acceptance/instruments/scoring-lock.candidate.v0.json",

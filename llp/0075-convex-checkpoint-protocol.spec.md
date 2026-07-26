@@ -5,7 +5,12 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-25 (protocol amendment v0.8 — the drill-target resource
+**Revised:** 2026-07-26 (candidate-only instrument correction — runtime metric
+projection now rejects unknown sample outcomes and malformed command identity/
+authorship; gate evaluation now rejects missing or unknown categories and
+malformed run identity. The exact candidate locks were refreshed, but this is
+not a protocol amendment or ratification and authorizes no timed run).
+2026-07-25 (protocol amendment v0.8 — the drill-target resource
 inventory grew by one item, authorized by LLP 0098 author decision D4
 (Charlie Cheever, 2026-07-25): persistent Fly volume `vol_r6815pkd59o1x614`,
 name `caddy_storage`, 1 GB, encrypted, sjc, mounted at `/data/caddy` for
@@ -61,10 +66,10 @@ are deliberately untouched.)
 metric-event instruments is retained under
 `demos/competitive-checkpoint/acceptance/instruments/`, locked by
 `instrument-lock.candidate.v0.json` sha256
-`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+`e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9`.
 The complete machine gate matrix also has an executable candidate locked by
 `gate-matrix-lock.candidate.v0.json` sha256
-`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+`ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1`.
 A fail-closed run-capsule verifier contract is locked separately at sha256
 `73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`;
 it is not the still-missing capsule. The mechanical scoring engine is locked
@@ -254,7 +259,7 @@ The complete symmetric application, stream, authorization, hosted lifecycle,
 cleanup, and compatibility facts are enumerated in the executable candidate
 [`gate-matrix.candidate.v0.json`](../demos/competitive-checkpoint/acceptance/instruments/gate-matrix.candidate.v0.json).
 Its lock sha256 is
-`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+`ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1`.
 The candidate requires one explicit decision for every required arm/gate pair,
 accepts expected refusals only for negative gates, separates Snapback-only
 authoring constraints, and permits provider-native equivalence without
@@ -388,7 +393,7 @@ An executable candidate now supplies the missing exact statistics and metric
 event definitions. Its content-addressed lock is
 [`instrument-lock.candidate.v0.json`](../demos/competitive-checkpoint/acceptance/instruments/instrument-lock.candidate.v0.json),
 sha256
-`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+`e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9`.
 It fixes the even-sample median, nearest-rank p95, deterministic independent-arm
 bootstrap, replacement-slot behavior, monotonic event clock, command
 boundaries, assistance counters, and failure taxonomy in executable artifacts.

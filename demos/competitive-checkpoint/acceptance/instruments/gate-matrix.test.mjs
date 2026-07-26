@@ -18,6 +18,14 @@ for (const file of lock.files) {
 }
 validateGateMatrix(matrix);
 
+const unknownCategory = structuredClone(matrix);
+unknownCategory.gates[0].category = 'product-typo';
+assert.throws(() => validateGateMatrix(unknownCategory), /has invalid category/);
+
+const missingCategory = structuredClone(matrix);
+delete missingCategory.gates[0].category;
+assert.throws(() => validateGateMatrix(missingCategory), /has invalid category/);
+
 const evidenceArtifactSha256 = 'a'.repeat(64);
 const receipt = {
   schemaVersion: 'snapback.convex-checkpoint-gate-receipt.candidate.v0',
@@ -41,6 +49,14 @@ assert.equal(passed.complete, true);
 assert.equal(passed.productCompletenessPass, true);
 assert.equal(passed.armSpecificConstraintsPass, true);
 assert.equal(passed.failures.length, 0);
+
+const missingRunId = structuredClone(receipt);
+delete missingRunId.runId;
+assert.throws(() => evaluateGateReceipt(matrix, missingRunId), /requires a stable runId/);
+
+const nonStringRunId = structuredClone(receipt);
+nonStringRunId.runId = 1;
+assert.throws(() => evaluateGateReceipt(matrix, nonStringRunId), /requires a stable runId/);
 
 const missingDelete = structuredClone(receipt);
 missingDelete.decisions = missingDelete.decisions.filter(

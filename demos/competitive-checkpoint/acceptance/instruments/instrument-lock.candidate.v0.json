@@ -14,7 +14,7 @@
     },
     {
       "path": "metric-definitions.candidate.v0.json",
-      "sha256": "b05ce36c4f3d9e71d160b215feaf0ac1601cd354a8a6617c9517caffb2575d07"
+      "sha256": "a79965dd157dbdecd86470a14fe6bd2147f069abb075b073329dba9f5eb6c007"
     },
     {
       "path": "metric-events.candidate.v0.schema.json",
@@ -22,7 +22,7 @@
     },
     {
       "path": "metric-events.v0.mjs",
-      "sha256": "4f6c272cb76a93a4d1b941cf51ed413affd14399b05f96f599d602283a2f5c5c"
+      "sha256": "36dc6b905ef9de0bb8e5b07b5f6cd809c7f4b8aff27e532ee94bc05a62bf4922"
     }
   ]
 }

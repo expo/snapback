@@ -1,6 +1,6 @@
 # `deriveSampleMetrics` admits any unknown `sample-finished.outcome` as valid
 
-**Status:** Open
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Competitive checkpoint, Acceptance testing, Instruments
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -54,3 +54,19 @@ on the collection path.
 
 The instrument is still candidate and no timed sample has been collected, so no
 published number is affected. It must land before samples are taken.
+
+## Resolution
+
+`deriveSampleMetrics` now fails closed unless `sample-finished.outcome` is
+exactly `valid` or `instrument-invalid`. It also requires every
+`command-started.commandId` to be a string in the shared stable-identifier
+shape and requires `authored` to be boolean; receipt and agent-session
+identifiers use the same strict string check rather than regular-expression
+coercion.
+
+Direct regressions prove that an unknown outcome, missing command ID,
+non-string command ID, and non-boolean authored marker are each rejected by
+both the JSON schema and the runtime projection. The complete candidate
+instrument suite passes. The refreshed candidate instrument lock is sha256
+`e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9`.
+It remains unratified and authorizes no timed run.

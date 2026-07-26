@@ -36,7 +36,11 @@ not gate 1 closure: public packages and the hosted profile remain open.)
 **Systems:** Product strategy, Developer experience, Runtime, Actions, Codegen, Client integration, React/Expo, Contract/Exact, Deployment, Control plane, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (the clean-Ubuntu proof lane now retains the exact
+**Revised:** 2026-07-26 (candidate-only instrument correction: runtime
+projection now rejects unknown sample outcomes and malformed command identity/
+authorship, while gate evaluation rejects missing or unknown categories and
+malformed run identity. The exact candidate locks were refreshed; they remain
+unratified and authorize no timed run). 2026-07-24 (the clean-Ubuntu proof lane now retains the exact
 tarballs, publication ledger, and a machine-bound cold-install receipt through
 a commit-pinned artifact uploader. The workflow is implemented but has not run
 against this uncommitted tree). 2026-07-24 (the corrected local-streaming
@@ -82,9 +86,9 @@ pinning)
 **Checkpoint instrument candidate (2026-07-24):** The exact statistics and
 raw metric-event definitions now have an executable, content-addressed
 candidate lock, sha256
-`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+`e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9`.
 The symmetric gate matrix has a separate executable candidate lock, sha256
-`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+`ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1`.
 The fail-closed run-capsule verifier contract is locked at sha256
 `73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`,
 but no complete run capsule exists yet. The mechanical scoring engine is

@@ -174,6 +174,38 @@ assert.throws(
   /expected-refusal must name expectedByGateId/,
 );
 
+const unknownOutcome = structuredClone(validReceipt);
+unknownOutcome.events.at(-1).outcome = 'unknown';
+assert.equal(validate(unknownOutcome), false, 'schema rejects unknown sample outcome');
+assert.throws(
+  () => deriveSampleMetrics(unknownOutcome),
+  /unknown sample-finished outcome unknown/,
+);
+
+const missingCommandId = structuredClone(validReceipt);
+delete missingCommandId.events[1].commandId;
+assert.equal(validate(missingCommandId), false, 'schema rejects missing commandId');
+assert.throws(
+  () => deriveSampleMetrics(missingCommandId),
+  /command-started requires a stable commandId/,
+);
+
+const nonStringCommandId = structuredClone(validReceipt);
+nonStringCommandId.events[1].commandId = 1;
+assert.equal(validate(nonStringCommandId), false, 'schema rejects non-string commandId');
+assert.throws(
+  () => deriveSampleMetrics(nonStringCommandId),
+  /command-started requires a stable commandId/,
+);
+
+const nonBooleanAuthored = structuredClone(validReceipt);
+nonBooleanAuthored.events[1].authored = 'true';
+assert.equal(validate(nonBooleanAuthored), false, 'schema rejects non-boolean authored');
+assert.throws(
+  () => deriveSampleMetrics(nonBooleanAuthored),
+  /command-started authored must be boolean/,
+);
+
 const invalidReceipt = structuredClone(validReceipt);
 invalidReceipt.events = [
   event('work-started', 0, 1_000_000n),

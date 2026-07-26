@@ -1,6 +1,6 @@
 # Gate-matrix `category` decides adjudication but is never validated
 
-**Status:** Open
+**Status:** Resolved (2026-07-26)
 **Severity:** P2
 **Systems:** Competitive checkpoint, Acceptance testing, Instruments
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -52,3 +52,17 @@ before ratification, which is exactly when a category typo is introduced.
 `evaluateGateReceipt` lists `runId` in its closed key set but never validates
 it, while `capsuleSha256` alongside it is digest-checked. Worth constraining to
 the same identifier shape the other instruments use.
+
+## Resolution
+
+`validateGateMatrix` now requires every gate category to be one of the seven
+enumerated candidate categories. Direct regressions prove that both a missing
+category and an unknown category fail validation before they can alter the
+product-versus-arm-specific adjudication split.
+
+`evaluateGateReceipt` now also requires `runId` to be a string in the shared
+stable-identifier shape; missing and non-string cases have direct regressions.
+The complete candidate instrument suite passes. The refreshed candidate gate
+matrix lock is sha256
+`ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1`.
+It remains unratified and authorizes no timed run.

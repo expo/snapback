@@ -1,5 +1,16 @@
+// @ref LLP 0075#frozen-application-facts — every required gate is explicit and category-closed before adjudication
 const SHA256 = /^[a-f0-9]{64}$/;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const ARMS = new Set(['snapback', 'convex']);
+const CATEGORIES = new Set([
+  'product',
+  'stream',
+  'negative-authorization',
+  'hosted-lifecycle',
+  'cleanup',
+  'compatibility',
+  'arm-specific-authoring',
+]);
 const OUTCOMES = new Set(['pass', 'fail', 'expected-refusal', 'not-applicable']);
 
 function assertClosedKeys(value, allowed, label) {
@@ -27,6 +38,9 @@ export function validateGateMatrix(matrix) {
     }
     if (ids.has(gate.id)) throw new Error(`duplicate gate id ${gate.id}`);
     ids.add(gate.id);
+    if (!CATEGORIES.has(gate.category)) {
+      throw new Error(`${gate.id} has invalid category`);
+    }
     if (!Array.isArray(gate.requiredArms) || gate.requiredArms.length === 0) {
       throw new Error(`${gate.id} requires at least one arm`);
     }
@@ -66,6 +80,9 @@ export function evaluateGateReceipt(matrix, receipt) {
   }
   if (!SHA256.test(receipt.capsuleSha256 ?? '')) {
     throw new Error('gate receipt requires a lowercase capsule sha256');
+  }
+  if (typeof receipt.runId !== 'string' || !IDENTIFIER.test(receipt.runId)) {
+    throw new Error('gate receipt requires a stable runId');
   }
   if (!Array.isArray(receipt.decisions)) throw new Error('gate receipt decisions must be an array');
 

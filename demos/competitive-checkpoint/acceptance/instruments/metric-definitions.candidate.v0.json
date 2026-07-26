@@ -9,7 +9,7 @@
   },
   "projection": {
     "path": "demos/competitive-checkpoint/acceptance/instruments/metric-events.v0.mjs",
-    "sha256": "4f6c272cb76a93a4d1b941cf51ed413affd14399b05f96f599d602283a2f5c5c"
+    "sha256": "36dc6b905ef9de0bb8e5b07b5f6cd809c7f4b8aff27e532ee94bc05a62bf4922"
   },
   "timer": {
     "start": "the work-started event emitted when the neutral prompt and fresh starting scaffold become visible to the new agent session",
