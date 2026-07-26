@@ -123,6 +123,21 @@ for (const invalidAppId of [
   );
 }
 
+// 7. Once a nearest demo manifest is discovered it is the identity
+// authority; a missing id must fail closed instead of silently falling back
+// to an intermediate directory such as "backends".
+{
+  const dir = makeManifestBackend(undefined);
+  const result = await generate(dir);
+  assert.equal(result.ok, false, JSON.stringify(result));
+  assert(
+    result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'DEMO_MANIFEST_APP_ID_INVALID'
+    )),
+    JSON.stringify(result.diagnostics),
+  );
+}
+
 function idsByName(functions) {
   return Object.fromEntries(functions.map((fn) => [fn.name, fn.id]));
 }

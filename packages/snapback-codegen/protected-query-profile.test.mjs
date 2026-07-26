@@ -231,6 +231,16 @@ globalThis.__snapbackHandlers = {
   async protectedJs(ctx) { return [{ value: await clock(ctx.runtime) }]; },
 };`,
   ],
+  [
+    'renamed context is captured by a nested closure',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs(context) {
+    const hidden = async () => context.runtime.now();
+    return [{ value: await hidden() }];
+  },
+};`,
+  ],
 ]) {
   const functions = `
 import { defineJsLiveQuery } from '${defineUrl}';

@@ -4461,6 +4461,9 @@ function scanProtectedHandlerReachableSource(source, exportName) {
   const enqueueFunction = (fn, {
     contextIndexes = [],
     runtimeIndexes = [],
+    capturedContextNames = [],
+    capturedRuntimeNames = [],
+    capturedRuntimeMethods = [],
     assumeFirstContext = true,
   } = {}) => {
     if (!functionKinds.has(fn?.type)) return;
@@ -4469,6 +4472,9 @@ function scanProtectedHandlerReachableSource(source, exportName) {
       state = {
         contextIndexes: new Set(),
         runtimeIndexes: new Set(),
+        capturedContextNames: new Set(),
+        capturedRuntimeNames: new Set(),
+        capturedRuntimeMethods: new Map(),
         version: 0,
         analyzedVersion: -1,
         queued: false,
@@ -4487,6 +4493,24 @@ function scanProtectedHandlerReachableSource(source, exportName) {
     }
     addIndexes(state.contextIndexes, contextIndexes);
     addIndexes(state.runtimeIndexes, runtimeIndexes);
+    const addNames = (target, names) => {
+      for (const name of names) {
+        if (typeof name !== 'string' || target.has(name)) continue;
+        target.add(name);
+        state.version += 1;
+      }
+    };
+    addNames(state.capturedContextNames, capturedContextNames);
+    addNames(state.capturedRuntimeNames, capturedRuntimeNames);
+    for (const [name, method] of capturedRuntimeMethods) {
+      if (
+        typeof name !== 'string'
+        || (method !== 'now' && method !== 'id')
+        || state.capturedRuntimeMethods.get(name) === method
+      ) continue;
+      state.capturedRuntimeMethods.set(name, method);
+      state.version += 1;
+    }
     if (!state.queued && state.analyzedVersion !== state.version) {
       state.queued = true;
       pending.push(fn);
@@ -4513,9 +4537,9 @@ function scanProtectedHandlerReachableSource(source, exportName) {
     roleState.queued = false;
     if (roleState.analyzedVersion === roleState.version) continue;
     roleState.analyzedVersion = roleState.version;
-    const contextNames = new Set(['ctx']);
-    const runtimeNames = new Set();
-    const runtimeMethods = new Map();
+    const contextNames = new Set(['ctx', ...roleState.capturedContextNames]);
+    const runtimeNames = new Set(roleState.capturedRuntimeNames);
+    const runtimeMethods = new Map(roleState.capturedRuntimeMethods);
     const bindParameterRole = (pattern, role) => {
       if (pattern?.type === 'AssignmentPattern') {
         bindParameterRole(pattern.left, role);
@@ -4701,7 +4725,16 @@ function scanProtectedHandlerReachableSource(source, exportName) {
     const inspectReachableBody = (node, root) => {
       if (!node || typeof node !== 'object') return;
       if (node !== root && functionKinds.has(node.type)) {
-        enqueueFunction(node);
+        // A nested closure may consume the protected handler's context,
+        // runtime, or destructured runtime methods without receiving them as
+        // call arguments. Carry the lexical role environment into its own
+        // work-list analysis so renamed context captures cannot hide mutable
+        // visibility inputs.
+        enqueueFunction(node, {
+          capturedContextNames: contextNames,
+          capturedRuntimeNames: runtimeNames,
+          capturedRuntimeMethods: runtimeMethods,
+        });
         return;
       }
       if (node.type === 'CallExpression') {
@@ -5498,28 +5531,30 @@ function readDemoAppMetadata(backendDir, diagnostics) {
     return { source: sourceBytes, identity: null, appId: null };
   }
   let appId = null;
-  if (Object.hasOwn(manifest, 'id')) {
-    if (
-      typeof manifest.id !== 'string'
-      || !PORTABLE_DEMO_APP_ID.test(manifest.id)
-    ) {
-      diagnostics.push({
-        code: 'DEMO_MANIFEST_APP_ID_INVALID',
-        severity: 'error',
-        subsystem: 'codegen',
-        message: `demo manifest ${demoManifestPath} id must be a 1-64 character lowercase ASCII slug that begins and ends with a letter or digit and otherwise contains only letters, digits, or hyphens`,
-        path: demoManifestPath,
-      });
-    } else {
-      appId = manifest.id;
-    }
+  if (
+    !manifest
+    || typeof manifest !== 'object'
+    || Array.isArray(manifest)
+    || !Object.hasOwn(manifest, 'id')
+    || typeof manifest.id !== 'string'
+    || !PORTABLE_DEMO_APP_ID.test(manifest.id)
+  ) {
+    diagnostics.push({
+      code: 'DEMO_MANIFEST_APP_ID_INVALID',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `demo manifest ${demoManifestPath} must declare id as a 1-64 character lowercase ASCII slug that begins and ends with a letter or digit and otherwise contains only letters, digits, or hyphens`,
+      path: demoManifestPath,
+    });
+  } else {
+    appId = manifest.id;
   }
-  const app = manifest.app && typeof manifest.app === 'object' ? manifest.app : {};
+  const app = manifest?.app && typeof manifest.app === 'object' ? manifest.app : {};
   const identity = cleanObject({
-    name: readString(app.name) ?? readString(manifest.title),
-    description: readString(app.description) ?? readString(manifest.description),
-    iconUrl: readString(app.iconUrl) ?? readString(app.icon_url) ?? readString(manifest.iconUrl) ?? readString(manifest.icon_url),
-    wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest.wordmarkUrl) ?? readString(manifest.wordmark_url),
+    name: readString(app.name) ?? readString(manifest?.title),
+    description: readString(app.description) ?? readString(manifest?.description),
+    iconUrl: readString(app.iconUrl) ?? readString(app.icon_url) ?? readString(manifest?.iconUrl) ?? readString(manifest?.icon_url),
+    wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest?.wordmarkUrl) ?? readString(manifest?.wordmark_url),
   });
   if (identity.name === appId) delete identity.name;
   return {
