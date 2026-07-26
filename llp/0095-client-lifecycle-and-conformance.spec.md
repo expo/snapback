@@ -7,7 +7,7 @@
 **Date:** 2026-07-25
 **Revised:** 2026-07-25; 2026-07-25 (live-owner identity rule on
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
-Swift clean-room defect ledger)
+Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
 
 ## Summary
@@ -354,13 +354,15 @@ Decided (Round-7 Fable suggestion 4): the two lanes' never-silently-stale
 guarantees stay symmetric. A post-cut undecodable durable item forces the
 same connection-wide resync class as `durable_bytes` (T-DB-P), because the
 loss is identical in kind: unattributable, unrecoverable, already paid for.
-The JS kit currently surfaces `SNAPBACK_ENVELOPE_DECODE_FAILED` in
-`decodeFailures` without forcing the transition (`drainConnection`,
-`packages/snapback-client/index.mjs`) — a **known conformance gap in the
-reference implementation**, filed as
-`issues/20260725-0093-p1-poll-lane-decode-failure-resync.md` (the
-specify-the-contract, gap-the-code discipline; the spec does not assert the
-kit conforms).
+The JS kit now conforms: `drainConnection`
+(`packages/snapback-client/index.mjs`) surfaces
+`SNAPBACK_ENVELOPE_DECODE_FAILED`, routes the existing authority-captured
+`durable_bytes_undecodable` connection-wide clear-retained sentinel through
+the shared durable-lane recovery choke point, and then continues the batch.
+`demos/_kit/tests/regression-poll-decode-resync.mjs` proves diagnostic plus
+durable/ephemeral remainder delivery, all-durable resubscribe with lost-state
+recovery, and retained-overlay clearing. The closed implementation ticket is
+`issues/closed/20260725-0093-p1-poll-lane-decode-failure-resync.md`.
 
 ### 4.4 Grant-loss recovery — **re-open and re-establish everything**
 
@@ -387,6 +389,11 @@ distinguish reap from expiry at the refusal.
   the kit's `drainConnection` header and `src/server.rs` `drain_outbox`
   header now state the LLP 0059 leased-batch ownership-cut contract, and
   the latter records §4.1's decision.
+- **Poll-lane post-cut decode recovery** (T-DB-P): the kit now routes an
+  acknowledged malformed durable item through the same connection-wide
+  client-synthesized recovery sentinel as `durable_bytes`, while preserving
+  the diagnostic and acknowledged-batch remainder; the focused regression is
+  wired into `scripts/verify-local-proof`.
 
 ## 6. Deferred work
 
@@ -394,8 +401,6 @@ distinguish reap from expiry at the refusal.
   rows, plus wrapped-vs-unwrapped parity fixtures for every durable family
   and the heartbeat/backoff timing fixtures (which need a fixture notion of
   virtual time this format does not yet define).
-- `issues/20260725-0093-p1-poll-lane-decode-failure-resync.md` — the kit's
-  T-DB-P conformance gap (§4.3).
 - The per-client conformance harness that replays the corpus against a real
   client (the Swift P-2 client is its first non-JS consumer); until it
   exists, corpus fixtures bind via this spec's normative force and the

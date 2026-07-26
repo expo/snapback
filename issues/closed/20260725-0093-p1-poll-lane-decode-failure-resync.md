@@ -34,3 +34,20 @@ poll-lane regression) to prove lost-commit recovery through a poisoned
 drain batch. Consider whether the sentinel reason should stay
 `durable_bytes_undecodable` or gain a lane-honest sibling constant; either
 way it remains client-synthesized, never wire-emitted (LLP 0095 §4.2).
+
+## Resolution
+
+Resolved 2026-07-26. `SnapbackClient.drainConnection` now records the stable
+`SNAPBACK_ENVELOPE_DECODE_FAILED` diagnostic and routes the existing
+authority-captured, connection-wide `durable_bytes_undecodable`
+clear-retained sentinel through `routeDurableLaneFrame`, then continues the
+acknowledged batch. Reusing the established reason keeps the poll and socket
+paths in one recovery equivalence class without expanding the wire reason
+namespace.
+
+`demos/_kit/tests/regression-poll-decode-resync.mjs` proves the complete
+T-DB-P obligation through production client machinery: durable and ephemeral
+remainder delivery, diagnostic surfacing, fresh resubscription of two durable
+handles recovering lost state, and retained-overlay clearing. The broader
+`demos/_kit/tests/client-errors.mjs` suite also pins sentinel-before-remainder
+routing at the drain choke point.

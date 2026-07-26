@@ -11,7 +11,9 @@
 // Also pins ENG-23391: the delivery choke points (drainConnection and the
 // socket dispatch) isolate consumer exceptions and per-envelope decode
 // failures, so one throwing app callback never discards the rest of a
-// destructively drained batch or escapes as an unhandled rejection.
+// destructively drained batch or escapes as an unhandled rejection. LLP 0095
+// T-DB-P additionally requires a post-cut decode failure to synthesize
+// connection-wide recovery while that remainder continues.
 
 import {
   AgentAuthorityFence,
@@ -2594,7 +2596,7 @@ try {
     return { durable: result.durable.length, ephemeral: result.ephemeral.length };
   });
 
-  await suite.check('eng_23391: a malformed durable payload surfaces as a diagnostic, not an aborted batch', async () => {
+  await suite.check('llp_0095_t_db_p: malformed durable payload forces resync without aborting the batch', async () => {
     const batch = [
       { Durable: { payload: '{not json' } },
       { Durable: { payload: JSON.stringify({ kind: 'live_replace', subscription_id: 'sub_ok', rows: [], version: 2 }) } },
@@ -2608,8 +2610,11 @@ try {
     assertEqual(result.decodeFailures.length, 1, 'the malformed envelope is reported');
     assertEqual(result.decodeFailures[0].code, 'SNAPBACK_ENVELOPE_DECODE_FAILED', 'stable diagnostic code');
     assertEqual(result.durable.length, 1, 'the envelope behind the malformed one still decodes');
-    assertEqual(seen.length, 1, 'the consumer still receives the good update');
-    assertEqual(seen[0].subscription_id, 'sub_ok', 'the delivered update is the one behind the failure');
+    assertEqual(seen.length, 2, 'the consumer receives the recovery sentinel and the good update');
+    assertEqual(seen[0].kind, 'resync_required', 'decode failure forces resync');
+    assertEqual(seen[0].reason, 'durable_bytes_undecodable', 'poll and socket use one recovery class');
+    assertEqual(seen[0].clear_retained, true, 'the synthesized resync clears retained state');
+    assertEqual(seen[1].subscription_id, 'sub_ok', 'the update behind the failure is still delivered');
     return { code: result.decodeFailures[0].code };
   });
 

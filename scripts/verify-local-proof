@@ -200,6 +200,7 @@ run node demos/_kit/tests/regression-mixed-transport.mjs
 run node demos/_kit/tests/regression-multiplexed-lanes.mjs
 run node demos/_kit/tests/regression-midflight-resync.mjs
 run node demos/_kit/tests/regression-durable-bytes-resync.mjs
+run node demos/_kit/tests/regression-poll-decode-resync.mjs
 run node demos/_kit/tests/live-delta-e2e.mjs
 # Package-owned test commands are the inventory authority. The preceding
 # inventory gate proves every maintained test file is declared, so this cannot
