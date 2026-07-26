@@ -79,7 +79,10 @@ fn resume_wire(version: u64) -> ResumeWire {
 fn invalidation_envelope(
     subscription_id: &str,
     version: u64,
-    include_snapshot: bool,
+    authorization_epoch: u64,
+    max_disposition: InvalidationDisposition,
+    resolution: Option<(ResolutionKind, &str)>,
+    snapshot_title: Option<&str>,
 ) -> LiveEnvelope {
     let scope_id = ScopeId::Subscription {
         issuer_id: IssuerId {
@@ -99,7 +102,7 @@ fn invalidation_envelope(
     let witness = CompositeWitness {
         authorization: AuthorizationVersion {
             incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
-            epoch: 1,
+            epoch: authorization_epoch,
         },
         data: Some(DataWitness {
             version_stream: "fixture-stream".to_owned(),
@@ -111,26 +114,26 @@ fn invalidation_envelope(
         protocol_version: 1,
         scope_id: scope_id.clone(),
         revision: 1,
-        max_disposition: InvalidationDisposition::Quarantine,
+        max_disposition,
         witness: witness.clone(),
         retry_episode_id: None,
         owner_continuity_id: owner_continuity_id.clone(),
     };
-    let resolution = include_snapshot.then(|| ResolutionTicket {
+    let resolution = resolution.map(|(kind, ack_token)| ResolutionTicket {
         protocol_version: 1,
-        kind: ResolutionKind::Snapshot,
+        kind,
         scope_id,
         revision: 1,
         witness,
-        max_disposition: InvalidationDisposition::Quarantine,
-        ack_token: "ack_fixture_1".to_owned(),
+        max_disposition,
+        ack_token: ack_token.to_owned(),
         owner_continuity_id,
     });
-    let snapshot = include_snapshot.then(|| AuthorizationInvalidationSnapshot {
+    let snapshot = snapshot_title.map(|title| AuthorizationInvalidationSnapshot {
         subscription_id: subscription_id.to_owned(),
         function: "listTodos".to_owned(),
         version,
-        rows: vec![json!({ "_id": "todo_1", "title": "authorized row" })],
+        rows: vec![json!({ "_id": "todo_1", "title": title })],
     });
     LiveEnvelope::authorization_invalidation(obligation, resolution, snapshot)
 }
@@ -201,12 +204,52 @@ pub fn wire_fixture_corpus() -> Value {
         version: 43,
         resume: resume_wire(43),
     });
-    let authorization_invalidation =
-        wire(&invalidation_envelope("sub_fixture_1", 43, true));
-    let authorization_invalidation_without_snapshot =
-        wire(&invalidation_envelope("sub_fixture_1", 43, false));
-    let foreign_authorization_invalidation =
-        wire(&invalidation_envelope("sub_fixture_foreign", 43, true));
+    let authorization_invalidation = wire(&invalidation_envelope(
+        "sub_fixture_1",
+        43,
+        1,
+        InvalidationDisposition::Quarantine,
+        Some((ResolutionKind::Snapshot, "ack_fixture_1")),
+        Some("authorized row"),
+    ));
+    let authorization_invalidation_without_snapshot = wire(&invalidation_envelope(
+        "sub_fixture_1",
+        43,
+        1,
+        InvalidationDisposition::Quarantine,
+        None,
+        None,
+    ));
+    let foreign_authorization_invalidation = wire(&invalidation_envelope(
+        "sub_fixture_foreign",
+        43,
+        1,
+        InvalidationDisposition::Quarantine,
+        Some((ResolutionKind::Snapshot, "ack_fixture_1")),
+        Some("authorized row"),
+    ));
+    let same_version_authorization_invalidation = wire(&invalidation_envelope(
+        "sub_fixture_1",
+        42,
+        2,
+        InvalidationDisposition::Quarantine,
+        Some((
+            ResolutionKind::Snapshot,
+            "ack_fixture_same_version_1",
+        )),
+        Some("authorized at new epoch"),
+    ));
+    let terminal_delete_authorization_invalidation = wire(&invalidation_envelope(
+        "sub_fixture_1",
+        43,
+        2,
+        InvalidationDisposition::Delete,
+        Some((
+            ResolutionKind::TerminalDelete,
+            "ack_fixture_terminal_delete_1",
+        )),
+        None,
+    ));
 
     // Lane-P framing: the SAME durable envelope, wrapped in the drain's
     // `{"Durable":{"payload":[u8…]}}` form (the wrapper asymmetry of
@@ -385,6 +428,158 @@ pub fn wire_fixture_corpus() -> Value {
                 "redelivery": "re-acknowledge the same token without reapplying the snapshot"
             },
             "notes": "Format-v2 level-triggered sequence: quarantine first, atomically apply the superseding snapshot, only then release the exact ackToken. A redelivery remains acknowledgeable and never re-applies equal-version rows."
+        },
+        {
+            "name": "auth.live.invalidation_authorization_snapshot_same_data_version",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": same_version_authorization_invalidation,
+                    "expect": {
+                        "transitions": [{
+                            "subscription": "sub_fixture_1",
+                            "to": "live",
+                            "version": 42,
+                            "authorizationEpoch": 2
+                        }],
+                        "actions": [
+                            "quarantine_rows",
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ],
+                        "orderedActions": [
+                            "quarantine_rows",
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                },
+                {
+                    "frame": same_version_authorization_invalidation,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["acknowledge_obligation"],
+                        "ackToken": "ack_fixture_same_version_1"
+                    }
+                }
+            ],
+            "given": {
+                "authorizationExpectation": {
+                    "authorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 2
+                    },
+                    "versionStream": "fixture-stream"
+                },
+                "subscriptions": [
+                    {
+                        "id": "sub_fixture_1",
+                        "state": "live",
+                        "version": 42,
+                        "acceptedAuthorization": {
+                            "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                            "epoch": 1
+                        },
+                        "rows": [{ "_id": "todo_1", "title": "pre-authorization row" }]
+                    }
+                ]
+            },
+            "expect": {
+                "transitions": [{
+                    "subscription": "sub_fixture_1",
+                    "to": "live",
+                    "version": 42,
+                    "authorizationEpoch": 2
+                }],
+                "actions": [
+                    "quarantine_rows",
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ],
+                "acknowledgeAfter": "apply_invalidation_snapshot",
+                "redelivery": "re-acknowledge the same token without reapplying the snapshot"
+            },
+            "notes": "Authorization and data versions are orthogonal. A first-seen exact resolution at the authenticated new authorization epoch atomically replaces rows and becomes acknowledgeable even when its snapshot data version equals the held version; the ordinary live-frame strict-greater version guard does not apply. Only an exact redelivery may skip reapplication and re-acknowledge the same token."
+        },
+        {
+            "name": "auth.live.invalidation_terminal_delete_apply_then_ack",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": terminal_delete_authorization_invalidation,
+                    "expect": {
+                        "transitions": [{
+                            "subscription": "sub_fixture_1",
+                            "to": "terminal_deleted",
+                            "rows": "destroyed"
+                        }],
+                        "actions": [
+                            "quarantine_rows",
+                            "apply_invalidation_terminal_delete",
+                            "acknowledge_obligation"
+                        ],
+                        "orderedActions": [
+                            "quarantine_rows",
+                            "apply_invalidation_terminal_delete",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                },
+                {
+                    "frame": terminal_delete_authorization_invalidation,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["acknowledge_obligation"],
+                        "ackToken": "ack_fixture_terminal_delete_1"
+                    }
+                }
+            ],
+            "given": {
+                "authorizationExpectation": {
+                    "authorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 2
+                    },
+                    "versionStream": "fixture-stream"
+                },
+                "subscriptions": [
+                    {
+                        "id": "sub_fixture_1",
+                        "state": "live",
+                        "version": 42,
+                        "acceptedAuthorization": {
+                            "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                            "epoch": 1
+                        },
+                        "rows": [{ "_id": "todo_1", "title": "must be destroyed" }]
+                    }
+                ]
+            },
+            "expect": {
+                "transitions": [{
+                    "subscription": "sub_fixture_1",
+                    "to": "terminal_deleted",
+                    "rows": "destroyed"
+                }],
+                "actions": [
+                    "quarantine_rows",
+                    "apply_invalidation_terminal_delete",
+                    "acknowledge_obligation"
+                ],
+                "acknowledgeAfter": "apply_invalidation_terminal_delete",
+                "redelivery": "re-acknowledge the same token without repeating the terminal delete"
+            },
+            "notes": "A terminalDelete resolution carries no snapshot (wire omission and JSON null both decode as absent). The client first makes rows unreadable, atomically destroys the exact materialization and installs its terminal fence, and only then acknowledges the exact token. Exact redelivery re-acknowledges without repeating destruction."
         },
         {
             "name": "auth.live.invalidation_without_snapshot_quarantines",
@@ -573,7 +768,7 @@ pub fn wire_fixture_corpus() -> Value {
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack and quarantine, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack, equal-data-version authorization replacement, terminal delete, quarantine, and exact duplicate re-ACK, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
         "fixtures": fixtures,
     })
 }

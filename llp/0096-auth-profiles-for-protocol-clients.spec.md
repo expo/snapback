@@ -12,7 +12,9 @@ LLP 0093 OQ5 ratified as recommended; §8.1 decided as defect and fixed —
 the invalidation-ack routes no longer demand the `auth/replay` offer, and
 §2.2's interop instruction is retired); 2026-07-26 (Partitime clean-room
 recipe completion: offer scope, namespace, casing/outcomes/refusals,
-connection-bound authority, and client-vs-readiness status split)
+connection-bound authority, and client-vs-readiness status split);
+2026-07-26 (equal-data-version snapshot application, terminal-delete
+delete-before-ACK, and exact duplicate resolution identity)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
 LLP 0094, LLP 0095
@@ -257,9 +259,18 @@ shape. Absence refuses
 - **Conformance obligations** (protocol semantics owned by LLP 0053,
   referenced): apply a superseding snapshot atomically before
   acknowledging (acknowledge-after-apply; a sent-but-unapplied snapshot
-  never discharges); honor quarantine semantics (hide from render and
-  block reads until a satisfying superseding snapshot); drive exhausted
-  bounded retries through manual-retry; treat the
+  never discharges). The invalidation transition is separate from the
+  ordinary live-frame strict-greater version guard: a first-seen exact
+  resolution may apply a snapshot at the **same** data version when its
+  witness covers the obligation and its authorization expectation is
+  current. A `terminalDelete` resolution has no snapshot; destroy the
+  exact materialization and install its terminal fence before
+  acknowledging. Wire omission and JSON `null` both mean no snapshot.
+  Exact redelivery reuses the original token without repeating snapshot
+  application or deletion; a conflicting ticket/token identity is never
+  acknowledged. Honor quarantine semantics (hide from render and block
+  reads until a satisfying superseding snapshot); drive exhausted bounded
+  retries through manual-retry; treat the
   `authorization_invalidation` `LiveEnvelope` kind as known-with-
   required-action (the closure matrix rows for its DTOs are LLP 0094
   §0C — `AuthorizationInvalidationSnapshot` and the ack input/output are
@@ -292,6 +303,8 @@ shape. Absence refuses
   follows apply-before-ack.
 - **Fixture classes added:**
   `auth.live.invalidation_snapshot_apply_then_ack`,
+  `auth.live.invalidation_authorization_snapshot_same_data_version`,
+  `auth.live.invalidation_terminal_delete_apply_then_ack`,
   `auth.live.invalidation_without_snapshot_quarantines`, and
   `auth.live.foreign_obligation_never_acknowledged` are seeded in the
   format-v2 corpus. `auth.live.ack_requires_negotiated_connection` and

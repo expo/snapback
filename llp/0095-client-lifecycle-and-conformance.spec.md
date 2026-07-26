@@ -9,7 +9,9 @@
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
 Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance);
 2026-07-26 (format-v2 explicit populations, committed-kind transitions,
-auth-invalidation state machine, and reconnect witnesses)
+auth-invalidation state machine, and reconnect witnesses); 2026-07-26
+(equal-data-version authorization replacement, terminal-delete state/action,
+and exact duplicate re-ACK fixtures)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
 
 ## Summary
@@ -71,6 +73,7 @@ A client holds at most one state per connection:
 | `PENDING` | `subscribe_live` in flight. The snapshot rides the subscribe response — snapshot-with-subscribe, one operation, no prime race (LLP 0034 §1). |
 | `LIVE(version)` | Holding rows current as of `version` (the storage commit version — not a protocol version, LLP 0093 inventory item 6). |
 | `RESYNC_PENDING` | A resync or unresolved authorization obligation is held. Rows may be retained internally but are unreadable and must not render until a satisfying snapshot is atomically applied. |
+| `TERMINAL_DELETED` | The exact authorization-scoped materialization has been destructively retired and fenced by a `terminalDelete` resolution. It has no readable rows and ordinary live frames cannot resurrect it. Only exact duplicate resolution re-ACK and explicit lifecycle cleanup remain; recreating the query allocates a new `queryInstanceId` and fresh-subscribes. |
 | `DROPPED` | The server no longer holds the subscription (socket loss — D3 fact 2). Client-side demand may still exist; re-entry is T-RECONNECT. |
 | `RELEASED` | Explicitly unsubscribed (the only *normal* release path). |
 
@@ -81,6 +84,15 @@ applies and advances the held version. Delta application is by operation
 (`add`/`update`/`remove`, unordered by contract); replace substitutes the
 row set while preserving that identity space. A user field named `id` is
 irrelevant. Fixture: `durable.live_delta.stale_version_dropped`.
+
+This strict-greater guard applies to ordinary data envelopes. A first-seen,
+current, exact authorization resolution is a separate transition: its
+snapshot data version is **nondecreasing**, so `snapshot.version == held
+version` is valid when the resolution witness covers the obligation and the
+authenticated authorization expectation is current. Authorization and data
+versions are orthogonal. Only an exact redelivery of that already-applied
+resolution may skip the equal-version row application and re-acknowledge its
+original token.
 
 ### 1.4 Transition catalogue
 
@@ -214,18 +226,36 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `durable.current_as_of.adopts_token_without_rows`.
 - **T-AUTH-INVALIDATION** (auth/live; level-triggered): locate the exact
   held subscription from the obligation scope and immediately make held
-  rows unreadable. If a satisfying snapshot is present and newer,
-  atomically apply its rows/version and return to `LIVE`; only after that
+  rows unreadable. Validate a resolution against the exact full
+  `scopeId`, revision, authorization witness, data stream/floor,
+  disposition, owner continuity, kind, and token before applying it.
+  If a satisfying `snapshot` resolution is present, its data version must
+  be nondecreasing against the held version; atomically apply its
+  rows/version and return to `LIVE` even when the data version is equal
+  but the authenticated authorization expectation is new. Only after that
   apply succeeds may the client acknowledge the exact resolution
-  `ackToken`. With no satisfying snapshot, remain `RESYNC_PENDING` with
-  rows retained-but-unreadable and do not acknowledge. A duplicate
-  delivery of an already-applied resolution may re-acknowledge the same
-  token without reapplying equal-version rows. An obligation for a
+  `ackToken`.
+
+  A `terminalDelete` resolution carries no snapshot (wire omission and
+  JSON `null` are equivalent). Atomically destroy the exact
+  materialization, install its terminal fence/live boundary, and enter
+  `TERMINAL_DELETED`; only after that destructive commit succeeds may the
+  client acknowledge its exact token. With no satisfying resolution,
+  remain `RESYNC_PENDING` with rows retained-but-unreadable and do not
+  acknowledge.
+
+  An exact duplicate delivery of an already-applied resolution may
+  re-acknowledge the same token without reapplying equal-version rows or
+  repeating terminal destruction. A reused token with changed ticket
+  fields, or a conflicting ticket for one scope/revision, is surfaced as a
+  protocol diagnostic and never acknowledged. An obligation for a
   subscription the client does not hold is surfaced and ignored, never
   acknowledged on the foreign owner's behalf. Failure to acknowledge
   leaves the obligation held and redelivered (LLP 0053's level-triggered
   rule). Fixtures:
   `auth.live.invalidation_snapshot_apply_then_ack`,
+  `auth.live.invalidation_authorization_snapshot_same_data_version`,
+  `auth.live.invalidation_terminal_delete_apply_then_ack`,
   `auth.live.invalidation_without_snapshot_quarantines`, and
   `auth.live.foreign_obligation_never_acknowledged`.
 - **T-AUTH-TERM** (`→ TERMINAL_AUTH`): `auth_error` frame / close code
@@ -252,8 +282,8 @@ spec): `replace_rows`, `apply_delta_by_id`, `drop_stale`,
 `unwrap_durable`, `deliver_batch_remainder`, `surface_decode_diagnostic`,
 `ignore_frame`, `ignore_unknown_fields`, `surface_terminal_auth`,
 `reopen_connection`, `adopt_resume_token`, `quarantine_rows`,
-`apply_invalidation_snapshot`, `acknowledge_obligation`,
-`surface_protocol_diagnostic`.
+`apply_invalidation_snapshot`, `apply_invalidation_terminal_delete`,
+`acknowledge_obligation`, `surface_protocol_diagnostic`.
 
 ## 2. The conformance fixture corpus contract
 
@@ -336,6 +366,9 @@ The positive corpus now covers all five committed `LiveEnvelope` kinds:
 `live_replace`, `live_delta`, `resync_required`, `current_as_of`, and
 `authorization_invalidation`. The last two are judged by
 T-CURRENT-AS-OF and T-AUTH-INVALIDATION rather than by the tolerance floor.
+The auth/live class includes first application at an equal data version,
+snapshot and terminal-delete exact duplicate re-ACK, quarantine without a
+resolution, and foreign-scope refusal.
 
 The full inventory LLP 0093 D2/P-1 enumerates, with seeding status:
 

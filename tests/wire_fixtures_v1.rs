@@ -136,6 +136,8 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         "durable.replace_then_delta.identity_continuity",
         "durable.current_as_of.adopts_token_without_rows",
         "auth.live.invalidation_snapshot_apply_then_ack",
+        "auth.live.invalidation_authorization_snapshot_same_data_version",
+        "auth.live.invalidation_terminal_delete_apply_then_ack",
         "auth.live.invalidation_without_snapshot_quarantines",
         "auth.live.foreign_obligation_never_acknowledged",
         "durable.resync_required.connection_wide_clear_retained",
@@ -243,7 +245,7 @@ fn format_v2_pins_connection_populations_and_row_identity() {
 }
 
 #[test]
-fn auth_live_fixture_pins_apply_before_ack_and_foreign_scope_fence() {
+fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
     let fixtures = fixtures();
     let sequence = fixtures
         .iter()
@@ -264,6 +266,103 @@ fn auth_live_fixture_pins_apply_before_ack_and_foreign_scope_fence() {
         sequence["steps"][1]["expect"]["ackToken"],
         "ack_fixture_1"
     );
+
+    let same_version = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"] == "auth.live.invalidation_authorization_snapshot_same_data_version"
+        })
+        .expect("equal-data-version auth/live sequence");
+    assert_eq!(
+        same_version["given"]["subscriptions"][0]["version"],
+        same_version["steps"][0]["frame"]["snapshot"]["version"],
+        "a first-seen authorization resolution must cover the equal-data-version case"
+    );
+    assert_eq!(
+        same_version["given"]["subscriptions"][0]["acceptedAuthorization"]["epoch"],
+        1
+    );
+    assert_eq!(
+        same_version["given"]["authorizationExpectation"]["authorization"]["epoch"],
+        2
+    );
+    assert_eq!(
+        same_version["steps"][0]["frame"]["resolution"]["witness"]["authorization"]["epoch"],
+        2
+    );
+    assert_eq!(
+        same_version["steps"][0]["frame"],
+        same_version["steps"][1]["frame"],
+        "duplicate re-ACK must repeat the exact frame identity"
+    );
+    assert_eq!(
+        same_version["steps"][1]["expect"]["ackToken"],
+        "ack_fixture_same_version_1"
+    );
+
+    let terminal = fixtures
+        .iter()
+        .find(|fixture| {
+            fixture["name"] == "auth.live.invalidation_terminal_delete_apply_then_ack"
+        })
+        .expect("terminal-delete auth/live sequence");
+    let terminal_frame = &terminal["steps"][0]["frame"];
+    assert_eq!(terminal_frame["resolution"]["kind"], "terminalDelete");
+    assert_eq!(terminal_frame["obligation"]["maxDisposition"], "delete");
+    assert!(
+        terminal_frame.get("snapshot").is_none_or(Value::is_null),
+        "terminalDelete must carry no snapshot"
+    );
+    assert_eq!(
+        terminal["steps"][0]["expect"]["orderedActions"],
+        serde_json::json!([
+            "quarantine_rows",
+            "apply_invalidation_terminal_delete",
+            "acknowledge_obligation"
+        ])
+    );
+    assert_eq!(
+        terminal["steps"][0]["expect"]["transitions"][0],
+        serde_json::json!({
+            "subscription": "sub_fixture_1",
+            "to": "terminal_deleted",
+            "rows": "destroyed"
+        })
+    );
+    assert_eq!(
+        terminal["steps"][0]["frame"],
+        terminal["steps"][1]["frame"],
+        "terminal duplicate re-ACK must repeat the exact frame identity"
+    );
+    assert_eq!(
+        terminal["steps"][1]["expect"]["ackToken"],
+        "ack_fixture_terminal_delete_1"
+    );
+
+    for fixture in [sequence, same_version, terminal] {
+        let frame = &fixture["steps"][0]["frame"];
+        let obligation = &frame["obligation"];
+        let resolution = &frame["resolution"];
+        for field in [
+            "protocolVersion",
+            "scopeId",
+            "revision",
+            "witness",
+            "maxDisposition",
+            "ownerContinuityId",
+        ] {
+            assert_eq!(
+                obligation[field], resolution[field],
+                "{}: resolution field {field} must bind the exact obligation",
+                fixture["name"]
+            );
+        }
+        assert!(
+            resolution["ackToken"].is_string(),
+            "{}: exact re-ACK identity requires a token",
+            fixture["name"]
+        );
+    }
 
     let foreign = fixtures
         .iter()
