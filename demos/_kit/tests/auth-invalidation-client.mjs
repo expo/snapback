@@ -189,7 +189,18 @@ try {
     }
     if (path === '/outbox/granted-auth') return response(outbox.shift() ?? []);
     if (path === '/live/listTodos/unsubscribe') {
-      return response({ subscription_id: 'sub_auth', disposed: true });
+      order.push('unsubscribe');
+      return response({
+        subscription_id: 'sub_auth',
+        disposed: true,
+        scopeRetirement: {
+          issuerId,
+          namespace,
+          retireThroughScopeSequence: 40,
+          authorizationExpectation: authorization,
+          mac: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        },
+      });
     }
     throw new Error(`unexpected request: ${path}`);
   };
@@ -414,6 +425,25 @@ try {
     'coexisting scope roots do not manufacture a stale-task fault',
   );
   assert.equal(ackOutcomes.length, 0);
+
+  // Pause is an exact demand release, not query retirement. Its signed scope
+  // retirement still advances local queue/fence custody while the query
+  // lifecycle remains active for a later fresh resume.
+  let pauseScopeRetirement = null;
+  const unsubscribeLive = client.unsubscribeLive.bind(client);
+  client.unsubscribeLive = async (...args) => {
+    const result = await unsubscribeLive(...args);
+    pauseScopeRetirement = result.scopeRetirement ?? null;
+    return result;
+  };
+  await handle.pause();
+  assert(pauseScopeRetirement, 'pause observes the signed scope retirement response');
+  const pausedAuthorizationState = handle.authorizationState();
+  assert(
+    pausedAuthorizationState.retiredScopeFrontier?.scopeSequence === 40,
+    `pause applies the server-returned scope retirement to the active query fence: ${JSON.stringify(pausedAuthorizationState)}`,
+  );
+  assert.equal(pausedAuthorizationState.lifecycle, 'active');
 
   handle.dispose();
   await new Promise((resolve) => setTimeout(resolve, 0));

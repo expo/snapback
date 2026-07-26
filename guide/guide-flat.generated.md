@@ -1558,10 +1558,14 @@ client must offer `auth/rr`; auth-scoped live work must additionally offer
 and acknowledge them after apply. The first-party JS factory and Swift client
 do this.
 
-Replacing or clearing a bearer is an authority transition: dispose protected
-handles and blank predecessor rows before publishing successor data. A broker
-that rotates credentials supplies the replacement bearer explicitly; the
-external-bearer seam does not silently assume refresh ownership.
+Replacing or clearing a bearer is an authority transition. In JavaScript use
+`await client.replaceBearerToken(nextBearer)` (or `null` to clear): it releases
+protected live-query demand, blanks predecessor rows, retires old grants and
+transports, and only then fresh-subscribes under the successor. The synchronous
+`setBearerToken` method refuses a changed value because it cannot provide that
+barrier. A broker that rotates credentials supplies the replacement bearer
+explicitly; the external-bearer seam does not silently assume refresh
+ownership.
 
 ## Know the production boundary
 
@@ -3516,7 +3520,7 @@ callbacks instead of reading socket internals. Always dispose the handle.
 The managed stream sends application ping frames every five seconds and forces
 reconnect only after its 15-second freshness budget is missed. A quiet socket
 is not stale merely because no data rows changed. Mobile hosts map observable
-lifecycle to `handle.pause()` and `await handle.resume()`: pause releases
+lifecycle to `await handle.pause()` and `await handle.resume()`: pause releases
 demand and quiesces transport; resume obtains a fresh subscription snapshot.
 Do this once in the provider/framework binding, not in every view. See
 [framework bindings](./framework-bindings.md).
@@ -3591,10 +3595,15 @@ captured predecessor; a peer-installed successor is preserved and makes the
 call stale instead of being reported as logout success. Non-transient custody
 diagnostics remain exact.
 
-`setBearerToken` and `clearAuthSession` support an uncoordinated protocol
-client, including replacement of a broker-issued external session. Prefer
+`setBearerToken` deliberately refuses a synchronous bearer change: it cannot
+hide predecessor rows, release durable demand, and close old grants before
+returning. An external-bearer client instead uses
+`await replaceBearerToken(nextBearer)`. That async custody transition pauses
+and unsubscribes every protected live handle, blanks predecessor rows, closes
+old transports and grants, installs the successor, then fresh-subscribes the
+handles. Passing `null` clears custody and leaves them blank/paused. Prefer
 `createExternalSessionClient` for construction so the exact auth offers cannot
-be forgotten. Do not use either method to bypass an `AuthCoordinator`.
+be forgotten. Neither method bypasses an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
@@ -3621,7 +3630,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal
@@ -3904,10 +3913,13 @@ Call `openConnection()`, then `subscribe(function:args:)`. Start either
 replace/delta rows and authorization-invalidation snapshots through the same
 callback.
 
-The client version-guards all three row lanes. An auth invalidation snapshot is
-applied before its acknowledgement. Duplicate level-triggered delivery is
-acknowledged again without regressing held rows. Missing snapshots quarantine
-the old materialization and re-enter through a fresh subscription.
+Ordinary replace/delta lanes use a strict increasing data-version guard.
+Authorization invalidation has its own exact scope/revision/ticket fence: a
+first-seen satisfying snapshot can replace rows at the same data version, and
+only an identical already-applied ticket is acknowledged again without
+reapplying. Missing snapshot resolutions quarantine and blank the old
+materialization. A `terminalDelete` resolution destroys rows, persists the
+terminal fence, publishes the blank state, and ACKs without resubscribing.
 
 ## Bind app lifecycle
 
@@ -3917,6 +3929,11 @@ socket while retaining the desired query specifications. Call
 `resumeAfterForeground()` after the app becomes active; it reattaches the lane
 and obtains fresh snapshots before resuming live publication.
 
+If the server reports `SNAPBACK_CONNECTION_TOKEN_INVALID` after idle reaping
+or grant expiry, the client discards that grant and quiesces its transports.
+The next foreground attempt opens a fresh grant and re-establishes every
+desired subscription; it never loops on the refused token.
+
 These are platform-neutral methods. A SwiftUI host can map `scenePhase` to
 them; UIKit can map the corresponding application notifications. Do not put
 reconnect logic in individual views.
@@ -3925,8 +3942,9 @@ reconnect logic in individual views.
 
 From `clients/swift/SnapbackClient`, run `swift test`. The suite replays the
 committed conformance corpus and adds client-specific coverage for invalidation
-apply-before-ack, duplicate redelivery, body-auth omission, and reservation
-retry exhaustion/eventual success.
+apply-before-ack (including equal data versions), terminal deletion, exact
+duplicate redelivery, foreground grant-loss recovery, body-auth omission, and
+reservation retry exhaustion/eventual success.
 
 ## Support status
 

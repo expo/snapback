@@ -65,6 +65,51 @@ assert.throws(
   () => new SnapbackClient('http://127.0.0.1:9', { authClientProtocol: 1 }),
   /explicit external-bearer custody/,
 );
+assert.throws(
+  () => externalClient.setBearerToken('sbs_external_replacement'),
+  /replaceBearerToken/u,
+);
+const externalTransitionEvents = [];
+let settleExternalRelease;
+const externalHandle = {
+  pause() {
+    externalTransitionEvents.push('pause');
+    return new Promise((resolve) => { settleExternalRelease = resolve; });
+  },
+  async resume() { externalTransitionEvents.push('resume'); },
+};
+externalClient.__externalBearerHandles.add(externalHandle);
+const unregisterExternalMaterialization = externalClient.registerAuthMaterialization({
+  capture: () => null,
+  blank: () => externalTransitionEvents.push('blank'),
+});
+externalClient.__connectionGrants.set('old', Promise.resolve({
+  id: 'old',
+  token: 'old',
+}));
+externalClient.__liveStreamManagers = new Map([['old', {
+  close() { externalTransitionEvents.push('close'); },
+}]]);
+const externalReplacement = externalClient.replaceBearerToken('sbs_external_replacement');
+await Promise.resolve();
+assert.deepEqual(
+  externalTransitionEvents,
+  ['pause', 'blank'],
+  'predecessor rows blank before asynchronous unsubscribe settlement',
+);
+assert.equal(
+  externalClient.bearerToken,
+  'sbs_external_package_test',
+  'successor bearer is not installed before predecessor release settles',
+);
+settleExternalRelease();
+await externalReplacement;
+assert.equal(externalClient.bearerToken, 'sbs_external_replacement');
+assert.deepEqual(externalTransitionEvents, ['pause', 'blank', 'close', 'resume']);
+assert.equal(externalClient.__connectionGrants.size, 0);
+assert.equal(externalClient.__liveStreamManagers.size, 0);
+externalClient.__externalBearerHandles.delete(externalHandle);
+unregisterExternalMaterialization();
 const appStateListeners = new Set();
 const appState = {
   currentState: 'active',

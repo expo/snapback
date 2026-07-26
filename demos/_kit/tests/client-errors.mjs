@@ -1892,6 +1892,55 @@ try {
     return { attempts: resumeInputs.length };
   });
 
+  await suite.check('pause releases exact durable demand while a shared stream remains live', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_pause_shared');
+    const db = new SnapbackClient('http://stub');
+    const subscribes = [];
+    const unsubscribes = [];
+    db.subscribeLive = async (_name, options) => {
+      const subscriptionId = `sub_pause_${subscribes.length + 1}`;
+      subscribes.push({ subscriptionId, supersedes: options.supersedes ?? null });
+      return {
+        subscription_id: subscriptionId,
+        snapshot: { version: subscribes.length, rows: [] },
+      };
+    };
+    db.unsubscribeLive = async (_name, options) => {
+      unsubscribes.push(options.subscriptionId);
+      return { removed: true };
+    };
+
+    const alpha = await db.liveQuery('listTodos', {
+      connectionId: 'conn_pause_shared',
+      transport: 'stream',
+    });
+    const beta = await db.liveQuery('listTodos', {
+      connectionId: 'conn_pause_shared',
+      transport: 'stream',
+    });
+    assertEqual(db.__liveStreamManagers.size, 1, 'both handles share one stream manager');
+
+    const alphaBeforePause = alpha.subscriptionId;
+    await alpha.pause();
+    assertEqual(
+      JSON.stringify(unsubscribes),
+      JSON.stringify([alphaBeforePause]),
+      'pause explicitly unsubscribes its exact durable demand',
+    );
+    assertEqual(db.__liveStreamManagers.size, 1, 'the peer keeps shared transport demand alive');
+
+    await alpha.resume();
+    assertEqual(
+      subscribes.at(-1).supersedes,
+      alphaBeforePause,
+      'resume enters through a fresh subscribe that supersedes the released id',
+    );
+    beta.dispose();
+    alpha.dispose();
+    return { subscribes, unsubscribes };
+  });
+
   await suite.check('socket/session subscribe refusals retry only after generation-scoped readiness', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_session_ready');

@@ -55,10 +55,14 @@ client must offer `auth/rr`; auth-scoped live work must additionally offer
 and acknowledge them after apply. The first-party JS factory and Swift client
 do this.
 
-Replacing or clearing a bearer is an authority transition: dispose protected
-handles and blank predecessor rows before publishing successor data. A broker
-that rotates credentials supplies the replacement bearer explicitly; the
-external-bearer seam does not silently assume refresh ownership.
+Replacing or clearing a bearer is an authority transition. In JavaScript use
+`await client.replaceBearerToken(nextBearer)` (or `null` to clear): it releases
+protected live-query demand, blanks predecessor rows, retires old grants and
+transports, and only then fresh-subscribes under the successor. The synchronous
+`setBearerToken` method refuses a changed value because it cannot provide that
+barrier. A broker that rotates credentials supplies the replacement bearer
+explicitly; the external-bearer seam does not silently assume refresh
+ownership.
 
 ## Know the production boundary
 

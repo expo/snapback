@@ -208,7 +208,7 @@ callbacks instead of reading socket internals. Always dispose the handle.
 The managed stream sends application ping frames every five seconds and forces
 reconnect only after its 15-second freshness budget is missed. A quiet socket
 is not stale merely because no data rows changed. Mobile hosts map observable
-lifecycle to `handle.pause()` and `await handle.resume()`: pause releases
+lifecycle to `await handle.pause()` and `await handle.resume()`: pause releases
 demand and quiesces transport; resume obtains a fresh subscription snapshot.
 Do this once in the provider/framework binding, not in every view. See
 [framework bindings](./framework-bindings.md).
@@ -283,10 +283,15 @@ captured predecessor; a peer-installed successor is preserved and makes the
 call stale instead of being reported as logout success. Non-transient custody
 diagnostics remain exact.
 
-`setBearerToken` and `clearAuthSession` support an uncoordinated protocol
-client, including replacement of a broker-issued external session. Prefer
+`setBearerToken` deliberately refuses a synchronous bearer change: it cannot
+hide predecessor rows, release durable demand, and close old grants before
+returning. An external-bearer client instead uses
+`await replaceBearerToken(nextBearer)`. That async custody transition pauses
+and unsubscribes every protected live handle, blanks predecessor rows, closes
+old transports and grants, installs the successor, then fresh-subscribes the
+handles. Passing `null` clears custody and leaves them blank/paused. Prefer
 `createExternalSessionClient` for construction so the exact auth offers cannot
-be forgotten. Do not use either method to bypass an `AuthCoordinator`.
+be forgotten. Neither method bypasses an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
@@ -313,7 +318,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal

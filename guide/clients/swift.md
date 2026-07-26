@@ -47,10 +47,13 @@ Call `openConnection()`, then `subscribe(function:args:)`. Start either
 replace/delta rows and authorization-invalidation snapshots through the same
 callback.
 
-The client version-guards all three row lanes. An auth invalidation snapshot is
-applied before its acknowledgement. Duplicate level-triggered delivery is
-acknowledged again without regressing held rows. Missing snapshots quarantine
-the old materialization and re-enter through a fresh subscription.
+Ordinary replace/delta lanes use a strict increasing data-version guard.
+Authorization invalidation has its own exact scope/revision/ticket fence: a
+first-seen satisfying snapshot can replace rows at the same data version, and
+only an identical already-applied ticket is acknowledged again without
+reapplying. Missing snapshot resolutions quarantine and blank the old
+materialization. A `terminalDelete` resolution destroys rows, persists the
+terminal fence, publishes the blank state, and ACKs without resubscribing.
 
 ## Bind app lifecycle
 
@@ -60,6 +63,11 @@ socket while retaining the desired query specifications. Call
 `resumeAfterForeground()` after the app becomes active; it reattaches the lane
 and obtains fresh snapshots before resuming live publication.
 
+If the server reports `SNAPBACK_CONNECTION_TOKEN_INVALID` after idle reaping
+or grant expiry, the client discards that grant and quiesces its transports.
+The next foreground attempt opens a fresh grant and re-establishes every
+desired subscription; it never loops on the refused token.
+
 These are platform-neutral methods. A SwiftUI host can map `scenePhase` to
 them; UIKit can map the corresponding application notifications. Do not put
 reconnect logic in individual views.
@@ -68,8 +76,9 @@ reconnect logic in individual views.
 
 From `clients/swift/SnapbackClient`, run `swift test`. The suite replays the
 committed conformance corpus and adds client-specific coverage for invalidation
-apply-before-ack, duplicate redelivery, body-auth omission, and reservation
-retry exhaustion/eventual success.
+apply-before-ack (including equal data versions), terminal deletion, exact
+duplicate redelivery, foreground grant-loss recovery, body-auth omission, and
+reservation retry exhaustion/eventual success.
 
 ## Support status
 

@@ -1266,6 +1266,11 @@ export class SnapbackClient {
     this.__authSessionCapture = null;
     this.__authMaterializations = new Set();
     this.__authBarrierParticipants = new Set();
+    // Explicit external-bearer custody has no AuthCoordinator to enumerate
+    // protected handles during an identity transition. Keep the live handles
+    // that must release demand, blank, and re-enter under a successor bearer.
+    this.__externalBearerHandles = new Set();
+    this.__externalBearerTransition = null;
     this.__authorityPublicationCapture = null;
     this.__authorityPublicationDepth = 0;
     this.__terminalAuthorityCapture = undefined;
@@ -1628,9 +1633,101 @@ export class SnapbackClient {
       throw new TypeError('setBearerToken cannot bypass browser or agent custody');
     }
     if (token === this.bearerToken) return;
-    this.bearerToken = token ?? null;
-    this.clearAuthSession();
-    this.__connectionGrants.clear();
+    throw new TypeError(
+      'setBearerToken cannot synchronously replace custody; use await replaceBearerToken(token)',
+    );
+  }
+
+  // @ref LLP 0059#exposure-invariant — external bearer replacement is a
+  // custody barrier: release predecessor demand, blank synchronously, retire
+  // old transports/grants, then re-enter under the successor.
+  async replaceBearerToken(token) {
+    this.#assertNotInAuthorityPublication(
+      'bearer replacement is forbidden inside an authority publication callback',
+    );
+    if (this.authCoordinator || this.agentAuthority) {
+      throw new TypeError('replaceBearerToken cannot bypass browser or agent custody');
+    }
+    if (token !== null && (typeof token !== 'string' || token.length === 0)) {
+      throw new TypeError('replaceBearerToken requires a non-empty bearer or null');
+    }
+    if (token === this.bearerToken) return;
+    if (this.__externalBearerTransition) {
+      throw new TypeError('replaceBearerToken cannot overlap another bearer transition');
+    }
+    const transition = (async () => {
+      const handles = [...this.__externalBearerHandles];
+      const failures = [];
+      // pause() quiesces locally and starts T-UNSUB synchronously. Blank in
+      // this same turn; network release settlement is not a confidentiality
+      // gate and may take arbitrarily long.
+      const releasePromises = handles.map((handle) => {
+        try {
+          return Promise.resolve(handle.pause());
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      });
+      const context = Object.freeze({
+        reason: token === null ? 'external_bearer_cleared' : 'external_bearer_replaced',
+        disposition: 'delete',
+      });
+      try {
+        this.#blankAuthMaterializations(null, context);
+      } catch (error) {
+        failures.push(error);
+      }
+      const releases = await Promise.allSettled(releasePromises);
+      for (const outcome of releases) {
+        if (outcome.status === 'rejected') failures.push(outcome.reason);
+      }
+      try {
+        this.__authTransportParticipant.quiesce(context);
+      } catch (error) {
+        failures.push(error);
+      }
+      // Preserve lane-consumer registrations owned by the paused handles;
+      // resume reuses them. Everything that can carry or publish predecessor
+      // authority is nevertheless closed or forgotten here.
+      try {
+        this.clearAuthSession();
+      } catch (error) {
+        failures.push(error);
+      }
+      this.__connectionGrants.clear();
+      this.__receiptRing.length = 0;
+      this.__liveStreamManagers?.clear?.();
+      this.bearerToken = token;
+
+      if (token !== null) {
+        const resumes = await Promise.allSettled(handles.map((handle) => handle.resume()));
+        for (const outcome of resumes) {
+          if (outcome.status === 'rejected') failures.push(outcome.reason);
+        }
+      }
+      if (failures.length > 0) {
+        throw new AggregateError(
+          failures,
+          'external bearer custody transition completed with lifecycle failures',
+        );
+      }
+    })();
+    this.__externalBearerTransition = transition;
+    try {
+      await transition;
+    } finally {
+      if (this.__externalBearerTransition === transition) {
+        this.__externalBearerTransition = null;
+      }
+    }
+  }
+
+  __registerExternalBearerHandle(handle) {
+    if (this.authCoordinator || this.agentAuthority || this.authProtocols.authClient !== 1) {
+      return () => {};
+    }
+    this.__externalBearerHandles.add(handle);
+    return () => this.__externalBearerHandles.delete(handle);
   }
 
   async replaceAgentCredential(credential) {
@@ -4383,6 +4480,7 @@ export class SnapbackClient {
     let freshSubscribePending = 0;
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
+    let pauseReleasePromise = Promise.resolve();
 
     const handle = {
       subscriptionId: null,
@@ -4691,16 +4789,17 @@ export class SnapbackClient {
       );
     };
 
-    const authorizationTaskState = (capture) => Object.freeze({
+    const authorizationTaskState = (capture, { allowPaused = false } = {}) => Object.freeze({
       capture,
       lifecycleEpoch: subscribeLifecycleEpoch,
       authorizationGeneration: authorizationTaskGeneration,
       authorizationFence,
+      allowPaused,
     });
 
     const authorizationTaskIsCurrent = (taskState) => (
       !disposed
-      && !paused
+      && (!paused || taskState.allowPaused === true)
       && taskState.lifecycleEpoch === subscribeLifecycleEpoch
       && taskState.authorizationGeneration === authorizationTaskGeneration
       && taskState.authorizationFence === authorizationFence
@@ -5010,7 +5109,7 @@ export class SnapbackClient {
       emitEvent('established');
     };
 
-    const bestEffortUnsubscribeLive = (
+    const unsubscribeLiveForLifecycle = (
       subscriptionId,
       retirementState = authorizationTaskState(handleAuthorityCapture),
     ) => {
@@ -5024,13 +5123,22 @@ export class SnapbackClient {
           authorityCapture: retirementState.capture,
         }))
         .then(async (response) => {
-          if (
-            response?.scopeRetirement
-            && retiringFence !== null
-            && authorizationFence === retiringFence
-            && retiringFence.snapshot?.().lifecycle === 'retiring'
-          ) {
-            await applyRetirement('scope', response.scopeRetirement, null, retirementState);
+          if (response?.scopeRetirement && authorizationFence !== null) {
+            // Pause serializes resume behind this promise, so the current
+            // active fence is still the exact released subscription's fence.
+            // Capture after the HTTP response to keep the retirement task
+            // current while paused; only query retirement itself is allowed
+            // to finish the fence lifecycle below.
+            const scopeRetirementState = authorizationTaskState(
+              retirementState.capture,
+              { allowPaused: true },
+            );
+            await applyRetirement(
+              'scope',
+              response.scopeRetirement,
+              null,
+              scopeRetirementState,
+            );
           }
           if (
             retiringFence !== null
@@ -5039,14 +5147,19 @@ export class SnapbackClient {
           ) {
             await commitAuthorizationTask(retirementState, () => retiringFence.finishRetirement());
           }
-        })
+        });
+    };
+
+    const bestEffortUnsubscribeLive = (
+      subscriptionId,
+      retirementState = authorizationTaskState(handleAuthorityCapture),
+    ) => unsubscribeLiveForLifecycle(subscriptionId, retirementState)
         .catch(() => {
           // Best-effort: the subscription may already be gone (disconnect,
           // supersession) or the server unreachable — the reaper covers it.
           // Never finish a retiring predecessor after its lifecycle/fence was
           // replaced; owner continuity remains until authoritative cleanup.
         });
-    };
 
     const subscribeLifecycleError = (state) => {
       const code = state === 'disposed'
@@ -5852,6 +5965,7 @@ export class SnapbackClient {
         stopFallback();
         clearResubscribeRetry();
         unregisterAuthMaterialization();
+        unregisterExternalBearerHandle();
         unregisterDurable();
         detachStream?.();
         detachStream = null;
@@ -5897,8 +6011,10 @@ export class SnapbackClient {
     // scheduled -> 'disconnected'); resume re-enters through a fresh
     // snapshot-with-subscribe and a 'resubscribed' event.
     handle.pause = () => {
-      if (disposed || paused) return;
+      if (disposed) return Promise.resolve();
+      if (paused) return pauseReleasePromise;
       paused = true;
+      const staleSubscriptionId = handle.subscriptionId;
       // Backgrounding analog of the visibility-hidden flush (§0A.5).
       void persistResumeStateNow();
       invalidateSubscribeLifecycle('paused');
@@ -5907,10 +6023,25 @@ export class SnapbackClient {
       detachStream?.();
       detachStream = null;
       setConnection('disconnected');
+      // T-UNSUB is the durable demand-release transition. Detaching from a
+      // shared manager only releases local socket demand; the exact server
+      // subscription must be retired independently before resume re-enters.
+      const pausedRetirementState = authorizationTaskState(
+        handleAuthorityCapture,
+        { allowPaused: true },
+      );
+      pauseReleasePromise = unsubscribeLiveForLifecycle(
+        staleSubscriptionId,
+        pausedRetirementState,
+      );
+      return pauseReleasePromise;
     };
 
     handle.resume = async () => {
       if (disposed || !paused) return;
+      // A caller may invoke resume without awaiting pause. Serialize the
+      // fresh superseding subscribe after the old demand-release attempt.
+      try { await pauseReleasePromise; } catch { /* fresh supersession can recover */ }
       paused = false;
       beginSubscribeLifecycle();
       const resumeLifecycleEpoch = subscribeLifecycleEpoch;
@@ -5956,6 +6087,9 @@ export class SnapbackClient {
       emitEvent('resubscribed', { reason: 'resume' });
     };
 
+    const unregisterExternalBearerHandle =
+      client.__registerExternalBearerHandle(handle);
+
     handle.dispose = () => {
       if (disposed || disposing) return;
       disposing = true;
@@ -5999,6 +6133,7 @@ export class SnapbackClient {
         }
         attempt(unregisterDurable);
         attempt(unregisterAuthMaterialization);
+        attempt(unregisterExternalBearerHandle);
         attempt(() => detachStream?.());
         detachStream = null;
         attempt(() => setConnection('disconnected'));
