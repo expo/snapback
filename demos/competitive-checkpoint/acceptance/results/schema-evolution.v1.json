@@ -14,8 +14,8 @@
       "name": "preview derives the additive intent from the schema diff and seals a reviewable plan",
       "ok": true,
       "details": {
-        "planId": "migration-v1:7f0a709f628fb674965e0db5b4e9c38e8521bcf3a5ba6092ef7cd44648014881",
-        "planDigest": "7f0a709f628fb674965e0db5b4e9c38e8521bcf3a5ba6092ef7cd44648014881",
+        "planId": "migration-v1:77aaf3a79e7dbd7b6bc23b73717bdc48b9f51a0c53c7636b56dedbf709c32974",
+        "planDigest": "77aaf3a79e7dbd7b6bc23b73717bdc48b9f51a0c53c7636b56dedbf709c32974",
         "steps": 1
       }
     },
@@ -40,7 +40,7 @@
       "name": "verify re-proves the receipt against the journal after the fact",
       "ok": true,
       "details": {
-        "operationId": "operation-v1:019f9fc03f0675b38e1062648b7e1bb6",
+        "operationId": "operation-v1:019f9fd2d14f7a83859aab4af0c98f3f",
         "state": "released"
       }
     },

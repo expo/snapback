@@ -56,7 +56,7 @@
   "pinnedReceipts": {
     "schemaEvolution": {
       "file": "acceptance/results/schema-evolution.v1.json",
-      "sha256": "7f50bd6650e0b419a987ccefb094439a228fc379ee2176b030812c64ec922764"
+      "sha256": "acf421d862cac9463923721fa07b2512493eb71e478c62c0ff2d46a53ea875a2"
     },
     "relationalConversations": {
       "file": "acceptance/results/relational-conversations.v1.json",
