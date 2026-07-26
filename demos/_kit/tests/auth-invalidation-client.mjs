@@ -108,7 +108,16 @@ const appliedScopeSequences = [];
 const boundaries = [];
 const authorizationErrors = [];
 const outbox = [];
-const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged', 'discharged', 'discharged'];
+const ackOutcomes = [
+  'discharged',
+  'stale',
+  'discharged',
+  'discharged',
+  'discharged',
+  'duplicate',
+  'discharged',
+  'discharged',
+];
 let failQueueRevision3 = true;
 let namespace;
 let scopeId;
@@ -372,6 +381,53 @@ try {
     'same exact ticket does not report a stale-resolution fault',
   );
 
+  // Once local proof and ACK have completed, a delayed exact redelivery still
+  // re-ACKs the same token without reapplying rows or durable queue custody.
+  outbox.push([structuredClone(fourthFrame)]);
+  await handle.poll();
+  await waitFor(
+    () => assert.equal(order.filter((entry) => entry === 'ack:ack_4').length, 2),
+    'delayed exact-ticket redelivery did not re-acknowledge its original token',
+  );
+  assert.equal(order.filter((entry) => entry === 'queue-resolve:4').length, 1);
+  assert.equal(
+    authorizationErrors.length,
+    errorsBeforeExactRefire,
+    'delayed exact-ticket redelivery does not manufacture a protocol fault',
+  );
+
+  // Token dedupe is bound to the entire resolution frame. A same-turn frame
+  // that reuses the valid task's token with changed ticket fields is surfaced
+  // and never starts a second ACK task.
+  const fifth = obligation(scopeId, 5, 15);
+  const fifthFrame = { Durable: { payload: JSON.stringify({
+    kind: 'authorization_invalidation',
+    obligation: fifth,
+    resolution: resolution(fifth, 'ack_5'),
+    snapshot: {
+      subscriptionId: 'sub_auth',
+      function: 'listTodos',
+      version: 15,
+      rows: [{ _id: 'row_15' }],
+    },
+  }) } };
+  const conflictingFifthFrame = structuredClone(fifthFrame);
+  const conflictingFifthPayload = JSON.parse(conflictingFifthFrame.Durable.payload);
+  conflictingFifthPayload.resolution.maxDisposition = 'delete';
+  conflictingFifthFrame.Durable.payload = JSON.stringify(conflictingFifthPayload);
+  outbox.push([fifthFrame, conflictingFifthFrame]);
+  await handle.poll();
+  await waitFor(
+    () => assert.equal(order.filter((entry) => entry === 'ack:ack_5').length, 1),
+    'the exact resolution was not acknowledged once',
+  );
+  await waitFor(
+    () => assert.equal(authorizationErrors.length, errorsBeforeExactRefire + 1),
+    'conflicting same-token ticket did not surface a protocol diagnostic',
+  );
+  assert.equal(order.filter((entry) => entry === 'queue-resolve:5').length, 1);
+  const errorsBeforeForeign = authorizationErrors.length;
+
   // A matching subscription id is not ownership. Scope sequence and
   // connection generation are part of the exact held scope; foreign frames
   // diagnose without touching queue custody or acknowledging for another
@@ -397,7 +453,7 @@ try {
     await handle.poll();
   }
   await waitFor(
-    () => assert.equal(authorizationErrors.length, errorsBeforeExactRefire + 2),
+    () => assert.equal(authorizationErrors.length, errorsBeforeForeign + 2),
     'foreign exact scopes did not surface protocol diagnostics',
   );
   assert.equal(appliedScopeSequences.length, queueApplicationsBeforeForeign);
@@ -405,7 +461,7 @@ try {
     order.filter((entry) => entry.startsWith('ack:')).length,
     acknowledgementsBeforeForeign,
   );
-  assert.deepEqual(handle.rows, [{ _id: 'row_14' }], 'foreign scopes do not alter owned rows');
+  assert.deepEqual(handle.rows, [{ _id: 'row_15' }], 'foreign scopes do not alter owned rows');
   assert.equal(ackOutcomes.length, 1);
 
   // Terminal deletion is a one-way fence for this exact query instance. Every
@@ -413,11 +469,11 @@ try {
   // that wants the canonical query again must construct a fresh handle and
   // therefore allocate a fresh queryInstanceId.
   const terminalObligation = {
-    ...obligation(scopeId, 5, 15),
+    ...obligation(scopeId, 6, 15),
     maxDisposition: 'delete',
   };
   const terminalResolution = {
-    ...resolution(terminalObligation, 'ack_terminal_5'),
+    ...resolution(terminalObligation, 'ack_terminal_6'),
     kind: 'terminalDelete',
   };
   outbox.push([{ Durable: { payload: JSON.stringify({
@@ -428,7 +484,7 @@ try {
   }) } }]);
   await handle.poll();
   await waitFor(
-    () => assert(order.includes('ack:ack_terminal_5')),
+    () => assert(order.includes('ack:ack_terminal_6')),
     'terminal delete did not commit before acknowledgement',
   );
   assert.deepEqual(handle.rows, []);
@@ -463,15 +519,13 @@ try {
   // Pause is an exact demand release, not query retirement. Its signed scope
   // retirement still advances local queue/fence custody while the query
   // lifecycle remains active for a later fresh resume.
-  let pauseScopeRetirement = null;
-  const unsubscribeLive = client.unsubscribeLive.bind(client);
-  client.unsubscribeLive = async (...args) => {
-    const result = await unsubscribeLive(...args);
-    pauseScopeRetirement = result.scopeRetirement ?? null;
-    return result;
-  };
+  const unsubscribesBeforePause = order.filter((entry) => entry === 'unsubscribe').length;
   await handle.pause();
-  assert(pauseScopeRetirement, 'pause observes the signed scope retirement response');
+  assert.equal(
+    order.filter((entry) => entry === 'unsubscribe').length,
+    unsubscribesBeforePause + 1,
+    'pause performs exact T-UNSUB and observes its signed retirement response',
+  );
   const pausedAuthorizationState = handle.authorizationState();
   assert(
     pausedAuthorizationState.retiredScopeFrontier?.scopeSequence === 40,

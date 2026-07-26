@@ -13,7 +13,7 @@
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
 //   connection axis.
 
-import { retainedQueryKey } from '@snapback/contract/client-store';
+import { retainedQueryKey, stableJson } from '@snapback/contract/client-store';
 import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
@@ -115,6 +115,10 @@ const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
 const CONNECTION_TOKEN_HEADER = 'x-snapback-connection-token';
+// Module-private capability used only by predecessor T-UNSUB and successor
+// fresh-subscribe work owned by replaceBearerToken(). Public work must wait
+// outside that transition even though these lifecycle operations run inside it.
+const EXTERNAL_BEARER_TRANSITION_PERMIT = Symbol('snapback.externalBearerTransitionPermit');
 
 const senderProofId = () => {
   const value = new Uint8Array(16);
@@ -1489,8 +1493,22 @@ export class SnapbackClient {
   /// cache is cleared on every authority change and terminal mode/credential
   /// diagnostic. Connection and subscribe boundaries request a fresh value.
   // @ref LLP 0058#kit-ordering — no online boundary relies on capability-manifest mode guesses.
-  authSession({ force = false } = {}) {
+  authSession(options = {}) {
+    return this.#authSession(options);
+  }
+
+  #authSession(
+    { force = false } = {},
+    externalBearerTransitionPermit = null,
+  ) {
     this.#assertAuthCountersAvailable();
+    const externalBearerTransition = this.__externalBearerTransition;
+    if (
+      externalBearerTransition
+      && externalBearerTransitionPermit !== EXTERNAL_BEARER_TRANSITION_PERMIT
+    ) {
+      return externalBearerTransition.then(() => this.#authSession({ force }));
+    }
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
     if (!force && this.__authSessionLastSuccessful) {
       if (!this.authorityFence) return Promise.resolve(this.__authSessionLastSuccessful);
@@ -1677,7 +1695,7 @@ export class SnapbackClient {
       // gate and may take arbitrarily long.
       const releasePromises = handlesPausedByTransition.map(({ handle }) => {
         try {
-          return Promise.resolve(handle.pause());
+          return Promise.resolve(handle.pause(EXTERNAL_BEARER_TRANSITION_PERMIT));
         } catch (error) {
           return Promise.reject(error);
         }
@@ -1720,7 +1738,7 @@ export class SnapbackClient {
         const resumes = await Promise.allSettled(
           handlesPausedByTransition
             .filter(({ handle }) => this.__externalBearerHandles.has(handle))
-            .map(({ handle }) => handle.resume()),
+            .map(({ handle }) => handle.resume(EXTERNAL_BEARER_TRANSITION_PERMIT)),
         );
         for (const outcome of resumes) {
           if (outcome.status === 'rejected') failures.push(outcome.reason);
@@ -2603,13 +2621,26 @@ export class SnapbackClient {
   // label-keyed, so a caller never needs to learn the wire id.
   //
   // @ref LLP 0031#connection-capability-grants — the client half of the handshake.
-  connectionGrant(connectionId) {
+  connectionGrant(connectionId, externalBearerTransitionPermit = null) {
     if (!connectionId) {
       return Promise.reject(new TypeError('Snapback connectionId is required for connection-scoped operations'));
     }
+    const externalBearerTransition = this.__externalBearerTransition;
+    if (
+      externalBearerTransition
+      && externalBearerTransitionPermit !== EXTERNAL_BEARER_TRANSITION_PERMIT
+    ) {
+      return externalBearerTransition.then(() => this.connectionGrant(connectionId));
+    }
     let grant = this.__connectionGrants.get(connectionId);
     if (!grant) {
-      grant = this.#openGrant(connectionId, connectionId, null);
+      grant = this.#openGrant(
+        connectionId,
+        connectionId,
+        null,
+        null,
+        externalBearerTransitionPermit,
+      );
       this.__connectionGrants.set(connectionId, grant);
     }
     return grant;
@@ -2622,7 +2653,14 @@ export class SnapbackClient {
   /// wire id, not the readable cache label: collision and mint-only posture
   /// can make them differ. After a restart that suggestion preserves identity
   /// where the target permits adoption; a mint-only target returns a fresh id.
-  refreshConnectionGrant(connectionId) {
+  refreshConnectionGrant(connectionId, externalBearerTransitionPermit = null) {
+    const externalBearerTransition = this.__externalBearerTransition;
+    if (
+      externalBearerTransition
+      && externalBearerTransitionPermit !== EXTERNAL_BEARER_TRANSITION_PERMIT
+    ) {
+      return externalBearerTransition.then(() => this.refreshConnectionGrant(connectionId));
+    }
     const stale = this.__connectionGrants.get(connectionId) ?? null;
     let grant;
     grant = (stale ? stale.catch(() => null) : Promise.resolve(null)).then(
@@ -2631,13 +2669,20 @@ export class SnapbackClient {
         previous?.id ?? connectionId,
         previous?.token ?? null,
         () => grant,
+        externalBearerTransitionPermit,
       ),
     );
     this.__connectionGrants.set(connectionId, grant);
     return grant;
   }
 
-  #openGrant(connectionLabel, suggestedConnectionId, previousToken, storedAs = null) {
+  #openGrant(
+    connectionLabel,
+    suggestedConnectionId,
+    previousToken,
+    storedAs = null,
+    externalBearerTransitionPermit = null,
+  ) {
     let grant;
     grant = this.#req('POST', '/connection/open', {
       connectionId: suggestedConnectionId,
@@ -2645,6 +2690,8 @@ export class SnapbackClient {
       ...(this.authProtocols.authInvalidation != null
         ? { authInvalidationProtocol: this.authProtocols.authInvalidation }
         : {}),
+    }, undefined, {
+      externalBearerTransitionPermit,
     }).then(
       (granted) => {
         const authorizationInvalidation = granted.authorizationInvalidation == null
@@ -2673,8 +2720,12 @@ export class SnapbackClient {
 
   /// Run one connection-scoped operation; on a token rejection, refresh the
   /// grant once (server restart recovery) and retry the operation.
-  async #withGrant(connectionId, run) {
-    const cached = this.connectionGrant(connectionId);
+  async #withGrant(
+    connectionId,
+    run,
+    externalBearerTransitionPermit = null,
+  ) {
+    const cached = this.connectionGrant(connectionId, externalBearerTransitionPermit);
     const grant = await cached;
     try {
       return await run(grant);
@@ -2683,9 +2734,12 @@ export class SnapbackClient {
       // Another operation may have refreshed the grant already; only refresh
       // when this operation still holds the rejected one.
       if (this.__connectionGrants.get(connectionId) === cached) {
-        await this.refreshConnectionGrant(connectionId);
+        await this.refreshConnectionGrant(connectionId, externalBearerTransitionPermit);
       }
-      return run(await this.connectionGrant(connectionId));
+      return run(await this.connectionGrant(
+        connectionId,
+        externalBearerTransitionPermit,
+      ));
     }
   }
 
@@ -2767,8 +2821,16 @@ export class SnapbackClient {
     supersededRetry = true,
     senderChallengeRetry = true,
     expectedAuthorityCapture = null,
+    externalBearerTransitionPermit = null,
   } = {}) {
     this.#assertAuthCountersAvailable();
+    const externalBearerTransition = this.__externalBearerTransition;
+    if (
+      externalBearerTransition
+      && externalBearerTransitionPermit !== EXTERNAL_BEARER_TRANSITION_PERMIT
+    ) {
+      await externalBearerTransition;
+    }
     let session = null;
     let capture = null;
     let bearerUsed = null;
@@ -2795,7 +2857,12 @@ export class SnapbackClient {
         // can never inherit its predecessor's startup nonce/generation cache.
         // @ref LLP 0058#kit-ordering — handshake cache is process-scoped, not
         // an origin-scoped capability assertion.
-        session = await this.authSession({ force: true });
+        session = externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
+          ? await this.#authSession(
+              { force: true },
+              externalBearerTransitionPermit,
+            )
+          : await this.authSession({ force: true });
         const unavailable = authAvailabilityError(session);
         if (unavailable) throw unavailable;
       }
@@ -2971,6 +3038,7 @@ export class SnapbackClient {
           supersededRetry,
           senderChallengeRetry: false,
           expectedAuthorityCapture: capture,
+          externalBearerTransitionPermit,
         });
       }
       if (this.authorityFence && capture && error?.receipt) {
@@ -2988,6 +3056,7 @@ export class SnapbackClient {
             supersededRetry: false,
             senderChallengeRetry,
             expectedAuthorityCapture,
+            externalBearerTransitionPermit,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -3841,7 +3910,11 @@ export class SnapbackClient {
     }
   }
 
-  async subscribeLive(ref, {
+  subscribeLive(ref, options = {}) {
+    return this.#subscribeLive(ref, options);
+  }
+
+  async #subscribeLive(ref, {
     connectionId,
     args = {},
     userId,
@@ -3850,7 +3923,7 @@ export class SnapbackClient {
     authorizationNamespace = null,
     authorityCapture = null,
     resumeFromToken = null,
-  } = {}) {
+  } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
@@ -3876,11 +3949,17 @@ export class SnapbackClient {
         `/live/${encodeURIComponent(name)}/subscribe`,
         body,
         connectionTokenHeader(grant),
-        { expectedAuthorityCapture: authorityCapture },
+        {
+          expectedAuthorityCapture: authorityCapture,
+          externalBearerTransitionPermit,
+        },
       );
-    });
+    }, externalBearerTransitionPermit);
     Object.defineProperty(response, AUTHORIZATION_CONNECTION, {
-      value: await this.connectionGrant(connectionId).then(
+      value: await this.connectionGrant(
+        connectionId,
+        externalBearerTransitionPermit,
+      ).then(
         (grant) => grant.authorizationInvalidation,
       ),
       configurable: false,
@@ -3904,18 +3983,25 @@ export class SnapbackClient {
 
   /// Explicit unsubscribe (LLP 0034 §10.1 residual / ENG-22478): dispose one
   /// live subscription; ownership mirrors resume_live.
-  async unsubscribeLive(ref, {
+  unsubscribeLive(ref, options = {}) {
+    return this.#unsubscribeLive(ref, options);
+  }
+
+  async #unsubscribeLive(ref, {
     subscriptionId,
     connectionId,
     userId,
     authorityCapture = null,
-  } = {}) {
+  } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
     const response = await this.#withGrant(connectionId, (grant) => this.#req('POST', `/live/${encodeURIComponent(name)}/unsubscribe`, {
       subscription_id: subscriptionId,
       connection_id: grant.id,
       auth: SnapbackClient.auth(userId),
-    }, connectionTokenHeader(grant), { expectedAuthorityCapture: authorityCapture }));
+    }, connectionTokenHeader(grant), {
+      expectedAuthorityCapture: authorityCapture,
+      externalBearerTransitionPermit,
+    }), externalBearerTransitionPermit);
     if (response?.receipt) {
       this.recordReceipt(response.receipt, response?.[AUTHORITY_CAPTURE] ?? null);
     }
@@ -4453,6 +4539,12 @@ export class SnapbackClient {
     let authorizationTaskGeneration = 0;
     const authorizationTaskErrorState = Symbol('snapback.authorizationTaskErrorState');
     const authorizationResolutionTasks = new Map();
+    // A resolution token proves one exact obligation/ticket/snapshot frame.
+    // Keep successful identities for the active subscription scope so delayed
+    // exact redelivery can re-ACK without reapplying, while any token or
+    // scope/revision reuse with changed fields is diagnosed fail-closed.
+    const appliedAuthorizationResolutionsByToken = new Map();
+    const appliedAuthorizationResolutionsByScope = new Map();
 
     let connection = 'connecting';
     let disposed = false;
@@ -4832,6 +4924,8 @@ export class SnapbackClient {
         'SNAPBACK_CLIENT_AUTHORIZATION_TASK_GENERATION_EXHAUSTED',
         'authorization task generation',
       );
+      appliedAuthorizationResolutionsByToken.clear();
+      appliedAuthorizationResolutionsByScope.clear();
     };
 
     const authorizationTaskState = (capture, { allowPaused = false } = {}) => Object.freeze({
@@ -4860,6 +4954,40 @@ export class SnapbackClient {
         } catch { /* the fallback reporting state remains fail-closed */ }
       }
       return error;
+    };
+
+    const conflictingAuthorizationResolutionError = () => {
+      const error = new Error(
+        'SNAPBACK_AUTH_INVALIDATION_CORRUPT: one acknowledgement token or scope revision named conflicting resolution frames',
+      );
+      error.code = 'SNAPBACK_AUTH_INVALIDATION_CORRUPT';
+      error.diagnostic = {
+        code: error.code,
+        message: 'one acknowledgement token or scope revision named conflicting resolution frames',
+      };
+      return error;
+    };
+
+    const resolutionFrameIdentity = (projection, snapshotValue) => stableJson({
+      obligation: projection.obligation,
+      resolution: projection.resolution,
+      snapshot: snapshotValue,
+    });
+
+    const trackAuthorizationResolutionTask = (
+      ackToken,
+      identity,
+      taskState,
+      promise,
+    ) => {
+      const entry = { promise, taskState, identity };
+      authorizationResolutionTasks.set(ackToken, entry);
+      void promise.finally(() => {
+        if (authorizationResolutionTasks.get(ackToken) === entry) {
+          authorizationResolutionTasks.delete(ackToken);
+        }
+      }).catch(() => {});
+      return promise;
     };
 
     const commitAuthorizationTask = async (taskState, commit) => {
@@ -4935,18 +5063,94 @@ export class SnapbackClient {
         ));
       }
       const resolutionTaskKey = projection.resolution?.ackToken ?? null;
+      const taskState = authorizationTaskState(capture);
+      const resolutionIdentity = resolutionTaskKey === null
+        ? null
+        : resolutionFrameIdentity(projection, snapshotValue);
       const existing = resolutionTaskKey === null
         ? null
         : authorizationResolutionTasks.get(resolutionTaskKey);
       if (existing && authorizationTaskIsCurrent(existing.taskState)) {
+        if (existing.identity !== resolutionIdentity) {
+          return Promise.reject(tagAuthorizationTaskError(
+            conflictingAuthorizationResolutionError(),
+            existing.taskState,
+          ));
+        }
         return existing.promise;
       }
       if (existing) authorizationResolutionTasks.delete(resolutionTaskKey);
+
+      const appliedByToken = resolutionTaskKey === null
+        ? null
+        : appliedAuthorizationResolutionsByToken.get(resolutionTaskKey);
+      if (appliedByToken && !authorizationTaskIsCurrent(appliedByToken.taskState)) {
+        appliedAuthorizationResolutionsByToken.delete(resolutionTaskKey);
+      } else if (appliedByToken) {
+        if (appliedByToken.identity !== resolutionIdentity) {
+          return Promise.reject(tagAuthorizationTaskError(
+            conflictingAuthorizationResolutionError(),
+            taskState,
+          ));
+        }
+        const reacknowledgement = (async () => {
+          await commitAuthorizationTask(taskState, () => undefined);
+          const acknowledged = await client.acknowledgeAuthorizationInvalidation(
+            connectionId,
+            resolutionTaskKey,
+          );
+          await commitAuthorizationTask(taskState, () => undefined);
+          if (
+            acknowledged?.outcome === 'discharged'
+            || acknowledged?.outcome === 'duplicate'
+          ) {
+            return {
+              status: 'duplicate',
+              ackToken: resolutionTaskKey,
+              fence: authorizationFence.capture(),
+            };
+          }
+          if (acknowledged?.outcome === 'stale') {
+            return {
+              status: 'stale-acknowledgement',
+              ackToken: resolutionTaskKey,
+              fence: authorizationFence.capture(),
+            };
+          }
+          throw new Error(
+            'SNAPBACK_AUTH_INVALIDATION_CORRUPT: acknowledgement returned an unknown outcome',
+          );
+        })().catch((error) => {
+          throw tagAuthorizationTaskError(error, taskState);
+        });
+        return trackAuthorizationResolutionTask(
+          resolutionTaskKey,
+          resolutionIdentity,
+          taskState,
+          reacknowledgement,
+        );
+      }
+
+      if (projection.resolution) {
+        const scopeIdentity = stableJson(projection.resolution.scopeId);
+        const appliedByScope = appliedAuthorizationResolutionsByScope.get(scopeIdentity);
+        if (appliedByScope && !authorizationTaskIsCurrent(appliedByScope.taskState)) {
+          appliedAuthorizationResolutionsByScope.delete(scopeIdentity);
+        } else if (
+          appliedByScope
+          && projection.resolution.revision === appliedByScope.revision
+          && appliedByScope.identity !== resolutionIdentity
+        ) {
+          return Promise.reject(tagAuthorizationTaskError(
+            conflictingAuthorizationResolutionError(),
+            taskState,
+          ));
+        }
+      }
       // Independent scope obligations coexist. Their per-scope fences decide
       // staleness; only query expectation/lifecycle replacement advances the
       // generation. Advancing here let scope B cancel scope A's durable queue
       // suspension before A's serialized task ran.
-      const taskState = authorizationTaskState(capture);
       const work = (async () => {
         let received;
         try {
@@ -4997,7 +5201,20 @@ export class SnapbackClient {
           if (acknowledged?.outcome === 'discharged' || acknowledged?.outcome === 'duplicate') {
             await commitAuthorizationTask(
               taskState,
-              () => authorizationFence.acknowledge(applied.ackToken),
+              () => {
+                const local = authorizationFence.acknowledge(applied.ackToken);
+                const record = {
+                  identity: resolutionIdentity,
+                  revision: projection.resolution.revision,
+                  taskState,
+                };
+                appliedAuthorizationResolutionsByToken.set(applied.ackToken, record);
+                appliedAuthorizationResolutionsByScope.set(
+                  stableJson(projection.resolution.scopeId),
+                  record,
+                );
+                return local;
+              },
             );
             await authorizationQueue?.acknowledged?.(projection.resolution, acknowledged);
             return applied;
@@ -5014,13 +5231,12 @@ export class SnapbackClient {
         });
       })();
       if (resolutionTaskKey !== null) {
-        const entry = { promise: work, taskState };
-        authorizationResolutionTasks.set(resolutionTaskKey, entry);
-        void work.finally(() => {
-          if (authorizationResolutionTasks.get(resolutionTaskKey) === entry) {
-            authorizationResolutionTasks.delete(resolutionTaskKey);
-          }
-        }).catch(() => {});
+        return trackAuthorizationResolutionTask(
+          resolutionTaskKey,
+          resolutionIdentity,
+          taskState,
+          work,
+        );
       }
       return work;
     };
@@ -5172,16 +5388,22 @@ export class SnapbackClient {
     const unsubscribeLiveForLifecycle = (
       subscriptionId,
       retirementState = authorizationTaskState(handleAuthorityCapture),
+      externalBearerTransitionPermit = null,
     ) => {
       if (!subscriptionId) return Promise.resolve();
       const retiringFence = retirementState.authorizationFence;
       return Promise.resolve()
-        .then(() => client.unsubscribeLive(name, {
-          subscriptionId,
-          connectionId,
-          userId,
-          authorityCapture: retirementState.capture,
-        }))
+        .then(() => {
+          const options = {
+            subscriptionId,
+            connectionId,
+            userId,
+            authorityCapture: retirementState.capture,
+          };
+          return externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
+            ? client.#unsubscribeLive(name, options, externalBearerTransitionPermit)
+            : client.unsubscribeLive(name, options);
+        })
         .then(async (response) => {
           if (response?.scopeRetirement && authorizationFence !== null) {
             // Pause serializes resume behind this promise, so the current
@@ -5465,7 +5687,10 @@ export class SnapbackClient {
       }
     };
 
-    const subscribeFreshExclusive = async (lifecycle) => {
+    const subscribeFreshExclusive = async (
+      lifecycle,
+      externalBearerTransitionPermit = null,
+    ) => {
       assertSubscribeLifecycle(lifecycle);
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
@@ -5494,7 +5719,7 @@ export class SnapbackClient {
           const membershipWitness = heldResume
             ? membershipWitnessOfRows(handle.rows, heldResume.meta?.contentDigest)
             : null;
-          const sub = await client.subscribeLive(name, {
+          const subscribeOptions = {
             connectionId,
             args,
             userId,
@@ -5508,7 +5733,14 @@ export class SnapbackClient {
                 ...(membershipWitness ? { membershipWitness } : {}),
               }
               : null,
-          });
+          };
+          const sub = externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
+            ? await client.#subscribeLive(
+                name,
+                subscribeOptions,
+                externalBearerTransitionPermit,
+              )
+            : await client.subscribeLive(name, subscribeOptions);
           try {
             assertSubscribeLifecycle(lifecycle);
           } catch (error) {
@@ -5618,7 +5850,7 @@ export class SnapbackClient {
       return sub;
     };
 
-    const subscribeFresh = () => {
+    const subscribeFresh = (externalBearerTransitionPermit = null) => {
       const lifecycle = currentSubscribeLifecycle();
       const queueGeneration = freshSubscribeQueueGenerations.get(lifecycle.signal) ?? 0;
       freshSubscribePending += 1;
@@ -5632,7 +5864,7 @@ export class SnapbackClient {
         ) {
           throw subscribeQueueInvalidatedError();
         }
-        return subscribeFreshExclusive(lifecycle);
+        return subscribeFreshExclusive(lifecycle, externalBearerTransitionPermit);
       });
       const queued = attempted.then(
         (value) => value,
@@ -6084,7 +6316,7 @@ export class SnapbackClient {
     // §2.1 rule 4): pause quiesces this handle's transports (no retry is
     // scheduled -> 'disconnected'); resume re-enters through a fresh
     // snapshot-with-subscribe and a 'resubscribed' event.
-    handle.pause = () => {
+    handle.pause = (externalBearerTransitionPermit = null) => {
       if (disposed) return Promise.resolve();
       if (paused) return pauseReleasePromise;
       paused = true;
@@ -6107,11 +6339,12 @@ export class SnapbackClient {
       pauseReleasePromise = unsubscribeLiveForLifecycle(
         staleSubscriptionId,
         pausedRetirementState,
+        externalBearerTransitionPermit,
       );
       return pauseReleasePromise;
     };
 
-    handle.resume = async () => {
+    handle.resume = async (externalBearerTransitionPermit = null) => {
       if (disposed || !paused) return;
       // A caller may invoke resume without awaiting pause. Serialize the
       // fresh superseding subscribe after the old demand-release attempt.
@@ -6128,7 +6361,7 @@ export class SnapbackClient {
         detachStream = attachStream();
       }
       try {
-        await subscribeFresh();
+        await subscribeFresh(externalBearerTransitionPermit);
       } catch (error) {
         // A pause/dispose (or a newer resume after that pause) already owns
         // cleanup. This stale continuation must not detach the newer stream

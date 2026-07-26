@@ -126,8 +126,64 @@ assert.throws(
   /admission is closed/u,
   'a handle cannot join after the transition participant set was captured',
 );
+
+// Finite requests and direct auth/session discovery share the same admission
+// cut as live handles. Neither may start with the predecessor bearer while the
+// transition is waiting for exact T-UNSUB settlement.
+const originalFetch = globalThis.fetch;
+const externalBarrierFetches = [];
+globalThis.fetch = async (url, init = {}) => {
+  externalBarrierFetches.push({
+    url: String(url),
+    authorization: new Headers(init.headers).get('authorization'),
+  });
+  return new Response(JSON.stringify({
+    diagnostic: {
+      code: 'SNAPBACK_TEST_SUCCESSOR_PROBE',
+      message: 'successor request reached the transport',
+    },
+  }), {
+    status: 503,
+    headers: { 'content-type': 'application/json' },
+  });
+};
+const finiteDuringExternalTransition = externalClient.query('transitionProbe').catch(() => {});
+const discoveryDuringExternalTransition =
+  externalClient.authSession({ force: true }).catch(() => {});
+let connectionGrantSettledDuringExternalTransition = false;
+const grantDuringExternalTransition = externalClient.connectionGrant('old')
+  .catch(() => {})
+  .finally(() => { connectionGrantSettledDuringExternalTransition = true; });
+await Promise.resolve();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.deepEqual(
+  externalBarrierFetches,
+  [],
+  'finite and auth-session requests do not dispatch while predecessor release is held',
+);
+assert.equal(
+  connectionGrantSettledDuringExternalTransition,
+  false,
+  'direct connection-grant discovery cannot expose predecessor custody during the cut',
+);
 settleExternalRelease();
 await externalReplacement;
+await Promise.all([
+  finiteDuringExternalTransition,
+  discoveryDuringExternalTransition,
+  grantDuringExternalTransition,
+]);
+globalThis.fetch = originalFetch;
+assert(
+  externalBarrierFetches.length >= 1,
+  'held requests dispatch after the successor lifecycle settles',
+);
+assert(
+  externalBarrierFetches.every(
+    ({ authorization }) => authorization === 'Bearer sbs_external_replacement',
+  ),
+  `held requests dispatch only with the successor bearer: ${JSON.stringify(externalBarrierFetches)}`,
+);
 assert.equal(externalClient.bearerToken, 'sbs_external_replacement');
 assert.deepEqual(externalTransitionEvents, ['pause', 'blank', 'close', 'resume']);
 assert.equal(externalClient.__connectionGrants.size, 0);
@@ -135,6 +191,187 @@ assert.equal(externalClient.__liveStreamManagers.size, 0);
 externalClient.__externalBearerHandles.delete(externalHandle);
 externalClient.__externalBearerHandles.delete(prePausedExternalHandle);
 unregisterExternalMaterialization();
+
+// Exercise the first-party handle path as well as the synthetic participant
+// above: the old subscription must retire without deadlocking on its own
+// transition barrier, then the fresh subscription must be established only
+// after auth discovery has observed the successor bearer.
+{
+  const liveTransitionOriginalFetch = globalThis.fetch;
+  const incarnation = '018f0d90-7b11-7a22-8c33-445566778899';
+  const userId = '018f0d90-7b12-7a22-8c33-445566778899';
+  const sessionId = '018f0d90-7b13-7a22-8c33-445566778899';
+  const handshake = {
+    protocolVersion: 1,
+    serverStartupNonce: 'startup-live-bearer-transition',
+    authorizationStreamIncarnation: incarnation,
+    transitionGeneration: 1,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: {
+        available: true,
+        minimumAuthInvalidationProtocol: 1,
+        reason: null,
+      },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'email-code', available: true },
+    transports: ['bearer'],
+    authority: {
+      kind: 'humanSession',
+      userId,
+      sessionId,
+      isAuthenticated: true,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: incarnation,
+      sessionGeneration: 1,
+    },
+    deploymentIdentity: {
+      schemaVersion: 'snapback.v1',
+      authMode: 'sessions',
+      appId: '018f0d90-7b14-7a22-8c33-445566778899',
+      schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+      bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+      inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+    },
+    authorizedLease: null,
+  };
+  let activeHandshakeBearer = null;
+  let subscribeSequence = 0;
+  let releasePredecessorUnsubscribe;
+  let reportPredecessorUnsubscribe;
+  const predecessorUnsubscribeStarted = new Promise((resolve) => {
+    reportPredecessorUnsubscribe = resolve;
+  });
+  const liveTransitionRequests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    const authorization = new Headers(init.headers).get('authorization');
+    if (path === '/auth/session') {
+      activeHandshakeBearer = authorization;
+      liveTransitionRequests.push({ path, bearer: activeHandshakeBearer });
+      return new Response(JSON.stringify(handshake), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (path === '/connection/open') {
+      liveTransitionRequests.push({ path, bearer: activeHandshakeBearer });
+      const generation = subscribeSequence + 1;
+      return new Response(JSON.stringify({
+        connectionId: `wire-live-transition-${generation}`,
+        connectionToken: `sct-live-transition-${generation}`,
+        authorizationInvalidation: null,
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (path === '/live/transitionTodos/subscribe') {
+      subscribeSequence += 1;
+      liveTransitionRequests.push({ path, bearer: activeHandshakeBearer });
+      return new Response(JSON.stringify({
+        subscription_id: `sub-live-transition-${subscribeSequence}`,
+        snapshot: {
+          version: subscribeSequence,
+          rows: [{ _id: activeHandshakeBearer }],
+        },
+        permission_epochs: {},
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (path === '/live/transitionTodos/unsubscribe') {
+      const body = JSON.parse(init.body);
+      liveTransitionRequests.push({ path, bearer: activeHandshakeBearer });
+      if (body.subscription_id === 'sub-live-transition-1') {
+        reportPredecessorUnsubscribe();
+        await new Promise((resolve) => { releasePredecessorUnsubscribe = resolve; });
+      }
+      return new Response(JSON.stringify({
+        subscription_id: body.subscription_id,
+        disposed: true,
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    throw new Error(`unexpected live transition request: ${path}`);
+  };
+
+  let liveTransitionHandle = null;
+  try {
+    const liveTransitionClient = createExternalSessionClient('http://live-transition.test', {
+      bearerToken: 'sbs_live_predecessor',
+    });
+    liveTransitionHandle = await liveTransitionClient.liveQuery('transitionTodos', {
+      connectionId: 'live-transition-label',
+      pollCadenceMs: 60_000,
+    });
+    assert.deepEqual(liveTransitionHandle.rows, [{ _id: 'Bearer sbs_live_predecessor' }]);
+
+    const liveReplacement =
+      liveTransitionClient.replaceBearerToken('sbs_live_successor');
+    await predecessorUnsubscribeStarted;
+    assert.deepEqual(
+      liveTransitionHandle.rows,
+      [],
+      'the live handle blanks while predecessor unsubscribe owns the custody cut',
+    );
+    assert.equal(liveTransitionClient.bearerToken, 'sbs_live_predecessor');
+    assert.equal(
+      liveTransitionRequests.some(({ bearer }) => bearer === 'Bearer sbs_live_successor'),
+      false,
+      'successor auth discovery cannot start before predecessor unsubscribe settles',
+    );
+
+    releasePredecessorUnsubscribe();
+    await liveReplacement;
+    assert.equal(liveTransitionClient.bearerToken, 'sbs_live_successor');
+    assert.equal(liveTransitionHandle.paused, false);
+    assert.deepEqual(liveTransitionHandle.rows, [{ _id: 'Bearer sbs_live_successor' }]);
+    assert.deepEqual(
+      liveTransitionRequests
+        .filter(({ path }) => path === '/live/transitionTodos/subscribe')
+        .map(({ bearer }) => bearer),
+      ['Bearer sbs_live_predecessor', 'Bearer sbs_live_successor'],
+      'fresh live subscribe is authorized only after successor discovery',
+    );
+
+    await liveTransitionHandle.pause();
+    liveTransitionHandle.dispose();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    liveTransitionHandle = null;
+  } finally {
+    liveTransitionHandle?.dispose();
+    globalThis.fetch = liveTransitionOriginalFetch;
+  }
+}
+
 const appStateListeners = new Set();
 const appState = {
   currentState: 'active',
