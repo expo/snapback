@@ -1,5 +1,16 @@
 # LLP 0041: Packaged developer loop
 
+**Revised (public closure published):** 2026-07-26 (the complete decided
+eight-package `@ccheever/snapback-*` closure is now public as `0.1.0` under
+`latest`, built from clean Snapback main revision
+`ca92d02943e72c2ced7861a0cff54b8821878d48`. The retained publication ledger
+at
+`demos/partiful-matrix/acceptance/evidence/step5-package-publication.json`
+binds every staged tarball byte-for-byte to the artifact returned by the
+official npm registry. Publication alone does not satisfy the packaged-loop
+claim: the new GitHub-hosted macOS/arm64 and Linux/x64 public-install
+executions and their aggregate receipt remain pending.)
+
 **Revised (public-registry proof instrument):** 2026-07-26 (the cold-install
 instrument now has an explicit fail-closed `public` mode: it accepts only a
 clean successful publication ledger for the complete decided
@@ -317,12 +328,12 @@ load, mismatch refusal, stop cleanup, app-CLI introspection, and browser
 adapter bundling all pass. The packaged doctor now executes the full disposable
 runtime/storage/live vertical slice rather than only `--help`. That is not yet
 the RFC exit. The public `@ccheever/snapback-*` alias set is decided and staged
-from `@snapback/*` source identities, but no package has been published to the
-public registry. The fail-closed public-registry instrument and its
-two-platform clean-machine aggregation workflow now exist, but they have not
-executed against a publication. The tarball proof on a development host
-therefore remains ineligible for the public/clean-machine claim. The Linux
-x86-64 runtime package is independently proven by clean-Ubuntu workflow run
-`30200583066` at revision `721cf6b6`; that retained staged-registry receipt
-does not substitute for the pending public-registry executions on either
-platform.
+from `@snapback/*` source identities, and the complete eight-package `0.1.0`
+closure is now public under `latest` with a byte-bound publication ledger. The
+fail-closed public-registry instrument and its two-platform clean-machine
+aggregation workflow exist, but they have not yet executed against that
+publication. The prior tarball proof on a development host and the
+clean-Ubuntu staged-registry proof at workflow run `30215680492`, revision
+`ca92d029`, remain useful checkpoints; neither substitutes for the pending
+public-registry executions on new GitHub-hosted macOS/arm64 and Linux/x64
+machines.
