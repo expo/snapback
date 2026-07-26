@@ -200,6 +200,55 @@ export const protectedJs = defineJsLiveQuery({
   )), JSON.stringify(result.diagnostics));
 }
 
+for (const [label, handler] of [
+  [
+    'root context parameter destructures runtime',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs({ runtime }) { return [{ value: await runtime.now() }]; },
+};`,
+  ],
+  [
+    'root context parameter destructures the runtime method',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs({ runtime: { now } }) { return [{ value: await now() }]; },
+};`,
+  ],
+  [
+    'context reaches a helper second parameter',
+    `
+async function clock(_label, context) { return await context.runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clock('protected', ctx) }]; },
+};`,
+  ],
+  [
+    'runtime reaches a helper directly',
+    `
+async function clock(runtime) { return await runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clock(ctx.runtime) }]; },
+};`,
+  ],
+]) {
+  const functions = `
+import { defineJsLiveQuery } from '${defineUrl}';
+export const protectedJs = defineJsLiveQuery({
+  source: 'handler.js',
+  exportName: 'protectedJs',
+  reads: ['todos'],
+});
+`;
+  const dir = backend({ schema, functions, handler });
+  const result = await generate(dir);
+  assert.equal(result.ok, false, `${label}: ${JSON.stringify(result.diagnostics)}`);
+  assert(result.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY'
+    && diagnostic.function === 'protectedJs'
+  )), `${label}: ${JSON.stringify(result.diagnostics)}`);
+}
+
 {
   const functions = `
 import { defineLiveQuery } from '${defineUrl}';

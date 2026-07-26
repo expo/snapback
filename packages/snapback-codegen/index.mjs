@@ -4456,8 +4456,43 @@ function scanProtectedHandlerReachableSource(source, exportName) {
     }
     return targets;
   };
-  const pending = [...new Set(exportedFunctions)];
-  const visited = new Set();
+  const pending = [];
+  const functionRoles = new WeakMap();
+  const enqueueFunction = (fn, {
+    contextIndexes = [],
+    runtimeIndexes = [],
+    assumeFirstContext = true,
+  } = {}) => {
+    if (!functionKinds.has(fn?.type)) return;
+    let state = functionRoles.get(fn);
+    if (!state) {
+      state = {
+        contextIndexes: new Set(),
+        runtimeIndexes: new Set(),
+        version: 0,
+        analyzedVersion: -1,
+        queued: false,
+      };
+      functionRoles.set(fn, state);
+    }
+    const addIndexes = (target, indexes) => {
+      for (const index of indexes) {
+        if (!Number.isSafeInteger(index) || index < 0 || target.has(index)) continue;
+        target.add(index);
+        state.version += 1;
+      }
+    };
+    if (assumeFirstContext && (fn.params?.length ?? 0) > 0) {
+      addIndexes(state.contextIndexes, [0]);
+    }
+    addIndexes(state.contextIndexes, contextIndexes);
+    addIndexes(state.runtimeIndexes, runtimeIndexes);
+    if (!state.queued && state.analyzedVersion !== state.version) {
+      state.queued = true;
+      pending.push(fn);
+    }
+  };
+  for (const fn of new Set(exportedFunctions)) enqueueFunction(fn);
   const issues = [];
   const issueKinds = new Set();
   const addIssue = (code, inputKind, node) => {
@@ -4474,12 +4509,51 @@ function scanProtectedHandlerReachableSource(source, exportName) {
 
   while (pending.length > 0) {
     const fn = pending.shift();
-    if (visited.has(fn)) continue;
-    visited.add(fn);
+    const roleState = functionRoles.get(fn);
+    roleState.queued = false;
+    if (roleState.analyzedVersion === roleState.version) continue;
+    roleState.analyzedVersion = roleState.version;
     const contextNames = new Set(['ctx']);
     const runtimeNames = new Set();
     const runtimeMethods = new Map();
-    if (fn.params?.[0]?.type === 'Identifier') contextNames.add(fn.params[0].name);
+    const bindParameterRole = (pattern, role) => {
+      if (pattern?.type === 'AssignmentPattern') {
+        bindParameterRole(pattern.left, role);
+        return;
+      }
+      if (pattern?.type === 'RestElement') {
+        bindParameterRole(pattern.argument, role);
+        return;
+      }
+      if (pattern?.type === 'Identifier') {
+        if (role === 'context') contextNames.add(pattern.name);
+        else if (role === 'runtime') runtimeNames.add(pattern.name);
+        return;
+      }
+      if (pattern?.type !== 'ObjectPattern') return;
+      for (const property of pattern.properties ?? []) {
+        if (property?.type !== 'Property') continue;
+        const member = propertyName(property);
+        const value = property.value?.type === 'AssignmentPattern'
+          ? property.value.left
+          : property.value;
+        if (role === 'context' && member === 'runtime') {
+          bindParameterRole(value, 'runtime');
+        } else if (
+          role === 'runtime'
+          && (member === 'now' || member === 'id')
+          && value?.type === 'Identifier'
+        ) {
+          runtimeMethods.set(value.name, member);
+        }
+      }
+    };
+    for (const index of roleState.contextIndexes) {
+      bindParameterRole(fn.params?.[index], 'context');
+    }
+    for (const index of roleState.runtimeIndexes) {
+      bindParameterRole(fn.params?.[index], 'runtime');
+    }
 
     let aliasesChanged = true;
     while (aliasesChanged) {
@@ -4594,10 +4668,40 @@ function scanProtectedHandlerReachableSource(source, exportName) {
         && contextNames.has(runtime.object.name)
       );
     };
+    const argumentRole = (expression) => {
+      const value = expression?.type === 'ChainExpression'
+        ? expression.expression
+        : expression;
+      if (value?.type === 'Identifier') {
+        if (runtimeNames.has(value.name)) return 'runtime';
+        if (contextNames.has(value.name)) return 'context';
+        return null;
+      }
+      if (value?.type !== 'MemberExpression') return null;
+      const member = value.computed
+        ? (value.property?.type === 'Literal' ? value.property.value : null)
+        : value.property?.name;
+      if (
+        member === 'runtime'
+        && value.object?.type === 'Identifier'
+        && contextNames.has(value.object.name)
+      ) return 'runtime';
+      return null;
+    };
+    const enqueueCallTarget = (target, args) => {
+      const contextIndexes = [];
+      const runtimeIndexes = [];
+      for (const [index, argument] of (args ?? []).entries()) {
+        const role = argumentRole(argument);
+        if (role === 'context') contextIndexes.push(index);
+        else if (role === 'runtime') runtimeIndexes.push(index);
+      }
+      enqueueFunction(target, { contextIndexes, runtimeIndexes });
+    };
     const inspectReachableBody = (node, root) => {
       if (!node || typeof node !== 'object') return;
       if (node !== root && functionKinds.has(node.type)) {
-        pending.push(node);
+        enqueueFunction(node);
         return;
       }
       if (node.type === 'CallExpression') {
@@ -4607,9 +4711,9 @@ function scanProtectedHandlerReachableSource(source, exportName) {
           addIssue('SNAPBACK_AUTH_MUTABLE_INPUT_DENIED', 'RuntimeId', node);
         }
         const calleeKey = expressionKey(node.callee);
-        for (const target of targetsForKey(calleeKey)) pending.push(target);
+        const callTargets = new Set(targetsForKey(calleeKey));
         if (functionKinds.has(node.callee?.type)) {
-          pending.push(node.callee);
+          callTargets.add(node.callee);
         } else if (node.callee?.type === 'MemberExpression') {
           if (node.callee.object?.type === 'ThisExpression') {
             const member = node.callee.computed
@@ -4620,22 +4724,23 @@ function scanProtectedHandlerReachableSource(source, exportName) {
                 ? [...owner.values()]
                 : [owner.get(member)].filter(Boolean);
               for (const entry of entries) {
-                for (const target of entry.functions) pending.push(target);
+                for (const target of entry.functions) callTargets.add(target);
                 for (const key of entry.keys) {
-                  for (const target of targetsForKey(key)) pending.push(target);
+                  for (const target of targetsForKey(key)) callTargets.add(target);
                 }
               }
             }
           } else if (calleeKey === null || targetsForKey(calleeKey).size === 0) {
             const base = expressionKey(node.callee.object);
-            for (const target of objectFunctionsForKey(base)) pending.push(target);
+            for (const target of objectFunctionsForKey(base)) callTargets.add(target);
           }
         }
+        for (const target of callTargets) enqueueCallTarget(target, node.arguments);
       }
       if (node.type === 'Identifier') {
-        for (const target of targetsForKey(node.name)) pending.push(target);
+        for (const target of targetsForKey(node.name)) enqueueFunction(target);
       } else if (node.type === 'MemberExpression') {
-        for (const target of targetsForKey(expressionKey(node))) pending.push(target);
+        for (const target of targetsForKey(expressionKey(node))) enqueueFunction(target);
       }
       for (const value of Object.values(node)) {
         if (Array.isArray(value)) {

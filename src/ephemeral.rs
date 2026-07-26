@@ -4198,15 +4198,28 @@ struct RoomAuthorizationCommitReservation {
 
 struct NoAuthorizationEventReservation;
 
+/// Reservation drift happens before the durable application/auth transaction
+/// begins, so every producer exposes the same closed retry contract.
+///
+/// @ref LLP 0059#plan-begin-commit-finalize — a stale reservation abandons the
+/// complete attempt without committing an effect.
+fn authorization_reservation_stale(message: &'static str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_RESERVATION_STALE", "auth", message).with_details(
+        serde_json::json!({
+            "retryable": true,
+            "retryStrategy": "short-jitter",
+            "effectCommitted": false,
+        }),
+    )
+}
+
 impl AuthorizationCommitReservation for NoAuthorizationEventReservation {
     fn bind(
         self: Box<Self>,
         _witness: &AuthorizationCommitWitness,
         _impact: AuthorizationCommitImpact<'_>,
     ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
-        Err(SnapbackError::error(
-            "SNAPBACK_AUTH_RESERVATION_STALE",
-            "auth",
+        Err(authorization_reservation_stale(
             "a mutation previewed as authorization-neutral produced an authorization event",
         ))
     }
@@ -4240,9 +4253,7 @@ impl AuthorizationCommitReservation for RoomAuthorizationCommitReservation {
             .load(Ordering::Acquire)
             != self.collection_generation
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_RESERVATION_STALE",
-                "auth",
+            return Err(authorization_reservation_stale(
                 "protected-room definitions changed after authorization reservation",
             ));
         }
@@ -9156,6 +9167,19 @@ mod tests {
         }
     }
 
+    fn assert_retryable_reservation_stale(error: &SnapbackError) {
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+        assert_eq!(
+            error.diagnostic.details,
+            serde_json::json!({
+                "retryable": true,
+                "retryStrategy": "short-jitter",
+                "effectCommitted": false,
+            }),
+            "reservation-stale diagnostics are a closed client retry contract"
+        );
+    }
+
     #[test]
     fn entry_version_allocates_portable_max_then_retires_on_the_next_publish() {
         let backend = LocalEphemeralBackend::new();
@@ -9611,6 +9635,30 @@ mod tests {
     }
 
     #[test]
+    fn authorization_neutral_preview_drift_is_an_exact_retryable_conflict() {
+        let backend = LocalEphemeralBackend::new();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::NoAuthorizationEvent,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .expect("authorization-neutral preview creates a sentinel reservation");
+        let error = match reservation.bind(
+            &AuthorizationCommitWitness {
+                version: authorization(1),
+                event: true,
+                incarnation_rotated: false,
+                membership_declarations: Vec::new(),
+            },
+            AuthorizationCommitImpact::AllProtectedRooms,
+        ) {
+            Ok(_) => panic!("authorization-producing neutral preview unexpectedly bound"),
+            Err(error) => error,
+        };
+        assert_retryable_reservation_stale(&error);
+    }
+
+    #[test]
     #[should_panic(
         expected = "ephemeral collection registration entered while LocalSnapback write scope"
     )]
@@ -9767,7 +9815,7 @@ mod tests {
             }
             Err(error) => error,
         };
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+        assert_retryable_reservation_stale(&error);
         let batch = scope.take_after_local_batch();
         drop(scope);
         assert_eq!(
