@@ -1,6 +1,6 @@
 # Linux runtime package artifacts are untracked, dirtying the tree and blocking publish
 
-**Status:** Open
+**Status:** In Progress (2026-07-26; source hygiene fixed, clean-Linux proof pending)
 **Severity:** P2
 **Systems:** Build, Release, CI, Native runtime
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -61,3 +61,20 @@ the ambient environment, so the only way to supply them is by exporting
 `--publish --runtime-platforms all` on a darwin host without that setup fails
 in `stage()` with `SNAPBACK_IBEX_HOST_UNSUPPORTED`. Either document the env
 contract in the usage text or add explicit flags.
+
+## Progress (2026-07-26)
+
+The package now mirrors the Darwin package's source hygiene with a
+package-local `.gitignore` containing `/bin/` and `/lib/`.
+`packages/snapback-runtime-linux-x64/package.test.mjs` pins those exact rules,
+so removing or widening the native-output boundary fails the maintained package
+test. Local source checks confirm that Git ignores both generated paths while
+the package manifest, preparer, package test, and `.gitignore` remain source
+files.
+
+The clean-Ubuntu end-to-end gate remains outstanding. This macOS worktree
+cannot prove that `scripts/verify-local-proof` prepares the Linux closure and
+leaves the tree clean, nor that the packaged binary launches with
+`LD_LIBRARY_PATH` absent. Keep this ticket open until the remote Linux workflow
+retains that evidence. The lower-priority cross-host publisher flag/usage
+question above also remains outside this fix.

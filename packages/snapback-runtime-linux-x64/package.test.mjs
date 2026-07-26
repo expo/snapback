@@ -9,6 +9,13 @@ assert.deepEqual(manifest.os, ['linux']);
 assert.deepEqual(manifest.cpu, ['x64']);
 assert.deepEqual(manifest.files, ['bin', 'lib']);
 
+// @ref LLP 0041#runtime-distribution — prepared native payloads are package
+// outputs, while the source-side package contract remains reviewable.
+const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8')
+  .split(/\r?\n/u)
+  .filter(Boolean);
+assert.deepEqual(ignoreRules, ['/bin/', '/lib/']);
+
 const binary = fileURLToPath(new URL('./bin/snapback', import.meta.url));
 const hermes = fileURLToPath(new URL('./lib/libhermesvm.so', import.meta.url));
 if (existsSync(binary) || existsSync(hermes)) {

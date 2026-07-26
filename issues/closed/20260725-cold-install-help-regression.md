@@ -1,6 +1,6 @@
 # `snapback-package-cold-install.mjs` lost `--help` and now runs the full proof instead
 
-**Status:** Open
+**Status:** Resolved (2026-07-26)
 **Severity:** P3
 **Systems:** Release, CI, Developer experience
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -36,3 +36,20 @@ fails loudly instead of running a different proof than intended.
 (`ENOENT`) emits `'error'` with no listener, which throws, and the returned
 promise never settles. The synchronous `run` helper checks `result.error`;
 `runAsync` should reject symmetrically.
+
+## Resolution
+
+Resolved 2026-07-26. The cold-install entry point now publishes accurate usage
+for `--ledger`, `--receipt`, and `--keep`; `--help`/`-h` exits before ledger
+access or package staging; and the argument parser rejects unknown flags,
+stale positional arguments, duplicates, and missing flag values. The async
+spawn helper now rejects both synchronous/asynchronous spawn failures and
+nonzero closes, clears its timeout at the single settlement boundary, and
+cannot hang on `ENOENT`.
+
+`scripts/snapback-package-cold-install.test.mjs`, registered in
+`scripts/verify-local-proof`, proves help against a deliberately missing
+ledger, rejects the retired `--install-source tarball` spelling and other
+extra arguments before proof startup, and bounds the `ENOENT` case with a
+timeout so a hung promise fails deterministically. The ordinary no-argument
+proof path and its package/install semantics are unchanged.

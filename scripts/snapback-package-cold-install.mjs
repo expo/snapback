@@ -24,20 +24,33 @@ import { release as osRelease, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  parseArguments,
+  runAsync,
+  usage,
+} from './snapback-package-cold-install-lib.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const args = process.argv.slice(2);
-const valueAfter = (flag, fallback = null) => {
-  const index = args.indexOf(flag);
-  return index === -1 ? fallback : args[index + 1] ?? fallback;
-};
-const ledgerPath = resolve(valueAfter('--ledger', join(root, 'dist-publish', 'publish-ledger.json')));
-const receiptPath = valueAfter('--receipt');
-const keep = args.includes('--keep');
 
 function fail(message) {
   console.error(`snapback-package-cold-install: ${message}`);
   process.exit(1);
 }
+
+let parsedArgs;
+try {
+  parsedArgs = parseArguments(process.argv.slice(2));
+} catch (error) {
+  fail(error.message);
+}
+if (parsedArgs.help) {
+  process.stdout.write(usage);
+  process.exit(0);
+}
+
+const ledgerPath = resolve(parsedArgs.ledger ?? join(root, 'dist-publish', 'publish-ledger.json'));
+const receiptPath = parsedArgs.receipt;
+const keep = parsedArgs.keep;
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -53,26 +66,12 @@ function run(command, commandArgs, options = {}) {
   return result.stdout;
 }
 
-function runAsync(command, commandArgs, options = {}) {
-  return new Promise((resolveRun) => {
-    const child = spawn(command, commandArgs, {
-      cwd: options.cwd,
-      env: options.env ?? process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    const timeout = setTimeout(() => child.kill('SIGKILL'), options.timeout ?? 360_000);
-    child.on('close', (status, signal) => {
-      clearTimeout(timeout);
-      if (status !== 0) {
-        fail(`${command} ${commandArgs.join(' ')} failed (${status ?? signal}):\n${stderr || stdout}`);
-      }
-      resolveRun(stdout);
-    });
-  });
+async function runAsyncOrFail(command, commandArgs, options = {}) {
+  try {
+    return await runAsync(command, commandArgs, options);
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
 function sha256(path) {
@@ -311,7 +310,7 @@ await build({
 `);
 
   run('git', ['init', '--quiet'], { cwd: appRoot });
-  await runAsync('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
+  await runAsyncOrFail('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
     cwd: appRoot,
     timeout: 360_000,
   });
@@ -360,7 +359,7 @@ await build({
   }
   writeFileSync(scaffoldManifestPath, `${JSON.stringify(scaffoldManifest, null, 2)}\n`);
   writeFileSync(join(scaffoldRoot, '.npmrc'), `@ccheever:registry=${stagedRegistry.url}\n`);
-  await runAsync('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
+  await runAsyncOrFail('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
     cwd: scaffoldRoot,
     timeout: 360_000,
   });
