@@ -12,7 +12,10 @@ import { createSuite, runAcceptance, writeMachineReport } from '../../../_kit/ha
 import { freePort } from '../../../_kit/provenance.mjs';
 import api from '../../snapback/generated/api.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json' with { type: 'json' };
-import { webdriverCapabilities } from './webdriver-capabilities.mjs';
+import {
+  isPrivateDeviceReachableIpv4,
+  webdriverCapabilities,
+} from './webdriver-capabilities.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -31,7 +34,20 @@ const selectedArm = option('arm');
 const selectedBackend = option('backend');
 const selectedBrowser = option('browser') ?? 'chrome';
 const iosSimulatorUdid = option('ios-simulator-udid') ?? process.env.PARTITIME_IOS_SIMULATOR_UDID ?? null;
+const iosDeviceUdid = option('ios-device-udid') ?? process.env.PARTITIME_IOS_DEVICE_UDID ?? null;
 const isIosSafari = selectedBrowser === 'ios-safari';
+const isPhysicalIosSafari = selectedBrowser === 'ios-safari-device';
+const isAnyIosSafari = isIosSafari || isPhysicalIosSafari;
+const physicalNetworkHost = option('physical-network-host') ?? process.env.PARTITIME_PHYSICAL_NETWORK_HOST ?? null;
+const attendedPhysicalIos = isPhysicalIosSafari && process.argv.includes('--attended');
+const attendedArtifactDir = option('attended-artifact-dir');
+const attendedOperator = option('attended-operator') ?? process.env.PARTITIME_ATTENDED_OPERATOR ?? null;
+// @tactical @ref https://github.com/ccheever/exact/blob/83ffa30bc56924252660fcefa7bf7185bf432c11/llp/0373-contract-and-exact-after-partitime.plan.md#12-implementation-record-2026-07-20
+// The paired-device lane is only the qualifying text carrier named by the
+// Phase-4 disposition. It stays attended, evidence-bound, and narrower than
+// the complete iOS engine cell.
+const serviceBindHost = isPhysicalIosSafari ? physicalNetworkHost : '127.0.0.1';
+const servicePublicHost = isPhysicalIosSafari ? physicalNetworkHost : '127.0.0.1';
 const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
 const phase4Only = process.argv.includes('--phase4-only');
@@ -48,11 +64,36 @@ const phase4ClaimIds = new Set([
   'STEP4.UI.A11Y',
   'STEP4.UI.VISUAL',
 ]);
-if (!['chrome', 'firefox', 'safari', 'ios-safari'].includes(selectedBrowser)) {
+if (!['chrome', 'firefox', 'safari', 'ios-safari', 'ios-safari-device'].includes(selectedBrowser)) {
   throw new Error(`unknown --browser ${selectedBrowser}`);
 }
 if (isIosSafari && !iosSimulatorUdid) {
   throw new Error('--browser ios-safari requires --ios-simulator-udid or PARTITIME_IOS_SIMULATOR_UDID');
+}
+if (isPhysicalIosSafari && !iosDeviceUdid) {
+  throw new Error('--browser ios-safari-device requires --ios-device-udid or PARTITIME_IOS_DEVICE_UDID');
+}
+if (isPhysicalIosSafari && !physicalNetworkHost) {
+  throw new Error('--browser ios-safari-device requires --physical-network-host or PARTITIME_PHYSICAL_NETWORK_HOST');
+}
+if (isPhysicalIosSafari && !isPrivateDeviceReachableIpv4(physicalNetworkHost)) {
+  throw new Error('--physical-network-host must be a private, link-local, or CGNAT IPv4 address on the paired device network');
+}
+if (isPhysicalIosSafari && !attendedPhysicalIos) {
+  throw new Error('--browser ios-safari-device requires --attended');
+}
+if (isPhysicalIosSafari && !attendedArtifactDir) {
+  throw new Error('--browser ios-safari-device requires --attended-artifact-dir');
+}
+if (isPhysicalIosSafari && !attendedOperator) {
+  throw new Error('--browser ios-safari-device requires --attended-operator or PARTITIME_ATTENDED_OPERATOR');
+}
+if (
+  isPhysicalIosSafari
+  && selectedPhase4Claim
+  && !['STEP4.UI.KEYBOARD', 'STEP4.UI.REDUCED-MOTION'].includes(selectedPhase4Claim)
+) {
+  throw new Error('physical iOS Safari is a supplemental text carrier for STEP4.UI.KEYBOARD and STEP4.UI.REDUCED-MOTION only');
 }
 if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
   throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
@@ -141,7 +182,13 @@ const waitUrl = async (url, child, label, timeout = 60_000) => {
 async function startSnapback() {
   const readyDir = mkdtempSync(join(tmpdir(), 'partiful-matrix-api-'));
   const readyFile = join(readyDir, 'ready.json');
-  const child = spawn(serverBin, ['--port', '0', '--memory', '--ready-file', readyFile], { cwd: repoRoot, detached: true, stdio: ['ignore','ignore','pipe'] });
+  const child = spawn(serverBin, [
+    '--host', serviceBindHost,
+    '--port', '0',
+    '--memory',
+    '--ready-file', readyFile,
+    ...(isPhysicalIosSafari ? ['--allow-insecure-dev-auth'] : []),
+  ], { cwd: repoRoot, detached: true, stdio: ['ignore','ignore','pipe'] });
   cleanups.push(
     () => rmSync(readyDir, { recursive: true, force: true }),
     () => stopChild(child, 'Snapback'),
@@ -150,9 +197,9 @@ async function startSnapback() {
   while (Date.now() < deadline) {
     if (existsSync(readyFile)) {
       const port = JSON.parse(readFileSync(readyFile, 'utf8')).port;
-      const url = `http://127.0.0.1:${port}`;
-      await waitUrl(`${url}/health`, child, 'Snapback');
-      return url;
+      const localUrl = `http://${serviceBindHost}:${port}`;
+      await waitUrl(`${localUrl}/health`, child, 'Snapback');
+      return `http://${servicePublicHost}:${port}`;
     }
     if (child.exitCode !== null) throw new Error('Snapback exited before readiness');
     await sleep(100);
@@ -162,11 +209,22 @@ async function startSnapback() {
 
 async function startGateway(snapbackUrl) {
   const port = await freePort();
-  const child = spawn('bun', ['run', 'server.ts'], { cwd: join(demoRoot, 'backends', 'gateway'), detached: true, env: { ...process.env, PARTIFUL_MATRIX_GATEWAY_PORT: String(port), PARTIFUL_MATRIX_SNAPBACK_ORIGIN: snapbackUrl }, stdio: ['ignore','pipe','pipe'] });
+  const child = spawn('bun', ['run', 'server.ts'], {
+    cwd: join(demoRoot, 'backends', 'gateway'),
+    detached: true,
+    env: {
+      ...process.env,
+      PARTIFUL_MATRIX_GATEWAY_HOST: serviceBindHost,
+      PARTIFUL_MATRIX_GATEWAY_PORT: String(port),
+      PARTIFUL_MATRIX_SNAPBACK_ORIGIN: snapbackUrl,
+    },
+    stdio: ['ignore','pipe','pipe'],
+  });
   cleanups.push(() => stopChild(child, 'matrix gateway'));
-  const url = `http://127.0.0.1:${port}`;
-  await waitUrl(`${url}/health`, child, 'matrix gateway');
-  const response = await fetch(`${url}/preflight`, { signal: AbortSignal.timeout(30_000) });
+  const localUrl = `http://${serviceBindHost}:${port}`;
+  const url = `http://${servicePublicHost}:${port}`;
+  await waitUrl(`${localUrl}/health`, child, 'matrix gateway');
+  const response = await fetch(`${localUrl}/preflight`, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`matrix gateway preflight returned HTTP ${response.status}`);
   const preflight = await response.json();
   for (const backend of ['snapback', 'sqlite']) {
@@ -200,8 +258,8 @@ async function startViteAttempt({ arm, backend }, snapbackUrl, gatewayUrl, { dis
   const surface = join(demoRoot, 'surfaces', arm);
   const vite = join(surface, 'node_modules', '.bin', 'vite');
   const args = arm === 'contract'
-    ? ['--bun', vite, '--config', join(surface, 'vite.config.ts'), '--mode', backend, '--host', '127.0.0.1', '--port', String(port), '--strictPort']
-    : [vite, '--mode', backend, '--host', '127.0.0.1', '--port', String(port), '--strictPort'];
+    ? ['--bun', vite, '--config', join(surface, 'vite.config.ts'), '--mode', backend, '--host', serviceBindHost, '--port', String(port), '--strictPort']
+    : [vite, '--mode', backend, '--host', serviceBindHost, '--port', String(port), '--strictPort'];
   const command = arm === 'contract' ? 'bun' : vite;
   const commandArgs = arm === 'contract' ? args : args.slice(1);
   let log = '';
@@ -218,8 +276,9 @@ async function startViteAttempt({ arm, backend }, snapbackUrl, gatewayUrl, { dis
   });
   cleanups.push(() => stopChild(child, `${arm}/${backend} Vite`));
   child.stdout.on('data', (chunk) => { log += chunk; }); child.stderr.on('data', (chunk) => { log += chunk; });
-  const url = `http://127.0.0.1:${port}`;
-  try { await waitUrl(url, child, `${arm}/${backend} Vite`); }
+  const localUrl = `http://${serviceBindHost}:${port}`;
+  const url = `http://${servicePublicHost}:${port}`;
+  try { await waitUrl(localUrl, child, `${arm}/${backend} Vite`); }
   catch (error) {
     await stopChild(child, `${arm}/${backend} Vite startup`);
     throw new Error(`${error.message}\n${log.slice(-4000)}`);
@@ -759,7 +818,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
     const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity=crypto.randomUUID();return window.__phase4ResponsiveIdentity})()`);
     const observations = [];
-    const responsiveViewports = isIosSafari
+    const responsiveViewports = isAnyIosSafari
       ? [{ id: 'compact-device', width: null, height: null, columns: 1 }]
       : [
           { id: 'compact', width: 390, height: 844, columns: 1 },
@@ -767,10 +826,10 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
           { id: 'expanded', width: 1280, height: 800, columns: 3 },
         ];
     for (const viewport of responsiveViewports) {
-      if (!isIosSafari) await page.setViewport(viewport.width, viewport.height);
+      if (!isAnyIosSafari) await page.setViewport(viewport.width, viewport.height);
       await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,120))})()`);
       const observed = await page.eval(`(()=>{const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')];const xs=[...new Set(cards.map(node=>Math.round(node.getBoundingClientRect().x)))];return {count:cards.length,columns:xs.length,xs,width:innerWidth,identity:window.__phase4ResponsiveIdentity,path:location.pathname,cardRects:cards.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})}})()`);
-      const widthMatches = isIosSafari ? observed.width < 600 : observed.width === viewport.width;
+      const widthMatches = isAnyIosSafari ? observed.width < 600 : observed.width === viewport.width;
       if (observed.count !== 3 || observed.columns !== viewport.columns || !widthMatches || observed.identity !== identity || observed.path !== '/') {
         throw new Error(`${viewport.id} structure drifted: ${JSON.stringify(observed)}`);
       }
@@ -780,7 +839,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
-    const reusableKeyboardPage = selectedBrowser === 'safari' || isIosSafari ? page : null;
+    const reusableKeyboardPage = selectedBrowser === 'safari' || isAnyIosSafari ? page : null;
     const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('create-event');
       await taskPage.key('Enter');
@@ -812,7 +871,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.focus('event-options-trigger');
       await taskPage.key('Enter');
       await taskPage.pollText('event-options-menu', 'Copy invite link', 5_000);
-      if (selectedBrowser === 'safari' || isIosSafari) await sleep(50);
+      if (selectedBrowser === 'safari' || isAnyIosSafari) await sleep(50);
       else await taskPage.eval('new Promise(r=>requestAnimationFrame(r))');
       const first = await taskPage.active();
       await taskPage.key('ArrowDown');
@@ -865,6 +924,10 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       claimId: 'STEP4.UI.KEYBOARD',
       cell: cellId,
       tabTraversalKey: selectedBrowser === 'safari' ? 'Option+Tab (Safari full-control traversal)' : 'Tab',
+      ...(isPhysicalIosSafari ? {
+        attendedTextEvidence: await page.attendedEvidence(),
+        attendedInputPolicy: 'The operator typed every requested value with the physical iPhone soft keyboard; WebDriver never issued an element value command.',
+      } : {}),
       created,
       menu,
       rsvp,
@@ -923,7 +986,16 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await page.focus('wall-message'); await page.insertText('Reduced motion status'); await page.key('Enter');
       const pending = await page.pollText('wall-pending-status', 'Sending', 1_500);
       if (!rsvp?.includes('Going') || !pending?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
-      return { claimId: 'STEP4.UI.REDUCED-MOTION', cell: cellId, overlayMotion, semanticEndState: { rsvp: 'Going', pending: 'Sending…' } };
+      return {
+        claimId: 'STEP4.UI.REDUCED-MOTION',
+        cell: cellId,
+        overlayMotion,
+        semanticEndState: { rsvp: 'Going', pending: 'Sending…' },
+        ...(isPhysicalIosSafari ? {
+          attendedTextEvidence: await page.attendedEvidence(),
+          attendedInputPolicy: 'The operator typed every requested value with the physical iPhone soft keyboard; WebDriver never issued an element value command.',
+        } : {}),
+      };
     } finally {
       await page.emulateReducedMotion(false);
     }
@@ -1029,7 +1101,7 @@ async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
   // retires the script context between animation frames. The boot receipt
   // above already proves the successor document is live; settle its paint
   // from the harness process before querying the route root.
-  if (selectedBrowser === 'safari' || isIosSafari) await sleep(100);
+  if (selectedBrowser === 'safari' || isAnyIosSafari) await sleep(100);
   else await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
   const routeRoot = pathname.includes('/events/new/')
     ? 'create-panel'
@@ -1047,7 +1119,7 @@ async function waitForTestId(page, testId, label, timeoutMs = 5_000) {
 }
 
 async function waitForFontsAndPaint(page) {
-  if (selectedBrowser !== 'safari' && !isIosSafari) {
+  if (selectedBrowser !== 'safari' && !isAnyIosSafari) {
     await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
     return;
   }
@@ -1203,6 +1275,48 @@ function runIdentity() {
     } catch { /* receipt records an unresolved explicit identity */ }
     return { udid: iosSimulatorUdid, name: null, state: null, runtime: null, accessibility };
   };
+  const physicalDeviceIdentity = () => {
+    if (!isPhysicalIosSafari) return null;
+    const inventoryDir = mkdtempSync(join(tmpdir(), 'partitime-physical-ios-inventory-'));
+    const inventoryPath = join(inventoryDir, 'devices.json');
+    try {
+      execFileSync('xcrun', [
+        'devicectl', 'list', 'devices',
+        '--json-output', inventoryPath,
+      ], { encoding: 'utf8' });
+      const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8'));
+      const device = inventory.result?.devices?.find(
+        (candidate) => candidate.hardwareProperties?.udid?.toLowerCase() === iosDeviceUdid.toLowerCase(),
+      );
+      if (!device) {
+        return {
+          udid: iosDeviceUdid,
+          resolved: false,
+          reason: 'explicit device was absent from devicectl inventory',
+        };
+      }
+      return {
+        udid: device.hardwareProperties?.udid ?? iosDeviceUdid,
+        coreDeviceIdentifier: device.identifier ?? null,
+        name: device.deviceProperties?.name ?? null,
+        marketingName: device.hardwareProperties?.marketingName ?? null,
+        hardwareModel: device.hardwareProperties?.hardwareModel ?? null,
+        osVersion: device.deviceProperties?.osVersionNumber ?? null,
+        osBuild: device.deviceProperties?.osBuildUpdate ?? null,
+        developerModeStatus: device.deviceProperties?.developerModeStatus ?? null,
+        pairingState: device.connectionProperties?.pairingState ?? null,
+        resolved: true,
+      };
+    } catch (error) {
+      return {
+        udid: iosDeviceUdid,
+        resolved: false,
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      rmSync(inventoryDir, { recursive: true, force: true });
+    }
+  };
   const packageRecord = (arm, lockPath = join(demoRoot, 'surfaces', arm, 'bun.lock')) => {
     const root = join(demoRoot, 'surfaces', arm);
     const manifestPath = join(root, 'package.json');
@@ -1246,6 +1360,7 @@ function runIdentity() {
     'demos/_kit/harness.mjs',
     'demos/_kit/chrome-process.mjs',
     'demos/_kit/server-process.mjs',
+    'demos/partiful-matrix/backends/gateway/server.ts',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
     'demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs',
     'demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs',
@@ -1273,6 +1388,10 @@ function runIdentity() {
       browserBinary,
       browserVersion,
       iosSimulator: simulatorIdentity(),
+      iosDevice: physicalDeviceIdentity(),
+      physicalNetworkHost: isPhysicalIosSafari ? physicalNetworkHost : null,
+      attendedOperator: isPhysicalIosSafari ? attendedOperator : null,
+      attended: attendedPhysicalIos,
       chrome: selectedBrowser === 'chrome' ? chromeBin : null,
       chromeVersion: selectedBrowser === 'chrome' ? browserVersion : null,
       cpu: cpus()[0]?.model ?? null,
@@ -1382,6 +1501,7 @@ function createWebDriverHarness({ browserName }) {
           browserName,
           phase4Claim: selectedPhase4Claim,
           iosSimulatorUdid,
+          iosDeviceUdid,
         });
         const created = await webdriverRequest(driver.url, '/session', {
           method: 'POST',
@@ -1390,6 +1510,9 @@ function createWebDriverHarness({ browserName }) {
         });
         sessionId = created.sessionId;
         if (!sessionId) throw new Error(`${browserName} WebDriver omitted sessionId`);
+        if (isPhysicalIosSafari) {
+          reportIdentity.environment.webdriverSessionCapabilities = created.capabilities ?? null;
+        }
         const base = `/session/${sessionId}`;
         const bidi = typeof created.capabilities?.webSocketUrl === 'string'
           ? await connectBidi(created.capabilities.webSocketUrl)
@@ -1401,6 +1524,40 @@ function createWebDriverHarness({ browserName }) {
           body: { script: 30_000, pageLoad: 30_000, implicit: 0 },
         });
         let closed = false;
+        const attendedEvidence = [];
+        const retainAttendedTextEvidence = async ({ testId, expectedValue }) => {
+          const screenshotBase64 = await webdriverRequest(
+            driver.url,
+            `${base}/screenshot`,
+            { method: 'GET' },
+          );
+          const screenshotBytes = Buffer.from(screenshotBase64, 'base64');
+          const sequence = String(attendedEvidence.length + 1).padStart(2, '0');
+          const safeTestId = testId.replace(/[^a-zA-Z0-9_-]/g, '-');
+          const screenshotPath = resolve(
+            attendedArtifactDir,
+            `${sequence}-${safeTestId}.png`,
+          );
+          mkdirSync(dirname(screenshotPath), { recursive: true });
+          writeFileSync(screenshotPath, screenshotBytes);
+          const observation = await evalRaw(`(()=>{const el=document.querySelector(${JSON.stringify(`[data-testid="${testId}"]`)});return {testId:${JSON.stringify(testId)},value:el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement?el.value:null,path:location.pathname,url:location.href,activeTestId:document.activeElement?.getAttribute('data-testid')??null}})()`);
+          const entry = {
+            sequence: Number(sequence),
+            operator: attendedOperator,
+            inputSource: 'operator-physical-soft-keyboard',
+            webdriverValueCommandUsed: false,
+            expectedValue,
+            observation,
+            screenshot: {
+              path: relative(repoRoot, screenshotPath),
+              sha256: createHash('sha256').update(screenshotBytes).digest('hex'),
+              bytes: screenshotBytes.length,
+            },
+            observedAt: new Date().toISOString(),
+          };
+          attendedEvidence.push(entry);
+          return entry;
+        };
         const evalRaw = async (expression) => {
           let envelope;
           try {
@@ -1443,7 +1600,7 @@ function createWebDriverHarness({ browserName }) {
           setScriptExecutionDisabled: async (value) => {
             if (value) throw new Error(`${browserName} WebDriver does not expose script-disable emulation`);
           },
-          setViewport: (width, height) => browserName === 'ios-safari'
+          setViewport: (width, height) => isAnyIosSafari
             ? evalRaw(`({requested:{width:${width},height:${height}},actual:{width:innerWidth,height:innerHeight},fixedDeviceViewport:true})`)
             : bidi && bidiContext
               ? bidi.send('browsingContext.setViewport', { context: bidiContext, viewport: { width, height }, devicePixelRatio: 1 })
@@ -1451,7 +1608,12 @@ function createWebDriverHarness({ browserName }) {
           screenshot: async () => webdriverRequest(driver.url, `${base}/screenshot`, { method: 'GET' }),
           emulateReducedMotion: async (enabled) => {
             if (!enabled) return;
-            const matches = await evalRaw(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
+            if (isPhysicalIosSafari) {
+              console.log('\n[ATTENDED iOS] Enable Settings → Accessibility → Motion → Reduce Motion on the physical iPhone. The run will continue when Safari reports the preference.\n');
+            }
+            const matches = isPhysicalIosSafari
+              ? await evalRaw(`(async()=>{const deadline=Date.now()+300000;while(Date.now()<deadline){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return true;await new Promise(resolve=>setTimeout(resolve,250));}return false})()`)
+              : await evalRaw(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
             if (!matches) throw new Error(`${browserName} WebDriver session cannot witness prefers-reduced-motion`);
           },
           key: async (key) => {
@@ -1473,6 +1635,22 @@ function createWebDriverHarness({ browserName }) {
             });
           },
           insertText: async (text) => {
+            if (isPhysicalIosSafari) {
+              const target = await evalRaw(`(()=>{const el=document.activeElement;return {testId:el?.getAttribute('data-testid')??null,value:el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement?el.value:null}})()`);
+              if (!target?.testId) {
+                throw new Error('physical iOS attended text target has no data-testid');
+              }
+              console.log(`\n[ATTENDED iOS] On the iPhone, tap ${target.testId} if needed and TYPE exactly: ${JSON.stringify(text)}. Do not paste or press Return; the carrier will advance automatically.\n`);
+              const observed = await evalRaw(`(async()=>{const deadline=Date.now()+300000;const selector=${JSON.stringify(`[data-testid="${target.testId}"]`)};while(Date.now()<deadline){const el=document.querySelector(selector);if((el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement)&&el.value===${JSON.stringify(text)})return {testId:${JSON.stringify(target.testId)},value:el.value};await new Promise(resolve=>setTimeout(resolve,250));}const el=document.querySelector(selector);return {testId:${JSON.stringify(target.testId)},value:el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement?el.value:null,timeout:true}})()`);
+              if (observed?.value !== text || observed.timeout) {
+                throw new Error(`physical iOS operator text observation timed out: ${JSON.stringify({ expected: text, observed })}`);
+              }
+              await retainAttendedTextEvidence({
+                testId: target.testId,
+                expectedValue: text,
+              });
+              return;
+            }
             const active = await webdriverRequest(driver.url, `${base}/element/active`, { method: 'GET' });
             const elementId = active?.['element-6066-11e4-a52e-4f735466cecf'];
             if (!elementId) throw new Error(`${browserName} WebDriver omitted active element id`);
@@ -1488,6 +1666,7 @@ function createWebDriverHarness({ browserName }) {
           text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),
           pollText: (id, pattern, timeout) => evalRaw(`(async()=>{const d=Date.now()+${timeout};let v=null;while(Date.now()<d){v=document.querySelector('${selector(id)}')?.textContent?.trim()??null;if(v&&new RegExp(${JSON.stringify(pattern)},'i').test(v))return v;await new Promise(r=>setTimeout(r,100));}return v})()`),
           transportEvidence: () => evalRaw(`(async()=>{const ready=await window.partifulMatrixReady;return ready.transportEvidence?.()??ready.provider?.transportEvidence?.()??[];})()`),
+          attendedEvidence: async () => attendedEvidence.map((entry) => structuredClone(entry)),
         };
         pages.add(page);
         return page;

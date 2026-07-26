@@ -126,3 +126,55 @@ runs matching the currently installed browser version. The cumulative
 collector admits each passing check independently from such a receipt and
 keeps every failed or missing check red. A passing Safari focus result therefore
 cannot conceal a failing Safari native-find result.
+
+## Physical iOS text supplement for the OQ9 UI matrix
+
+This is a separate Phase-4 UI-claim carrier, not a web-citizenship importer.
+The iOS Simulator remains the complete `safari-ios-latest` engine cell. When
+its WebDriver value command cannot deliver text, an attended physical-iPhone
+run may replace only the failed `STEP4.UI.KEYBOARD` and
+`STEP4.UI.REDUCED-MOTION` outcomes. It does not satisfy any of the five
+current-iOS citizenship rows, current−1 iOS, Android Chrome, visual approval,
+or released-package provenance.
+
+Prerequisites:
+
+- the Mac and unlocked iPhone are paired, trusted, and on a network from which
+  the phone can reach the Mac's selected private address;
+- `safaridriver --enable` has run on the Mac;
+- Settings → Apps → Safari → Advanced → Remote Automation is enabled on the
+  iPhone;
+- the Contract surface resolves the Exact package closure identified by the
+  pinned visual fixture revision.
+
+Run both React and Contract text-dependent claims with:
+
+```sh
+bun demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs \
+  --browser ios-safari-device \
+  --exact-revision 5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3 \
+  --ios-device-udid 00008150-00120CEE3E40401C \
+  --physical-network-host 192.168.1.13 \
+  --attended-operator "Charlie Cheever" \
+  --attended
+```
+
+The carrier starts fresh in-memory Snapback, gateway, Vite, and physical
+SafariDriver sessions for each arm × claim cell. The plaintext test services
+bind only to the explicitly supplied private device-network address. When
+prompted, the operator types the exact requested value using the iPhone soft
+keyboard and does not paste or press Return. The harness polls the resulting
+DOM value, retains a hash-bound screenshot, and then continues the ordinary
+key-action and semantic outcome oracle. It never calls WebDriver's
+element-value command in this lane.
+
+For the reduced-motion cells, enable Settings → Accessibility → Motion →
+Reduce Motion when prompted. The harness proves Safari's media query observes
+the setting, but cannot restore a physical device preference; restore the
+owner's prior setting after the run.
+
+`step4-ui-matrix.mjs` admits the supplement only when all four raw runs pass,
+the device and operator identities agree, every screenshot digest resolves,
+the Contract Exact package manifests match the pinned simulator fixture, and
+the current product source bytes match the visual fixture's Snapback revision.
+Missing or malformed supplemental evidence remains red.

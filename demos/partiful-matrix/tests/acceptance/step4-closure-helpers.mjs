@@ -231,7 +231,11 @@ export function inspectPartitimeManualDeviceGate(receipt, requiredRowIds) {
 export function inspectPartitimeEngineClaim(engine, claimId) {
   const claim = engine.claimResults?.find((entry) => entry.claimId === claimId);
   if (engine.revisionMatches !== true) {
-    return { browserId: engine.browserId, status: 'red', reason: 'exact-revision-mismatch' };
+    return {
+      browserId: engine.browserId,
+      status: 'red',
+      reason: engine.revisionReason ?? 'engine-revision-mismatch',
+    };
   }
   if (engine.receiptComplete !== true) {
     return { browserId: engine.browserId, status: 'red', reason: 'claim-receipt-incomplete' };
@@ -240,6 +244,38 @@ export function inspectPartitimeEngineClaim(engine, claimId) {
     return { browserId: engine.browserId, status: 'red', reason: 'claim-not-passing' };
   }
   return { browserId: engine.browserId, status: 'pass', reason: null };
+}
+
+export function inspectAttendedTextEvidence(entries, expectedValues, operator) {
+  const errors = [];
+  if (!Array.isArray(entries) || entries.length !== expectedValues.length) {
+    return {
+      status: 'red',
+      errors: ['attended text evidence count mismatch'],
+    };
+  }
+  if (
+    JSON.stringify(entries.map(({ expectedValue }) => expectedValue))
+    !== JSON.stringify(expectedValues)
+  ) {
+    errors.push('attended text values drifted');
+  }
+  for (const entry of entries) {
+    if (entry.operator !== operator) errors.push('attended text operator mismatch');
+    if (entry.inputSource !== 'operator-physical-soft-keyboard') {
+      errors.push('attended text source is not the physical soft keyboard');
+    }
+    if (entry.webdriverValueCommandUsed !== false) {
+      errors.push('attended text used a WebDriver value command');
+    }
+    if (entry.observation?.value !== entry.expectedValue) {
+      errors.push('attended text observed value does not match the requested value');
+    }
+  }
+  return {
+    status: errors.length === 0 ? 'pass' : 'red',
+    errors,
+  };
 }
 
 export function retainedResult(receipt, name) {

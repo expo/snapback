@@ -78,7 +78,7 @@ const headers = {
 
 const port = Number(process.env.PARTIFUL_MATRIX_GATEWAY_PORT ?? 4460);
 const server = Bun.serve({
-  hostname: '127.0.0.1',
+  hostname: process.env.PARTIFUL_MATRIX_GATEWAY_HOST ?? '127.0.0.1',
   port,
   async fetch(request) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });

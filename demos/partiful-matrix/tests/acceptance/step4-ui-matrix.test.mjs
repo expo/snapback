@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  inspectAttendedTextEvidence,
   inspectPartitimeEngineClaim,
   inspectPartitimeManualDeviceGate,
 } from './step4-closure-helpers.mjs';
@@ -78,8 +79,37 @@ test('engine claims fail closed when the receipt or Exact revision is invalid', 
   const claimResults = [{ claimId: 'STEP4.UI.RESPONSIVE', status: 'pass' }];
   assert.equal(inspectPartitimeEngineClaim({
     browserId: 'safari-ios-latest', revisionMatches: false, receiptComplete: true, claimResults,
-  }, 'STEP4.UI.RESPONSIVE').reason, 'exact-revision-mismatch');
+  }, 'STEP4.UI.RESPONSIVE').reason, 'engine-revision-mismatch');
   assert.equal(inspectPartitimeEngineClaim({
     browserId: 'safari-ios-latest', revisionMatches: true, receiptComplete: false, claimResults,
   }, 'STEP4.UI.RESPONSIVE').reason, 'claim-receipt-incomplete');
+});
+
+test('engine revision diagnostics retain the fixture mismatch reason', () => {
+  assert.equal(inspectPartitimeEngineClaim({
+    browserId: 'safari-ios-latest',
+    revisionMatches: false,
+    revisionReason: 'fixture-revision-mismatch',
+    receiptComplete: true,
+    claimResults: [{ claimId: 'STEP4.UI.KEYBOARD', status: 'pass' }],
+  }, 'STEP4.UI.KEYBOARD').reason, 'fixture-revision-mismatch');
+});
+
+test('attended text evidence requires operator soft-keyboard input and exact values', () => {
+  const evidence = [{
+    operator: 'Charlie Cheever',
+    inputSource: 'operator-physical-soft-keyboard',
+    webdriverValueCommandUsed: false,
+    expectedValue: 'Keyboard Picnic',
+    observation: { value: 'Keyboard Picnic' },
+  }];
+  assert.deepEqual(
+    inspectAttendedTextEvidence(evidence, ['Keyboard Picnic'], 'Charlie Cheever'),
+    { status: 'pass', errors: [] },
+  );
+  assert.equal(inspectAttendedTextEvidence([{
+    ...evidence[0],
+    inputSource: 'webdriver-element-value',
+    webdriverValueCommandUsed: true,
+  }], ['Keyboard Picnic'], 'Charlie Cheever').status, 'red');
 });

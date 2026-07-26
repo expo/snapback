@@ -15,11 +15,17 @@ const selectedArm = option('arm');
 const selectedClaim = option('claim');
 const selectedBrowser = option('browser') ?? 'chrome';
 const iosSimulatorUdid = option('ios-simulator-udid') ?? process.env.PARTITIME_IOS_SIMULATOR_UDID ?? null;
-const resultsRoot = join(demoRoot, 'acceptance', 'results', 'phase4-ui-claims', ...(selectedBrowser === 'chrome' ? [] : [selectedBrowser]));
-const aggregatePath = join(demoRoot, 'acceptance', 'results', selectedBrowser === 'chrome' ? 'step4-ui-claims.json' : `step4-ui-claims-${selectedBrowser}.json`);
+const iosDeviceUdid = option('ios-device-udid') ?? process.env.PARTITIME_IOS_DEVICE_UDID ?? null;
+const physicalNetworkHost = option('physical-network-host') ?? process.env.PARTITIME_PHYSICAL_NETWORK_HOST ?? null;
+const attendedOperator = option('attended-operator') ?? process.env.PARTITIME_ATTENDED_OPERATOR ?? null;
+const attended = process.argv.includes('--attended');
+const physicalIos = selectedBrowser === 'ios-safari-device';
+const resultBrowserId = physicalIos ? 'ios-safari-physical-text' : selectedBrowser;
+const resultsRoot = join(demoRoot, 'acceptance', 'results', 'phase4-ui-claims', ...(selectedBrowser === 'chrome' ? [] : [resultBrowserId]));
+const aggregatePath = join(demoRoot, 'acceptance', 'results', selectedBrowser === 'chrome' ? 'step4-ui-claims.json' : `step4-ui-claims-${resultBrowserId}.json`);
 
 const arms = selectedArm ? [selectedArm] : ['react', 'contract'];
-const claims = selectedClaim ? [selectedClaim] : [
+const completeClaims = [
   'STEP4.UI.RESPONSIVE',
   'STEP4.UI.KEYBOARD',
   'STEP4.UI.FOCUS',
@@ -27,12 +33,28 @@ const claims = selectedClaim ? [selectedClaim] : [
   'STEP4.UI.A11Y',
   'STEP4.UI.VISUAL',
 ];
+const physicalTextClaims = [
+  'STEP4.UI.KEYBOARD',
+  'STEP4.UI.REDUCED-MOTION',
+];
+const claims = selectedClaim
+  ? [selectedClaim]
+  : physicalIos
+    ? physicalTextClaims
+    : completeClaims;
 
 if (!exactRevision) throw new Error('authoritative Phase 4 evidence requires --exact-revision or PARTITIME_EXACT_REVISION');
 if (arms.some((arm) => !['react', 'contract'].includes(arm))) throw new Error(`unknown arm: ${selectedArm}`);
 if (claims.some((claim) => !claim.startsWith('STEP4.UI.'))) throw new Error(`unknown claim: ${selectedClaim}`);
-if (!['chrome', 'firefox', 'safari', 'ios-safari'].includes(selectedBrowser)) throw new Error(`unknown browser: ${selectedBrowser}`);
+if (!['chrome', 'firefox', 'safari', 'ios-safari', 'ios-safari-device'].includes(selectedBrowser)) throw new Error(`unknown browser: ${selectedBrowser}`);
 if (selectedBrowser === 'ios-safari' && !iosSimulatorUdid) throw new Error('--browser ios-safari requires --ios-simulator-udid or PARTITIME_IOS_SIMULATOR_UDID');
+if (physicalIos && !iosDeviceUdid) throw new Error('--browser ios-safari-device requires --ios-device-udid or PARTITIME_IOS_DEVICE_UDID');
+if (physicalIos && !physicalNetworkHost) throw new Error('--browser ios-safari-device requires --physical-network-host or PARTITIME_PHYSICAL_NETWORK_HOST');
+if (physicalIos && !attendedOperator) throw new Error('--browser ios-safari-device requires --attended-operator or PARTITIME_ATTENDED_OPERATOR');
+if (physicalIos && !attended) throw new Error('--browser ios-safari-device requires --attended');
+if (physicalIos && claims.some((claim) => !physicalTextClaims.includes(claim))) {
+  throw new Error('physical iOS Safari is a supplemental text carrier for STEP4.UI.KEYBOARD and STEP4.UI.REDUCED-MOTION only');
+}
 
 mkdirSync(resultsRoot, { recursive: true });
 const iosSimulatorPreparation = selectedBrowser === 'ios-safari'
@@ -54,6 +76,10 @@ try {
   for (const arm of arms) {
     for (const claimId of claims) {
       const receiptPath = join(resultsRoot, arm, `${claimId.toLowerCase().replaceAll('.', '-')}.json`);
+      const attendedArtifactDir = join(
+        dirname(receiptPath),
+        `${claimId.toLowerCase().replaceAll('.', '-')}-artifacts`,
+      );
       mkdirSync(dirname(receiptPath), { recursive: true });
       const execution = spawnSync(process.execPath, [
         browserHarness,
@@ -64,6 +90,13 @@ try {
         '--arm', arm,
         '--receipt', receiptPath,
         ...(selectedBrowser === 'ios-safari' ? ['--ios-simulator-udid', iosSimulatorUdid] : []),
+        ...(physicalIos ? [
+          '--ios-device-udid', iosDeviceUdid,
+          '--physical-network-host', physicalNetworkHost,
+          '--attended-operator', attendedOperator,
+          '--attended-artifact-dir', attendedArtifactDir,
+          '--attended',
+        ] : []),
       ], {
         cwd: repoRoot,
         env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
@@ -116,6 +149,16 @@ const report = {
     exact: exactRevision,
   },
   browser: selectedBrowser,
+  role: physicalIos
+    ? 'supplemental attended physical-iOS text carrier; it may replace only failed simulator text-dependent claims'
+    : 'complete automated engine receipt',
+  qualifyingScope: physicalIos ? physicalTextClaims : completeClaims,
+  attended: physicalIos ? {
+    operator: attendedOperator,
+    deviceUdid: iosDeviceUdid,
+    networkHost: physicalNetworkHost,
+    inputPolicy: 'The operator types requested values on the real iPhone soft keyboard; the harness polls DOM outcomes and never sends an element value command.',
+  } : null,
   iosSimulatorAccessibility: iosSimulatorPreparation
     ? { preparation: iosSimulatorPreparation.attestation, restoration: iosSimulatorRestoration }
     : null,

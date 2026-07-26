@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-25T23:42:20.760Z",
+  "generatedAt": "2026-07-26T00:14:28.272Z",
   "revisions": {
-    "snapback": "c0d3494a8fd1d1b44f4f06b7eb37ea98cfae9d7f",
+    "snapback": "d8a2411faaf12db19280775fa28b5621ee11f74f",
     "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "oq9": {
@@ -21,6 +21,7 @@
       "status": "pass",
       "reason": null,
       "revisionMatches": true,
+      "revisionReason": null,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims.json",
       "sha256": "53c43f397a20f6d55cdffde93b4f49c9a296cf636255ec0ac7b25b3a473ccf16",
@@ -204,6 +205,7 @@
       "status": "pass",
       "reason": null,
       "revisionMatches": true,
+      "revisionReason": null,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-safari.json",
       "sha256": "b51033313ca0fef27c08cf20f3a88f87d798e2b554930e5576cb769b6c946b5a",
@@ -381,6 +383,7 @@
       "status": "pass",
       "reason": null,
       "revisionMatches": true,
+      "revisionReason": null,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-firefox.json",
       "sha256": "307dfdf7603db8c3c16a57c81cb350ae0aedea13a9b4b4ef862f45453a3e3fa4",
@@ -562,15 +565,16 @@
       "browserId": "safari-ios-latest",
       "role": "automated where simulator-reachable; LLP 0211 §4.3-style manual checklist for soft-keyboard/IME/autofill/bfcache rows",
       "status": "red",
-      "reason": "exact-revision-mismatch",
-      "revisionMatches": false,
+      "reason": "claim-receipt-not-passing",
+      "revisionMatches": true,
+      "revisionReason": null,
       "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-ios-safari.json",
-      "sha256": "f029b7be3beab8b4a0693154a7f319c0a97035db44fd988c015b62eaa8b1053c",
+      "sha256": "be56357b7e4737dd332a897f47fceaee0d25b0d8829447d4af435e0484aea8d2",
       "environment": "ios-safari",
       "revisions": {
-        "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
-        "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+        "snapback": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+        "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
       },
       "claimResults": [
         {
@@ -582,14 +586,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-responsive.json",
-              "receiptSha256": "e884e35a65c58c0ff9912a50114a3905ef9db4df610c366cf6792fb5fc1aa33a"
+              "receiptSha256": "1714893c9c8c74516ef2e928f5534ec87c6b518ebc5d04979acc4c40fac4b97d"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-responsive.json",
-              "receiptSha256": "1fca02fcff73520739be22859f7f64daa1afbffc0109e7bf2d1d045d4cb3557b"
+              "receiptSha256": "51593a1e5b4f1f6499d5bca2655eb3eb7774c465a6e4d6d3f642136cd6b1f79a"
             }
           ]
         },
@@ -602,14 +606,14 @@
               "ok": false,
               "exitCode": 1,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-keyboard.json",
-              "receiptSha256": "4956ee24099146f5b7e425761f717ebefc31e9709df3e3dfa759b1f027a794d7"
+              "receiptSha256": "3195a61ce0373e51feb0bdd2682b7fd5df84cd0408e070326f549ddbd9c9702a"
             },
             {
               "arm": "contract",
               "ok": false,
               "exitCode": 1,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-keyboard.json",
-              "receiptSha256": "ba781b9d1f47e8831b4c5024a6d5ebf3505ab3986db11fe2ba2337229f8be748"
+              "receiptSha256": "edaf1093326d9bc9ba9e04345ffe3116c98a0ff5c73a90bd50996c16c6ffdced"
             }
           ]
         },
@@ -622,14 +626,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-focus.json",
-              "receiptSha256": "2c57faf8b342b83c4a098d8c4166dd2b09aaf83269468c846d9788285c23dbb8"
+              "receiptSha256": "bc065dec18d6c47eb9de7fa14cad3547cb775203753b443bba7e11d86d1ccd54"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-focus.json",
-              "receiptSha256": "8a0e3d473a8c4988bcdc50e8c1ad3877dd910f9c60aa9e1655ffa74f976bdbfb"
+              "receiptSha256": "836c00790c6205ce09e66099cea458ddb02643cd3a60548ffe7c42c7b588272b"
             }
           ]
         },
@@ -642,14 +646,14 @@
               "ok": false,
               "exitCode": 1,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-reduced-motion.json",
-              "receiptSha256": "391eddf40341614336f5fe8f919fbd61aefd19d2862c8774d38255e34bed4a94"
+              "receiptSha256": "9e82e3b9faaf910303fba2cce1a08d52189caf6974b007ddb9fe88be79528e09"
             },
             {
               "arm": "contract",
               "ok": false,
               "exitCode": 1,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-reduced-motion.json",
-              "receiptSha256": "611c2b84f87364f20cd9ece12bffbfdeafe3213b3527493b77fef32225543309"
+              "receiptSha256": "f93409793a72b1330e3b931a94849bf05fc5c52feb4dd91e2da036f89e4c1e68"
             }
           ]
         },
@@ -662,14 +666,14 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-a11y.json",
-              "receiptSha256": "1fd32dfe085a1025368e4b9816db7a67e0bc9b438da79bf6a79d98d32683bfe0"
+              "receiptSha256": "7b31e21173e62b4e1b9a1075e4197b5a900b01e16e6515ea1a2c3b950e305e4b"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-a11y.json",
-              "receiptSha256": "240cbd063d9b66eae3f8ac7fed78e13a3e61de5d5e224530020d9b8e55069167"
+              "receiptSha256": "3521e10b9f4885997fbf506b94386ead50763e2c14dbeff6d27f931a010b48ed"
             }
           ],
           "delta": {
@@ -686,7 +690,7 @@
                   "impact": "serious",
                   "id": "color-contrast",
                   "help": "Elements must meet minimum color contrast ratio thresholds",
-                  "nodes": 12
+                  "nodes": 13
                 },
                 {
                   "impact": "serious",
@@ -709,16 +713,10 @@
                   "impact": "serious",
                   "id": "color-contrast",
                   "help": "Elements must meet minimum color contrast ratio thresholds",
-                  "nodes": 3
-                },
-                {
-                  "impact": "serious",
-                  "id": "color-contrast",
-                  "help": "Elements must meet minimum color contrast ratio thresholds",
-                  "nodes": 6
+                  "nodes": 1
                 }
               ],
-              "totalViolations": 3
+              "totalViolations": 2
             },
             "newCriticalSerious": [],
             "ok": true
@@ -733,130 +731,36 @@
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/react/step4-ui-visual.json",
-              "receiptSha256": "0cc08b22a22674c385f7d13f8dde6f471615bb82850076dfab91e0e531212330"
+              "receiptSha256": "61ae1116fe85192cd263c050b23e6a83b9d16509b97ce06346321e7bc155352a"
             },
             {
               "arm": "contract",
               "ok": true,
               "exitCode": 0,
               "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/ios-safari/contract/step4-ui-visual.json",
-              "receiptSha256": "bb9de053956d8bd060a5eaf31c8dc144a59f1e1d458e13c7740bfde567914c62"
+              "receiptSha256": "7bd521cf201fa3e52cdbd8239e990abc1159034b5197f6447beae4f83fef622e"
             }
           ],
           "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
         }
-      ]
+      ],
+      "physicalTextSupplement": {
+        "status": "red",
+        "reason": "physical-text-supplement-missing",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-ios-safari-physical-text.json",
+        "sha256": null,
+        "claimResults": [],
+        "errors": []
+      }
     }
   ],
   "manualDeviceGate": {
     "status": "red",
-    "reason": "required-ios-device-rows-not-passing",
-    "requiredRowIds": [
-      "ios-safari-current:autofill-password-manager",
-      "ios-safari-current:bfcache-restore",
-      "ios-safari-current:find-on-page",
-      "ios-safari-current:focus-trap-restore",
-      "ios-safari-current:ime-composition"
-    ],
-    "duplicateIds": [],
-    "rows": [
-      {
-        "id": "ios-safari-current:autofill-password-manager",
-        "environment": "ios-safari-current",
-        "assertion": "autofill-password-manager",
-        "acceptedFixtures": [
-          "facet-form-fixture"
-        ],
-        "status": "red",
-        "issues": [
-          "evidence-missing"
-        ]
-      },
-      {
-        "id": "ios-safari-current:bfcache-restore",
-        "environment": "ios-safari-current",
-        "assertion": "bfcache-restore",
-        "acceptedFixtures": [
-          "multi-route-bfcache"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "multi-route-bfcache",
-        "notes": "Physical Mobile Safari restored the unchanged Caltrain to Forms to Back fixture with Millbrae state and Matches intact; the causal old-remount A/B reset to Mountain View.",
-        "evidence": [
-          {
-            "kind": "physical-ios-xcresult-screenshot-tree-and-causal-ab",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
-              "sha256": "709d1aa899d7c8395370022cdf59484cbf5f0b74ca41950270805890e1a89108"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:find-on-page",
-        "environment": "ios-safari-current",
-        "assertion": "find-on-page",
-        "acceptedFixtures": [
-          "caltrain-contract-search"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "caltrain-contract-search",
-        "notes": "Physical Mobile Safari Find on Page located visible Contract text Mountain View, reported 1 of 1, dismissed cleanly, and left the page usable.",
-        "evidence": [
-          {
-            "kind": "physical-ios-screenshot-tree-and-observation",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:focus-trap-restore",
-        "environment": "ios-safari-current",
-        "assertion": "focus-trap-restore",
-        "acceptedFixtures": [
-          "facet-contract-overlay-fixture"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "facet-contract-overlay-fixture",
-        "notes": "Physical Mobile Safari opened the Contract-owned dialog, retained focus inside it, dismissed through Done, removed the dialog, and restored focus to Open Contract dialog.",
-        "evidence": [
-          {
-            "kind": "physical-ios-screenshot-tree-and-observation",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:ime-composition",
-        "environment": "ios-safari-current",
-        "assertion": "ime-composition",
-        "acceptedFixtures": [
-          "caltrain-contract-search",
-          "facet-form-fixture"
-        ],
-        "status": "red",
-        "issues": [
-          "evidence-missing"
-        ]
-      }
-    ],
+    "reason": "governed-device-receipt-invalid",
+    "validationError": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    path: 'docs/reports/web-citizenship-ime-forms.json',\n    repository: 'exact',\n+   sha256: '7a2d9c7acbfb24caf36bae0bf399ef25f63d9732636bb9ab767723eac70795a3'\n-   sha256: 'ca3b6523e7c019543ea449a6fe4c2621eecdff21ec5b075cb971680ffddb1a81'\n  }\n",
     "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-    "sha256": "666700f7c7158c0410aa77f3f7ee6c4b46619aab3f2422bae914ad4cfe4a48e4"
+    "sha256": "666700f7c7158c0410aa77f3f7ee6c4b46619aab3f2422bae914ad4cfe4a48e4",
+    "rows": []
   },
   "visualApproval": {
     "status": "red",
@@ -870,11 +774,523 @@
   "inputs": {
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs",
-      "sha256": "dfc5e73d3e3265a4014fbeffb499cf44f2752361994fa62b43d17e19b966d7fa"
+      "sha256": "cd1ab17c2bc693c6882f31b9ab56fb53243bfcaa8189924c6770bf368284f40c"
     },
     "manualGateHelper": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-closure-helpers.mjs",
-      "sha256": "e86009a4a55bfa0f23927d4ce967a5684984bc82f988483ab2c01dbd605ddd2f"
+      "sha256": "8633ff33a15cddef650d505fd6090bba73d959840bb3051a8f6ff97c3db70e02"
+    },
+    "fixtureSourceParity": {
+      "status": "pass",
+      "reason": null,
+      "revision": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
+      "files": [
+        {
+          "path": "demos/partiful-matrix/acceptance/visual-spec.v1.json",
+          "expectedSha256": "7374ffe84a71f8fc7234cce1ecd16823e26d3c8f67ccbb18a12945fa0d90e725",
+          "currentSha256": "7374ffe84a71f8fc7234cce1ecd16823e26d3c8f67ccbb18a12945fa0d90e725",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/shared/model.ts",
+          "expectedSha256": "a5681f1a1f0b543bea92017ca4be2c8511c50fceaa1456fde463426f8b9efa19",
+          "currentSha256": "a5681f1a1f0b543bea92017ca4be2c8511c50fceaa1456fde463426f8b9efa19",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/shared/poll-recovery.mjs",
+          "expectedSha256": "6e5d04ac2f254337c02232290d298a82fa3895b12c1d01d86943c28938016979",
+          "currentSha256": "6e5d04ac2f254337c02232290d298a82fa3895b12c1d01d86943c28938016979",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/shared/seed.json",
+          "expectedSha256": "3d17734f8f997ff196f23f5dbcc96b8ffdfef8747df89abc3e42daf8d7d817b8",
+          "currentSha256": "3d17734f8f997ff196f23f5dbcc96b8ffdfef8747df89abc3e42daf8d7d817b8",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/shared/vite-cost-attribution.mjs",
+          "expectedSha256": "46ecb7baf6423a92479d4df7a8fb9afc31630d0aaffdebbdcf4b944866f70011",
+          "currentSha256": "46ecb7baf6423a92479d4df7a8fb9afc31630d0aaffdebbdcf4b944866f70011",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/functions.mjs",
+          "expectedSha256": "76f2be6b2cb31026cb257593476c5951ca76fee09c62ff9450a722b619accc7d",
+          "currentSha256": "76f2be6b2cb31026cb257593476c5951ca76fee09c62ff9450a722b619accc7d",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/api.d.ts",
+          "expectedSha256": "0eda7d85b303bab363be899a4133b92dbcc384f5991b84360b9c0a4bf8ece2ce",
+          "currentSha256": "0eda7d85b303bab363be899a4133b92dbcc384f5991b84360b9c0a4bf8ece2ce",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/api.mjs",
+          "expectedSha256": "331b02f406c0ec521b2dab90203fb17ed2120f46b0df67fe8d93b911add2e295",
+          "currentSha256": "331b02f406c0ec521b2dab90203fb17ed2120f46b0df67fe8d93b911add2e295",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/artifacts.json",
+          "expectedSha256": "fbfd0222952c5d44e93050129495563c284b438e8f0b63e827bea9a222c5a5d0",
+          "currentSha256": "fbfd0222952c5d44e93050129495563c284b438e8f0b63e827bea9a222c5a5d0",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/capability.manifest.json",
+          "expectedSha256": "bbf836ccbd0b650f93f37fdb57b207fffca10cc632e329d5996c545752019725",
+          "currentSha256": "bbf836ccbd0b650f93f37fdb57b207fffca10cc632e329d5996c545752019725",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
+          "expectedSha256": "dff2a9b893b510addf3942ca67be8f5340f938dc29b55ce5e98d72402fe181e1",
+          "currentSha256": "dff2a9b893b510addf3942ca67be8f5340f938dc29b55ce5e98d72402fe181e1",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/createEvent.mutation.contract-meta.ts",
+          "expectedSha256": "5875d1999fd29a74e816fdbe08da56165365f34ce325fb0d76b12ae42bf4e185",
+          "currentSha256": "5875d1999fd29a74e816fdbe08da56165365f34ce325fb0d76b12ae42bf4e185",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/createEvent.mutation.ts",
+          "expectedSha256": "072ad1e44b68a57c8bf184ef841608aa0cacb73e1a8fce488ac25503e1bc1190",
+          "currentSha256": "072ad1e44b68a57c8bf184ef841608aa0cacb73e1a8fce488ac25503e1bc1190",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/eventDetails.query.contract-meta.ts",
+          "expectedSha256": "c1114fcdfbf6f412b2c588962d8d6449005a9943901b45992027c944910e5b8b",
+          "currentSha256": "c1114fcdfbf6f412b2c588962d8d6449005a9943901b45992027c944910e5b8b",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/eventDetails.query.ts",
+          "expectedSha256": "ddd290c84e0919e45cc5d99249e81629271b98d6a30f119ef3635197fbb3b983",
+          "currentSha256": "ddd290c84e0919e45cc5d99249e81629271b98d6a30f119ef3635197fbb3b983",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/eventWall.query.contract-meta.ts",
+          "expectedSha256": "db54a4224083f89835dc3671d5a0290812fa9afad906aad3884b351ba2cf431e",
+          "currentSha256": "db54a4224083f89835dc3671d5a0290812fa9afad906aad3884b351ba2cf431e",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/eventWall.query.ts",
+          "expectedSha256": "1a7be1c22aae2bf8201412a226ab9a2b243fcc003eee95f4e901445e24fee34b",
+          "currentSha256": "1a7be1c22aae2bf8201412a226ab9a2b243fcc003eee95f4e901445e24fee34b",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/guestList.query.contract-meta.ts",
+          "expectedSha256": "5af189374588fe397fc71db5a84e90a1ea635e2931195c2e808d24820ae3fbb1",
+          "currentSha256": "5af189374588fe397fc71db5a84e90a1ea635e2931195c2e808d24820ae3fbb1",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/guestList.query.ts",
+          "expectedSha256": "15fe94d2ca7d131d58c9248f3c92d40bc6dfa57d26eee7eaaa7d815b93b6a4b3",
+          "currentSha256": "15fe94d2ca7d131d58c9248f3c92d40bc6dfa57d26eee7eaaa7d815b93b6a4b3",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/listEvents.query.contract-meta.ts",
+          "expectedSha256": "ff5cfbab161b71dcf33a2cf6cb52646ed7be0b3e6ba5613ee91f83361e1e8671",
+          "currentSha256": "ff5cfbab161b71dcf33a2cf6cb52646ed7be0b3e6ba5613ee91f83361e1e8671",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/listEvents.query.ts",
+          "expectedSha256": "0b2d53a0a6c442a4d28973c4f20a8383f58eb97f9b16e962897a505afaa92f64",
+          "currentSha256": "0b2d53a0a6c442a4d28973c4f20a8383f58eb97f9b16e962897a505afaa92f64",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/postMessage.mutation.contract-meta.ts",
+          "expectedSha256": "e3fb59fe8e636b1bbe116fd9803df5d31d69e6e9d20d34e4cabe74b17ceb029e",
+          "currentSha256": "e3fb59fe8e636b1bbe116fd9803df5d31d69e6e9d20d34e4cabe74b17ceb029e",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/postMessage.mutation.ts",
+          "expectedSha256": "f9c9bf509c8aadae57424d5476aa9e299e53312e1a12125d59a95f5ea3d6a3cc",
+          "currentSha256": "f9c9bf509c8aadae57424d5476aa9e299e53312e1a12125d59a95f5ea3d6a3cc",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/rsvp.mutation.contract-meta.ts",
+          "expectedSha256": "9d617564f7bf11af4e30773c9730003d0bb57e3be2188f586f3a4de318d5841d",
+          "currentSha256": "9d617564f7bf11af4e30773c9730003d0bb57e3be2188f586f3a4de318d5841d",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/rsvp.mutation.ts",
+          "expectedSha256": "882f1897632b608e12b4761f21549eb6ec942b9a835b428192841f8ffe5bc5a6",
+          "currentSha256": "882f1897632b608e12b4761f21549eb6ec942b9a835b428192841f8ffe5bc5a6",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/contract/runtime-links.ts",
+          "expectedSha256": "de0e6ca6a4fe4c00d110ef83277f3273c0c4ad66dae41aff015a91cdeade8b51",
+          "currentSha256": "de0e6ca6a4fe4c00d110ef83277f3273c0c4ad66dae41aff015a91cdeade8b51",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/functions.manifest.json",
+          "expectedSha256": "43745a781419d5866850b595c18e800f99724bc28e8aaecbda2fe81ae275a7fd",
+          "currentSha256": "43745a781419d5866850b595c18e800f99724bc28e8aaecbda2fe81ae275a7fd",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/createEvent.args.schema.json",
+          "expectedSha256": "be6299e3076da4c16026e352cacc4ce43ae2069a44022ac20d1312fe68e74133",
+          "currentSha256": "be6299e3076da4c16026e352cacc4ce43ae2069a44022ac20d1312fe68e74133",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/eventDetails.args.schema.json",
+          "expectedSha256": "0801f243221984a485613b4b32fea482c5687a8a42a3d55534ce5923ed9b31fd",
+          "currentSha256": "0801f243221984a485613b4b32fea482c5687a8a42a3d55534ce5923ed9b31fd",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/eventWall.args.schema.json",
+          "expectedSha256": "12991b95d0400d92931d560a712d1e2a16fdaa270843f310f58505c035d65151",
+          "currentSha256": "12991b95d0400d92931d560a712d1e2a16fdaa270843f310f58505c035d65151",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/guestList.args.schema.json",
+          "expectedSha256": "ca290239193c9f73f9d6705a73bb406d3613327eb9cec575269c02c4c65a887a",
+          "currentSha256": "ca290239193c9f73f9d6705a73bb406d3613327eb9cec575269c02c4c65a887a",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/listEvents.args.schema.json",
+          "expectedSha256": "86818011f6946ba9ac0784f5bfe7c42b2cf915e41cab9676c795ee791d0aefd9",
+          "currentSha256": "86818011f6946ba9ac0784f5bfe7c42b2cf915e41cab9676c795ee791d0aefd9",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/postMessage.args.schema.json",
+          "expectedSha256": "1a47f3fae97b96f89dccc4e5bf8a51610681c1e74aac6cfdab5d0f0873d9473b",
+          "currentSha256": "1a47f3fae97b96f89dccc4e5bf8a51610681c1e74aac6cfdab5d0f0873d9473b",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/operations/rsvp.args.schema.json",
+          "expectedSha256": "91d9b6636c7683f101e05f7609f862724a71319ba951e2ce585d97bf9f458eed",
+          "currentSha256": "91d9b6636c7683f101e05f7609f862724a71319ba951e2ce585d97bf9f458eed",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/package.json",
+          "expectedSha256": "4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981",
+          "currentSha256": "4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/provider-bindings.d.ts",
+          "expectedSha256": "2933dd3dd6de12e87811170d68f7c56ca231c197b24d4df3d1c5c873447bce58",
+          "currentSha256": "2933dd3dd6de12e87811170d68f7c56ca231c197b24d4df3d1c5c873447bce58",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/provider-bindings.json",
+          "expectedSha256": "2bf0eec8de147e3cc3ae41a51739a9423dd86264e826c57f2e2381f61d2291ef",
+          "currentSha256": "2bf0eec8de147e3cc3ae41a51739a9423dd86264e826c57f2e2381f61d2291ef",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/provider-introspection.json",
+          "expectedSha256": "79f90c1b7d3f17771cea5939edcd28bfd809c5a65cc1adacc3495b18f1190cec",
+          "currentSha256": "79f90c1b7d3f17771cea5939edcd28bfd809c5a65cc1adacc3495b18f1190cec",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/generated/schema.manifest.json",
+          "expectedSha256": "891c698bebffe8fc33437838c4338ebb2973f7fb1b5e75631762adf127a71fb4",
+          "currentSha256": "891c698bebffe8fc33437838c4338ebb2973f7fb1b5e75631762adf127a71fb4",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/schema.mjs",
+          "expectedSha256": "c5198b128af62889125b04e4f9e551a8ee597b1ad863a0427d177a2400369bfc",
+          "currentSha256": "c5198b128af62889125b04e4f9e551a8ee597b1ad863a0427d177a2400369bfc",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/seed.json",
+          "expectedSha256": "dc6d193ed038443151c9ca4622a647b434afac0112c24d735fccbb8548fa38d4",
+          "currentSha256": "dc6d193ed038443151c9ca4622a647b434afac0112c24d735fccbb8548fa38d4",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/.gitignore",
+          "expectedSha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+          "currentSha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+          "expectedSha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f",
+          "currentSha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/convex-provider.ts",
+          "expectedSha256": "cc6e86dc38079b96e4410fced9d989544071cd8dcd867e916e2f0bcddfd2b0e3",
+          "currentSha256": "cc6e86dc38079b96e4410fced9d989544071cd8dcd867e916e2f0bcddfd2b0e3",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.bindings.contract-meta.ts",
+          "expectedSha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f",
+          "currentSha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.bindings.ts",
+          "expectedSha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1",
+          "currentSha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.declaration.json",
+          "expectedSha256": "acba6eee0f64f11e29cfc88ed6e21e83f1f3aef3578c8516c396adedf9069a63",
+          "currentSha256": "acba6eee0f64f11e29cfc88ed6e21e83f1f3aef3578c8516c396adedf9069a63",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.fixtures.json",
+          "expectedSha256": "130507a1bc8252f49035b0625197cbd99ce04070ed95b43821055e9bc8190bff",
+          "currentSha256": "130507a1bc8252f49035b0625197cbd99ce04070ed95b43821055e9bc8190bff",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.manifest.json",
+          "expectedSha256": "9f0ccc2c33a8e528478f3e717334ccaf30f4d5302c45f1fdfb036620221de7af",
+          "currentSha256": "9f0ccc2c33a8e528478f3e717334ccaf30f4d5302c45f1fdfb036620221de7af",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.md",
+          "expectedSha256": "5519edf1ac5f91e8155f7ff439b723a9ef29830af50a4555d08c8ef2b902c4fb",
+          "currentSha256": "5519edf1ac5f91e8155f7ff439b723a9ef29830af50a4555d08c8ef2b902c4fb",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/convex.types.ts",
+          "expectedSha256": "7e7117e13bc7ed55fc58268108cba9b31d7bbf4283794937f061b97b9d9d13c9",
+          "currentSha256": "7e7117e13bc7ed55fc58268108cba9b31d7bbf4283794937f061b97b9d9d13c9",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/generation.receipt.json",
+          "expectedSha256": "78cfebe1706a5fe4b432bd13d214f4349b2ab7dcfbb1b04e1298f685b4fa942f",
+          "currentSha256": "78cfebe1706a5fe4b432bd13d214f4349b2ab7dcfbb1b04e1298f685b4fa942f",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.bindings.contract-meta.ts",
+          "expectedSha256": "2eea943bc562609e63bd44b3da841919e5b0aa5b8829d00fb9294806b7e18a9e",
+          "currentSha256": "2eea943bc562609e63bd44b3da841919e5b0aa5b8829d00fb9294806b7e18a9e",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.bindings.ts",
+          "expectedSha256": "e5738eaa070bdd82d99262f535f4c2ea2ddeed94ddb051eca18f47505a255215",
+          "currentSha256": "e5738eaa070bdd82d99262f535f4c2ea2ddeed94ddb051eca18f47505a255215",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.declaration.json",
+          "expectedSha256": "585cd65bc5f814eaee1b5160626cb4180ce914f55fc93ecf882cf810bd09fdfd",
+          "currentSha256": "585cd65bc5f814eaee1b5160626cb4180ce914f55fc93ecf882cf810bd09fdfd",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.fixtures.json",
+          "expectedSha256": "d3b33fd8edc073a0629a85a72f06dd90f3eca74f68e662f60c732df0291453b6",
+          "currentSha256": "d3b33fd8edc073a0629a85a72f06dd90f3eca74f68e662f60c732df0291453b6",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.manifest.json",
+          "expectedSha256": "e5d792423ee9968a47e00d866ee3e1d2a8268d0ac18958e20cdd74431b61761a",
+          "currentSha256": "e5d792423ee9968a47e00d866ee3e1d2a8268d0ac18958e20cdd74431b61761a",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.md",
+          "expectedSha256": "f231c1132a92aafe307dca137e5d5015c813376959cb819f6459db70ad4e7296",
+          "currentSha256": "f231c1132a92aafe307dca137e5d5015c813376959cb819f6459db70ad4e7296",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/generated/snapback.types.ts",
+          "expectedSha256": "1a3efff74561ea3cf65fcf6e5bc035a02d720e4e1116f9e386cc0b53b82660be",
+          "currentSha256": "1a3efff74561ea3cf65fcf6e5bc035a02d720e4e1116f9e386cc0b53b82660be",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/provider.generated.contract-meta.ts",
+          "expectedSha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f",
+          "currentSha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/data/provider.generated.ts",
+          "expectedSha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1",
+          "currentSha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+          "expectedSha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5",
+          "currentSha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+          "expectedSha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b",
+          "currentSha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+          "expectedSha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1",
+          "currentSha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+          "expectedSha256": "b501afb709778283c1e8175430ddca21d5c86b8508663696551a314cbba95ea2",
+          "currentSha256": "b501afb709778283c1e8175430ddca21d5c86b8508663696551a314cbba95ea2",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/index.html",
+          "expectedSha256": "aa904263fa6768d3eed08c79c2e2f8abed753261ac1e64839e0cf9ea550f6cee",
+          "currentSha256": "aa904263fa6768d3eed08c79c2e2f8abed753261ac1e64839e0cf9ea550f6cee",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+          "expectedSha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d",
+          "currentSha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/performance-v2-main.ts",
+          "expectedSha256": "6dfe317fa4c8e3ab006b6b10a2fe2e69ec01cb24b6d5315fa7ace24dc77ac75a",
+          "currentSha256": "6dfe317fa4c8e3ab006b6b10a2fe2e69ec01cb24b6d5315fa7ace24dc77ac75a",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/performance-v2.contract",
+          "expectedSha256": "1c67ec7a4a5a049a5fac8276efc69ba0134661b6d4fce7fa9219127675ab9ba5",
+          "currentSha256": "1c67ec7a4a5a049a5fac8276efc69ba0134661b6d4fce7fa9219127675ab9ba5",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/performance-v2.html",
+          "expectedSha256": "9a0dc2bce9c034bfdd51e3323a860f11efa16c298fa9c3e68bb8bd95440c4ef8",
+          "currentSha256": "9a0dc2bce9c034bfdd51e3323a860f11efa16c298fa9c3e68bb8bd95440c4ef8",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
+          "expectedSha256": "8dc1a46c1e7be16bf8fa3f3b9e4d2fe79263ab546cfb54f02ee390d188ff42bd",
+          "currentSha256": "8dc1a46c1e7be16bf8fa3f3b9e4d2fe79263ab546cfb54f02ee390d188ff42bd",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+          "expectedSha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
+          "currentSha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
+          "expectedSha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241",
+          "currentSha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+          "expectedSha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a",
+          "currentSha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+          "expectedSha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd",
+          "currentSha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/vite.config.ts",
+          "expectedSha256": "87c4630820acfd82358570bab3026bfc0e1b60479fbae633dd94948d308e756d",
+          "currentSha256": "87c4630820acfd82358570bab3026bfc0e1b60479fbae633dd94948d308e756d",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/index.html",
+          "expectedSha256": "bb42afef990c6abea801e5281a7a27c9eca11398c0831b6580a427c4fc3e73a6",
+          "currentSha256": "bb42afef990c6abea801e5281a7a27c9eca11398c0831b6580a427c4fc3e73a6",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+          "expectedSha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42",
+          "currentSha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/convex-direct.ts",
+          "expectedSha256": "81d35b70f7d8239a16016f6dfcbd419d6485134c3dbd048f4658e00c4d1bf884",
+          "currentSha256": "81d35b70f7d8239a16016f6dfcbd419d6485134c3dbd048f4658e00c4d1bf884",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
+          "expectedSha256": "27c1216d72977e9cecb9eb71c6123366f03226427c48fa5d35ca9faa1e775c92",
+          "currentSha256": "27c1216d72977e9cecb9eb71c6123366f03226427c48fa5d35ca9faa1e775c92",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
+          "expectedSha256": "f581ffd096c0da3b28cd0265b391ce089be950d636ce993961f1a66b6a0ac5a4",
+          "currentSha256": "f581ffd096c0da3b28cd0265b391ce089be950d636ce993961f1a66b6a0ac5a4",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+          "expectedSha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e",
+          "currentSha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+          "expectedSha256": "7ceb2bd83f32798bca294348345f167344a4c969c1079cbe6853835ca009be23",
+          "currentSha256": "7ceb2bd83f32798bca294348345f167344a4c969c1079cbe6853835ca009be23",
+          "matches": true
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/supabase-direct.ts",
+          "expectedSha256": "4bb86f4a13cfdd039a53b638d8056d0180f6d443eacee3788751002c5e946641",
+          "currentSha256": "4bb86f4a13cfdd039a53b638d8056d0180f6d443eacee3788751002c5e946641",
+          "matches": true
+        }
+      ],
+      "changedPaths": []
     }
   },
   "documentedSupportLimitations": [
@@ -890,7 +1306,7 @@
   "claimResults": [
     {
       "claimId": "STEP4.UI.RESPONSIVE",
-      "status": "red",
+      "status": "pass",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -909,8 +1325,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "exact-revision-mismatch"
+          "status": "pass",
+          "reason": null
         }
       ]
     },
@@ -936,12 +1352,12 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "exact-revision-mismatch"
+          "reason": "claim-not-passing"
         }
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-ios-device-rows-not-passing"
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {
@@ -965,13 +1381,13 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "exact-revision-mismatch"
+          "status": "pass",
+          "reason": null
         }
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-ios-device-rows-not-passing"
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {
@@ -996,7 +1412,7 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "exact-revision-mismatch"
+          "reason": "claim-not-passing"
         }
       ]
     },
@@ -1021,13 +1437,13 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "exact-revision-mismatch"
+          "status": "pass",
+          "reason": null
         }
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-ios-device-rows-not-passing"
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {
@@ -1051,8 +1467,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "exact-revision-mismatch"
+          "status": "pass",
+          "reason": null
         }
       ],
       "visualApproval": {
