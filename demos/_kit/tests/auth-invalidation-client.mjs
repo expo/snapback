@@ -116,6 +116,8 @@ const ackOutcomes = [
   'discharged',
   'duplicate',
   'discharged',
+  'transport-error',
+  'discharged',
   'discharged',
 ];
 let failQueueRevision3 = true;
@@ -189,7 +191,11 @@ try {
       const body = JSON.parse(init.body);
       order.push(`ack:${body.ackToken}`);
       assert.equal(body.connectionId, 'granted-auth');
-      return response({ outcome: ackOutcomes.shift() });
+      const outcome = ackOutcomes.shift();
+      if (outcome === 'transport-error') {
+        throw new Error('injected acknowledgement transport failure');
+      }
+      return response({ outcome });
     }
     if (path === '/outbox/granted-auth') return response(outbox.shift() ?? []);
     if (path === '/live/listTodos/unsubscribe') {
@@ -462,6 +468,61 @@ try {
     acknowledgementsBeforeForeign,
   );
   assert.deepEqual(handle.rows, [{ _id: 'row_15' }], 'foreign scopes do not alter owned rows');
+  assert.equal(ackOutcomes.length, 3);
+
+  // A resolution is locally applied before its remote ACK. If that ACK loses
+  // transport, the fail-closed error boundary blanks the handle, but the exact
+  // level-triggered redelivery must restore the already-accepted boundary and
+  // re-ACK without repeating mutation-queue resolution.
+  const ackFailureObligation = obligation(scopeId, 6, 16);
+  const ackFailureFrame = { Durable: { payload: JSON.stringify({
+    kind: 'authorization_invalidation',
+    obligation: ackFailureObligation,
+    resolution: resolution(ackFailureObligation, 'ack_transport_6'),
+    snapshot: {
+      subscriptionId: 'sub_auth',
+      function: 'listTodos',
+      version: 16,
+      rows: [{ _id: 'row_16' }],
+    },
+  }) } };
+  outbox.push([structuredClone(ackFailureFrame)]);
+  await handle.poll();
+  await waitFor(
+    () => assert.equal(
+      order.filter((entry) => entry === 'ack:ack_transport_6').length,
+      1,
+    ),
+    'the first transport-failed acknowledgement was not attempted',
+  );
+  await waitFor(
+    () => assert.deepEqual(handle.rows, []),
+    'acknowledgement transport failure did not fail the materialization closed',
+  );
+  assert.equal(
+    order.filter((entry) => entry === 'queue-resolve:6').length,
+    1,
+    'the accepted resolution completed queue custody once before its ACK',
+  );
+
+  outbox.push([structuredClone(ackFailureFrame)]);
+  await handle.poll();
+  await waitFor(
+    () => assert.deepEqual(handle.rows, [{ _id: 'row_16' }]),
+    'exact redelivery did not restore the already-accepted snapshot boundary',
+  );
+  await waitFor(
+    () => assert.equal(
+      order.filter((entry) => entry === 'ack:ack_transport_6').length,
+      2,
+    ),
+    'exact redelivery did not retry the original acknowledgement token',
+  );
+  assert.equal(
+    order.filter((entry) => entry === 'queue-resolve:6').length,
+    1,
+    'exact redelivery must not repeat queue resolution after ACK transport loss',
+  );
   assert.equal(ackOutcomes.length, 1);
 
   // Terminal deletion is a one-way fence for this exact query instance. Every
@@ -469,11 +530,11 @@ try {
   // that wants the canonical query again must construct a fresh handle and
   // therefore allocate a fresh queryInstanceId.
   const terminalObligation = {
-    ...obligation(scopeId, 6, 15),
+    ...obligation(scopeId, 7, 16),
     maxDisposition: 'delete',
   };
   const terminalResolution = {
-    ...resolution(terminalObligation, 'ack_terminal_6'),
+    ...resolution(terminalObligation, 'ack_terminal_7'),
     kind: 'terminalDelete',
   };
   outbox.push([{ Durable: { payload: JSON.stringify({
@@ -484,7 +545,7 @@ try {
   }) } }]);
   await handle.poll();
   await waitFor(
-    () => assert(order.includes('ack:ack_terminal_6')),
+    () => assert(order.includes('ack:ack_terminal_7')),
     'terminal delete did not commit before acknowledgement',
   );
   assert.deepEqual(handle.rows, []);

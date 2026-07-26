@@ -20,6 +20,7 @@ import {
   createLiveQueryNamespace,
 } from '@snapback/contract/query-authorization';
 import {
+  scopeKey,
   validateAuthorizationInvalidationConnection,
   validateScopeId,
 } from '@snapback/contract/auth-invalidation';
@@ -220,6 +221,7 @@ const LIVE_SUBSCRIBE_READINESS_RETRY_CODES = new Set([
   'SNAPBACK_CONNECTION_SESSION_REPLACED',
 ]);
 const LIVE_SUBSCRIBE_READINESS_RETRIES = 2;
+const LIVE_SUPERSESSION_TARGET_UNKNOWN = 'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN';
 const AUTH_CLIENT_PROTOCOL_HEADER = 'x-snapback-auth-client-protocol';
 const AUTH_INVALIDATION_PROTOCOL_HEADER = 'x-snapback-auth-invalidation-protocol';
 const AUTHORITY_DESCRIPTOR_PROTOCOL_HEADER = 'x-snapback-authority-descriptor-protocol';
@@ -227,6 +229,23 @@ const AUTHORIZED_LEASE_PROTOCOL_HEADER = 'x-snapback-authorized-lease-protocol';
 const AUTHORITY_CAPTURE = Symbol('snapback.authorityCapture');
 const AUTHORIZATION_CONNECTION = Symbol('snapback.authorizationConnection');
 const TERMINAL_AUTHORITY_PUBLICATION = Symbol('snapback.terminalAuthorityPublication');
+
+const invalidSupersessionWitnessError = (supersedes, response) => {
+  const error = new Error(
+    'SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID: fresh subscribe did not prove exact predecessor disposal',
+  );
+  error.code = 'SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID';
+  error.diagnostic = {
+    code: error.code,
+    message: 'fresh subscribe did not prove exact predecessor disposal',
+    details: {
+      expectedSuperseded: supersedes,
+      receivedSuperseded: response?.superseded ?? null,
+      receivedRefusal: response?.supersessionRefusal ?? null,
+    },
+  };
+  return error;
+};
 
 const sameAuthorityCapture = (left, right) => {
   if (!left || !right) return false;
@@ -1275,6 +1294,11 @@ export class SnapbackClient {
     // that must release demand, blank, and re-enter under a successor bearer.
     this.__externalBearerHandles = new Set();
     this.__externalBearerTransition = null;
+    // A finite terminal response closes one exact explicit-bearer generation.
+    // Keep the presented bearer installed for an explicit caller-controlled
+    // replacement, but refuse every later auth admission until a genuinely
+    // different bearer (or null) crosses replaceBearerToken's custody barrier.
+    this.__externalBearerTerminalError = null;
     this.__authorityPublicationCapture = null;
     this.__authorityPublicationDepth = 0;
     this.__terminalAuthorityCapture = undefined;
@@ -1509,6 +1533,9 @@ export class SnapbackClient {
     ) {
       return externalBearerTransition.then(() => this.#authSession({ force }));
     }
+    if (this.__externalBearerTerminalError) {
+      return Promise.reject(this.__externalBearerTerminalError);
+    }
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
     if (!force && this.__authSessionLastSuccessful) {
       if (!this.authorityFence) return Promise.resolve(this.__authSessionLastSuccessful);
@@ -1545,6 +1572,8 @@ export class SnapbackClient {
   }
 
   async #uncoordinatedAuthSession({ cacheGeneration }) {
+    const bearerAtStart = this.bearerToken;
+    const transportGenerationAtStart = this.__authTransportGeneration;
     try {
       const offer = this.#authSessionOffer();
       const session = await this.#fetchJson(
@@ -1563,6 +1592,18 @@ export class SnapbackClient {
       }
       return projected;
     } catch (error) {
+      const code = error?.diagnostic?.code ?? error?.code;
+      if (
+        TERMINAL_AUTH_CODES.has(code)
+        && this.authProtocols.authClient === 1
+        && typeof bearerAtStart === 'string'
+        && bearerAtStart.length > 0
+        && this.bearerToken === bearerAtStart
+        && this.__authTransportGeneration === transportGenerationAtStart
+      ) {
+        const terminal = this.handleTerminalAuthLoss(null, error);
+        if (terminal && typeof terminal === 'object') await terminal.settlement;
+      }
       if (
         this.__authSessionCacheGeneration === cacheGeneration
         && !isUnavailableAuthTransport(error)
@@ -1733,6 +1774,10 @@ export class SnapbackClient {
       this.__receiptRing.length = 0;
       this.__liveStreamManagers?.clear?.();
       this.bearerToken = token;
+      this.__externalBearerTerminalError = null;
+      this.__terminalAuthorityCapture = undefined;
+      this.__terminalAuthorityHandle = null;
+      this.__terminalTransportCut = null;
 
       if (token !== null) {
         const resumes = await Promise.allSettled(
@@ -2055,6 +2100,15 @@ export class SnapbackClient {
       ? 'durableDelete'
       : 'carrier';
     if (error && typeof error === 'object') error.authorityDisposition = authorityDisposition;
+    const explicitExternalBearer = (
+      !this.authorityFence
+      && this.authProtocols.authClient === 1
+      && typeof this.bearerToken === 'string'
+      && this.bearerToken.length > 0
+    );
+    if (explicitExternalBearer) {
+      this.__externalBearerTerminalError = error ?? staleAuthorityError();
+    }
     if (this.#isTerminalAuthorityCapture(capture)) {
       if (
         this.agentAuthority
@@ -2069,6 +2123,21 @@ export class SnapbackClient {
           this.__terminalAuthorityHandle = escalated;
           return escalated;
         }
+      }
+      if (
+        explicitExternalBearer
+        && authorityDisposition === 'durableDelete'
+        && this.__terminalAuthorityHandle?.authorityDisposition === 'carrier'
+      ) {
+        // A concurrent finite request may carry the stronger committed
+        // deletion axis after a carrier-class response already closed this
+        // bearer generation. Repeat the local cut with delete semantics; null
+        // external captures deliberately do not participate in the
+        // coordinator phase-deduplication path.
+        this.__terminalAuthorityCapture = undefined;
+        this.__terminalAuthorityHandle = null;
+        this.__terminalTransportCut = null;
+        return this.handleTerminalAuthLoss(capture, error);
       }
       return this.__terminalAuthorityHandle ?? true;
     }
@@ -2831,6 +2900,17 @@ export class SnapbackClient {
     ) {
       await externalBearerTransition;
     }
+    if (!admin && this.__externalBearerTerminalError) {
+      throw this.__externalBearerTerminalError;
+    }
+    const externalBearerAtStart = (
+      !admin
+      && !this.authorityFence
+      && this.authProtocols.authClient === 1
+      && typeof this.bearerToken === 'string'
+      && this.bearerToken.length > 0
+    ) ? this.bearerToken : null;
+    const externalTransportGenerationAtStart = this.__authTransportGeneration;
     let session = null;
     let capture = null;
     let bearerUsed = null;
@@ -3044,7 +3124,18 @@ export class SnapbackClient {
       if (this.authorityFence && capture && error?.receipt) {
         markAuthorityCapture(error.receipt, capture);
       }
-      if (this.authorityFence && capture && TERMINAL_AUTH_CODES.has(code)) {
+      const currentExternalBearerGeneration = (
+        externalBearerAtStart !== null
+        && this.bearerToken === externalBearerAtStart
+        && this.__authTransportGeneration === externalTransportGenerationAtStart
+      );
+      if (
+        TERMINAL_AUTH_CODES.has(code)
+        && (
+          (this.authorityFence && capture)
+          || currentExternalBearerGeneration
+        )
+      ) {
         terminalHandle = this.handleTerminalAuthLoss(capture, error);
       }
       if (this.authCoordinator && capture && SUPERSEDED_AUTH_CODES.has(code)) {
@@ -3955,6 +4046,28 @@ export class SnapbackClient {
         },
       );
     }, externalBearerTransitionPermit);
+    if (supersedes !== null) {
+      const exactRetirement = response?.superseded === supersedes;
+      const exactAbsence = response?.supersessionRefusal
+        === LIVE_SUPERSESSION_TARGET_UNKNOWN;
+      if (exactRetirement === exactAbsence) {
+        // @ref LLP 0095#14-transition-catalogue — request success and a replacement
+        // snapshot do not prove predecessor disposal. Retire the unproven new
+        // id without installing it; the caller still owns `supersedes`.
+        if (
+          typeof response?.subscription_id === 'string'
+          && response.subscription_id.length > 0
+        ) {
+          void this.#unsubscribeLive(name, {
+            connectionId,
+            subscriptionId: response.subscription_id,
+            userId,
+            authorityCapture: response?.[AUTHORITY_CAPTURE] ?? authorityCapture,
+          }, externalBearerTransitionPermit).catch(() => {});
+        }
+        throw invalidSupersessionWitnessError(supersedes, response);
+      }
+    }
     Object.defineProperty(response, AUTHORIZATION_CONNECTION, {
       value: await this.connectionGrant(
         connectionId,
@@ -4974,6 +5087,46 @@ export class SnapbackClient {
       snapshot: snapshotValue,
     });
 
+    const cloneAuthorizationBoundary = (event) => (
+      event?.kind === 'snapshot'
+        ? {
+            kind: 'snapshot',
+            rows: structuredClone(event.rows),
+            version: event.version,
+          }
+        : { kind: event?.kind ?? authorizationFence.disposition() }
+    );
+
+    const resolutionRecordIsCurrent = (record, resolution) => {
+      const state = authorizationFence.snapshot();
+      const key = scopeKey(resolution.scopeId);
+      if (record.locallyAcknowledged) {
+        return state.scopeState?.[key]?.lastAckToken === resolution.ackToken;
+      }
+      const applied = state.pendingByScope?.[key]?.resolution;
+      return applied?.applied === true
+        && stableJson(applied.ticket) === stableJson(resolution);
+    };
+
+    const forgetAppliedResolution = (ackToken, resolution, record) => {
+      if (appliedAuthorizationResolutionsByToken.get(ackToken) === record) {
+        appliedAuthorizationResolutionsByToken.delete(ackToken);
+      }
+      const key = stableJson(resolution.scopeId);
+      if (appliedAuthorizationResolutionsByScope.get(key) === record) {
+        appliedAuthorizationResolutionsByScope.delete(key);
+      }
+    };
+
+    const restorationBoundaryFor = (record) => {
+      const state = authorizationFence.snapshot();
+      if (state.terminalDeleted) return { kind: 'delete' };
+      if (authorizationFence.isRenderable() && record.boundary?.kind === 'snapshot') {
+        return cloneAuthorizationBoundary(record.boundary);
+      }
+      return { kind: authorizationFence.disposition() };
+    };
+
     const trackAuthorizationResolutionTask = (
       ackToken,
       identity,
@@ -5081,12 +5234,24 @@ export class SnapbackClient {
       }
       if (existing) authorizationResolutionTasks.delete(resolutionTaskKey);
 
-      const appliedByToken = resolutionTaskKey === null
+      let appliedByToken = resolutionTaskKey === null
         ? null
         : appliedAuthorizationResolutionsByToken.get(resolutionTaskKey);
-      if (appliedByToken && !authorizationTaskIsCurrent(appliedByToken.taskState)) {
-        appliedAuthorizationResolutionsByToken.delete(resolutionTaskKey);
-      } else if (appliedByToken) {
+      if (
+        appliedByToken
+        && (
+          !authorizationTaskIsCurrent(appliedByToken.taskState)
+          || !resolutionRecordIsCurrent(appliedByToken, projection.resolution)
+        )
+      ) {
+        forgetAppliedResolution(
+          resolutionTaskKey,
+          projection.resolution,
+          appliedByToken,
+        );
+        appliedByToken = null;
+      }
+      if (appliedByToken) {
         if (appliedByToken.identity !== resolutionIdentity) {
           return Promise.reject(tagAuthorizationTaskError(
             conflictingAuthorizationResolutionError(),
@@ -5094,16 +5259,40 @@ export class SnapbackClient {
           ));
         }
         const reacknowledgement = (async () => {
-          await commitAuthorizationTask(taskState, () => undefined);
+          if (!appliedByToken.queueResolved) {
+            await resolveQueueObligation(projection.resolution, snapshotValue);
+            await commitAuthorizationTask(taskState, () => {
+              appliedByToken.queueResolved = true;
+            });
+          }
+          await commitAuthorizationTask(taskState, () => {
+            if (authorizationFaulted) {
+              commitAuthorizationBoundary(restorationBoundaryFor(appliedByToken));
+              authorizationFaulted = false;
+            }
+          });
           const acknowledged = await client.acknowledgeAuthorizationInvalidation(
             connectionId,
             resolutionTaskKey,
           );
-          await commitAuthorizationTask(taskState, () => undefined);
           if (
             acknowledged?.outcome === 'discharged'
             || acknowledged?.outcome === 'duplicate'
           ) {
+            let newlyAcknowledged = false;
+            await commitAuthorizationTask(taskState, () => {
+              if (!appliedByToken.locallyAcknowledged) {
+                authorizationFence.acknowledge(resolutionTaskKey);
+                appliedByToken.locallyAcknowledged = true;
+                newlyAcknowledged = true;
+              }
+            });
+            if (newlyAcknowledged) {
+              await authorizationQueue?.acknowledged?.(
+                projection.resolution,
+                acknowledged,
+              );
+            }
             return {
               status: 'duplicate',
               ackToken: resolutionTaskKey,
@@ -5111,12 +5300,24 @@ export class SnapbackClient {
             };
           }
           if (acknowledged?.outcome === 'stale') {
+            await rejectStaleAcknowledgement(resolutionTaskKey, taskState);
+            forgetAppliedResolution(
+              resolutionTaskKey,
+              projection.resolution,
+              appliedByToken,
+            );
             return {
               status: 'stale-acknowledgement',
               ackToken: resolutionTaskKey,
               fence: authorizationFence.capture(),
             };
           }
+          await rejectStaleAcknowledgement(resolutionTaskKey, taskState);
+          forgetAppliedResolution(
+            resolutionTaskKey,
+            projection.resolution,
+            appliedByToken,
+          );
           throw new Error(
             'SNAPBACK_AUTH_INVALIDATION_CORRUPT: acknowledgement returned an unknown outcome',
           );
@@ -5173,20 +5374,52 @@ export class SnapbackClient {
           // its no-lease fence before the process boundary can reveal it. The
           // later ACK still waits for mutation-queue resolution as well.
           await prepareQueueResolution(projection.resolution, snapshotValue);
+          let appliedRecord = null;
           const applied = await commitAuthorizationTask(taskState, () => {
+            let appliedBoundary = null;
             const value = authorizationFence.applyResolution({
               fence: received.fence,
               resolution: projection.resolution,
               snapshot: snapshotValue === null
                 ? null
                 : authorizationSnapshot(snapshotValue),
-              commit: commitAuthorizationBoundary,
+              commit: (event) => {
+                commitAuthorizationBoundary(event);
+                appliedBoundary = cloneAuthorizationBoundary(event);
+              },
             });
+            appliedRecord = {
+              identity: resolutionIdentity,
+              revision: projection.resolution.revision,
+              taskState,
+              boundary: appliedBoundary ?? (
+                snapshotValue === null
+                  ? { kind: 'delete' }
+                  : {
+                      kind: authorizationFence.isRenderable() ? 'snapshot' : authorizationFence.disposition(),
+                      ...(authorizationFence.isRenderable()
+                        ? {
+                            rows: structuredClone(snapshotValue.rows),
+                            version: snapshotValue.version,
+                          }
+                        : {}),
+                    }
+              ),
+              queueResolved: false,
+              locallyAcknowledged: false,
+            };
+            appliedAuthorizationResolutionsByToken.set(value.ackToken, appliedRecord);
+            appliedAuthorizationResolutionsByScope.set(
+              stableJson(projection.resolution.scopeId),
+              appliedRecord,
+            );
             authorizationFaulted = false;
             return value;
           });
           await resolveQueueObligation(projection.resolution, snapshotValue);
-          await commitAuthorizationTask(taskState, () => undefined);
+          await commitAuthorizationTask(taskState, () => {
+            appliedRecord.queueResolved = true;
+          });
           let acknowledged;
           try {
             acknowledged = await client.acknowledgeAuthorizationInvalidation(
@@ -5199,27 +5432,32 @@ export class SnapbackClient {
             throw error;
           }
           if (acknowledged?.outcome === 'discharged' || acknowledged?.outcome === 'duplicate') {
+            let newlyAcknowledged = false;
             await commitAuthorizationTask(
               taskState,
               () => {
                 const local = authorizationFence.acknowledge(applied.ackToken);
-                const record = {
-                  identity: resolutionIdentity,
-                  revision: projection.resolution.revision,
-                  taskState,
-                };
-                appliedAuthorizationResolutionsByToken.set(applied.ackToken, record);
-                appliedAuthorizationResolutionsByScope.set(
-                  stableJson(projection.resolution.scopeId),
-                  record,
-                );
+                if (!appliedRecord.locallyAcknowledged) {
+                  appliedRecord.locallyAcknowledged = true;
+                  newlyAcknowledged = true;
+                }
                 return local;
               },
             );
-            await authorizationQueue?.acknowledged?.(projection.resolution, acknowledged);
+            if (newlyAcknowledged) {
+              await authorizationQueue?.acknowledged?.(
+                projection.resolution,
+                acknowledged,
+              );
+            }
             return applied;
           }
           await rejectStaleAcknowledgement(applied.ackToken, taskState);
+          forgetAppliedResolution(
+            applied.ackToken,
+            projection.resolution,
+            appliedRecord,
+          );
           if (acknowledged?.outcome !== 'stale') {
             throw new Error(
               'SNAPBACK_AUTH_INVALIDATION_CORRUPT: acknowledgement returned an unknown outcome',

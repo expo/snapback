@@ -292,6 +292,7 @@ unregisterExternalMaterialization();
     }
     if (path === '/live/transitionTodos/subscribe') {
       subscribeSequence += 1;
+      const body = JSON.parse(init.body);
       liveTransitionRequests.push({ path, bearer: activeHandshakeBearer });
       return new Response(JSON.stringify({
         subscription_id: `sub-live-transition-${subscribeSequence}`,
@@ -300,6 +301,12 @@ unregisterExternalMaterialization();
           rows: [{ _id: activeHandshakeBearer }],
         },
         permission_epochs: {},
+        ...(body.supersedes
+          ? {
+              supersessionRefusal:
+                'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN',
+            }
+          : {}),
       }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
