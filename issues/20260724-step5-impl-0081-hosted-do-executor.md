@@ -74,3 +74,13 @@ this ticket's original shape but contradicts the recorded first-adapter
 boundary), or leave the profile unassigned until the 0072 drill corpus
 passes somewhere. No build starts before that answer plus a qualified
 adapter.
+
+## 0072-lane custody residuals (relocated 2026-07-26)
+
+Relocated from `20260726-0081-spec-amendment-frictions.md` item 4 so that
+ticket could close whole: on the local profile, rehearsal-receipt custody is
+structural (an operator file). When this hosted profile lands, it owes the
+control-plane pieces the local profile cannot express — authenticated
+rehearsal-receipt custody as a control-plane record, and binding the
+rehearsal's `source_backup_identity` to a verified LLP 0072 backup manifest
+rather than an operator-asserted string.
