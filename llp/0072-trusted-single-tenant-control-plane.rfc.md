@@ -5,7 +5,25 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (claim-boundary reconciliation: the LLP 0098
+**Revised:** 2026-07-26 (first concrete adapter driver: the packaged Fly Machines driver
+for `single-instance-container-vm.v1` now implements the closed observation
+protocol (`doctor`/`inspect`) and the bounded provider-event `logs` query
+against the live Machines API, with keychain credential-handle resolution,
+org-fingerprint identity read-back, TLS-probe state classification, and
+two-read byte-identical read-back behind every `remoteProviderAttestation`;
+the drill target registered under the digest-pinned driver produced the
+repository's first control-plane response with `remoteEvidence: true`, plus
+live fail-closed witnesses for wrong-account identity mismatch, missing
+credential, and tampered driver bytes, and a platform stop/start interruption
+observed through the adapter — receipt
+`demos/competitive-checkpoint/acceptance/results/control-plane-remote.v0.json`.
+A non-canonical provider base structurally forces `remoteEvidence: false` in
+the driver itself. Claim boundary unchanged: the lifecycle train, release
+manifests, backup/restore, activation, and `inspectAdmin` sourcing remain
+fixture-only or unimplemented for this adapter, no acceptance-corpus item is
+claimed, and the origin's Let's Encrypt rate-limit outage is recorded as a
+real degraded-state classification plus a cert-persistence GAP);
+2026-07-26 (claim-boundary reconciliation: the LLP 0098
 loopback-terminated target admits hosted auth as a partial pass; it does not
 claim `hostedAuthCapable` or the complete trusted-single-tenant profile while
 two attested facts remain unenforced and the LLP 0077 matrix remains unrun).
