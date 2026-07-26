@@ -1651,6 +1651,22 @@ fn apply_schema_indexes(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snap
     Ok(())
 }
 
+/// Publication-path manifest write for the LLP 0081 migration executor: a
+/// published successor (or a §6 republished predecessor) must land in the
+/// same slots the mode-aware apply path maintains — the capability-aware
+/// copy always, the legacy copy in lockstep before sessions has ever
+/// activated, and never over the permanent poison afterward. Writing only
+/// the legacy slot leaves the two pre-sessions copies divergent and bricks
+/// the store at the next open (found by the Step 5 schema-evolution
+/// witness).
+pub(super) fn publish_manifest_for_migration(
+    tx: &Transaction<'_>,
+    raw: &str,
+) -> SnapbackResult<()> {
+    let snapshot = require_managed_snapshot(tx)?;
+    save_active_manifest_in(tx, &snapshot.state, raw)
+}
+
 fn save_active_manifest_in(
     tx: &Transaction<'_>,
     state: &AuthModeStateRecord,

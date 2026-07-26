@@ -262,3 +262,34 @@ fn corpus_rollback_refused_after_release() {
         "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE"
     );
 }
+
+/// Publication moves BOTH pre-sessions manifest slots together: a
+/// file-backed store that executed a reviewed migration must pass the
+/// auth-mode open inspection on its next open. Found by the Step 5
+/// schema-evolution witness — publication wrote only the legacy slot,
+/// leaving the capability-aware copy at the predecessor and bricking the
+/// store with SNAPBACK_AUTH_MODE_STATE_CORRUPT at reopen.
+#[test]
+fn corpus_published_store_reopens_cleanly() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("migrated.sqlite");
+    let mut snapback = LocalSnapback::open(&path).expect("open");
+    snapback.apply_schema(predecessor()).expect("apply schema");
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "notes".to_owned(),
+                vec![json!({ "body": "alpha" }).as_object().cloned().unwrap()],
+            )]),
+        })
+        .expect("seed");
+    let plan = plan();
+    let approval = approval(&mut snapback, &plan);
+    snapback
+        .migrate_apply_artifact(&plan, &approval, &successor())
+        .expect("apply");
+    drop(snapback);
+    let reopened =
+        LocalSnapback::open(&path).expect("a migrated store reopens through the mode inspection");
+    drop(reopened);
+}

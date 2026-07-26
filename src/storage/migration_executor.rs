@@ -12,7 +12,7 @@
 //!   ceiling.
 
 use super::{
-    KeysetAfter, LocalDatabase, META_SCHEMA_MANIFEST, MIGRATION_SCAN_MAX_BATCH_BYTES,
+    KeysetAfter, LocalDatabase, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch, MigrationKeysetScanCheckpointV1,
     MigrationKeysetScanRequestV1, MigrationScanCeilingsV1, MigrationScanValidatorStateV1,
     MigrationScanValidatorV1, QueryPlan, create_index, create_or_update_table,
@@ -1371,9 +1371,11 @@ impl LocalDatabase {
                     create_index(&tx, table, &index.name, &index.fields, index.unique)?;
                 }
             }
-            upsert_meta(
+            // Both manifest slots move together (pre-sessions keeps a
+            // byte-equal legacy copy; sessions keeps the poison) — the
+            // auth-mode open inspection refuses the store otherwise.
+            super::auth_mode::publish_manifest_for_migration(
                 &tx,
-                META_SCHEMA_MANIFEST,
                 &serde_json::to_string(successor_schema)
                     .map_err(|_| journal_corrupt("successor schema serialize".to_owned()))?,
             )?;
@@ -1745,9 +1747,8 @@ impl LocalDatabase {
         // Republish the predecessor: schema manifest, one new version R,
         // the rollback-resync row, the raised floor, and the advanced
         // storage generation — atomically.
-        upsert_meta(
+        super::auth_mode::publish_manifest_for_migration(
             &tx,
-            META_SCHEMA_MANIFEST,
             &serde_json::to_string(&predecessor_schema)
                 .map_err(|_| journal_corrupt("predecessor schema serialize".to_owned()))?,
         )?;

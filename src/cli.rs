@@ -987,7 +987,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
-        Some(HostCommand::Migrate { command }) => migrate_command(command),
+        // migrate.* owns `LocalSnapback` directly with no listener ever
+        // bound, so the whole subcommand is one pre-bind blocking section —
+        // without the handoff the first SQLite read panics the async-worker
+        // guard (found by the Step 5 schema-evolution witness).
+        Some(HostCommand::Migrate { command }) => startup_blocking(|| migrate_command(command)),
     }
 }
 
