@@ -212,6 +212,7 @@ public actor SnapbackClient {
                 "subscribe response attempted to reuse a terminal-deleted subscription id"
             )
         }
+        var predecessorDisposalWitnessed = false
         if let supersedes {
             let retired = output.superseded == supersedes
                 && output.supersessionRefusal == nil
@@ -228,6 +229,7 @@ public actor SnapbackClient {
                     "live subscribe supersession witness for \(supersedes)"
                 )
             }
+            predecessorDisposalWitnessed = true
         }
         if configuration.sessionBearer != nil {
             guard let expectation = grant.authorizationInvalidation,
@@ -240,13 +242,14 @@ public actor SnapbackClient {
                   scope["connectionGeneration"]?.uint64Value
                     == expectation.connectionGeneration
             else {
-                _ = try? await unsubscribe(
+                throw await rejectedSubscribeOutput(
                     function: function,
-                    subscriptionId: output.subscriptionId,
-                    userId: userId
-                )
-                throw ClientError.undecodableResponse(
-                    "auth/live subscribe output scope"
+                    successorSubscriptionId: output.subscriptionId,
+                    userId: userId,
+                    predecessorSubscriptionId: supersedes,
+                    predecessorDisposalWitnessed:
+                        predecessorDisposalWitnessed,
+                    detail: "auth/live subscribe output scope"
                 )
             }
             if let supersedes,
@@ -260,17 +263,34 @@ public actor SnapbackClient {
                 previousScope["scopeSequence"]?.uint64Value,
                let nextSequence = scope["scopeSequence"]?.uint64Value,
                nextSequence <= previousSequence {
-                _ = try? await unsubscribe(
+                throw await rejectedSubscribeOutput(
                     function: function,
-                    subscriptionId: output.subscriptionId,
-                    userId: userId
-                )
-                throw ClientError.undecodableResponse(
-                    "auth/live supersession did not advance the scope sequence"
+                    successorSubscriptionId: output.subscriptionId,
+                    userId: userId,
+                    predecessorSubscriptionId: supersedes,
+                    predecessorDisposalWitnessed:
+                        predecessorDisposalWitnessed,
+                    detail:
+                        "auth/live supersession did not advance the scope sequence"
                 )
             }
         }
-        if let supersedes { machine.removeSubscription(id: supersedes) }
+        if let supersedes,
+           let inheritanceProblem =
+            machine.successorInvalidationInheritanceProblem(
+                predecessorSubscriptionId: supersedes,
+                successor: output.authorizationInvalidation?.obligation
+            ) {
+            throw await rejectedSubscribeOutput(
+                function: function,
+                successorSubscriptionId: output.subscriptionId,
+                userId: userId,
+                predecessorSubscriptionId: supersedes,
+                predecessorDisposalWitnessed:
+                    predecessorDisposalWitnessed,
+                detail: inheritanceProblem
+            )
+        }
         let acceptedAuthorization =
             grant.authorizationInvalidation?.authorization
         let versionStream =
@@ -324,14 +344,14 @@ public actor SnapbackClient {
             diagnostics.append(contentsOf: event.diagnostics)
             if event.actions.contains(.surfaceProtocolDiagnostic)
                 || event.actions.contains(.ignoreFrame) {
-                _ = try? await unsubscribe(
+                throw await rejectedSubscribeOutput(
                     function: function,
-                    subscriptionId: output.subscriptionId,
-                    userId: userId
-                )
-                machine.removeSubscription(id: output.subscriptionId)
-                throw ClientError.undecodableResponse(
-                    "auth/live subscribe invalidation projection"
+                    successorSubscriptionId: output.subscriptionId,
+                    userId: userId,
+                    predecessorSubscriptionId: supersedes,
+                    predecessorDisposalWitnessed:
+                        predecessorDisposalWitnessed,
+                    detail: "auth/live subscribe invalidation projection"
                 )
             }
             for subscriptionId in changedSubscriptions(event) {
@@ -340,16 +360,19 @@ public actor SnapbackClient {
             do {
                 try await performAcknowledgements(event)
             } catch {
-                _ = try? await unsubscribe(
-                    function: function,
-                    subscriptionId: output.subscriptionId,
-                    userId: userId
+                // The subscribe itself and its local apply/delete commit
+                // succeeded. Keep the exact scope and its reinstalled pending
+                // obligation so level-triggered redelivery can recover; tearing
+                // it down here would forget the quarantine or terminal fence.
+                diagnostics.append(
+                    "auth/live subscribe invalidation acknowledgement remains pending: \(error)"
                 )
-                machine.removeSubscription(id: output.subscriptionId)
-                throw error
             }
         } else if output.snapshot != nil {
             emitUpdate(output.subscriptionId)
+        }
+        if let supersedes, supersedes != output.subscriptionId {
+            machine.removeSubscription(id: supersedes)
         }
         let exposedSnapshot: QuerySnapshot?
         if let entry = machine.subscriptions[output.subscriptionId],
@@ -532,6 +555,21 @@ public actor SnapbackClient {
                 await processSocketFrame(json)
             } catch {
                 if Task.isCancelled { return }
+                if task.closeCode.rawValue == 4401 {
+                    let event = machine.noteTerminalAuth(
+                        code: "SNAPBACK_AUTH_SESSION_EXPIRED",
+                        reason: "expired",
+                        disposition: "carrier"
+                    )
+                    diagnostics.append(
+                        "close-only 4401 terminal signal classified as carrier"
+                    )
+                    applyDiagnosticEvent(event)
+                    grant = nil
+                    stopDrainLoop()
+                    closeLiveStream()
+                    return
+                }
                 record("socket lost (\(error)); entering RECOVERING")
                 await handleSocketLoss()
                 return
@@ -553,6 +591,12 @@ public actor SnapbackClient {
         // before the post-commit invalidation ACK.
         for subscriptionId in changedSubscriptions(event) {
             emitUpdate(subscriptionId)
+        }
+        if event.actions.contains(.surfaceTerminalAuth) {
+            grant = nil
+            stopDrainLoop()
+            closeLiveStream()
+            return
         }
         try? await performAcknowledgements(event)
         if event.actions.contains(.resubscribeAll) {
@@ -584,6 +628,7 @@ public actor SnapbackClient {
     /// `supersedes`, never implicit resumption.
     private func handleSocketLoss() async {
         closeLiveStream()
+        guard machine.phase != .terminalAuth else { return }
         if isPausedForBackground { return }
         let dropped = machine.noteSocketLost()
         var backoff: Duration? = nil
@@ -630,28 +675,72 @@ public actor SnapbackClient {
     /// until this post-apply boundary succeeds.
     private func performAcknowledgements(_ event: MachineEvent) async throws {
         for ackToken in event.acknowledgements {
-            _ = try await acknowledgeAuthorizationInvalidation(ackToken: ackToken)
+            _ = try await acknowledgeAuthorizationInvalidation(
+                ackToken: ackToken
+            )
         }
     }
 
     @discardableResult
     public func acknowledgeAuthorizationInvalidation(ackToken: String) async throws -> String {
         guard let grant else {
-            throw ClientError.invalidState("authorization acknowledgement before openConnection")
+            let error = ClientError.invalidState(
+                "authorization acknowledgement before openConnection"
+            )
+            applyDiagnosticEvent(
+                machine.noteAuthorizationAcknowledgementUndischarged(
+                    ackToken: ackToken,
+                    diagnostic:
+                        "authorization acknowledgement failed: \(error)"
+                )
+            )
+            throw error
         }
-        let json = try await request(
-            method: "POST",
-            path: "/live/authorization-invalidation/acknowledge",
-            body: .object([
-                "connectionId": .string(grant.connectionId),
-                "ackToken": .string(ackToken),
-            ]),
-            connectionScoped: true
-        )
-        guard let outcome = json["outcome"]?.stringValue else {
-            throw ClientError.undecodableResponse("authorization acknowledgement output")
+        let json: JSONValue
+        do {
+            json = try await request(
+                method: "POST",
+                path: "/live/authorization-invalidation/acknowledge",
+                body: .object([
+                    "connectionId": .string(grant.connectionId),
+                    "ackToken": .string(ackToken),
+                ]),
+                connectionScoped: true
+            )
+        } catch {
+            applyDiagnosticEvent(
+                machine.noteAuthorizationAcknowledgementUndischarged(
+                    ackToken: ackToken,
+                    diagnostic:
+                        "authorization acknowledgement failed: \(error)"
+                )
+            )
+            throw error
         }
-        return outcome
+        guard let outcome = AuthorizationInvalidationAckOutcome.from(json)
+        else {
+            let error = ClientError.undecodableResponse(
+                "authorization acknowledgement output"
+            )
+            applyDiagnosticEvent(
+                machine.noteAuthorizationAcknowledgementUndischarged(
+                    ackToken: ackToken,
+                    diagnostic:
+                        "authorization acknowledgement failed: \(error)"
+                )
+            )
+            throw error
+        }
+        if outcome == .stale {
+            applyDiagnosticEvent(
+                machine.noteAuthorizationAcknowledgementUndischarged(
+                    ackToken: ackToken,
+                    diagnostic:
+                        "authorization acknowledgement outcome was stale"
+                )
+            )
+        }
+        return outcome.rawValue
     }
 
     // @ref LLP 0064#5-host-lifecycle — hosts translate lifecycle once at the provider boundary, never per view.
@@ -752,6 +841,41 @@ public actor SnapbackClient {
         guard let entry = machine.subscriptions[subscriptionId] else { return }
         let rows = entry.orderedRows
         for handler in updateHandlers { handler(subscriptionId, rows) }
+    }
+
+    private func applyDiagnosticEvent(_ event: MachineEvent) {
+        diagnostics.append(contentsOf: event.diagnostics)
+        for subscriptionId in event.materializationChanges {
+            emitUpdate(subscriptionId)
+        }
+    }
+
+    private func rejectedSubscribeOutput(
+        function: String,
+        successorSubscriptionId: String,
+        userId: String?,
+        predecessorSubscriptionId: String?,
+        predecessorDisposalWitnessed: Bool,
+        detail: String
+    ) async -> ClientError {
+        _ = try? await unsubscribe(
+            function: function,
+            subscriptionId: successorSubscriptionId,
+            userId: userId
+        )
+        machine.removeSubscription(id: successorSubscriptionId)
+        if predecessorDisposalWitnessed,
+           let predecessorSubscriptionId,
+           predecessorSubscriptionId != successorSubscriptionId {
+            applyDiagnosticEvent(
+                machine.noteSupersededPredecessorDisposed(
+                    subscriptionId: predecessorSubscriptionId,
+                    diagnostic:
+                        "server retired predecessor \(predecessorSubscriptionId), but successor was rejected: \(detail)"
+                )
+            )
+        }
+        return .undecodableResponse(detail)
     }
 
     private func nextBackoff(after previous: Duration?) -> Duration {

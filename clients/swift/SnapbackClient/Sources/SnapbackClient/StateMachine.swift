@@ -404,7 +404,10 @@ public final class ClientStateMachine {
                 == AppliedAuthorizationInvalidation(
                     obligation: obligation.raw,
                     resolution: resolution.raw
-                ) {
+                ),
+               !(scopedEntry.state == .resyncPending
+                    && scopedEntry.pendingAuthorizationObligation
+                        == obligation.raw) {
                 // Exact redelivery after the apply/delete commit: no data
                 // mutation repeats, but the level-triggered ACK does.
                 return MachineEvent(
@@ -632,9 +635,15 @@ public final class ClientStateMachine {
             )
             diagnostics.append("durable_bytes: undecodable durable payload; forced connection-wide resync")
         case .authError(let code, let reason, let disposition):
-            phase = .terminalAuth
-            actions.append(.surfaceTerminalAuth)
-            diagnostics.append("terminal auth loss: \(code) (\(reason), \(disposition))")
+            var event = noteTerminalAuth(
+                code: code,
+                reason: reason,
+                disposition: disposition
+            )
+            if decoded.hadUnknownFields {
+                event.actions.insert(.ignoreUnknownFields, at: 0)
+            }
+            return event
         case .pong, .senderNonce, .ephemeralAck, .ephemeralError, .ephemeral:
             break // control traffic; no durable-state obligation here
         }
@@ -922,6 +931,203 @@ public final class ClientStateMachine {
             $0.state == .terminalDeleted
                 && $0.authorizationNamespace == namespace
         }
+    }
+
+    // @ref LLP 0096#22-authlive--auth-scoped-live--invalidation-acknowledge — acknowledgement refusal retains quarantine; stale is never discharge evidence.
+    /// An acknowledgement refusal or `outcome: "stale"` is not release
+    /// evidence. Reinstall the exact applied obligation as pending and blank
+    /// its materialization before surfacing the refusal. A later level-
+    /// triggered redelivery may reapply the exact snapshot and ACK it again.
+    public func noteAuthorizationAcknowledgementUndischarged(
+        ackToken: String,
+        diagnostic: String
+    ) -> MachineEvent {
+        guard let (subscriptionId, matchedEntry) = subscriptions.first(
+            where: {
+                $0.value.appliedAuthorizationInvalidation?
+                    .resolution["ackToken"]?.stringValue == ackToken
+            }
+        ),
+              let applied =
+                matchedEntry.appliedAuthorizationInvalidation
+        else {
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [
+                    "\(diagnostic); no local materialization owns ACK token \(ackToken)",
+                ]
+            )
+        }
+        guard var entry = subscriptions[subscriptionId] else {
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [diagnostic]
+            )
+        }
+        if entry.state == .terminalDeleted {
+            // The destructive fence is already the safest terminal state.
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [diagnostic]
+            )
+        }
+        entry.rows.removeAll()
+        entry.rowOrder.removeAll()
+        entry.state = .resyncPending
+        entry.pendingAuthorizationObligation = applied.obligation
+        subscriptions[subscriptionId] = entry
+        return MachineEvent(
+            actions: [.quarantineRows, .surfaceProtocolDiagnostic],
+            resubscribe: [],
+            diagnostics: [diagnostic],
+            materializationChanges: [subscriptionId]
+        )
+    }
+
+    /// Once a subscribe response proves that its predecessor was retired, a
+    /// later malformed successor cannot leave that predecessor readable. Keep
+    /// the desired subscription spec for a retry, but blank and drop the
+    /// extinct server scope.
+    public func noteSupersededPredecessorDisposed(
+        subscriptionId: String,
+        diagnostic: String
+    ) -> MachineEvent {
+        guard var entry = subscriptions[subscriptionId],
+              entry.state != .released,
+              entry.state != .terminalDeleted
+        else {
+            return MachineEvent(
+                actions: [.surfaceProtocolDiagnostic],
+                resubscribe: [],
+                diagnostics: [diagnostic]
+            )
+        }
+        entry.rows.removeAll()
+        entry.rowOrder.removeAll()
+        entry.state = .dropped
+        subscriptions[subscriptionId] = entry
+        return MachineEvent(
+            actions: [.quarantineRows, .surfaceProtocolDiagnostic],
+            resubscribe: [],
+            diagnostics: [diagnostic],
+            materializationChanges: [subscriptionId]
+        )
+    }
+
+    // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — substitute resync inherits the complete pending witness and disposition.
+    /// LLP 0053 requires a substitute resync to inherit the complete pending
+    /// authorization witness and maximum disposition. Scope identity changes
+    /// on the fresh subscribe, but the authorization/data/retry evidence may
+    /// not be weakened or silently forgotten.
+    public func successorInvalidationInheritanceProblem(
+        predecessorSubscriptionId: String,
+        successor: AuthorizationInvalidationObligation?
+    ) -> String? {
+        guard let predecessor = subscriptions[predecessorSubscriptionId]?
+            .pendingAuthorizationObligation
+        else { return nil }
+        guard let successor else {
+            return "successor subscribe omitted the predecessor's pending authorization invalidation"
+        }
+        guard predecessor["witness"]?["authorization"]
+                == successor.witness["authorization"]
+        else {
+            return "successor subscribe changed the pending authorization witness"
+        }
+        let predecessorData = predecessor["witness"]?["data"]
+        if let predecessorData, predecessorData != .null {
+            guard let successorData = successor.witness["data"],
+                  successorData != .null,
+                  predecessorData["versionStream"]
+                    == successorData["versionStream"],
+                  let predecessorFloor =
+                    predecessorData["minCommitVersion"]?.uint64Value,
+                  let successorFloor =
+                    successorData["minCommitVersion"]?.uint64Value,
+                  successorFloor >= predecessorFloor
+            else {
+                return "successor subscribe weakened the pending data witness"
+            }
+        }
+        let rank = ["retain": 0, "quarantine": 1, "delete": 2]
+        guard let predecessorDisposition =
+                predecessor["maxDisposition"]?.stringValue,
+              let predecessorRank = rank[predecessorDisposition],
+              let successorRank = rank[successor.maxDisposition],
+              successorRank >= predecessorRank
+        else {
+            return "successor subscribe weakened the pending disposition"
+        }
+        if let predecessorEpisode =
+            predecessor["retryEpisodeId"]?.stringValue,
+           successor.retryEpisodeId != predecessorEpisode {
+            return "successor subscribe changed the pending retry episode"
+        }
+        return nil
+    }
+
+    // @ref LLP 0059#typed-terminal-auth-error — carrier loss quarantines while durableDelete destroys matching authority state; neither generically reconnects.
+    /// Terminal auth is a publication fence, not just a diagnostic. A carrier
+    /// loss blanks and drops the captured live scopes pending a fresh
+    /// handshake; a durable authority deletion installs terminal fences.
+    public func noteTerminalAuth(
+        code: String,
+        reason: String,
+        disposition: String
+    ) -> MachineEvent {
+        phase = .terminalAuth
+        let durableDelete = disposition == "durableDelete"
+        var changed: [String] = []
+        for (id, var entry) in subscriptions
+        where entry.state != .released && entry.state != .terminalDeleted {
+            entry.rows.removeAll()
+            entry.rowOrder.removeAll()
+            entry.state = durableDelete ? .terminalDeleted : .dropped
+            if durableDelete {
+                entry.pendingAuthorizationObligation = nil
+            }
+            subscriptions[id] = entry
+            changed.append(id)
+        }
+        let recognized = ["carrier", "durableDelete"].contains(disposition)
+        let effectiveDisposition = durableDelete ? "durableDelete" : "carrier"
+        var diagnostics = [
+            "terminal auth loss: \(code) (\(reason), \(effectiveDisposition))",
+        ]
+        let recognizedCodes = [
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "SNAPBACK_AUTH_STREAM_RESET",
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+        ]
+        let recognizedReasons = [
+            "expired", "revoked", "reset", "restore", "downgrade",
+            "mode_transition",
+        ]
+        if !recognizedCodes.contains(code) {
+            diagnostics.append(
+                "unrecognized terminal auth code \(code); classified fail-closed"
+            )
+        }
+        if !recognizedReasons.contains(reason) {
+            diagnostics.append(
+                "unrecognized terminal auth reason \(reason); classified fail-closed"
+            )
+        }
+        if !recognized {
+            diagnostics.append(
+                "unrecognized terminal authority disposition \(disposition); classified as carrier"
+            )
+        }
+        return MachineEvent(
+            actions: [.surfaceTerminalAuth, .quarantineRows],
+            resubscribe: [],
+            diagnostics: diagnostics,
+            materializationChanges: changed
+        )
     }
 
     private func merge(_ event: MachineEvent, into actions: inout [ClientAction], _ resubscribe: inout [String], _ diagnostics: inout [String]) {

@@ -296,6 +296,7 @@ private let custodyGrant =
 private func custodySubscribeOutput(
     id: String,
     bootNonce: String = "AAAAAAAAAAAAAAAAAAAAAA",
+    scopeSequence: Int = 1,
     superseded: String? = nil,
     supersessionRefusal: String? = nil,
     includePendingProjection: Bool = false
@@ -326,7 +327,7 @@ private func custodySubscribeOutput(
                     "queryKey":"listPrivate:null",
                     "queryInstanceId":1
                   },
-                  "scopeSequence":1,
+                  "scopeSequence":\(scopeSequence),
                   "connectionGeneration":1,
                   "subscriptionId":"\(id)"
                 },
@@ -367,7 +368,7 @@ private func custodySubscribeOutput(
               "queryKey":"listPrivate:null",
               "queryInstanceId":1
             },
-            "scopeSequence":1,
+            "scopeSequence":\(scopeSequence),
             "connectionGeneration":1,
             "subscriptionId":"\(id)"
           }
@@ -423,6 +424,66 @@ private func custodyTerminalFrame(_ subscriptionId: String) -> JSONValue {
             "witness": witness,
             "maxDisposition": .string("delete"),
             "ackToken": .string("ack_poll_client"),
+            "ownerContinuityId": .string("owner_swift"),
+        ]),
+    ])
+}
+
+private func custodySnapshotInvalidationFrame(
+    _ subscriptionId: String
+) -> JSONValue {
+    let issuer: JSONValue = .object([
+        "authorizationIncarnation":
+            .string("0198c7aa-1234-7000-8000-000000000001"),
+        "bootSequence": .int(1),
+        "bootNonce": .string("AAAAAAAAAAAAAAAAAAAAAA"),
+    ])
+    let scope: JSONValue = .object([
+        "kind": .string("subscription"),
+        "issuerId": issuer,
+        "namespace": custodyNamespace,
+        "scopeSequence": .int(1),
+        "connectionGeneration": .int(1),
+        "subscriptionId": .string(subscriptionId),
+    ])
+    let witness: JSONValue = .object([
+        "authorization": .object([
+            "incarnation":
+                .string("0198c7aa-1234-7000-8000-000000000001"),
+            "epoch": .int(1),
+        ]),
+        "data": .object([
+            "versionStream": .string("swift-stream"),
+            "minCommitVersion": .int(1),
+        ]),
+    ])
+    return .object([
+        "kind": .string("authorization_invalidation"),
+        "obligation": .object([
+            "protocolVersion": .int(1),
+            "scopeId": scope,
+            "revision": .int(1),
+            "maxDisposition": .string("quarantine"),
+            "witness": witness,
+            "retryEpisodeId": .null,
+            "ownerContinuityId": .string("owner_swift"),
+        ]),
+        "snapshot": .object([
+            "subscriptionId": .string(subscriptionId),
+            "function": .string("listPrivate"),
+            "version": .int(1),
+            "rows": .array([
+                .object(["_id": .string("authorized")]),
+            ]),
+        ]),
+        "resolution": .object([
+            "protocolVersion": .int(1),
+            "kind": .string("snapshot"),
+            "scopeId": scope,
+            "revision": .int(1),
+            "witness": witness,
+            "maxDisposition": .string("quarantine"),
+            "ackToken": .string("ack_snapshot_client"),
             "ownerContinuityId": .string("owner_swift"),
         ]),
     ])
@@ -582,7 +643,11 @@ final class ClientBehaviorTests: XCTestCase {
             XCTAssertTrue(detail.contains("scope sequence"))
         }
         let subscriptions = await subject.machine.subscriptions
-        XCTAssertNotNil(subscriptions["sub_scope_1"])
+        XCTAssertEqual(subscriptions["sub_scope_1"]?.state, .dropped)
+        XCTAssertTrue(
+            subscriptions["sub_scope_1"]?.rows.isEmpty == true,
+            "a witnessed server retirement cannot leave the predecessor readable"
+        )
         XCTAssertNil(subscriptions["sub_scope_2"])
     }
 
@@ -634,7 +699,7 @@ final class ClientBehaviorTests: XCTestCase {
             ),
             .init(
                 status: 200,
-                body: #"{"outcome":"acknowledged"}"#
+                body: #"{"outcome":"discharged"}"#
             ),
         ])
         let subject = responseQueueClient()
@@ -672,6 +737,255 @@ final class ClientBehaviorTests: XCTestCase {
             )
         )
         XCTAssertLessThan(updateIndex, ackIndex)
+    }
+
+    func testAcknowledgementRefusalRequarantinesBeforeSurfacing() async throws {
+        let frame = custodySnapshotInvalidationFrame("sub_ack_refused")
+        let bytes = Array(try frame.encoded())
+        let drain = JSONValue.array([
+            .object([
+                "Durable": .object([
+                    "payload": .array(bytes.map { .int(Int64($0)) }),
+                ]),
+            ]),
+        ])
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: String(decoding: try drain.encoded(), as: UTF8.self)
+            ),
+            .init(
+                status: 409,
+                body:
+                    """
+                    {"diagnostic":{"code":"SNAPBACK_AUTH_INVALIDATION_PENDING","severity":"error","subsystem":"auth","message":"newer obligation pending","details":{}}}
+                    """
+            ),
+            .init(
+                status: 200,
+                body: String(decoding: try drain.encoded(), as: UTF8.self)
+            ),
+            .init(status: 200, body: #"{"outcome":"discharged"}"#),
+        ])
+        let subject = responseQueueClient()
+        let collector = UpdateCollector()
+        _ = try await subject.openConnection()
+        let expectation =
+            await subject.machine.authorizationInvalidationConnection!
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_ack_refused",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("old")])],
+                cursor: nil
+            ),
+            authorizationNamespace: custodyNamespace,
+            authorizationScope: frame["obligation"]?["scopeId"],
+            acceptedAuthorization: expectation.authorization,
+            authorizationVersionStream: expectation.versionStream
+        )
+        await subject.onUpdate { _, rows in collector.append(rows) }
+
+        do {
+            _ = try await subject.drainOnce()
+            XCTFail("acknowledgement refusal did not surface")
+        } catch let SnapbackClient.ClientError.refusal(error, status) {
+            XCTAssertEqual(status, 409)
+            XCTAssertEqual(error.code, "SNAPBACK_AUTH_INVALIDATION_PENDING")
+        }
+        let entry = await subject.machine.subscriptions["sub_ack_refused"]
+        XCTAssertEqual(entry?.state, .resyncPending)
+        XCTAssertTrue(entry?.rows.isEmpty == true)
+        XCTAssertNotNil(entry?.pendingAuthorizationObligation)
+        XCTAssertEqual(collector.values.last, [])
+
+        _ = try await subject.drainOnce()
+        let recovered =
+            await subject.machine.subscriptions["sub_ack_refused"]
+        XCTAssertEqual(recovered?.state, .live(version: 1))
+        XCTAssertNotNil(recovered?.rows["authorized"])
+        XCTAssertNil(recovered?.pendingAuthorizationObligation)
+    }
+
+    func testStaleAcknowledgementOutcomeRequarantines() async throws {
+        let frame = custodySnapshotInvalidationFrame("sub_ack_stale")
+        let bytes = Array(try frame.encoded())
+        let drain = JSONValue.array([
+            .object([
+                "Durable": .object([
+                    "payload": .array(bytes.map { .int(Int64($0)) }),
+                ]),
+            ]),
+        ])
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: String(decoding: try drain.encoded(), as: UTF8.self)
+            ),
+            .init(status: 200, body: #"{"outcome":"stale"}"#),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        let expectation =
+            await subject.machine.authorizationInvalidationConnection!
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_ack_stale",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(version: 1, rows: [], cursor: nil),
+            authorizationNamespace: custodyNamespace,
+            authorizationScope: frame["obligation"]?["scopeId"],
+            acceptedAuthorization: expectation.authorization,
+            authorizationVersionStream: expectation.versionStream
+        )
+        _ = try await subject.drainOnce()
+        let entry = await subject.machine.subscriptions["sub_ack_stale"]
+        XCTAssertEqual(entry?.state, .resyncPending)
+        XCTAssertTrue(entry?.rows.isEmpty == true)
+        XCTAssertNotNil(entry?.pendingAuthorizationObligation)
+    }
+
+    func testPendingInvalidationCannotEscapeThroughSupersession() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(
+                    id: "sub_pending_old",
+                    includePendingProjection: true
+                )
+            ),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(
+                    id: "sub_pending_new",
+                    scopeSequence: 2,
+                    superseded: "sub_pending_old"
+                )
+            ),
+            .init(status: 200, body: #"{"receipt":null}"#),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        _ = try await subject.subscribe(
+            function: "listPrivate",
+            authorizationNamespace: custodyNamespace
+        )
+
+        do {
+            _ = try await subject.subscribe(
+                function: "listPrivate",
+                supersedes: "sub_pending_old",
+                authorizationNamespace: custodyNamespace
+            )
+            XCTFail("ordinary successor snapshot escaped pending invalidation")
+        } catch let SnapbackClient.ClientError.undecodableResponse(detail) {
+            XCTAssertTrue(detail.contains("pending authorization invalidation"))
+        }
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertEqual(subscriptions["sub_pending_old"]?.state, .dropped)
+        XCTAssertTrue(subscriptions["sub_pending_old"]?.rows.isEmpty == true)
+        XCTAssertNotNil(
+            subscriptions["sub_pending_old"]?
+                .pendingAuthorizationObligation
+        )
+        XCTAssertNil(subscriptions["sub_pending_new"])
+    }
+
+    func testTerminalAuthFrameBlanksAndInvalidatesGrant() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_terminal_auth",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            ),
+            authorizationNamespace: custodyNamespace
+        )
+        await subject.processSocketFrame(
+            try JSONValue.parse(
+                """
+                {"kind":"auth_error","code":"SNAPBACK_AUTH_SESSION_EXPIRED","reason":"expired","authorityDisposition":"carrier"}
+                """
+            )
+        )
+        let connectionId = await subject.connectionId
+        let phase = await subject.machine.phase
+        XCTAssertNil(connectionId)
+        XCTAssertEqual(phase, .terminalAuth)
+        let carrierEntry =
+            await subject.machine.subscriptions["sub_terminal_auth"]
+        XCTAssertEqual(carrierEntry?.state, .dropped)
+        XCTAssertTrue(carrierEntry?.rows.isEmpty == true)
+
+        let durable = ClientStateMachine()
+        durable.applySnapshot(
+            subscriptionId: "sub_durable_delete",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            ),
+            authorizationNamespace: custodyNamespace
+        )
+        let event = durable.ingestFrame(
+            try JSONValue.parse(
+                """
+                {"kind":"auth_error","code":"SNAPBACK_AUTH_STREAM_RESET","reason":"reset","authorityDisposition":"durableDelete"}
+                """
+            ),
+            postOwnershipCut: true
+        )
+        XCTAssertTrue(event.actions.contains(.surfaceTerminalAuth))
+        XCTAssertEqual(
+            durable.subscriptions["sub_durable_delete"]?.state,
+            .terminalDeleted
+        )
+        XCTAssertTrue(
+            durable.subscriptions["sub_durable_delete"]?.rows.isEmpty == true
+        )
+        XCTAssertTrue(durable.hasTerminalRetiredNamespace(custodyNamespace))
+
+        let malformed = ClientStateMachine()
+        malformed.applySnapshot(
+            subscriptionId: "sub_malformed_terminal",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            )
+        )
+        let malformedEvent = malformed.ingestFrame(
+            try JSONValue.parse(
+                """
+                {"kind":"auth_error","code":"FUTURE_CODE","reason":"future_reason","authorityDisposition":"futureDisposition"}
+                """
+            ),
+            postOwnershipCut: true
+        )
+        XCTAssertEqual(
+            malformed.subscriptions["sub_malformed_terminal"]?.state,
+            .dropped
+        )
+        XCTAssertTrue(
+            malformed.subscriptions["sub_malformed_terminal"]?.rows.isEmpty
+                == true
+        )
+        XCTAssertTrue(
+            malformedEvent.diagnostics.contains {
+                $0.contains("classified as carrier")
+            }
+        )
     }
 
     func testReservationStaleEventuallySucceedsWithinBudget() async throws {

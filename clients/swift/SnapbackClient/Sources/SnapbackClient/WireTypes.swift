@@ -323,6 +323,22 @@ public struct AuthorizationInvalidationProjection: Equatable, Sendable {
     }
 }
 
+/// Closed response from
+/// `POST /live/authorization-invalidation/acknowledge`.
+public enum AuthorizationInvalidationAckOutcome: String, Sendable {
+    case discharged
+    case duplicate
+    case stale
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationAckOutcome? {
+        guard let members = json.objectValue,
+              Set(members.keys) == Set(["outcome"]),
+              let raw = members["outcome"]?.stringValue
+        else { return nil }
+        return AuthorizationInvalidationAckOutcome(rawValue: raw)
+    }
+}
+
 private func validCompositeWitness(_ witness: JSONValue) -> Bool {
     guard let members = witness.objectValue,
           Set(members.keys) == Set(["authorization", "data"]),
