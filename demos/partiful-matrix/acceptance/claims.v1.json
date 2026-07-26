@@ -410,7 +410,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "7dc974db640e3dbfa61075cf71c60c0c5a7209321ff4e21cc9376587cf126d72"
+        "sha256": "1d32491db9936e5b5454878b37cc746b86c3fd9b4e27c2005780fd4bf65902e0"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -461,7 +461,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "88a76b7ed5e41510ba4a213ea200972b722ded012ab20a47fae4f177abfaaacc"
+        "sha256": "726d0b7fbbd85507004b8fdcc19b53dd3c04c07b589bf84ff360e2fcaa159be3"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
