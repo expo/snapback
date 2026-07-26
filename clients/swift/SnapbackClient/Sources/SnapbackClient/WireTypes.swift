@@ -62,13 +62,219 @@ public struct AuthorizationInvalidationSnapshot: Equatable, Sendable {
 /// The post-commit ticket paired atomically with an authorization snapshot.
 /// A client may acknowledge only after the matching snapshot has been applied.
 public struct AuthorizationInvalidationResolution: Equatable, Sendable {
+    public enum Kind: String, Sendable {
+        case snapshot
+        case terminalDelete
+    }
+
+    public var protocolVersion: UInt64
+    public var kind: Kind
+    public var scopeId: JSONValue
+    public var revision: UInt64
+    public var witness: JSONValue
+    public var maxDisposition: String
     public var ackToken: String
+    public var ownerContinuityId: String?
     public var raw: JSONValue
 
     static func from(_ json: JSONValue) -> AuthorizationInvalidationResolution? {
-        guard let ackToken = json["ackToken"]?.stringValue else { return nil }
-        return AuthorizationInvalidationResolution(ackToken: ackToken, raw: json)
+        let required: Set<String> = [
+            "protocolVersion", "kind", "scopeId", "revision", "witness",
+            "maxDisposition", "ackToken",
+        ]
+        let optional: Set<String> = ["ownerContinuityId"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let protocolVersion = members["protocolVersion"]?.uint64Value,
+              protocolVersion == 1,
+              let kindName = members["kind"]?.stringValue,
+              let kind = Kind(rawValue: kindName),
+              let scopeId = members["scopeId"],
+              validInvalidationScope(scopeId),
+              let revision = members["revision"]?.uint64Value,
+              revision > 0,
+              let witness = members["witness"],
+              validCompositeWitness(witness),
+              let maxDisposition = members["maxDisposition"]?.stringValue,
+              ["retain", "quarantine", "delete"].contains(maxDisposition),
+              let ackToken = members["ackToken"]?.stringValue,
+              !ackToken.isEmpty
+        else { return nil }
+        let ownerContinuityId = members["ownerContinuityId"]?.stringValue
+        if scopeId["kind"]?.stringValue == "subscription",
+           ownerContinuityId == nil {
+            return nil
+        }
+        if let owner = members["ownerContinuityId"],
+           owner != .null && ownerContinuityId == nil {
+            return nil
+        }
+        return AuthorizationInvalidationResolution(
+            protocolVersion: protocolVersion,
+            kind: kind,
+            scopeId: scopeId,
+            revision: revision,
+            witness: witness,
+            maxDisposition: maxDisposition,
+            ackToken: ackToken,
+            ownerContinuityId: ownerContinuityId,
+            raw: json
+        )
     }
+}
+
+/// The level-triggered obligation paired with an invalidation resolution.
+/// This type is deliberately closed: these members participate in custody
+/// and equality, so silently ignoring an unknown member would be unsafe.
+public struct AuthorizationInvalidationObligation: Equatable, Sendable {
+    public var protocolVersion: UInt64
+    public var scopeId: JSONValue
+    public var revision: UInt64
+    public var maxDisposition: String
+    public var witness: JSONValue
+    public var retryEpisodeId: String?
+    public var ownerContinuityId: String?
+    public var raw: JSONValue
+
+    public var subscriptionId: String? {
+        scopeId["subscriptionId"]?.stringValue
+    }
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationObligation? {
+        let required: Set<String> = [
+            "protocolVersion", "scopeId", "revision", "maxDisposition",
+            "witness", "retryEpisodeId",
+        ]
+        let optional: Set<String> = ["ownerContinuityId"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let protocolVersion = members["protocolVersion"]?.uint64Value,
+              protocolVersion == 1,
+              let scopeId = members["scopeId"],
+              validInvalidationScope(scopeId),
+              let revision = members["revision"]?.uint64Value,
+              revision > 0,
+              let maxDisposition = members["maxDisposition"]?.stringValue,
+              ["retain", "quarantine", "delete"].contains(maxDisposition),
+              let witness = members["witness"],
+              validCompositeWitness(witness)
+        else { return nil }
+        let retryEpisodeId = members["retryEpisodeId"]?.stringValue
+        if let retry = members["retryEpisodeId"],
+           retry != .null && retryEpisodeId == nil {
+            return nil
+        }
+        let ownerContinuityId = members["ownerContinuityId"]?.stringValue
+        if scopeId["kind"]?.stringValue == "subscription",
+           ownerContinuityId == nil {
+            return nil
+        }
+        if let owner = members["ownerContinuityId"],
+           owner != .null && ownerContinuityId == nil {
+            return nil
+        }
+        return AuthorizationInvalidationObligation(
+            protocolVersion: protocolVersion,
+            scopeId: scopeId,
+            revision: revision,
+            maxDisposition: maxDisposition,
+            witness: witness,
+            retryEpisodeId: retryEpisodeId,
+            ownerContinuityId: ownerContinuityId,
+            raw: json
+        )
+    }
+
+    func isSatisfied(by resolution: AuthorizationInvalidationResolution) -> Bool {
+        guard protocolVersion == resolution.protocolVersion,
+              scopeId == resolution.scopeId,
+              revision == resolution.revision,
+              maxDisposition == resolution.maxDisposition,
+              ownerContinuityId == resolution.ownerContinuityId,
+              witness["authorization"] == resolution.witness["authorization"]
+        else { return false }
+        guard let obligationData = witness["data"], obligationData != .null else {
+            return true
+        }
+        guard let resolutionData = resolution.witness["data"],
+              resolutionData != .null,
+              obligationData["versionStream"] == resolutionData["versionStream"],
+              let obligationFloor = obligationData["minCommitVersion"]?.uint64Value,
+              let resolutionFloor = resolutionData["minCommitVersion"]?.uint64Value
+        else { return false }
+        return resolutionFloor >= obligationFloor
+    }
+}
+
+private func validCompositeWitness(_ witness: JSONValue) -> Bool {
+    guard let members = witness.objectValue,
+          Set(members.keys) == Set(["authorization", "data"]),
+          let authorization = members["authorization"]?.objectValue,
+          Set(authorization.keys) == Set(["incarnation", "epoch"]),
+          authorization["incarnation"]?.stringValue?.isEmpty == false,
+          authorization["epoch"]?.uint64Value != nil
+    else { return false }
+    guard let data = members["data"] else { return false }
+    if data == .null { return true }
+    guard let dataMembers = data.objectValue,
+          Set(dataMembers.keys) == Set(["versionStream", "minCommitVersion"]),
+          dataMembers["versionStream"]?.stringValue?.isEmpty == false,
+          dataMembers["minCommitVersion"]?.uint64Value != nil
+    else { return false }
+    return true
+}
+
+private func validInvalidationScope(_ scope: JSONValue) -> Bool {
+    guard let members = scope.objectValue,
+          let kind = members["kind"]?.stringValue
+    else { return false }
+    switch kind {
+    case "subscription":
+        let keys: Set<String> = [
+            "kind", "issuerId", "namespace", "scopeSequence",
+            "connectionGeneration", "subscriptionId",
+        ]
+        return Set(members.keys) == keys
+            && validIssuerId(members["issuerId"])
+            && validQueryNamespace(members["namespace"])
+            && (members["scopeSequence"]?.uint64Value ?? 0) > 0
+            && (members["connectionGeneration"]?.uint64Value ?? 0) > 0
+            && members["subscriptionId"]?.stringValue?.isEmpty == false
+    case "connection":
+        let keys: Set<String> = ["kind", "issuerId", "connectionGeneration"]
+        return Set(members.keys) == keys
+            && validIssuerId(members["issuerId"])
+            && (members["connectionGeneration"]?.uint64Value ?? 0) > 0
+    case "clientQuery":
+        return Set(members.keys) == Set(["kind", "namespace"])
+            && validQueryNamespace(members["namespace"])
+    default:
+        return false
+    }
+}
+
+private func validIssuerId(_ value: JSONValue?) -> Bool {
+    guard let members = value?.objectValue,
+          Set(members.keys) == Set([
+              "authorizationIncarnation", "bootSequence", "bootNonce",
+          ])
+    else { return false }
+    return members["authorizationIncarnation"]?.stringValue?.isEmpty == false
+        && (members["bootSequence"]?.uint64Value ?? 0) > 0
+        && members["bootNonce"]?.stringValue?.isEmpty == false
+}
+
+private func validQueryNamespace(_ value: JSONValue?) -> Bool {
+    guard let members = value?.objectValue,
+          Set(members.keys) == Set([
+              "clientStoreId", "queryKey", "queryInstanceId",
+          ])
+    else { return false }
+    return members["clientStoreId"]?.stringValue?.isEmpty == false
+        && members["queryKey"]?.stringValue?.isEmpty == false
+        && (members["queryInstanceId"]?.uint64Value ?? 0) > 0
 }
 
 /// The durable-lane fan-out envelope (`live.envelope.schema.json`).
@@ -80,7 +286,7 @@ public enum LiveEnvelope: Equatable, Sendable {
     /// is identical for every reason, known or not.
     case resyncRequired(subscriptionId: String?, reason: String, clearRetained: Bool, scope: String?, epoch: UInt64?)
     case authorizationInvalidation(
-        obligation: JSONValue,
+        obligation: AuthorizationInvalidationObligation,
         snapshot: AuthorizationInvalidationSnapshot?,
         resolution: AuthorizationInvalidationResolution?
     )
@@ -150,7 +356,9 @@ public enum LiveEnvelope: Equatable, Sendable {
                 hadUnknownFields: extraFields
             )
         case "authorization_invalidation":
-            guard let obligation = members["obligation"] else { return nil }
+            guard let rawObligation = members["obligation"],
+                  let obligation = AuthorizationInvalidationObligation.from(rawObligation)
+            else { return nil }
             let snapshotValue = nonNull("snapshot")
             let resolutionValue = nonNull("resolution")
             let snapshot = snapshotValue.flatMap(AuthorizationInvalidationSnapshot.from)

@@ -38,6 +38,19 @@ final class FixtureConformanceTests: XCTestCase {
             XCTAssertFalse(tuples.contains("poll/hosted"), "\(fixture["name"]?.stringValue ?? "?") claims poll/hosted")
         }
     }
+
+    func testFormatV2RejectsNamelessAndTuplelessFixtures() throws {
+        let malformed = [
+            #"{"artifactKind":"liveWireFixtureCorpus","formatVersion":2,"fixtures":[{"tuples":["live/local"]}]}"#,
+            #"{"artifactKind":"liveWireFixtureCorpus","formatVersion":2,"fixtures":[{"name":"missing-tuples"}]}"#,
+            #"{"artifactKind":"liveWireFixtureCorpus","formatVersion":2,"fixtures":[{"name":"empty-tuples","tuples":[]}]}"#,
+            #"{"artifactKind":"liveWireFixtureCorpus","formatVersion":2,"fixtures":[{"name":"invalid-tuples","tuples":[7]}]}"#,
+        ]
+        let harness = FixtureHarness()
+        for corpus in malformed {
+            XCTAssertThrowsError(try harness.run(corpusData: Data(corpus.utf8)))
+        }
+    }
 }
 
 /// Decoder-tolerance unit coverage beyond the corpus: the Codable-free
@@ -128,7 +141,7 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertNotNil(machine.subscriptions["s_identity"]?.rows["row_b"])
     }
 
-    func testAuthorizationInvalidationAppliesBeforeAckAndDuplicateAcksAgain() throws {
+    func testAuthorizationInvalidationAtEqualDataVersionAppliesBeforeAckAndDuplicateAcksAgain() throws {
         let machine = ClientStateMachine()
         machine.applySnapshot(
             subscriptionId: "sub_auth",
@@ -149,16 +162,72 @@ final class TolerantDecodingTests: XCTestCase {
             {
               "kind": "authorization_invalidation",
               "obligation": {
-                "scopeId": {"kind": "clientQuery"},
-                "maxDisposition": "quarantine"
+                "protocolVersion": 1,
+                "scopeId": {
+                  "kind": "subscription",
+                  "issuerId": {
+                    "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence": 1,
+                    "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA"
+                  },
+                  "namespace": {
+                    "clientStoreId": "swift_test",
+                    "queryKey": "listPrivate:{}",
+                    "queryInstanceId": 1
+                  },
+                  "scopeSequence": 1,
+                  "connectionGeneration": 1,
+                  "subscriptionId": "sub_auth"
+                },
+                "revision": 1,
+                "maxDisposition": "quarantine",
+                "witness": {
+                  "authorization": {
+                    "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "epoch": 2
+                  },
+                  "data": {"versionStream": "swift-stream", "minCommitVersion": 4}
+                },
+                "retryEpisodeId": null,
+                "ownerContinuityId": "owner_swift"
               },
               "snapshot": {
                 "subscriptionId": "sub_auth",
                 "function": "listPrivate",
-                "version": 5,
+                "version": 4,
                 "rows": [{"id": "new", "value": "new"}]
               },
-              "resolution": {"ackToken": "ack_auth_5"}
+              "resolution": {
+                "protocolVersion": 1,
+                "kind": "snapshot",
+                "scopeId": {
+                  "kind": "subscription",
+                  "issuerId": {
+                    "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence": 1,
+                    "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA"
+                  },
+                  "namespace": {
+                    "clientStoreId": "swift_test",
+                    "queryKey": "listPrivate:{}",
+                    "queryInstanceId": 1
+                  },
+                  "scopeSequence": 1,
+                  "connectionGeneration": 1,
+                  "subscriptionId": "sub_auth"
+                },
+                "revision": 1,
+                "witness": {
+                  "authorization": {
+                    "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "epoch": 2
+                  },
+                  "data": {"versionStream": "swift-stream", "minCommitVersion": 4}
+                },
+                "maxDisposition": "quarantine",
+                "ackToken": "ack_auth_4",
+                "ownerContinuityId": "owner_swift"
+              }
             }
             """
         )
@@ -168,7 +237,7 @@ final class TolerantDecodingTests: XCTestCase {
             applied.actions,
             [.quarantineRows, .applyInvalidationSnapshot, .acknowledgeObligation]
         )
-        XCTAssertEqual(applied.acknowledgements, ["ack_auth_5"])
+        XCTAssertEqual(applied.acknowledgements, ["ack_auth_4"])
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?.orderedRows,
             [.object(["id": .string("new"), "value": .string("new")])]
@@ -179,10 +248,199 @@ final class TolerantDecodingTests: XCTestCase {
             duplicate.actions,
             [.acknowledgeObligation]
         )
-        XCTAssertEqual(duplicate.acknowledgements, ["ack_auth_5"])
+        XCTAssertEqual(duplicate.acknowledgements, ["ack_auth_4"])
         XCTAssertEqual(
             machine.subscriptions["sub_auth"]?.orderedRows,
             [.object(["id": .string("new"), "value": .string("new")])]
         )
+    }
+
+    func testTerminalDeleteDestroysRowsBeforeAckAndNeverResubscribes() throws {
+        let machine = ClientStateMachine()
+        machine.applySnapshot(
+            subscriptionId: "sub_auth",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 4,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            )
+        )
+        let frame = try JSONValue.parse(
+            """
+            {
+              "kind": "authorization_invalidation",
+              "obligation": {
+                "protocolVersion": 1,
+                "scopeId": {
+                  "kind": "subscription",
+                  "issuerId": {
+                    "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence": 1,
+                    "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA"
+                  },
+                  "namespace": {
+                    "clientStoreId": "swift_test",
+                    "queryKey": "listPrivate:{}",
+                    "queryInstanceId": 1
+                  },
+                  "scopeSequence": 1,
+                  "connectionGeneration": 1,
+                  "subscriptionId": "sub_auth"
+                },
+                "revision": 2,
+                "maxDisposition": "delete",
+                "witness": {
+                  "authorization": {
+                    "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "epoch": 3
+                  },
+                  "data": {"versionStream": "swift-stream", "minCommitVersion": 4}
+                },
+                "retryEpisodeId": null,
+                "ownerContinuityId": "owner_swift"
+              },
+              "snapshot": null,
+              "resolution": {
+                "protocolVersion": 1,
+                "kind": "terminalDelete",
+                "scopeId": {
+                  "kind": "subscription",
+                  "issuerId": {
+                    "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence": 1,
+                    "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA"
+                  },
+                  "namespace": {
+                    "clientStoreId": "swift_test",
+                    "queryKey": "listPrivate:{}",
+                    "queryInstanceId": 1
+                  },
+                  "scopeSequence": 1,
+                  "connectionGeneration": 1,
+                  "subscriptionId": "sub_auth"
+                },
+                "revision": 2,
+                "witness": {
+                  "authorization": {
+                    "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                    "epoch": 3
+                  },
+                  "data": {"versionStream": "swift-stream", "minCommitVersion": 4}
+                },
+                "maxDisposition": "delete",
+                "ackToken": "ack_terminal",
+                "ownerContinuityId": "owner_swift"
+              }
+            }
+            """
+        )
+
+        let applied = machine.ingestFrame(frame, postOwnershipCut: true)
+        XCTAssertEqual(
+            applied.actions,
+            [.quarantineRows, .applyInvalidationTerminalDelete, .acknowledgeObligation]
+        )
+        XCTAssertEqual(applied.acknowledgements, ["ack_terminal"])
+        XCTAssertTrue(applied.resubscribe.isEmpty)
+        XCTAssertEqual(machine.subscriptions["sub_auth"]?.state, .terminalDeleted)
+        XCTAssertEqual(machine.subscriptions["sub_auth"]?.orderedRows, [])
+
+        let duplicate = machine.ingestFrame(frame, postOwnershipCut: true)
+        XCTAssertEqual(duplicate.actions, [.acknowledgeObligation])
+        XCTAssertEqual(duplicate.acknowledgements, ["ack_terminal"])
+        XCTAssertTrue(duplicate.resubscribe.isEmpty)
+        XCTAssertEqual(machine.subscriptions["sub_auth"]?.state, .terminalDeleted)
+    }
+
+    func testAppliedInvalidationRejectsOlderAndConflictingSameScopeRevision() {
+        let machine = ClientStateMachine()
+        machine.applySnapshot(
+            subscriptionId: "sub_order",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(version: 4, rows: [], cursor: nil)
+        )
+        let scope: JSONValue = .object([
+            "kind": .string("subscription"),
+            "issuerId": .object([
+                "authorizationIncarnation": .string("0198c7aa-1234-7000-8000-000000000001"),
+                "bootSequence": .int(1),
+                "bootNonce": .string("AAAAAAAAAAAAAAAAAAAAAA"),
+            ]),
+            "namespace": .object([
+                "clientStoreId": .string("swift_test"),
+                "queryKey": .string("listPrivate:{}"),
+                "queryInstanceId": .int(1),
+            ]),
+            "scopeSequence": .int(1),
+            "connectionGeneration": .int(1),
+            "subscriptionId": .string("sub_order"),
+        ])
+        func frame(revision: Int64, epoch: Int64, row: String, ack: String) -> JSONValue {
+            let witness: JSONValue = .object([
+                "authorization": .object([
+                    "incarnation": .string("0198c7aa-1234-7000-8000-000000000001"),
+                    "epoch": .int(epoch),
+                ]),
+                "data": .object([
+                    "versionStream": .string("swift-stream"),
+                    "minCommitVersion": .int(4),
+                ]),
+            ])
+            let obligation: JSONValue = .object([
+                "protocolVersion": .int(1),
+                "scopeId": scope,
+                "revision": .int(revision),
+                "maxDisposition": .string("quarantine"),
+                "witness": witness,
+                "retryEpisodeId": .null,
+                "ownerContinuityId": .string("owner_swift"),
+            ])
+            let resolution: JSONValue = .object([
+                "protocolVersion": .int(1),
+                "kind": .string("snapshot"),
+                "scopeId": scope,
+                "revision": .int(revision),
+                "witness": witness,
+                "maxDisposition": .string("quarantine"),
+                "ackToken": .string(ack),
+                "ownerContinuityId": .string("owner_swift"),
+            ])
+            return .object([
+                "kind": .string("authorization_invalidation"),
+                "obligation": obligation,
+                "snapshot": .object([
+                    "subscriptionId": .string("sub_order"),
+                    "function": .string("listPrivate"),
+                    "version": .int(4),
+                    "rows": .array([.object(["_id": .string(row)])]),
+                ]),
+                "resolution": resolution,
+            ])
+        }
+
+        let newest = machine.ingestFrame(
+            frame(revision: 2, epoch: 2, row: "authorized_2", ack: "ack_2"),
+            postOwnershipCut: true
+        )
+        XCTAssertEqual(newest.acknowledgements, ["ack_2"])
+
+        let older = machine.ingestFrame(
+            frame(revision: 1, epoch: 1, row: "stale", ack: "ack_1"),
+            postOwnershipCut: true
+        )
+        XCTAssertEqual(older.actions, [.surfaceProtocolDiagnostic, .ignoreFrame])
+        XCTAssertTrue(older.acknowledgements.isEmpty)
+        XCTAssertNotNil(machine.subscriptions["sub_order"]?.rows["authorized_2"])
+        XCTAssertNil(machine.subscriptions["sub_order"]?.rows["stale"])
+
+        let conflicting = machine.ingestFrame(
+            frame(revision: 2, epoch: 99, row: "conflict", ack: "ack_conflict"),
+            postOwnershipCut: true
+        )
+        XCTAssertEqual(conflicting.actions, [.surfaceProtocolDiagnostic, .ignoreFrame])
+        XCTAssertTrue(conflicting.acknowledgements.isEmpty)
+        XCTAssertNotNil(machine.subscriptions["sub_order"]?.rows["authorized_2"])
+        XCTAssertNil(machine.subscriptions["sub_order"]?.rows["conflict"])
     }
 }

@@ -38,8 +38,29 @@ public struct FixtureHarness {
         }
         var results: [FixtureResult] = []
         for fixture in fixtures {
-            guard let name = fixture["name"]?.stringValue else { continue }
-            guard let tuples = fixture["tuples"]?.arrayValue?.compactMap({ $0.stringValue }) else { continue }
+            guard let name = fixture["name"]?.stringValue, !name.isEmpty else {
+                if formatVersion >= 2 {
+                    throw SnapbackClient.ClientError.undecodableResponse(
+                        "format-v2 fixture has no non-empty name"
+                    )
+                }
+                continue
+            }
+            guard let rawTuples = fixture["tuples"]?.arrayValue,
+                  !rawTuples.isEmpty,
+                  rawTuples.allSatisfy({
+                      guard let tuple = $0.stringValue else { return false }
+                      return !tuple.isEmpty
+                  })
+            else {
+                if formatVersion >= 2 {
+                    throw SnapbackClient.ClientError.undecodableResponse(
+                        "format-v2 fixture \(name) has no valid tuples"
+                    )
+                }
+                continue
+            }
+            let tuples = rawTuples.compactMap(\.stringValue)
             // §2.2: fixtures are evaluated per claimed tuple; a fixture whose
             // tuples do not intersect the claim set is out of scope.
             guard tuples.contains(where: { claimedTuples.contains($0) }) else {
@@ -277,6 +298,14 @@ public struct FixtureHarness {
                        !entry.rows.isEmpty {
                         return "\(label) \(subscriptionId): quarantined rows remain readable"
                     }
+                case "terminal_deleted":
+                    guard entry.state == .terminalDeleted else {
+                        return "\(label) \(subscriptionId): expected terminal_deleted got \(entry.state)"
+                    }
+                    if transition["rows"]?.stringValue == "destroyed",
+                       !entry.rows.isEmpty {
+                        return "\(label) \(subscriptionId): terminal-deleted rows were not destroyed"
+                    }
                 default:
                     return "\(label) unhandled transition target \(target)"
                 }
@@ -298,9 +327,10 @@ public struct FixtureHarness {
 
         if let statesBefore {
             let statesAfter = statesBySubscription(machine, trackedSubscriptions)
-            let actuallyTransitioned = Set(trackedSubscriptions.filter {
+            var actuallyTransitioned = Set(trackedSubscriptions.filter {
                 statesBefore[$0] != statesAfter[$0]
             })
+            actuallyTransitioned.formUnion(event.materializationChanges)
             var expectedToTransition: Set<String> = []
             for transition in transitions {
                 if let id = transition["subscription"]?.stringValue {

@@ -371,18 +371,7 @@ public actor SnapbackClient {
                     record("undecodable socket frame; ignoring (pre-cut socket text)")
                     continue
                 }
-                let event = machine.ingestFrame(json, postOwnershipCut: true)
-                if case .socket(let decoded) = ServerFrame.decode(json), case .pong = decoded.value {
-                    lastPongAt = ContinuousClock.now
-                }
-                diagnostics.append(contentsOf: event.diagnostics)
-                for subscriptionId in changedSubscriptions(event) { emitUpdate(subscriptionId) }
-                try? await performAcknowledgements(event)
-                if event.actions.contains(.resubscribeAll) {
-                    // T-DB permitted equivalent: socket bounce + fresh
-                    // subscribes (performed by the resubscribe pass below).
-                }
-                try? await performResubscribes(event)
+                await processSocketFrame(json)
             } catch {
                 if Task.isCancelled { return }
                 record("socket lost (\(error)); entering RECOVERING")
@@ -390,6 +379,29 @@ public actor SnapbackClient {
                 return
             }
         }
+    }
+
+    /// One socket delivery after UTF-8/JSON decode. Internal so the callback
+    /// boundary can be regression-tested without manufacturing a WebSocket;
+    /// shipping socket delivery uses this exact path.
+    func processSocketFrame(_ json: JSONValue) async {
+        let event = machine.ingestFrame(json, postOwnershipCut: true)
+        if case .socket(let decoded) = ServerFrame.decode(json),
+           case .pong = decoded.value {
+            lastPongAt = ContinuousClock.now
+        }
+        diagnostics.append(contentsOf: event.diagnostics)
+        // Publication changes, including terminal blanking, are observable
+        // before the post-commit invalidation ACK.
+        for subscriptionId in changedSubscriptions(event) {
+            emitUpdate(subscriptionId)
+        }
+        try? await performAcknowledgements(event)
+        if event.actions.contains(.resubscribeAll) {
+            // T-DB permitted equivalent: socket bounce + fresh subscribes
+            // (performed by the resubscribe pass below).
+        }
+        try? await performResubscribes(event)
     }
 
     /// T-HB: 5 s application-level ping, 15 s freshness budget; a missed
@@ -558,14 +570,16 @@ public actor SnapbackClient {
     }
 
     private func changedSubscriptions(_ event: MachineEvent) -> [String] {
+        var changed = Set(event.materializationChanges)
         guard event.actions.contains(.replaceRows)
                 || event.actions.contains(.applyDeltaById)
                 || event.actions.contains(.applyInvalidationSnapshot)
-        else { return [] }
-        return machine.subscriptions.compactMap { id, entry in
+        else { return Array(changed) }
+        changed.formUnion(machine.subscriptions.compactMap { id, entry in
             if case .live = entry.state { return id }
             return nil
-        }
+        })
+        return Array(changed)
     }
 
     private func emitUpdate(_ subscriptionId: String) {
@@ -626,8 +640,16 @@ public actor SnapbackClient {
                let error = WireErrorResponse.from(json),
                error.code == "SNAPBACK_CONNECTION_TOKEN_INVALID" {
                 // T-GRANT-LOSS: recovery is re-open + re-establish everything
-                // (LLP 0095 §4.4); this client surfaces it to the caller.
+                // (LLP 0095 §4.4). Discard the refused grant immediately:
+                // retaining it would make a foreground retry present the
+                // same reaped/expired token forever.
+                grant = nil
+                stopDrainLoop()
+                closeLiveStream()
                 machine.noteGrantLost()
+                diagnostics.append(
+                    "SNAPBACK_CONNECTION_TOKEN_INVALID: discarded refused grant; next recovery opens a fresh connection"
+                )
             }
             if let error = WireErrorResponse.from(json) {
                 if Self.shouldRetryReservation(

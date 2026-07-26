@@ -26,6 +26,7 @@ public enum ClientAction: String, Sendable, Hashable {
     case adoptResumeToken = "adopt_resume_token"
     case quarantineRows = "quarantine_rows"
     case applyInvalidationSnapshot = "apply_invalidation_snapshot"
+    case applyInvalidationTerminalDelete = "apply_invalidation_terminal_delete"
     case acknowledgeObligation = "acknowledge_obligation"
     case surfaceProtocolDiagnostic = "surface_protocol_diagnostic"
 }
@@ -35,8 +36,14 @@ public enum SubscriptionState: Equatable, Sendable {
     case pending
     case live(version: UInt64)
     case resyncPending
+    case terminalDeleted
     case dropped
     case released
+}
+
+public struct AppliedAuthorizationInvalidation: Equatable, Sendable {
+    public var obligation: JSONValue
+    public var resolution: JSONValue
 }
 
 public struct SubscriptionEntry: Sendable {
@@ -54,6 +61,10 @@ public struct SubscriptionEntry: Sendable {
     /// owner" identity (observed: `SNAPBACK_LIVE_RESUME_OWNERSHIP` otherwise;
     /// see issues/20260725-0093-p2-spec-defect-unsubscribe-auth-identity.md).
     public var authUserId: String? = nil
+    /// Exact applied obligation/ticket identity. This is an authorization
+    /// fence, independent of the ordinary data version: a later
+    /// authorization snapshot may validly carry the same data version.
+    public var appliedAuthorizationInvalidation: AppliedAuthorizationInvalidation? = nil
 
     public var orderedRows: [JSONValue] {
         rowOrder.compactMap { rows[$0] }
@@ -83,17 +94,23 @@ public struct MachineEvent: Sendable {
     /// Post-commit invalidation tickets whose matching snapshots were applied
     /// synchronously by this event. The transport ACKs these afterward.
     public var acknowledgements: [String]
+    /// Exact subscriptions whose readable materialization changed even when
+    /// the ordinary data-version state did not (equal-version authorization
+    /// replacement, quarantine, or terminal delete).
+    public var materializationChanges: [String]
 
     public init(
         actions: [ClientAction],
         resubscribe: [String],
         diagnostics: [String],
-        acknowledgements: [String] = []
+        acknowledgements: [String] = [],
+        materializationChanges: [String] = []
     ) {
         self.actions = actions
         self.resubscribe = resubscribe
         self.diagnostics = diagnostics
         self.acknowledgements = acknowledgements
+        self.materializationChanges = materializationChanges
     }
 }
 
@@ -251,17 +268,17 @@ public final class ClientStateMachine {
             }
         // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — snapshot application precedes acknowledgement; foreign and unsatisfied obligations never settle.
         case .authorizationInvalidation(let obligation, let snapshot, let resolution):
-            let scopeSubscriptionId =
-                obligation["scopeId"]?["subscriptionId"]?.stringValue
-            if let scopeSubscriptionId,
-               subscriptions[scopeSubscriptionId] == nil
-                    || (snapshot != nil && snapshot?.subscriptionId != scopeSubscriptionId) {
+            let scopeSubscriptionId = obligation.subscriptionId
+            guard let scopeSubscriptionId,
+                  var scopedEntry = subscriptions[scopeSubscriptionId],
+                  snapshot == nil || snapshot?.subscriptionId == scopeSubscriptionId
+            else {
                 // The obligation is addressed to a materialization this
                 // client does not own (or the attached snapshot contradicts
                 // its scope). Never settle another owner's level-triggered
                 // obligation.
                 diagnostics.append(
-                    "authorization invalidation names foreign or inconsistent subscription \(scopeSubscriptionId)"
+                    "authorization invalidation names a foreign, non-subscription, or inconsistent scope"
                 )
                 return MachineEvent(
                     actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
@@ -269,79 +286,145 @@ public final class ClientStateMachine {
                     diagnostics: diagnostics
                 )
             }
-            guard let snapshot else {
-                // No superseding snapshot means the old materialization is no
-                // longer publishable. Quarantine/delete both blank before a
-                // fresh subscribe; retain still re-enters so the obligation
-                // cannot become a silent terminal state.
-                if let subscriptionId = scopeSubscriptionId,
-                   var entry = subscriptions[subscriptionId] {
-                    entry.rows.removeAll()
-                    entry.rowOrder.removeAll()
-                    entry.state = .resyncPending
-                    subscriptions[subscriptionId] = entry
-                } else {
-                    for (id, var entry) in subscriptions where entry.state != .released {
-                        entry.rows.removeAll()
-                        entry.rowOrder.removeAll()
-                        entry.state = .resyncPending
-                        subscriptions[id] = entry
-                    }
-                }
-                actions.append(.quarantineRows)
-                diagnostics.append(
-                    "authorization invalidation has no superseding snapshot; materialization quarantined"
-                )
-                if resolution != nil {
-                    diagnostics.append(
-                        "authorization invalidation resolution withheld: no snapshot was applied"
-                    )
-                }
+
+            if let resolution,
+               scopedEntry.appliedAuthorizationInvalidation
+                == AppliedAuthorizationInvalidation(
+                    obligation: obligation.raw,
+                    resolution: resolution.raw
+                ) {
+                // Exact redelivery after the apply/delete commit: no data
+                // mutation repeats, but the level-triggered ACK does.
                 return MachineEvent(
-                    actions: dedupe(actions),
-                    resubscribe: resubscribe,
-                    diagnostics: diagnostics
-                )
-            }
-            guard admitVersion(snapshot.subscriptionId, snapshot.version) else {
-                diagnostics.append(
-                    "dropped stale authorization snapshot for \(snapshot.subscriptionId)"
-                )
-                if let resolution {
-                    // A duplicate/older redelivery cannot regress rows, but
-                    // the held newer snapshot already satisfies the
-                    // apply-before-ack obligation. ACK again so the
-                    // level-triggered server lane can settle.
-                    actions.append(.acknowledgeObligation)
-                    return MachineEvent(
-                        actions: actions,
-                        resubscribe: resubscribe,
-                        diagnostics: diagnostics,
-                        acknowledgements: [resolution.ackToken]
-                    )
-                }
-                break
-            }
-            actions.append(.quarantineRows)
-            applySnapshot(
-                subscriptionId: snapshot.subscriptionId,
-                function: snapshot.function,
-                snapshot: QuerySnapshot(
-                    version: snapshot.version,
-                    rows: snapshot.rows,
-                    cursor: nil
-                )
-            )
-            actions.append(.applyInvalidationSnapshot)
-            if let resolution {
-                actions.append(.acknowledgeObligation)
-                return MachineEvent(
-                    actions: actions,
-                    resubscribe: resubscribe,
-                    diagnostics: diagnostics,
+                    actions: [.acknowledgeObligation],
+                    resubscribe: [],
+                    diagnostics: [],
                     acknowledgements: [resolution.ackToken]
                 )
             }
+
+            if let applied = scopedEntry.appliedAuthorizationInvalidation,
+               applied.obligation["scopeId"] == obligation.scopeId,
+               let appliedRevision = applied.obligation["revision"]?.uint64Value {
+                if obligation.revision < appliedRevision {
+                    diagnostics.append(
+                        "authorization invalidation revision \(obligation.revision) is older than applied revision \(appliedRevision)"
+                    )
+                    return MachineEvent(
+                        actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                        resubscribe: [],
+                        diagnostics: diagnostics
+                    )
+                }
+                if obligation.revision == appliedRevision {
+                    // The identical pair returned above. Any other semantic
+                    // content at one exact scope/revision is corruption and
+                    // must neither reapply nor ACK.
+                    diagnostics.append(
+                        "authorization invalidation reused one scope revision with conflicting obligation or resolution content"
+                    )
+                    return MachineEvent(
+                        actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                        resubscribe: [],
+                        diagnostics: diagnostics
+                    )
+                }
+            }
+
+            guard let resolution,
+                  obligation.isSatisfied(by: resolution)
+            else {
+                scopedEntry.rows.removeAll()
+                scopedEntry.rowOrder.removeAll()
+                scopedEntry.state = .resyncPending
+                subscriptions[scopeSubscriptionId] = scopedEntry
+                actions.append(.quarantineRows)
+                diagnostics.append(
+                    "authorization invalidation has no satisfying exact resolution; materialization quarantined"
+                )
+                return MachineEvent(
+                    actions: actions,
+                    resubscribe: [],
+                    diagnostics: diagnostics,
+                    materializationChanges: [scopeSubscriptionId]
+                )
+            }
+
+            let destructive = resolution.kind == .terminalDelete
+                || resolution.maxDisposition == "delete"
+            actions.append(.quarantineRows)
+            if destructive {
+                // @ref LLP 0053#dispositions-with-producers-and-meanings — a terminal-delete resolution destroys the readable materialization and persists the exact fence before ACK.
+                scopedEntry.rows.removeAll()
+                scopedEntry.rowOrder.removeAll()
+                scopedEntry.state = .terminalDeleted
+                scopedEntry.appliedAuthorizationInvalidation =
+                    AppliedAuthorizationInvalidation(
+                        obligation: obligation.raw,
+                        resolution: resolution.raw
+                    )
+                subscriptions[scopeSubscriptionId] = scopedEntry
+                actions.append(.applyInvalidationTerminalDelete)
+            } else {
+                guard let snapshot else {
+                    scopedEntry.rows.removeAll()
+                    scopedEntry.rowOrder.removeAll()
+                    scopedEntry.state = .resyncPending
+                    subscriptions[scopeSubscriptionId] = scopedEntry
+                    diagnostics.append(
+                        "snapshot resolution omitted its superseding snapshot; materialization quarantined"
+                    )
+                    return MachineEvent(
+                        actions: actions,
+                        resubscribe: [],
+                        diagnostics: diagnostics,
+                        materializationChanges: [scopeSubscriptionId]
+                    )
+                }
+                if case .live(let heldVersion) = scopedEntry.state,
+                   snapshot.version < heldVersion {
+                    scopedEntry.rows.removeAll()
+                    scopedEntry.rowOrder.removeAll()
+                    scopedEntry.state = .resyncPending
+                    subscriptions[scopeSubscriptionId] = scopedEntry
+                    diagnostics.append(
+                        "authorization snapshot regressed data version for \(scopeSubscriptionId)"
+                    )
+                    return MachineEvent(
+                        actions: actions,
+                        resubscribe: [],
+                        diagnostics: diagnostics,
+                        materializationChanges: [scopeSubscriptionId]
+                    )
+                }
+                // Authorization identity is a separate ordering dimension:
+                // equal data versions are admissible for a first-seen exact
+                // obligation/resolution pair.
+                applySnapshot(
+                    subscriptionId: snapshot.subscriptionId,
+                    function: snapshot.function,
+                    snapshot: QuerySnapshot(
+                        version: snapshot.version,
+                        rows: snapshot.rows,
+                        cursor: nil
+                    )
+                )
+                subscriptions[scopeSubscriptionId]?
+                    .appliedAuthorizationInvalidation =
+                    AppliedAuthorizationInvalidation(
+                        obligation: obligation.raw,
+                        resolution: resolution.raw
+                    )
+                actions.append(.applyInvalidationSnapshot)
+            }
+            actions.append(.acknowledgeObligation)
+            return MachineEvent(
+                actions: actions,
+                resubscribe: [],
+                diagnostics: diagnostics,
+                acknowledgements: [resolution.ackToken],
+                materializationChanges: [scopeSubscriptionId]
+            )
         }
         return MachineEvent(actions: actions, resubscribe: resubscribe, diagnostics: diagnostics)
     }
