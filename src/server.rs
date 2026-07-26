@@ -7893,11 +7893,17 @@ fn session_online_protocol_refusal(
         AuthClientProtocolOffers::from_http_headers(headers)
     };
     if offers.auth_client != Some(AUTH_PROTOCOL_V1) {
+        // Name the repair, not just the violation. This refusal answers 503,
+        // which reads as "the server is down", so a caller who is told only
+        // that an offer is missing goes looking at the process instead of at
+        // their own headers.
         return Some(
             SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
-                "the request does not offer the exact supported auth-client protocol",
+                "add the request header `x-snapback-auth-client-protocol: 1`: this request \
+                 does not offer the exact supported auth-client protocol (on a WebSocket \
+                 upgrade, offer the `snapback.auth-client.1` subprotocol instead)",
             )
             .with_details(json!({
                 "capability": "onlineRequestResponse",
