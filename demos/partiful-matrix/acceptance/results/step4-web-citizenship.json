@@ -1,26 +1,26 @@
 {
   "schemaVersion": "partitime.web-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP",
-  "ok": false,
-  "outcome": "red",
-  "claimEligible": false,
-  "recordedAt": "2026-07-25T18:49:08.323Z",
+  "ok": true,
+  "outcome": "pass",
+  "claimEligible": true,
+  "recordedAt": "2026-07-26T20:05:59.707Z",
   "authority": [
     "Snapback LLP 0063 Step 4",
     "Exact LLP 0211 §4.3"
   ],
   "repository": {
-    "revision": "c5fe2fa0afc8f43ba1eeeb589af322ac4cb51f66",
+    "revision": "a11b76f742b595b90d9a084744700e23784bce77",
     "dirty": false
   },
   "summary": {
     "required": 21,
-    "passed": 20,
-    "red": 1,
+    "passed": 21,
+    "red": 0,
     "skipped": 0
   },
-  "passed": 20,
-  "red": 1,
+  "passed": 21,
+  "red": 0,
   "skipped": 0,
   "environments": [
     {
@@ -713,7 +713,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-          "sha256": "8c13bce639307cbca4db5c4a4c3a21f5d96d920a80609a39943a95bcf5780761",
+          "sha256": "0f6c5b70597ce408637965c94dc706bb3396282eb7f736e312380895ad70359a",
           "result": "contract × snapback traps and restores focus in desktop safari"
         }
       ],
@@ -728,22 +728,48 @@
       "channel": null,
       "details": {
         "initial": "create-close",
-        "reverseWrapped": "create-submit",
+        "reverseWrapped": "create-event-submit",
         "forwardWrapped": "create-close",
-        "restored": "new-event",
+        "restored": "create-event",
         "input": "WebDriver key actions"
       }
     },
     {
       "environment": "desktop-safari",
       "assertion": "find-on-page",
-      "acceptedFixtures": [
-        "partitime-visible-event-copy"
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "Fresh Safari run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+      "evidence": [
+        {
+          "kind": "machine-receipt",
+          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+          "sha256": "0f6c5b70597ce408637965c94dc706bb3396282eb7f736e312380895ad70359a",
+          "result": "contract × snapback exposes visible content to desktop safari find-on-page"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Safari",
+        "version": "26.5.2"
+      },
+      "os": {
+        "name": "desktop host",
+        "version": "darwin-25.5.0-arm64"
+      },
+      "channel": null,
+      "details": {
+        "query": "Sunset Supper Club",
+        "selection": "Sunset Supper Club",
+        "anchor": "AXButton:View Sunset Supper Club",
+        "nativeFind": {
+          "present": true,
+          "value": "Sunset Supper Club",
+          "status": "1 match",
+          "notFound": false
+        },
+        "usableAfterFind": true,
+        "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
+      }
     },
     {
       "environment": "desktop-chrome",
@@ -755,13 +781,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "315b8cf0d782afbe968d15ea02e1199f566b522e4a08e04eea2bffb9508bd00f",
+          "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece",
           "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
         }
       ],
       "browser": {
         "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.182"
+        "version": "Google Chrome 150.0.7871.186"
       },
       "os": {
         "name": "desktop host",
@@ -783,20 +809,20 @@
         "validation": {
           "titleInvalid": null,
           "locationInvalid": null,
-          "titleDescribedBy": "create-title-error",
-          "locationDescribedBy": "create-location-error",
+          "titleDescribedBy": "event-title-error",
+          "locationDescribedBy": "event-location-error",
           "titleErrorRole": "alert",
           "locationErrorRole": "alert",
           "activeTestId": "create-close"
         },
         "trapped": {
-          "last": "create-submit",
-          "count": 6
+          "last": "create-event-submit",
+          "count": 7
         },
         "wrappedTo": "create-close",
         "restored": {
           "overlay": false,
-          "activeTestId": "new-event"
+          "activeTestId": "create-event"
         }
       }
     },
@@ -810,13 +836,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-          "sha256": "a21eb44e1565a601132a0249345349b08a70270b58fabbfa3a107976cd374b75",
+          "sha256": "44661ceb834b7517f7aed35966cc5d6bcb0db07ba93267b4890fe5c904fdd0dd",
           "result": "contract × snapback exposes visible content to browser find-on-page"
         }
       ],
       "browser": {
         "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.182"
+        "version": "Google Chrome 150.0.7871.186"
       },
       "os": {
         "name": "desktop host",
@@ -841,13 +867,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "fe9d32c14ac67ea90263922e9dc3659ac489e7c7de95f47ab4c175638aad6435",
+          "sha256": "fc4288bef969430c5d831b672d7e2298787f4e849d5378cb04015a72afaa8990",
           "result": "contract × snapback traps and restores focus in desktop firefox"
         }
       ],
       "browser": {
         "name": "Mozilla Firefox",
-        "version": "Mozilla Firefox 153.0"
+        "version": "Mozilla Firefox 152.0.1"
       },
       "os": {
         "name": "desktop host",
@@ -856,9 +882,9 @@
       "channel": null,
       "details": {
         "initial": "create-close",
-        "reverseWrapped": "create-submit",
+        "reverseWrapped": "create-event-submit",
         "forwardWrapped": "create-close",
-        "restored": "new-event",
+        "restored": "create-event",
         "input": "WebDriver key actions"
       }
     },
@@ -872,13 +898,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "fe9d32c14ac67ea90263922e9dc3659ac489e7c7de95f47ab4c175638aad6435",
+          "sha256": "fc4288bef969430c5d831b672d7e2298787f4e849d5378cb04015a72afaa8990",
           "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
         }
       ],
       "browser": {
         "name": "Mozilla Firefox",
-        "version": "Mozilla Firefox 153.0"
+        "version": "Mozilla Firefox 152.0.1"
       },
       "os": {
         "name": "desktop host",
@@ -904,8 +930,8 @@
     "host": "darwin-25.5.0-arm64",
     "desktop": {
       "safari": "26.5.2",
-      "chrome": "Google Chrome 150.0.7871.182",
-      "firefox": "Mozilla Firefox 153.0"
+      "chrome": "Google Chrome 150.0.7871.186",
+      "firefox": "Mozilla Firefox 152.0.1"
     },
     "android": {
       "chrome": "150.0.7871.186"
@@ -936,23 +962,23 @@
   "inputs": [
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "315b8cf0d782afbe968d15ea02e1199f566b522e4a08e04eea2bffb9508bd00f",
-      "bytes": 19713
+      "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece",
+      "bytes": 108960
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-      "sha256": "a21eb44e1565a601132a0249345349b08a70270b58fabbfa3a107976cd374b75",
-      "bytes": 2643
+      "sha256": "44661ceb834b7517f7aed35966cc5d6bcb0db07ba93267b4890fe5c904fdd0dd",
+      "bytes": 2650
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-      "sha256": "8c13bce639307cbca4db5c4a4c3a21f5d96d920a80609a39943a95bcf5780761",
-      "bytes": 4088
+      "sha256": "0f6c5b70597ce408637965c94dc706bb3396282eb7f736e312380895ad70359a",
+      "bytes": 4516
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-      "sha256": "fe9d32c14ac67ea90263922e9dc3659ac489e7c7de95f47ab4c175638aad6435",
-      "bytes": 4651
+      "sha256": "fc4288bef969430c5d831b672d7e2298787f4e849d5378cb04015a72afaa8990",
+      "bytes": 4748
     },
     {
       "path": "demos/partiful-matrix/acceptance/evidence/2026-07-23-web-citizenship-manual.json",
@@ -967,8 +993,5 @@
       "bytes": 19952
     }
   ],
-  "nonClaims": [
-    "This receipt does not pass the strict browser citizenship gate.",
-    "Synthetic composition events, Chromium emulation, and inferred browser compatibility are not admitted as mobile/device evidence."
-  ]
+  "nonClaims": []
 }
