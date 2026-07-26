@@ -352,14 +352,14 @@ try {
   kitWs.accept();
   const kitFrames = [];
   kitWs.addEventListener('message', (event) => kitFrames.push(JSON.parse(event.data)));
-  const kitSubscribe = async (input) => {
+  const kitSubscribe = async (input, operation = {}) => {
     const response = await proof.raw('/live/boardNotes/subscribe', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-snapback-connection-token': opened.connectionToken,
       },
-      body: JSON.stringify({ connection_id: opened.connectionId, input }),
+      body: JSON.stringify({ connection_id: opened.connectionId, input, ...operation }),
     });
     return response.json();
   };
@@ -369,15 +369,36 @@ try {
     kitFirst.snapshot?.rows?.length === 2 && String(kitFirst.resume?.token).startsWith('sbrt1.'),
     JSON.stringify(kitFirst).slice(0, 300)
   );
+  const kitSuperseded = await kitSubscribe(
+    { args: { boardId: 'b1' } },
+    { supersedes: kitFirst.subscription_id }
+  );
+  check(
+    'a hosted supersedes request witnesses the exact disposed predecessor',
+    kitSuperseded.superseded === kitFirst.subscription_id
+      && kitSuperseded.subscription_id !== kitFirst.subscription_id
+      && kitSuperseded.supersessionRefusal === undefined,
+    JSON.stringify(kitSuperseded).slice(0, 300)
+  );
+  const kitAlreadyAbsent = await kitSubscribe(
+    { args: { boardId: 'b1' } },
+    { supersedes: 'sub_already_absent' }
+  );
+  check(
+    'a hosted supersedes request witnesses an already-absent predecessor',
+    kitAlreadyAbsent.superseded === undefined
+      && kitAlreadyAbsent.supersessionRefusal === 'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN',
+    JSON.stringify(kitAlreadyAbsent).slice(0, 300)
+  );
   const kitResumed = await kitSubscribe({
     args: { boardId: 'b1' },
-    resumeFromToken: { resume: kitFirst.resume },
+    resumeFromToken: { resume: kitSuperseded.resume },
   });
   await new Promise((resolve) => setTimeout(resolve, 50));
   check(
     'a kit subscribe carrying resumeFromToken reaches coordinator admission and answers CurrentAsOf',
     kitResumed.snapshot === null
-      && kitResumed.current_as_of?.version === kitFirst.snapshot.version
+      && kitResumed.current_as_of?.version === kitSuperseded.snapshot.version
       && kitFrames.some((frame) => frame.kind === 'current_as_of'),
     JSON.stringify({ kitResumed, kitFrames }).slice(0, 300)
   );

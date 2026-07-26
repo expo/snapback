@@ -60,3 +60,9 @@ is scoped to the modes where the client actually carries it.
 - `issues/20260726-0093-p4-live-auth-placement-asymmetry.md` (Dart P-4) —
   the *placement* half of the same sentence: subscribe nests `auth` under
   `input`, unsubscribe carries it at top level.
+
+## Resolution
+
+LLP 0094 now gives a mode-by-route unsubscribe table. In sessions mode the
+connection bearer and grant carry authority; body auth is refused, while the
+client retains function and args for conformance transitions.

@@ -65,3 +65,7 @@ missing positive kinds).
 action. `authorization_invalidation`: decoded and surfaced to the embedding
 app as a `ClientEvent`, no state transition, documented as an unimplemented
 obligation. Both are guesses recorded in `clients/dart/NOTES.md`.
+## Resolution
+
+Wire-fixture format v2 and LLP 0095 now cover every committed envelope kind:
+replace, delta, CurrentAsOf, batch, and authorization invalidation.

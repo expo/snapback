@@ -616,9 +616,14 @@ pub struct LiveSubscribeInput {
     pub connection_id: String,
     #[serde(default)]
     pub input: HandlerInput,
-    /// Store-owned identity for an auth-scoped live materialization. It is
-    /// ignored for explicitly authority-independent functions and required in
-    /// sessions mode for every other live function.
+    /// Store-owned identity for an auth-scoped live materialization (LLP 0096
+    /// §2.2, `authorizationNamespace`). `clientStoreId` is stable for the
+    /// durable store shared by every context that shares these bytes;
+    /// `queryKey` is that store's canonical function-plus-arguments key; and
+    /// `queryInstanceId` comes from a never-reused store-wide durable monotone
+    /// allocator (or a never-reused process allocator for live-only state).
+    /// It is ignored for explicitly authority-independent functions and
+    /// required in sessions mode for every other live function.
     #[serde(
         default,
         rename = "authorizationNamespace",
@@ -666,6 +671,20 @@ pub struct LiveSubscribeOutput {
         skip_serializing_if = "Option::is_none"
     )]
     pub resume_refusal: Option<String>,
+    /// Response witness for a successful explicit `supersedes` request. The
+    /// exact predecessor id is echoed only after that subscription was
+    /// disposed; clients must not infer disposal from subscribe success alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub superseded: Option<String>,
+    /// Response witness for a presented `supersedes` id that was already
+    /// absent. Together with `superseded`, this makes every presented
+    /// supersession observable on the open subscribe-output family.
+    #[serde(
+        default,
+        rename = "supersessionRefusal",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub supersession_refusal: Option<String>,
     #[serde(default)]
     #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
@@ -7482,6 +7501,7 @@ impl LocalSnapback {
         // succeeds: a query failure must leave the old live authority intact.
         // Unknown ids remain the protocol's documented quiet no-op and do not
         // release capacity. Known foreign owners fail closed.
+        let supersession_requested = input.supersedes.is_some();
         let superseded_subscription_id = match input.supersedes.as_ref() {
             Some(old_id) => match self.subscriptions.get(old_id) {
                 Some(existing)
@@ -7490,7 +7510,9 @@ impl LocalSnapback {
                 {
                     Some(old_id.clone())
                 }
-                Some(existing) => return Err(live_owner_mismatch(&existing.id)),
+                Some(existing) => {
+                    return Err(live_owner_mismatch(&existing.id, &authority));
+                }
                 None => None,
             },
             None => None,
@@ -7759,6 +7781,10 @@ impl LocalSnapback {
         // identical subscribers (two components sharing a query on one
         // connection) coexist. An unknown id is a quiet no-op: reconnects
         // race disconnect teardown, which may have dropped it already.
+        let superseded_witness = superseded_subscription_id.clone();
+        let supersession_refusal = (supersession_requested
+            && superseded_subscription_id.is_none())
+        .then_some("SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN".to_owned());
         if let Some(old_id) = superseded_subscription_id {
             let retired_scope = self
                 .subscriptions
@@ -7922,6 +7948,8 @@ impl LocalSnapback {
             snapshot: (!answered_without_rows).then_some(query.output),
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
+            superseded: superseded_witness,
+            supersession_refusal,
             permission_epochs,
             receipt: Some(receipt),
             authorization_scope,
@@ -7966,7 +7994,9 @@ impl LocalSnapback {
                     reservation_keys.push(format!("subscription:{subscription_id}"));
                     0
                 }
-                Some(subscription) => return Err(live_owner_mismatch(&subscription.id)),
+                Some(subscription) => {
+                    return Err(live_owner_mismatch(&subscription.id, &authority));
+                }
                 None => 1,
             },
             None => 1,
@@ -8076,7 +8106,7 @@ impl LocalSnapback {
             ));
         }
         if !subscription.is_owned_by(&authority, effect_fence) {
-            return Err(live_owner_mismatch(&subscription.id));
+            return Err(live_owner_mismatch(&subscription.id, &authority));
         }
 
         let snapshot_version = self.db.current_version()?;
@@ -8436,7 +8466,10 @@ impl LocalSnapback {
             if subscription.connection_id != plan.input.connection_id
                 || !subscription.is_owned_by(&plan.authority, Some(&plan.effect_fence))
             {
-                return Err(live_owner_mismatch(&plan.input.subscription_id));
+                return Err(live_owner_mismatch(
+                    &plan.input.subscription_id,
+                    &plan.authority,
+                ));
             }
             snapback.manual_retry_authorization_invalidation(
                 plan.input,
@@ -8535,7 +8568,7 @@ impl LocalSnapback {
         }
 
         if !subscription.is_owned_by(&authority, invalidation.effect_fence.as_ref()) {
-            return Err(live_owner_mismatch(&subscription.id));
+            return Err(live_owner_mismatch(&subscription.id, &authority));
         }
         let predecessor_subscription = subscription.clone();
 
@@ -15649,12 +15682,24 @@ fn auth_resnapshot_required() -> SnapbackError {
     .with_details(json!({ "reason": "unknownOrReaped" }))
 }
 
-fn live_owner_mismatch(subscription_id: &str) -> SnapbackError {
+fn live_owner_mismatch(subscription_id: &str, authority: &PreparedAuthority) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_LIVE_RESUME_OWNERSHIP",
         "realtime",
         format!("subscription {subscription_id} is owned by a different live owner"),
     )
+    .with_details(json!({
+        "subscriptionId": subscription_id,
+        // The caller already knows whether it presented an identity. Expose
+        // only that presence fact, never either resolved identity. This turns
+        // a misplaced/omitted body `auth` into a diagnosable shape error while
+        // preserving the retained owner's privacy.
+        "presentedIdentity": authority
+            .resolved()
+            .carries_user()
+            .then_some(json!({ "present": true })),
+        "expectedIdentity": "[redacted]",
+    }))
 }
 
 #[cfg(test)]
@@ -23895,6 +23940,12 @@ globalThis.__snapbackHandlers = {
         let replacement = snapback
             .subscribe_live("listItems", replacement)
             .expect("net-zero replacement at the limit");
+        assert_eq!(
+            replacement.superseded.as_deref(),
+            Some(superseded.as_str()),
+            "subscribe success is not itself a supersession witness"
+        );
+        assert!(replacement.supersession_refusal.is_none());
         assert!(!snapback.subscriptions.contains_key(&superseded));
         assert!(
             snapback
@@ -23926,9 +23977,16 @@ globalThis.__snapbackHandlers = {
 
         snapback.disconnect_topology_for_transport("bounded", 1);
         assert!(snapback.subscriptions.is_empty());
-        snapback
-            .subscribe_live("listItems", live_limit_input("bounded", json!({})))
+        let mut already_absent = live_limit_input("bounded", json!({}));
+        already_absent.supersedes = Some("sub_already_absent".to_owned());
+        let already_absent = snapback
+            .subscribe_live("listItems", already_absent)
             .expect("reuse capacity released by disconnect");
+        assert!(already_absent.superseded.is_none());
+        assert_eq!(
+            already_absent.supersession_refusal.as_deref(),
+            Some("SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN")
+        );
     }
 
     #[test]

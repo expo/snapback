@@ -23,12 +23,20 @@
 
 use serde_json::{Value, json};
 
+use crate::auth::invalidation::{
+    CompositeWitness, DataWitness, InvalidationDisposition, IssuerId, QueryNamespace,
+    ResolutionKind, ResolutionTicket, ResyncObligation, ScopeId,
+};
 use crate::ephemeral::{DurableMessage, RealtimeEnvelope};
-use crate::live_wire::{LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope, LiveSocketServerFrame};
+use crate::live_wire::{
+    AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
+    LiveSocketServerFrame, ResumeMeta, ResumeWire,
+};
+use crate::storage::AuthorizationVersion;
 
 /// Corpus format version — the shape of the corpus file itself, not the wire
 /// version (which every fixture pins as `snapback.v1`).
-pub const WIRE_FIXTURES_FORMAT_VERSION: u32 = 1;
+pub const WIRE_FIXTURES_FORMAT_VERSION: u32 = 2;
 
 /// Committed file name under `schemas/`.
 pub const WIRE_FIXTURES_FILE: &str = "live.wire-fixtures.v1.json";
@@ -48,9 +56,83 @@ fn replace_envelope() -> LiveEnvelope {
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 41,
-        rows: vec![json!({ "id": "todo_1", "title": "current row" })],
+        rows: vec![json!({ "_id": "todo_1", "title": "current row" })],
         resume: None,
     }
+}
+
+fn resume_wire(version: u64) -> ResumeWire {
+    ResumeWire {
+        token: format!("sbrt1.fixture-{version}"),
+        meta: ResumeMeta {
+            app: "fixture-app".to_owned(),
+            version,
+            content_digest: "mset1:fixture".to_owned(),
+            generation: "sha256:fixture-generation".to_owned(),
+            version_stream: "fixture-stream".to_owned(),
+            query_artifact: "sha256:fixture-query".to_owned(),
+            args_hash: "sha256:fixture-args".to_owned(),
+        },
+    }
+}
+
+fn invalidation_envelope(
+    subscription_id: &str,
+    version: u64,
+    include_snapshot: bool,
+) -> LiveEnvelope {
+    let scope_id = ScopeId::Subscription {
+        issuer_id: IssuerId {
+            authorization_incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
+            boot_sequence: 1,
+            boot_nonce: "AAAAAAAAAAAAAAAAAAAAAA".to_owned(),
+        },
+        namespace: QueryNamespace {
+            client_store_id: "store-fixture".to_owned(),
+            query_key: "listTodos:{}".to_owned(),
+            query_instance_id: 1,
+        },
+        scope_sequence: 1,
+        connection_generation: 1,
+        subscription_id: subscription_id.to_owned(),
+    };
+    let witness = CompositeWitness {
+        authorization: AuthorizationVersion {
+            incarnation: "0198c7aa-1234-7000-8000-000000000001".to_owned(),
+            epoch: 1,
+        },
+        data: Some(DataWitness {
+            version_stream: "fixture-stream".to_owned(),
+            min_commit_version: version,
+        }),
+    };
+    let owner_continuity_id = Some("owner_fixture_1".to_owned());
+    let obligation = ResyncObligation {
+        protocol_version: 1,
+        scope_id: scope_id.clone(),
+        revision: 1,
+        max_disposition: InvalidationDisposition::Quarantine,
+        witness: witness.clone(),
+        retry_episode_id: None,
+        owner_continuity_id: owner_continuity_id.clone(),
+    };
+    let resolution = include_snapshot.then(|| ResolutionTicket {
+        protocol_version: 1,
+        kind: ResolutionKind::Snapshot,
+        scope_id,
+        revision: 1,
+        witness,
+        max_disposition: InvalidationDisposition::Quarantine,
+        ack_token: "ack_fixture_1".to_owned(),
+        owner_continuity_id,
+    });
+    let snapshot = include_snapshot.then(|| AuthorizationInvalidationSnapshot {
+        subscription_id: subscription_id.to_owned(),
+        function: "listTodos".to_owned(),
+        version,
+        rows: vec![json!({ "_id": "todo_1", "title": "authorized row" })],
+    });
+    LiveEnvelope::authorization_invalidation(obligation, resolution, snapshot)
 }
 
 /// The seeded fixture corpus. Every fixture carries:
@@ -78,12 +160,12 @@ pub fn wire_fixture_corpus() -> Value {
             LiveDeltaWireOp {
                 op: LiveDeltaOpKind::Add,
                 id: "todo_2".to_owned(),
-                row: Some(json!({ "id": "todo_2", "title": "added row" })),
+                row: Some(json!({ "_id": "todo_2", "title": "added row" })),
             },
             LiveDeltaWireOp {
                 op: LiveDeltaOpKind::Update,
                 id: "todo_1".to_owned(),
-                row: Some(json!({ "id": "todo_1", "title": "updated row" })),
+                row: Some(json!({ "_id": "todo_1", "title": "updated row" })),
             },
             LiveDeltaWireOp {
                 op: LiveDeltaOpKind::Remove,
@@ -113,6 +195,18 @@ pub fn wire_fixture_corpus() -> Value {
     let durable_bytes = wire(&LiveSocketServerFrame::DurableBytes {
         payload: vec![0xff, 0xfe],
     });
+    let current_as_of = wire(&LiveEnvelope::CurrentAsOf {
+        subscription_id: "sub_fixture_1".to_owned(),
+        function: "listTodos".to_owned(),
+        version: 43,
+        resume: resume_wire(43),
+    });
+    let authorization_invalidation =
+        wire(&invalidation_envelope("sub_fixture_1", 43, true));
+    let authorization_invalidation_without_snapshot =
+        wire(&invalidation_envelope("sub_fixture_1", 43, false));
+    let foreign_authorization_invalidation =
+        wire(&invalidation_envelope("sub_fixture_foreign", 43, true));
 
     // Lane-P framing: the SAME durable envelope, wrapped in the drain's
     // `{"Durable":{"payload":[u8…]}}` form (the wrapper asymmetry of
@@ -174,6 +268,159 @@ pub fn wire_fixture_corpus() -> Value {
             "notes": "Version guard: a frame at or below the held version is dropped without effect (LLP 0095 §1.3)."
         },
         {
+            "name": "durable.replace_then_delta.identity_continuity",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": replace,
+                    "expect": {
+                        "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 41 }],
+                        "actions": ["replace_rows"]
+                    }
+                },
+                {
+                    "frame": delta,
+                    "expect": {
+                        "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 42 }],
+                        "actions": ["apply_delta_by_id"]
+                    }
+                }
+            ],
+            "given": {
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 40, "rows": [] }
+                ]
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 42 }],
+                "actions": ["replace_rows", "apply_delta_by_id"],
+                "rowIdentity": {
+                    "member": "_id",
+                    "deltaId": "todo_1",
+                    "finalTitle": "updated row",
+                    "finalIds": ["todo_1", "todo_2"]
+                }
+            },
+            "notes": "Format-v2 multi-step witness: live_replace establishes `_id` todo_1, then live_delta id todo_1 updates that exact row. A corpus client keyed on user field `id` cannot pass."
+        },
+        {
+            "name": "durable.current_as_of.adopts_token_without_rows",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": current_as_of,
+            "given": {
+                "subscription": {
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "rows": [{ "_id": "todo_1", "title": "held row" }]
+                }
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 43 }],
+                "actions": ["adopt_resume_token"],
+                "rows": "unchanged"
+            },
+            "notes": "Known CurrentAsOf obligation: advance version and adopt the mandatory fresh token without replacing or mutating held rows (LLP 0091 §0B.2)."
+        },
+        {
+            "name": "auth.live.invalidation_snapshot_apply_then_ack",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "steps": [
+                {
+                    "frame": authorization_invalidation,
+                    "expect": {
+                        "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 43 }],
+                        "actions": [
+                            "quarantine_rows",
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ],
+                        "orderedActions": [
+                            "quarantine_rows",
+                            "apply_invalidation_snapshot",
+                            "acknowledge_obligation"
+                        ]
+                    }
+                },
+                {
+                    "frame": authorization_invalidation,
+                    "expect": {
+                        "transitions": [],
+                        "actions": ["acknowledge_obligation"],
+                        "ackToken": "ack_fixture_1"
+                    }
+                }
+            ],
+            "given": {
+                "subscriptions": [
+                    {
+                        "id": "sub_fixture_1",
+                        "state": "live",
+                        "version": 42,
+                        "rows": [{ "_id": "todo_1", "title": "pre-invalidation row" }]
+                    }
+                ]
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 43 }],
+                "actions": [
+                    "quarantine_rows",
+                    "apply_invalidation_snapshot",
+                    "acknowledge_obligation"
+                ],
+                "acknowledgeAfter": "apply_invalidation_snapshot",
+                "redelivery": "re-acknowledge the same token without reapplying the snapshot"
+            },
+            "notes": "Format-v2 level-triggered sequence: quarantine first, atomically apply the superseding snapshot, only then release the exact ackToken. A redelivery remains acknowledgeable and never re-applies equal-version rows."
+        },
+        {
+            "name": "auth.live.invalidation_without_snapshot_quarantines",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": authorization_invalidation_without_snapshot,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "resync_pending", "rows": "retained_unreadable" }],
+                "actions": ["quarantine_rows"],
+                "forbiddenActions": ["acknowledge_obligation"]
+            },
+            "notes": "An obligation without a satisfying snapshot makes held rows unreadable and is not acknowledged. Level-triggered delivery continues until a resolution can be applied."
+        },
+        {
+            "name": "auth.live.foreign_obligation_never_acknowledged",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": foreign_authorization_invalidation,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "expect": {
+                "transitions": [],
+                "actions": ["surface_protocol_diagnostic", "ignore_frame"],
+                "forbiddenActions": ["acknowledge_obligation"]
+            },
+            "notes": "The full obligation scope names a subscription this client does not hold. It is surfaced and ignored, never acknowledged on behalf of a foreign live owner."
+        },
+        {
             "name": "durable.resync_required.subscription_scoped",
             "family": "live.envelope.schema.json",
             "lane": "core",
@@ -196,7 +443,13 @@ pub fn wire_fixture_corpus() -> Value {
             "direction": "server_to_client",
             "schemaValid": true,
             "frame": resync_connection_wide,
-            "given": { "connection": { "state": "attached" } },
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
             "expect": {
                 "transitions": [{ "connection": "all_subscriptions", "to": "resync_pending" }],
                 "actions": ["resubscribe_all", "clear_retained_overlays"]
@@ -211,7 +464,13 @@ pub fn wire_fixture_corpus() -> Value {
             "direction": "server_to_client",
             "schemaValid": true,
             "frame": durable_bytes,
-            "given": { "connection": { "state": "attached" } },
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
             "expect": {
                 "transitions": [{ "connection": "all_subscriptions", "to": "resync_pending" }],
                 "actions": ["resubscribe_all", "clear_retained_overlays"],
@@ -230,7 +489,13 @@ pub fn wire_fixture_corpus() -> Value {
             "direction": "server_to_client",
             "schemaValid": false,
             "frame": { "kind": "hologram_snapshot_v9", "payload": { "future": true } },
-            "given": { "connection": { "state": "attached" } },
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 42 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
             "expect": {
                 "transitions": [],
                 "actions": ["ignore_frame"]
@@ -283,7 +548,13 @@ pub fn wire_fixture_corpus() -> Value {
             "schemaValid": true,
             "frame": wrapped_malformed,
             "batchContext": [wrapped_replace],
-            "given": { "connection": { "state": "attached" } },
+            "given": {
+                "connection": { "state": "attached" },
+                "subscriptions": [
+                    { "id": "sub_fixture_1", "state": "live", "version": 40 },
+                    { "id": "sub_fixture_2", "state": "live", "version": 7 }
+                ]
+            },
             "expect": {
                 "transitions": [{ "connection": "all_subscriptions", "to": "resync_pending" }],
                 "actions": [
@@ -293,7 +564,7 @@ pub fn wire_fixture_corpus() -> Value {
                     "clear_retained_overlays"
                 ]
             },
-            "notes": "The poll-lane analogue of fact 2b (LLP 0095 §1.4 T-DB-P): after the ownership cut the malformed item is lost exactly like a durable_bytes payload, so it forces the same connection-wide resync class — and must never abort the remainder of the acknowledged batch."
+            "notes": "The poll-lane analogue of fact 2b (LLP 0095 §1.4 T-DB-P): after the ownership cut the malformed item is lost exactly like a durable_bytes payload, so it forces the same connection-wide resync class — and must never abort the remainder. Format v2 pins sub_fixture_1 in the population and subsumes the remainder item's actions AND transitions under deliver_batch_remainder."
         },
     ]);
 
@@ -302,7 +573,7 @@ pub fn wire_fixture_corpus() -> Value {
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "seed — the durable-envelope families, durable_bytes, connection-wide resync, wrapper framing, and first negatives; the remaining LLP 0093 negative-fixture inventory is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+        "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack and quarantine, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
         "fixtures": fixtures,
     })
 }

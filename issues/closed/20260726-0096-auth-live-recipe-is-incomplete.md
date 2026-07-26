@@ -90,3 +90,9 @@ Both hit, in the same order:
 Independent rediscovery by two implementers in two languages is the
 strongest available evidence that these are properties of the documents
 rather than of one reader. They should be prioritised accordingly.
+
+## Resolution
+
+LLP 0096 now provides the end-to-end auth/live recipe: offer carriers,
+authorization namespace, camelCase typed bodies, apply-before-ack and duplicate
+success semantics, stale-token handling, and refusal-specific client actions.

@@ -66,3 +66,9 @@ exception**, or better: states the actual rule, which is that casing follows
 the *defining Rust type's* serde attribute and the schema is the only
 authority. LLP 0093's inventory item should carry the same correction, since
 that inventory is the thing clean-room implementers read first.
+
+## Resolution
+
+LLP 0093, LLP 0094, source documentation, and generated schemas now publish the
+actual rule: snake_case envelope fields with camelCase payload bodies where the
+typed API says so.

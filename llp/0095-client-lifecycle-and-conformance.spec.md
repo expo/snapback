@@ -7,7 +7,9 @@
 **Date:** 2026-07-25
 **Revised:** 2026-07-25; 2026-07-25 (live-owner identity rule on
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
-Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance)
+Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance);
+2026-07-26 (format-v2 explicit populations, committed-kind transitions,
+auth-invalidation state machine, and reconnect witnesses)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
 
 ## Summary
@@ -68,15 +70,17 @@ A client holds at most one state per connection:
 | --- | --- |
 | `PENDING` | `subscribe_live` in flight. The snapshot rides the subscribe response — snapshot-with-subscribe, one operation, no prime race (LLP 0034 §1). |
 | `LIVE(version)` | Holding rows current as of `version` (the storage commit version — not a protocol version, LLP 0093 inventory item 6). |
-| `RESYNC_PENDING` | A resync obligation is held; rows are untrusted until a fresh snapshot-with-subscribe completes. |
+| `RESYNC_PENDING` | A resync or unresolved authorization obligation is held. Rows may be retained internally but are unreadable and must not render until a satisfying snapshot is atomically applied. |
 | `DROPPED` | The server no longer holds the subscription (socket loss — D3 fact 2). Client-side demand may still exist; re-entry is T-RECONNECT. |
 | `RELEASED` | Explicitly unsubscribed (the only *normal* release path). |
 
 **Version guard (normative):** in `LIVE(v)`, a durable frame carrying
 `version <= v` is dropped without effect; a frame carrying `version > v`
-applies and advances the held version. Delta application is by `id`
+applies and advances the held version. Delta application is by operation
+`id` against the durable system `_id` member of rows
 (`add`/`update`/`remove`, unordered by contract); replace substitutes the
-row set. Fixture: `durable.live_delta.stale_version_dropped`.
+row set while preserving that identity space. A user field named `id` is
+irrelevant. Fixture: `durable.live_delta.stale_version_dropped`.
 
 ### 1.4 Transition catalogue
 
@@ -112,10 +116,22 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `auth` on an authed subscription) refuses HTTP 403
   `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the shared live-ownership code; scope
   documented in LLP 0094 §0E). Because T-UNSUB is an obligation, the
-  identity requirement is itself conformance-load-bearing: a conformant
-  client **retains the establishing auth identity per subscription** —
-  discarding it makes demand unreleasable and leaks billing-visible
-  demand.
+  identity requirement is itself conformance-load-bearing. The carriers
+  are mode- and route-specific:
+
+  | Mode | Subscribe owner | Unsubscribe/resume owner |
+  | --- | --- | --- |
+  | dev | nested `input.auth` | top-level `auth` |
+  | sessions | bearer resolved once at `/connection/open`, then the bound connection grant | the same bound connection grant; body `auth` is refused with `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` and a later bearer is ignored |
+
+  A conformant client retains at least the function name and original args
+  for every subscription so it can reconstruct unsubscribe/reconnect. An
+  `auth/live` subscription additionally retains its exact
+  `authorizationNamespace` tuple
+  (`clientStoreId`/`queryKey`/`queryInstanceId`); reconstructing a new
+  tuple would name different client materialization state. In dev it also
+  retains the establishing body identity. In sessions it never synthesizes
+  body identity; a user switch opens a fresh connection.
 - **T-REAP** (crash backstop, never normal release): on the local arm the
   120 s idle TTL (`CONNECTION_IDLE_TTL_MS`, `src/server.rs`) reaps an
   abandoned socketless connection and releases its demand; on the hosted
@@ -139,7 +155,13 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the known-foreign-owner check in
   `subscribe_live`'s supersession validation, `src/local.rs`) — so for
   authed subscriptions the retained per-subscription identity of T-UNSUB
-  is also what makes reconnect possible. The reattach route
+  is also what makes reconnect possible. The successful subscribe response
+  must echo the exact retired id in `superseded`; an already-absent target
+  must answer `supersessionRefusal:
+  "SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN"`. Success without either
+  witness does not prove predecessor disposal and the client must surface a
+  protocol diagnostic rather than silently forgetting the predecessor.
+  The reattach route
   (`resume_live`) and RQS token resume are decided ground documented as-is
   (LLP 0090/0091 §0B.4; reattach local-arm-only; no first-party client
   calls it today).
@@ -185,6 +207,27 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
 - **T-APPLY** (D3 fact 4): `live_replace` vs `live_delta` is **the server's
   choice, always** (`src/live_matcher.rs` decides analyzability). A client
   implements both paths and never infers query shape from which arrives.
+- **T-CURRENT-AS-OF** (`LIVE(v) → LIVE(v')`, `v' > v`): adopt the
+  mandatory fresh resume token and advance the held version without
+  replacing or mutating rows. Equal/stale versions obey the ordinary
+  version guard. Fixture:
+  `durable.current_as_of.adopts_token_without_rows`.
+- **T-AUTH-INVALIDATION** (auth/live; level-triggered): locate the exact
+  held subscription from the obligation scope and immediately make held
+  rows unreadable. If a satisfying snapshot is present and newer,
+  atomically apply its rows/version and return to `LIVE`; only after that
+  apply succeeds may the client acknowledge the exact resolution
+  `ackToken`. With no satisfying snapshot, remain `RESYNC_PENDING` with
+  rows retained-but-unreadable and do not acknowledge. A duplicate
+  delivery of an already-applied resolution may re-acknowledge the same
+  token without reapplying equal-version rows. An obligation for a
+  subscription the client does not hold is surfaced and ignored, never
+  acknowledged on the foreign owner's behalf. Failure to acknowledge
+  leaves the obligation held and redelivered (LLP 0053's level-triggered
+  rule). Fixtures:
+  `auth.live.invalidation_snapshot_apply_then_ack`,
+  `auth.live.invalidation_without_snapshot_quarantines`, and
+  `auth.live.foreign_obligation_never_acknowledged`.
 - **T-AUTH-TERM** (`→ TERMINAL_AUTH`): `auth_error` frame / close code
   4401. The `authorityDisposition` distinguishes carrier loss from durable
   authority deletion (`LiveAuthorityDisposition`, `src/live_wire.rs`).
@@ -208,20 +251,23 @@ spec): `replace_rows`, `apply_delta_by_id`, `drop_stale`,
 `resubscribe_subscription`, `resubscribe_all`, `clear_retained_overlays`,
 `unwrap_durable`, `deliver_batch_remainder`, `surface_decode_diagnostic`,
 `ignore_frame`, `ignore_unknown_fields`, `surface_terminal_auth`,
-`reopen_connection`.
+`reopen_connection`, `adopt_resume_token`, `quarantine_rows`,
+`apply_invalidation_snapshot`, `acknowledge_obligation`,
+`surface_protocol_diagnostic`.
 
 ## 2. The conformance fixture corpus contract
 
 ### 2.1 Artifact and format
 
 The corpus is the committed artifact `schemas/live.wire-fixtures.v1.json`
-(`artifactKind: liveWireFixtureCorpus`, `formatVersion: 1`,
+(`artifactKind: liveWireFixtureCorpus`, `formatVersion: 2`,
 `wireVersion: "snapback.v1"`), generated by
 `snapback::wire_fixtures::wire_fixture_corpus()` (`src/wire_fixtures.rs`).
 Each fixture carries: `name`, `family` (the committed schema file the frame
 instantiates; `null` for unknown-kind negatives), `lane`
-(`core`/`live`/`poll`), `tuples`, `direction`, `schemaValid`, `frame`
-(plus optional `batchContext` for drain-batch semantics), `given` (§1
+(`core`/`live`/`poll`), `tuples`, `direction`, `schemaValid`, either
+`frame` or ordered `steps[]` of `{frame, expect}` (plus optional
+`batchContext` for drain-batch semantics), `given` (§1
 preconditions), `expect` (transitions + actions from §1.5), `notes`.
 
 **Canonical frames in, expected transitions/actions out**: a per-client
@@ -238,25 +284,25 @@ consumer implementing all three):
 
 1. **Actions are an exact, unordered set.** A client's emitted actions for
    a fixture must equal `expect.actions` as a set — no omissions, no
-   extras, ordering never asserted. `expect.actions` is neither a trace
-   nor a minimum obligation the client may exceed.
+   extras; order is not asserted unless `orderedActions` is present.
+   `expect.actions` is neither a trace nor a minimum obligation the client
+   may exceed.
+   A step may additionally carry `orderedActions`; only that list asserts
+   ordering, and it must be observed exactly. Top-level `expect` on a
+   multi-step fixture is the cumulative/final judgment after all steps.
 2. **Batch composition and subsumption.** For fixtures carrying
    `batchContext`, the evaluated drain batch is the fixture's `frame`
    followed by the `batchContext` entries in order. In a batch containing
-   an undecodable item, the per-item actions of the remaining items
-   (their `unwrap_durable` and version-guard outcomes) are **subsumed**
+   an undecodable item, all per-item effects of the remaining items —
+   both actions and transitions — are **subsumed**
    under the single `deliver_batch_remainder` action; a clean batch
    reports per-item actions explicitly (contrast
    `poll.acknowledged_batch.malformed_item_forces_resync` with
    `poll.wrapped_durable.unwrap`).
-3. **Attached-connection population.** `given.connection:
-   {"state": "attached"}` with no explicit subscription list is evaluated
-   against the pinned minimal population: **two durable subscriptions in
-   `LIVE`** (ids arbitrary), so connection-wide transitions
-   (`all_subscriptions → resync_pending`) are observable as such rather
-   than degenerate single-subscription effects. A future `formatVersion`
-   may add explicit `given.subscriptions`; until then this population is
-   normative for connection-scoped fixtures.
+3. **Attached-connection population.** Every fixture with
+   `given.connection` carries an explicit, non-empty
+   `given.subscriptions` list. Harnesses instantiate those exact ids,
+   states, versions, and rows; no implicit/arbitrary population exists.
 
 Positive frames are constructed **through the serde wire types**, so a
 fixture can never drift from the wire; negative frames are raw JSON.
@@ -285,6 +331,11 @@ be tolerated; `socket.durable_bytes.forced_resync` is `schemaValid: true`
 yet mere tolerance is non-conformant.
 
 ### 2.4 Negative-fixture inventory
+
+The positive corpus now covers all five committed `LiveEnvelope` kinds:
+`live_replace`, `live_delta`, `resync_required`, `current_as_of`, and
+`authorization_invalidation`. The last two are judged by
+T-CURRENT-AS-OF and T-AUTH-INVALIDATION rather than by the tolerance floor.
 
 The full inventory LLP 0093 D2/P-1 enumerates, with seeding status:
 

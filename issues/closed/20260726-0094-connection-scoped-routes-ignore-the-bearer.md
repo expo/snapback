@@ -83,3 +83,9 @@ per-subscription retained identity is keyed on the grant, and the README
 documents that changing `auth` requires constructing a new client. The
 client does **not** currently detect a bearer/grant identity mismatch —
 nothing on the wire lets it.
+
+## Resolution
+
+LLP 0094 now states explicitly that route-level bearer values are inert after
+connection authority is established. A principal switch requires a fresh
+connection and grant; silent credential reinterpretation is forbidden.

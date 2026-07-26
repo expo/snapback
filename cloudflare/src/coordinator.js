@@ -4098,7 +4098,28 @@ export class Coordinator {
         outcome = admission;
         return;
       }
+      let superseded = null;
+      let supersessionRefusal = null;
       if (typeof supersedes === 'string' && supersedes.length > 0) {
+        const supersessionTarget = socketSessionId == null
+          ? [...this.sql.exec(
+              `SELECT subscription_id FROM _snapback_subscriptions
+               WHERE subscription_id = ? AND connection_id = ?`,
+              supersedes,
+              connectionId
+            )]
+          : [...this.sql.exec(
+              `SELECT subscription_id FROM _snapback_subscriptions
+               WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?`,
+              supersedes,
+              connectionId,
+              socketSessionId
+            )];
+        if (supersessionTarget.length > 0) {
+          superseded = supersedes;
+        } else {
+          supersessionRefusal = 'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN';
+        }
         if (socketSessionId == null) {
           this.sql.exec(
             'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?',
@@ -4132,7 +4153,12 @@ export class Coordinator {
         functionName,
         argsJson
       )];
-      outcome = { ok: true, subscriptionId: String(rows[0].subscription_id) };
+      outcome = {
+        ok: true,
+        subscriptionId: String(rows[0].subscription_id),
+        superseded,
+        supersessionRefusal,
+      };
     });
     return outcome;
   }
@@ -4467,6 +4493,8 @@ export class Coordinator {
         snapshot: null,
         current_as_of: { version, resume: decision.resume },
         permission_epochs: {},
+        ...(persisted.superseded ? { superseded: persisted.superseded } : {}),
+        ...(persisted.supersessionRefusal ? { supersessionRefusal: persisted.supersessionRefusal } : {}),
       });
     }
     return json(200, {
@@ -4475,6 +4503,8 @@ export class Coordinator {
       permission_epochs: {},
       ...(decision.resume ? { resume: decision.resume } : {}),
       ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
+      ...(persisted.superseded ? { superseded: persisted.superseded } : {}),
+      ...(persisted.supersessionRefusal ? { supersessionRefusal: persisted.supersessionRefusal } : {}),
     });
   }
 

@@ -7898,13 +7898,12 @@ fn session_online_protocol_refusal(
         AuthClientProtocolOffers::from_http_headers(headers)
     };
     if offers.auth_client != Some(AUTH_PROTOCOL_V1) {
-        // Name the repair, not just the violation. This refusal answers 503,
-        // which reads as "the server is down", so a caller who is told only
-        // that an offer is missing goes looking at the process instead of at
+        // Name the repair, not just the violation. A caller told only that an
+        // offer is missing otherwise goes looking at the process instead of at
         // their own headers.
         return Some(
             SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
                 "auth",
                 "add the request header `x-snapback-auth-client-protocol: 1`: this request \
                  does not offer the exact supported auth-client protocol (on a WebSocket \
@@ -8154,15 +8153,25 @@ async fn prepare_registered_route_authority(
     let active_mode = mode_state.active;
     if active_mode == crate::manifest::AuthMode::Sessions && queued_replay_requested(source, body) {
         let offered = AuthClientProtocolOffers::from_http_headers(headers).authority_descriptor;
-        if !runtime.auth_program_readiness().authority_descriptor
-            || offered != Some(AUTH_PROTOCOL_V1)
-        {
+        if !runtime.auth_program_readiness().authority_descriptor {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
-                "queued replay is not available for this request",
+                "queued replay is unavailable in this process",
             )
             .with_details(json!({ "capability": "queuedReplay" }))
+            .into());
+        }
+        if offered != Some(AUTH_PROTOCOL_V1) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                "auth",
+                "queued replay requires the exact authority-descriptor protocol offer",
+            )
+            .with_details(json!({
+                "capability": "queuedReplay",
+                "minimumAuthorityDescriptorProtocol": AUTH_PROTOCOL_V1,
+            }))
             .into());
         }
     }
@@ -16371,7 +16380,7 @@ async fn invoke_authorized_lease_query(
         || offers.auth_invalidation != Some(AUTH_PROTOCOL_V1)
     {
         return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
             "auth",
             "authorized retained reads require exact lease and invalidation protocol offers",
         )
@@ -19962,7 +19971,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
-        "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID"
+        | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+        | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
+        | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
@@ -20014,7 +20027,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE"
         | "SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED"
         | "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED"
-        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
@@ -20073,7 +20085,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
         | "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
         | "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT"
-        | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
         | "SNAPBACK_AUTH_REQUEST_INVALID"
         | "SNAPBACK_AUTH_GRANT_EXPIRY_INVALID"
         | "SNAPBACK_AUTH_GRANT_SCOPE_INVALID"
@@ -20165,7 +20176,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HOST_OP_UNKNOWN"
         | "SNAPBACK_INVALID_FLOAT"
         | "SNAPBACK_INVALID_IDENTIFIER"
-        | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH"
         // @ref LLP 0056#declaring-a-membership-table — every membership
         //   declaration-shape and activation refusal is a client fault (a bad
         //   schema or nonconforming data), never a server error.
@@ -25056,7 +25066,18 @@ globalThis.__snapbackHandlers = {
             )
             .await
             .unwrap();
-        assert_eq!(missing.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(missing.status(), StatusCode::BAD_REQUEST);
+        let missing = response_json(missing).await;
+        assert_eq!(
+            missing["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+        assert!(
+            missing["diagnostic"]["message"]
+                .as_str()
+                .expect("actionable protocol message")
+                .contains("x-snapback-auth-client-protocol: 1")
+        );
         let supported = router
             .oneshot(
                 Request::builder()
@@ -25101,7 +25122,7 @@ globalThis.__snapbackHandlers = {
             .expect("ordinary HTTP must ignore WebSocket protocol tokens");
         assert_eq!(
             refusal.diagnostic.code,
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         );
         assert_eq!(
             refusal.diagnostic.message,
@@ -25358,6 +25379,41 @@ globalThis.__snapbackHandlers = {
         assert_eq!(body["diagnostic"]["details"]["capability"], "queuedReplay");
     }
 
+    #[tokio::test]
+    async fn ready_queued_replay_names_a_missing_client_offer_as_a_400() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            )
+            .expect("install item-7 sessions fixture");
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/mutation/does-not-exist")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::from(r#"{"args":{},"clientMutationId":"queued-1"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response_json(response).await;
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+        assert_eq!(body["diagnostic"]["details"]["capability"], "queuedReplay");
+        assert_eq!(
+            body["diagnostic"]["details"]["minimumAuthorityDescriptorProtocol"],
+            1
+        );
+    }
+
     /// LLP 0096 §8.1 P-3 regression: the invalidation-ack routes are owned by
     /// the authorization-invalidation program (LLP 0059 item 6). In the
     /// readiness interval where item 6 is ready but the authority-descriptor
@@ -25537,10 +25593,10 @@ globalThis.__snapbackHandlers = {
             )
             .expect("install authorized-lease readiness"));
         let missing_offer = ready.clone().oneshot(request(None, false)).await.unwrap();
-        assert_eq!(missing_offer.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(missing_offer.status(), StatusCode::BAD_REQUEST);
         assert_eq!(
             response_json(missing_offer).await["diagnostic"]["code"],
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         );
 
         let unknown = ready
@@ -32633,6 +32689,10 @@ globalThis.__snapbackHandlers = {
             "private workerd text binding carrying the local invocation capability",
         ),
         (
+            "SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN",
+            "successful subscribe-output supersessionRefusal witness, never an HTTP diagnostic",
+        ),
+        (
             "SNAPBACK_HOST_TOKEN",
             "private workerd text binding carrying the independent host-call capability",
         ),
@@ -32811,6 +32871,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE",
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
+        "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
         "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT",
         "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
@@ -33227,7 +33289,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT",
         "SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE",
         "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
-        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
         "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED",
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
@@ -33505,14 +33566,28 @@ globalThis.__snapbackHandlers = {
         }
     }
 
-    /// LLP 0012 registers both negotiation/capability refusals as 503 when
-    /// they cross the served HTTP boundary. Exercise the actual `IntoResponse`
-    /// projection so a mapper-only assertion cannot hide a divergent response.
+    /// Server capability/readiness faults remain retryable 503s, while a
+    /// concrete client that omitted an exact required offer gets an actionable
+    /// non-retryable 400. Exercise `IntoResponse`, not only the mapper.
     #[tokio::test]
-    async fn served_capability_negotiation_refusals_are_service_unavailable() {
-        for code in [
-            "SNAPBACK_CAPABILITY_UNSUPPORTED",
-            "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+    async fn served_capability_and_client_profile_refusals_have_distinct_statuses() {
+        for (code, expected) in [
+            (
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                StatusCode::SERVICE_UNAVAILABLE,
+            ),
+            (
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                StatusCode::SERVICE_UNAVAILABLE,
+            ),
+            (
+                "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+                StatusCode::BAD_REQUEST,
+            ),
+            (
+                "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+                StatusCode::BAD_REQUEST,
+            ),
         ] {
             let response = super::ApiError::from(SnapbackError::error(
                 code,
@@ -33520,7 +33595,7 @@ globalThis.__snapbackHandlers = {
                 "client capability is unsupported",
             ))
             .into_response();
-            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{code}");
+            assert_eq!(response.status(), expected, "{code}");
             let body: Value =
                 serde_json::from_slice(&to_bytes(response.into_body(), 64 * 1024).await.unwrap())
                     .unwrap();

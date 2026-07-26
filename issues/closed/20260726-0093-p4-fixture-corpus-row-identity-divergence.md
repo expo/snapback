@@ -73,3 +73,9 @@ identity"). The fallback is a workaround for the corpus, not a contract.
 3. Consider a corpus-honesty gate in `tests/wire_fixtures_v1.rs`: assert
    that every fixture row carries the same identity member the delta-op
    construction path reads.
+
+## Resolution
+
+The corpus now uses `_id` consistently, includes a multi-step
+replace-then-delta trace, and asserts the exact final row-ID population.
+Rust and Swift conformance harnesses exercise the invariant.

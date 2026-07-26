@@ -63,3 +63,9 @@ this needs no version token.
 Then LLP 0095 T-RECONNECT can state the conformance obligation: a client
 that presents `supersedes` and receives no witness must surface a structured
 diagnostic rather than assume the predecessor is gone.
+
+## Resolution
+
+Local and hosted subscribe responses now return either an exact `superseded`
+witness or a typed `supersessionRefusal`. Schemas and acceptance tests cover
+both outcomes.

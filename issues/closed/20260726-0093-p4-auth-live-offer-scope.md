@@ -68,3 +68,9 @@ structured refusals are doing a lot of work that the prose is not.
 
 - `issues/20260726-0093-p4-authorization-namespace-undocumented.md` — the
   other undocumented precondition on the same call.
+
+## Resolution
+
+LLP 0096 now requires the auth-client offer on every sessions-mode live
+subscribe and unsubscribe request, and publishes the missing/unsupported offer
+refusal as a client error rather than a readiness failure.

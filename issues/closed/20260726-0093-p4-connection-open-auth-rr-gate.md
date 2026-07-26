@@ -54,3 +54,8 @@ Either:
 - the route is genuinely exempted server-side (it grants, never exercises).
 
 The former matches shipped behavior and costs one table cell each.
+## Resolution
+
+The connection-open contract now names the bearer credential and auth/RR offer
+as independent requirements. Missing offers produce an actionable client
+refusal naming both accepted carriers, with regression coverage.

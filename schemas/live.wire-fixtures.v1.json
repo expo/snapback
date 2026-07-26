@@ -1,6 +1,6 @@
 {
   "artifactKind": "liveWireFixtureCorpus",
-  "coverage": "seed — the durable-envelope families, durable_bytes, connection-wide resync, wrapper framing, and first negatives; the remaining LLP 0093 negative-fixture inventory is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
+  "coverage": "format-v2 seed — all five committed LiveEnvelope kinds, replace-to-delta `_id` continuity, auth/live apply-before-ack and quarantine, durable_bytes, connection-wide resync, wrapper framing, and first negatives; remaining malformed-offer, cancelled-drain, arm-mismatch, grant-loss, and virtual-time coverage is tracked by issues/20260725-0093-p1-fixture-corpus-coverage.md",
   "fixtures": [
     {
       "direction": "server_to_client",
@@ -22,7 +22,7 @@
         "kind": "live_replace",
         "rows": [
           {
-            "id": "todo_1",
+            "_id": "todo_1",
             "title": "current row"
           }
         ],
@@ -69,7 +69,7 @@
             "id": "todo_2",
             "op": "add",
             "row": {
-              "id": "todo_2",
+              "_id": "todo_2",
               "title": "added row"
             }
           },
@@ -77,7 +77,7 @@
             "id": "todo_1",
             "op": "update",
             "row": {
-              "id": "todo_1",
+              "_id": "todo_1",
               "title": "updated row"
             }
           },
@@ -123,7 +123,7 @@
             "id": "todo_2",
             "op": "add",
             "row": {
-              "id": "todo_2",
+              "_id": "todo_2",
               "title": "added row"
             }
           },
@@ -131,7 +131,7 @@
             "id": "todo_1",
             "op": "update",
             "row": {
-              "id": "todo_1",
+              "_id": "todo_1",
               "title": "updated row"
             }
           },
@@ -158,6 +158,604 @@
         "poll/local",
         "live/local",
         "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "replace_rows",
+          "apply_delta_by_id"
+        ],
+        "rowIdentity": {
+          "deltaId": "todo_1",
+          "finalIds": [
+            "todo_1",
+            "todo_2"
+          ],
+          "finalTitle": "updated row",
+          "member": "_id"
+        },
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 42
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "given": {
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "rows": [],
+            "state": "live",
+            "version": 40
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "durable.replace_then_delta.identity_continuity",
+      "notes": "Format-v2 multi-step witness: live_replace establishes `_id` todo_1, then live_delta id todo_1 updates that exact row. A corpus client keyed on user field `id` cannot pass.",
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "replace_rows"
+            ],
+            "transitions": [
+              {
+                "subscription": "sub_fixture_1",
+                "to": "live",
+                "version": 41
+              }
+            ]
+          },
+          "frame": {
+            "function": "listTodos",
+            "kind": "live_replace",
+            "rows": [
+              {
+                "_id": "todo_1",
+                "title": "current row"
+              }
+            ],
+            "subscription_id": "sub_fixture_1",
+            "version": 41
+          }
+        },
+        {
+          "expect": {
+            "actions": [
+              "apply_delta_by_id"
+            ],
+            "transitions": [
+              {
+                "subscription": "sub_fixture_1",
+                "to": "live",
+                "version": 42
+              }
+            ]
+          },
+          "frame": {
+            "function": "listTodos",
+            "kind": "live_delta",
+            "ops": [
+              {
+                "id": "todo_2",
+                "op": "add",
+                "row": {
+                  "_id": "todo_2",
+                  "title": "added row"
+                }
+              },
+              {
+                "id": "todo_1",
+                "op": "update",
+                "row": {
+                  "_id": "todo_1",
+                  "title": "updated row"
+                }
+              },
+              {
+                "id": "todo_0",
+                "op": "remove"
+              }
+            ],
+            "subscription_id": "sub_fixture_1",
+            "version": 42
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "adopt_resume_token"
+        ],
+        "rows": "unchanged",
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 43
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "current_as_of",
+        "resume": {
+          "meta": {
+            "app": "fixture-app",
+            "argsHash": "sha256:fixture-args",
+            "contentDigest": "mset1:fixture",
+            "generation": "sha256:fixture-generation",
+            "queryArtifact": "sha256:fixture-query",
+            "version": 43,
+            "versionStream": "fixture-stream"
+          },
+          "token": "sbrt1.fixture-43"
+        },
+        "subscription_id": "sub_fixture_1",
+        "version": 43
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "rows": [
+            {
+              "_id": "todo_1",
+              "title": "held row"
+            }
+          ],
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "durable.current_as_of.adopts_token_without_rows",
+      "notes": "Known CurrentAsOf obligation: advance version and adopt the mandatory fresh token without replacing or mutating held rows (LLP 0091 §0B.2).",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "acknowledgeAfter": "apply_invalidation_snapshot",
+        "actions": [
+          "quarantine_rows",
+          "apply_invalidation_snapshot",
+          "acknowledge_obligation"
+        ],
+        "redelivery": "re-acknowledge the same token without reapplying the snapshot",
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 43
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "given": {
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "rows": [
+              {
+                "_id": "todo_1",
+                "title": "pre-invalidation row"
+              }
+            ],
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "auth.live.invalidation_snapshot_apply_then_ack",
+      "notes": "Format-v2 level-triggered sequence: quarantine first, atomically apply the superseding snapshot, only then release the exact ackToken. A redelivery remains acknowledgeable and never re-applies equal-version rows.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "steps": [
+        {
+          "expect": {
+            "actions": [
+              "quarantine_rows",
+              "apply_invalidation_snapshot",
+              "acknowledge_obligation"
+            ],
+            "orderedActions": [
+              "quarantine_rows",
+              "apply_invalidation_snapshot",
+              "acknowledge_obligation"
+            ],
+            "transitions": [
+              {
+                "subscription": "sub_fixture_1",
+                "to": "live",
+                "version": 43
+              }
+            ]
+          },
+          "frame": {
+            "kind": "authorization_invalidation",
+            "obligation": {
+              "maxDisposition": "quarantine",
+              "ownerContinuityId": "owner_fixture_1",
+              "protocolVersion": 1,
+              "retryEpisodeId": null,
+              "revision": 1,
+              "scopeId": {
+                "connectionGeneration": 1,
+                "issuerId": {
+                  "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                  "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                  "bootSequence": 1
+                },
+                "kind": "subscription",
+                "namespace": {
+                  "clientStoreId": "store-fixture",
+                  "queryInstanceId": 1,
+                  "queryKey": "listTodos:{}"
+                },
+                "scopeSequence": 1,
+                "subscriptionId": "sub_fixture_1"
+              },
+              "witness": {
+                "authorization": {
+                  "epoch": 1,
+                  "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+                },
+                "data": {
+                  "minCommitVersion": 43,
+                  "versionStream": "fixture-stream"
+                }
+              }
+            },
+            "resolution": {
+              "ackToken": "ack_fixture_1",
+              "kind": "snapshot",
+              "maxDisposition": "quarantine",
+              "ownerContinuityId": "owner_fixture_1",
+              "protocolVersion": 1,
+              "revision": 1,
+              "scopeId": {
+                "connectionGeneration": 1,
+                "issuerId": {
+                  "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                  "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                  "bootSequence": 1
+                },
+                "kind": "subscription",
+                "namespace": {
+                  "clientStoreId": "store-fixture",
+                  "queryInstanceId": 1,
+                  "queryKey": "listTodos:{}"
+                },
+                "scopeSequence": 1,
+                "subscriptionId": "sub_fixture_1"
+              },
+              "witness": {
+                "authorization": {
+                  "epoch": 1,
+                  "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+                },
+                "data": {
+                  "minCommitVersion": 43,
+                  "versionStream": "fixture-stream"
+                }
+              }
+            },
+            "snapshot": {
+              "function": "listTodos",
+              "rows": [
+                {
+                  "_id": "todo_1",
+                  "title": "authorized row"
+                }
+              ],
+              "subscriptionId": "sub_fixture_1",
+              "version": 43
+            }
+          }
+        },
+        {
+          "expect": {
+            "ackToken": "ack_fixture_1",
+            "actions": [
+              "acknowledge_obligation"
+            ],
+            "transitions": []
+          },
+          "frame": {
+            "kind": "authorization_invalidation",
+            "obligation": {
+              "maxDisposition": "quarantine",
+              "ownerContinuityId": "owner_fixture_1",
+              "protocolVersion": 1,
+              "retryEpisodeId": null,
+              "revision": 1,
+              "scopeId": {
+                "connectionGeneration": 1,
+                "issuerId": {
+                  "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                  "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                  "bootSequence": 1
+                },
+                "kind": "subscription",
+                "namespace": {
+                  "clientStoreId": "store-fixture",
+                  "queryInstanceId": 1,
+                  "queryKey": "listTodos:{}"
+                },
+                "scopeSequence": 1,
+                "subscriptionId": "sub_fixture_1"
+              },
+              "witness": {
+                "authorization": {
+                  "epoch": 1,
+                  "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+                },
+                "data": {
+                  "minCommitVersion": 43,
+                  "versionStream": "fixture-stream"
+                }
+              }
+            },
+            "resolution": {
+              "ackToken": "ack_fixture_1",
+              "kind": "snapshot",
+              "maxDisposition": "quarantine",
+              "ownerContinuityId": "owner_fixture_1",
+              "protocolVersion": 1,
+              "revision": 1,
+              "scopeId": {
+                "connectionGeneration": 1,
+                "issuerId": {
+                  "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                  "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                  "bootSequence": 1
+                },
+                "kind": "subscription",
+                "namespace": {
+                  "clientStoreId": "store-fixture",
+                  "queryInstanceId": 1,
+                  "queryKey": "listTodos:{}"
+                },
+                "scopeSequence": 1,
+                "subscriptionId": "sub_fixture_1"
+              },
+              "witness": {
+                "authorization": {
+                  "epoch": 1,
+                  "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+                },
+                "data": {
+                  "minCommitVersion": 43,
+                  "versionStream": "fixture-stream"
+                }
+              }
+            },
+            "snapshot": {
+              "function": "listTodos",
+              "rows": [
+                {
+                  "_id": "todo_1",
+                  "title": "authorized row"
+                }
+              ],
+              "subscriptionId": "sub_fixture_1",
+              "version": 43
+            }
+          }
+        }
+      ],
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "quarantine_rows"
+        ],
+        "forbiddenActions": [
+          "acknowledge_obligation"
+        ],
+        "transitions": [
+          {
+            "rows": "retained_unreadable",
+            "subscription": "sub_fixture_1",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "kind": "authorization_invalidation",
+        "obligation": {
+          "maxDisposition": "quarantine",
+          "ownerContinuityId": "owner_fixture_1",
+          "protocolVersion": 1,
+          "retryEpisodeId": null,
+          "revision": 1,
+          "scopeId": {
+            "connectionGeneration": 1,
+            "issuerId": {
+              "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+              "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+              "bootSequence": 1
+            },
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "scopeSequence": 1,
+            "subscriptionId": "sub_fixture_1"
+          },
+          "witness": {
+            "authorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "data": {
+              "minCommitVersion": 43,
+              "versionStream": "fixture-stream"
+            }
+          }
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "auth.live.invalidation_without_snapshot_quarantines",
+      "notes": "An obligation without a satisfying snapshot makes held rows unreadable and is not acknowledged. Level-triggered delivery continues until a resolution can be applied.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "surface_protocol_diagnostic",
+          "ignore_frame"
+        ],
+        "forbiddenActions": [
+          "acknowledge_obligation"
+        ],
+        "transitions": []
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "kind": "authorization_invalidation",
+        "obligation": {
+          "maxDisposition": "quarantine",
+          "ownerContinuityId": "owner_fixture_1",
+          "protocolVersion": 1,
+          "retryEpisodeId": null,
+          "revision": 1,
+          "scopeId": {
+            "connectionGeneration": 1,
+            "issuerId": {
+              "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+              "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+              "bootSequence": 1
+            },
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "scopeSequence": 1,
+            "subscriptionId": "sub_fixture_foreign"
+          },
+          "witness": {
+            "authorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "data": {
+              "minCommitVersion": 43,
+              "versionStream": "fixture-stream"
+            }
+          }
+        },
+        "resolution": {
+          "ackToken": "ack_fixture_1",
+          "kind": "snapshot",
+          "maxDisposition": "quarantine",
+          "ownerContinuityId": "owner_fixture_1",
+          "protocolVersion": 1,
+          "revision": 1,
+          "scopeId": {
+            "connectionGeneration": 1,
+            "issuerId": {
+              "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+              "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+              "bootSequence": 1
+            },
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "scopeSequence": 1,
+            "subscriptionId": "sub_fixture_foreign"
+          },
+          "witness": {
+            "authorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "data": {
+              "minCommitVersion": 43,
+              "versionStream": "fixture-stream"
+            }
+          }
+        },
+        "snapshot": {
+          "function": "listTodos",
+          "rows": [
+            {
+              "_id": "todo_1",
+              "title": "authorized row"
+            }
+          ],
+          "subscriptionId": "sub_fixture_foreign",
+          "version": 43
+        }
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "auth.live.foreign_obligation_never_acknowledged",
+      "notes": "The full obligation scope names a subscription this client does not hold. It is surfaced and ignored, never acknowledged on behalf of a foreign live owner.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
       ]
     },
     {
@@ -220,7 +818,19 @@
       "given": {
         "connection": {
           "state": "attached"
-        }
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
       },
       "lane": "core",
       "name": "durable.resync_required.connection_wide_clear_retained",
@@ -261,7 +871,19 @@
       "given": {
         "connection": {
           "state": "attached"
-        }
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
       },
       "lane": "live",
       "name": "socket.durable_bytes.forced_resync",
@@ -290,7 +912,19 @@
       "given": {
         "connection": {
           "state": "attached"
-        }
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 42
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
       },
       "lane": "core",
       "name": "negative.unknown_kind.skipped",
@@ -467,6 +1101,7 @@
             91,
             123,
             34,
+            95,
             105,
             100,
             34,
@@ -630,6 +1265,7 @@
               91,
               123,
               34,
+              95,
               105,
               100,
               34,
@@ -699,18 +1335,30 @@
       "given": {
         "connection": {
           "state": "attached"
-        }
+        },
+        "subscriptions": [
+          {
+            "id": "sub_fixture_1",
+            "state": "live",
+            "version": 40
+          },
+          {
+            "id": "sub_fixture_2",
+            "state": "live",
+            "version": 7
+          }
+        ]
       },
       "lane": "poll",
       "name": "poll.acknowledged_batch.malformed_item_forces_resync",
-      "notes": "The poll-lane analogue of fact 2b (LLP 0095 §1.4 T-DB-P): after the ownership cut the malformed item is lost exactly like a durable_bytes payload, so it forces the same connection-wide resync class — and must never abort the remainder of the acknowledged batch.",
+      "notes": "The poll-lane analogue of fact 2b (LLP 0095 §1.4 T-DB-P): after the ownership cut the malformed item is lost exactly like a durable_bytes payload, so it forces the same connection-wide resync class — and must never abort the remainder. Format v2 pins sub_fixture_1 in the population and subsumes the remainder item's actions AND transitions under deliver_batch_remainder.",
       "schemaValid": true,
       "tuples": [
         "poll/local"
       ]
     }
   ],
-  "formatVersion": 1,
+  "formatVersion": 2,
   "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
   "wireVersion": "snapback.v1"
 }

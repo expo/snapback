@@ -56,18 +56,33 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
         let claim = fixture["schemaValid"]
             .as_bool()
             .unwrap_or_else(|| panic!("{name}: fixture has a schemaValid bool"));
-        let frame = &fixture["frame"];
-        assert!(frame.is_object(), "{name}: fixture carries a frame object");
+        let frames: Vec<&Value> = if let Some(steps) = fixture["steps"].as_array() {
+            assert!(!steps.is_empty(), "{name}: steps must not be empty");
+            steps
+                .iter()
+                .map(|step| {
+                    let frame = &step["frame"];
+                    assert!(frame.is_object(), "{name}: every step carries a frame object");
+                    frame
+                })
+                .collect()
+        } else {
+            let frame = &fixture["frame"];
+            assert!(frame.is_object(), "{name}: fixture carries a frame object");
+            vec![frame]
+        };
         match fixture["family"].as_str() {
             Some(family) => {
                 let schema = committed(family);
                 let validator = jsonschema::validator_for(&schema)
                     .unwrap_or_else(|error| panic!("compile {family}: {error}"));
-                let valid = validator.is_valid(frame);
-                assert_eq!(
-                    valid, claim,
-                    "{name}: schemaValid claims {claim} but {family} says {valid}"
-                );
+                for (index, frame) in frames.iter().enumerate() {
+                    let valid = validator.is_valid(frame);
+                    assert_eq!(
+                        valid, claim,
+                        "{name}: schemaValid claims {claim} but {family} says {valid} for frame {index}"
+                    );
+                }
                 // batchContext members share the fixture's family.
                 if let Some(batch) = fixture["batchContext"].as_array() {
                     for (index, member) in batch.iter().enumerate() {
@@ -93,10 +108,12 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
                     let schema = committed(family);
                     let validator = jsonschema::validator_for(&schema)
                         .unwrap_or_else(|error| panic!("compile {family}: {error}"));
-                    assert!(
-                        !validator.is_valid(frame),
-                        "{name}: claimed family-less but validates against {family}"
-                    );
+                    for frame in &frames {
+                        assert!(
+                            !validator.is_valid(frame),
+                            "{name}: claimed family-less but validates against {family}"
+                        );
+                    }
                 }
             }
         }
@@ -116,6 +133,11 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
     for required in [
         "durable.live_replace.basic",
         "durable.live_delta.apply_by_id",
+        "durable.replace_then_delta.identity_continuity",
+        "durable.current_as_of.adopts_token_without_rows",
+        "auth.live.invalidation_snapshot_apply_then_ack",
+        "auth.live.invalidation_without_snapshot_quarantines",
+        "auth.live.foreign_obligation_never_acknowledged",
         "durable.resync_required.connection_wide_clear_retained",
         "socket.durable_bytes.forced_resync",
         "negative.unknown_kind.skipped",
@@ -158,4 +180,99 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
     assert!(reference.contains(DURABLE_BYTES_RESYNC_REASON));
     assert!(reference.contains("client-synthesized"));
     assert!(class["permittedEquivalent"].is_string());
+}
+
+/// Format v2 removes the arbitrary-population and row-identity ambiguities
+/// found by independent clean-room clients.
+#[test]
+fn format_v2_pins_connection_populations_and_row_identity() {
+    let fixtures = fixtures();
+    for fixture in &fixtures {
+        let name = fixture["name"].as_str().expect("fixture name");
+        if fixture["given"]["connection"].is_object() {
+            let subscriptions = fixture["given"]["subscriptions"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{name}: connection fixture must pin subscriptions"));
+            assert!(
+                !subscriptions.is_empty(),
+                "{name}: connection population cannot be vacuous"
+            );
+        }
+    }
+
+    let identity = fixtures
+        .iter()
+        .find(|fixture| fixture["name"] == "durable.replace_then_delta.identity_continuity")
+        .expect("identity-continuity fixture");
+    assert_eq!(identity["expect"]["rowIdentity"]["member"], "_id");
+    assert_eq!(
+        identity["expect"]["rowIdentity"]["finalIds"],
+        serde_json::json!(["todo_1", "todo_2"])
+    );
+    let steps = identity["steps"].as_array().expect("multi-step fixture");
+    let replace_row = &steps[0]["frame"]["rows"][0];
+    assert_eq!(replace_row["_id"], "todo_1");
+    assert!(replace_row.get("id").is_none());
+    assert_eq!(steps[1]["frame"]["ops"][1]["id"], "todo_1");
+
+    // Every emitted replacement/delta row in the corpus uses the same
+    // system identity member the live matcher uses.
+    for fixture in &fixtures {
+        let frames: Vec<&Value> = fixture["steps"]
+            .as_array()
+            .map(|steps| steps.iter().map(|step| &step["frame"]).collect())
+            .unwrap_or_else(|| vec![&fixture["frame"]]);
+        for frame in frames {
+            if frame["kind"] == "live_replace" {
+                for row in frame["rows"].as_array().expect("replace rows") {
+                    assert!(row["_id"].is_string(), "replacement row lacks _id");
+                }
+            }
+            if frame["kind"] == "live_delta" {
+                for op in frame["ops"].as_array().expect("delta ops") {
+                    if let Some(row) = op.get("row") {
+                        assert_eq!(
+                            row["_id"], op["id"],
+                            "delta row _id and operation id diverge"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn auth_live_fixture_pins_apply_before_ack_and_foreign_scope_fence() {
+    let fixtures = fixtures();
+    let sequence = fixtures
+        .iter()
+        .find(|fixture| fixture["name"] == "auth.live.invalidation_snapshot_apply_then_ack")
+        .expect("auth/live sequence");
+    let ordered = sequence["steps"][0]["expect"]["orderedActions"]
+        .as_array()
+        .expect("ordered actions");
+    assert_eq!(
+        ordered,
+        &[
+            Value::from("quarantine_rows"),
+            Value::from("apply_invalidation_snapshot"),
+            Value::from("acknowledge_obligation"),
+        ]
+    );
+    assert_eq!(
+        sequence["steps"][1]["expect"]["ackToken"],
+        "ack_fixture_1"
+    );
+
+    let foreign = fixtures
+        .iter()
+        .find(|fixture| fixture["name"] == "auth.live.foreign_obligation_never_acknowledged")
+        .expect("foreign-scope fixture");
+    assert!(
+        foreign["expect"]["forbiddenActions"]
+            .as_array()
+            .expect("forbidden actions")
+            .contains(&Value::from("acknowledge_obligation"))
+    );
 }

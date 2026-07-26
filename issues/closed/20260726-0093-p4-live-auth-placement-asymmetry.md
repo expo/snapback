@@ -62,3 +62,9 @@ feature-off)". For `auth` placement there is no witness — only a misleading
    `resumeFromToken`). A closed unsubscribe decoder turns this from a
    misleading 403 into `SNAPBACK_REQUEST_JSON_INVALID` naming the unknown
    member.
+
+## Resolution
+
+LLP 0094 and LLP 0096 now specify auth placement for every live route and
+mode. Ownership refusals expose the subscription ID and presented/expected
+identity relationship without leaking the expected identity.

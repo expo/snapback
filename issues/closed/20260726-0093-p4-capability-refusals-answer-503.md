@@ -55,3 +55,8 @@ cost is latent and lands on the next implementer who does.
    genuinely is transient), then the two cases need distinct statuses —
    otherwise no client can tell "you are misconfigured" from "come back
    later", which is precisely the distinction the retry rule depends on.
+## Resolution
+
+Server refusals now distinguish deployment readiness (`503`) from unsupported
+or missing client protocol offers (`400`) with dedicated codes and regression
+tests. LLP 0094 publishes the distinction.

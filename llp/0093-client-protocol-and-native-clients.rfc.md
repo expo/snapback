@@ -5,8 +5,8 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-25 (v0.10 — see Revision history; OQ5 hosted floor
-decided, see Open questions)
+**Revised:** 2026-07-26 (v0.11 — Partitime clean-room corrections; see
+Revision history)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
 
 > Not to be confused with LLP 0075, "Convex checkpoint protocol," which is a
@@ -350,6 +350,11 @@ current kind set (closed `oneOf` unions); tolerance is a client conformance
 rule layered on top, not a schema claim. Wire additions continue to land
 through LLP 0051's schema-governed drift gates; RQS additions are already
 pinned by LLP 0091/0092 and are citations here, not re-specification.
+There is no lane-wide casing rule: casing follows the defining serde type.
+In particular the outer `authorization_invalidation` envelope is
+snake_case while its imported obligation, resolution, scope, namespace,
+and snapshot subtrees are camelCase. Generated schemas are authoritative
+for every member.
 
 **Shape authority and precedence.** Ranked: the serde implementations are
 ground truth; the generated schemas are their authoritative machine view;
@@ -372,6 +377,9 @@ namespace note for external implementers: the committed schema `$id`s use
 `snapback.v0`, the artifact-format namespace (`src/schema_export.rs:370`),
 which is distinct from and does not contradict the wire identity
 `snapback.v1`.
+For row-bearing live frames, the durable row identity is the system `_id`
+member; it is in the same string space as `LiveDeltaWireOp.id`. A user
+field named `id` has no protocol identity role.
 
 **Publication.** The spec content lands as follow-on Spec LLPs (see Rollout);
 a rendered implementer page joins the guide (`guide/protocol/`), with
@@ -444,7 +452,8 @@ cumulative tier would forbid:
   and control-frame dispatch (lane-L framing), heartbeat and freshness
   budget, backoff, reconnect-as-resubscribe-with-`supersedes`,
   version-guarded delta application (drop stale `version`, apply
-  `add/update/remove` by `id`), replace fallback.
+  `add/update/remove` by operation `id` against each row's `_id`), replace
+  fallback.
 
 A conformance claim is core **plus** the lanes the arm serves: `live/hosted`
 carries no drain obligations (the hosted drain is declared-empty), and its
@@ -497,7 +506,8 @@ seeded from `artifact_instances()` and
 the exact-byte tests, and including **negative fixtures**: unknown kinds,
 unknown fields, malformed capability offers, cancelled/duplicated drains,
 and a malformed item inside an acknowledged batch that must not abort the
-remainder. The MUST-ignore and refusal rules of D1 are conformance-tested,
+remainder, plus multi-step `CurrentAsOf` and authorization-invalidation
+apply-before-ack/quarantine cases. The MUST-ignore and refusal rules of D1 are conformance-tested,
 not prose. The fixture corpus is the deliverable that makes "first-party"
 cheap for languages we don't write: a Kotlin author consumes the same
 fixtures the Swift client passes. LLP 0064's per-OS evidence rule applies
@@ -535,7 +545,10 @@ The spec must state, as normative client-facing contract:
    conformance obligation (D2's demand-ownership rules).
 2. **Socket loss drops durable subscriptions.** Reconnect is fresh
    subscribe with `supersedes`; snapshots ride the subscribe response (no
-   prime race, LLP 0034). The reattach route (`resume_live`) and RQS token
+   prime race, LLP 0034). The response must witness the exact retired id in
+   `superseded`, or name an already-absent target in
+   `supersessionRefusal`; subscribe success without either witness does not
+   prove disposal. The reattach route (`resume_live`) and RQS token
    resume are **decided ground**: Accepted LLP 0090 keeps both as disjoint
    mechanisms (reattach continues a server-retained subscription; a token
    seeds a new one from client-held state), and LLP 0091 §0B.4 pins the
@@ -838,5 +851,12 @@ version carrier (bound at `/connection/open`; see D1).
   issues/20260725-hosted-root-system-routes-migration.md. When the
   0074-tranche branch lands its v0.8, the tranche lander owns the
   history interleave (this side is numbered around it).
+
+- **v0.11 (2026-07-26) — Partitime clean-room corrections.** Recorded
+  serde/schema-defined casing (including the camelCase invalidation
+  subtree exception), made `_id` the explicit replace/delta identity
+  bridge, required observable `superseded`/`supersessionRefusal`
+  reconnect witnesses, and expanded the P-1 corpus obligation to the
+  multi-step CurrentAsOf and authorization-invalidation transitions.
 
 Review artifacts: `llp/reviews/0093-client-protocol-and-native-clients.{fable,codex}.md`.

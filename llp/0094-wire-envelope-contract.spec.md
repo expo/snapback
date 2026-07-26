@@ -29,7 +29,9 @@ classification-before-equality precedence; §0B.4 predicate rewritten
 v0.2); §0C.6 extended to the full audited error-emitter set
 (`requestDiagnostic`, gateway refusals, `platformFailureResponse`);
 session-socket schema gap owned in §0F item 4; §0C.5 citation fixed;
-decisions log added)
+decisions log added); 2026-07-26 (Partitime clean-room corrections:
+connection-bound session authority, casing exceptions, supersession
+witnesses, and refusal/status registry)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -110,17 +112,17 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/health` | GET | Public | public metadata + server-binary identity (LLP 0031 §Server-binary identity) | public metadata + deployment identity (`coordinator.js` `route` `/health`) |
 | `/inspect` | GET | Public | typed public identity projection (`inspect.public.schema.json`) | **capability manifest** (`gateway.js` — same payload as `/capability`; a different shape from the local `/inspect`) |
 | `/capability` | GET | Public | not served under this name (the manifest rides `/inspect`/`/`) | capability manifest (`capability.manifest.schema.json`) |
-| `/connection/open` | POST | Public (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
+| `/connection/open` | POST | Public credential; `auth/rr` offer required in sessions mode (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
 | `/query/{name}` | POST | app auth (mode-dependent, LLP 0031 matrix) | served | served (`kitQuery`) |
 | `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) — response bytes currently diverge from `mutation.output.schema.json` (§0C.6 item 1) |
 | `/action/{name}` | POST | app auth | served | served (`executeAction`) |
 | `/query/{name}/authorized-lease` | POST | sessions-mode resolved caller + exact protocol offers (LLP 0043/0053) | served | **not served** (hosted auth profile gap) |
 | `/client-mutations/acknowledge` | POST | app auth + authority descriptor | served | **not served** |
-| `/live/{name}/subscribe` | POST | Conn | served; open decoder body (§0C) | served (`kitSubscribe`); **refuses without a current socket session** (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`, HTTP **409** on this arm — `coordinator.js` `kitSubscribe`/`kitUnsubscribe` guards) |
-| `/live/{name}/unsubscribe` | POST | Conn | served | served (`kitUnsubscribe`) — response bytes currently diverge from `live.unsubscribe.output.schema.json` (§0C.6 item 2) |
-| `/live/{name}/resume` (reattach) | POST | Conn | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:67`) |
-| `/live/{connection_id}/stream` | GET (WS upgrade) | Conn (header or `snapback.connection-token.<token>` subprotocol; never URL) | served (`stream_live`) | served (`acceptKitSocket`) |
-| `/outbox/{connection_id}` | GET | Conn | leased-batch drain (LLP 0059 ownership cut; response shape §0A.5) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
+| `/live/{name}/subscribe` | POST | Conn grant (`Authorization` bearer ignored after open) | served; open decoder body (§0C) | served (`kitSubscribe`); **refuses without a current socket session** (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`, HTTP **409** on this arm — `coordinator.js` `kitSubscribe`/`kitUnsubscribe` guards) |
+| `/live/{name}/unsubscribe` | POST | Conn grant (bearer ignored) | served | served (`kitUnsubscribe`) — response bytes currently diverge from `live.unsubscribe.output.schema.json` (§0C.6 item 2) |
+| `/live/{name}/resume` (reattach) | POST | Conn grant (bearer ignored) | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:67`) |
+| `/live/{connection_id}/stream` | GET (WS upgrade) | Conn grant (header or `snapback.connection-token.<token>` subprotocol; never URL; bearer does not replace bound authority) | served (`stream_live`) | served (`acceptKitSocket`) |
+| `/outbox/{connection_id}` | GET | Conn grant (bearer ignored) | leased-batch drain (LLP 0059 ownership cut; response shape §0A.5) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
@@ -134,6 +136,13 @@ Consequences already pinned by LLP 0093 and restated as matrix facts, not
 renegotiated: the poll lane is local-arm-only in v1 (`poll/hosted` is not
 a claimable conformance tuple); reattach is local-arm-only; the hosted
 recovery lane is reconnect-resubscribe only (D3.2a).
+
+For every `Conn` row, the grant is both capability and credential. In
+sessions mode its authority was resolved once when the connection opened.
+Adding, removing, or changing an `Authorization` bearer on a later
+connection-scoped request does not change that authority. A user/session
+identity change therefore requires a fresh `/connection/open`; reusing the
+old grant continues to serve the old identity by design.
 
 ### 0A.2 Local-arm system seams (already `/_snapback/*`)
 
@@ -253,6 +262,22 @@ assertion); sessions mode replaces this posture wholesale.
   grammar; the authorized-lease and invalidation routes (§0A.1) become
   reachable. A clean-room client MUST key its auth carriage on the
   negotiated mode, never on route availability probes.
+
+### 0A.7 Sessions-mode connection binding
+
+In sessions mode, `POST /connection/open` is Public only in the
+credential-resolution sense when no bearer is present; it is still behind
+the `auth/rr` exact-offer fence. When a bearer is present and accepted, the
+resolved session authority is captured in the new connection grant. Every
+`ConnectionAuth` route thereafter authorizes with that grant and does not
+re-resolve an `Authorization` header.
+
+Live body auth is mode-specific. Subscribe carries dev identity at nested
+`input.auth`; unsubscribe and resume carry it at top-level `auth`. Sessions
+mode rejects either client-provided body identity with
+`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED`; it uses only the authority already
+bound into the connection. Changing users means releasing demand, opening a
+fresh connection with the new bearer, and re-establishing subscriptions.
 
 ## 0B — Wire-version negotiation
 
@@ -522,7 +547,7 @@ feature-off).
 | `AuthorizationInvalidationAckInput` (`src/local.rs`) | **closed** | closed | stays closed |
 | manual-retry input (`src/local.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
 | `SessionLiveSocketClientMessage` (`src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | — | stays closed |
-| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is accepted and mitigated by response witnesses (`resumeRefusal` is the existing example: an ignored capability field must have a response-visible echo or refusal so the client can detect feature-off) |
+| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is mitigated by response witnesses: `resumeRefusal` for token resume, and `superseded` or `supersessionRefusal` for every presented `supersedes` id |
 | `HandlerInput` (`src/manifest.rs`) | **open** | open (`query.input` / `mutation.input`) | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
 | dev-mode socket client message (`LiveSocketClientMessage`, `src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
 | `AuthorizedLeaseQueryRequest` (`src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
@@ -542,13 +567,14 @@ clients are not proven tolerant needs capability gating or a new token
 
 | Family | Emission closure | Notes |
 | --- | --- | --- |
-| `LiveEnvelope` (`live.envelope.schema.json`) | closed `oneOf` over the current kind set | new kinds always offer-gated (LLP 0091 `CurrentAsOf` is the pattern); `resync_required.reason` is the open-string escape hatch |
+| `LiveEnvelope` (`live.envelope.schema.json`) | closed `oneOf` over the current kind set | new kinds always offer-gated (LLP 0091 `CurrentAsOf` is the pattern); `resync_required.reason` is the open-string escape hatch. Casing follows each serde DTO: outer durable fields are generally snake_case, but the `authorization_invalidation` obligation/resolution/scope/namespace/snapshot subtree is camelCase |
 | `LiveSocketServerFrame` (`live.socket-server.schema.json`) | closed `oneOf` | `durable_bytes` carries the required recovery transition (LLP 0093 D3 fact 2b) |
 | `Receipt` (`receipt.schema.json`) | closed variants | §0D ratifies its appearance on subscribe/unsubscribe outputs as typed |
 | `AuthorizationInvalidationSnapshot` (`src/live_wire.rs:128-136`) | **closed** (`additionalProperties: false`) | additions need gating per the rule above |
 | `AuthorizationInvalidationAckOutput` (`src/local.rs:790-794`) | **closed** | same |
 | `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction) |
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
+| `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |
 | `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |
 | `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm currently under-fills it (§0C.6 item 3) |
 | `MutationResponse` (`mutation.output.schema.json`) | **closed** | but the served local bytes ride `FunctionResponse<T>`, which flattens an optional `attribution` member the closed schema does not admit — a real schema-generation defect, §0C.6 item 4 |
@@ -724,10 +750,16 @@ must-understand style:
 | `SNAPBACK_WIRE_VERSION_MISMATCH` | 400 | kit stream upgrade and `previousToken` re-open (B1+) | a known offer that does not equal the connection's bound version (§0B.3 immutability / §0B.4 equality) |
 | `SNAPBACK_WIRE_VERSION_REQUIRED` | 400 | kit stream upgrade (B3+), `POST /connection/open` (B4) | no wire-version-shaped offer where one is required (absent class only) |
 | `SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED` | 400 | `POST /connection/open` (B1+) | unknown `authInvalidationProtocol` value (§0C.5 alignment) |
+| `SNAPBACK_AUTH_POLICY_UNAVAILABLE` | 503 | sessions-profile routes | the server/process has not installed the required policy plane; retry only under a bounded readiness policy |
+| `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` | 400 | sessions `auth/rr`, queued replay, authorized lease | the server is ready but this request omitted or mismatched an exact client protocol offer; repair the named header/subprotocol, do not retry unchanged |
+| `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` | 400 | auth-scoped live and invalidation acknowledgement | the server is ready but the request/connection did not offer invalidation protocol 1; repair negotiation, do not retry unchanged |
+| `SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` | 400 | sessions auth-scoped live subscribe | the required `authorizationNamespace` was absent |
+| `SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH` | 400 | unsubscribe/resume | the retained subscription belongs to a different function than the route path |
+| `SNAPBACK_CONNECTION_TOKEN_REQUIRED` | 401 | every `ConnectionAuth` route | no connection credential was presented |
+| `SNAPBACK_CONNECTION_TOKEN_INVALID` | 403 | every `ConnectionAuth` route | the grant is invalid/reaped/expired; take LLP 0095 T-GRANT-LOSS, do not retry the dead grant |
 
 Existing codes this spec touches but does not change:
-`SNAPBACK_CONNECTION_TOKEN_REQUIRED` / `SNAPBACK_CONNECTION_TOKEN_INVALID`
-(grant gate), `SNAPBACK_CONNECTION_SOCKET_REQUIRED` (hosted
+`SNAPBACK_CONNECTION_SOCKET_REQUIRED` (hosted
 socket-session gate; HTTP **409** on the hosted arm — §0A.1). The
 migrated hosted system routes keep their existing codes unchanged
 (`SNAPBACK_ADMIN_*`, `SNAPBACK_CRON_*`, etc.).
@@ -747,6 +779,11 @@ authority identity plus exact connection grant). The name is historical
 live-ownership checks is intentional. The client-side consequence is LLP
 0095's: T-UNSUB and T-RECONNECT require presenting the subscription's
 establishing identity.
+
+The diagnostic `details` include `subscriptionId`, a redacted
+`expectedIdentity`, and `presentedIdentity` as either a presence marker or
+`null`. This makes an omitted/misplaced open-body `auth` distinguishable
+from a presented-but-wrong owner without disclosing either identity.
 
 ## 0F — Remaining hand-mirrored frames (LLP 0051 §D4)
 

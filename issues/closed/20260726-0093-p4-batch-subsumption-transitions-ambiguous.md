@@ -66,3 +66,8 @@ Either:
 
 (b) is preferable: it removes the interaction between two prose rules
 entirely.
+## Resolution
+
+Wire-fixture format v2 names the starting subscription population and separates
+required client actions from state transitions, so subsumption can be checked
+without inference.

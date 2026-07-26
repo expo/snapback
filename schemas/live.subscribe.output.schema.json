@@ -705,6 +705,20 @@
     },
     "subscription_id": {
       "type": "string"
+    },
+    "superseded": {
+      "description": "Response witness for a successful explicit `supersedes` request. The\nexact predecessor id is echoed only after that subscription was\ndisposed; clients must not infer disposal from subscribe success alone.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "supersessionRefusal": {
+      "description": "Response witness for a presented `supersedes` id that was already\nabsent. Together with `superseded`, this makes every presented\nsupersession observable on the open subscribe-output family.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

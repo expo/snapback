@@ -57,3 +57,8 @@ inline comment (`clients/dart/lib/src/wire.dart`).
    `ephemeral_ack` fixture whose `expect.actions` deliberately omits
    `ignore_unknown_fields` despite extra members being present, so the
    exemption is machine-asserted rather than prose.
+## Resolution
+
+LLP 0094 now records the flattening exception and prohibits treating flattened
+unknown fields as acknowledgement fields. Executable fixtures remain
+conditional on seeding the deferred ephemeral profile fixture class.

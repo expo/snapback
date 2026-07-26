@@ -115,3 +115,9 @@ transcription, not a design.
 `SNAPBACK_CLIENT_INVALIDATION_ACK_FAILED` and lets the next redelivery
 drive a fresh apply-then-acknowledge. That happens to be correct, but it
 is a guess, and it only works because redelivery is unconditional.
+
+## Resolution
+
+LLP 0094 and LLP 0096 now publish the relevant refusal codes, HTTP status
+classes, retained-state rules, and invalidation acknowledgement recovery
+actions. Server status inventories enforce client-vs-readiness classification.

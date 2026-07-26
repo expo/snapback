@@ -98,3 +98,9 @@ client, because there is no model to judge it against.
   different directions is the strongest evidence available that it is real.
 - `issues/20260725-0093-p3-profile-fixture-classes.md` — where the
   `auth.live.*` fixture classes are already parked.
+## Resolution
+
+LLP 0095 now defines the complete authorization-invalidation transition,
+including apply-before-ack, duplicate delivery, snapshot quarantine, and
+foreign-subscription handling. Wire-fixture format v2 adds executable examples
+for those cases.

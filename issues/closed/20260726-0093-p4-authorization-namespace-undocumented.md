@@ -78,3 +78,8 @@ that section rather than carrying the only statement of the rule.
 
 Without this, **no clean-room client can subscribe to an auth-scoped live
 query**, which makes `auth/live` unclaimable from the documents alone.
+## Resolution
+
+LLP 0096 now specifies the namespace members, matching boundary, lifetime, and
+collision behavior. The generated subscribe schema points clients to that
+normative definition.
