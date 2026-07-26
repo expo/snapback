@@ -1,7 +1,7 @@
 # Codegen attributes the runtime-clock dependency per bundle, and handler modules cannot share code
 
 **Filed:** 2026-07-26 · **Source:** building `demos/partitime/backends/snapback`
-**Status:** open
+**Status:** resolved
 
 ## What happened
 
@@ -39,3 +39,20 @@ analysis granularity.
 3. Allow handler modules to import from a declared in-app `shared/` directory —
    the bundler already inlines the module, so this is a resolver policy, not a
    new capability.
+
+## Resolution (2026-07-26)
+
+Protected mutable-input analysis is now attributed to each exported handler's
+conservative local reachable graph rather than the whole source bundle. It
+follows direct helpers, aliases and destructuring, local object methods,
+ambiguous dynamic selection on known helper objects, callbacks, `this`
+siblings, IIFEs, nested closures, and simple context/runtime aliases. A clock
+call reachable only from an unrelated mutation no longer poisons a protected
+query; ambiguity inside the query's reachable helper graph remains
+fail-closed.
+
+`protected-query-profile.test.mjs` proves both the sibling-export success and
+the direct/transitive/object/alias/dynamic/`this`/callback refusal cases. LLP
+0053 records the per-export reachability boundary. Shared-module imports remain
+unchanged because the finer analysis removes the duplication workaround that
+made them necessary for this defect.

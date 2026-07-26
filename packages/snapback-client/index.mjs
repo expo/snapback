@@ -3491,8 +3491,28 @@ export class SnapbackClient {
   // manifests, provisions ONLY what is missing/mismatched, seeds only when
   // the seed's target tables are all empty — never reset-then-seed. Throws a
   // structured diagnostic when the server profile gates a needed half.
-  async ensureApp({ schema = null, functions = null, seed = null, routes = null } = {}) {
-    const outcome = await this.#req('POST', '/app/ensure', {
+  async ensureApp({
+    schema = null,
+    functions = null,
+    seed = null,
+    routes = null,
+    intent = null,
+    requestedMode = null,
+  } = {}) {
+    const explicitProvision = intent !== null || requestedMode !== null;
+    if (explicitProvision) {
+      if (intent !== null && intent !== 'provision') {
+        throw new TypeError("ensureApp intent must be 'provision'");
+      }
+      if (requestedMode !== 'dev' && requestedMode !== 'sessions') {
+        throw new TypeError("ensureApp requestedMode must be 'dev' or 'sessions'");
+      }
+      if (routes !== null) {
+        throw new TypeError('explicit auth-mode provisioning does not yet accept a routes manifest');
+      }
+    }
+    const body = {
+      ...(explicitProvision ? { intent: 'provision', requestedMode } : {}),
       ...(schema ? { schema } : {}),
       ...(functions ? { functions } : {}),
       ...(seed ? { seed } : {}),
@@ -3500,7 +3520,14 @@ export class SnapbackClient {
       // functions manifest; its hash becomes the routeManifestHash
       // generation component server-side.
       ...(routes ? { routes } : {}),
-    });
+    };
+    // @ref LLP 0058#complete-candidate-pair-preflight — explicit mode
+    // provisioning is AdminWrite even when hashes already match; the client
+    // must carry its configured admin token instead of using the Public
+    // legacy request path.
+    const outcome = explicitProvision
+      ? await this.#adminReq('POST', '/app/ensure', body)
+      : await this.#req('POST', '/app/ensure', body);
     const gated = ['schema', 'functions', 'seed', 'routes'].filter((part) => outcome[part] === 'gated');
     if (gated.length > 0) {
       const diag = {

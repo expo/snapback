@@ -7404,7 +7404,9 @@ impl LocalSnapback {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
-                    "auth-scoped live queries require authInvalidationProtocol: 1",
+                    "open the connection with `authInvalidationProtocol: 1` \
+                     (or configure SnapbackClient with that option) before subscribing \
+                     to an auth-scoped live query",
                 )
             })?;
             if connection.protocol_version
@@ -7413,14 +7415,18 @@ impl LocalSnapback {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
-                    "auth-scoped live queries require authInvalidationProtocol: 1",
+                    "open the connection with `authInvalidationProtocol: 1` \
+                     (or configure SnapbackClient with that option) before subscribing \
+                     to an auth-scoped live query",
                 ));
             }
             let namespace = input.authorization_namespace.clone().ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
                     "auth",
-                    "auth-scoped live queries require authorizationNamespace",
+                    "set `authorizationNamespace` to an object with `clientStoreId`, \
+                     canonical `queryKey`, and positive `queryInstanceId` before \
+                     subscribing to an auth-scoped live query",
                 )
             })?;
             namespace.validate()?;
@@ -7432,7 +7438,8 @@ impl LocalSnapback {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
-                    "connection invalidation expectation is not current",
+                    "reopen the connection with `authInvalidationProtocol: 1`: \
+                     its authorization-invalidation expectation is no longer current",
                 ));
             }
             Some((connection, namespace))
@@ -8188,7 +8195,8 @@ impl LocalSnapback {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
-                "connection invalidation expectation is not current",
+                "reopen the connection with `authInvalidationProtocol: 1`: \
+                 its authorization-invalidation expectation is no longer current",
             ));
         }
         let outcome = state.obligations.acknowledge_subscription(
@@ -8551,7 +8559,9 @@ impl LocalSnapback {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
-                    "auth-scoped live resume requires authInvalidationProtocol: 1",
+                    "open the connection with `authInvalidationProtocol: 1` \
+                     (or configure SnapbackClient with that option) before resuming \
+                     an auth-scoped live query",
                 )
             })?;
             let state = self.auth_invalidation.as_ref().ok_or_else(|| {
@@ -8565,7 +8575,8 @@ impl LocalSnapback {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                     "auth",
-                    "connection invalidation expectation is not current",
+                    "reopen the connection with `authInvalidationProtocol: 1`: \
+                     its authorization-invalidation expectation is no longer current",
                 ));
             }
 
@@ -22144,6 +22155,38 @@ globalThis.__snapbackHandlers = {
             unsupported.diagnostic.code,
             "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         );
+        assert!(
+            unsupported
+                .diagnostic
+                .message
+                .contains("authInvalidationProtocol: 1"),
+            "the refusal must name the exact connection-open repair"
+        );
+
+        let missing_namespace = snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    authorization_namespace: None,
+                    ..input.clone()
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect_err("auth-scoped live requires an explicit query namespace");
+        assert_eq!(
+            missing_namespace.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
+        );
+        for member in ["clientStoreId", "queryKey", "queryInstanceId"] {
+            assert!(
+                missing_namespace.diagnostic.message.contains(member),
+                "namespace refusal must name `{member}`"
+            );
+        }
 
         let subscribed = snapback
             .subscribe_live_with_invalidation(

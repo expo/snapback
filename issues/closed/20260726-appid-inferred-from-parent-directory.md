@@ -1,7 +1,7 @@
 # `appId` is inferred from the backend's parent directory name and cannot be overridden
 
 **Filed:** 2026-07-26 · **Source:** building `demos/partitime/backends/snapback`
-**Status:** open
+**Status:** resolved
 
 ## What happened
 
@@ -27,3 +27,16 @@ app identity.
 
 Accept an explicit `appId` from `demo.snapback.json` (or a codegen flag) and
 fall back to the directory inference only when absent.
+
+## Resolution (2026-07-26)
+
+Codegen now walks upward from the backend to the nearest
+`demo.snapback.json` and uses its explicit `id` as `appId`; only a backend
+without such a manifest uses the legacy immediate-parent fallback. An explicit
+id is closed input with a 1–64 character lowercase ASCII slug grammar, so path
+separators, whitespace, controls, Unicode/case ambiguity, and overlong values
+cannot leak into stable function ids or schema `$id` paths.
+
+`function-id.test.mjs` proves nested `<demo>/backends/snapback` identity,
+generated schema paths, the portable grammar edge cases, and fail-closed
+behavior rather than path fallback. LLP 0004 now owns the identity rule.

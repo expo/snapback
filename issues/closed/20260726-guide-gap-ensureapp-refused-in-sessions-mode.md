@@ -1,7 +1,7 @@
 # guide-gap: `ensureApp({ schema, functions, seed })` is refused in sessions mode
 
 **Filed:** 2026-07-26 · **Source:** building `demos/partitime/backends/snapback`
-**Status:** open
+**Status:** resolved
 
 ## What happened
 
@@ -46,3 +46,17 @@ carrier and never calling ensure.
    admin-credential requirement.
 2. Add an `intent`/`requestedMode` option to `SnapbackClient.ensureApp()` so
    the paved client method works in both modes.
+
+## Resolution (2026-07-26)
+
+`SnapbackClient.ensureApp()` now accepts the closed explicit provision variant
+with `intent: 'provision'` and `requestedMode: 'dev' | 'sessions'`, routes it
+through the admin transport, and rejects unsupported intents, modes, and
+explicit `routes` client-side. The legacy dev form is unchanged.
+
+The getting-started, headless-client, and sessions guides now teach the exact
+sessions call, admin-token requirement, idempotent same-mode behavior, staged
+fresh `dev → sessions` restart, and explicit-route limitation. The packaged
+client test proves the exact body, admin header, and fail-closed intent
+validation; `node scripts/check-guide.mjs` passes after regenerating the guide
+manifest and flat resource.

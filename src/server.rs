@@ -536,10 +536,8 @@ where
     .expect("snapback authorization-write blocking task panicked")?;
     match attempted {
         AuthorizationWriteAttempt::Complete(output) => Ok(output),
-        AuthorizationWriteAttempt::Stale => Err(SnapbackError::error(
-            "SNAPBACK_AUTH_RESERVATION_STALE",
-            "auth",
-            "authorization reservation became stale before the durable transaction",
+        AuthorizationWriteAttempt::Stale => Err(authorization_reservation_stale(
+            "authorization reservation became stale before the durable transaction; retry the complete write with short jitter",
         )),
     }
 }
@@ -640,10 +638,8 @@ where
             reservation.cancel();
             return coordinator.finish_stream_reset(
                 carrier,
-                AuthTransactionAttempt::<T>::RolledBack(SnapbackError::error(
-                    "SNAPBACK_AUTH_RESERVATION_STALE",
-                    "auth",
-                    "reset authorization reservation became stale before its transaction",
+                AuthTransactionAttempt::<T>::RolledBack(authorization_reservation_stale(
+                    "reset authorization reservation became stale before its transaction; retry the complete operation with short jitter",
                 )),
             );
         }
@@ -2025,13 +2021,22 @@ fn action_stream_error(
 }
 
 fn action_authorization_reservation_stale(name: &str) -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_AUTH_RESERVATION_STALE",
-        "auth",
-        format!(
-            "authorization state changed while action-hosted mutation {name} reserved protected rooms"
-        ),
-    )
+    authorization_reservation_stale(format!(
+        "authorization state changed while action-hosted mutation {name} reserved protected rooms; retry the complete mutation with short jitter"
+    ))
+}
+
+/// A stale reservation commits no application or authorization effect. It is
+/// therefore an ordinary retryable conflict, not service unavailability.
+///
+/// @ref LLP 0059#plan-begin-commit-finalize — reservation revalidation
+/// precedes the durable transaction and a stale attempt is abandoned whole.
+fn authorization_reservation_stale(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_RESERVATION_STALE", "auth", message).with_details(json!({
+        "retryable": true,
+        "retryStrategy": "short-jitter",
+        "effectCommitted": false,
+    }))
 }
 
 fn action_abandoned(op: &str) -> SnapbackError {
@@ -7983,7 +7988,9 @@ async fn session_live_protocol_refusal(
             SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
-                "auth-scoped live work requires the exact authorization-invalidation protocol",
+                "add the request header `x-snapback-auth-invalidation-protocol: 1` \
+                 (or configure SnapbackClient with `authInvalidationProtocol: 1`): \
+                 auth-scoped live work requires the exact authorization-invalidation protocol",
             )
             .with_details(json!({
                 "capability": "authScopedLive",
@@ -16706,7 +16713,9 @@ async fn acknowledge_authorization_invalidation(
             SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
-                "connection did not negotiate authInvalidationProtocol: 1",
+                "open the connection with `authInvalidationProtocol: 1` \
+                 (or configure SnapbackClient with that option) before acknowledging \
+                 authorization invalidation",
             )
         })?;
     let effect_fence = connection_act.effect_fence();
@@ -16782,7 +16791,9 @@ async fn manual_retry_authorization_invalidation(
             SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
-                "connection did not negotiate authInvalidationProtocol: 1",
+                "open the connection with `authInvalidationProtocol: 1` \
+                 (or configure SnapbackClient with that option) before manually retrying \
+                 authorization invalidation",
             )
         })?;
     let effect_fence = connection_act.effect_fence();
@@ -18543,7 +18554,8 @@ async fn authorize_bound_ephemeral_room(
         return Err(ApiError::from(SnapbackError::error(
             "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
             "auth",
-            "protected room operations require authInvalidationProtocol: 1",
+            "open the connection with `authInvalidationProtocol: 1` \
+             (or configure SnapbackClient with that option) before protected room operations",
         )));
     }
     let issuer = runtime
@@ -18744,7 +18756,8 @@ async fn authorize_live_socket_room(
             Diagnostic::error(
                 "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
                 "auth",
-                "protected room operations require authInvalidationProtocol: 1",
+                "open the connection with `authInvalidationProtocol: 1` \
+                 (or configure SnapbackClient with that option) before protected room operations",
             ),
         )
         .into());
@@ -19831,6 +19844,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_GRANT_SCOPE_STALE"
         | "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED"
         | "SNAPBACK_AUTH_RETRY_NOT_PENDING"
+        | "SNAPBACK_AUTH_RESERVATION_STALE"
         | "SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH"
         | "SNAPBACK_AUTHORIZED_LEASE_EXPIRED"
         | "SNAPBACK_AUTHORIZED_LEASE_REQUEST_REUSED"
@@ -20005,7 +20019,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_RESERVATION_CANCELLED"
-        | "SNAPBACK_AUTH_RESERVATION_STALE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE"
         | "SNAPBACK_AUTH_SOURCE_UNTRUSTED"
@@ -20509,6 +20522,22 @@ mod tests {
         let listener =
             std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback context fixture");
         ServerContext::from_bound_listener(&listener).expect("read loopback fixture address")
+    }
+
+    #[test]
+    fn stale_authorization_reservation_is_an_explicit_retryable_conflict() {
+        let error = super::authorization_reservation_stale(
+            "reservation changed; retry the complete write with short jitter",
+        );
+        assert_eq!(error.diagnostic.details["retryable"], true);
+        assert_eq!(error.diagnostic.details["effectCommitted"], false);
+        assert_eq!(error.diagnostic.details["retryStrategy"], "short-jitter");
+        let response = super::ApiError::from(error).into_response();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert!(
+            response.headers().get(header::RETRY_AFTER).is_none(),
+            "409 conflict is immediately retryable; it must not advertise service backoff"
+        );
     }
 
     fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
@@ -33110,6 +33139,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED",
         "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
         "SNAPBACK_AUTH_RETRY_NOT_PENDING",
+        "SNAPBACK_AUTH_RESERVATION_STALE",
         "SNAPBACK_AUTHORIZED_LEASE_BOUNDARY_MISMATCH",
         "SNAPBACK_AUTHORIZED_LEASE_EXPIRED",
         "SNAPBACK_AUTHORIZED_LEASE_REQUEST_REUSED",
@@ -33213,7 +33243,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_RESERVATION_CANCELLED",
-        "SNAPBACK_AUTH_RESERVATION_STALE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
         // LLP 0098 §6: forwarding metadata that is absent, malformed,

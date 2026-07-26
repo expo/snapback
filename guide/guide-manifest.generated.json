@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dca88b4a706883713c4e1c3bd34a53a9310552d5"
+    "commit": "b92a18132b7e96028f9cc17fdf125963a1094ede"
   },
   "nav": {
     ".": [
@@ -302,25 +302,32 @@
       "authorities": [
         "llp/0053-authorization-invalidation.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/auth/invalidation.rs",
         "src/auth/mode.rs",
         "src/auth/service_fence.rs",
+        "src/local.rs",
         "src/local/authorization_acceptance.rs",
         "src/server.rs",
         "demos/_kit/tests/auth-invalidation-client.mjs",
+        "packages/snapback-client/index.mjs",
         "packages/snapback-contract/authorized-lease.mjs"
       ],
       "examples": [
         "demos/card-game",
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "959a3324360ca36ce2c6791d1769e98007a4bcaff259daf2a3ac14d24dfa008d",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "5116fb2c1b1a7b9e7316ff1d39d6e9f9adfbfcf313fe74cdad62999533ab6e79",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/_kit/tests/auth-invalidation-client.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -411,18 +418,24 @@
       "authorities": [
         "llp/0039-auth-vertical-slice.rfc.md",
         "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "src/auth/mode.rs",
+        "packages/snapback-client/index.mjs",
         "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "dacb846d0776fff10f26a7a970b32e4eb3cbb3a4b3abf4cd4452e3a7cbd545f2",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "698c11e16466079c5ae769a23159b85d30f152a56189f16cc17fd149502d65a7",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -594,6 +607,8 @@
         "llp/0003-local-code-hosting-and-storage-core.rfc.md",
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/server.rs",
         "schemas/mutation.output.schema.json",
         "demos/todo/snapback/functions.mjs",
         "demos/todo/snapback/handlers.mjs",
@@ -603,9 +618,9 @@
         "demos/todo",
         "demos/todo-v2"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "d80751abf4c13cb89fee7459c1d5ca6374fe0e96e6aa1de85325ab1f8d3fe85f",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "2999677b8434ab7b93f28d9dab67e7739754e22852868cb4011005b528358603",
       "snippets": [
         {
           "lang": "js",
@@ -1034,12 +1049,16 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "1b0484007254275097828701df2f6ad359454f3e2105d56d266c2ac38eb069ff",
+      "sha256": "d2fadb9ddfc45d86f4fbaf668f67350a6c2450e17cbe483f8e801534e880f2d5",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/index.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -1301,16 +1320,18 @@
       "authorities": [
         "llp/0004-application-data-api.rfc.md",
         "llp/0037-schema-source-of-truth.decision.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-codegen/index.mjs"
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/index.mjs"
       ],
       "examples": [
         "demos/todo/snapback",
         "demos/todo-v2/snapback"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a98aa99ebb6cd7273eb21510bac4157de3b6edd081ee480700ce29b3a0c6d2cb",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "1fa34879814e032fbb175350e6db4dfd162d2279971f016cb51c68827fa066ba",
       "snippets": [
         {
           "lang": "js",
@@ -1346,6 +1367,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/surfaces/headless/run.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -1941,5 +1966,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "47fc8dd47ff48ecaa9d1e0c3e825e4e822642dd3cf4e3b8b8e89862be39cd284"
+  "contentHash": "399e0f5175aff599e912f41654d6f7c20f25e28b2c9bc5102eaf16c1c2b97804"
 }

@@ -86,4 +86,55 @@ assert.deepEqual(lifecycleCalls, ['pause', 'resume']);
 lifecycle.dispose();
 assert.equal(appStateListeners.size, 0);
 
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return new Response(JSON.stringify({
+      intent: 'provision',
+      schema: 'provisioned',
+      functions: 'provisioned',
+      seed: 'skipped-absent',
+      profile: 'dev',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  try {
+    const provisioningClient = new SnapbackClient('http://snapback.test', {
+      adminToken: 'ensure-admin',
+    });
+    const outcome = await provisioningClient.ensureApp({
+      intent: 'provision',
+      requestedMode: 'sessions',
+      schema: { appId: 'sessions-app' },
+      functions: { appId: 'sessions-app' },
+    });
+    assert.equal(outcome.intent, 'provision');
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'http://snapback.test/app/ensure');
+    assert.equal(
+      new Headers(requests[0].init.headers).get('x-snapback-admin-token'),
+      'ensure-admin',
+    );
+    assert.deepEqual(JSON.parse(requests[0].init.body), {
+      intent: 'provision',
+      requestedMode: 'sessions',
+      schema: { appId: 'sessions-app' },
+      functions: { appId: 'sessions-app' },
+    });
+    await assert.rejects(
+      provisioningClient.ensureApp({
+        intent: 'attest',
+        requestedMode: 'sessions',
+      }),
+      /intent must be 'provision'/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 console.log('package.test.mjs: packaged client exports are consumable');

@@ -5,7 +5,10 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the deferred joins/query-planning and schema-migrations bullets now point at Accepted LLP 0080 and LLP 0081 as their controlling authorities, and the generated standard-pattern conditional-lowering carve-out from this RFC's unconditional host-plan writes is recorded per Accepted LLP 0065); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
+**Revised:** 2026-07-26 (stable codegen identity now takes `appId` from the
+nearest ancestor `demo.snapback.json` explicit `id`, so nesting a backend below
+`backends/` cannot silently rename its functions; bare backends retain the
+immediate-parent compatibility fallback); 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the deferred joins/query-planning and schema-migrations bullets now point at Accepted LLP 0080 and LLP 0081 as their controlling authorities, and the generated standard-pattern conditional-lowering carve-out from this RFC's unconditional host-plan writes is recorded per Accepted LLP 0065); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -488,6 +491,17 @@ Ratified on 2026-06-26 for v0 implementation:
 - **Function ids (ENG-24905, 2026-07-14):** codegen emits a required stable
   `id` for every generated function: `{appId}:{exportedName}`, a pure function
   of its inputs, so regenerating unchanged source produces byte-identical ids.
+  For a demo backend, `appId` is the explicit `id` from the nearest ancestor
+  `demo.snapback.json`; moving that backend under a nested layout such as
+  `<demo>/backends/snapback` therefore preserves identity. This manifest id is
+  a 1–64 character lowercase ASCII slug: it begins and ends with a letter or
+  digit and otherwise contains only lowercase letters, digits, and hyphens.
+  That one portable grammar is safe both in the colon-delimited function id
+  and as the schema `$id` URI path segment, with no consumer-specific
+  normalization. A backend with no ancestor demo manifest uses its immediate
+  parent directory as the compatibility fallback. An ancestor manifest with
+  an invalid explicit `id` fails codegen rather than falling back to a
+  path-derived identity.
   A rename is a different function — the new name mints a new id and the old
   id is retired, never re-pointed at a different function. Deleting and
   re-adding a same-named function deterministically reproduces the same id:

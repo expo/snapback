@@ -5,7 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-23 (sender-bound amendment, per the LLP 0077 author
+**Revised:** 2026-07-26 (authorization-reservation contention is an explicit
+retryable 409 conflict before any durable effect, with a short-jitter retry
+strategy); 2026-07-23 (sender-bound amendment, per the LLP 0077 author
 decisions: `BoundGrantAuthorityV2` — the session arm gains the custody key's
 JWK thumbprint and the `sender_replay_epoch` at issuance, with exact-tuple
 equality and revocation/epoch invalidation; V1 grants stay valid only on
@@ -760,6 +762,14 @@ stale result and cancels the carrier after Local; it never widens silently or
 prepares a replacement from inside the transaction. An installed interlock has
 no transaction-time preparation fallback: reaching SQLite without a carrier
 fails closed.
+
+Because this stale result is detected before the durable transaction commits,
+the operation has no durable effect and is safe to re-enter from its beginning.
+The served boundary reports `SNAPBACK_AUTH_RESERVATION_STALE` as HTTP `409`
+with closed details `{retryable:true, retryStrategy:"short-jitter",
+effectCommitted:false}`. Clients retry the complete operation with short
+jitter; they do not treat it as backend unavailability or infer that an
+authorization rule denied the attempted write.
 
 The reservation wait is cancellation-aware. Cancellation before ownership
 transfer removes only that ticket and all of its per-room pending marks, even

@@ -105,6 +105,17 @@ impl AuthProviderProfile {
     fn permits_capture(self) -> bool {
         matches!(self, Self::Dev | Self::Test | Self::Demo)
     }
+
+    /// Dev/demo codes never leave the bounded in-process capture mailbox, so
+    /// repeated local ceremonies cannot send mail to or otherwise burden the
+    /// canonical address. Test deliberately retains the production-shaped
+    /// per-address budget so its exact-boundary coverage stays meaningful.
+    ///
+    /// @ref LLP 0057#request-code-transaction — the capture-only profile
+    /// exception leaves the global and mailbox budgets in force.
+    fn exempts_capture_address_request_budget(self) -> bool {
+        matches!(self, Self::Dev | Self::Demo)
+    }
 }
 
 /// Both durable and monotonic time are injected so boundary/interleaving tests
@@ -2364,7 +2375,12 @@ impl AddressAdmission {
                     params![self.address.as_str(), address_lower, now_ms as i64],
                     |row| row.get(0),
                 )?;
-                if address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64 {
+                if !self
+                    .provider()
+                    .profile
+                    .exempts_capture_address_request_budget()
+                    && address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64
+                {
                     return Err(throttled_snapback());
                 }
 
@@ -2493,7 +2509,12 @@ impl AddressAdmission {
                     params![self.address.as_str(), address_lower, now_ms as i64],
                     |row| row.get(0),
                 )?;
-                if address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64 {
+                if !self
+                    .provider()
+                    .profile
+                    .exempts_capture_address_request_budget()
+                    && address_count >= AUTH_ADDRESS_REQUEST_LIMIT as i64
+                {
                     return Err(throttled_snapback());
                 }
 
@@ -5261,7 +5282,10 @@ mod tests {
         }
     }
 
-    fn provider_database(now_ms: u64) -> (Arc<AuthProvider>, LocalDatabase) {
+    fn provider_database_for_profile(
+        now_ms: u64,
+        profile: AuthProviderProfile,
+    ) -> (Arc<AuthProvider>, LocalDatabase) {
         let mut database = LocalDatabase::memory().expect("memory database");
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         keyring
@@ -5270,9 +5294,12 @@ mod tests {
         database
             .activate_current_auth_catalog()
             .expect("activate catalog");
-        let provider =
-            Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
+        let provider = Arc::new(AuthProvider::new(profile, keyring).expect("auth provider"));
         (provider, database)
+    }
+
+    fn provider_database(now_ms: u64) -> (Arc<AuthProvider>, LocalDatabase) {
+        provider_database_for_profile(now_ms, AuthProviderProfile::Test)
     }
 
     fn projected_terminal_reason_after_restart(
@@ -5583,6 +5610,44 @@ mod tests {
             .request_code(&mut database, AUTH_ADDRESS_REQUEST_WINDOW_MS)
             .expect("lower boundary is excluded");
         assert_eq!(direct_stream_facts(&database), (0, 0));
+    }
+
+    #[tokio::test]
+    async fn capture_only_profiles_keep_global_budget_but_not_address_budget() {
+        for profile in [AuthProviderProfile::Dev, AuthProviderProfile::Demo] {
+            let (provider, mut database) = provider_database_for_profile(0, profile);
+            for request in 0..(AUTH_ADDRESS_REQUEST_LIMIT + 2) {
+                provider
+                    .admit_email("repeat-demo@example.com")
+                    .await
+                    .expect("address admission")
+                    .request_code(&mut database, 0)
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "{profile:?} capture ceremony {request} unexpectedly failed: {}",
+                            error.diagnostic().code
+                        )
+                    });
+            }
+        }
+
+        // Test remains the production-shaped boundary fixture.
+        let (provider, mut database) = provider_database_for_profile(0, AuthProviderProfile::Test);
+        for _ in 0..AUTH_ADDRESS_REQUEST_LIMIT {
+            provider
+                .admit_email("bounded-test@example.com")
+                .await
+                .expect("address admission")
+                .request_code(&mut database, 0)
+                .expect("request inside test budget");
+        }
+        let error = provider
+            .admit_email("bounded-test@example.com")
+            .await
+            .expect("address admission")
+            .request_code(&mut database, 0)
+            .expect_err("test profile must retain the exact address budget");
+        assert_eq!(error.diagnostic().code, "SNAPBACK_AUTH_THROTTLED");
     }
 
     #[tokio::test]

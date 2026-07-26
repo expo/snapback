@@ -1,8 +1,7 @@
 # `AUTH_ADDRESS_REQUEST_LIMIT` made the capture-mailbox code ceremony unusable for a demo fleet
 
 **Filed:** 2026-07-26 · **Source:** Partitime matrix (`demos/partitime`), 7 web cells blocked
-**Status:** open — the proposed code is preserved off `main` pending a dated
-LLP 0057 amendment and author ratification
+**Status:** resolved
 
 ## What happened
 
@@ -51,3 +50,18 @@ The limit is a bare constant with no profile axis and no operator override. If
 a hosted/demo deployment ever wants a real mail sender *and* a high limit, or a
 Prod deployment wants a lower one, this wants to become configuration rather
 than a second hard-coded branch.
+
+## Resolution (2026-07-26)
+
+The provider now exempts only capture-only `dev` and `demo` profiles from the
+per-address recipient-spam budget. The global request budget and bounded
+capture mailbox remain active in every non-production profile; `test` and
+`prod` retain the exact per-address boundary. LLP 0057 records that profile
+axis.
+
+`capture_only_profiles_keep_global_budget_but_not_address_budget` proves the
+new capture behavior and the retained global bound.
+`request_code_has_exact_window_supersession_and_no_app_stream_effect` remains
+the production-shaped exact-window proof. A configurable real-mail delivery
+budget remains a separate future product decision, not a blocker for closing
+this capture-mailbox defect.

@@ -1,7 +1,7 @@
 # `SNAPBACK_AUTH_RESERVATION_STALE` is ordinary write contention reported as HTTP 503
 
 **Filed:** 2026-07-26 · **Source:** Partitime matrix
-**Status:** open (worked around client-side)
+**Status:** resolved
 
 ## What happens
 
@@ -39,3 +39,21 @@ Measured: 12 concurrent rsvps from one session -> 1 success, 11 stale.
   the expected diagnostic code rather than mere failure.
 - Consider queueing the reservation so throughput does not degrade to one
   winner per retry round.
+
+## Resolution (2026-07-26)
+
+`SNAPBACK_AUTH_RESERVATION_STALE` is now HTTP 409, not 503, at protected
+mutations, reset, and action-hosted mutation boundaries. Its diagnostic says to
+retry the complete operation with short jitter and carries closed details:
+
+```json
+{"retryable":true,"retryStrategy":"short-jitter","effectCommitted":false}
+```
+
+`stale_authorization_reservation_is_an_explicit_retryable_conflict` proves the
+served status, exact details, and absence of a misleading `Retry-After`.
+LLP 0059 and the mutation guide record the no-effect/re-entry contract and warn
+authorization tests to assert their intended denial code. Queueing remains a
+larger throughput redesign; the explicit retryable-conflict contract resolves
+the incorrect availability classification without pretending that redesign
+landed.

@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-23 (delegated wire extension: Draft LLP 0077 extends
+**Revised:** 2026-07-26 (capture-only provider ergonomics: `dev` and `demo`
+retain the global request budget and bounded mailbox but are exempt from the
+recipient-oriented per-address request budget; `test` and `prod` retain the
+exact per-address boundary); 2026-07-23 (delegated wire extension: Draft LLP 0077 extends
 this Spec's `/auth/exchange` contract for sender-constrained v2 browser
 sessions — the request body gains an optional `senderConstraint` member
 carrying the public JWK and issuance proof, and responses on that path carry
@@ -214,7 +217,7 @@ anonymous/no-session sentinel and is never a durable session generation.
 | Verification code | 6 ASCII digits, uniformly sampled |
 | Challenge TTL | 10 minutes |
 | Maximum attempts | 5 total submitted attempts |
-| Per-address request budget | 5 accepted requests per rolling 10 minutes |
+| Per-address request budget | 5 accepted requests per rolling 10 minutes in `test` and `prod`; exempt in capture-only `dev` and `demo` |
 | Global request budget | 120 accepted requests per rolling 60 seconds |
 | Address coordination | 256 fixed mutex stripes |
 | Capture mailbox capacity | 1,024 published or reserved entries |
@@ -686,9 +689,13 @@ from reordering. The flow is:
    later request admission refuses. Any pre-commit refusal releases the
    reservation.
 4. In one `IMMEDIATE` transaction, count retained rows for the rolling global
-   and per-address half-open windows `(now - window, now]`. At either limit,
-   roll back and return `SNAPBACK_AUTH_THROTTLED`. A request exactly one full
-   window after an older request no longer counts that older row.
+   and per-address half-open windows `(now - window, now]`. The global budget
+   applies in every profile. The per-address budget applies in `test` and
+   `prod`; `dev` and `demo` are exempt because their capture provider never
+   delivers to a recipient. At an applicable limit, roll back and return
+   `SNAPBACK_AUTH_THROTTLED`. The bounded capture mailbox remains in force for
+   every non-production profile. A request exactly one full window after an
+   older request no longer counts that older row.
 5. Mark every active challenge for the address with
    `superseded_by = new_challenge_id`, then insert the new challenge. The partial
    unique index is the concurrency backstop.
@@ -1589,8 +1596,10 @@ authority.
 - Canonical-equivalent addresses converge; invalid/control/whitespace/length/
   multi-`@` cases reject without echo. There is no dot/plus/IDNA rewrite.
 - Known and unknown addresses get the same accepted request shape/status and
-  both create a challenge. Per-address, global, and mailbox budgets hit exact
-  boundaries and recover after their windows.
+  both create a challenge. The `test` profile proves the exact per-address
+  boundary; every profile proves the global and mailbox boundaries; `dev` and
+  `demo` prove repeated capture-only ceremonies do not hit the recipient-spam
+  budget.
 - Serialized admission/interleaving tests on one address leave exactly one
   active challenge and one mailbox entry; the stripe plus transaction is the
   linearization proof, and a late older publish is impossible. Consume,

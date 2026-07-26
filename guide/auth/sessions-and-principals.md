@@ -4,13 +4,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -31,6 +31,29 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+## Provision sessions artifacts explicitly
+
+The legacy `ensureApp({ schema, functions, seed })` request is a settled-dev
+compatibility form, not a sessions provisioning authority. Give the client an
+admin token and select the closed provision variant:
+
+```js fragment reason="generated manifests and seed are app inputs"
+const client = new SnapbackClient(baseUrl, { adminToken });
+await client.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+This remains `AdminWrite` and non-production-profile gated before hash
+comparison or effects. Staging a fresh `dev → sessions` deployment closes app
+data until restart; provisioning an already-settled sessions deployment is
+idempotent but still crosses the same authorization gate. Do not hand-write a
+`fetch('/app/ensure', ...)` substitute.
 
 ## Sign in: email code → session credential
 

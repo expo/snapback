@@ -154,10 +154,28 @@ format 5 deletion-only. Drain and upgrade every process or browser context
 sharing one physical client-store key together; upgrading only the Agent
 custody directory does not make a mixed-version client-store writer safe.
 
-Start app boot with `health()`, then
-`ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions
-only missing/mismatched artifacts and seeds only empty tables. Never reset as a
-mount side effect.
+Start app boot with `health()`. For a `dev`-mode app, follow it with
+`ensureApp({ schema, functions, seed, routes })`. Ensure is idempotent: it
+provisions only missing/mismatched artifacts and seeds only empty tables.
+
+For sessions artifacts, configure `adminToken` and select the privileged
+request explicitly:
+
+```js fragment reason="generated manifests and seed are app inputs"
+await client.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+The client sends that variant through its admin transport. Missing credentials
+are an authorization error; matching hashes do not bypass the gate. A fresh
+mode transition requires the server restart named by its staged-mode response.
+The explicit variant currently refuses `routes`; ensure routes separately only
+on the legacy `dev` path. Never reset as a mount side effect.
 
 ## Call ordinary functions
 

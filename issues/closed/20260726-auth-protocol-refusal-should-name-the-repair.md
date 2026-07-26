@@ -1,8 +1,7 @@
 # `SNAPBACK_AUTH_POLICY_UNAVAILABLE` described the violation without naming the repair
 
 **Filed:** 2026-07-26 · **Source:** Partitime matrix
-**Status:** resolved 2026-07-26; the broader refusal-message sweep remains open
-in the related tickets below
+**Status:** resolved
 
 ## What happened
 
@@ -41,8 +40,24 @@ Related: `SNAPBACK_AUTH_RESERVATION_STALE` answers 503 with no `retry-after`,
 though it is a routine retryable write conflict — see
 `20260726-reservation-stale-is-a-503-without-retry-after.md`.
 
-## Resolution
+## Resolution (2026-07-26)
 
-`session_online_protocol_refusal` now names the exact HTTP header and
-WebSocket subprotocol that repair the refusal. A focused server assertion pins
-the actionable message so it cannot silently regress.
+The coordinated protocol fix gives a server-ready missing/inexact auth-client
+offer its own `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` diagnostic and HTTP
+400 classification while retaining the exact HTTP-header and
+WebSocket-subprotocol repair in the message. Server/process readiness remains
+`SNAPBACK_AUTH_POLICY_UNAVAILABLE` and HTTP 503.
+
+This sweep also makes every
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` producer name the appropriate
+repair: configure `SnapbackClient` with `authInvalidationProtocol: 1`, send
+`x-snapback-auth-invalidation-protocol: 1` for finite HTTP work, include
+`authInvalidationProtocol: 1` when opening a connection, or reopen a stale
+connection. That client-offer diagnostic is likewise HTTP 400.
+`SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` now names the closed
+`authorizationNamespace` members: `clientStoreId`, canonical `queryKey`, and
+positive `queryInstanceId`.
+
+`session_live_requires_installed_and_negotiated_invalidation` asserts the
+actionable protocol and namespace wording. The client-author guide now
+documents both wire repairs and the namespace shape.

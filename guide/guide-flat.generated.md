@@ -627,13 +627,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, packages/snapback-client/index.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -654,6 +654,29 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+## Provision sessions artifacts explicitly
+
+The legacy `ensureApp({ schema, functions, seed })` request is a settled-dev
+compatibility form, not a sessions provisioning authority. Give the client an
+admin token and select the closed provision variant:
+
+```js fragment reason="generated manifests and seed are app inputs"
+const client = new SnapbackClient(baseUrl, { adminToken });
+await client.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+This remains `AdminWrite` and non-production-profile gated before hash
+comparison or effects. Staging a fresh `dev → sessions` deployment closes app
+data until restart; provisioning an already-settled sessions deployment is
+idempotent but still crosses the same authorization gate. Do not hand-write a
+`fetch('/app/ensure', ...)` substitute.
 
 ## Sign in: email code → session credential
 
@@ -770,13 +793,13 @@ id: auth.protecting-data
 order: 2
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/auth/service_fence.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Protecting live and retained data
@@ -811,6 +834,13 @@ server and client negotiate `authInvalidationProtocol: 1`. Retained reads also
 require `authorizedLeaseProtocol: 1`. A route present behind an unavailable
 facet is not a supported capability.
 
+Configure `SnapbackClient` with `authInvalidationProtocol: 1`; the client then
+offers `x-snapback-auth-invalidation-protocol: 1` on finite live requests and
+includes `authInvalidationProtocol: 1` when it opens a connection. A clean-room
+HTTP client must send those same values itself. If Snapback answers
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`, add the missing offer or
+reopen a stale connection with it before retrying.
+
 ## Connection grants bind live work to authority
 
 The string your app supplies as `connectionId` is a logical sharing label. On
@@ -840,6 +870,25 @@ rebind the grant. Every live subscribe/resume, outbox drain, ephemeral act, and
 publication validates the grant token and binding at its final effect fence.
 HTTP sends the token in `x-snapback-connection-token`; browser WebSockets use
 the negotiated `snapback.connection-token.*` subprotocol.
+
+Every auth-scoped live subscribe also carries this closed
+`authorizationNamespace` identity:
+
+```js fragment reason="closed wire shape for clean-room client authors"
+{
+  clientStoreId: 'durable-store-id',
+  queryKey: 'canonical-query-and-arguments',
+  queryInstanceId: 1,
+}
+```
+
+`clientStoreId` identifies the durable client store, `queryKey` is the
+client's canonical query-plus-arguments key, and `queryInstanceId` is a
+positive counter distinguishing successive materializations of that key.
+`SnapbackClient` creates this object for its live-query path. Clean-room
+clients must persist and advance the identity with their store rather than
+minting all three fields per request. Omitting it is refused as
+`SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED`.
 
 An auth transition clears cached grants and reconnects under a fresh grant.
 Never persist, copy between clients, log, or manually reuse a connection
@@ -1655,13 +1704,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/server.rs, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Mutations
@@ -1755,6 +1804,17 @@ to force a last-writer-wins commit. Predicate-shaped captured reads are
 validated at predicate granularity, so unrelated writes do not spuriously
 conflict.
 
+Authorization-protected writes have one additional pre-transaction conflict:
+`SNAPBACK_AUTH_RESERVATION_STALE`. It is HTTP 409 with
+`details.retryable: true`, `details.effectCommitted: false`, and
+`details.retryStrategy: "short-jitter"`. The attempt committed nothing, so
+retry the complete write after a short jitter and re-evaluate its result. Do
+not treat it as backend downtime or use service-style exponential backoff.
+
+Tests for an authorization rule must assert the intended denial code
+(`SNAPBACK_AUTH_PERMISSION_DENIED`, for example), not merely that the write
+failed. A stale reservation is contention, not evidence that the rule ran.
+
 ## Declare structural uniqueness
 
 For one-row-per-key application invariants, declare a true unique index instead
@@ -1793,6 +1853,8 @@ that needs its successor fails before writing with
   read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
+- **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
+  denial.** Retry the whole attempt, then assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
 - **Do not infer success from HTTP status alone.** Consume the result,
@@ -3400,10 +3462,28 @@ format 5 deletion-only. Drain and upgrade every process or browser context
 sharing one physical client-store key together; upgrading only the Agent
 custody directory does not make a mixed-version client-store writer safe.
 
-Start app boot with `health()`, then
-`ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions
-only missing/mismatched artifacts and seeds only empty tables. Never reset as a
-mount side effect.
+Start app boot with `health()`. For a `dev`-mode app, follow it with
+`ensureApp({ schema, functions, seed, routes })`. Ensure is idempotent: it
+provisions only missing/mismatched artifacts and seeds only empty tables.
+
+For sessions artifacts, configure `adminToken` and select the privileged
+request explicitly:
+
+```js fragment reason="generated manifests and seed are app inputs"
+await client.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+The client sends that variant through its admin transport. Missing credentials
+are an authorization error; matching hashes do not bypass the gate. A fresh
+mode transition requires the server restart named by its staged-mode response.
+The explicit variant currently refuses `routes`; ensure routes separately only
+on the legacy `dev` path. Never reset as a mount side effect.
 
 ## Call ordinary functions
 
@@ -4798,13 +4878,13 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Your first backend
@@ -4996,8 +5076,30 @@ the endpoints:
   await db.seed(JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8')));
 ```
 
-(`db.ensureApp({ schema, functions, seed })` is the idempotent form —
-provisions only what's missing, seeds only empty tables.)
+For a `dev`-mode app,
+`db.ensureApp({ schema, functions, seed })` is the idempotent form: it
+provisions only what's missing and seeds only empty tables.
+
+Sessions-mode provisioning is deliberately explicit and admin-authorized:
+
+```js fragment reason="generated manifests and seed come from the app build"
+const db = new SnapbackClient(baseUrl, { adminToken });
+await db.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+The untagged legacy body is refused once sessions mode is active. Explicit
+provisioning always carries the client's configured admin token and remains
+non-production-profile gated, even when artifact hashes already match. A fresh
+`dev → sessions` provision stages the sessions deployment and closes app data
+until the required process restart consumes it; same-mode sessions provisioning
+is idempotent without weakening the gate. Explicit mode provisioning does not
+yet accept a routes manifest.
 
 Then call it. Function references are the generated `api.<name>` objects
 from `generated/api.mjs`, and mutations return structured results:
