@@ -53,6 +53,16 @@ public struct SubscriptionEntry: Sendable {
     /// socket/background loss so fresh re-subscribe is semantically exact.
     public var args: JSONValue = .null
     public var authorizationNamespace: JSONValue? = nil
+    /// Exact server-issued subscription scope. The subscription id alone is
+    /// not custody: issuer, connection generation, namespace, and sequence are
+    /// all part of the non-reusable fence.
+    public var authorizationScope: JSONValue? = nil
+    /// Highest authenticated authorization expectation observed for this
+    /// exact scope. It advances even while a newer obligation is unresolved,
+    /// so delayed lower-epoch tickets cannot release quarantine.
+    public var acceptedAuthorization: AuthorizationVersion? = nil
+    public var authorizationVersionStream: String? = nil
+    public var authorizationOwnerContinuityId: String? = nil
     public var rows: [String: JSONValue] = [:]
     /// Row order as last replaced; deltas are unordered by contract.
     public var rowOrder: [String] = []
@@ -65,6 +75,13 @@ public struct SubscriptionEntry: Sendable {
     /// fence, independent of the ordinary data version: a later
     /// authorization snapshot may validly carry the same data version.
     public var appliedAuthorizationInvalidation: AppliedAuthorizationInvalidation? = nil
+    /// Monotone even while rows are quarantined and `state` no longer carries
+    /// a live version.
+    public var dataVersionHighWater: UInt64? = nil
+    /// Highest obligation revision observed for the exact scope, including an
+    /// unresolved level-triggered obligation.
+    public var invalidationRevisionHighWater: UInt64? = nil
+    public var pendingAuthorizationObligation: JSONValue? = nil
 
     public var orderedRows: [JSONValue] {
         rowOrder.compactMap { rows[$0] }
@@ -120,19 +137,34 @@ public final class ClientStateMachine {
     /// Whether retained ephemeral overlays exist; the connection-wide
     /// clear-retained transition blanks them (T-OVERFLOW / T-DB / T-DB-P).
     public private(set) var retainedOverlaysCleared = false
+    public private(set) var authorizationInvalidationConnection:
+        AuthorizationInvalidationConnection?
+    /// An ACK token is bound to one exact committed ticket. Retaining that
+    /// binding prevents a later scope or revision from reusing the token.
+    private var appliedAuthorizationInvalidationsByAckToken:
+        [String: AppliedAuthorizationInvalidation] = [:]
 
     public init() {}
 
     // MARK: lifecycle bookkeeping driven by the transport client
 
-    public func noteGranted() { phase = .granted }
+    public func noteGranted(
+        authorizationInvalidation:
+            AuthorizationInvalidationConnection? = nil
+    ) {
+        phase = .granted
+        authorizationInvalidationConnection = authorizationInvalidation
+    }
     public func noteAttached(poll: Bool) { phase = poll ? .attachedPoll : .attachedLive }
     public func noteClosed() { phase = .closed }
     public func noteGrantLost() {
         // T-GRANT-LOSS (§4.4): recovery re-opens and re-establishes every
         // subscription; retained overlays are void.
         phase = .grantLost
-        for id in subscriptions.keys { subscriptions[id]?.state = .dropped }
+        for (id, entry) in subscriptions
+        where entry.state != .released && entry.state != .terminalDeleted {
+            subscriptions[id]?.state = .dropped
+        }
     }
 
     /// T-LOSS: socket loss drops the connection's durable subscriptions
@@ -141,7 +173,8 @@ public final class ClientStateMachine {
     public func noteSocketLost() -> [String] {
         phase = .recovering
         var toReenter: [String] = []
-        for (id, entry) in subscriptions where entry.state != .released {
+        for (id, entry) in subscriptions
+        where entry.state != .released && entry.state != .terminalDeleted {
             subscriptions[id]?.state = .dropped
             toReenter.append(id)
         }
@@ -152,13 +185,19 @@ public final class ClientStateMachine {
         subscriptionId: String,
         function: String,
         args: JSONValue = .null,
-        authorizationNamespace: JSONValue? = nil
+        authorizationNamespace: JSONValue? = nil,
+        authorizationScope: JSONValue? = nil,
+        acceptedAuthorization: AuthorizationVersion? = nil,
+        authorizationVersionStream: String? = nil
     ) {
         subscriptions[subscriptionId] = SubscriptionEntry(
             function: function,
             state: .pending,
             args: args,
-            authorizationNamespace: authorizationNamespace
+            authorizationNamespace: authorizationNamespace,
+            authorizationScope: authorizationScope,
+            acceptedAuthorization: acceptedAuthorization,
+            authorizationVersionStream: authorizationVersionStream
         )
     }
 
@@ -174,14 +213,28 @@ public final class ClientStateMachine {
         snapshot: QuerySnapshot,
         authUserId: String? = nil,
         args: JSONValue? = nil,
-        authorizationNamespace: JSONValue? = nil
+        authorizationNamespace: JSONValue? = nil,
+        authorizationScope: JSONValue? = nil,
+        acceptedAuthorization: AuthorizationVersion? = nil,
+        authorizationVersionStream: String? = nil
     ) {
         var entry = subscriptions[subscriptionId] ?? SubscriptionEntry(function: function, state: .pending)
         entry.function = function
         if let authUserId { entry.authUserId = authUserId }
         if let args { entry.args = args }
         if let authorizationNamespace { entry.authorizationNamespace = authorizationNamespace }
+        if let authorizationScope { entry.authorizationScope = authorizationScope }
+        if let acceptedAuthorization {
+            entry.acceptedAuthorization = acceptedAuthorization
+        }
+        if let authorizationVersionStream {
+            entry.authorizationVersionStream = authorizationVersionStream
+        }
         entry.state = .live(version: snapshot.version)
+        entry.dataVersionHighWater = max(
+            entry.dataVersionHighWater ?? 0,
+            snapshot.version
+        )
         entry.rows = [:]
         entry.rowOrder = []
         for row in snapshot.rows {
@@ -201,7 +254,9 @@ public final class ClientStateMachine {
 
     public func noteSuspended(subscriptionIds: [String]) {
         phase = .closed
-        for id in subscriptionIds where subscriptions[id] != nil {
+        for id in subscriptionIds
+        where subscriptions[id] != nil
+            && subscriptions[id]?.state != .terminalDeleted {
             subscriptions[id]?.state = .dropped
         }
     }
@@ -218,6 +273,13 @@ public final class ClientStateMachine {
         }
         switch decoded.value {
         case .liveReplace(let subscriptionId, let function, let version, let rows, _):
+            if subscriptions[subscriptionId]?.state == .terminalDeleted {
+                return terminalReuseDiagnostic(subscriptionId)
+            }
+            if subscriptions[subscriptionId]?
+                .pendingAuthorizationObligation != nil {
+                return authorizationQuarantineDiagnostic(subscriptionId)
+            }
             guard admitVersion(subscriptionId, version) else {
                 actions.append(.dropStale)
                 break
@@ -225,6 +287,13 @@ public final class ClientStateMachine {
             applySnapshot(subscriptionId: subscriptionId, function: function, snapshot: QuerySnapshot(version: version, rows: rows, cursor: nil))
             actions.append(.replaceRows)
         case .liveDelta(let subscriptionId, let function, let version, let ops, _):
+            if subscriptions[subscriptionId]?.state == .terminalDeleted {
+                return terminalReuseDiagnostic(subscriptionId)
+            }
+            if subscriptions[subscriptionId]?
+                .pendingAuthorizationObligation != nil {
+                return authorizationQuarantineDiagnostic(subscriptionId)
+            }
             guard admitVersion(subscriptionId, version) else {
                 actions.append(.dropStale)
                 break
@@ -241,18 +310,36 @@ public final class ClientStateMachine {
                 }
             }
             entry.state = .live(version: version)
+            entry.dataVersionHighWater = max(
+                entry.dataVersionHighWater ?? 0,
+                version
+            )
             subscriptions[subscriptionId] = entry
             actions.append(.applyDeltaById)
         case .currentAsOf(let subscriptionId, _, let version, _):
+            if subscriptions[subscriptionId]?.state == .terminalDeleted {
+                return terminalReuseDiagnostic(subscriptionId)
+            }
+            if subscriptions[subscriptionId]?
+                .pendingAuthorizationObligation != nil {
+                return authorizationQuarantineDiagnostic(subscriptionId)
+            }
             // Rows stay; version advances (LLP 0091 rung 1). Sent only to a
             // resumeFromToken subscriber.
             if admitVersion(subscriptionId, version), var entry = subscriptions[subscriptionId] {
                 entry.state = .live(version: version)
+                entry.dataVersionHighWater = max(
+                    entry.dataVersionHighWater ?? 0,
+                    version
+                )
                 subscriptions[subscriptionId] = entry
                 actions.append(.adoptResumeToken)
             }
         case .resyncRequired(let subscriptionId, _, let clearRetained, _, _):
             if let subscriptionId {
+                if subscriptions[subscriptionId]?.state == .terminalDeleted {
+                    return terminalReuseDiagnostic(subscriptionId)
+                }
                 // T-RESYNC: subscription-scoped; unknown reasons never change
                 // the transition.
                 subscriptions[subscriptionId]?.state = .resyncPending
@@ -287,6 +374,31 @@ public final class ClientStateMachine {
                 )
             }
 
+            if let custodyProblem = invalidationCustodyProblem(
+                obligation,
+                entry: scopedEntry
+            ) {
+                diagnostics.append(custodyProblem)
+                return MachineEvent(
+                    actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                    resubscribe: [],
+                    diagnostics: diagnostics
+                )
+            }
+
+            if let resolution,
+               let accepted = appliedAuthorizationInvalidationsByAckToken[
+                resolution.ackToken
+               ],
+               accepted != AppliedAuthorizationInvalidation(
+                obligation: obligation.raw,
+                resolution: resolution.raw
+               ) {
+                return protocolInvalidationDiagnostic(
+                    "authorization invalidation reused an accepted ACK token with changed ticket fields"
+                )
+            }
+
             if let resolution,
                scopedEntry.appliedAuthorizationInvalidation
                 == AppliedAuthorizationInvalidation(
@@ -303,37 +415,52 @@ public final class ClientStateMachine {
                 )
             }
 
-            if let applied = scopedEntry.appliedAuthorizationInvalidation,
-               applied.obligation["scopeId"] == obligation.scopeId,
-               let appliedRevision = applied.obligation["revision"]?.uint64Value {
-                if obligation.revision < appliedRevision {
-                    diagnostics.append(
-                        "authorization invalidation revision \(obligation.revision) is older than applied revision \(appliedRevision)"
-                    )
-                    return MachineEvent(
-                        actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
-                        resubscribe: [],
-                        diagnostics: diagnostics
-                    )
-                }
-                if obligation.revision == appliedRevision {
-                    // The identical pair returned above. Any other semantic
-                    // content at one exact scope/revision is corruption and
-                    // must neither reapply nor ACK.
-                    diagnostics.append(
-                        "authorization invalidation reused one scope revision with conflicting obligation or resolution content"
-                    )
-                    return MachineEvent(
-                        actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
-                        resubscribe: [],
-                        diagnostics: diagnostics
-                    )
-                }
+            if scopedEntry.state == .terminalDeleted {
+                return terminalReuseDiagnostic(scopeSubscriptionId)
             }
 
-            guard let resolution,
-                  obligation.isSatisfied(by: resolution)
-            else {
+            let previousRevision = scopedEntry.invalidationRevisionHighWater
+            let wasCurrentPending = previousRevision == obligation.revision
+                && scopedEntry.pendingAuthorizationObligation == obligation.raw
+            if let previousRevision, obligation.revision < previousRevision {
+                diagnostics.append(
+                    "authorization invalidation revision \(obligation.revision) is older than observed revision \(previousRevision)"
+                )
+                return MachineEvent(
+                    actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                    resubscribe: [],
+                    diagnostics: diagnostics
+                )
+            }
+            if let previousRevision,
+               obligation.revision == previousRevision,
+               !wasCurrentPending {
+                // The identical applied pair returned above. Any other
+                // obligation at one exact scope/revision is corruption.
+                diagnostics.append(
+                    "authorization invalidation reused one scope revision with conflicting obligation or resolution content"
+                )
+                return MachineEvent(
+                    actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+                    resubscribe: [],
+                    diagnostics: diagnostics
+                )
+            }
+
+            // Observe the obligation before inspecting its optional proof. A
+            // newer unresolved revision is itself the high-water that fences a
+            // delayed older resolution.
+            scopedEntry.invalidationRevisionHighWater = obligation.revision
+            scopedEntry.pendingAuthorizationObligation = obligation.raw
+            if scopedEntry.authorizationOwnerContinuityId == nil {
+                scopedEntry.authorizationOwnerContinuityId =
+                    obligation.ownerContinuityId
+            }
+            if let authorization = obligation.authorization {
+                scopedEntry.acceptedAuthorization = authorization
+            }
+
+            guard let resolution else {
                 scopedEntry.rows.removeAll()
                 scopedEntry.rowOrder.removeAll()
                 scopedEntry.state = .resyncPending
@@ -349,57 +476,103 @@ public final class ClientStateMachine {
                     materializationChanges: [scopeSubscriptionId]
                 )
             }
+            guard obligation.isSatisfied(by: resolution) else {
+                if wasCurrentPending {
+                    return protocolInvalidationDiagnostic(
+                        "authorization invalidation resolution does not satisfy the exact pending obligation"
+                    )
+                }
+                return quarantineInvalidation(
+                    subscriptionId: scopeSubscriptionId,
+                    entry: scopedEntry,
+                    diagnostic:
+                        "authorization invalidation resolution does not satisfy the exact obligation",
+                    surfaceProtocolDiagnostic: true,
+                    ignoreFrame: true
+                )
+            }
 
-            let destructive = resolution.kind == .terminalDelete
-                || resolution.maxDisposition == "delete"
+            switch resolution.kind {
+            case .snapshot:
+                guard snapshot != nil else {
+                    return quarantineInvalidation(
+                        subscriptionId: scopeSubscriptionId,
+                        entry: scopedEntry,
+                        diagnostic:
+                            "snapshot resolution omitted its superseding snapshot",
+                        surfaceProtocolDiagnostic: true,
+                        ignoreFrame: true
+                    )
+                }
+            case .terminalDelete:
+                guard snapshot == nil, resolution.maxDisposition == "delete"
+                else {
+                    diagnostics.append(
+                        "terminalDelete resolution must carry delete disposition and no snapshot"
+                    )
+                    if wasCurrentPending {
+                        return MachineEvent(
+                            actions: [
+                                .surfaceProtocolDiagnostic, .ignoreFrame,
+                            ],
+                            resubscribe: [],
+                            diagnostics: diagnostics
+                        )
+                    }
+                    return quarantineInvalidation(
+                        subscriptionId: scopeSubscriptionId,
+                        entry: scopedEntry,
+                        diagnostic: diagnostics[0],
+                        surfaceProtocolDiagnostic: true,
+                        ignoreFrame: true
+                    )
+                }
+            }
+
             actions.append(.quarantineRows)
-            if destructive {
+            if resolution.kind == .terminalDelete {
                 // @ref LLP 0053#dispositions-with-producers-and-meanings — a terminal-delete resolution destroys the readable materialization and persists the exact fence before ACK.
                 scopedEntry.rows.removeAll()
                 scopedEntry.rowOrder.removeAll()
                 scopedEntry.state = .terminalDeleted
+                scopedEntry.pendingAuthorizationObligation = nil
                 scopedEntry.appliedAuthorizationInvalidation =
                     AppliedAuthorizationInvalidation(
                         obligation: obligation.raw,
                         resolution: resolution.raw
                     )
                 subscriptions[scopeSubscriptionId] = scopedEntry
+                appliedAuthorizationInvalidationsByAckToken[
+                    resolution.ackToken
+                ] = scopedEntry.appliedAuthorizationInvalidation
                 actions.append(.applyInvalidationTerminalDelete)
             } else {
                 guard let snapshot else {
-                    scopedEntry.rows.removeAll()
-                    scopedEntry.rowOrder.removeAll()
-                    scopedEntry.state = .resyncPending
-                    subscriptions[scopeSubscriptionId] = scopedEntry
-                    diagnostics.append(
-                        "snapshot resolution omitted its superseding snapshot; materialization quarantined"
-                    )
-                    return MachineEvent(
-                        actions: actions,
-                        resubscribe: [],
-                        diagnostics: diagnostics,
-                        materializationChanges: [scopeSubscriptionId]
-                    )
+                    preconditionFailure("snapshot kind checked above")
                 }
-                if case .live(let heldVersion) = scopedEntry.state,
-                   snapshot.version < heldVersion {
-                    scopedEntry.rows.removeAll()
-                    scopedEntry.rowOrder.removeAll()
-                    scopedEntry.state = .resyncPending
-                    subscriptions[scopeSubscriptionId] = scopedEntry
-                    diagnostics.append(
-                        "authorization snapshot regressed data version for \(scopeSubscriptionId)"
-                    )
-                    return MachineEvent(
-                        actions: actions,
-                        resubscribe: [],
-                        diagnostics: diagnostics,
-                        materializationChanges: [scopeSubscriptionId]
+                let obligationFloor = obligation.minimumCommitVersion ?? 0
+                let resolutionFloor =
+                    resolution.witness["data"]?["minCommitVersion"]?
+                    .uint64Value ?? 0
+                let requiredFloor = max(
+                    scopedEntry.dataVersionHighWater ?? 0,
+                    max(obligationFloor, resolutionFloor)
+                )
+                guard snapshot.version >= requiredFloor,
+                      snapshot.function == scopedEntry.function
+                else {
+                    return quarantineInvalidation(
+                        subscriptionId: scopeSubscriptionId,
+                        entry: scopedEntry,
+                        diagnostic:
+                            "authorization snapshot does not cover its data floor/function for \(scopeSubscriptionId)",
+                        surfaceProtocolDiagnostic: true
                     )
                 }
                 // Authorization identity is a separate ordering dimension:
                 // equal data versions are admissible for a first-seen exact
                 // obligation/resolution pair.
+                subscriptions[scopeSubscriptionId] = scopedEntry
                 applySnapshot(
                     subscriptionId: snapshot.subscriptionId,
                     function: snapshot.function,
@@ -410,11 +583,17 @@ public final class ClientStateMachine {
                     )
                 )
                 subscriptions[scopeSubscriptionId]?
+                    .pendingAuthorizationObligation = nil
+                subscriptions[scopeSubscriptionId]?
                     .appliedAuthorizationInvalidation =
                     AppliedAuthorizationInvalidation(
                         obligation: obligation.raw,
                         resolution: resolution.raw
                     )
+                appliedAuthorizationInvalidationsByAckToken[
+                    resolution.ackToken
+                ] = subscriptions[scopeSubscriptionId]?
+                    .appliedAuthorizationInvalidation
                 actions.append(.applyInvalidationSnapshot)
             }
             actions.append(.acknowledgeObligation)
@@ -435,6 +614,7 @@ public final class ClientStateMachine {
         var actions: [ClientAction] = []
         var resubscribe: [String] = []
         var diagnostics: [String] = []
+        var materializationChanges: [String] = []
         if decoded.hadUnknownFields { actions.append(.ignoreUnknownFields) }
         switch decoded.value {
         case .durableBytes:
@@ -447,6 +627,9 @@ public final class ClientStateMachine {
             let event = forceConnectionWideResync()
             actions.append(contentsOf: event.actions)
             resubscribe.append(contentsOf: event.resubscribe)
+            materializationChanges.append(
+                contentsOf: event.materializationChanges
+            )
             diagnostics.append("durable_bytes: undecodable durable payload; forced connection-wide resync")
         case .authError(let code, let reason, let disposition):
             phase = .terminalAuth
@@ -455,7 +638,12 @@ public final class ClientStateMachine {
         case .pong, .senderNonce, .ephemeralAck, .ephemeralError, .ephemeral:
             break // control traffic; no durable-state obligation here
         }
-        return MachineEvent(actions: actions, resubscribe: resubscribe, diagnostics: diagnostics)
+        return MachineEvent(
+            actions: actions,
+            resubscribe: resubscribe,
+            diagnostics: diagnostics,
+            materializationChanges: materializationChanges
+        )
     }
 
     // MARK: generic dispatch and the drain (lane P)
@@ -494,6 +682,7 @@ public final class ClientStateMachine {
         var resubscribe: [String] = []
         var diagnostics: [String] = []
         var acknowledgements: [String] = []
+        var materializationChanges: [String] = []
         var sawMalformed = false
         var deliveredRemainder = false
         for item in items {
@@ -501,6 +690,9 @@ public final class ClientStateMachine {
                 sawMalformed = true
                 let event = undecodablePostCut(context: "malformed drain item")
                 merge(event, into: &actions, &resubscribe, &diagnostics)
+                materializationChanges.append(
+                    contentsOf: event.materializationChanges
+                )
                 continue
             }
             switch envelope {
@@ -512,10 +704,16 @@ public final class ClientStateMachine {
                     sawMalformed = true
                     let event = undecodablePostCut(context: "undecodable durable payload in acknowledged batch")
                     merge(event, into: &actions, &resubscribe, &diagnostics)
+                    materializationChanges.append(
+                        contentsOf: event.materializationChanges
+                    )
                     continue
                 }
                 let event = ingestFrame(inner, postOwnershipCut: true)
                 acknowledgements.append(contentsOf: event.acknowledgements)
+                materializationChanges.append(
+                    contentsOf: event.materializationChanges
+                )
                 if sawMalformed {
                     // Remainder delivery after a malformed item: the item is
                     // still fully processed (state mutates, resubscribes and
@@ -546,12 +744,16 @@ public final class ClientStateMachine {
             let finalResync = forceConnectionWideResync()
             actions.append(contentsOf: finalResync.actions)
             resubscribe.append(contentsOf: finalResync.resubscribe)
+            materializationChanges.append(
+                contentsOf: finalResync.materializationChanges
+            )
         }
         return MachineEvent(
             actions: dedupe(actions),
             resubscribe: resubscribe,
             diagnostics: diagnostics,
-            acknowledgements: acknowledgements
+            acknowledgements: acknowledgements,
+            materializationChanges: Array(Set(materializationChanges))
         )
     }
 
@@ -562,12 +764,18 @@ public final class ClientStateMachine {
     /// ephemeral overlays clear.
     public func forceConnectionWideResync() -> MachineEvent {
         var resubscribe: [String] = []
-        for (id, entry) in subscriptions where entry.state != .released {
+        for (id, entry) in subscriptions
+        where entry.state != .released && entry.state != .terminalDeleted {
             subscriptions[id]?.state = .resyncPending
             resubscribe.append(id)
         }
         retainedOverlaysCleared = true
-        return MachineEvent(actions: [.resubscribeAll, .clearRetainedOverlays], resubscribe: resubscribe, diagnostics: [])
+        return MachineEvent(
+            actions: [.resubscribeAll, .clearRetainedOverlays],
+            resubscribe: resubscribe,
+            diagnostics: [],
+            materializationChanges: resubscribe
+        )
     }
 
     private func undecodablePostCut(context: String) -> MachineEvent {
@@ -586,9 +794,134 @@ public final class ClientStateMachine {
             // client-side): drop-stale is the safe posture.
             return false
         }
-        if case .live(let held) = entry.state { return version > held }
-        // pending/resyncPending: admit; the fresh snapshot supersedes anyway.
-        return true
+        switch entry.state {
+        case .live(let held):
+            return version > held
+        case .pending, .resyncPending:
+            return version >= (entry.dataVersionHighWater ?? 0)
+        case .terminalDeleted, .dropped, .released:
+            return false
+        }
+    }
+
+    private func invalidationCustodyProblem(
+        _ obligation: AuthorizationInvalidationObligation,
+        entry: SubscriptionEntry
+    ) -> String? {
+        guard let heldScope = entry.authorizationScope,
+              heldScope == obligation.scopeId
+        else {
+            return "authorization invalidation scope does not equal the held subscription scope"
+        }
+        if let heldNamespace = entry.authorizationNamespace,
+           heldNamespace != obligation.namespace {
+            return "authorization invalidation namespace does not equal the held materialization namespace"
+        }
+        guard let authorization = obligation.authorization else {
+            return "authorization invalidation has no valid authorization witness"
+        }
+        if let held = entry.acceptedAuthorization {
+            guard held.incarnation == authorization.incarnation,
+                  authorization.epoch >= held.epoch
+            else {
+                return "authorization invalidation regressed the authenticated authorization expectation"
+            }
+        }
+        guard obligation.versionStream != nil,
+              obligation.minimumCommitVersion != nil
+        else {
+            return "subscription authorization invalidation omitted its data stream/floor"
+        }
+        if let heldStream = entry.authorizationVersionStream,
+           heldStream != obligation.versionStream {
+            return "authorization invalidation names a foreign data version stream"
+        }
+        if let owner = entry.authorizationOwnerContinuityId,
+           owner != obligation.ownerContinuityId {
+            return "authorization invalidation names a foreign owner continuity"
+        }
+        if let connection = authorizationInvalidationConnection {
+            guard obligation.protocolVersion == connection.protocolVersion,
+                  obligation.issuerId == connection.issuerId,
+                  obligation.connectionGeneration
+                    == connection.connectionGeneration,
+                  authorization == connection.authorization
+            else {
+                return "authorization invalidation is outside the authenticated connection expectation"
+            }
+            if obligation.versionStream != connection.versionStream {
+                return "authorization invalidation is outside the authenticated connection data stream"
+            }
+        }
+        return nil
+    }
+
+    private func quarantineInvalidation(
+        subscriptionId: String,
+        entry: SubscriptionEntry,
+        diagnostic: String,
+        surfaceProtocolDiagnostic: Bool,
+        ignoreFrame: Bool = false
+    ) -> MachineEvent {
+        var entry = entry
+        entry.rows.removeAll()
+        entry.rowOrder.removeAll()
+        entry.state = .resyncPending
+        subscriptions[subscriptionId] = entry
+        var actions: [ClientAction] = [.quarantineRows]
+        if surfaceProtocolDiagnostic {
+            actions.append(.surfaceProtocolDiagnostic)
+        }
+        if ignoreFrame {
+            actions.append(.ignoreFrame)
+        }
+        return MachineEvent(
+            actions: actions,
+            resubscribe: [],
+            diagnostics: [diagnostic],
+            materializationChanges: [subscriptionId]
+        )
+    }
+
+    private func terminalReuseDiagnostic(
+        _ subscriptionId: String
+    ) -> MachineEvent {
+        MachineEvent(
+            actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+            resubscribe: [],
+            diagnostics: [
+                "ordinary live frame attempted to resurrect terminal-deleted subscription \(subscriptionId)",
+            ]
+        )
+    }
+
+    private func authorizationQuarantineDiagnostic(
+        _ subscriptionId: String
+    ) -> MachineEvent {
+        MachineEvent(
+            actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+            resubscribe: [],
+            diagnostics: [
+                "ordinary live frame cannot release authorization quarantine for \(subscriptionId)",
+            ]
+        )
+    }
+
+    private func protocolInvalidationDiagnostic(
+        _ diagnostic: String
+    ) -> MachineEvent {
+        MachineEvent(
+            actions: [.surfaceProtocolDiagnostic, .ignoreFrame],
+            resubscribe: [],
+            diagnostics: [diagnostic]
+        )
+    }
+
+    public func hasTerminalRetiredNamespace(_ namespace: JSONValue) -> Bool {
+        subscriptions.values.contains {
+            $0.state == .terminalDeleted
+                && $0.authorizationNamespace == namespace
+        }
     }
 
     private func merge(_ event: MachineEvent, into actions: inout [ClientAction], _ resubscribe: inout [String], _ diagnostics: inout [String]) {

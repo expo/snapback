@@ -69,6 +69,75 @@ private final class GrantRecoveryStubProtocol: URLProtocol, @unchecked Sendable 
         lock.unlock()
     }
 
+    private static let grantJSON =
+        """
+        {
+          "connectionId":"CONNECTION_ID",
+          "connectionToken":"CONNECTION_TOKEN",
+          "authorizationInvalidation":{
+            "protocolVersion":1,
+            "issuerId":{
+              "authorizationIncarnation":"0198c7aa-1234-7000-8000-000000000001",
+              "bootSequence":1,
+              "bootNonce":"AAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "connectionGeneration":1,
+            "authorization":{
+              "incarnation":"0198c7aa-1234-7000-8000-000000000001",
+              "epoch":1
+            },
+            "versionStream":"swift-stream"
+          }
+        }
+        """
+
+    private static func grantBody(id: String, token: String) -> Data {
+        Data(
+            grantJSON
+                .replacingOccurrences(of: "CONNECTION_ID", with: id)
+                .replacingOccurrences(of: "CONNECTION_TOKEN", with: token)
+                .utf8
+        )
+    }
+
+    private static func subscribeBody(
+        request: URLRequest,
+        id: String,
+        version: Int,
+        supersessionRefusal: Bool
+    ) -> Data {
+        _ = request
+        let namespace: [String: Any] = [
+            "clientStoreId": "swift_recovery_test",
+            "queryKey": "listPrivate:null",
+            "queryInstanceId": 1,
+        ]
+        var response: [String: Any] = [
+            "subscription_id": id,
+            "snapshot": ["version": version, "rows": []],
+            "receipt": NSNull(),
+            "resume": NSNull(),
+            "authorizationScope": [
+                "kind": "subscription",
+                "issuerId": [
+                    "authorizationIncarnation":
+                        "0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence": 1,
+                    "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                ],
+                "namespace": namespace,
+                "scopeSequence": version,
+                "connectionGeneration": 1,
+                "subscriptionId": id,
+            ],
+        ]
+        if supersessionRefusal {
+            response["supersessionRefusal"] =
+                "SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN"
+        }
+        return try! JSONSerialization.data(withJSONObject: response)
+    }
+
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
@@ -90,26 +159,41 @@ private final class GrantRecoveryStubProtocol: URLProtocol, @unchecked Sendable 
         Self.lock.unlock()
 
         let status: Int
-        let body: String
+        let body: Data
         switch index {
         case 0:
             status = 200
-            body = #"{"connectionId":"conn_old","connectionToken":"token_old"}"#
+            body = Self.grantBody(id: "conn_old", token: "token_old")
         case 1:
             status = 200
-            body = #"{"subscription_id":"sub_old","snapshot":{"version":1,"rows":[]},"receipt":null,"resume":null}"#
+            body = Self.subscribeBody(
+                request: request,
+                id: "sub_old",
+                version: 1,
+                supersessionRefusal: false
+            )
         case 2:
             status = 200
-            body = #"{"receipt":null}"#
+            body = Data(#"{"receipt":null}"#.utf8)
         case 3:
             status = 403
-            body = #"{"diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"idle reaper discarded grant","details":{}}}"#
+            body = Data(
+                #"{"diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"idle reaper discarded grant","details":{}}}"#.utf8
+            )
         case 4:
             status = 200
-            body = #"{"connectionId":"conn_fresh","connectionToken":"token_fresh"}"#
+            body = Self.grantBody(
+                id: "conn_fresh",
+                token: "token_fresh"
+            )
         default:
             status = 200
-            body = #"{"subscription_id":"sub_fresh","snapshot":{"version":2,"rows":[]},"receipt":null,"resume":null}"#
+            body = Self.subscribeBody(
+                request: request,
+                id: "sub_fresh",
+                version: 2,
+                supersessionRefusal: true
+            )
         }
         let response = HTTPURLResponse(
             url: request.url!,
@@ -118,11 +202,230 @@ private final class GrantRecoveryStubProtocol: URLProtocol, @unchecked Sendable 
             headerFields: ["content-type": "application/json"]
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
     }
 
     override func stopLoading() {}
+}
+
+private final class ResponseQueueStubProtocol: URLProtocol, @unchecked Sendable {
+    struct Response {
+        var status: Int
+        var body: String
+    }
+
+    private static let lock = NSLock()
+    private static var responses: [Response] = []
+    private(set) static var requestCount = 0
+    private(set) static var events: [String] = []
+
+    static func configure(_ values: [Response]) {
+        lock.lock()
+        responses = values
+        requestCount = 0
+        events = []
+        lock.unlock()
+    }
+
+    static func record(_ event: String) {
+        lock.lock()
+        events.append(event)
+        lock.unlock()
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        Self.lock.lock()
+        let index = Self.requestCount
+        Self.requestCount += 1
+        let response = index < Self.responses.count
+            ? Self.responses[index]
+            : Response(status: 200, body: #"{"receipt":null}"#)
+        Self.events.append(request.url?.path ?? "?")
+        Self.lock.unlock()
+        client?.urlProtocol(
+            self,
+            didReceive: HTTPURLResponse(
+                url: request.url!,
+                statusCode: response.status,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["content-type": "application/json"]
+            )!,
+            cacheStoragePolicy: .notAllowed
+        )
+        client?.urlProtocol(self, didLoad: Data(response.body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private let custodyNamespace: JSONValue = .object([
+    "clientStoreId": .string("swift_custody_test"),
+    "queryKey": .string("listPrivate:null"),
+    "queryInstanceId": .int(1),
+])
+
+private let custodyGrant =
+    """
+    {
+      "connectionId":"conn_custody",
+      "connectionToken":"token_custody",
+      "authorizationInvalidation":{
+        "protocolVersion":1,
+        "issuerId":{
+          "authorizationIncarnation":"0198c7aa-1234-7000-8000-000000000001",
+          "bootSequence":1,
+          "bootNonce":"AAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "connectionGeneration":1,
+        "authorization":{
+          "incarnation":"0198c7aa-1234-7000-8000-000000000001",
+          "epoch":1
+        },
+        "versionStream":"swift-stream"
+      }
+    }
+    """
+
+private func custodySubscribeOutput(
+    id: String,
+    bootNonce: String = "AAAAAAAAAAAAAAAAAAAAAA",
+    superseded: String? = nil,
+    supersessionRefusal: String? = nil,
+    includePendingProjection: Bool = false
+) -> String {
+    var witness = ""
+    if let superseded {
+        witness += #","superseded":"\#(superseded)""#
+    }
+    if let supersessionRefusal {
+        witness +=
+            #","supersessionRefusal":"\#(supersessionRefusal)""#
+    }
+    if includePendingProjection {
+        witness +=
+            """
+            ,"authorizationInvalidation":{
+              "obligation":{
+                "protocolVersion":1,
+                "scopeId":{
+                  "kind":"subscription",
+                  "issuerId":{
+                    "authorizationIncarnation":"0198c7aa-1234-7000-8000-000000000001",
+                    "bootSequence":1,
+                    "bootNonce":"\(bootNonce)"
+                  },
+                  "namespace":{
+                    "clientStoreId":"swift_custody_test",
+                    "queryKey":"listPrivate:null",
+                    "queryInstanceId":1
+                  },
+                  "scopeSequence":1,
+                  "connectionGeneration":1,
+                  "subscriptionId":"\(id)"
+                },
+                "revision":1,
+                "maxDisposition":"quarantine",
+                "witness":{
+                  "authorization":{
+                    "incarnation":"0198c7aa-1234-7000-8000-000000000001",
+                    "epoch":1
+                  },
+                  "data":{
+                    "versionStream":"swift-stream",
+                    "minCommitVersion":1
+                  }
+                },
+                "retryEpisodeId":null,
+                "ownerContinuityId":"owner_swift"
+              }
+            }
+            """
+    }
+    return
+        """
+        {
+          "subscription_id":"\(id)",
+          "snapshot":{"version":1,"rows":[]},
+          "receipt":null,
+          "resume":null,
+          "authorizationScope":{
+            "kind":"subscription",
+            "issuerId":{
+              "authorizationIncarnation":"0198c7aa-1234-7000-8000-000000000001",
+              "bootSequence":1,
+              "bootNonce":"\(bootNonce)"
+            },
+            "namespace":{
+              "clientStoreId":"swift_custody_test",
+              "queryKey":"listPrivate:null",
+              "queryInstanceId":1
+            },
+            "scopeSequence":1,
+            "connectionGeneration":1,
+            "subscriptionId":"\(id)"
+          }
+          \(witness)
+        }
+        """
+}
+
+private func custodyTerminalFrame(_ subscriptionId: String) -> JSONValue {
+    let issuer: JSONValue = .object([
+        "authorizationIncarnation":
+            .string("0198c7aa-1234-7000-8000-000000000001"),
+        "bootSequence": .int(1),
+        "bootNonce": .string("AAAAAAAAAAAAAAAAAAAAAA"),
+    ])
+    let namespace = custodyNamespace
+    let scope: JSONValue = .object([
+        "kind": .string("subscription"),
+        "issuerId": issuer,
+        "namespace": namespace,
+        "scopeSequence": .int(1),
+        "connectionGeneration": .int(1),
+        "subscriptionId": .string(subscriptionId),
+    ])
+    let witness: JSONValue = .object([
+        "authorization": .object([
+            "incarnation":
+                .string("0198c7aa-1234-7000-8000-000000000001"),
+            "epoch": .int(1),
+        ]),
+        "data": .object([
+            "versionStream": .string("swift-stream"),
+            "minCommitVersion": .int(1),
+        ]),
+    ])
+    return .object([
+        "kind": .string("authorization_invalidation"),
+        "obligation": .object([
+            "protocolVersion": .int(1),
+            "scopeId": scope,
+            "revision": .int(1),
+            "maxDisposition": .string("delete"),
+            "witness": witness,
+            "retryEpisodeId": .null,
+            "ownerContinuityId": .string("owner_swift"),
+        ]),
+        "snapshot": .null,
+        "resolution": .object([
+            "protocolVersion": .int(1),
+            "kind": .string("terminalDelete"),
+            "scopeId": scope,
+            "revision": .int(1),
+            "witness": witness,
+            "maxDisposition": .string("delete"),
+            "ackToken": .string("ack_poll_client"),
+            "ownerContinuityId": .string("owner_swift"),
+        ]),
+    ])
 }
 
 private final class UpdateCollector: @unchecked Sendable {
@@ -148,6 +451,227 @@ final class ClientBehaviorTests: XCTestCase {
         configuration.reservationRetryMaxAttempts = maxAttempts
         configuration.reservationRetryJitterMilliseconds = 0...0
         return SnapbackClient(configuration: configuration, session: session)
+    }
+
+    private func responseQueueClient() -> SnapbackClient {
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [ResponseQueueStubProtocol.self]
+        var configuration = SnapbackClient.Configuration(
+            baseURL: URL(string: "https://snapback.invalid")!
+        )
+        configuration.sessionBearer = "sbs_native_test"
+        return SnapbackClient(
+            configuration: configuration,
+            session: URLSession(configuration: sessionConfiguration)
+        )
+    }
+
+    func testSessionsGrantRequiresNegotiatedInvalidationExpectation() async {
+        ResponseQueueStubProtocol.configure([
+            .init(
+                status: 200,
+                body:
+                    #"{"connectionId":"conn","connectionToken":"token"}"#
+            ),
+        ])
+        do {
+            _ = try await responseQueueClient().openConnection()
+            XCTFail("sessions grant without invalidation expectation passed")
+        } catch let SnapbackClient.ClientError.undecodableResponse(detail) {
+            XCTAssertTrue(detail.contains("authorization invalidation"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
+    func testSessionsSubscribeRejectsForeignIssuerScope() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(
+                    id: "sub_foreign",
+                    bootNonce: "BBBBBBBBBBBBBBBBBBBBBB"
+                )
+            ),
+            .init(status: 200, body: #"{"receipt":null}"#),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        do {
+            _ = try await subject.subscribe(
+                function: "listPrivate",
+                authorizationNamespace: custodyNamespace
+            )
+            XCTFail("foreign issuer scope passed subscribe custody")
+        } catch let SnapbackClient.ClientError.undecodableResponse(detail) {
+            XCTAssertTrue(detail.contains("subscribe output scope"))
+        }
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertNil(subscriptions["sub_foreign"])
+        XCTAssertEqual(ResponseQueueStubProtocol.requestCount, 3)
+    }
+
+    func testMissingSupersessionWitnessKeepsPredecessor() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(id: "sub_predecessor")
+            ),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(id: "sub_unwitnessed")
+            ),
+            .init(status: 200, body: #"{"receipt":null}"#),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        _ = try await subject.subscribe(
+            function: "listPrivate",
+            authorizationNamespace: custodyNamespace
+        )
+        do {
+            _ = try await subject.subscribe(
+                function: "listPrivate",
+                supersedes: "sub_predecessor",
+                authorizationNamespace: custodyNamespace
+            )
+            XCTFail("unwitnessed supersession passed")
+        } catch let SnapbackClient.ClientError.undecodableResponse(detail) {
+            XCTAssertTrue(detail.contains("supersession witness"))
+        }
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertEqual(
+            subscriptions["sub_predecessor"]?.state,
+            .live(version: 1)
+        )
+        XCTAssertNil(subscriptions["sub_unwitnessed"])
+    }
+
+    func testSupersessionRejectsReusedScopeSequence() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(id: "sub_scope_1")
+            ),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(
+                    id: "sub_scope_2",
+                    superseded: "sub_scope_1"
+                )
+            ),
+            .init(status: 200, body: #"{"receipt":null}"#),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        _ = try await subject.subscribe(
+            function: "listPrivate",
+            authorizationNamespace: custodyNamespace
+        )
+        do {
+            _ = try await subject.subscribe(
+                function: "listPrivate",
+                supersedes: "sub_scope_1",
+                authorizationNamespace: custodyNamespace
+            )
+            XCTFail("reused scope sequence passed")
+        } catch let SnapbackClient.ClientError.undecodableResponse(detail) {
+            XCTAssertTrue(detail.contains("scope sequence"))
+        }
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertNotNil(subscriptions["sub_scope_1"])
+        XCTAssertNil(subscriptions["sub_scope_2"])
+    }
+
+    func testInitialSubscribeProjectionIsQuarantinedBeforeExposure() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: custodySubscribeOutput(
+                    id: "sub_pending_projection",
+                    includePendingProjection: true
+                )
+            ),
+        ])
+        let subject = responseQueueClient()
+        let collector = UpdateCollector()
+        await subject.onUpdate { _, rows in collector.append(rows) }
+        _ = try await subject.openConnection()
+        let subscription = try await subject.subscribe(
+            function: "listPrivate",
+            authorizationNamespace: custodyNamespace
+        )
+        XCTAssertNil(subscription.snapshot)
+        let subscriptions = await subject.machine.subscriptions
+        XCTAssertEqual(
+            subscriptions["sub_pending_projection"]?.state,
+            .resyncPending
+        )
+        XCTAssertEqual(collector.values, [[]])
+    }
+
+    func testPollBlankCallbackPrecedesInvalidationAcknowledgement() async throws {
+        let frame = custodyTerminalFrame("sub_poll_client")
+        let bytes = Array(try frame.encoded())
+        let drain = JSONValue.array([
+            .object([
+                "Durable": .object([
+                    "payload": .array(
+                        bytes.map { .int(Int64($0)) }
+                    ),
+                ]),
+            ]),
+        ])
+        ResponseQueueStubProtocol.configure([
+            .init(status: 200, body: custodyGrant),
+            .init(
+                status: 200,
+                body: String(decoding: try drain.encoded(), as: UTF8.self)
+            ),
+            .init(
+                status: 200,
+                body: #"{"outcome":"acknowledged"}"#
+            ),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        let grant = await subject.machine.authorizationInvalidationConnection!
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_poll_client",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 1,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            ),
+            authorizationNamespace: custodyNamespace,
+            authorizationScope:
+                custodyTerminalFrame("sub_poll_client")["obligation"]?[
+                    "scopeId"
+                ],
+            acceptedAuthorization: grant.authorization,
+            authorizationVersionStream: grant.versionStream
+        )
+        await subject.onUpdate { _, rows in
+            if rows.isEmpty {
+                ResponseQueueStubProtocol.record("blank-update")
+            }
+        }
+        _ = try await subject.drainOnce()
+        let events = ResponseQueueStubProtocol.events
+        let updateIndex = try XCTUnwrap(
+            events.firstIndex(of: "blank-update")
+        )
+        let ackIndex = try XCTUnwrap(
+            events.firstIndex(
+                of: "/live/authorization-invalidation/acknowledge"
+            )
+        )
+        XCTAssertLessThan(updateIndex, ackIndex)
     }
 
     func testReservationStaleEventuallySucceedsWithinBudget() async throws {
@@ -240,7 +764,14 @@ final class ClientBehaviorTests: XCTestCase {
         let subject = SnapbackClient(configuration: configuration, session: session)
 
         _ = try await subject.openConnection()
-        _ = try await subject.subscribe(function: "listPrivate")
+        _ = try await subject.subscribe(
+            function: "listPrivate",
+            authorizationNamespace: .object([
+                "clientStoreId": .string("swift_recovery_test"),
+                "queryKey": .string("listPrivate:null"),
+                "queryInstanceId": .int(1),
+            ])
+        )
         await subject.pauseForBackground()
 
         do {
@@ -317,6 +848,36 @@ final class ClientBehaviorTests: XCTestCase {
                 "minCommitVersion": .int(4),
             ]),
         ])
+        await subject.machine.noteGranted(
+            authorizationInvalidation: AuthorizationInvalidationConnection(
+                protocolVersion: 1,
+                issuerId: scope["issuerId"]!,
+                connectionGeneration: 1,
+                authorization: AuthorizationVersion(
+                    incarnation:
+                        "0198c7aa-1234-7000-8000-000000000001",
+                    epoch: 3
+                ),
+                versionStream: "swift-stream"
+            )
+        )
+        await subject.machine.applySnapshot(
+            subscriptionId: "sub_blank",
+            function: "listPrivate",
+            snapshot: QuerySnapshot(
+                version: 4,
+                rows: [.object(["_id": .string("secret")])],
+                cursor: nil
+            ),
+            authorizationNamespace: scope["namespace"],
+            authorizationScope: scope,
+            acceptedAuthorization: AuthorizationVersion(
+                incarnation:
+                    "0198c7aa-1234-7000-8000-000000000001",
+                epoch: 1
+            ),
+            authorizationVersionStream: "swift-stream"
+        )
         await subject.processSocketFrame(.object([
             "kind": .string("authorization_invalidation"),
             "obligation": .object([

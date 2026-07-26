@@ -122,7 +122,9 @@ public actor SnapbackClient {
         do {
             let grant = try await postForGrant(body)
             self.grant = grant
-            machine.noteGranted()
+            machine.noteGranted(
+                authorizationInvalidation: grant.authorizationInvalidation
+            )
             return grant
         } catch let ClientError.refusal(error, status) {
             let decodeClass = status == 400 || status == 422
@@ -139,7 +141,9 @@ public actor SnapbackClient {
             legacyServerVerdict = true
             diagnostics.append("SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE: pre-B1 server rejected the wireVersion offer (\(error.code)); reopened as a legacy (implicitly v1-bound) connection")
             self.grant = grant
-            machine.noteGranted()
+            machine.noteGranted(
+                authorizationInvalidation: grant.authorizationInvalidation
+            )
             return grant
         }
     }
@@ -148,6 +152,12 @@ public actor SnapbackClient {
         let json = try await request(method: "POST", path: "/connection/open", body: .object(body), connectionScoped: false)
         guard let grant = ConnectionGrant.from(json) else {
             throw ClientError.undecodableResponse("connection grant")
+        }
+        if configuration.sessionBearer != nil,
+           grant.authorizationInvalidation == nil {
+            throw ClientError.undecodableResponse(
+                "sessions connection grant omitted the negotiated authorization invalidation expectation"
+            )
         }
         return grant
     }
@@ -179,13 +189,92 @@ public actor SnapbackClient {
             args: args,
             supplied: authorizationNamespace
         )
+        if let namespace,
+           machine.hasTerminalRetiredNamespace(namespace) {
+            throw ClientError.invalidState(
+                "terminally retired authorization namespace cannot be reused; allocate a new queryInstanceId"
+            )
+        }
         if let namespace { body["authorizationNamespace"] = namespace }
         if let supersedes { body["supersedes"] = .string(supersedes) }
         let json = try await request(method: "POST", path: "/live/\(function)/subscribe", body: .object(body), connectionScoped: true)
         guard let output = LiveSubscribeOutput.from(json) else {
             throw ClientError.undecodableResponse("live subscribe output")
         }
+        if machine.subscriptions[output.subscriptionId]?.state
+            == .terminalDeleted {
+            _ = try? await unsubscribe(
+                function: function,
+                subscriptionId: output.subscriptionId,
+                userId: userId
+            )
+            throw ClientError.undecodableResponse(
+                "subscribe response attempted to reuse a terminal-deleted subscription id"
+            )
+        }
+        if let supersedes {
+            let retired = output.superseded == supersedes
+                && output.supersessionRefusal == nil
+            let alreadyAbsent = output.superseded == nil
+                && output.supersessionRefusal
+                    == "SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN"
+            guard retired || alreadyAbsent else {
+                _ = try? await unsubscribe(
+                    function: function,
+                    subscriptionId: output.subscriptionId,
+                    userId: userId
+                )
+                throw ClientError.undecodableResponse(
+                    "live subscribe supersession witness for \(supersedes)"
+                )
+            }
+        }
+        if configuration.sessionBearer != nil {
+            guard let expectation = grant.authorizationInvalidation,
+                  let scope = output.authorizationScope,
+                  scope["kind"]?.stringValue == "subscription",
+                  scope["subscriptionId"]?.stringValue
+                    == output.subscriptionId,
+                  scope["namespace"] == namespace,
+                  scope["issuerId"] == expectation.issuerId,
+                  scope["connectionGeneration"]?.uint64Value
+                    == expectation.connectionGeneration
+            else {
+                _ = try? await unsubscribe(
+                    function: function,
+                    subscriptionId: output.subscriptionId,
+                    userId: userId
+                )
+                throw ClientError.undecodableResponse(
+                    "auth/live subscribe output scope"
+                )
+            }
+            if let supersedes,
+               let previousScope =
+                machine.subscriptions[supersedes]?.authorizationScope,
+               previousScope["issuerId"] == scope["issuerId"],
+               previousScope["connectionGeneration"]
+                == scope["connectionGeneration"],
+               previousScope["namespace"] == scope["namespace"],
+               let previousSequence =
+                previousScope["scopeSequence"]?.uint64Value,
+               let nextSequence = scope["scopeSequence"]?.uint64Value,
+               nextSequence <= previousSequence {
+                _ = try? await unsubscribe(
+                    function: function,
+                    subscriptionId: output.subscriptionId,
+                    userId: userId
+                )
+                throw ClientError.undecodableResponse(
+                    "auth/live supersession did not advance the scope sequence"
+                )
+            }
+        }
         if let supersedes { machine.removeSubscription(id: supersedes) }
+        let acceptedAuthorization =
+            grant.authorizationInvalidation?.authorization
+        let versionStream =
+            grant.authorizationInvalidation?.versionStream
         if let snapshot = output.snapshot {
             machine.applySnapshot(
                 subscriptionId: output.subscriptionId,
@@ -193,21 +282,90 @@ public actor SnapbackClient {
                 snapshot: snapshot,
                 authUserId: userId,
                 args: args,
-                authorizationNamespace: namespace
+                authorizationNamespace: namespace,
+                authorizationScope: output.authorizationScope,
+                acceptedAuthorization: acceptedAuthorization,
+                authorizationVersionStream: versionStream
             )
-            emitUpdate(output.subscriptionId)
         } else {
             machine.registerPending(
                 subscriptionId: output.subscriptionId,
                 function: function,
                 args: args,
-                authorizationNamespace: namespace
+                authorizationNamespace: namespace,
+                authorizationScope: output.authorizationScope,
+                acceptedAuthorization: acceptedAuthorization,
+                authorizationVersionStream: versionStream
             )
+        }
+        if let projection = output.authorizationInvalidation {
+            let invalidationSnapshot: AuthorizationInvalidationSnapshot?
+            if projection.resolution?.kind == .snapshot,
+               let snapshot = output.snapshot {
+                invalidationSnapshot = AuthorizationInvalidationSnapshot(
+                    subscriptionId: output.subscriptionId,
+                    function: function,
+                    version: snapshot.version,
+                    rows: snapshot.rows
+                )
+            } else {
+                invalidationSnapshot = nil
+            }
+            let event = machine.ingestDurable(
+                Decoded(
+                    value: .authorizationInvalidation(
+                        obligation: projection.obligation,
+                        snapshot: invalidationSnapshot,
+                        resolution: projection.resolution
+                    ),
+                    hadUnknownFields: false
+                )
+            )
+            diagnostics.append(contentsOf: event.diagnostics)
+            if event.actions.contains(.surfaceProtocolDiagnostic)
+                || event.actions.contains(.ignoreFrame) {
+                _ = try? await unsubscribe(
+                    function: function,
+                    subscriptionId: output.subscriptionId,
+                    userId: userId
+                )
+                machine.removeSubscription(id: output.subscriptionId)
+                throw ClientError.undecodableResponse(
+                    "auth/live subscribe invalidation projection"
+                )
+            }
+            for subscriptionId in changedSubscriptions(event) {
+                emitUpdate(subscriptionId)
+            }
+            do {
+                try await performAcknowledgements(event)
+            } catch {
+                _ = try? await unsubscribe(
+                    function: function,
+                    subscriptionId: output.subscriptionId,
+                    userId: userId
+                )
+                machine.removeSubscription(id: output.subscriptionId)
+                throw error
+            }
+        } else if output.snapshot != nil {
+            emitUpdate(output.subscriptionId)
+        }
+        let exposedSnapshot: QuerySnapshot?
+        if let entry = machine.subscriptions[output.subscriptionId],
+           case .live(let version) = entry.state {
+            exposedSnapshot = QuerySnapshot(
+                version: version,
+                rows: entry.orderedRows,
+                cursor: output.snapshot?.cursor
+            )
+        } else {
+            exposedSnapshot = nil
         }
         return Subscription(
             subscriptionId: output.subscriptionId,
             function: function,
-            snapshot: output.snapshot,
+            snapshot: exposedSnapshot,
             receipt: output.receipt,
             authorizationNamespace: namespace
         )
@@ -505,8 +663,12 @@ public actor SnapbackClient {
         isPausedForBackground = true
         resumeLiveAfterForeground = socketTask != nil
         resumePollAfterForeground = drainTask != nil
-        resumeSubscriptionIds = machine.subscriptions.compactMap { id, entry in
-            entry.state == .released ? nil : id
+        resumeSubscriptionIds = machine.subscriptions.compactMap {
+            (id, entry) -> String? in
+            switch entry.state {
+            case .released, .terminalDeleted: return nil
+            default: return id
+            }
         }
         for id in resumeSubscriptionIds {
             guard let entry = machine.subscriptions[id] else { continue }
@@ -549,8 +711,12 @@ public actor SnapbackClient {
             // landed. Return to a truly paused, retryable state: retire any
             // partial demand, quiesce transports, and retain the current ids
             // (new or old) as the next attempt's supersession set.
-            let partial = machine.subscriptions.compactMap { id, entry in
-                entry.state == .released ? nil : id
+            let partial: [String] = machine.subscriptions.compactMap {
+                (id, entry) -> String? in
+                switch entry.state {
+                case .released, .terminalDeleted: return nil
+                default: return id
+                }
             }
             for id in partial {
                 guard let entry = machine.subscriptions[id] else { continue }

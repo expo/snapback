@@ -7,15 +7,19 @@ import Foundation
 public struct FixtureHarness {
     public struct FixtureResult: Sendable {
         public var name: String
+        public var tuple: String?
         public var passed: Bool
         public var detail: String
+        public var evaluated: Bool
     }
 
     public struct CorpusResult: Sendable {
+        public var formatVersion: UInt64
         public var wireVersion: String
         public var judgedAgainst: String
         public var results: [FixtureResult]
-        public var evaluatedCount: Int { results.count }
+        public var evaluatedCount: Int { results.filter(\.evaluated).count }
+        public var skippedCount: Int { results.filter { !$0.evaluated }.count }
         public var failures: [FixtureResult] { results.filter { !$0.passed } }
     }
 
@@ -28,15 +32,28 @@ public struct FixtureHarness {
     }
 
     public func run(corpusData: Data) throws -> CorpusResult {
+        let claimableTuples: Set<String> = [
+            "poll/local", "live/local", "live/hosted",
+        ]
+        guard claimedTuples.isSubset(of: claimableTuples) else {
+            throw SnapbackClient.ClientError.undecodableResponse(
+                "fixture harness claims an unknown or unclaimable tuple"
+            )
+        }
         let corpus = try JSONValue.parse(corpusData)
         guard corpus["artifactKind"]?.stringValue == "liveWireFixtureCorpus",
               let formatVersion = corpus["formatVersion"]?.uint64Value,
               (1...2).contains(formatVersion),
+              let wireVersion = corpus["wireVersion"]?.stringValue,
+              !wireVersion.isEmpty,
+              let judgedAgainst = corpus["judgedAgainst"]?.stringValue,
+              !judgedAgainst.isEmpty,
               let fixtures = corpus["fixtures"]?.arrayValue
         else {
             throw SnapbackClient.ClientError.undecodableResponse("fixture corpus header")
         }
         var results: [FixtureResult] = []
+        var seenNames = Set<String>()
         for fixture in fixtures {
             guard let name = fixture["name"]?.stringValue, !name.isEmpty else {
                 if formatVersion >= 2 {
@@ -45,6 +62,11 @@ public struct FixtureHarness {
                     )
                 }
                 continue
+            }
+            if formatVersion >= 2, !seenNames.insert(name).inserted {
+                throw SnapbackClient.ClientError.undecodableResponse(
+                    "format-v2 fixture name is duplicated: \(name)"
+                )
             }
             guard let rawTuples = fixture["tuples"]?.arrayValue,
                   !rawTuples.isEmpty,
@@ -61,33 +83,68 @@ public struct FixtureHarness {
                 continue
             }
             let tuples = rawTuples.compactMap(\.stringValue)
+            if formatVersion >= 2 {
+                guard Set(tuples).count == tuples.count,
+                      tuples.allSatisfy({ claimableTuples.contains($0) }),
+                      fixture["direction"]?.stringValue
+                        == "server_to_client",
+                      fixture["schemaValid"]?.boolValue != nil,
+                      let lane = fixture["lane"]?.stringValue,
+                      ["core", "poll", "live"].contains(lane),
+                      lane != "poll"
+                        || tuples.allSatisfy({ $0.hasPrefix("poll/") }),
+                      lane != "live"
+                        || tuples.allSatisfy({ $0.hasPrefix("live/") })
+                else {
+                    throw SnapbackClient.ClientError.undecodableResponse(
+                        "format-v2 fixture \(name) has invalid evidence or tuple routing"
+                    )
+                }
+            }
             // §2.2: fixtures are evaluated per claimed tuple; a fixture whose
             // tuples do not intersect the claim set is out of scope.
-            guard tuples.contains(where: { claimedTuples.contains($0) }) else {
-                results.append(FixtureResult(name: name, passed: true, detail: "skipped: no claimed tuple (\(tuples.joined(separator: ",")))"))
+            let routedTuples = tuples.filter { claimedTuples.contains($0) }
+            guard !routedTuples.isEmpty else {
+                results.append(FixtureResult(name: name, tuple: nil, passed: true, detail: "skipped: no claimed tuple (\(tuples.joined(separator: ",")))", evaluated: false))
                 continue
             }
-            results.append(evaluate(name: name, fixture: fixture))
+            for tuple in routedTuples {
+                results.append(
+                    evaluate(
+                        name: name,
+                        tuple: tuple,
+                        formatVersion: formatVersion,
+                        fixture: fixture
+                    )
+                )
+            }
         }
         return CorpusResult(
-            wireVersion: corpus["wireVersion"]?.stringValue ?? "?",
-            judgedAgainst: corpus["judgedAgainst"]?.stringValue ?? "?",
+            formatVersion: formatVersion,
+            wireVersion: wireVersion,
+            judgedAgainst: judgedAgainst,
             results: results
         )
     }
 
-    func evaluate(name: String, fixture: JSONValue) -> FixtureResult {
+    func evaluate(
+        name: String,
+        tuple: String,
+        formatVersion: UInt64,
+        fixture: JSONValue
+    ) -> FixtureResult {
         let lane = fixture["lane"]?.stringValue ?? "core"
         let machine = ClientStateMachine()
         var trackedSubscriptions: Set<String> = []
 
         if let problem = seedGiven(
             fixture["given"],
-            lane: lane,
+            lane: tuple.hasPrefix("poll/") ? "poll" : "live",
+            formatVersion: formatVersion,
             machine: machine,
             trackedSubscriptions: &trackedSubscriptions
         ) {
-            return FixtureResult(name: name, passed: false, detail: problem)
+            return FixtureResult(name: name, tuple: tuple, passed: false, detail: problem, evaluated: true)
         }
 
         let initialRows = rowsBySubscription(machine, trackedSubscriptions)
@@ -96,11 +153,11 @@ public struct FixtureHarness {
 
         if let steps = fixture["steps"]?.arrayValue {
             guard !steps.isEmpty else {
-                return FixtureResult(name: name, passed: false, detail: "fixture has empty steps")
+                return FixtureResult(name: name, tuple: tuple, passed: false, detail: "fixture has empty steps", evaluated: true)
             }
             for (index, step) in steps.enumerated() {
                 guard let frame = step["frame"], let expected = step["expect"] else {
-                    return FixtureResult(name: name, passed: false, detail: "step \(index + 1) has no frame or expect")
+                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: "step \(index + 1) has no frame or expect", evaluated: true)
                 }
                 let before = statesBySubscription(machine, trackedSubscriptions)
                 let event = ingest(
@@ -118,7 +175,7 @@ public struct FixtureHarness {
                     initialRows: initialRows,
                     label: "step \(index + 1)"
                 ) {
-                    return FixtureResult(name: name, passed: false, detail: mismatch)
+                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
                 }
                 cumulativeActions.append(contentsOf: event.actions)
                 cumulativeAcknowledgements.append(contentsOf: event.acknowledgements)
@@ -139,12 +196,12 @@ public struct FixtureHarness {
                     initialRows: initialRows,
                     label: "cumulative"
                 ) {
-                    return FixtureResult(name: name, passed: false, detail: mismatch)
+                    return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
                 }
             }
         } else {
             guard let frame = fixture["frame"], let expected = fixture["expect"] else {
-                return FixtureResult(name: name, passed: false, detail: "fixture has no frame or expect")
+                return FixtureResult(name: name, tuple: tuple, passed: false, detail: "fixture has no frame or expect", evaluated: true)
             }
             let before = statesBySubscription(machine, trackedSubscriptions)
             let event = ingest(
@@ -162,19 +219,35 @@ public struct FixtureHarness {
                 initialRows: initialRows,
                 label: "fixture"
             ) {
-                return FixtureResult(name: name, passed: false, detail: mismatch)
+                return FixtureResult(name: name, tuple: tuple, passed: false, detail: mismatch, evaluated: true)
             }
         }
 
-        return FixtureResult(name: name, passed: true, detail: "ok")
+        return FixtureResult(name: name, tuple: tuple, passed: true, detail: "ok", evaluated: true)
     }
 
     private func seedGiven(
         _ given: JSONValue?,
         lane: String,
+        formatVersion: UInt64,
         machine: ClientStateMachine,
         trackedSubscriptions: inout Set<String>
     ) -> String? {
+        var connectionExpectation:
+            AuthorizationInvalidationConnection?
+        if let rawExpectation = given?["authorizationExpectation"] {
+            guard var members = rawExpectation.objectValue else {
+                return "authorizationExpectation is not an object"
+            }
+            members["protocolVersion"] = members["protocolVersion"] ?? .int(1)
+            guard let parsed = AuthorizationInvalidationConnection.from(
+                .object(members)
+            ) else {
+                return "authorizationExpectation is not a valid connection expectation"
+            }
+            connectionExpectation = parsed
+            machine.noteGranted(authorizationInvalidation: parsed)
+        }
         var seeds = given?["subscriptions"]?.arrayValue ?? []
         if seeds.isEmpty, let single = given?["subscription"] {
             seeds = [single]
@@ -182,11 +255,16 @@ public struct FixtureHarness {
         // Format v1 represented attached connection-wide preconditions
         // without an explicit subscription population. Keep that corpus
         // replayable while format v2 always names the exact population.
-        if seeds.isEmpty, given?["connection"] != nil {
+        if seeds.isEmpty, given?["connection"] != nil,
+           formatVersion < 2 {
             seeds = [
                 .object(["id": .string("sub_a"), "state": .string("live"), "version": .int(1)]),
                 .object(["id": .string("sub_b"), "state": .string("live"), "version": .int(1)]),
             ]
+        }
+        if seeds.isEmpty, given?["connection"] != nil,
+           formatVersion >= 2 {
+            return "format-v2 attached connection has no explicit subscription population"
         }
         for seed in seeds {
             guard let id = seed["id"]?.stringValue,
@@ -194,9 +272,48 @@ public struct FixtureHarness {
             else {
                 return "undecodable given subscription"
             }
-            let function = seed["function"]?.stringValue ?? "fixtureFunction"
+            let authorizationNamespace = seed["authorizationNamespace"]
+            let inferredFunction = authorizationNamespace?["queryKey"]?
+                .stringValue.flatMap {
+                    $0.split(separator: ":", maxSplits: 1)
+                        .first.map(String.init)
+                }
+            let function = seed["function"]?.stringValue
+                ?? inferredFunction
+                ?? "fixtureFunction"
             let rows = seed["rows"]?.arrayValue ?? []
-            machine.registerPending(subscriptionId: id, function: function)
+            let authorizationScope = seed["authorizationScope"]
+            let acceptedAuthorization = seed["acceptedAuthorization"]
+                .flatMap(AuthorizationVersion.from)
+            if authorizationScope != nil {
+                guard validFixtureAuthorizationScope(authorizationScope),
+                      authorizationScope?["subscriptionId"]?.stringValue == id,
+                      authorizationScope?["namespace"]
+                        == authorizationNamespace,
+                      let acceptedAuthorization,
+                      let connectionExpectation,
+                      authorizationScope?["issuerId"]
+                        == connectionExpectation.issuerId,
+                      authorizationScope?["connectionGeneration"]?
+                        .uint64Value
+                        == connectionExpectation.connectionGeneration,
+                      acceptedAuthorization.incarnation
+                        == connectionExpectation.authorization.incarnation,
+                      acceptedAuthorization.epoch
+                        <= connectionExpectation.authorization.epoch
+                else {
+                    return "\(id): incomplete authorization custody in given state"
+                }
+            }
+            machine.registerPending(
+                subscriptionId: id,
+                function: function,
+                authorizationNamespace: authorizationNamespace,
+                authorizationScope: authorizationScope,
+                acceptedAuthorization: acceptedAuthorization,
+                authorizationVersionStream:
+                    connectionExpectation?.versionStream
+            )
             switch state {
             case "pending":
                 break
@@ -207,7 +324,12 @@ public struct FixtureHarness {
                 machine.applySnapshot(
                     subscriptionId: id,
                     function: function,
-                    snapshot: QuerySnapshot(version: version, rows: rows, cursor: nil)
+                    snapshot: QuerySnapshot(version: version, rows: rows, cursor: nil),
+                    authorizationNamespace: authorizationNamespace,
+                    authorizationScope: authorizationScope,
+                    acceptedAuthorization: acceptedAuthorization,
+                    authorizationVersionStream:
+                        connectionExpectation?.versionStream
                 )
             default:
                 return "\(id): unsupported given state \(state)"
@@ -290,6 +412,14 @@ public struct FixtureHarness {
                     else {
                         return "\(label) \(subscriptionId): expected live(\(transition["version"]?.uint64Value.map(String.init) ?? "any")) got \(entry.state)"
                     }
+                    if let expectedEpoch =
+                        transition["authorizationEpoch"]?.uint64Value,
+                       entry.acceptedAuthorization?.epoch != expectedEpoch {
+                        let actualEpoch = entry.acceptedAuthorization.map {
+                            String($0.epoch)
+                        } ?? "nil"
+                        return "\(label) \(subscriptionId): expected authorization epoch \(expectedEpoch) got \(actualEpoch)"
+                    }
                 case "resync_pending":
                     guard entry.state == .resyncPending else {
                         return "\(label) \(subscriptionId): expected resync_pending got \(entry.state)"
@@ -297,6 +427,19 @@ public struct FixtureHarness {
                     if transition["rows"]?.stringValue == "retained_unreadable",
                        !entry.rows.isEmpty {
                         return "\(label) \(subscriptionId): quarantined rows remain readable"
+                    }
+                    if let pendingRevision =
+                        transition["pendingRevision"]?.uint64Value,
+                       entry.invalidationRevisionHighWater
+                        != pendingRevision {
+                        return "\(label) \(subscriptionId): expected pending revision \(pendingRevision) got \(entry.invalidationRevisionHighWater.map(String.init) ?? "nil")"
+                    }
+                    if let pendingFloor =
+                        transition["pendingWitnessFloor"]?.uint64Value,
+                       entry.pendingAuthorizationObligation?["witness"]?[
+                        "data"
+                       ]?["minCommitVersion"]?.uint64Value != pendingFloor {
+                        return "\(label) \(subscriptionId): expected pending witness floor \(pendingFloor)"
                     }
                 case "terminal_deleted":
                     guard entry.state == .terminalDeleted else {
@@ -389,5 +532,28 @@ public struct FixtureHarness {
         Dictionary(uniqueKeysWithValues: ids.compactMap { id in
             machine.subscriptions[id].map { (id, $0.orderedRows) }
         })
+    }
+
+    private func validFixtureAuthorizationScope(
+        _ scope: JSONValue?
+    ) -> Bool {
+        guard let members = scope?.objectValue,
+              Set(members.keys) == Set([
+                  "kind", "issuerId", "namespace", "scopeSequence",
+                  "connectionGeneration", "subscriptionId",
+              ]),
+              members["kind"]?.stringValue == "subscription",
+              (members["scopeSequence"]?.uint64Value ?? 0) > 0,
+              (members["connectionGeneration"]?.uint64Value ?? 0) > 0,
+              members["subscriptionId"]?.stringValue?.isEmpty == false,
+              let namespace = members["namespace"]?.objectValue,
+              Set(namespace.keys) == Set([
+                  "clientStoreId", "queryKey", "queryInstanceId",
+              ]),
+              namespace["clientStoreId"]?.stringValue?.isEmpty == false,
+              namespace["queryKey"]?.stringValue?.isEmpty == false,
+              (namespace["queryInstanceId"]?.uint64Value ?? 0) > 0
+        else { return false }
+        return true
     }
 }
