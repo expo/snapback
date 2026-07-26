@@ -6,6 +6,7 @@ export interface SnapbackContractLinks {
   cancelReply(args: { attemptId: string }): unknown;
   completeReply(args: { attemptId: string; sequence: number; tail: string }): unknown;
   conversationBySlug(args: { slug: string }): unknown;
+  conversationsWithModel(args: { cursor?: string }): unknown;
   createConversation(args: { slug: string; title: string; model: string }): unknown;
   deleteConversation(args: { id: string }): unknown;
   firstConversationPage(args: Record<string, never>): unknown;
@@ -14,7 +15,7 @@ export interface SnapbackContractLinks {
   listConversations(args: Record<string, never>): unknown;
   listMessages(args: { conversationId: string }): unknown;
   nextConversationPage(args: { after: string }): unknown;
-  registerModel(args: { slug: string; displayName: string }): unknown;
+  registerModel(args: { slug: string; displayName: string; provider?: string }): unknown;
   settleReply(args: { attemptId: string; status: string }): unknown;
   startReply(args: { conversationId: string; content: string; idempotencyKey: string }): unknown;
   updateConversation(args: { id: string; title: string; model: string }): unknown;

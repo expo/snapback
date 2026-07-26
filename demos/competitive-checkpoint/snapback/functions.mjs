@@ -13,7 +13,10 @@ import {
   defineLiveQuery,
   defineMaintainedProjection,
   defineMutation,
+  defineRelationalQuery,
   eq,
+  field,
+  argsRoot,
   insert,
   v,
 } from '@snapback/codegen/define';
@@ -178,9 +181,51 @@ export const conversationCardsProjection = defineMaintainedProjection({
 });
 
 export const registerModel = defineMutation({
-  args: { slug: v.string(), displayName: v.string() },
+  args: {
+    slug: v.string(),
+    displayName: v.string(),
+    provider: v.optional(v.string()),
+  },
   auth: 'authenticated',
-  plan: insert('models', { slug: arg('slug'), displayName: arg('displayName') }),
+  plan: insert('models', {
+    slug: arg('slug'),
+    displayName: arg('displayName'),
+    // Null-safe optional-arg access: an unset provider inserts null (the
+    // committed optional-field read-back shape), never SNAPBACK_ARG_MISSING.
+    provider: field(argsRoot(), 'provider'),
+  }),
+});
+
+// --------------------------------------------------------------------------
+// Callable relational query (LLP 0080 §1-§4): the on-demand analogue of the
+// maintained projection above — each owner conversation joined to the public
+// model dimension, index-served, pageable through the opaque versioned
+// cursor. Together with conversationCardsProjection this is the fixture's
+// production-shape demonstration of both LLP 0080 §7 generated helpers.
+// --------------------------------------------------------------------------
+
+export const conversationsWithModel = defineRelationalQuery({
+  root: schema.tables.conversations,
+  joined: schema.tables.models,
+  join: [{ root: 'model', joined: 'slug' }],
+  // Left: a conversation whose model is not registered still returns, with
+  // null model leaves; the owner evidence rides the root.
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: 'owner',
+  },
+  projection: {
+    slug: { root: 'slug' },
+    title: { root: 'title' },
+    model: { root: 'model' },
+    modelName: { joined: 'displayName' },
+    modelProvider: { joined: 'provider' },
+  },
+  take: 8,
+  rootIndex: 'by_owner_created',
+  joinedIndex: 'models_by_slug',
 });
 
 export const listConversationCards = defineLiveQuery({

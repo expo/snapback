@@ -1,7 +1,10 @@
 {
+  "acknowledgedExperimentalCapabilities": [
+    "relational_query_v1"
+  ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:381a6a1c28dff030",
+  "bundleHash": "sha256:0002f8c2a8ac9a8b",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -241,6 +244,124 @@
         "helper": "owned-unique-lookup.v1",
         "profile": "owner.v1"
       },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "conversationsWithModel",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "conversations"
+          },
+          {
+            "access": "query",
+            "index": "models_by_slug",
+            "table": "models"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "conversationsWithModel",
+      "id": "competitive-checkpoint:conversationsWithModel",
+      "kind": "LiveQuery",
+      "name": "conversationsWithModel",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "relational",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations",
+          "models"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "relational_query_v1"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "RelationalQuery": {
+            "joinKind": "Left",
+            "joinOn": [
+              {
+                "joinedField": "slug",
+                "rootField": "model"
+              }
+            ],
+            "joined": "models",
+            "joinedAlias": "models",
+            "joinedIndex": "models_by_slug",
+            "joinedVisibility": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "projection": [
+              {
+                "name": "slug",
+                "source": {
+                  "RootField": "slug"
+                }
+              },
+              {
+                "name": "title",
+                "source": {
+                  "RootField": "title"
+                }
+              },
+              {
+                "name": "model",
+                "source": {
+                  "RootField": "model"
+                }
+              },
+              {
+                "name": "modelName",
+                "source": {
+                  "JoinedField": "displayName"
+                }
+              },
+              {
+                "name": "modelProvider",
+                "source": {
+                  "JoinedField": "provider"
+                }
+              }
+            ],
+            "root": "conversations",
+            "rootAlias": "conversations",
+            "rootFilters": [],
+            "rootIndex": "by_owner_created",
+            "rootVisibility": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "take": 8
+          }
+        }
+      },
+      "sourceSpan": null,
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -906,6 +1027,12 @@
                     "displayName": {
                       "Arg": "displayName"
                     },
+                    "provider": {
+                      "Field": {
+                        "base": "Args",
+                        "key": "provider"
+                      }
+                    },
                     "slug": {
                       "Arg": "slug"
                     }
@@ -1216,7 +1343,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "ec952ff4b7060f742cc9c72d7c9e92b55f45ddc095057f3ce1af57466d9ec0eb",
+  "inputsHash": "5fb25d586b3c5a506cd25aadb21b4be59d0ed5ff738e0d7e25af8e8ecefbb77e",
   "projections": [
     {
       "fanOutLimit": 64,

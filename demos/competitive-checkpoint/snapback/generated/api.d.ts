@@ -33,7 +33,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
 export interface GeneratedDataModel {
   conversations: { _id: Id<'conversations'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; slug: string; title: string; model: string; pageKey: string; createdAt: number; updatedAt: number };
   messages: { _id: Id<'messages'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; conversationId: Id<'conversations'>; role: string; content: string; status: string; attemptId: string; idempotencyKey: string; sequence: number; lastProgressAt: number; pageKey: string; effectMayHaveExecuted?: boolean };
-  models: { _id: Id<'models'>; _version: number; _createdAt: number; _updatedAt: number; slug: string; displayName: string };
+  models: { _id: Id<'models'>; _version: number; _createdAt: number; _updatedAt: number; slug: string; displayName: string; provider?: string };
   conversationCards: { _id: Id<'conversationCards'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; title: string; modelName?: string };
 }
 export interface GeneratedPermissions {
@@ -48,6 +48,7 @@ export interface GeneratedFunctionContexts {
   cancelReply: GeneratedMutationContext;
   completeReply: GeneratedMutationContext;
   conversationBySlug: GeneratedQueryContext;
+  conversationsWithModel: GeneratedQueryContext;
   createConversation: GeneratedMutationContext;
   deleteConversation: GeneratedMutationContext;
   firstConversationPage: GeneratedQueryContext;
@@ -69,6 +70,7 @@ export interface GeneratedApi {
   cancelReply: FunctionReference<'cancelReply', 'Mutation', { attemptId: string }, unknown>;
   completeReply: FunctionReference<'completeReply', 'Mutation', { attemptId: string; sequence: number; tail: string }, unknown>;
   conversationBySlug: FunctionReference<'conversationBySlug', 'LiveQuery', { slug: string }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>>;
+  conversationsWithModel: FunctionReference<'conversationsWithModel', 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "model": string; "modelName"?: string; "modelProvider"?: string; "slug": string; "title": string }>>;
   createConversation: FunctionReference<'createConversation', 'Mutation', { slug: string; title: string; model: string }, unknown>;
   deleteConversation: FunctionReference<'deleteConversation', 'Mutation', { id: Id<'conversations'> }, unknown>;
   firstConversationPage: FunctionReference<'firstConversationPage', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>>;
@@ -77,7 +79,7 @@ export interface GeneratedApi {
   listConversations: FunctionReference<'listConversations', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>>;
   listMessages: FunctionReference<'listMessages', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "attemptId": string; "content": string; "conversationId": string; "idempotencyKey": string; "lastProgressAt": number; "ownerId": string; "pageKey": string; "role": string; "sequence": number; "status": string }>>;
   nextConversationPage: FunctionReference<'nextConversationPage', 'LiveQuery', { after: string }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>>;
-  registerModel: FunctionReference<'registerModel', 'Mutation', { slug: string; displayName: string }, unknown>;
+  registerModel: FunctionReference<'registerModel', 'Mutation', { slug: string; displayName: string; provider?: string }, unknown>;
   settleReply: FunctionReference<'settleReply', 'Mutation', { attemptId: string; status: string }, unknown>;
   startReply: FunctionReference<'startReply', 'Mutation', { conversationId: Id<'conversations'>; content: string; idempotencyKey: string }, unknown>;
   streamReply: FunctionReference<'streamReply', 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown>;

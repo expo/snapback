@@ -33,6 +33,14 @@ export const api = Object.freeze({
     "name": "conversationBySlug",
     "schemaVersion": "snapback.v0"
   },
+  "conversationsWithModel": {
+    "appId": "competitive-checkpoint",
+    "artifactKind": "functionReference",
+    "id": "competitive-checkpoint:conversationsWithModel",
+    "kind": "LiveQuery",
+    "name": "conversationsWithModel",
+    "schemaVersion": "snapback.v0"
+  },
   "createConversation": {
     "appId": "competitive-checkpoint",
     "artifactKind": "functionReference",

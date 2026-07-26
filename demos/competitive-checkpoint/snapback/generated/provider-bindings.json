@@ -84,7 +84,7 @@
         }
       },
       {
-        "argumentsType": "{ \"displayName\": string; \"slug\": string }",
+        "argumentsType": "{ \"displayName\": string; \"provider\"?: string; \"slug\": string }",
         "effects": {
           "invalidates": [
             "models"
@@ -174,6 +174,33 @@
         },
         "name": "conversationBySlug",
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"model\": string; \"ownerId\": string; \"pageKey\": string; \"slug\": string; \"title\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations",
+            "models"
+          ]
+        },
+        "name": "conversationsWithModel",
+        "resultType": "ReadonlyArray<{ \"model\": string; \"modelName\"?: string; \"modelProvider\"?: string; \"slug\": string; \"title\": string }>"
       },
       {
         "argumentsType": "Record<string, never>",
@@ -339,7 +366,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "ec952ff4b7060f742cc9c72d7c9e92b55f45ddc095057f3ce1af57466d9ec0eb",
+    "inputsHash": "5fb25d586b3c5a506cd25aadb21b4be59d0ed5ff738e0d7e25af8e8ecefbb77e",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

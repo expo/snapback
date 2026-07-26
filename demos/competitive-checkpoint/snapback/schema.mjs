@@ -41,9 +41,14 @@ export const messages = defineTable({
 
 // A small public dimension table: the joined source of the maintained
 // projection below (LLP 0080 §5).
+// @ref LLP 0081#2-canonical-plan-and-approval — `provider` is the fixture's
+// admitted v0→v1 schema change: an additive optional field whose intent is
+// derivable from the schema diff, executed only through the reviewed
+// migrate preview→approve→apply path (protocol amendment v0.8).
 export const models = defineTable({
   slug: v.string(),
   displayName: v.string(),
+  provider: v.optional(v.string()),
 })
   .index('models_by_slug', ['slug'], { unique: true })
   .sync();

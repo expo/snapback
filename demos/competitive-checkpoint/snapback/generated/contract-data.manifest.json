@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:381a6a1c28dff030",
+  "bundleHash": "sha256:0002f8c2a8ac9a8b",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "ec952ff4b7060f742cc9c72d7c9e92b55f45ddc095057f3ce1af57466d9ec0eb",
+  "inputsHash": "5fb25d586b3c5a506cd25aadb21b4be59d0ed5ff738e0d7e25af8e8ecefbb77e",
   "manifestVersion": 2,
   "mutations": {
     "applyReplyProgress": {
@@ -226,11 +226,17 @@
     "registerModel": {
       "argOrder": [
         "slug",
-        "displayName"
+        "displayName",
+        "provider"
       ],
       "args": {
         "displayName": {
           "name": "string",
+          "shape": "primitive"
+        },
+        "provider": {
+          "name": "string",
+          "optional": true,
           "shape": "primitive"
         },
         "slug": {
@@ -253,6 +259,12 @@
               "values": {
                 "displayName": {
                   "Arg": "displayName"
+                },
+                "provider": {
+                  "Field": {
+                    "base": "Args",
+                    "key": "provider"
+                  }
                 },
                 "slug": {
                   "Arg": "slug"
@@ -480,6 +492,63 @@
             },
             "updatedAt": {
               "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "conversationsWithModel": {
+      "argOrder": [
+        "cursor"
+      ],
+      "args": {
+        "cursor": {
+          "name": "string",
+          "optional": true,
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "conversationsWithModel",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "conversations",
+        "models"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "model": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "modelName": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "modelProvider": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
               "shape": "primitive"
             }
           },
@@ -930,6 +999,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:04453498e78b891b",
+  "schemaHash": "sha256:658279fd59fa67fe",
   "schemaVersion": "snapback.v0"
 }
