@@ -74,11 +74,11 @@
     },
     {
       "path": "packages/snapback-client/package.json",
-      "sha256": "754884b1f53c8e540b3264cc6fb207141af51dda94a3f09a5589a10d817262ef"
+      "sha256": "070fac20695b5849c48b9f001d3bdc7c578c418e03cb57820e40a60926a63951"
     },
     {
       "path": "packages/snapback-codegen/package.json",
-      "sha256": "657e2aa8a9cb65d74f85a166544a3138edfe0c5cec405524291eb47634497afe"
+      "sha256": "e330be761d56e4cc02b95d371cfd5ffeafd8bbc8d5a52608d91fe8259d0ad1f6"
     },
     {
       "path": "packages/snapback-app-cli/package.json",
@@ -86,7 +86,7 @@
     },
     {
       "path": "packages/snapback-client/package.test.mjs",
-      "sha256": "e1a664a7feab675956e19fabb707f49c92d2972f0ec857a281e1130fc38cbbfd"
+      "sha256": "de6642910b26b66b654e4e3dbcc4b76b33f364d7c5a6781277e9280a3250fd1c"
     },
     {
       "path": "packages/snapback-codegen/identifier-validation.test.mjs",
@@ -106,7 +106,7 @@
     },
     {
       "path": "packages/snapback-app-cli/package.test.mjs",
-      "sha256": "e3165793ab86de69085f12afaa89f36f39881799bca32c57a7f6e6ee9cdcf6dc"
+      "sha256": "51436d5d688dabd16dbdb12810960c1f3c16ba3f07dcfbfcd1a20dd34ff84e8a"
     },
     {
       "path": "demos/_kit/harness.mjs",

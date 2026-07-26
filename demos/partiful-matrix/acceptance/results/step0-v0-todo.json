@@ -18,10 +18,10 @@
         "authProvider": "dormant",
         "binary": {
           "crateVersion": "0.1.0",
-          "gitCommit": "cf1cbad0ea130d9d546df250c0f7208a18fa90e7",
-          "gitDirty": false,
+          "gitCommit": "eceef3987458fef8e614b9d761e6381eb9d5033d",
+          "gitDirty": true,
           "buildProfile": "debug",
-          "startupNonce": "019f9a54-5323-7e50-8ca7-791e8cc1c24f"
+          "startupNonce": "019f9cd8-2bdc-75c0-b309-d700565b1df4"
         }
       }
     },
@@ -84,7 +84,7 @@
       "name": "mutation: createTodo returns id; ctx.db write + system fields",
       "ok": true,
       "details": {
-        "id": "019f9a54-542f-7d42-a1a3-95e691c0cfc5",
+        "id": "019f9cd8-2cac-7a30-b468-6eaf9b77c3d3",
         "version": 1
       }
     },
@@ -111,14 +111,14 @@
           {
             "kind": "row",
             "table": "todos",
-            "id": "019f9a54-549a-76f3-af69-0d1a45ae4347",
+            "id": "019f9cd8-2cff-77e0-bdd9-7f9f5c4158f0",
             "version": 1
           }
         ],
         "writes": [
           {
             "table": "todos",
-            "id": "019f9a54-549a-76f3-af69-0d1a45ae4347",
+            "id": "019f9cd8-2cff-77e0-bdd9-7f9f5c4158f0",
             "op": "Update"
           }
         ]
@@ -128,7 +128,7 @@
       "name": "live subscription returns authoritative initial snapshot",
       "ok": true,
       "details": {
-        "subscriptionId": "sub_019f9a5454b37421b1891088151e4823",
+        "subscriptionId": "sub_019f9cd82d127743a83ccdbcf47eeada",
         "version": 1
       }
     },
@@ -199,7 +199,7 @@
       "name": "realtime matcher skips hidden row patch and delete",
       "ok": true,
       "details": {
-        "hiddenId": "019f9a54-56d7-7ed3-b9d5-196550237cf0",
+        "hiddenId": "019f9cd8-2fc4-7eb0-88dc-88d1d2ffd702",
         "liveDelivery": {
           "totalFanoutAttempts": 3,
           "totalDeliveries": 1,
@@ -239,7 +239,7 @@
       "name": "realtime matcher uses captured In predicates beyond auth scope",
       "ok": true,
       "details": {
-        "id": "019f9a54-5713-76b2-af97-f9aa01eb7090",
+        "id": "019f9cd8-2feb-7f73-a5b6-057013854c47",
         "liveDelivery": {
           "totalFanoutAttempts": 3,
           "totalDeliveries": 2,
@@ -289,7 +289,7 @@
         "code": "SNAPBACK_MUTATION_CONFLICT",
         "dependency": {
           "table": "todos",
-          "id": "019f9a54-573b-7822-8b20-2aa2f142edfb",
+          "id": "019f9cd8-3005-7bf2-812a-47e18c9cb25c",
           "expected": 1,
           "actual": 2
         }
@@ -316,8 +316,8 @@
             "snapback.v1"
           ],
           "schemaVersion": "snapback.v999",
-          "contentHash": "sha256:df0057bf0767c28c",
-          "inputsHash": "9978876586ebd270246126f995b5ab4a494af9f38016c7fa6a6ff3e40ba19a94"
+          "contentHash": "sha256:34c22182e395c083",
+          "inputsHash": "3dbc98c9b4f4aab7fcb9a4c316fa9ac2d30c32f45d3eb9e32b454f17a086dda3"
         }
       }
     },

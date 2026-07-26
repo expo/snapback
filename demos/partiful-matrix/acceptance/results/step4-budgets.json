@@ -7,38 +7,38 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-22T07:57:02.915Z",
+  "recordedAt": "2026-07-26T05:31:15.357Z",
   "repository": {
-    "snapbackRevision": "43359e5a639e5b16067f877fcea6011290a3a84a",
-    "exactRevision": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
+    "snapbackRevision": "eceef3987458fef8e614b9d761e6381eb9d5033d",
+    "exactRevision": "6e032d83bf4944cba2a9155695c9a483acf96c1e"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "6e1c4eb6642d252cef50401f7b081acf8897d182d84c20eaa7349ca20250dad1"
+      "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
+      "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "43359e5a639e5b16067f877fcea6011290a3a84a",
-      "sha256": "be271c725132882b8aa7c514694b206f77710583601abcf1155191d914062e77"
+      "revision": "eceef3987458fef8e614b9d761e6381eb9d5033d",
+      "sha256": "40403f468dbb1fe39d71fb64257e21ee3d75ee526bc85827f0639a6831196e7f"
     },
     "nativeReceipts": [
       {
         "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-        "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+        "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
       },
       {
         "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-        "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+        "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
       },
       {
         "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-        "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+        "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
       },
       {
         "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
@@ -63,128 +63,136 @@
     ]
   },
   "summary": {
-    "passed": 9,
-    "red": 17,
+    "passed": 8,
+    "red": 18,
     "nonclaims": 16,
     "total": 26
   },
   "requirements": [
     {
       "id": "emitted-minified-javascript-by-cell",
-      "status": "pass",
-      "reasonCode": "STEP4_BUDGET_MINIFIED_JS_PASSED",
+      "status": "red",
+      "reasonCode": "STEP4_BUDGET_MINIFIED_JS_EXCEEDS_FROZEN_THRESHOLDS",
       "evidence": {
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 367782,
+            "actual": 417309,
             "threshold": 422417,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": true
           },
           {
             "cell": "contract:supabase",
-            "actual": 210785,
+            "actual": 235615,
             "threshold": 213488,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 210771,
+            "actual": 235605,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 210771,
+            "actual": 235605,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           }
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 343880,
-          "react:supabase": 215059,
-          "react:convex": 215055,
-          "react:sqlite": 215055,
-          "contract:snapback": 367782,
-          "contract:supabase": 210785,
-          "contract:convex": 210771,
-          "contract:sqlite": 210771,
-          "vanilla:snapback": 148380,
-          "vanilla:supabase": 20235,
-          "vanilla:convex": 20231,
-          "vanilla:sqlite": 20231
+          "react:snapback": 381117,
+          "react:supabase": 223642,
+          "react:convex": 223638,
+          "react:sqlite": 223638,
+          "contract:snapback": 417309,
+          "contract:supabase": 235615,
+          "contract:convex": 235605,
+          "contract:sqlite": 235605,
+          "vanilla:snapback": 177512,
+          "vanilla:supabase": 20894,
+          "vanilla:convex": 20890,
+          "vanilla:sqlite": 20890
         }
       }
     },
     {
       "id": "compressed-javascript-by-cell",
-      "status": "pass",
-      "reasonCode": "STEP4_BUDGET_COMPRESSED_JS_PASSED",
+      "status": "red",
+      "reasonCode": "STEP4_BUDGET_COMPRESSED_JS_EXCEEDS_FROZEN_THRESHOLDS",
       "evidence": {
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 100995,
+            "actual": 119120,
             "threshold": 119451,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": true
           },
           {
             "cell": "contract:supabase",
-            "actual": 61883,
+            "actual": 69816,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 61881,
+            "actual": 69812,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 61881,
+            "actual": 69815,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": true
+            "pass": false
           }
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 101189,
-          "react:supabase": 67872,
-          "react:convex": 67870,
-          "react:sqlite": 67871,
-          "contract:snapback": 100995,
-          "contract:supabase": 61883,
-          "contract:convex": 61881,
-          "contract:sqlite": 61881,
-          "vanilla:snapback": 40167,
-          "vanilla:supabase": 7240,
-          "vanilla:convex": 7237,
-          "vanilla:sqlite": 7238
+          "react:snapback": 112439,
+          "react:supabase": 70107,
+          "react:convex": 70105,
+          "react:sqlite": 70106,
+          "contract:snapback": 119120,
+          "contract:supabase": 69816,
+          "contract:convex": 69812,
+          "contract:sqlite": 69815,
+          "vanilla:snapback": 49301,
+          "vanilla:supabase": 7400,
+          "vanilla:convex": 7399,
+          "vanilla:sqlite": 7401
         }
       }
     },
     {
       "id": "authored-source-lines",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_SOURCE_VOLUME_EXCEEDS_FROZEN_THRESHOLDS",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_SOURCE_VOLUME_V3_PASSED",
       "evidence": {
+        "methodId": "partitime-ws8-authored-source-v3",
+        "workloadVersion": "partitime.web-product-authoring.v3",
+        "thresholdFormulaSetId": "partitime-ws8-authored-source-threshold-formulas-v3",
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
+          "sha256": "5aed6edd5454e458cea9e30d4b645967d3be6f6e79aa5462ac54fc99253e90ff"
+        },
+        "amendmentStatus": "ratified",
         "rows": [
           {
-            "metric": "contractSourceLines",
-            "actual": 1095,
-            "threshold": 348,
-            "formula": "floor(react_same_workload_source_lines * 1.10)",
-            "pass": false
+            "metric": "authoredProductSourceBytes",
+            "actual": 36212,
+            "threshold": 45591,
+            "formula": "floor(react_same_workload_product_source_bytes * 1.10)",
+            "pass": true
           },
           {
             "metric": "snapbackBackendLines",
@@ -194,7 +202,162 @@
             "pass": true
           }
         ],
-        "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07"
+        "productInventory": {
+          "react": {
+            "files": [
+              {
+                "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+                "lines": 411,
+                "bytes": 26361,
+                "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+                "lines": 63,
+                "bytes": 15086,
+                "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
+              }
+            ],
+            "totalLines": 474,
+            "totalBytes": 41447
+          },
+          "contract": {
+            "files": [
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+                "lines": 184,
+                "bytes": 12295,
+                "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+                "lines": 220,
+                "bytes": 15740,
+                "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+                "lines": 99,
+                "bytes": 4180,
+                "sha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+                "lines": 12,
+                "bytes": 866,
+                "sha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+                "lines": 14,
+                "bytes": 399,
+                "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+                "lines": 55,
+                "bytes": 1536,
+                "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+                "lines": 28,
+                "bytes": 1196,
+                "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+              }
+            ],
+            "totalLines": 612,
+            "totalBytes": 36212
+          }
+        },
+        "supportInventory": {
+          "react": {
+            "files": [
+              {
+                "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
+                "lines": 44,
+                "bytes": 1621,
+                "sha256": "27c1216d72977e9cecb9eb71c6123366f03226427c48fa5d35ca9faa1e775c92"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+                "lines": 129,
+                "bytes": 5661,
+                "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
+              }
+            ],
+            "totalLines": 173,
+            "totalBytes": 7282
+          },
+          "contract": {
+            "files": [
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+                "lines": 439,
+                "bytes": 18295,
+                "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+                "lines": 77,
+                "bytes": 4085,
+                "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
+                "lines": 156,
+                "bytes": 5870,
+                "sha256": "b0983fcd88a0fb0dd92b2b91e78576489f3e82a24fd6b6a0c9a7097d18b20fe8"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
+                "lines": 132,
+                "bytes": 6033,
+                "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
+              }
+            ],
+            "totalLines": 804,
+            "totalBytes": 34283
+          },
+          "vanilla": {
+            "files": [
+              {
+                "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+                "lines": 111,
+                "bytes": 4167,
+                "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+              },
+              {
+                "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+                "lines": 3,
+                "bytes": 275,
+                "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+              }
+            ],
+            "totalLines": 114,
+            "totalBytes": 4442
+          }
+        },
+        "historicalV1": {
+          "disposition": "Preserve the 348-line threshold and every receipt that evaluated it as historical v1 evidence. They may not validate the replacement source-volume claim.",
+          "rows": [
+            {
+              "metric": "contractSourceLines",
+              "actual": 1416,
+              "threshold": 348,
+              "formula": "floor(react_same_workload_source_lines * 1.10)",
+              "pass": false
+            },
+            {
+              "metric": "snapbackBackendLines",
+              "actual": 136,
+              "threshold": 152,
+              "formula": "floor(partitime_snapback_backend_baseline_lines * 0.80)",
+              "pass": true
+            }
+          ],
+          "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07"
+        }
       }
     },
     {
@@ -218,57 +381,28 @@
                 "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
               }
             ],
-            "totalLines": 173
+            "totalLines": 173,
+            "totalBytes": 7282
           },
           "contract": {
             "files": [
               {
                 "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-                "lines": 346,
-                "bytes": 15025,
-                "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+                "lines": 439,
+                "bytes": 18295,
+                "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
               },
               {
                 "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-                "lines": 85,
-                "bytes": 4550,
-                "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
-              },
-              {
-                "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-                "lines": 36,
-                "bytes": 1631,
-                "sha256": "4916bc5b635171f46f583d01292ee16646a55549d18ab73f2213068c2a8da44a"
-              },
-              {
-                "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
-                "lines": 9,
-                "bytes": 613,
-                "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
-              },
-              {
-                "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-                "lines": 11,
-                "bytes": 323,
-                "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+                "lines": 77,
+                "bytes": 4085,
+                "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
               },
               {
                 "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
-                "lines": 142,
-                "bytes": 5595,
-                "sha256": "ca2425ed07b6e3b50faa994c062262084f667a71968333ec951ed3022d6445fa"
-              },
-              {
-                "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
-                "lines": 55,
-                "bytes": 1536,
-                "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
-              },
-              {
-                "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
-                "lines": 28,
-                "bytes": 1196,
-                "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+                "lines": 156,
+                "bytes": 5870,
+                "sha256": "b0983fcd88a0fb0dd92b2b91e78576489f3e82a24fd6b6a0c9a7097d18b20fe8"
               },
               {
                 "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
@@ -277,7 +411,8 @@
                 "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
               }
             ],
-            "totalLines": 844
+            "totalLines": 804,
+            "totalBytes": 34283
           },
           "vanilla": {
             "files": [
@@ -294,7 +429,8 @@
                 "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
               }
             ],
-            "totalLines": 114
+            "totalLines": 114,
+            "totalBytes": 4442
           }
         }
       }
@@ -320,12 +456,12 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          3,
-          3,
           2,
           2,
           3,
-          3,
+          2,
+          2,
+          2,
           2
         ],
         "pass": true
@@ -349,42 +485,46 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "coldStartupMs",
-            "actualP95": 77,
-            "threshold": 611,
+            "actualP95": 46.30000001192093,
+            "threshold": 103,
             "pass": true
           },
           {
             "cell": "contract:supabase",
             "metricName": "coldStartupMs",
-            "actualP95": 75.29999999701977,
-            "threshold": 1250,
+            "actualP95": 59,
+            "threshold": 175,
             "pass": true
           },
           {
             "cell": "contract:convex",
             "metricName": "coldStartupMs",
-            "actualP95": 103.29999999701977,
-            "threshold": 461,
+            "actualP95": 85.3999999910593,
+            "threshold": 97,
             "pass": true
           },
           {
             "cell": "contract:sqlite",
             "metricName": "coldStartupMs",
-            "actualP95": 79.79999999701977,
-            "threshold": 498,
+            "actualP95": 57.80000001192093,
+            "threshold": 90,
             "pass": true
           }
         ],
@@ -409,43 +549,47 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "warmStartupMs",
-            "actualP95": 41.599999994039536,
-            "threshold": 222,
+            "actualP95": 32,
+            "threshold": 49,
             "pass": true
           },
           {
             "cell": "contract:supabase",
             "metricName": "warmStartupMs",
-            "actualP95": 44.29999999701977,
-            "threshold": 33,
+            "actualP95": 36,
+            "threshold": 34,
             "pass": false
           },
           {
             "cell": "contract:convex",
             "metricName": "warmStartupMs",
-            "actualP95": 56.29999999701977,
-            "threshold": 38,
+            "actualP95": 45.5,
+            "threshold": 41,
             "pass": false
           },
           {
             "cell": "contract:sqlite",
             "metricName": "warmStartupMs",
-            "actualP95": 49.400000005960464,
-            "threshold": 45,
-            "pass": false
+            "actualP95": 35,
+            "threshold": 35,
+            "pass": true
           }
         ],
         "perCellMeasurementsPresent": true
@@ -469,42 +613,46 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "firstAuthoritativeDataMs",
-            "actualP95": 77,
-            "threshold": 697,
+            "actualP95": 46.30000001192093,
+            "threshold": 121,
             "pass": true
           },
           {
             "cell": "contract:supabase",
             "metricName": "firstAuthoritativeDataMs",
-            "actualP95": 75.29999999701977,
-            "threshold": 1344,
+            "actualP95": 59,
+            "threshold": 297,
             "pass": true
           },
           {
             "cell": "contract:convex",
             "metricName": "firstAuthoritativeDataMs",
-            "actualP95": 103.29999999701977,
-            "threshold": 702,
+            "actualP95": 85.3999999910593,
+            "threshold": 216,
             "pass": true
           },
           {
             "cell": "contract:sqlite",
             "metricName": "firstAuthoritativeDataMs",
-            "actualP95": 79.79999999701977,
-            "threshold": 514,
+            "actualP95": 57.80000001192093,
+            "threshold": 104,
             "pass": true
           }
         ],
@@ -529,42 +677,46 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "firstLiveDataMs",
-            "actualP95": 122,
-            "threshold": 697,
+            "actualP95": 73.90000000596046,
+            "threshold": 121,
             "pass": true
           },
           {
             "cell": "contract:supabase",
             "metricName": "firstLiveDataMs",
-            "actualP95": 75.29999999701977,
-            "threshold": 1344,
+            "actualP95": 59,
+            "threshold": 297,
             "pass": true
           },
           {
             "cell": "contract:convex",
             "metricName": "firstLiveDataMs",
-            "actualP95": 103.29999999701977,
-            "threshold": 702,
+            "actualP95": 85.3999999910593,
+            "threshold": 216,
             "pass": true
           },
           {
             "cell": "contract:sqlite",
             "metricName": "firstLiveDataMs",
-            "actualP95": 79.79999999701977,
-            "threshold": 514,
+            "actualP95": 57.80000001192093,
+            "threshold": 104,
             "pass": true
           }
         ],
@@ -589,42 +741,46 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "idleCpuTaskMsPerSecond",
-            "actualP95": 0.28099999999999997,
-            "threshold": 0.6838999999999992,
-            "pass": true
+            "actualP95": 0.25499999999999945,
+            "threshold": 0.2247000000000001,
+            "pass": false
           },
           {
             "cell": "contract:supabase",
             "metricName": "idleCpuTaskMsPerSecond",
-            "actualP95": 2.1073333333333335,
-            "threshold": 1.1802,
+            "actualP95": 1.6706666666666663,
+            "threshold": 0.58765,
             "pass": false
           },
           {
             "cell": "contract:convex",
             "metricName": "idleCpuTaskMsPerSecond",
-            "actualP95": 2.403666666666666,
-            "threshold": 1.1081,
+            "actualP95": 1.6880000000000004,
+            "threshold": 0.6447,
             "pass": false
           },
           {
             "cell": "contract:sqlite",
             "metricName": "idleCpuTaskMsPerSecond",
-            "actualP95": 1.5599999999999998,
-            "threshold": 1.58865,
+            "actualP95": 0.7320000000000001,
+            "threshold": 1.26455,
             "pass": true
           }
         ],
@@ -649,14 +805,18 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
@@ -692,63 +852,36 @@
       }
     },
     {
-      "id": "memory-per-active-subscription-bytes-p95",
+      "id": "two-part-subscription-memory-v2",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
+      "reasonCode": "STEP4_BUDGET_MEMORY_V2_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
-        "metricName": "memoryPerActiveSubscriptionBytes",
-        "formula": "floor(react_same_cell_baseline * 1.10)",
-        "requiredSampling": {
-          "warmups": 2,
-          "samples": 7,
-          "aggregation": "median and p95",
-          "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
-        },
-        "amendment": {
-          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
-        },
-        "amendmentStatus": "ratified",
-        "calibration": {
-          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
-        },
-        "holdout": {
-          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
-        },
-        "rows": [
-          {
-            "cell": "contract:snapback",
-            "metricName": "memoryPerActiveSubscriptionBytes",
-            "actualP95": 2994420,
-            "threshold": 2150064,
-            "pass": false
-          },
-          {
-            "cell": "contract:supabase",
-            "metricName": "memoryPerActiveSubscriptionBytes",
-            "actualP95": 3623680,
-            "threshold": 1818154,
-            "pass": false
-          },
-          {
-            "cell": "contract:convex",
-            "metricName": "memoryPerActiveSubscriptionBytes",
-            "actualP95": 3623656,
-            "threshold": 1818564,
-            "pass": false
-          },
-          {
-            "cell": "contract:sqlite",
-            "metricName": "memoryPerActiveSubscriptionBytes",
-            "actualP95": 3672080,
-            "threshold": 1816914,
-            "pass": false
-          }
+        "claimId": "STEP4.MEMORY_V2",
+        "methodId": "partitime-ws8-memory-v2",
+        "workloadVersion": "partitime.web-memory-fit.v2",
+        "conjunctionRequired": true,
+        "metricNames": [
+          "warmHeapTotalBytesP95",
+          "marginalHeapBytesPerLogicalSubscriptionUpper95"
         ],
-        "perCellMeasurementsPresent": true
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+          "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
+        },
+        "amendmentStatus": "ratified-but-v2-receipts-missing",
+        "calibration": null,
+        "holdout": null,
+        "rows": [],
+        "expectedRows": 8,
+        "historicalMetric": {
+          "name": "memoryPerActiveSubscriptionBytes",
+          "disposition": "retained historical one-subscription total-heap result; it is never relabelled as a fitted marginal cost",
+          "receipt": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+            "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
+          }
+        }
       }
     },
     {
@@ -769,41 +902,45 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "updateFanoutCount",
-            "actualP95": 7,
+            "actualP95": 57,
             "threshold": 9,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:supabase",
             "metricName": "updateFanoutCount",
-            "actualP95": 7,
+            "actualP95": 24,
             "threshold": 9,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:convex",
             "metricName": "updateFanoutCount",
-            "actualP95": 7,
+            "actualP95": 24,
             "threshold": 9,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:sqlite",
             "metricName": "updateFanoutCount",
-            "actualP95": 18,
+            "actualP95": 56,
             "threshold": 9,
             "pass": false
           }
@@ -829,41 +966,45 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "domOrHostPatchCount",
-            "actualP95": 15,
+            "actualP95": 531,
             "threshold": 19,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:supabase",
             "metricName": "domOrHostPatchCount",
-            "actualP95": 15,
+            "actualP95": 202,
             "threshold": 19,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:convex",
             "metricName": "domOrHostPatchCount",
-            "actualP95": 15,
+            "actualP95": 202,
             "threshold": 19,
-            "pass": true
+            "pass": false
           },
           {
             "cell": "contract:sqlite",
             "metricName": "domOrHostPatchCount",
-            "actualP95": 237,
+            "actualP95": 1133,
             "threshold": 19,
             "pass": false
           }
@@ -889,43 +1030,47 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "productionBuildMs",
-            "actualP95": 768.950167,
-            "threshold": 917,
-            "pass": true
+            "actualP95": 656.472042,
+            "threshold": 633,
+            "pass": false
           },
           {
             "cell": "contract:supabase",
             "metricName": "productionBuildMs",
-            "actualP95": 707.861125,
-            "threshold": 711,
+            "actualP95": 504.402708,
+            "threshold": 612,
             "pass": true
           },
           {
             "cell": "contract:convex",
             "metricName": "productionBuildMs",
-            "actualP95": 756.433875,
-            "threshold": 716,
-            "pass": false
+            "actualP95": 558.794083,
+            "threshold": 695,
+            "pass": true
           },
           {
             "cell": "contract:sqlite",
             "metricName": "productionBuildMs",
-            "actualP95": 734.331667,
-            "threshold": 653,
-            "pass": false
+            "actualP95": 468.971041,
+            "threshold": 591,
+            "pass": true
           }
         ],
         "perCellMeasurementsPresent": true
@@ -949,42 +1094,46 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
         "calibration": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+          "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
         },
         "holdout": {
           "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
         },
         "rows": [
           {
             "cell": "contract:snapback",
             "metricName": "incrementalBuildMs",
-            "actualP95": 180,
-            "threshold": 415,
+            "actualP95": 112,
+            "threshold": 286,
             "pass": true
           },
           {
             "cell": "contract:supabase",
             "metricName": "incrementalBuildMs",
-            "actualP95": 145,
-            "threshold": 275,
+            "actualP95": 71,
+            "threshold": 214,
             "pass": true
           },
           {
             "cell": "contract:convex",
             "metricName": "incrementalBuildMs",
-            "actualP95": 144,
-            "threshold": 235,
+            "actualP95": 60,
+            "threshold": 220,
             "pass": true
           },
           {
             "cell": "contract:sqlite",
             "metricName": "incrementalBuildMs",
-            "actualP95": 153,
-            "threshold": 221,
+            "actualP95": 69,
+            "threshold": 211,
             "pass": true
           }
         ],
@@ -1003,22 +1152,26 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+          "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+        },
+        "amendmentStatus": "ratified-but-v2-receipts-missing",
         "calibration": null,
         "holdout": null,
         "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-            "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+            "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-            "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+            "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-            "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+            "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
@@ -1029,13 +1182,21 @@
         "exactPassingCells": [
           "exact-contract:macos:snapback",
           "exact-contract:ios:snapback",
+          "exact-contract:macos:supabase",
+          "exact-contract:ios:supabase",
+          "exact-contract:macos:convex",
+          "exact-contract:ios:convex",
           "exact-contract:macos:sqlite",
           "exact-contract:ios:sqlite"
         ],
         "swiftuiPassingCells": [
           "swiftui:macos:snapback",
+          "swiftui:macos:supabase",
+          "swiftui:macos:convex",
           "swiftui:macos:sqlite",
           "swiftui:ios:snapback",
+          "swiftui:ios:supabase",
+          "swiftui:ios:convex",
           "swiftui:ios:sqlite"
         ],
         "reactAndroidFunctionalChecks": 7,
@@ -1054,22 +1215,26 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+          "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+        },
+        "amendmentStatus": "ratified-but-v2-receipts-missing",
         "calibration": null,
         "holdout": null,
         "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-            "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+            "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-            "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+            "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-            "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+            "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
@@ -1080,13 +1245,21 @@
         "exactPassingCells": [
           "exact-contract:macos:snapback",
           "exact-contract:ios:snapback",
+          "exact-contract:macos:supabase",
+          "exact-contract:ios:supabase",
+          "exact-contract:macos:convex",
+          "exact-contract:ios:convex",
           "exact-contract:macos:sqlite",
           "exact-contract:ios:sqlite"
         ],
         "swiftuiPassingCells": [
           "swiftui:macos:snapback",
+          "swiftui:macos:supabase",
+          "swiftui:macos:convex",
           "swiftui:macos:sqlite",
           "swiftui:ios:snapback",
+          "swiftui:ios:supabase",
+          "swiftui:ios:convex",
           "swiftui:ios:sqlite"
         ],
         "reactAndroidFunctionalChecks": 7,
@@ -1105,22 +1278,26 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+          "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+        },
+        "amendmentStatus": "ratified-but-v2-receipts-missing",
         "calibration": null,
         "holdout": null,
         "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-            "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+            "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-            "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+            "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-            "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+            "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
@@ -1131,13 +1308,21 @@
         "exactPassingCells": [
           "exact-contract:macos:snapback",
           "exact-contract:ios:snapback",
+          "exact-contract:macos:supabase",
+          "exact-contract:ios:supabase",
+          "exact-contract:macos:convex",
+          "exact-contract:ios:convex",
           "exact-contract:macos:sqlite",
           "exact-contract:ios:sqlite"
         ],
         "swiftuiPassingCells": [
           "swiftui:macos:snapback",
+          "swiftui:macos:supabase",
+          "swiftui:macos:convex",
           "swiftui:macos:sqlite",
           "swiftui:ios:snapback",
+          "swiftui:ios:supabase",
+          "swiftui:ios:convex",
           "swiftui:ios:sqlite"
         ],
         "reactAndroidFunctionalChecks": 7,
@@ -1156,22 +1341,26 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+          "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+        },
+        "amendmentStatus": "ratified-but-v2-receipts-missing",
         "calibration": null,
         "holdout": null,
         "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-            "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+            "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
-            "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+            "sha256": "d17d2353b46da3a058ce95eef4ff5e0ab1fe290eba1b549780aaefeac18e9c66"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
-            "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+            "sha256": "1a8b3af0c567f049a460d08a3ab4753cc86ae199e5c016dd99e0257caa0ad661"
           },
           {
             "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
@@ -1182,13 +1371,21 @@
         "exactPassingCells": [
           "exact-contract:macos:snapback",
           "exact-contract:ios:snapback",
+          "exact-contract:macos:supabase",
+          "exact-contract:ios:supabase",
+          "exact-contract:macos:convex",
+          "exact-contract:ios:convex",
           "exact-contract:macos:sqlite",
           "exact-contract:ios:sqlite"
         ],
         "swiftuiPassingCells": [
           "swiftui:macos:snapback",
+          "swiftui:macos:supabase",
+          "swiftui:macos:convex",
           "swiftui:macos:sqlite",
           "swiftui:ios:snapback",
+          "swiftui:ios:supabase",
+          "swiftui:ios:convex",
           "swiftui:ios:sqlite"
         ],
         "reactAndroidFunctionalChecks": 7,
@@ -1206,168 +1403,168 @@
         ],
         "performanceCollector": {
           "path": "demos/partiful-matrix/tests/acceptance/step4-performance.mjs",
-          "sha256": "f6be4400143d98a8490fe3806aeb5be52a2fc4c0d40136847150da89f119bacf"
+          "sha256": "162fbd99fe3943f645c8e9d6ed834d2d956286086ff4427d24768b8fa2fba15c"
         },
         "nativePerformanceCollector": {
           "path": "demos/partiful-matrix/tests/acceptance/step4-native-performance.mjs",
-          "sha256": "b5e8d29948ab792e8a3a05888eff69466a78107c3439ad3149053cb40c3c10a3"
+          "sha256": "a8ee15163e5edde7a2d0c922384afd7ee4d9bc9027e0b967fca8d611ff2644fb"
         },
         "costAttribution": {
           "react:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "7d4ff59fd4c668b4f2ad9e09ae89e94fe049270b316086151d01fef3ba334c8d"
+              "sha256": "30ac3630db23e13e2188edffba696c5fa8dbf41058a979b43a88e361a5dbcf83"
             },
             "layers": {
-              "framework-runtime": 4776,
-              "provider-runtime": 254788,
-              "generated-app-data": 13142,
-              "application-code": 615346
+              "framework-runtime": 5891,
+              "provider-runtime": 324002,
+              "generated-app-data": 14497,
+              "application-code": 628067
             },
-            "moduleCount": 42
+            "moduleCount": 46
           },
           "react:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "2fb2cec5b907984b4b04ba203cd967a545a0f839ad1a1856686884eee14ab3ab"
+              "sha256": "f6866196d4419c228601a9741df48a5b70cf72ade47afcfa74f32e92a85fe44a"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16923,
+              "framework-runtime": 6531,
+              "provider-runtime": 19500,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "react:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/convex/partitime-cost-attribution.json",
-              "sha256": "093d6e0d1311654a37a26cd24e0667f1400cd5109fa0b5a9a88bd8baa8555f55"
+              "sha256": "c186db0070dbf8a93f91744fd1e41c2299063a23254483f8c9226f109390c8db"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16919,
+              "framework-runtime": 6531,
+              "provider-runtime": 19496,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "react:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "c529d1c8d043d8f426fd314c395e00560de76334195336fde875839d8834def1"
+              "sha256": "8bd89cb5c224fb1e7d96ece52811b4de4bbbe2ff87aead0391468d68981caaa1"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16919,
+              "framework-runtime": 6531,
+              "provider-runtime": 19496,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "contract:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "e43a7865d8cd895df12f84dab28a85ba2792d91b0ba7d058f9cbec86bfd7f5dd"
+              "sha256": "d9dacf4f7f2894fd3de78de4c597b324a9a6bf7c13a4c16b99bede9099293419"
             },
             "layers": {
-              "framework-runtime": 3965,
-              "provider-runtime": 231093,
-              "generated-app-data": 31568,
-              "application-code": 431034
+              "framework-runtime": 2633,
+              "provider-runtime": 281230,
+              "generated-app-data": 33000,
+              "application-code": 526728
             },
-            "moduleCount": 121
+            "moduleCount": 130
           },
           "contract:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "5f75414403a671dba4c0632bf376e32442679f5b13360d182f34a950b819e702"
+              "sha256": "9d15093e7890013b53e5f0a4586a102c0f09e97b82fbeb6a9167ba512f1960eb"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402757
+              "application-code": 507754
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "contract:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/convex/partitime-cost-attribution.json",
-              "sha256": "1e7d9388c44b1d756546bcdd01602fa9f2024d53a43f38a4fe3f044aad528bb0"
+              "sha256": "744415baaff6c9c32ab2d0fbd29479f81b3cf17f333b29652889bd070b7db9bf"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402743
+              "application-code": 507744
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "contract:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "2e9ca2e13e761687ed8efecb222ea9c2dd4fc21f832afed023d23e43c2d558a2"
+              "sha256": "3b391542a29e3257d494d3e13a7a3590737fc522173e5988c285cb5930f4f927"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402743
+              "application-code": 507744
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "vanilla:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "9b8a002a6f3771b31633fd0ee48d0ce5f92bec952438d012a399bac73c77ab9f"
+              "sha256": "f795c50715fb5b3815f68617955459276c060dffd086581df5469d682ba2754a"
             },
             "layers": {
               "framework-runtime": 1168,
-              "provider-runtime": 255350,
-              "generated-app-data": 13283,
+              "provider-runtime": 324961,
+              "generated-app-data": 14638,
               "application-code": 16191
             },
-            "moduleCount": 16
+            "moduleCount": 20
           },
           "vanilla:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "8e57a27819fc7723e2ae8eeae7d5e6c71ed975c4d227f4421f1ea2843642f11c"
+              "sha256": "9421851478d44a25a9bb4f9a8c84297748e69b811dbd716d22cb3babcb917d23"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17523,
+              "provider-runtime": 20497,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           },
           "vanilla:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/partitime-cost-attribution.json",
-              "sha256": "1b32077ef9a056ea3f95012c6b4b42c71c50be54f001dd9189112a65c0e0dd0b"
+              "sha256": "ce71a92daf0d962f2d710af8c92def4a4f5845bf692775fdc8c96e8f8be7741d"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17519,
+              "provider-runtime": 20493,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           },
           "vanilla:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "e99825e6dca8f345e9731e91095df58e0b780b3bcbd5630fdfa86bfca62df925"
+              "sha256": "5a7d0665940181f4195d8e4b76c78c53cca477f865831d81681b1f78f3cc7211"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17519,
+              "provider-runtime": 20493,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           }
         }
       }
@@ -1380,29 +1577,29 @@
         "attribution": {
           "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
           "minifiedBytes": {
-            "vanillaGatewayFloor": 20232,
-            "snapbackProviderClientLowerBound": 128148,
-            "reactFrameworkAndApplicationCombined": 194824,
-            "contractRuntimeAndApplicationCombined": 190544,
-            "contractSnapbackInteractionUnattributed": 28858
+            "vanillaGatewayFloor": 20891,
+            "snapbackProviderClientLowerBound": 156621,
+            "reactFrameworkAndApplicationCombined": 202748,
+            "contractRuntimeAndApplicationCombined": 214717,
+            "contractSnapbackInteractionUnattributed": 25080
           }
         },
         "vanillaCells": {
           "vanilla:snapback": {
-            "minifiedBytes": 148380,
-            "deterministicGzipBytes": 40167
+            "minifiedBytes": 177512,
+            "deterministicGzipBytes": 49301
           },
           "vanilla:supabase": {
-            "minifiedBytes": 20235,
-            "deterministicGzipBytes": 7240
+            "minifiedBytes": 20894,
+            "deterministicGzipBytes": 7400
           },
           "vanilla:convex": {
-            "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7237
+            "minifiedBytes": 20890,
+            "deterministicGzipBytes": 7399
           },
           "vanilla:sqlite": {
-            "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7238
+            "minifiedBytes": 20890,
+            "deterministicGzipBytes": 7401
           }
         }
       }
@@ -1434,158 +1631,158 @@
           "react:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "7d4ff59fd4c668b4f2ad9e09ae89e94fe049270b316086151d01fef3ba334c8d"
+              "sha256": "30ac3630db23e13e2188edffba696c5fa8dbf41058a979b43a88e361a5dbcf83"
             },
             "layers": {
-              "framework-runtime": 4776,
-              "provider-runtime": 254788,
-              "generated-app-data": 13142,
-              "application-code": 615346
+              "framework-runtime": 5891,
+              "provider-runtime": 324002,
+              "generated-app-data": 14497,
+              "application-code": 628067
             },
-            "moduleCount": 42
+            "moduleCount": 46
           },
           "react:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "2fb2cec5b907984b4b04ba203cd967a545a0f839ad1a1856686884eee14ab3ab"
+              "sha256": "f6866196d4419c228601a9741df48a5b70cf72ade47afcfa74f32e92a85fe44a"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16923,
+              "framework-runtime": 6531,
+              "provider-runtime": 19500,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "react:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/convex/partitime-cost-attribution.json",
-              "sha256": "093d6e0d1311654a37a26cd24e0667f1400cd5109fa0b5a9a88bd8baa8555f55"
+              "sha256": "c186db0070dbf8a93f91744fd1e41c2299063a23254483f8c9226f109390c8db"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16919,
+              "framework-runtime": 6531,
+              "provider-runtime": 19496,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "react:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "c529d1c8d043d8f426fd314c395e00560de76334195336fde875839d8834def1"
+              "sha256": "8bd89cb5c224fb1e7d96ece52811b4de4bbbe2ff87aead0391468d68981caaa1"
             },
             "layers": {
-              "framework-runtime": 5416,
-              "provider-runtime": 16919,
+              "framework-runtime": 6531,
+              "provider-runtime": 19496,
               "generated-app-data": 0,
-              "application-code": 615346
+              "application-code": 628067
             },
-            "moduleCount": 35
+            "moduleCount": 38
           },
           "contract:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "e43a7865d8cd895df12f84dab28a85ba2792d91b0ba7d058f9cbec86bfd7f5dd"
+              "sha256": "d9dacf4f7f2894fd3de78de4c597b324a9a6bf7c13a4c16b99bede9099293419"
             },
             "layers": {
-              "framework-runtime": 3965,
-              "provider-runtime": 231093,
-              "generated-app-data": 31568,
-              "application-code": 431034
+              "framework-runtime": 2633,
+              "provider-runtime": 281230,
+              "generated-app-data": 33000,
+              "application-code": 526728
             },
-            "moduleCount": 121
+            "moduleCount": 130
           },
           "contract:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "5f75414403a671dba4c0632bf376e32442679f5b13360d182f34a950b819e702"
+              "sha256": "9d15093e7890013b53e5f0a4586a102c0f09e97b82fbeb6a9167ba512f1960eb"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402757
+              "application-code": 507754
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "contract:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/convex/partitime-cost-attribution.json",
-              "sha256": "1e7d9388c44b1d756546bcdd01602fa9f2024d53a43f38a4fe3f044aad528bb0"
+              "sha256": "744415baaff6c9c32ab2d0fbd29479f81b3cf17f333b29652889bd070b7db9bf"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402743
+              "application-code": 507744
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "contract:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "2e9ca2e13e761687ed8efecb222ea9c2dd4fc21f832afed023d23e43c2d558a2"
+              "sha256": "3b391542a29e3257d494d3e13a7a3590737fc522173e5988c285cb5930f4f927"
             },
             "layers": {
-              "framework-runtime": 1497,
-              "provider-runtime": 9912,
+              "framework-runtime": 3056,
+              "provider-runtime": 6464,
               "generated-app-data": 5214,
-              "application-code": 402743
+              "application-code": 507744
             },
-            "moduleCount": 110
+            "moduleCount": 111
           },
           "vanilla:snapback": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/partitime-cost-attribution.json",
-              "sha256": "9b8a002a6f3771b31633fd0ee48d0ce5f92bec952438d012a399bac73c77ab9f"
+              "sha256": "f795c50715fb5b3815f68617955459276c060dffd086581df5469d682ba2754a"
             },
             "layers": {
               "framework-runtime": 1168,
-              "provider-runtime": 255350,
-              "generated-app-data": 13283,
+              "provider-runtime": 324961,
+              "generated-app-data": 14638,
               "application-code": 16191
             },
-            "moduleCount": 16
+            "moduleCount": 20
           },
           "vanilla:supabase": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/partitime-cost-attribution.json",
-              "sha256": "8e57a27819fc7723e2ae8eeae7d5e6c71ed975c4d227f4421f1ea2843642f11c"
+              "sha256": "9421851478d44a25a9bb4f9a8c84297748e69b811dbd716d22cb3babcb917d23"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17523,
+              "provider-runtime": 20497,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           },
           "vanilla:convex": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/partitime-cost-attribution.json",
-              "sha256": "1b32077ef9a056ea3f95012c6b4b42c71c50be54f001dd9189112a65c0e0dd0b"
+              "sha256": "ce71a92daf0d962f2d710af8c92def4a4f5845bf692775fdc8c96e8f8be7741d"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17519,
+              "provider-runtime": 20493,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           },
           "vanilla:sqlite": {
             "identity": {
               "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/partitime-cost-attribution.json",
-              "sha256": "e99825e6dca8f345e9731e91095df58e0b780b3bcbd5630fdfa86bfca62df925"
+              "sha256": "5a7d0665940181f4195d8e4b76c78c53cca477f865831d81681b1f78f3cc7211"
             },
             "layers": {
               "framework-runtime": 1808,
-              "provider-runtime": 17519,
+              "provider-runtime": 20493,
               "generated-app-data": 125,
               "application-code": 16191
             },
-            "moduleCount": 9
+            "moduleCount": 12
           }
         }
       }
@@ -1610,15 +1807,35 @@
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
           "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "ratified",
+        "invalidation": {
+          "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+          "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+        },
+        "nativeInvalidation": {
+          "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+          "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+        },
+        "memoryAmendment": {
+          "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+          "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
+        },
+        "authoredSourceInvalidation": {
+          "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
+          "sha256": "5aed6edd5454e458cea9e30d4b645967d3be6f6e79aa5462ac54fc99253e90ff"
+        },
+        "amendmentStatus": "ratified-but-v3-receipts-missing",
+        "nativeAmendmentStatus": "ratified-but-v2-receipts-missing",
+        "memoryAmendmentStatus": "ratified-but-v2-receipts-missing",
+        "authoredSourceAmendmentStatus": "ratified",
         "holdoutValidationArtifacts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-            "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+            "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
           },
+          null,
           null
         ],
-        "finding": "The dated amendment is ratified; holdout rows remain red until both web/build and native receipts are independently green."
+        "finding": "Invalid historical artifacts remain preserved; every replacement requires owner-ratified authority plus an independently bound green holdout before claim promotion."
       }
     },
     {
@@ -1629,7 +1846,7 @@
         "existingNativeWorkload": "partitime.web-3x4+apple-native-2x2x4.v1",
         "retainedNativeAggregate": {
           "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
-          "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+          "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
         },
         "reactDirectLegs": {
           "supabaseRealtime": {
@@ -1680,21 +1897,21 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "b7024bd1977dbe4724ec78f796e9bfee1d5b348e471510c85c19c93455fd326a",
+        "stdoutSha256": "f4f67a1b9f9c8e6cdbbf3a10432c1cb76e1cad0e8826853981beaf57d8136701",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
-          "dist/convex-realtime/assets/index-CD9kevLf.js          215.38 kB │ gzip: 68.12 kB",
-          "✓ built in 412ms",
+          "dist/convex-realtime/assets/index-CmTdn_tB.js          223.96 kB │ gzip: 70.37 kB",
+          "✓ built in 1.25s",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 49 modules transformed.",
+          "✓ 53 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                         0.41 kB │ gzip:  0.29 kB",
-          "dist/sqlite/partitime-cost-attribution.json    9.37 kB │ gzip:  0.81 kB",
-          "dist/sqlite/assets/index-Bv0ShAqY.css         10.21 kB │ gzip:  3.19 kB",
-          "dist/sqlite/assets/index-B-ZPQCUX.js         215.06 kB │ gzip: 68.02 kB",
-          "✓ built in 365ms"
+          "dist/sqlite/partitime-cost-attribution.json   10.43 kB │ gzip:  0.88 kB",
+          "dist/sqlite/assets/index-CDytqDLg.css         13.36 kB │ gzip:  3.86 kB",
+          "dist/sqlite/assets/index-B5ojUusB.js         223.64 kB │ gzip: 70.25 kB",
+          "✓ built in 1.42s"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -1715,35 +1932,35 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "6bd0621bfdc050fbeea039a0a801ea28f32dd9f5d01be08ab8deea427db2bbb3",
-        "stderrSha256": "98c1777249c130a4bc4f28a51f24ec4fff434af0c1cd3a321a9d619bda94f762",
+        "stdoutSha256": "6b18a1e753b0732435918238c7c815279469ae074d29cb8f2febd6b3b56f3ebf",
+        "stderrSha256": "00314c4e8509986bd189e3bc0f948a909f9f97e24c8439171ffaf14e157050a7",
         "stdoutTail": [
-          "rendering chunks...",
           "computing gzip size...",
-          "dist/sqlite/assets/exact-contract/connection-badge.contract.980738b960cbbe74.witness.json    0.32 kB │ gzip:  0.22 kB",
           "dist/sqlite/index.html                                                                       0.93 kB │ gzip:  0.58 kB",
-          "dist/sqlite/assets/exact-contract/event.contract.13c1aa39b376f4e8.witness.json              15.25 kB │ gzip:  1.62 kB",
-          "dist/sqlite/assets/exact-contract/feed.contract.29edbb33e3e86e86.witness.json               18.68 kB │ gzip:  1.76 kB",
-          "dist/sqlite/partitime-cost-attribution.json                                                 30.45 kB │ gzip:  1.90 kB",
-          "dist/sqlite/assets/index-BOObFu5k.js                                                       210.77 kB │ gzip: 62.53 kB │ map: 1,794.44 kB",
+          "dist/sqlite/assets/exact-contract/connection-badge.contract.38465ae575862ada.witness.json    1.08 kB │ gzip:  0.51 kB",
+          "dist/sqlite/assets/exact-contract/feed.contract.b6588be40b42dd24.witness.json               23.25 kB │ gzip:  1.94 kB",
+          "dist/sqlite/assets/exact-contract/event.contract.97fccc52648431f7.witness.json              27.97 kB │ gzip:  2.07 kB",
+          "dist/sqlite/partitime-cost-attribution.json                                                 32.20 kB │ gzip:  1.91 kB",
+          "dist/sqlite/assets/event-CNqsMfry.js                                                        29.84 kB │ gzip:  7.15 kB",
+          "dist/sqlite/assets/index-DKFqccJv.js                                                       205.75 kB │ gzip: 63.44 kB",
           "",
-          "✓ built in 136ms",
+          "✓ built in 301ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
-          "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/dist/sqlite"
+          "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
         "stderrTail": [
-          "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:6 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:11 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:12 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:13 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:14 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:5 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:6 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:7 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:8 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/event.contract:15 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/event.contract:16 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads mutable module state \"partitimeWhenFormatter\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"type\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"value\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:7 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:8 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:9 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:10 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/llp0063-final-integration-20260725.dYBHVi/snapback/demos/partiful-matrix/surfaces/contract/connection-badge.contract:1 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])"
         ]
       },
       {
@@ -1755,21 +1972,21 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "e8876856c47a32f8e2c4483cdc7438d4cb1ffaa5dbbd5a0f4b2d6605c0e095f2",
+        "stdoutSha256": "52a383b058fbfe7871f9df60dee65492d93e48b328680cc5fbfe6e2cff3a253a",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
-          "dist/convex/assets/index-BV5Pz4-N.js         20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 135ms",
+          "dist/convex/assets/index-0uJfa5oO.js         20.89 kB │ gzip: 7.41 kB",
+          "✓ built in 256ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 22 modules transformed.",
+          "✓ 26 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                        0.47 kB │ gzip: 0.30 kB",
-          "dist/sqlite/partitime-cost-attribution.json   2.28 kB │ gzip: 0.50 kB",
-          "dist/sqlite/assets/index-Bv0ShAqY.css        10.21 kB │ gzip: 3.19 kB",
-          "dist/sqlite/assets/index-qkvd2Q_p.js         20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 158ms"
+          "dist/sqlite/partitime-cost-attribution.json   3.08 kB │ gzip: 0.56 kB",
+          "dist/sqlite/assets/index-CDytqDLg.css        13.36 kB │ gzip: 3.86 kB",
+          "dist/sqlite/assets/index-Cy095Cnn.js         20.89 kB │ gzip: 7.41 kB",
+          "✓ built in 256ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1785,9 +2002,15 @@
         "files": [
           {
             "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-            "lines": 276,
-            "bytes": 15965,
-            "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+            "lines": 411,
+            "bytes": 26361,
+            "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+            "lines": 63,
+            "bytes": 15086,
+            "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
           },
           {
             "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
@@ -1802,63 +2025,45 @@
             "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
           }
         ],
-        "totalLines": 449
+        "totalLines": 647
       },
       "contract": {
         "files": [
           {
             "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-            "lines": 120,
-            "bytes": 9073,
-            "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+            "lines": 184,
+            "bytes": 12295,
+            "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-            "lines": 131,
-            "bytes": 7216,
-            "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 346,
-            "bytes": 15025,
-            "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-            "lines": 85,
-            "bytes": 4550,
-            "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+            "lines": 220,
+            "bytes": 15740,
+            "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-            "lines": 36,
-            "bytes": 1631,
-            "sha256": "4916bc5b635171f46f583d01292ee16646a55549d18ab73f2213068c2a8da44a"
+            "lines": 99,
+            "bytes": 4180,
+            "sha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
-            "lines": 9,
-            "bytes": 613,
-            "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
+            "lines": 12,
+            "bytes": 866,
+            "sha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-            "lines": 11,
-            "bytes": 323,
-            "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
-            "lines": 142,
-            "bytes": 5595,
-            "sha256": "ca2425ed07b6e3b50faa994c062262084f667a71968333ec951ed3022d6445fa"
+            "lines": 14,
+            "bytes": 399,
+            "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
             "lines": 55,
             "bytes": 1536,
-            "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
+            "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
@@ -1867,13 +2072,31 @@
             "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
           },
           {
+            "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+            "lines": 439,
+            "bytes": 18295,
+            "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+            "lines": 77,
+            "bytes": 4085,
+            "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
+            "lines": 156,
+            "bytes": 5870,
+            "sha256": "b0983fcd88a0fb0dd92b2b91e78576489f3e82a24fd6b6a0c9a7097d18b20fe8"
+          },
+          {
             "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
             "lines": 132,
             "bytes": 6033,
             "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
           }
         ],
-        "totalLines": 1095
+        "totalLines": 1416
       },
       "vanilla": {
         "files": [
@@ -1922,6 +2145,74 @@
         "totalLines": 136
       }
     },
+    "productSourceInventory": {
+      "react": {
+        "files": [
+          {
+            "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+            "lines": 411,
+            "bytes": 26361,
+            "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+            "lines": 63,
+            "bytes": 15086,
+            "sha256": "da43a0f2e5afe9749bcaacdcc48f4b88798170087d5e435686e8af82079e1319"
+          }
+        ],
+        "totalLines": 474,
+        "totalBytes": 41447
+      },
+      "contract": {
+        "files": [
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+            "lines": 184,
+            "bytes": 12295,
+            "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+            "lines": 220,
+            "bytes": 15740,
+            "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+            "lines": 99,
+            "bytes": 4180,
+            "sha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+            "lines": 12,
+            "bytes": 866,
+            "sha256": "c898377cadea8a27118298139360e96272f475970e587f46e567e37d720b9bf1"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+            "lines": 14,
+            "bytes": 399,
+            "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+            "lines": 55,
+            "bytes": 1536,
+            "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+            "lines": 28,
+            "bytes": 1196,
+            "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+          }
+        ],
+        "totalLines": 612,
+        "totalBytes": 36212
+      }
+    },
     "glueInventory": {
       "react": {
         "files": [
@@ -1938,57 +2229,28 @@
             "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
           }
         ],
-        "totalLines": 173
+        "totalLines": 173,
+        "totalBytes": 7282
       },
       "contract": {
         "files": [
           {
             "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 346,
-            "bytes": 15025,
-            "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+            "lines": 439,
+            "bytes": 18295,
+            "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-            "lines": 85,
-            "bytes": 4550,
-            "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-            "lines": 36,
-            "bytes": 1631,
-            "sha256": "4916bc5b635171f46f583d01292ee16646a55549d18ab73f2213068c2a8da44a"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
-            "lines": 9,
-            "bytes": 613,
-            "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
-            "lines": 11,
-            "bytes": 323,
-            "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+            "lines": 77,
+            "bytes": 4085,
+            "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
-            "lines": 142,
-            "bytes": 5595,
-            "sha256": "ca2425ed07b6e3b50faa994c062262084f667a71968333ec951ed3022d6445fa"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
-            "lines": 55,
-            "bytes": 1536,
-            "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
-            "lines": 28,
-            "bytes": 1196,
-            "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+            "lines": 156,
+            "bytes": 5870,
+            "sha256": "b0983fcd88a0fb0dd92b2b91e78576489f3e82a24fd6b6a0c9a7097d18b20fe8"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
@@ -1997,7 +2259,8 @@
             "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
           }
         ],
-        "totalLines": 844
+        "totalLines": 804,
+        "totalBytes": 34283
       },
       "vanilla": {
         "files": [
@@ -2014,168 +2277,229 @@
             "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
           }
         ],
-        "totalLines": 114
+        "totalLines": 114,
+        "totalBytes": 4442
       }
     },
     "cells": {
       "react:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BawSjTKa.js",
-            "minifiedBytes": 343880,
-            "deterministicGzipBytes": 101189,
-            "sha256": "266742e30b3620e6801d6129becbac63232761f17785f959366865821406de34"
+            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BRefyO6W.js",
+            "minifiedBytes": 381117,
+            "deterministicGzipBytes": 112439,
+            "sha256": "eef387316f727a5c4e416a86e35cedcec7c520193d493f20bc07db59e0b5d178"
           }
         ],
-        "minifiedBytes": 343880,
-        "deterministicGzipBytes": 101189
+        "minifiedBytes": 381117,
+        "deterministicGzipBytes": 112439
       },
       "react:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/supabase/assets/index-ESGRmIKM.js",
-            "minifiedBytes": 215059,
-            "deterministicGzipBytes": 67872,
-            "sha256": "196060189e8a87890a7ffac21e0438e1f80041ec05ea0ad39ef16003f9f3f041"
+            "path": "demos/partiful-matrix/surfaces/react/dist/supabase/assets/index-DitNC2KW.js",
+            "minifiedBytes": 223642,
+            "deterministicGzipBytes": 70107,
+            "sha256": "81affe37e764204f170231b93e8c767d9cc063b242edc1d16721fc8277ed5b5e"
           }
         ],
-        "minifiedBytes": 215059,
-        "deterministicGzipBytes": 67872
+        "minifiedBytes": 223642,
+        "deterministicGzipBytes": 70107
       },
       "react:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/convex/assets/index-DNNpsqnE.js",
-            "minifiedBytes": 215055,
-            "deterministicGzipBytes": 67870,
-            "sha256": "497e2996cd378ede821b1abfbcf92d5a2fbef66e278a7097cbb7f988d7ba7591"
+            "path": "demos/partiful-matrix/surfaces/react/dist/convex/assets/index-BaeT1mk2.js",
+            "minifiedBytes": 223638,
+            "deterministicGzipBytes": 70105,
+            "sha256": "e233841b7a17f4788cd2c8720d3066c9364df394297b065ad18bd5d6353d4060"
           }
         ],
-        "minifiedBytes": 215055,
-        "deterministicGzipBytes": 67870
+        "minifiedBytes": 223638,
+        "deterministicGzipBytes": 70105
       },
       "react:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/assets/index-B-ZPQCUX.js",
-            "minifiedBytes": 215055,
-            "deterministicGzipBytes": 67871,
-            "sha256": "a8ee94c2eb7c9017aac1b733a0fdbe8e944e3a6c07c53dd99766289ac2d0eb67"
+            "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/assets/index-B5ojUusB.js",
+            "minifiedBytes": 223638,
+            "deterministicGzipBytes": 70106,
+            "sha256": "a0d1e70d0e732f365df8301b3e4a5c806cb75db84019556a10860cfaff473c9a"
           }
         ],
-        "minifiedBytes": 215055,
-        "deterministicGzipBytes": 67871
+        "minifiedBytes": 223638,
+        "deterministicGzipBytes": 70106
       },
       "contract:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CAP9N1nk.js",
-            "minifiedBytes": 367782,
-            "deterministicGzipBytes": 100995,
-            "sha256": "b298843816b687aa141e57ee5ef1c5fd2f313d038862b22cc9ce247abd9e034c"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/artifacts-DDhUto6a.js",
+            "minifiedBytes": 2133,
+            "deterministicGzipBytes": 718,
+            "sha256": "a03abad601917ae92c416c0de630c2f13d1c0b5e324f2932410366296981f22f"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/contract-data.manifest-CpmP9-5I.js",
+            "minifiedBytes": 6889,
+            "deterministicGzipBytes": 1499,
+            "sha256": "c53d278fef80eb3d8d476491a3d7316f308fcd3f89f93a173a731e247b3e76b4"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-DoOcIzFW.js",
+            "minifiedBytes": 29847,
+            "deterministicGzipBytes": 7044,
+            "sha256": "6101751a633084214690c6bee250d128cbca8d974fd9021ff7677096ab1bc2a3"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/functions.manifest-ocST1uw7.js",
+            "minifiedBytes": 7505,
+            "deterministicGzipBytes": 1587,
+            "sha256": "16e9df2703e7937bbea861cb9b1cdcbca9c55451aa8c2ed5f37e0d0e49edc874"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DDElOGor.js",
+            "minifiedBytes": 213254,
+            "deterministicGzipBytes": 65107,
+            "sha256": "38fd5b2041fb19884200abbbddfb0bfffa7810e50363059099489d18f383020b"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-BrPeby9a.js",
+            "minifiedBytes": 143233,
+            "deterministicGzipBytes": 38270,
+            "sha256": "69565b7e584e3bf43db0854c22c5502334cd2ef7c24a061722ce4e9ea1f1d3ab"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-surface-BDBwyVJU.js",
+            "minifiedBytes": 12342,
+            "deterministicGzipBytes": 4070,
+            "sha256": "5d29de2a5179856429d002bb7a8d88f4f0a8968b9fbfa0b27d9db0d0dcae5ed9"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/schema.manifest-DnGb2sBa.js",
+            "minifiedBytes": 2106,
+            "deterministicGzipBytes": 825,
+            "sha256": "caa1ed98b5db12004d66ff6c5d01012c030a8e65f31862f6f165d17f827599f2"
           }
         ],
-        "minifiedBytes": 367782,
-        "deterministicGzipBytes": 100995
+        "minifiedBytes": 417309,
+        "deterministicGzipBytes": 119120
       },
       "contract:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-CwSlGVpH.js",
-            "minifiedBytes": 210785,
-            "deterministicGzipBytes": 61883,
-            "sha256": "97488693d8a2376e019102124e72566b01b8838b79f7f72306fbf5fdb6721fb5"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/event-BQN4Cmkm.js",
+            "minifiedBytes": 29847,
+            "deterministicGzipBytes": 7045,
+            "sha256": "f16b108cfa24f58703321087c9a255b0f3387076fc6c7fe14c5ba23ed84be9a6"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-BcqWZx_Z.js",
+            "minifiedBytes": 205768,
+            "deterministicGzipBytes": 62771,
+            "sha256": "53786665da06df77527482f678c96acadbcd06dc63be2999754c2bde90500938"
           }
         ],
-        "minifiedBytes": 210785,
-        "deterministicGzipBytes": 61883
+        "minifiedBytes": 235615,
+        "deterministicGzipBytes": 69816
       },
       "contract:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-D1XRHPIJ.js",
-            "minifiedBytes": 210771,
-            "deterministicGzipBytes": 61881,
-            "sha256": "f8f0eab2c40bcc14aca634466db8fb050dc8e3c2c6e67cc2e84ecfc78f18a110"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/event--aO9rnEN.js",
+            "minifiedBytes": 29847,
+            "deterministicGzipBytes": 7043,
+            "sha256": "f79adbc33c4fd60b386f944069bbf89dd41b0e54f92fb5472792ca38b56300b3"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-EERml1Ep.js",
+            "minifiedBytes": 205758,
+            "deterministicGzipBytes": 62769,
+            "sha256": "3cc724aed9440db3a1445aa99b5a05f51fa1ed84a3ca0bdb5a60ef064b6a9654"
           }
         ],
-        "minifiedBytes": 210771,
-        "deterministicGzipBytes": 61881
+        "minifiedBytes": 235605,
+        "deterministicGzipBytes": 69812
       },
       "contract:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-BOObFu5k.js",
-            "minifiedBytes": 210771,
-            "deterministicGzipBytes": 61881,
-            "sha256": "7fc23d49421dd8ebcf5a999ee70503acd84e324b6c335ac89424f7a4dbdafd88"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/event-CNqsMfry.js",
+            "minifiedBytes": 29847,
+            "deterministicGzipBytes": 7045,
+            "sha256": "339d0727da58c9bb91536716e345e1e646d9cbe03a4b553c18d4c6c977bab4c0"
+          },
+          {
+            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-DKFqccJv.js",
+            "minifiedBytes": 205758,
+            "deterministicGzipBytes": 62770,
+            "sha256": "b032399c82b5cb6df2079cb66f233ee5db08d049cb5b3a47d1dabfa3ae0012cb"
           }
         ],
-        "minifiedBytes": 210771,
-        "deterministicGzipBytes": 61881
+        "minifiedBytes": 235605,
+        "deterministicGzipBytes": 69815
       },
       "vanilla:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-B4Hw1Ij-.js",
-            "minifiedBytes": 148380,
-            "deterministicGzipBytes": 40167,
-            "sha256": "99d2594527aa538bf2689c6fd522c660a6eec557041cfe3ea21e8d2827777136"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-BLhGXE0s.js",
+            "minifiedBytes": 177512,
+            "deterministicGzipBytes": 49301,
+            "sha256": "0893fcbbf1a804b959550a4dfc795d6c3650deb86d410449c00318cc2266209b"
           }
         ],
-        "minifiedBytes": 148380,
-        "deterministicGzipBytes": 40167
+        "minifiedBytes": 177512,
+        "deterministicGzipBytes": 49301
       },
       "vanilla:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/assets/index-CjxY-Hc9.js",
-            "minifiedBytes": 20235,
-            "deterministicGzipBytes": 7240,
-            "sha256": "285005d18e0b571f158d773d64755b8429b3eea868aa117b37ac71570a7f50b6"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/assets/index-DO5nm__s.js",
+            "minifiedBytes": 20894,
+            "deterministicGzipBytes": 7400,
+            "sha256": "1b8d6f20f4aba3471dd79232cbd8b40ce67d342a4e56b3b7e8fb6ed848f9db51"
           }
         ],
-        "minifiedBytes": 20235,
-        "deterministicGzipBytes": 7240
+        "minifiedBytes": 20894,
+        "deterministicGzipBytes": 7400
       },
       "vanilla:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/assets/index-BV5Pz4-N.js",
-            "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7237,
-            "sha256": "228f8758bf37acf6053875e0e1a5544426c87daeac17638a353f0da0853dd516"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/assets/index-0uJfa5oO.js",
+            "minifiedBytes": 20890,
+            "deterministicGzipBytes": 7399,
+            "sha256": "3f234617e25894842c14fe29e046eccdb9913e391915da74fc7a044bbb9f50aa"
           }
         ],
-        "minifiedBytes": 20231,
-        "deterministicGzipBytes": 7237
+        "minifiedBytes": 20890,
+        "deterministicGzipBytes": 7399
       },
       "vanilla:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/assets/index-qkvd2Q_p.js",
-            "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7238,
-            "sha256": "2be08ebb9420b962da1d08c4cc52f0cb8c0fdd41a237e715afe37a8aa95abd7e"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/assets/index-Cy095Cnn.js",
+            "minifiedBytes": 20890,
+            "deterministicGzipBytes": 7401,
+            "sha256": "7c2fd7723d95fdf7d5c386e4324182b687550443684d6bdbb7d6be852549ff72"
           }
         ],
-        "minifiedBytes": 20231,
-        "deterministicGzipBytes": 7238
+        "minifiedBytes": 20890,
+        "deterministicGzipBytes": 7401
       }
     },
     "attribution": {
       "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
       "minifiedBytes": {
-        "vanillaGatewayFloor": 20232,
-        "snapbackProviderClientLowerBound": 128148,
-        "reactFrameworkAndApplicationCombined": 194824,
-        "contractRuntimeAndApplicationCombined": 190544,
-        "contractSnapbackInteractionUnattributed": 28858
+        "vanillaGatewayFloor": 20891,
+        "snapbackProviderClientLowerBound": 156621,
+        "reactFrameworkAndApplicationCombined": 202748,
+        "contractRuntimeAndApplicationCombined": 214717,
+        "contractSnapbackInteractionUnattributed": 25080
       }
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
+      "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
     },
     "pushLatency": {
       "contract": {
@@ -2184,12 +2508,12 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          3,
-          3,
           2,
           2,
           3,
-          3,
+          2,
+          2,
+          2,
           2
         ],
         "pass": true
@@ -2200,16 +2524,30 @@
         "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
         "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
       },
+      "invalidation": {
+        "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
+        "sha256": "0c1808100f29c53899b8f8f4b4dd6434f5af9ffeb46c23aae8e46c6f01323f63"
+      },
       "calibration": {
         "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
-        "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
       },
       "holdout": {
         "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
-        "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
       },
       "nativeCalibration": null,
-      "nativeHoldout": null
+      "nativeHoldout": null,
+      "memoryAmendment": {
+        "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+        "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
+      },
+      "memoryCalibration": null,
+      "memoryHoldout": null,
+      "authoredSourceInvalidation": {
+        "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
+        "sha256": "5aed6edd5454e458cea9e30d4b645967d3be6f6e79aa5462ac54fc99253e90ff"
+      }
     }
   },
   "frozenThresholds": {
@@ -2230,5 +2568,5 @@
     "requiredWebCheckCount": 43,
     "firstPushFreshnessLatencyMsP95": 8
   },
-  "conclusion": "Initial Contract byte/source budgets are red and the remaining WS8 instruments missed the Step 4 prospective-amendment deadline."
+  "conclusion": "The aggregate Step 4 budget claim remains red: emitted-minified-javascript-by-cell, compressed-javascript-by-cell, cold-startup-ms-p95, warm-startup-ms-p95, first-authoritative-data-ms-p95, first-live-data-ms-p95, idle-cpu, idle-network-use, two-part-subscription-memory-v2, update-fanout-count-p95, dom-or-host-patch-count-p95, production-build-latency-ms-p95, incremental-build-latency-ms-p95, native-hermes-evaluation-ms-p95, native-startup-asset-weight-bytes, native-cold-launch-ms-p95, native-first-authoritative-data-ms-p95, prospective-category-amendments-and-holdout-validation."
 }

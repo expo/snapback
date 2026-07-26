@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-25T21:00:50.677Z",
+  "measuredAt": "2026-07-26T05:12:07.352Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M4",
@@ -16,7 +16,7 @@
   "inputs": {
     "claimManifestSemanticSha256": "e080b785a3e37c9d8701454045358261117c98c0ac7bbe8651bc13ce3be854ce",
     "protocolSha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c",
-    "webReceiptSha256": "591b9a7f3e7e41089dfb7d6da977d5aaa823cabe8377ded573f2ca6e40e3a109",
+    "webReceiptSha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3",
     "thresholdFreezeSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "revision": "508956134f3517169735078272a846e5ac86ba5c",
@@ -29,11 +29,11 @@
       },
       "contract": {
         "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
-        "sha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337"
+        "sha256": "1e95bad2ad29267aa377c29ccf5fe15c1a7dca089f794b06c3931e3ccadf84f7"
       },
       "vanilla": {
         "path": "bun.lock",
-        "sha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a"
+        "sha256": "e69a90711cd7a8f0bae0994c586e2051e021fdfdd8344cff6f4f19a9de9d6cb3"
       }
     }
   },
@@ -218,50 +218,50 @@
     "react:snapback": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-CNcB5XyI.js",
-          "minifiedBytes": 380729,
-          "deterministicGzipBytes": 112690,
-          "sha256": "8d5563ebc4401a8cbbc9e649024ce1e82184e96a50fc3a891b81bc7a51c257a7"
+          "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BRefyO6W.js",
+          "minifiedBytes": 381117,
+          "deterministicGzipBytes": 112814,
+          "sha256": "eef387316f727a5c4e416a86e35cedcec7c520193d493f20bc07db59e0b5d178"
         }
       ],
-      "minifiedBytes": 380729,
-      "deterministicGzipBytes": 112690
+      "minifiedBytes": 381117,
+      "deterministicGzipBytes": 112814
     },
     "react:supabase": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/react/dist/supabase/assets/index-BpreeOmo.js",
-          "minifiedBytes": 223239,
-          "deterministicGzipBytes": 70049,
-          "sha256": "d43c0f26e86f720e8207494ba0aa068c8645a93e05ff86f7c1c6c1852add8a9d"
+          "path": "demos/partiful-matrix/surfaces/react/dist/supabase/assets/index-DitNC2KW.js",
+          "minifiedBytes": 223642,
+          "deterministicGzipBytes": 70243,
+          "sha256": "81affe37e764204f170231b93e8c767d9cc063b242edc1d16721fc8277ed5b5e"
         }
       ],
-      "minifiedBytes": 223239,
-      "deterministicGzipBytes": 70049
+      "minifiedBytes": 223642,
+      "deterministicGzipBytes": 70243
     },
     "react:convex": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/react/dist/convex/assets/index-eD6gLl3e.js",
-          "minifiedBytes": 223235,
-          "deterministicGzipBytes": 70046,
-          "sha256": "c12967b05910179790f7c14904b14d0ce16ecf19cfdc2f2317e26d46840606a2"
+          "path": "demos/partiful-matrix/surfaces/react/dist/convex/assets/index-BaeT1mk2.js",
+          "minifiedBytes": 223638,
+          "deterministicGzipBytes": 70240,
+          "sha256": "e233841b7a17f4788cd2c8720d3066c9364df394297b065ad18bd5d6353d4060"
         }
       ],
-      "minifiedBytes": 223235,
-      "deterministicGzipBytes": 70046
+      "minifiedBytes": 223638,
+      "deterministicGzipBytes": 70240
     },
     "react:sqlite": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/assets/index-hFb4wF4C.js",
-          "minifiedBytes": 223235,
-          "deterministicGzipBytes": 70047,
-          "sha256": "d61e5a8fa2e07cdfb960b1ac5bb3a9b063745018e8952a4b2efe699e93caebfe"
+          "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/assets/index-B5ojUusB.js",
+          "minifiedBytes": 223638,
+          "deterministicGzipBytes": 70241,
+          "sha256": "a0d1e70d0e732f365df8301b3e4a5c806cb75db84019556a10860cfaff473c9a"
         }
       ],
-      "minifiedBytes": 223235,
-      "deterministicGzipBytes": 70047
+      "minifiedBytes": 223638,
+      "deterministicGzipBytes": 70241
     },
     "contract:snapback": {
       "assets": [
@@ -278,10 +278,10 @@
           "sha256": "c53d278fef80eb3d8d476491a3d7316f308fcd3f89f93a173a731e247b3e76b4"
         },
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-BnLXbTbT.js",
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-DoOcIzFW.js",
           "minifiedBytes": 29847,
-          "deterministicGzipBytes": 7047,
-          "sha256": "884bd404b3c66ce83e0e58d9c7f605c3de57fec560ec6226fe5cca062a843af7"
+          "deterministicGzipBytes": 7048,
+          "sha256": "6101751a633084214690c6bee250d128cbca8d974fd9021ff7677096ab1bc2a3"
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/functions.manifest-ocST1uw7.js",
@@ -290,16 +290,16 @@
           "sha256": "16e9df2703e7937bbea861cb9b1cdcbca9c55451aa8c2ed5f37e0d0e49edc874"
         },
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-Bv9AoB3T.js",
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DDElOGor.js",
           "minifiedBytes": 213254,
-          "deterministicGzipBytes": 65209,
-          "sha256": "e79c4461caceac1aa3d68bc9ea20700586a9836b479dd680c75eb9915e58afc2"
+          "deterministicGzipBytes": 65211,
+          "sha256": "38fd5b2041fb19884200abbbddfb0bfffa7810e50363059099489d18f383020b"
         },
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-BFcOh5Ky.js",
-          "minifiedBytes": 143224,
-          "deterministicGzipBytes": 38360,
-          "sha256": "d9600a1308e4d0f79ce4c6fe6af2dbd45f3c6d3d56e99ad64e8ad9fd892ab8fe"
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-BrPeby9a.js",
+          "minifiedBytes": 143233,
+          "deterministicGzipBytes": 38365,
+          "sha256": "69565b7e584e3bf43db0854c22c5502334cd2ef7c24a061722ce4e9ea1f1d3ab"
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-surface-BDBwyVJU.js",
@@ -314,8 +314,8 @@
           "sha256": "caa1ed98b5db12004d66ff6c5d01012c030a8e65f31862f6f165d17f827599f2"
         }
       ],
-      "minifiedBytes": 417300,
-      "deterministicGzipBytes": 119300
+      "minifiedBytes": 417309,
+      "deterministicGzipBytes": 119308
     },
     "contract:supabase": {
       "assets": [
@@ -374,14 +374,14 @@
     "vanilla:snapback": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-DQ29eVtM.js",
-          "minifiedBytes": 177503,
-          "deterministicGzipBytes": 49525,
-          "sha256": "5352ac6eec52604aeca1f5684eb955268ee094a6cebb5ecaf3f2ad9fa7b20a61"
+          "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-BLhGXE0s.js",
+          "minifiedBytes": 177512,
+          "deterministicGzipBytes": 49529,
+          "sha256": "0893fcbbf1a804b959550a4dfc795d6c3650deb86d410449c00318cc2266209b"
         }
       ],
-      "minifiedBytes": 177503,
-      "deterministicGzipBytes": 49525
+      "minifiedBytes": 177512,
+      "deterministicGzipBytes": 49529
     },
     "vanilla:supabase": {
       "assets": [
@@ -424,8 +424,8 @@
     "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
     "minifiedBytes": {
       "vanillaGatewayFloor": 20891,
-      "snapbackProviderClientLowerBound": 156612,
-      "reactFrameworkAndApplicationCombined": 202345,
+      "snapbackProviderClientLowerBound": 156621,
+      "reactFrameworkAndApplicationCombined": 202748,
       "contractRuntimeAndApplicationCombined": 214717,
       "contractSnapbackInteractionUnattributed": 25080
     }
@@ -436,12 +436,12 @@
         4,
         3,
         4,
-        4,
         3,
         3,
-        4
+        3,
+        3
       ],
-      "median": 4,
+      "median": 3,
       "p95": 4
     },
     "contract": {
@@ -450,7 +450,7 @@
         2,
         3,
         2,
-        1,
+        2,
         2,
         2
       ],
@@ -473,16 +473,16 @@
   },
   "currentFormulaThresholds": {
     "emittedMinifiedJsBytes": {
-      "snapback": 399765,
-      "supabase": 234400,
-      "convex": 234396,
-      "sqlite": 234396
+      "snapback": 400172,
+      "supabase": 234824,
+      "convex": 234819,
+      "sqlite": 234819
     },
     "compressedJsBytes": {
-      "snapback": 118324,
-      "supabase": 73551,
-      "convex": 73548,
-      "sqlite": 73549
+      "snapback": 118454,
+      "supabase": 73755,
+      "convex": 73752,
+      "sqlite": 73753
     },
     "contractSourceLines": 642,
     "snapbackBackendLines": 108,

@@ -5,7 +5,7 @@
   "outcome": "pass",
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "054765a4b6b87e144ee3ece4ddc29a28a244d692b8fe0f2ce056a09bd35008cb",
+  "manifestSemanticSha256": "e080b785a3e37c9d8701454045358261117c98c0ac7bbe8651bc13ce3be854ce",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "prerequisiteCount": 18,
@@ -15,7 +15,7 @@
       "witnessClass": "stable-diagnostics",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -23,7 +23,7 @@
       "witnessClass": "deterministic-state",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -31,7 +31,7 @@
       "witnessClass": "subscription-initial-snapshot",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -39,7 +39,7 @@
       "witnessClass": "deterministic-delivery",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -47,7 +47,7 @@
       "witnessClass": "capability-honesty",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -55,7 +55,7 @@
       "witnessClass": "artifact-freshness",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c"
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
       }
     },
     {
@@ -63,7 +63,7 @@
       "witnessClass": "harness-integrity",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "109e609fca680cfb7b1940cd682dc74c1b792abd103ec8dde04bd19fbbca256f"
+        "sha256": "27fb971b74e5d9bc4ba69edc7acdc899d650b923c288ee88765f2238dcefec59"
       }
     },
     {
@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "ee16291f15f2449c8f818ed4b9d7579ae1db973bed6a2cc18790692cbc16ae72"
+        "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
       }
     },
     {
@@ -127,7 +127,7 @@
       "witnessClass": "dependency-exclusion",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "6d5b3909afa5929dad7b05f5cafa1047c7a65bab5df9057b6701dbae547de54f"
+        "sha256": "f923af087133a6dd1d505f3b78c17ef3aa0dcc1082d9e235bda19b8e6a10dbbe"
       }
     },
     {
@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "88ea260ee9d9f519209d8aaf9841cf1f8fd2913a21fb19e4babd50b7853e0110"
+        "sha256": "4ed15fb89301e79dbe51d66b1f7c8c0ad60b04298b85575b10425b24fb9fadb2"
       }
     },
     {
@@ -143,7 +143,7 @@
       "witnessClass": "preregistered-method",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-        "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
+        "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "294adc60fcb145104e0a1979fdeed770e34d3536bd22b87b1d624211d31bdb13"
+        "sha256": "3bb02f2eabdec5443fa05cd8abb35ab57b411f4996d380e1c1bde0236feca06f"
       }
     }
   ],
@@ -169,8 +169,8 @@
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "88ea260ee9d9f519209d8aaf9841cf1f8fd2913a21fb19e4babd50b7853e0110",
-    "exactRevision": "dffb96183743149e91cfb38f606eb3538cd98b9f"
+    "sha256": "4ed15fb89301e79dbe51d66b1f7c8c0ad60b04298b85575b10425b24fb9fadb2",
+    "exactRevision": "d0416c7af2e339ca331e7924eb13499b107d2dac"
   },
   "inputs": {
     "semantics": {
@@ -179,7 +179,7 @@
     },
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/finalize-step0.mjs",
-      "sha256": "74fec8b1cdcba1036b759957f20f713930b4c7573299f0152ab0c4e89a931189"
+      "sha256": "850a72311dfa50445007e3ee2e4ec042a4c0a139422a0ef783007f722d365c3e"
     }
   }
 }

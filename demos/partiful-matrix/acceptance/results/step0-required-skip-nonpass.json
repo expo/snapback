@@ -1,23 +1,23 @@
 {
   "revision": {
-    "snapback": "a0a14bf33470b164cc1d529e6edc35808adc67ff",
-    "exact": "9f82c2a9b221bd370a2d3dad8c60071dd237e6cb"
+    "snapback": "eceef3987458fef8e614b9d761e6381eb9d5033d",
+    "exact": "363aeb59448bfa6f8daa258f4eab3e00fe18922f"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v25.9.0",
-    "bun": "1.3.12",
+    "node": "v22.19.0",
+    "bun": "1.3.10",
     "os": "darwin-25.5.0-arm64",
     "browser": "chrome",
     "browserBinary": "/definitely/not/chrome",
     "browserVersion": null,
     "chrome": "/definitely/not/chrome",
     "chromeVersion": null,
-    "cpu": "Apple M5 Max",
-    "logicalCpus": 18,
-    "totalMemoryBytes": 137438953472
+    "cpu": "Apple M4",
+    "logicalCpus": 10,
+    "totalMemoryBytes": 17179869184
   },
   "packages": {
     "react": {
@@ -100,41 +100,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
+      "manifestSha256": "44e39a107abb959122037a2be870851d6c2b64cb8274567e0324cbfd7ae9373f",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
+      "lockSha256": "1e95bad2ad29267aa377c29ccf5fe15c1a7dca089f794b06c3931e3ccadf84f7",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.6",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.6",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.6",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.6",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.5",
+          "requested": "npm:@ccheever/exact-contract@0.1.6",
           "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "c1dab475c1793d98999a4439f4a5bece3c46c7586dfe8392e680540d18e113a5"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "8a5861beb2cba56a9b1ccaf8c9f5a2dea7841bef004f11cd8f364fcf5f91b5ed"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.5",
+          "requested": "npm:@ccheever/exact-devtools@0.1.6",
           "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "e076bdd3acde8cc3588e59fcdc7f744b4d65d04134175c13c324b2daab571757"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
+          "requested": "npm:@ccheever/exact-facet-core@0.1.6",
           "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "8c7dfd95b951a599ec284cfe5a3ec06a60e007aa168dfc5bc303e5216375b407"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "30e872c37cd1aa90ae2a45b7cec32f06396c6df0a8bae1df20585fed8d617a40"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.5",
+          "requested": "npm:@ccheever/exact-renderer@0.1.6",
           "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "ba7d0ec05b0c193d639be65e3a66f136f20f3176541c751cbc92d2157af65d0d"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "b057c723bd36675ad13e2eee9c0784b020b8c84428fd63900f7e3954d659e4c8"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -153,7 +153,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
+      "lockSha256": "e69a90711cd7a8f0bae0994c586e2051e021fdfdd8344cff6f4f19a9de9d6cb3",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -239,10 +239,6 @@
     {
       "prerequisite": "chrome",
       "path": "/definitely/not/chrome"
-    },
-    {
-      "prerequisite": "snapback-server",
-      "path": "/private/tmp/llp0063-phase4-integration-20260725.8YvL6f/snapback-r2/target/debug/snapback"
     }
   ],
   "results": [],
@@ -250,14 +246,14 @@
   "cleanupErrorCount": 0,
   "witness": {
     "command": [
-      "/opt/homebrew/Cellar/node/25.9.0_3/bin/node",
+      "/Users/ccheever/.volta/tools/image/node/22.19.0/bin/node",
       "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
       "--arm",
       "react",
       "--backend",
       "snapback",
       "--receipt",
-      "/private/tmp/llp0063-phase4-integration-20260725.8YvL6f/snapback-r2/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-22601"
+      "/private/tmp/llp0063-final-m4-20260725.Q5pU3l/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-62890"
     ],
     "exitStatus": 1,
     "signal": null

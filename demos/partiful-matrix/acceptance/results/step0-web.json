@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "12016071bf9d1c347ae352c0d10a66e500143615",
-    "exact": "b4d8d6ac60ab0bd5c3447e53e6cdd9f6601f3c0c"
+    "snapback": "eceef3987458fef8e614b9d761e6381eb9d5033d",
+    "exact": "363aeb59448bfa6f8daa258f4eab3e00fe18922f"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -100,41 +100,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
+      "manifestSha256": "44e39a107abb959122037a2be870851d6c2b64cb8274567e0324cbfd7ae9373f",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
+      "lockSha256": "1e95bad2ad29267aa377c29ccf5fe15c1a7dca089f794b06c3931e3ccadf84f7",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.6",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.6",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.6",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.6",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.5",
-          "resolvedName": "@exact/contract",
-          "resolvedVersion": "0.1.0",
-          "manifestSha256": "acb45904ccbe0cc10416182e257e81c155844e4c78fd4ec48a36dfeb178de872"
+          "requested": "npm:@ccheever/exact-contract@0.1.6",
+          "resolvedName": "@ccheever/exact-contract",
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "8a5861beb2cba56a9b1ccaf8c9f5a2dea7841bef004f11cd8f364fcf5f91b5ed"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.5",
-          "resolvedName": "@exact/devtools",
-          "resolvedVersion": "0.1.0",
-          "manifestSha256": "33fa1bc9e7c13c6d580d7117b51f36831f83b64e85242f514bba87822ff5357e"
+          "requested": "npm:@ccheever/exact-devtools@0.1.6",
+          "resolvedName": "@ccheever/exact-devtools",
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "e076bdd3acde8cc3588e59fcdc7f744b4d65d04134175c13c324b2daab571757"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
-          "resolvedName": "@exact/facet-core",
-          "resolvedVersion": "0.1.0",
-          "manifestSha256": "2e5b04036abde985139847bd5d878f73024f7f2b4f34fb7af98cfc258a8dca88"
+          "requested": "npm:@ccheever/exact-facet-core@0.1.6",
+          "resolvedName": "@ccheever/exact-facet-core",
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "30e872c37cd1aa90ae2a45b7cec32f06396c6df0a8bae1df20585fed8d617a40"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.5",
-          "resolvedName": "@exact/renderer",
-          "resolvedVersion": "0.1.0",
-          "manifestSha256": "d1c2d7157aecb364c92f6a5f8bc2cee840eed3aa5c3423f8058682f77c07e9ad"
+          "requested": "npm:@ccheever/exact-renderer@0.1.6",
+          "resolvedName": "@ccheever/exact-renderer",
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "b057c723bd36675ad13e2eee9c0784b020b8c84428fd63900f7e3954d659e4c8"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -153,7 +153,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
+      "lockSha256": "e69a90711cd7a8f0bae0994c586e2051e021fdfdd8344cff6f4f19a9de9d6cb3",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -345,7 +345,7 @@
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 6,
@@ -363,7 +363,7 @@
             "sampleIndex": 8,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           }
         ],
         "freshnessLatencyMs": {
@@ -371,12 +371,12 @@
             4,
             3,
             4,
-            4,
             3,
             3,
-            4
+            3,
+            3
           ],
-          "median": 4,
+          "median": 3,
           "p95": 4
         },
         "connectionBefore": "live",
@@ -385,36 +385,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109dee72e09841430582439168",
-            "subscriptionId": "sub_019f9b109dee72e09841430582439168",
+            "bindingId": "sub_019f9cd1dbc27991b02c3ec3ea75fecc",
+            "subscriptionId": "sub_019f9cd1dbc27991b02c3ec3ea75fecc",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985327
+            "receivedAtMs": 1785042426818
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109def7171b6f730dbb2aa644f",
-            "subscriptionId": "sub_019f9b109def7171b6f730dbb2aa644f",
+            "bindingId": "sub_019f9cd1dbc27991b02c3ef908255e0c",
+            "subscriptionId": "sub_019f9cd1dbc27991b02c3ef908255e0c",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985348
+            "receivedAtMs": 1785042426830
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109e5d7540be9ad483050d808f",
-            "subscriptionId": "sub_019f9b109e5d7540be9ad483050d808f",
+            "bindingId": "sub_019f9cd1dc2f7872b16350bf78cf6d94",
+            "subscriptionId": "sub_019f9cd1dc2f7872b16350bf78cf6d94",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -423,30 +423,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985438
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f9b109e5e75208aa96cd586a96692",
-            "subscriptionId": "sub_019f9b109e5e75208aa96cd586a96692",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1785012985439
+            "receivedAtMs": 1785042426928
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109e5f7c83ab94c6821dfef8b9",
-            "subscriptionId": "sub_019f9b109e5f7c83ab94c6821dfef8b9",
+            "bindingId": "sub_019f9cd1dc3070f19adebb397b26428e",
+            "subscriptionId": "sub_019f9cd1dc3070f19adebb397b26428e",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -455,14 +439,30 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985439
+            "receivedAtMs": 1785042426931
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9cd1dc3070f19adebb524470c700",
+            "subscriptionId": "sub_019f9cd1dc3070f19adebb524470c700",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1785042426931
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109e5f7c83ab94c6a85d1a3aa6",
-            "subscriptionId": "sub_019f9b109e5f7c83ab94c6a85d1a3aa6",
+            "bindingId": "sub_019f9cd1dc3070f19adebb19763946ab",
+            "subscriptionId": "sub_019f9cd1dc3070f19adebb19763946ab",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -471,14 +471,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985457
+            "receivedAtMs": 1785042426947
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109e5e75208aa96c84ce06fd56",
-            "subscriptionId": "sub_019f9b109e5e75208aa96c84ce06fd56",
+            "bindingId": "sub_019f9cd1dc2f7872b163511d416a40a5",
+            "subscriptionId": "sub_019f9cd1dc2f7872b163511d416a40a5",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -487,14 +487,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985469
+            "receivedAtMs": 1785042426958
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b109e5e75208aa96ca0240c7b90",
-            "subscriptionId": "sub_019f9b109e5e75208aa96ca0240c7b90",
+            "bindingId": "sub_019f9cd1dc3170f39278cdbf16eed496",
+            "subscriptionId": "sub_019f9cd1dc3170f39278cdbf16eed496",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -503,7 +503,7 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785012985480
+            "receivedAtMs": 1785042426968
           }
         ]
       }
@@ -523,9 +523,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -543,9 +543,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -563,9 +563,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -638,7 +638,7 @@
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 1
+            "latencyMs": 2
           },
           {
             "sampleIndex": 7,
@@ -659,7 +659,7 @@
             2,
             3,
             2,
-            1,
+            2,
             2,
             2
           ],
@@ -671,28 +671,28 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b113d7b7812899d9ff5315e523b",
-            "subscriptionId": "sub_019f9b113d7b7812899d9ff5315e523b",
+            "bindingId": "sub_019f9cd281917623beba071312f7a0ae",
+            "subscriptionId": "sub_019f9cd281917623beba071312f7a0ae",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:432dfca9-6e65-493a-ba09-ad493c2939b2",
+              "rootId": "snapback-online-surface:215868ad-d01f-46d1-a783-92698601bc1b",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1785013026171,
+            "receivedAtMs": 1785042469266,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b113d957aa2b6631f7b9d5b4b61",
-            "subscriptionId": "sub_019f9b113d957aa2b6631f7b9d5b4b61",
+            "bindingId": "sub_019f9cd281ab77638776a60dc93f9260",
+            "subscriptionId": "sub_019f9cd281ab77638776a60dc93f9260",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -701,12 +701,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5653ecaa-a6f8-4694-8528-148cbb0f872f",
+              "rootId": "snapback-online-surface:dcc6d34a-bd9c-4c6a-a0d7-916becb9efbd",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1785013026205,
+            "receivedAtMs": 1785042469297,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -715,8 +715,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b113d957aa2b6631fd10b04d969",
-            "subscriptionId": "sub_019f9b113d957aa2b6631fd10b04d969",
+            "bindingId": "sub_019f9cd281ab77638776a6416e50d942",
+            "subscriptionId": "sub_019f9cd281ab77638776a6416e50d942",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -725,12 +725,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5653ecaa-a6f8-4694-8528-148cbb0f872f",
+              "rootId": "snapback-online-surface:dcc6d34a-bd9c-4c6a-a0d7-916becb9efbd",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1785013026205,
+            "receivedAtMs": 1785042469297,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -739,8 +739,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b113d957aa2b6631fbab41e595e",
-            "subscriptionId": "sub_019f9b113d957aa2b6631fbab41e595e",
+            "bindingId": "sub_019f9cd281ab77638776a66c8e1fff3e",
+            "subscriptionId": "sub_019f9cd281ab77638776a66c8e1fff3e",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -749,12 +749,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5653ecaa-a6f8-4694-8528-148cbb0f872f",
+              "rootId": "snapback-online-surface:dcc6d34a-bd9c-4c6a-a0d7-916becb9efbd",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1785013026205,
+            "receivedAtMs": 1785042469297,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -778,9 +778,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -798,9 +798,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -818,9 +818,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -870,11 +870,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 86.80000001192093,
-          "boot-started": 86.90000000596046,
-          "provider-ready": 95.2000000178814,
-          "ui-mounted": 96.40000000596046,
-          "first-authoritative-snapshot": 98.90000000596046
+          "module-evaluated": 85.09999999403954,
+          "boot-started": 85.19999998807907,
+          "provider-ready": 93.59999999403954,
+          "ui-mounted": 95,
+          "first-authoritative-snapshot": 97.5
         }
       }
     },
@@ -892,7 +892,7 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 1,
@@ -962,22 +962,22 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b1164187860a71738a1e466e4d1",
-            "subscriptionId": "sub_019f9b1164187860a71738a1e466e4d1",
+            "bindingId": "sub_019f9cd2ae7b7df0bd8c2f4b5435103b",
+            "subscriptionId": "sub_019f9cd2ae7b7df0bd8c2f4b5435103b",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785013036056
+            "receivedAtMs": 1785042480763
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b11643e74109b75c88edc9ec5e8",
-            "subscriptionId": "sub_019f9b11643e74109b75c88edc9ec5e8",
+            "bindingId": "sub_019f9cd2ae967d51bf096523dd22a344",
+            "subscriptionId": "sub_019f9cd2ae967d51bf096523dd22a344",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -986,30 +986,14 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785013036094
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f9b11643e74109b75c8cf35c7f992",
-            "subscriptionId": "sub_019f9b11643e74109b75c8cf35c7f992",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 22,
-            "lastDeltaVersion": 22,
-            "correlation": null,
-            "receivedAtMs": 1785013036106
+            "receivedAtMs": 1785042480790
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f9b11643e74109b75c8e1ee590145",
-            "subscriptionId": "sub_019f9b11643e74109b75c8e1ee590145",
+            "bindingId": "sub_019f9cd2ae967d51bf09654ee6fccb5e",
+            "subscriptionId": "sub_019f9cd2ae967d51bf09654ee6fccb5e",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1018,7 +1002,23 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785013036122
+            "receivedAtMs": 1785042480806
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9cd2ae967d51bf09656220c535ad",
+            "subscriptionId": "sub_019f9cd2ae967d51bf09656220c535ad",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 22,
+            "lastDeltaVersion": 22,
+            "correlation": null,
+            "receivedAtMs": 1785042480816
           }
         ]
       }
@@ -1038,9 +1038,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1070,11 +1070,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 98.69999998807907,
-          "boot-started": 98.90000000596046,
-          "provider-ready": 98.90000000596046,
-          "ui-mounted": 99.90000000596046,
-          "first-authoritative-snapshot": 189.59999999403954
+          "module-evaluated": 82,
+          "boot-started": 82.30000001192093,
+          "provider-ready": 82.30000001192093,
+          "ui-mounted": 83.2000000178814,
+          "first-authoritative-snapshot": 195.40000000596046
         }
       }
     },
@@ -1093,9 +1093,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1125,11 +1125,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 87.5,
-          "boot-started": 87.59999999403954,
-          "provider-ready": 87.69999998807907,
-          "ui-mounted": 88.69999998807907,
-          "first-authoritative-snapshot": 199.90000000596046
+          "module-evaluated": 85,
+          "boot-started": 85.2000000178814,
+          "provider-ready": 85.2000000178814,
+          "ui-mounted": 86.2000000178814,
+          "first-authoritative-snapshot": 246.80000001192093
         }
       }
     },
@@ -1148,9 +1148,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1180,11 +1180,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 91.5,
-          "boot-started": 91.69999998807907,
-          "provider-ready": 91.69999998807907,
-          "ui-mounted": 92.69999998807907,
-          "first-authoritative-snapshot": 102.40000000596046
+          "module-evaluated": 87.90000000596046,
+          "boot-started": 88.09999999403954,
+          "provider-ready": 88.19999998807907,
+          "ui-mounted": 89.19999998807907,
+          "first-authoritative-snapshot": 99.09999999403954
         }
       }
     }
