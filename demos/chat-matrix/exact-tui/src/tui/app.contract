@@ -3,42 +3,77 @@ use Panel from "@exact/tui-contract/panel.contract"
 use Log from "@exact/tui-contract/log.contract"
 use Tabs from "@exact/tui-contract/tabs.contract"
 use StatusBar from "@exact/tui-contract/status-bar.contract"
-use appendExchange from "./data.ts"
+use TextField from "@exact/tui-contract/text-field.contract"
 use backendTabs from "./data.ts"
+use formatTranscript from "./data.ts"
+use pollConversation from "./data.ts"
+use sendMessage from "./data.ts"
 
-// The chat-matrix UI on the Exact TUI target. The composer, backend tabs, and
-// transcript are real; the assistant is a scripted offline reply because the
-// TUI runtime deliberately has no network host call (LLP 0368) — recorded as
-// the platform boundary this cell exists to demonstrate.
+// Exact LLP 0368's network amendment gives purpose-authored TUI apps an
+// explicitly fenced Ibex network surface, and the LLP 0379 dogfood follow-up
+// adds submit to TextField. This cell exercises both: the manifest admits only
+// the loopback gateway host, and Enter sends a real chat-matrix request instead
+// of the earlier scripted offline response.
 component ChatMatrixTui
   state backend = "sqlite"
+  state model = "anthropic/claude-haiku-4.5"
+  state conversationId = null
+  state messages = []
   state draft = ""
-  state lines = ["chat-matrix · pick a backend, send a message", "offline cell: replies are scripted (no network host call in the TUI runtime)"]
+  state sending = false
+  state errorMessage = ""
 
   derive tabs = backendTabs()
+  derive lines = formatTranscript(messages, backend, sending)
 
-  action chooseBackend(value) writes backend
+  action chooseBackend(value) writes backend, conversationId, messages, errorMessage
     backend = value
+    conversationId = null
+    messages = []
+    errorMessage = ""
 
   action changeDraft(value) writes draft
     draft = value
 
-  action submit writes draft, lines
-    lines = appendExchange(lines, backend, draft.trim())
-    draft = ""
+  action submit writes draft, conversationId, messages, sending, errorMessage
+    let content = draft.trim()
+    if content != ""
+      draft = ""
+      sending = true
+      errorMessage = ""
+      let result = await sendMessage(backend, conversationId, model, content)
+      if result.ok
+        conversationId = result.conversationId
+        messages = result.messages
+      else
+        errorMessage = result.error
+      sending = false
+
+  action refresh writes messages, errorMessage
+    if conversationId != null
+      let result = await pollConversation(backend, conversationId)
+      if result.ok
+        messages = result.messages
+        errorMessage = ""
+      else
+        errorMessage = result.error
+
+  task poll mount
+    every(700, refresh)
 
   contract
     has node testId="chat-root"
     has node testId="thread"
     has input label="Message"
     has node testId="backend-tabs"
+    change input label="Message" -> changeDraft
 
   view
-    Screen(title="ChatMatrix · built with Exact + Contract (TUI)", testId="chat-root")
+    Screen(title="ChatMatrix · built with Exact + Contract (TUI)", initialFocus="composer", testId="chat-root")
       Tabs(tabs=tabs, active=backend, select=chooseBackend, testId="backend-tabs")
       Panel(title=`conversation via ${backend}`, grow=1, testId="thread-panel")
         Log(lines=lines, label="Conversation", follow=true, testId="thread")
-      row width="100%" height=1
-        text "▶ "
-        input value=draft placeholder="Message… (Enter sends)" label="Message" change=changeDraft submit=submit editable=true flex=1 height=1 testId="composer"
-      StatusBar(left=`backend: ${backend}`, right="built with Exact + Contract · Ctrl-\\ exit", testId="status")
+      when errorMessage != ""
+        text `error: ${errorMessage}` color="red" testId="chat-error"
+      TextField(label="Message", value=draft, placeholder=sending ? "Waiting for assistant…" : "Message… (Enter sends)", change=changeDraft, submit=submit, disabled=sending, testId="composer")
+      StatusBar(left=`backend: ${backend} · model: ${model}`, right="Enter send · Ctrl-\\ exit", testId="status")

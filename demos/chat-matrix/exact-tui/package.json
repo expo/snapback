@@ -2,7 +2,7 @@
   "name": "chat-matrix-exact-tui",
   "private": true,
   "scripts": {
-    "dev": "exact run tui",
+    "dev": "exact run tui --no-agent",
     "build": "exact build tui --release"
   }
 }

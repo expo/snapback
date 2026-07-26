@@ -101,8 +101,8 @@ cd demos/chat-matrix/textual && uv run chat.py --backend convex
 # OpenTUI TUI (React/TS)
 cd demos/chat-matrix/opentui && bun install && bun run cli.tsx --backend supabase
 
-# Exact TUI (offline cell — see boundary note below)
-cd demos/chat-matrix/exact-tui && exact run tui
+# Exact TUI (the manifest grants only the loopback gateway host)
+cd demos/chat-matrix/exact-tui && exact run tui --no-agent
 ```
 
 The Expo, SwiftUI, Flutter, React, Ratatui, and Ink apps switch backends at
@@ -117,15 +117,20 @@ screenshots, without synthetic taps.
 
 ## Honest boundaries
 
-- The Exact, SwiftUI, Flutter, React, Ratatui, and Ink cells reach every
-  backend through the gateway's portable `/rpc` poll surface (like
+- The Exact GUI and TUI, SwiftUI, Flutter, React, Ratatui, and Ink cells reach
+  every backend through the gateway's portable `/rpc` poll surface (like
   partiful-matrix's Apple cells); they do not use provider-native clients or
   push. The Expo cells are the idiomatic-client comparison.
-- **The Exact TUI cell is offline by design.** LLP 0368 gives the TUI runtime
-  no network host call, so `exact-tui/` renders the real chat UI (tabs, log,
-  composer) with a scripted local reply that states the boundary. Its contract
-  compiles to an HBC via `exact run tui`; launching the host currently also
-  depends on the exact checkout's vendored macOS Hermes slice being present.
+- **The Exact TUI network grant is deliberately narrow.** Its closed
+  `exact-tui.json` manifest admits only `127.0.0.1`; the host's enforced Ibex
+  boundary denies every other outbound host and all inbound listeners, local
+  sockets, filesystem, process, and environment access. The client polls the
+  fixed loopback gateway at `http://127.0.0.1:4470/rpc`; a remote gateway is
+  not supported by this demo configuration. Use `--no-agent` for this cell:
+  current Exact starts the otherwise-trusted TUI agent listener inside the
+  same deny-listener runtime fence, so the default agent-enabled launch fails
+  before the app mounts; the cross-repository blocker is recorded in
+  `issues/20260725-exact-tui-agent-listener-conflict.md`.
 - The Convex codebase here (`convex/`) **contains partiful-matrix's modules
   verbatim**: both demos share one Convex deployment and `npx convex deploy`
   pushes a whole codebase, so deploying either demo's dir alone would delete
