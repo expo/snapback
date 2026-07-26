@@ -689,11 +689,11 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-production-web.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
-        "sha256": "acad8265a5607d05b332a42b4797e2a46450a1bd9e4862762e1c5e29072ebd2b"
+        "sha256": "f3fa0a43889b935d54aad9239b846169e199d93d3f0116d8880722b98ad64f95"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language",
-      "status": "failing",
+      "status": "passing",
       "supersededBy": null
     },
     {

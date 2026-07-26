@@ -680,7 +680,25 @@ sibling checkout. The fail-closed aggregate at
 `claimTreatment: authoritative`, `claimSatisfied: true`, the complete promised
 runtime matrix, and no nonclaims, so `STEP5.PACKAGED_LOOP` is promoted to
 `passing` without changing any frozen threshold. The Step 5 exit remains
-partial because its Step 4 prerequisites remain red.)
+partial because the Step 4 budget prerequisite remains red.)
+
+**Revised (STEP4.PRODUCTION_WEB promoted):** 2026-07-26 (the retained browser
+instruments were refreshed against the current admitted Contract fixture and
+the public Exact `0.1.6` registry install. The shared Safari/Firefox WebDriver
+collector now targets the fixture's current `create-event` and
+`create-event-submit` controls; clean source-bound reruns pass focus
+trap/restore and native browser Find in Safari 26.5.2 and Firefox 152.0.1.
+Chrome 150.0.7871.186 passes its refreshed native Find receipt. Combined with
+the ratified physical Android and iOS current/current-1 evidence, the strict
+citizenship aggregate is 21/21 with zero red, zero skips, and
+`claimEligible=true`. A fresh immutable production Contract build then passes
+all 9 browser checks: no-JavaScript feed and event authority, exact hydration
+adoption, non-root base paths, history, metadata, and unsolicited Snapback
+push with polling disabled. The fail-closed aggregate at
+`acceptance/results/step4-production-web.json` passes all 12 requirements
+against Exact main `fcfb89c9…`, so `STEP4.PRODUCTION_WEB` is promoted to
+`passing` under the claim-manifest change control. `STEP4.BUDGETS` remains
+`failing`; no performance threshold changed and Step 4 is not complete.)
 
 ## Summary
 
