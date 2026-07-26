@@ -37,7 +37,7 @@ device. Use the create-event form/dialog on `/partitime/`, the canonical
   eligible native controls. Values, validation linkage, and dialog state must
   remain intact.
 - Focus: Tab/Shift-Tab must remain inside the open dialog; Escape must close it
-  and restore focus to `new-event`.
+  and restore focus to `create-event`.
 - Bfcache: change authored state, navigate feed → event, leave the document,
   and return with browser back. Record the `pageshow.persisted` observation;
   the restored route must retain state and remain interactive.
@@ -46,6 +46,9 @@ device. Use the create-event form/dialog on `/partitime/`, the canonical
 
 Record the exact browser and OS versions, a short observation, and at least one
 durable screenshot, video, device-lab log, or session URL for every row.
+Committed local evidence must include its SHA-256 digest; the collector refuses
+missing files and digest drift. A versioned external session URL may be used
+without a local digest.
 
 ## Evidence input
 
@@ -107,6 +110,30 @@ source used by the candidate. A registry install is bound by those installed
 artifact digests. When the packages are linked to an Exact source checkout,
 pass `--exact-root /path/to/exact`; the receipt is claim-eligible only when
 both linked package roots belong to that clean, revision-identified checkout.
+
+## iOS Safari focus and bfcache
+
+The iOS WebDriver collector binds one named simulator runtime and production
+candidate, then exercises native Mobile Safari keyboard focus containment and a
+real document leave/back traversal. The bfcache check retains an unsubmitted
+event-wall draft, requires `pageshow.persisted === true`, edits the restored
+draft again, and returns to the feed to prove continued interactivity.
+
+Run it separately for the current and current−1 simulator runtimes:
+
+```sh
+node demos/partiful-matrix/tests/acceptance/step4-ios-safari-webdriver-citizenship.mjs \
+  --device-udid <simulator-udid> \
+  --channel current \
+  --base-url http://127.0.0.1:<port>/partitime/ \
+  --exact-root /path/to/exact \
+  --receipt /tmp/partitime-ios-current-webdriver.json
+```
+
+The receipt may be admitted as the durable device-lab log for the focus and
+bfcache rows. IME, autofill, and Find still require the simulator's real native
+keyboard/accessory/browser UI and their own retained evidence; WebDriver
+substitution is not accepted for those three behaviors.
 
 Safari must have Develop → Allow Remote Automation enabled by the machine
 owner. `safaridriver --enable` requests an administrator password; the gate

@@ -787,6 +787,33 @@ pub enum MigrateCommand {
         db: PathBuf,
         #[arg(long)]
         dry_run: bool,
+        /// §7: the consumed rehearsal receipt when the plan requires one.
+        #[arg(long)]
+        rehearsal_receipt: Option<PathBuf>,
+    },
+    /// migrate.rehearse — execute the approved production plan AS a §7
+    /// rehearsal against its restore-derived instance. The sealed rehearsal
+    /// plan's binding — never the production audience — names the one
+    /// database this may run on; targeting anything else (production
+    /// included) refuses with SNAPBACK_MIGRATION_REHEARSAL_INVALID. The
+    /// receipt comes back marked rehearsal and is consumed later by
+    /// `migrate apply --rehearsal-receipt`; it never substitutes for the
+    /// production apply receipt.
+    Rehearse {
+        /// The approved file from `migrate approve` (plan + approval).
+        approved: PathBuf,
+        /// The staged successor schema manifest (JSON).
+        #[arg(long)]
+        schema: PathBuf,
+        /// The sealed MigrationRehearsalPlanV1 (restore-derived binding).
+        #[arg(long)]
+        rehearsal_plan: PathBuf,
+        /// The restore-derived isolated instance the binding names.
+        #[arg(long)]
+        db: PathBuf,
+        /// Where to write the rehearsal-marked receipt.
+        #[arg(long)]
+        out: PathBuf,
     },
     /// migrate.cancel — request cancellation at the next admitted
     /// pre-publication boundary.
@@ -984,7 +1011,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
-        Some(HostCommand::Migrate { command }) => migrate_command(command),
+        // migrate.* owns `LocalSnapback` directly with no listener ever
+        // bound, so the whole subcommand is one pre-bind blocking section —
+        // without the handoff the first SQLite read panics the async-worker
+        // guard (found by the Step 5 schema-evolution witness).
+        Some(HostCommand::Migrate { command }) => startup_blocking(|| migrate_command(command)),
     }
 }
 
@@ -6312,6 +6343,200 @@ mod tests {
                 .is_file()
         );
     }
+
+    // The `migrate rehearse` verb is a thin file-IO wrapper over
+    // `migrate_rehearse_artifact` — this witnesses verb parity: the same
+    // binding refusal and the same marked, released receipt the library
+    // path produces (`restore_derived_rehearsal_gates_production_apply` in
+    // src/local.rs owns the semantic matrix).
+    #[test]
+    fn migrate_rehearse_verb_matches_the_library_path() {
+        use crate::manifest::SchemaManifest;
+        use crate::migration::{
+            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
+            MigrationExecutionStrategy, MigrationExpectedOutput, MigrationPlanArtifactV1,
+            MigrationPlanBody, MigrationProof, MigrationProofMethod,
+            MigrationRehearsalBindingV1, MigrationRehearsalPlanV1, RetainedWorkPosture,
+            MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_intents,
+            derive_plan_steps, new_operation_id,
+        };
+        use super::{MigrateCommand, migrate_command};
+
+        let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
+            name: name.to_owned(),
+            field_type: crate::manifest::FieldType::String,
+            optional,
+        };
+        let schema_of = |fields: Vec<crate::manifest::FieldManifest>| SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "notes".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let predecessor = schema_of(vec![field("body", false), field("extra", true)]);
+        let successor = schema_of(vec![field("body", false)]);
+        let identity = |schema: &SchemaManifest| {
+            crate::storage::migration_executor::schema_identity(schema).expect("identity")
+        };
+
+        fn approve_for(
+            snapback: &mut crate::local::LocalSnapback,
+            artifact: &MigrationPlanArtifactV1,
+        ) -> MigrationApprovalV1 {
+            let resolved = snapback.migrate_resolved_audience().expect("audience");
+            MigrationApprovalV1 {
+                schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                plan_digest: artifact.plan_digest.clone(),
+                observation_digest: "0".repeat(64),
+                policy_digest: "local-operator-policy-v1".to_owned(),
+                audience: MigrationAudienceV1 {
+                    project_id: None,
+                    target_id: None,
+                    environment_id: None,
+                    deployment_id: None,
+                    release_id: None,
+                    database_id: resolved.database_id,
+                    stream_incarnation: resolved.stream_incarnation,
+                    activation_generation: resolved.activation_generation,
+                    target_profile_id: resolved.target_profile_id,
+                },
+                approver: "cli-witness-operator".to_owned(),
+                generator_is_approver: true,
+                issued_at_ms: super::wall_clock_now_ms(),
+                expires_at_ms: super::wall_clock_now_ms() + 86_400_000,
+                operation_id: new_operation_id(),
+            }
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let db = directory.path().join("isolated.sqlite");
+        let (artifact, approval, rehearsal) = {
+            let mut isolated = crate::local::LocalSnapback::open(&db).expect("open isolated");
+            isolated.apply_schema(predecessor.clone()).expect("apply schema");
+            let intents = derive_intents(&predecessor, &successor).expect("derive intents");
+            let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+            let artifact = MigrationPlanArtifactV1::seal(MigrationPlanBody {
+                schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                app: isolated.migrate_app_id(),
+                instance: "cli-rehearse-witness".to_owned(),
+                target_profile_id:
+                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                predecessor_schema_hash: identity(&predecessor),
+                successor_schema_hash: identity(&successor),
+                predecessor_generation: 1,
+                steps,
+                execution_strategy: MigrationExecutionStrategy::SingleTransaction,
+                proof: MigrationProof {
+                    method: MigrationProofMethod::Full,
+                    bound: None,
+                },
+                ceilings: MigrationCeilings {
+                    max_affected_rows: 100,
+                    max_bytes: 1024 * 1024,
+                    max_writes: 100,
+                    max_barrier_downtime_ms: 60_000,
+                },
+                compatibility_posture: CompatibilityPosture::SuccessorOnly,
+                retained_work_posture: RetainedWorkPosture::Empty,
+                backup: MigrationBackupRequirement {
+                    required: false,
+                    checkpoint_label: None,
+                    rehearsal_required: true,
+                },
+                expected_output: MigrationExpectedOutput {
+                    schema_hash: identity(&successor),
+                    projection_generations: std::collections::BTreeMap::new(),
+                },
+                constants: MigrationConstants {
+                    publication_timestamp_ms: 2_000_000_000_000,
+                    rollback_timestamp_ms: None,
+                    values: std::collections::BTreeMap::new(),
+                },
+                boundaries: Default::default(),
+            })
+            .expect("seal plan");
+            let approval = approve_for(&mut isolated, &artifact);
+            let rehearsal = MigrationRehearsalPlanV1::seal(
+                artifact.plan_digest.clone(),
+                MigrationRehearsalBindingV1 {
+                    source_backup_identity: "backup-cli-witness-1".to_owned(),
+                    isolated_database_id: approval.audience.database_id.clone(),
+                    restore_epoch_ms: 1_000,
+                    target_profile_id: approval.audience.target_profile_id.clone(),
+                },
+            )
+            .expect("seal rehearsal");
+            (artifact, approval, rehearsal)
+        };
+
+        let write = |name: &str, value: serde_json::Value| {
+            let path = directory.path().join(name);
+            std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap()).unwrap();
+            path
+        };
+        let observation = crate::migration::MigrationPreviewObservationV1 {
+            schema_version: "migration-observation-v1".to_owned(),
+            plan_digest: artifact.plan_digest.clone(),
+            target_head_version: 1,
+            observed_at_ms: super::wall_clock_now_ms(),
+            precondition_rows: std::collections::BTreeMap::new(),
+            capability_health: std::collections::BTreeMap::new(),
+        };
+        let approved_path = write(
+            "approved.json",
+            json!({ "artifact": artifact, "observation": observation, "approval": approval }),
+        );
+        let schema_path = write("successor.json", serde_json::to_value(&successor).unwrap());
+        let rehearsal_path = write(
+            "rehearsal.json",
+            serde_json::to_value(&rehearsal).unwrap(),
+        );
+
+        // (a) Binding refusal parity: the verb delegates to
+        // `migrate_rehearse_artifact` before any receipt write, and a
+        // refused invocation exits the process with the diagnostic envelope
+        // (`migrate_emit`'s CLI contract), so the refusal semantics are
+        // asserted at the exact boundary the verb wraps — a database that
+        // is not the bound restore-derived target refuses and nothing is
+        // written.
+        let other_db = directory.path().join("other.sqlite");
+        {
+            let mut other = crate::local::LocalSnapback::open(&other_db).expect("open other");
+            other.apply_schema(predecessor.clone()).expect("apply schema");
+            let other_approval = approve_for(&mut other, &artifact);
+            let error = other
+                .migrate_rehearse_artifact(&artifact, &other_approval, &successor, &rehearsal)
+                .expect_err("a rehearsal must not execute off its bound target");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_MIGRATION_REHEARSAL_INVALID"
+            );
+        }
+
+        // (b) Against the bound isolated target the verb writes the same
+        // marked, released receipt the library path produces.
+        let out = directory.path().join("rehearsal-receipt.json");
+        migrate_command(MigrateCommand::Rehearse {
+            approved: approved_path,
+            schema: schema_path,
+            rehearsal_plan: rehearsal_path,
+            db: db.clone(),
+            out: out.clone(),
+        })
+        .expect("rehearse verb runs");
+        let receipt: crate::storage::migration_executor::MigrationReceiptV1 =
+            serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+        assert!(receipt.rehearsal, "the receipt is marked rehearsal");
+        assert_eq!(receipt.state.kind(), "released");
+        assert_eq!(receipt.plan_digest, artifact.plan_digest);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -6469,6 +6694,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                 backup: crate::migration::MigrationBackupRequirement {
                     required: false,
                     checkpoint_label: None,
+                    rehearsal_required: false,
                 },
                 expected_output: crate::migration::MigrationExpectedOutput {
                     schema_hash: crate::storage::migration_executor::schema_identity(&successor)?,
@@ -6559,6 +6785,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             schema,
             db,
             dry_run,
+            rehearsal_receipt,
         } => migrate_emit("migrate.apply", (|| {
             let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
             let successor: crate::manifest::SchemaManifest =
@@ -6579,12 +6806,49 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     "wouldApply": true,
                 }));
             }
-            let receipt = snapback.migrate_apply_artifact(
+            let rehearsal: Option<crate::storage::migration_executor::MigrationReceiptV1> =
+                match &rehearsal_receipt {
+                    Some(path) => Some(migrate_read_json(path, "rehearsal receipt")?),
+                    None => None,
+                };
+            let receipt = snapback.migrate_apply_artifact_with_rehearsal_receipt(
                 &approved.artifact,
                 &approved.approval,
                 &successor,
+                rehearsal.as_ref(),
             )?;
             Ok(serde_json::to_value(&receipt)?)
+        })()),
+        MigrateCommand::Rehearse {
+            approved,
+            schema,
+            rehearsal_plan,
+            db,
+            out,
+        } => migrate_emit("migrate.rehearse", (|| {
+            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+            let successor: crate::manifest::SchemaManifest =
+                migrate_read_json(&schema, "successor schema")?;
+            let rehearsal: crate::migration::MigrationRehearsalPlanV1 =
+                migrate_read_json(&rehearsal_plan, "rehearsal plan")?;
+            let mut snapback = crate::local::LocalSnapback::open(&db)?;
+            // Thin wrapper: identical semantics to the library path — the
+            // binding check, marking, and freshness anchor all live in the
+            // executor, not here.
+            let receipt = snapback.migrate_rehearse_artifact(
+                &approved.artifact,
+                &approved.approval,
+                &successor,
+                &rehearsal,
+            )?;
+            std::fs::write(&out, serde_json::to_string_pretty(&receipt)?)?;
+            Ok(json!({
+                "operationId": approved.approval.operation_id,
+                "planId": approved.artifact.plan_id,
+                "rehearsal": true,
+                "state": receipt.state.kind(),
+                "out": out.display().to_string(),
+            }))
         })()),
         MigrateCommand::Cancel { approved, db } => migrate_emit("migrate.cancel", (|| {
             let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;

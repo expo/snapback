@@ -1,7 +1,7 @@
 ---
 title: Deploying the Cloudflare proof
 id: deploying.cloudflare
-order: 1
+order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
 authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js]

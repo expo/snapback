@@ -28,7 +28,12 @@ unless the requiring artifact lists the id in the additive
 codegen emits from the same closed table it derives requirements from.
 `bounded_response_stream_v1` is `experimental` until LLP 0076 reaches
 Accepted, satisfying LLP 0074's no-positive-claim rule for Draft-backed
-capabilities; every other id is `stable`. See §Capability maturity.
+capabilities; every other id is `stable`. See §Capability maturity).
+2026-07-24 (the LLP 0077 route-scoped reorder is implemented: hosted sender
+admission and its shared-throttle/proof cut complete first, then the
+forbidden-authority-field body check runs before ordinary `SessionAuth`
+projection; a served refresh test proves a valid proof plus forbidden body
+field is rejected without consuming the retained successor nonce).
 2026-07-25 update: LLP 0076 was Accepted and the id flipped to `stable`;
 `relational_query_v1`/`migration_keyset_scan_v1` are the current
 experimental set).

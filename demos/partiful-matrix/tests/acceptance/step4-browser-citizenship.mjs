@@ -103,6 +103,23 @@ function validatePassingRow(row, source) {
   if (!Array.isArray(row.evidence) || !row.evidence.some((item) => isRecord(item) && nonempty(item.kind) && nonempty(item.ref))) {
     throw new Error(`${source} ${row.environment}/${row.assertion} needs durable evidence`);
   }
+  for (const item of row.evidence) {
+    if (!isRecord(item) || !nonempty(item.kind) || !nonempty(item.ref)) {
+      throw new Error(`${source} ${row.environment}/${row.assertion} has malformed evidence`);
+    }
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(item.ref)) continue;
+    const evidencePath = resolve(repoRoot, item.ref);
+    if (!existsSync(evidencePath)) {
+      throw new Error(`${source} ${row.environment}/${row.assertion} evidence is missing: ${item.ref}`);
+    }
+    if (!nonempty(item.sha256)) {
+      throw new Error(`${source} ${row.environment}/${row.assertion} local evidence needs sha256: ${item.ref}`);
+    }
+    const actual = identity(evidencePath);
+    if (actual.sha256 !== item.sha256) {
+      throw new Error(`${source} ${row.environment}/${row.assertion} evidence drifted: ${item.ref}`);
+    }
+  }
   for (const group of ['browser', 'os']) {
     if (!isRecord(row[group]) || !nonempty(row[group].name) || !nonempty(row[group].version)) {
       throw new Error(`${source} ${row.environment}/${row.assertion} needs ${group} name and version`);
@@ -302,6 +319,15 @@ const rows = requiredResults.map((required) => byKey.get(`${required.environment
 });
 const passed = rows.filter(({ status }) => status === 'pass').length;
 const red = rows.length - passed;
+const passingRow = (environment, assertion) => byKey.get(`${environment}:${assertion}`) ?? null;
+const mobileInventory = (environment) => {
+  const row = passingRow(environment, 'ime-composition')
+    ?? environments.find(({ id }) => id === environment)?.assertions
+      .map((assertion) => passingRow(environment, assertion))
+      .find(Boolean)
+    ?? null;
+  return row === null ? null : { browser: row.browser, os: row.os };
+};
 const revision = command('git', ['rev-parse', 'HEAD']);
 const dirty = command('git', ['status', '--porcelain=v1']) !== '';
 const recordedAt = new Date().toISOString();
@@ -329,8 +355,13 @@ const report = {
       chrome: command('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--version']),
       firefox: command('/Applications/Firefox.app/Contents/MacOS/firefox', ['--version']),
     },
-    android: { chrome: androidChromeVersion() },
-    ios: { current: null, currentMinusOne: null },
+    android: {
+      chrome: mobileInventory('android-chrome-current')?.browser?.version ?? androidChromeVersion(),
+    },
+    ios: {
+      current: mobileInventory('ios-safari-current'),
+      currentMinusOne: mobileInventory('ios-safari-current-1'),
+    },
   },
   inputs: [focusPath, findPath, safariPath, firefoxPath, manualPath]
     .filter((path) => path && existsSync(path)).map(identity),

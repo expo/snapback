@@ -114,9 +114,11 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
-  // LLP 0080 is Accepted (semantics); the id stays experimental until the
-  // coupled suite passes and both RFCs flip to Implemented.
-  'relational_query_v1',
+  // Empty since 2026-07-26: `relational_query_v1` left this set as LLP
+  // 0080/0081's Implemented act (coupled suite green, admitted Step 5
+  // fixture witnesses complete), mirroring src/manifest.rs's non-stable
+  // table. Generated bundles stop acknowledging promoted ids; surviving
+  // pre-promotion acknowledgments are a no-op at admission.
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
@@ -1516,6 +1518,14 @@ export async function generateInProcess(backendDir, options = {}) {
   const cronJobs = buildCronJobs(cronDefs, functions, err);
   const projections = buildMaintainedProjections(projectionDefs, functions, err);
   const configEntries = buildConfigEntries(configDefs, functions, err);
+  // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
+  // has no function carrier, so its dependence on the relational engine
+  // rides the schema-level requirement: a target without
+  // `relational_query_v1` refuses at generation (below) and again at
+  // admission, never as a late activation surprise.
+  if (projections.length > 0 && !schemaRequiredCapabilities.includes('relational_query_v1')) {
+    schemaRequiredCapabilities.push('relational_query_v1');
+  }
 
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -3569,6 +3579,23 @@ function egressAllowedAtCodegen() {
   return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
 }
 
+// @ref LLP 0051#d1-the-ctx-answer-ledger-recordable-replayable-deterministic-ops — ambient time and entropy are
+// refused before bundle load, so the diagnostic must steer authors to the
+// host-recorded context values that preserve replay.
+function unsupportedAmbientDependencyMessage(code, token) {
+  const guide = 'guide/backend/trusted-runtime-values.md';
+  if (code === 'BUNDLE_UNSUPPORTED_TIME') {
+    return `unsupported ambient dependency ${token}; use ctx.runtime.now() for a trusted integer timestamp (${guide})`;
+  }
+  if (code === 'BUNDLE_UNSUPPORTED_RANDOM') {
+    return `unsupported ambient dependency ${token}; use ctx.runtime.id() for a fresh identifier, or pass an explicit deterministic input for other values (${guide})`;
+  }
+  if (code === 'BUNDLE_UNSUPPORTED_TIMER') {
+    return `unsupported ambient dependency ${token}; do not wait on ambient timers in this handler—use ctx.runtime.now() only when you need a trusted timestamp (${guide})`;
+  }
+  return `unsupported ambient dependency ${token}`;
+}
+
 function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
   if (/\.(?:ts|mts)$/iu.test(sourcePath)) {
     return scanUnsupportedTypeScriptHandlerSource(source, sourcePath);
@@ -3621,7 +3648,7 @@ function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
     'requestAnimationFrame',
   ]);
 
-  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+  function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -3921,7 +3948,7 @@ function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
     'requestAnimationFrame',
   ]);
 
-  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+  function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
     if (seen.has(key)) return;
     seen.add(key);

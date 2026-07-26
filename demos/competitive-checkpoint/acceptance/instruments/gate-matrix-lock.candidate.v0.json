@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-gate-matrix-lock.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "files": [
+    {
+      "path": "gate-matrix.candidate.v0.json",
+      "sha256": "324a16d33ac286b5dc8f3bc86eee7e391b8bdc1d1951980d146699a6301c71b4"
+    },
+    {
+      "path": "gate-matrix.v0.mjs",
+      "sha256": "44881ada10ee30bb8e202acb28729e19d0666d931a7cbf413749f7c7a98a7f77"
+    }
+  ]
+}

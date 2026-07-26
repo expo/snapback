@@ -100,6 +100,32 @@ LLP 0074 gate 2, including the durable-row secret scans.
 All receipts were produced 2026-07-25; protocol amendment v0.7 pins the
 provisioned identities, tool versions, and instrument digests.
 
+## Control-plane observation runbook (2026-07-26)
+
+The target is registered with the packaged control plane behind the concrete
+Fly Machines driver (`packages/snapback-cli/adapters/fly-machines-vm-driver.mjs`):
+credential custody is the macOS keychain item `snapback-fly-drill`/`drill`
+(operator-staged, never in the repository), the account fingerprint binds the
+real org slug (`fly-org-charlie-cheever`), and the witness
+
+```sh
+node demos/competitive-checkpoint/tests/acceptance/control-plane-remote.mjs
+```
+
+runs live doctor/inspect read-back, the fail-closed negatives (wrong-account
+mismatch, missing credential, tampered driver bytes), production-posture
+control logs with a verified `remoteProviderAttestation`, and a platform
+stop/start interruption observed through the adapter. Receipt:
+`demos/competitive-checkpoint/acceptance/results/control-plane-remote.v0.json`.
+Lifecycle operations are deliberately unimplemented in this driver slice and
+fail closed (`issues/20260726-0072-fly-adapter-remaining-surface.md`).
+
+Known incident (2026-07-26): the origin's Let's Encrypt certificate lapsed
+into the 5-per-168h duplicate-certificate rate limit (retry after 2026-07-27
+00:40 UTC), so the served origin fails TLS and the adapter honestly reports
+`degraded` while the machine is `started`. Cert-persistence across machine
+replacement is a recorded adapter GAP in the same ticket.
+
 ## Teardown
 
 `fly apps destroy snapback-drill` and `fly storage destroy snapback-drill-backups`

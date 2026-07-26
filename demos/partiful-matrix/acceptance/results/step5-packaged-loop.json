@@ -1,96 +1,159 @@
 {
-  "schemaVersion": "snapback.package-cold-install.v1",
+  "schemaVersion": "snapback.package-cold-install.aggregate.v1",
   "ok": true,
-  "claimTreatment": "checkpoint",
-  "claimSatisfied": false,
-  "sourceRevision": "dd6a16c11412479dbd8ef6c5ef6ae66ca6b497ba",
+  "claimTreatment": "authoritative",
+  "claimSatisfied": true,
+  "sourceRevision": "ca92d02943e72c2ced7861a0cff54b8821878d48",
   "sourceDirty": false,
-  "publicationMode": "dry-run",
-  "installSource": "tarball",
-  "scopePreset": "identity",
+  "publicationMode": "publish",
+  "installSource": "public",
+  "scopePreset": "ccheever",
   "version": "0.1.0",
+  "registry": "https://registry.npmjs.org",
   "packages": [
     {
       "sourceName": "@snapback/runtime-darwin-arm64",
-      "publishedName": "@snapback/runtime-darwin-arm64",
+      "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
       "version": "0.1.0",
-      "tarball": "snapback-runtime-darwin-arm64-0.1.0.tgz",
-      "sha256": "8e77436a02d1bb4432cdf6f518b538b0cc4c6ab42b0a98bcba0b4cd79960ba0a"
+      "registrySha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
+      "registryIntegrity": "sha512-RqoGCpIDIIdJYnFX9crnl9SaxYiNPwsnL85ItsXbHqF1pZ0xNkATjPuwk/GG75GYIOoNyPygdFUOIYVVuvRj+g=="
+    },
+    {
+      "sourceName": "@snapback/runtime-linux-x64",
+      "publishedName": "@ccheever/snapback-runtime-linux-x64",
+      "version": "0.1.0",
+      "registrySha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
+      "registryIntegrity": "sha512-6ndcbpEC8Hnl2wy6AsAX5dvPJnky2ycWssOqY7pHSScTEEKZ3bNqEh1Fx1VEirHhFHBlxk0qixv1Q8BSxk9a+g=="
     },
     {
       "sourceName": "@snapback/contract",
-      "publishedName": "@snapback/contract",
+      "publishedName": "@ccheever/snapback-contract",
       "version": "0.1.0",
-      "tarball": "snapback-contract-0.1.0.tgz",
-      "sha256": "df914239b65035ce6a59b83e1df7100eedc99e83733a6758d0c4466abc54a8f9"
+      "registrySha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
+      "registryIntegrity": "sha512-g5mICwGM2UqYBSRDVHow3RKYR4dJ6D11HOPdCYfn6Ytoj9F0+xtiGAkJm1+NC3owuIrssnXqo9d5yFFglCmN3g=="
     },
     {
       "sourceName": "@snapback/client",
-      "publishedName": "@snapback/client",
+      "publishedName": "@ccheever/snapback-client",
       "version": "0.1.0",
-      "tarball": "snapback-client-0.1.0.tgz",
-      "sha256": "da5200f500f2261e2009c5093dbb05fdde7c3a32a83ad6eda2e4a553474699a3"
+      "registrySha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
+      "registryIntegrity": "sha512-solv5BfGi30aQ13r9vDF6ADdUKlY3CapN+yY840L9Z+cP1UqBXqKpYRrB8I8JvBWuRgSYfuw/trvvIrLArxrOw=="
     },
     {
       "sourceName": "@snapback/codegen",
-      "publishedName": "@snapback/codegen",
+      "publishedName": "@ccheever/snapback-codegen",
       "version": "0.1.0",
-      "tarball": "snapback-codegen-0.1.0.tgz",
-      "sha256": "965df0148b25760f6de983bfbe11e2abf044fc993be5dd788775666860f45083"
+      "registrySha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
+      "registryIntegrity": "sha512-AkMVbzpWUIaF4dyEvnNZ6MOiVT5iJ3E4lLb+fSlHHT40UFUVZxp2O+PgUnNibW3fpr3zJRhAq5OJfmb/+qrm4Q=="
     },
     {
       "sourceName": "@snapback/react",
-      "publishedName": "@snapback/react",
+      "publishedName": "@ccheever/snapback-react",
       "version": "0.1.0",
-      "tarball": "snapback-react-0.1.0.tgz",
-      "sha256": "6f020ddcea3ea840909de5b58e1bb2ef7657d46c2ce57c59fca303f43c15fc51"
+      "registrySha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
+      "registryIntegrity": "sha512-8MyxGfy7woFdA0ni2VoIL6eO9jeT3a7VoAvcJXBZf+VImbhZQ3QYTK/9YTaeEDwydwerzC3/TInpVBwezqvPiQ=="
     },
     {
       "sourceName": "@snapback/app-cli",
-      "publishedName": "@snapback/app-cli",
+      "publishedName": "@ccheever/snapback-app-cli",
       "version": "0.1.0",
-      "tarball": "snapback-app-cli-0.1.0.tgz",
-      "sha256": "525323697027b20b343f8261f0045ce5ae942c3e113a2e2ba32e50169a09313a"
+      "registrySha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
+      "registryIntegrity": "sha512-tKVtzx/EZ/AEIIho6pQlbUh0DfQXbUZNfNAxvNzbpOsTvBL4Yc7TH32dmsuRSCOAooRlRR1DBQ2oi+rXist0Tw=="
     },
     {
       "sourceName": "@snapback/cli",
-      "publishedName": "@snapback/cli",
+      "publishedName": "@ccheever/snapback-cli",
       "version": "0.1.0",
-      "tarball": "snapback-cli-0.1.0.tgz",
-      "sha256": "12b6c47e696f49a38160365ab605fd991393a9bb6bb89fa69a27aa8c983e8770"
+      "registrySha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
+      "registryIntegrity": "sha512-mczsTgYMHBjNS6QQY0qp0UeU/ZkrYZT5Hia6kc3fnKpx9MjyZ7VRwS1dStcD+AX+nIXnyQfJx0jkRdzZ9GbYDA=="
+    }
+  ],
+  "platforms": [
+    {
+      "platform": "darwin-arm64",
+      "sha256": "75d9b6b576aec43d852bdb02670fe6693a92e441bc5949cfb120dffa6b2f2435",
+      "machine": {
+        "platform": "darwin",
+        "architecture": "arm64",
+        "osRelease": "24.6.0",
+        "nodeVersion": "v24.18.0",
+        "runtimePackage": "@snapback/runtime-darwin-arm64",
+        "runnerEnvironment": "github-hosted",
+        "separatelyProvisionedCleanMachine": true,
+        "githubRunId": "30216614778",
+        "githubRunAttempt": "1",
+        "githubRepository": "ccheever/snapback",
+        "githubWorkflowSha": "d20c0e484d7b5f660103d299d3f1d6b9230922bc"
+      },
+      "checks": {
+        "materializedTarballInstall": true,
+        "stagedRegistryAliasResolution": false,
+        "publicRegistryAliasResolution": true,
+        "publicRegistryTarballDigestMatch": true,
+        "registryTarballCount": 8,
+        "noSiblingSourceCheckout": true,
+        "partitimeBackendBuilt": true,
+        "localCodegenOffline": true,
+        "remoteCodegenOffline": true,
+        "bundledSchemasAndCorpus": true,
+        "repositoryRelativePublicationPaths": true,
+        "packagedCliIntrospection": true,
+        "packagedRuntimeDoctor": true,
+        "packagedScaffoldAndOfflineGenerate": true,
+        "packagedDeployBuildAndVerify": true,
+        "packagedManagedDevReadyAttachWatchAndStop": true,
+        "browserAdapterBundle": true,
+        "resolvedDependencyCount": 9,
+        "browserBundleBytes": 484052
+      }
+    },
+    {
+      "platform": "linux-x64",
+      "sha256": "0f386c20b58ce5f2616ffa8d313ced88d7509d6029cc521d292637ebb882d642",
+      "machine": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "6.17.0-1020-azure",
+        "nodeVersion": "v24.18.0",
+        "runtimePackage": "@snapback/runtime-linux-x64",
+        "runnerEnvironment": "github-hosted",
+        "separatelyProvisionedCleanMachine": true,
+        "githubRunId": "30216614778",
+        "githubRunAttempt": "1",
+        "githubRepository": "ccheever/snapback",
+        "githubWorkflowSha": "d20c0e484d7b5f660103d299d3f1d6b9230922bc"
+      },
+      "checks": {
+        "materializedTarballInstall": true,
+        "stagedRegistryAliasResolution": false,
+        "publicRegistryAliasResolution": true,
+        "publicRegistryTarballDigestMatch": true,
+        "registryTarballCount": 8,
+        "noSiblingSourceCheckout": true,
+        "partitimeBackendBuilt": true,
+        "localCodegenOffline": true,
+        "remoteCodegenOffline": true,
+        "bundledSchemasAndCorpus": true,
+        "repositoryRelativePublicationPaths": true,
+        "packagedCliIntrospection": true,
+        "packagedRuntimeDoctor": true,
+        "packagedScaffoldAndOfflineGenerate": true,
+        "packagedDeployBuildAndVerify": true,
+        "packagedManagedDevReadyAttachWatchAndStop": true,
+        "browserAdapterBundle": true,
+        "resolvedDependencyCount": 9,
+        "browserBundleBytes": 484052
+      }
     }
   ],
   "checks": {
-    "materializedPackageInstall": true,
-    "materializedTarballInstall": true,
-    "materializedRegistryInstall": false,
-    "publicRegistryInstall": false,
-    "noSiblingSourceCheckout": true,
-    "partitimeBackendBuilt": true,
-    "localCodegenOffline": true,
-    "remoteCodegenOffline": true,
-    "bundledSchemasAndCorpus": true,
-    "repositoryRelativePublicationPaths": true,
-    "packagedCliIntrospection": true,
+    "completePublicRegistryClosure": true,
+    "registryTarballDigestsMatchPublication": true,
+    "separatelyProvisionedCleanMachines": true,
+    "completeSupportedRuntimeMatrix": true,
     "packagedRuntimeDoctor": true,
-    "packagedScaffoldAndOfflineGenerate": true,
-    "packagedManagedDevReadyAttachWatchAndStop": true,
-    "browserAdapterBundle": true,
-    "resolvedDependencyCount": 9,
-    "browserBundleBytes": 419064
+    "packagedScaffoldGenerateDevTestAndWatch": true,
+    "noSiblingSourceCheckout": true
   },
-  "nonclaims": [
-    {
-      "id": "public-registry-install",
-      "reason": "This proof installs immutable npm tarballs; it does not install the package closure from a public registry."
-    },
-    {
-      "id": "separately-provisioned-clean-machine",
-      "reason": "The proof uses a fresh external directory on the development host, not a separately provisioned clean machine."
-    },
-    {
-      "id": "non-darwin-arm64-runtime",
-      "reason": "The packaged native runtime profile is Apple-silicon macOS only."
-    }
-  ]
+  "nonclaims": []
 }

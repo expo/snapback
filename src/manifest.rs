@@ -1397,8 +1397,7 @@ impl ObservedEffects {
     }
 
     fn write(&mut self, table: &str, operation: &str) {
-        self.writes
-            .insert((table.to_owned(), operation.to_owned()));
+        self.writes.insert((table.to_owned(), operation.to_owned()));
     }
 
     fn expr(&mut self, expr: &ValueExpr) {
@@ -1424,10 +1423,8 @@ impl ObservedEffects {
             ValueExpr::MembershipExists(_) => {
                 self.authorization_inputs.insert("membershipPredicate");
             }
-            ValueExpr::Arg(_)
-            | ValueExpr::Args
-            | ValueExpr::Binding(_)
-            | ValueExpr::Literal(_) => {}
+            ValueExpr::Arg(_) | ValueExpr::Args | ValueExpr::Binding(_) | ValueExpr::Literal(_) => {
+            }
             ValueExpr::Field { base, .. } => self.expr(base),
             ValueExpr::Binary { left, right, .. } => {
                 self.expr(left);
@@ -1554,9 +1551,10 @@ fn validate_effect_ceiling(function: &FunctionDefinition) -> SnapbackResult<()> 
         }))
     };
     for (table, access, index) in &observed.reads {
-        let admitted = ceiling.reads.iter().any(|read| {
-            read.table == *table && read.access == *access && read.index == *index
-        });
+        let admitted = ceiling
+            .reads
+            .iter()
+            .any(|read| read.table == *table && read.access == *access && read.index == *index);
         if !admitted {
             return Err(exceeded(
                 "read",
@@ -1873,7 +1871,9 @@ pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> Snapb
         )));
     }
     if plan.projection.is_empty() {
-        return Err(invalid("relational projection must be non-empty".to_owned()));
+        return Err(invalid(
+            "relational projection must be non-empty".to_owned(),
+        ));
     }
     let mut names = std::collections::BTreeSet::new();
     for leaf in &plan.projection {
@@ -1995,11 +1995,10 @@ pub struct FunctionDefinition {
     /// already-public query's rows may be embedded in a tokenless HTML
     /// response. Grants no invocation authority; accepted only beside a valid
     /// `authorityIndependent` declaration.
-    ///
-    /// Governed by LLP 0092 §0C.3: authored on the function definition,
-    /// compiled by codegen, re-enforced at manifest load, and never
-    /// route-manifest authored.
-    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact
+    // @ref LLP 0092#0c3-publicinline--a-codegen-compiled-disclosure-fact —
+    //   authored on the function definition, compiled by codegen, re-enforced
+    //   at manifest load; never route-manifest authored. Keep this reference
+    //   out of the generated JSON Schema description.
     #[serde(
         default,
         rename = "publicInline",
@@ -2297,13 +2296,16 @@ pub struct StandardPatternIdentity {
     pub profile: String,
 }
 
-/// LLP 0080 §1 — the closed first relational profile: one root table, exactly
-/// one unique-joined table, at most four equality pairs, explicit
+// @ref LLP 0080#1-closed-relational-plan — this Rust-owned shape is the
+// closed first relational profile. Keep the reference out of generated schema
+// prose so ref-check does not interpret a JSON string as a source annotation.
+/// The closed first relational profile: one root table, exactly one
+/// unique-joined table, at most four equality pairs, explicit
 /// visibility on both sources, index-served root access, deterministic
 /// root ordering, and a bounded `take`. Evaluation follows the normative
-/// `root-window-v1` pipeline (LLP 0080 §2): visible root filter → cursor
-/// boundary → root order → take N roots → join + joined visibility →
-/// projection. `take` bounds consumed authorized roots, not emitted rows.
+/// `root-window-v1` pipeline: visible root filter → cursor boundary → root
+/// order → take N roots → join + joined visibility → projection. `take`
+/// bounds consumed authorized roots, not emitted rows.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RelationalQueryPlan {
@@ -2453,6 +2455,7 @@ pub struct PublicFunctionManifest {
         rename = "acknowledgedExperimentalCapabilities",
         skip_serializing_if = "Vec::is_empty"
     )]
+    #[schemars(default)]
     pub acknowledged_experimental_capabilities: Vec<String>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
@@ -2751,9 +2754,10 @@ pub enum HandlerPlan {
     Query(QueryPlan),
     Mutation(MutationPlan),
     Action(ActionPlan),
-    /// LLP 0080 §1 — the closed bounded-join profile. Callable and
-    /// `live_replace`-capable only; targets that cannot execute it report a
-    /// machine-readable capability gap before invocation.
+    // @ref LLP 0080#1-closed-relational-plan — closed bounded-join plan.
+    /// The closed bounded-join profile. Callable and `live_replace`-capable
+    /// only; targets that cannot execute it report a machine-readable
+    /// capability gap before invocation.
     RelationalQuery(RelationalQueryPlan),
 }
 
@@ -3843,21 +3847,16 @@ impl TargetCapabilityId {
     /// admission refuses it unless the requiring artifact acknowledges the
     /// experimental contract.
     pub const fn maturity(self) -> CapabilityMaturity {
-        match self {
-            // LLP 0076 was Accepted 2026-07-25 (author ratification, gate-2
-            // receipts complete): `bounded_response_stream_v1` fell out of
-            // this non-stable table as the acceptance act — positive presence
-            // is now the plain 0058 compatibility assertion. Artifacts that
-            // still acknowledge it are unaffected (stable acknowledgment is a
-            // no-op).
-            // LLP 0080 is Accepted (semantics), but its executable witnesses
-            // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
-            // relational profile's id stays `experimental`; flipping it to
-            // `Stable` is the Implemented act.
-            Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
-            Self::MigrationKeysetScanV1 => CapabilityMaturity::Experimental,
-            _ => CapabilityMaturity::Stable,
-        }
+        // LLP 0076 was Accepted 2026-07-25 and LLP 0080/0081 flipped to
+        // Implemented 2026-07-26 (coupled suite green, admitted Step 5
+        // fixture witnesses complete): `bounded_response_stream_v1`, then
+        // `relational_query_v1` and `migration_keyset_scan_v1`, fell out of
+        // the non-stable table as those acceptance/Implemented acts —
+        // positive presence is now the plain 0058 compatibility assertion
+        // for every registered id. Artifacts that still acknowledge a
+        // promoted id are unaffected (stable acknowledgment is a no-op).
+        // The next non-stable id restores a `match self` here.
+        CapabilityMaturity::Stable
     }
 
     /// Evaluate the id's named positive predicate for one exact target/runtime
@@ -4931,94 +4930,90 @@ mod membership_manifest_grammar_tests {
         );
     }
 
-    // @ref LLP 0058#capability-maturity — the maturity map annotates exactly
-    // the emitted support set, and an experimental entry is not plain
-    // support: admission requires the artifact's explicit acknowledgment.
+    // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
+    // has no function carrier: codegen surfaces its relational-engine
+    // dependence as a schema-level `relational_query_v1` requirement, and
+    // the load path chains schema-level requirements through the same
+    // `require_capabilities` gate as function requirements. A target
+    // without the relational engine therefore refuses the projection
+    // bundle at admission, never as a late activation surprise.
     #[test]
-    fn experimental_maturity_is_published_and_gates_admission() {
-        // The maturity map annotates the emitted set: experimental ids appear
-        // exactly when they are supported, and stable ids never appear. The
-        // stream id left this map when LLP 0076 was Accepted (2026-07-25) —
-        // its absence below is the promotion regression.
+    fn projection_schema_requirement_refuses_without_relational_support() {
+        let supported = CapabilityManifest::local_v0_declared();
+        supported
+            .require_capability("relational_query_v1")
+            .expect("the local target serves projection-carrying bundles");
+
+        let mut stripped = CapabilityManifest::local_v0_declared();
+        stripped
+            .supported_capabilities
+            .retain(|id| *id != TargetCapabilityId::RelationalQueryV1);
+        let refusal = stripped
+            .require_capabilities(["relational_query_v1"], &BTreeSet::new())
+            .expect_err("a projection bundle refuses on a target without the relational engine");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(refusal.diagnostic.details["capability"], "relational_query_v1");
+    }
+
+    // @ref LLP 0058#capability-maturity — the maturity map annotates the
+    // emitted support set with every non-stable id; stable ids never appear.
+    // With `relational_query_v1` and `migration_keyset_scan_v1` promoted as
+    // LLP 0080/0081's Implemented act (2026-07-26), the registry has no
+    // non-stable id left: the empty map below IS the promotion regression,
+    // exactly as `bounded_response_stream_v1`'s absence was for LLP 0076.
+    #[test]
+    fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
         let disabled = CapabilityManifest::local_v0_declared();
-        // The relational profile is supported by the local runtime and its
-        // id is experimental until the coupled suite passes, so even the
-        // outbound-disabled declared manifest carries that one entry.
-        assert_eq!(
+        // Both promoted ids stay supported by the local runtime…
+        assert!(
             disabled
-                .capability_maturity
-                .get(&TargetCapabilityId::RelationalQueryV1),
-            Some(&CapabilityMaturity::Experimental)
+                .supported_capabilities
+                .contains(&TargetCapabilityId::RelationalQueryV1)
         );
-        // The privileged migration scan (LLP 0081 §3) is likewise
-        // experimental until its executor and corpus land.
-        assert_eq!(
+        assert!(
             disabled
-                .capability_maturity
-                .get(&TargetCapabilityId::MigrationKeysetScanV1),
-            Some(&CapabilityMaturity::Experimental)
+                .supported_capabilities
+                .contains(&TargetCapabilityId::MigrationKeysetScanV1)
         );
-        assert_eq!(disabled.capability_maturity.len(), 2);
-        // The stream id is supported by the egress-enabled instance but is
-        // stable since LLP 0076's acceptance: it must NOT appear in the
-        // maturity map (positive presence is the plain 0058 assertion).
+        // …and the maturity map is empty: no registered id is non-stable.
+        assert!(disabled.capability_maturity.is_empty());
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert!(
             enabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::BoundedResponseStreamV1)
         );
-        assert!(
-            !enabled
-                .capability_maturity
-                .contains_key(&TargetCapabilityId::BoundedResponseStreamV1)
-        );
-        assert_eq!(enabled.capability_maturity.len(), 2);
+        assert!(enabled.capability_maturity.is_empty());
 
-        // Serialization: the annotated manifest carries the field; the
-        // all-stable manifest omits it, and an omitted field round-trips to
-        // an empty map (older manifests predate the dimension).
-        let serialized = serde_json::to_value(&enabled).expect("serialize");
-        assert_eq!(
-            serialized["capabilityMaturity"],
-            json!({
-                "migration_keyset_scan_v1": "experimental",
-                "relational_query_v1": "experimental",
-            })
-        );
-        // An all-stable manifest omits the field, and an omitted field
-        // round-trips to an empty map (older manifests predate the
-        // dimension).
-        let mut all_stable = CapabilityManifest::local_v0_declared();
-        all_stable
-            .supported_capabilities
-            .retain(|id| id.maturity() == CapabilityMaturity::Stable);
-        all_stable.capability_maturity.clear();
-        let plain = serde_json::to_value(&all_stable).expect("serialize");
+        // Serialization: an all-stable manifest omits the field, and an
+        // omitted field round-trips to an empty map (older manifests predate
+        // the dimension).
+        let plain = serde_json::to_value(&enabled).expect("serialize");
         assert!(plain.get("capabilityMaturity").is_none());
         let round_tripped: CapabilityManifest =
             serde_json::from_value(plain).expect("deserialize without the field");
         assert!(round_tripped.capability_maturity.is_empty());
 
-        // Admission: unacknowledged experimental support is refused exactly
-        // like unsupported (with the maturity named in the details) …
-        let refusal = enabled
+        // Promoted ids are plain support: they admit with NO acknowledgment
+        // at all — before 2026-07-26 the first two refusals below were the
+        // experimental-gate witnesses.
+        enabled
             .require_capability("relational_query_v1")
-            .expect_err("experimental support is not plain support");
-        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
-        assert_eq!(refusal.diagnostic.details["maturity"], "experimental");
-        assert_eq!(refusal.diagnostic.details["acknowledged"], false);
-
-        // … while the promoted stream id is now plain support: it admits
-        // with NO acknowledgment at all (LLP 0076 Accepted 2026-07-25).
+            .expect("promoted relational support admits without acknowledgment");
+        enabled
+            .require_capability("migration_keyset_scan_v1")
+            .expect("promoted migration-scan support admits without acknowledgment");
         enabled
             .require_capability("bounded_response_stream_v1")
             .expect("stable support admits without acknowledgment");
 
-        // The acknowledging artifact admits, acknowledging a stable id —
+        // Pre-promotion artifacts survive: acknowledging a stable id —
         // including one promoted after the artifact was generated — is a
         // harmless no-op, and an acknowledgment can never make an
-        // unsupported capability supported.
+        // unsupported capability supported. (The experimental refusal arm in
+        // `require_capability_acknowledging` has no live non-stable id to
+        // exercise it until the next one lands; `auth_artifacts_v1`'s
+        // registry sweep re-arms automatically when it does.)
         let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
             "relational_query_v1",
             "bounded_response_stream_v1",
@@ -5027,9 +5022,6 @@ mod membership_manifest_grammar_tests {
         ]);
         enabled
             .require_capability_acknowledging("relational_query_v1", &acknowledged)
-            .expect("acknowledged experimental requirement admits");
-        enabled
-            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
             .expect("a surviving pre-promotion acknowledgment stays a no-op");
         enabled
             .require_capability_acknowledging("live_subscriptions", &acknowledged)

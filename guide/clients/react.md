@@ -4,13 +4,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
-examples: [demos/partiful-matrix/surfaces/react, packages/snapback-react/package.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0074-convex-competitive-strategy.rfc.md, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+examples: [demos/partiful-matrix/surfaces/react, demos/competitive-checkpoint/surfaces/react-expo, packages/snapback-react/package.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed: 2026-07-22
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -35,20 +35,17 @@ isolated.
 
 ## Bind a generated query
 
-Provide the generated operation name/arguments and the current user/authority.
-Partitime's entire compatibility hook is now this projection:
+Provide the generated operation reference, arguments, and current
+user/authority. The competitive checkpoint uses the same reference in React
+web and Expo:
 
-```tsx source=demos/partiful-matrix/surfaces/react/src/App.tsx
-function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<string, unknown>, persona: Persona) {
-  const snapshot = useSnapbackQuery<Row>({
-    provider,
-    name,
-    args,
-    userId: persona.userId,
-    authority: persona.userId,
+```tsx source=demos/competitive-checkpoint/surfaces/react-expo/App.tsx
+  const conversations = useSnapbackQuery<Conversation>({
+    provider: checkpointProvider,
+    query: api.listConversations,
+    userId: USER_ID,
+    authority: USER_ID,
   });
-  return { rows: snapshot.rows, connection: snapshot.connection as Connection };
-}
 ```
 
 The provider declares `externalStoreProtocol: "snapback.external-store.v1"`
@@ -67,7 +64,7 @@ authoritative snapshot or retire an optimistic layer.
 - `connection`: the headless connection axis;
 - `error`: a serialized structured error or `null`;
 - `mutation`: `idle | pending | confirmed | rejected` plus id/result/error;
-- `mutate(name, args, { optimisticRows, id })`;
+- `mutate(api.someMutation, args, { optimisticRows, id })`;
 - `store`, for inspection or advanced composition.
 
 ## Let identity replace subscriptions
@@ -119,3 +116,6 @@ the same connection axis described by [live queries](../realtime/live-queries.md
   privacy cut must create a distinct store identity.
 - **Do not call Online local-first or Parity.** Those classes require the
   retained execution/replay proofs in LLP 0012 and LLP 0064.
+- **Do not pass string names from application components.** Pass generated
+  query and mutation references; name-only input remains a provider-compatibility
+  bridge, not the paved application surface.

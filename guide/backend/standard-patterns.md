@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: 6fe11376af0429eb2154627c253586224be063bb
+reviewed: 2026-07-26
+reviewed-commit: 5606ab06
 ---
 
 # Safe standard data patterns
@@ -24,10 +24,10 @@ single-owner shape. The helpers generate declarative queries and mutations;
 they do not add a second runtime or hide handwritten JavaScript behind the
 API.
 
-This surface is partial while its governing soundness RFC is Draft and its
-full server-backed cross-user acceptance remains open. The implemented v1
-profile is intentionally narrow: owner visibility only, with authorization
-and visibility always declared by the caller.
+This surface is partial because the implemented v1 profile is intentionally
+narrow: owner visibility only, with authorization and visibility always
+declared by the caller. Its governing soundness RFC is Implemented; “partial”
+describes the helper's limited profile, not unfinished enforcement.
 
 ## Declare the owner and continuation boundary
 
@@ -61,7 +61,9 @@ inside the transaction.
 `createDefaults` and `updateDefaults` use trusted runtime values. `now` becomes
 server-derived `runtimeNow()` and `id` becomes server-derived `runtimeId()`;
 neither field appears in the public argument schema, so a client cannot forge
-it.
+it. For the direct JavaScript handler form, including runtime diagnostics and
+transitioning an existing client-authored field, see
+[trusted runtime time and identifiers](./trusted-runtime-values.md).
 
 ```js source=packages/snapback-codegen/standard-patterns.test.mjs
 export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = defineOwnedCrud({

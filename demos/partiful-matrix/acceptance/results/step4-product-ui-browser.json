@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "fa08699792b1f41465b75c2424a386280a39777c",
-    "exact": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79"
+    "snapback": "7b9283d6fd96c0143435c90d35f1083d69468da1",
+    "exact": "b4d8d6ac60ab0bd5c3447e53e6cdd9f6601f3c0c"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -10,8 +10,11 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.186",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.130",
+    "chromeVersion": "Google Chrome 150.0.7871.186",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -113,7 +116,7 @@
           "requested": "npm:@ccheever/exact-contract@0.1.5",
           "resolvedName": "@exact/contract",
           "resolvedVersion": "0.1.0",
-          "manifestSha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3"
+          "manifestSha256": "acb45904ccbe0cc10416182e257e81c155844e4c78fd4ec48a36dfeb178de872"
         },
         "@exact/devtools": {
           "requested": "npm:@ccheever/exact-devtools@0.1.5",
@@ -131,7 +134,7 @@
           "requested": "npm:@ccheever/exact-renderer@0.1.5",
           "resolvedName": "@exact/renderer",
           "resolvedVersion": "0.1.0",
-          "manifestSha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01"
+          "manifestSha256": "d1c2d7157aecb364c92f6a5f8bc2cee840eed3aa5c3423f8058682f77c07e9ad"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -150,7 +153,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "24ac6116f04740e816ec3ae8804c5f6dc255cdfbed408bcc8166b7f94869f9cc",
+      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -165,9 +168,9 @@
     }
   },
   "artifacts": {
-    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
-    "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
+    "inputsHash": "6cff844d8c8ca2c0cddefa9a485ecd4fca3a6aa914eb6e0af644b3d4381e709c",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "eace7b4bca5941d48cb64198d0f1b38130d1094c9cfa13dc6c8bf05418f78b92",
     "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
@@ -180,12 +183,16 @@
       "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
     },
     {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "6b7c584cb9cb0779d603398271161e91f4acc872f063ddc00b2d419d3cee09f0"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+      "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
@@ -193,19 +200,19 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445"
+      "sha256": "873ec5264fcdb60958df8145d5ab2799dde29fdc4ff83ad41ef15e7583f73683"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
+      "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+      "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+      "sha256": "89fc0ffec795f33b99eeb2cd41737bd78c3dcf9cf2e2c636efeeab731688e71e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -220,7 +227,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "3d5b357200f5c1cfdfaa3db0ed469d2885321e4bbc91c90903757607aa674ffe",
+  "testInventorySha256": "42a0b4135b677cf3f1d289cead3ec3090a2879e27cd197d1b3ba5d5427c36129",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -259,10 +266,10 @@
     }
   },
   "title": "partitime / product UI browser parity",
-  "passed": 19,
+  "passed": 32,
   "skipped": 0,
   "failed": 0,
-  "total": 19,
+  "total": 32,
   "ok": true,
   "results": [
     {
@@ -290,13 +297,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
-          "url": "http://127.0.0.1:54747/?user=eve&event=event_sunset",
+          "identity": "0f421fd1-3c89-49f7-bdd5-4cbfebf005be",
+          "url": "http://127.0.0.1:59119/events/event_sunset/?user=eve",
           "navigations": 1
         },
         "after": {
-          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
-          "url": "http://127.0.0.1:54747/?user=eve",
+          "identity": "0f421fd1-3c89-49f7-bdd5-4cbfebf005be",
+          "url": "http://127.0.0.1:59119/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -313,12 +320,12 @@
       "details": {
         "expanded": {
           "fontSize": 98.56,
-          "background": "rgba(0, 0, 0, 0)",
+          "background": "rgb(244, 240, 232)",
           "width": 1280
         },
         "compact": {
           "fontSize": 54,
-          "background": "rgba(0, 0, 0, 0)",
+          "background": "rgb(244, 240, 232)",
           "width": 390,
           "identity": "retained"
         },
@@ -342,25 +349,25 @@
           "portalDetached": true,
           "overlayPosition": "fixed",
           "descriptionTag": "TEXTAREA",
-          "activeTestId": "create-title"
+          "activeTestId": "event-title"
         },
         "validation": {
           "titleInvalid": "true",
           "locationInvalid": "true",
-          "titleDescribedBy": "create-title-error",
-          "locationDescribedBy": "create-location-error",
+          "titleDescribedBy": "event-title-error",
+          "locationDescribedBy": "event-location-error",
           "titleErrorRole": "alert",
           "locationErrorRole": "alert",
-          "activeTestId": "create-title"
+          "activeTestId": "event-title"
         },
         "trapped": {
-          "last": "create-submit",
-          "count": 6
+          "last": "create-event-submit",
+          "count": 7
         },
         "wrappedTo": "create-close",
         "restored": {
           "overlay": false,
-          "activeTestId": "new-event"
+          "activeTestId": "create-event"
         }
       }
     },
@@ -386,6 +393,1279 @@
       }
     },
     {
+      "name": "STEP4.UI.RESPONSIVE react × snapback matches compact regular and expanded structure",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.RESPONSIVE",
+        "cell": "react:snapback",
+        "observations": [
+          {
+            "id": "compact",
+            "width": 390,
+            "height": 844,
+            "columns": 1,
+            "count": 3,
+            "xs": [
+              18
+            ],
+            "identity": "8a59e9ef-5696-4c98-bcc0-8d298f804c67",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 18.15625,
+                "y": 773.4375,
+                "width": 354.6875,
+                "height": 450
+              },
+              {
+                "x": 18.15625,
+                "y": 1223.4375,
+                "width": 354.6875,
+                "height": 450
+              },
+              {
+                "x": 18.15625,
+                "y": 1673.4375,
+                "width": 354.6875,
+                "height": 450
+              }
+            ]
+          },
+          {
+            "id": "regular",
+            "width": 768,
+            "height": 1024,
+            "columns": 2,
+            "count": 3,
+            "xs": [
+              35,
+              385
+            ],
+            "identity": "8a59e9ef-5696-4c98-bcc0-8d298f804c67",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 34.78125,
+                "y": 664.34375,
+                "width": 349.71875,
+                "height": 450
+              },
+              {
+                "x": 384.5,
+                "y": 664.34375,
+                "width": 349.71875,
+                "height": 450
+              },
+              {
+                "x": 34.78125,
+                "y": 1114.34375,
+                "width": 349.71875,
+                "height": 450
+              }
+            ]
+          },
+          {
+            "id": "expanded",
+            "width": 1280,
+            "height": 800,
+            "columns": 3,
+            "count": 3,
+            "xs": [
+              57,
+              446,
+              835
+            ],
+            "identity": "8a59e9ef-5696-4c98-bcc0-8d298f804c67",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 57.3125,
+                "y": 777.75,
+                "width": 388.78125,
+                "height": 450
+              },
+              {
+                "x": 446.09375,
+                "y": 777.75,
+                "width": 388.796875,
+                "height": 450
+              },
+              {
+                "x": 834.890625,
+                "y": 777.75,
+                "width": 388.78125,
+                "height": 450
+              }
+            ]
+          }
+        ],
+        "documentIdentityRetained": true
+      }
+    },
+    {
+      "name": "STEP4.UI.KEYBOARD react × snapback completes the product flow with real key events",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.KEYBOARD",
+        "cell": "react:snapback",
+        "created": "Keyboard Picnic",
+        "menu": {
+          "first": {
+            "tag": "BUTTON",
+            "testId": "event-options-first-item",
+            "role": "menuitem",
+            "text": "Copy invite link",
+            "insideMenu": true,
+            "insideDialog": false
+          },
+          "second": {
+            "tag": "BUTTON",
+            "testId": null,
+            "role": "menuitem",
+            "text": "Add to calendar",
+            "insideMenu": true,
+            "insideDialog": false
+          }
+        },
+        "rsvp": "EVEveGoing",
+        "guest": {
+          "first": {
+            "tag": "DIV",
+            "testId": "guest-sheet-list",
+            "role": "listbox",
+            "text": "ADAdaHostingGRGraceGoingEVEveGoing",
+            "insideMenu": false,
+            "insideDialog": true
+          },
+          "second": {
+            "tag": "DIV",
+            "testId": "guest-sheet-list",
+            "role": "listbox",
+            "text": "ADAdaHostingGRGraceGoingEVEveGoing",
+            "insideMenu": false,
+            "insideDialog": true
+          },
+          "firstDescendant": "guest-sheet-rsvp_sunset_ada",
+          "secondDescendant": "guest-sheet-rsvp_sunset_grace"
+        },
+        "wall": {
+          "pending": {
+            "seen": true,
+            "text": "Sending…"
+          },
+          "posted": "Keyboard picnic"
+        }
+      }
+    },
+    {
+      "name": "STEP4.UI.FOCUS react × snapback traps and restores every overlay",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.FOCUS",
+        "cell": "react:snapback",
+        "observations": [
+          {
+            "overlay": "create",
+            "opened": {
+              "tag": "INPUT",
+              "testId": "event-title",
+              "role": null,
+              "text": "",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "create",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "create-event",
+              "role": null,
+              "text": "+ Make something happen",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "menu",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "event-options-first-item",
+              "role": "menuitem",
+              "text": "Copy invite link",
+              "insideMenu": true,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "menu",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "event-options-trigger",
+              "role": null,
+              "text": "Event options",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "guest-sheet",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "guest-sheet-close",
+              "role": null,
+              "text": "Close guest list",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "guest-sheet",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "guest-list-trigger",
+              "role": null,
+              "text": "Open guest list",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "guest-sheet-scrim",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "guest-list-trigger",
+              "role": null,
+              "text": "Open guest list",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "rsvp",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "rsvp-confirm",
+              "role": null,
+              "text": "Confirm",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "rsvp-cancel",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "rsvp-trigger",
+              "role": null,
+              "text": "Confirm an RSVP change…",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "rsvp-confirm",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "rsvp-trigger",
+              "role": null,
+              "text": "Confirm an RSVP change…",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "route": "event-to-feed",
+            "focused": {
+              "tag": "BUTTON",
+              "testId": "create-event",
+              "role": null,
+              "text": "+ Make something happen",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "STEP4.UI.REDUCED-MOTION react × snapback preserves non-motion outcomes",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.REDUCED-MOTION",
+        "cell": "react:snapback",
+        "overlayMotion": {
+          "matches": true,
+          "nodes": [
+            {
+              "animationDuration": "1e-06s",
+              "transitionDuration": "1e-06s"
+            },
+            {
+              "animationDuration": "1e-06s",
+              "transitionDuration": "1e-06s"
+            }
+          ]
+        },
+        "semanticEndState": {
+          "rsvp": "Going",
+          "pending": "Sending…",
+          "pendingVisibleMs": 469.2999999523163
+        }
+      }
+    },
+    {
+      "name": "STEP4.UI.A11Y react × snapback satisfies semantic clauses and records axe",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.A11Y",
+        "cell": "react:snapback",
+        "axeVersion": "4.12.1",
+        "criticalSerious": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 6,
+            "help": "Elements must meet minimum color contrast ratio thresholds"
+          },
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 6,
+            "help": "Elements must meet minimum color contrast ratio thresholds"
+          },
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 7,
+            "help": "Elements must meet minimum color contrast ratio thresholds"
+          }
+        ],
+        "totalViolations": 3,
+        "audits": [
+          {
+            "scenario": {
+              "path": "/",
+              "params": {
+                "user": "eve"
+              },
+              "open": null
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2,
+                3,
+                3,
+                3,
+                3
+              ],
+              "skipped": false,
+              "listboxes": 0,
+              "dialogs": [],
+              "rsvpStates": []
+            },
+            "axe": {
+              "violations": [
+                {
+                  "id": "color-contrast",
+                  "impact": "serious",
+                  "nodes": 6,
+                  "help": "Elements must meet minimum color contrast ratio thresholds"
+                }
+              ]
+            }
+          },
+          {
+            "scenario": {
+              "path": "/events/event_sunset/",
+              "params": {
+                "user": "eve"
+              },
+              "open": "guest-list-trigger"
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2,
+                2
+              ],
+              "skipped": false,
+              "listboxes": 2,
+              "dialogs": [
+                {
+                  "modal": "true",
+                  "name": "Guest list"
+                }
+              ],
+              "rsvpStates": [
+                {
+                  "id": "rsvp-going",
+                  "checked": "true"
+                },
+                {
+                  "id": "rsvp-maybe",
+                  "checked": "false"
+                },
+                {
+                  "id": "rsvp-cant",
+                  "checked": "false"
+                }
+              ]
+            },
+            "axe": {
+              "violations": [
+                {
+                  "id": "color-contrast",
+                  "impact": "serious",
+                  "nodes": 6,
+                  "help": "Elements must meet minimum color contrast ratio thresholds"
+                }
+              ]
+            }
+          },
+          {
+            "scenario": {
+              "path": "/events/new/",
+              "params": {
+                "user": "eve"
+              },
+              "open": null
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2,
+                3,
+                3,
+                3,
+                3,
+                2
+              ],
+              "skipped": false,
+              "listboxes": 0,
+              "dialogs": [
+                {
+                  "modal": "true",
+                  "name": "What’s the plan?"
+                }
+              ],
+              "rsvpStates": []
+            },
+            "axe": {
+              "violations": [
+                {
+                  "id": "color-contrast",
+                  "impact": "serious",
+                  "nodes": 7,
+                  "help": "Elements must meet minimum color contrast ratio thresholds"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "STEP4.UI.VISUAL react × snapback implements every representative state",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.VISUAL",
+        "cell": "react:snapback",
+        "scope": "13-state structural preflight; full 156-cell baseline lane remains separately approval-gated",
+        "states": [
+          {
+            "state": "feed-empty",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 56.3125,
+                "y": 776.75,
+                "width": 1167.375,
+                "height": 321,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-empty",
+                "missing": false,
+                "x": 57.3125,
+                "y": 777.75,
+                "width": 1166.375,
+                "height": 320,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event",
+                "missing": false,
+                "x": 89.59375,
+                "y": 470.75,
+                "width": 245.8125,
+                "height": 52,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "feed-populated",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 56.3125,
+                "y": 776.75,
+                "width": 1167.375,
+                "height": 901,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_sunset",
+                "missing": false,
+                "x": 446.09375,
+                "y": 777.75,
+                "width": 388.796875,
+                "height": 450,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_swim",
+                "missing": false,
+                "x": 834.890625,
+                "y": 777.75,
+                "width": 388.78125,
+                "height": 450,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_ceramics",
+                "missing": false,
+                "x": 57.3125,
+                "y": 1227.75,
+                "width": 388.78125,
+                "height": 450,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "feed-loading-skeleton",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 56.3125,
+                "y": 776.75,
+                "width": 1167.375,
+                "height": 451,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-loading",
+                "missing": false,
+                "x": 57.3125,
+                "y": 777.75,
+                "width": 388.78125,
+                "height": 450,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-going",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 78,
+                "width": 1280,
+                "height": 1235.46875,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-going",
+                "missing": false,
+                "x": 870.21875,
+                "y": 647,
+                "width": 102.15625,
+                "height": 37,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 834.21875,
+                "y": 506,
+                "width": 388.46875,
+                "height": 716.46875,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 57.3125,
+                "y": 735.46875,
+                "width": 775.90625,
+                "height": 487,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-maybe",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 78,
+                "width": 1280,
+                "height": 1235.46875,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-maybe",
+                "missing": false,
+                "x": 977.375,
+                "y": 647,
+                "width": 102.15625,
+                "height": 37,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 834.21875,
+                "y": 506,
+                "width": 388.46875,
+                "height": 716.46875,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 57.3125,
+                "y": 735.46875,
+                "width": 775.90625,
+                "height": 487,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-error",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 78,
+                "width": 1280,
+                "height": 373.4375,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-error",
+                "missing": false,
+                "x": 56.3125,
+                "y": 156,
+                "width": 680,
+                "height": 205.4375,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-retry",
+                "missing": false,
+                "x": 93.3125,
+                "y": 296.4375,
+                "width": 82.546875,
+                "height": 28,
+                "display": "inline-block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "guest-list-sheet-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "guest-list-trigger",
+                "missing": false,
+                "x": 870.21875,
+                "y": 585,
+                "width": 137.484375,
+                "height": 42,
+                "display": "inline-block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list-sheet",
+                "missing": false,
+                "x": 696,
+                "y": 24,
+                "width": 560,
+                "height": 752,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 834.21875,
+                "y": 506,
+                "width": 388.46875,
+                "height": 716.46875,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "guest-list-sheet",
+                  "rect": {
+                    "left": 696,
+                    "top": 24,
+                    "right": 1256,
+                    "bottom": 776,
+                    "width": 560,
+                    "height": 752
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
+          },
+          {
+            "state": "wall-composer-active",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall-composer",
+                "missing": false,
+                "x": 93.3125,
+                "y": 623.46875,
+                "width": 703.90625,
+                "height": 50,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-message",
+                "missing": false,
+                "x": 93.3125,
+                "y": 623.46875,
+                "width": 602.796875,
+                "height": 50,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-submit",
+                "missing": false,
+                "x": 704.109375,
+                "y": 623.46875,
+                "width": 93.109375,
+                "height": 50,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 0.4
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "wall-optimistic-pending",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 57.3125,
+                "y": 735.46875,
+                "width": 775.90625,
+                "height": 579,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-pending-row",
+                "missing": false,
+                "x": 93.3125,
+                "y": 1114.46875,
+                "width": 703.90625,
+                "height": 92,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.72
+              },
+              {
+                "id": "wall-pending-status",
+                "missing": false,
+                "x": 139.3125,
+                "y": 1176.46875,
+                "width": 144.3125,
+                "height": 12,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "create-event-form-default",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 566.493896484375,
+                "y": 222.98553466796875,
+                "width": 445.6326904296875,
+                "height": 372.12652587890625,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title",
+                "missing": false,
+                "x": 649.4080810546875,
+                "y": 240.75283813476562,
+                "width": 362.718505859375,
+                "height": 42.44415283203125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-when",
+                "missing": false,
+                "x": 649.4080810546875,
+                "y": 310.83502197265625,
+                "width": 362.718505859375,
+                "height": 42.44415283203125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-location",
+                "missing": false,
+                "x": 566.493896484375,
+                "y": 380.917236328125,
+                "width": 73.04345703125,
+                "height": 42.44415283203125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-description",
+                "missing": false,
+                "x": 566.493896484375,
+                "y": 450.9994201660156,
+                "width": 445.6326904296875,
+                "height": 80.94003295898438,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 834.6693115234375,
+                "y": 541.8101806640625,
+                "width": 177.457275390625,
+                "height": 53.3018798828125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "create-event-form-validation-error",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 566.495361328125,
+                "y": 186.48193359375,
+                "width": 445.62384033203125,
+                "height": 445.1611328125,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "form-error-summary",
+                "missing": false,
+                "x": 566.495361328125,
+                "y": 186.48193359375,
+                "width": 445.62384033203125,
+                "height": 36.52099609375,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title-error",
+                "missing": false,
+                "x": 649.4078369140625,
+                "y": 302.9542541503906,
+                "width": 362.71136474609375,
+                "height": 16.779937744140625,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 834.6654663085938,
+                "y": 578.3421630859375,
+                "width": 177.4537353515625,
+                "height": 53.3009033203125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "options-menu-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-options-trigger",
+                "missing": false,
+                "x": 1096.0625,
+                "y": 112,
+                "width": 127.625,
+                "height": 42,
+                "display": "inline-block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-menu",
+                "missing": false,
+                "x": 1013.6875,
+                "y": 155,
+                "width": 210,
+                "height": 150,
+                "display": "grid",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-first-item",
+                "missing": false,
+                "x": 1022.6875,
+                "y": 164,
+                "width": 192,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": {
+                "rightDelta": 0,
+                "verticalGap": 1
+              },
+              "contained": [
+                {
+                  "id": "event-options-menu",
+                  "rect": {
+                    "left": 1013.6875,
+                    "top": 155,
+                    "right": 1223.6875,
+                    "bottom": 305,
+                    "width": 210,
+                    "height": 150
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
+          },
+          {
+            "state": "rsvp-confirm-dialog-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "rsvp-trigger",
+                "missing": false,
+                "x": 870.21875,
+                "y": 704,
+                "width": 218.0625,
+                "height": 42,
+                "display": "inline-block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm-dialog",
+                "missing": false,
+                "x": 360,
+                "y": 299.59375,
+                "width": 560,
+                "height": 200.8125,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm",
+                "missing": false,
+                "x": 813.59375,
+                "y": 441.40625,
+                "width": 75.40625,
+                "height": 28,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-cancel",
+                "missing": false,
+                "x": 738.09375,
+                "y": 441.40625,
+                "width": 67.5,
+                "height": 28,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "rsvp-confirm-dialog",
+                  "rect": {
+                    "left": 360,
+                    "top": 299.59375,
+                    "right": 920,
+                    "bottom": 500.40625,
+                    "width": 560,
+                    "height": 200.8125
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
+          }
+        ]
+      }
+    },
+    {
       "name": "react × snapback proves unsolicited push with polling fallback disabled",
       "ok": true,
       "details": {
@@ -397,71 +1677,71 @@
         "observations": [
           {
             "sampleIndex": 0,
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 11
+          },
+          {
+            "sampleIndex": 1,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
             "latencyMs": 8
           },
           {
-            "sampleIndex": 1,
+            "sampleIndex": 2,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
-          },
-          {
-            "sampleIndex": 2,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 7
           },
           {
             "sampleIndex": 3,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 5
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 8
           },
           {
             "sampleIndex": 4,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 6
           },
           {
             "sampleIndex": 5,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 4
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 6
           },
           {
             "sampleIndex": 6,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 7
           },
           {
             "sampleIndex": 7,
-            "before": "EVEveMaybe",
-            "after": "EVEveGoing",
-            "latencyMs": 4
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 7
           },
           {
             "sampleIndex": 8,
-            "before": "EVEveGoing",
-            "after": "EVEveMaybe",
-            "latencyMs": 4
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 7
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            4,
-            5,
-            4,
-            4,
-            4,
-            4,
-            4
+            7,
+            8,
+            6,
+            6,
+            7,
+            7,
+            7
           ],
-          "median": 4,
-          "p95": 5
+          "median": 7,
+          "p95": 8
         },
         "connectionBefore": "live",
         "established": [
@@ -469,125 +1749,125 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b5477752ad8ab806d530e317",
-            "subscriptionId": "sub_019f8e57b5477752ad8ab806d530e317",
+            "bindingId": "sub_019f9afff49a7901b985b26da7daf312",
+            "subscriptionId": "sub_019f9afff49a7901b985b26da7daf312",
             "event": "established",
             "transport": "push",
             "scope": {},
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540552
+            "receivedAtMs": 1785011893402
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b54874d1876395f2974ec881",
-            "subscriptionId": "sub_019f8e57b54874d1876395f2974ec881",
+            "bindingId": "sub_019f9afff49a7901b985b29ea2c98b22",
+            "subscriptionId": "sub_019f9afff49a7901b985b29ea2c98b22",
             "event": "established",
             "transport": "push",
             "scope": {},
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540585
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b47060b091bc01c83a28cd",
-            "subscriptionId": "sub_019f8e57b5b47060b091bc01c83a28cd",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540661
+            "receivedAtMs": 1785011893438
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b47060b091bc23054179f2",
-            "subscriptionId": "sub_019f8e57b5b47060b091bc23054179f2",
+            "bindingId": "sub_019f9afff4f67e51bb392913fe15c972",
+            "subscriptionId": "sub_019f9afff4f67e51bb392913fe15c972",
             "event": "established",
             "transport": "poll",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540661
+            "receivedAtMs": 1785011893495
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
+            "bindingId": "sub_019f9afff4f777c0bdcf6c745c81515d",
+            "subscriptionId": "sub_019f9afff4f777c0bdcf6c745c81515d",
             "event": "established",
             "transport": "poll",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540667
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f925367fc627",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f925367fc627",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784799540696
+            "receivedAtMs": 1785011893495
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b57e728f26f99196e8d109",
-            "subscriptionId": "sub_019f8e57b5b57e728f26f99196e8d109",
+            "bindingId": "sub_019f9afff4f777c0bdcf6cda5b1cf497",
+            "subscriptionId": "sub_019f9afff4f777c0bdcf6cda5b1cf497",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
+            "correlation": null,
+            "receivedAtMs": 1785011893496
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9afff4f8714090dbfa417ed5d140",
+            "subscriptionId": "sub_019f9afff4f8714090dbfa417ed5d140",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540708
+            "receivedAtMs": 1785011893545
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f9afff4f8714090dbfa6e52e1dbf2",
+            "subscriptionId": "sub_019f9afff4f8714090dbfa6e52e1dbf2",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
+            "correlation": null,
+            "receivedAtMs": 1785011893556
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57b5b675408efde39aa7446269",
-            "subscriptionId": "sub_019f8e57b5b675408efde39aa7446269",
+            "bindingId": "sub_019f9afff4f97f40ac40648590d02177",
+            "subscriptionId": "sub_019f9afff4f97f40ac40648590d02177",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
+            "snapshotVersion": 10,
+            "lastDeltaVersion": 10,
             "correlation": null,
-            "receivedAtMs": 1784799540719
+            "receivedAtMs": 1785011893569
           }
         ]
       }
@@ -617,13 +1897,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
-          "url": "http://127.0.0.1:54949/events/event_sunset/?user=eve",
+          "identity": "ac3465b2-635e-41a2-ab13-340bf6b31e89",
+          "url": "http://127.0.0.1:59551/events/event_sunset/?user=eve",
           "navigations": 1
         },
         "after": {
-          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
-          "url": "http://127.0.0.1:54949/?user=eve",
+          "identity": "ac3465b2-635e-41a2-ab13-340bf6b31e89",
+          "url": "http://127.0.0.1:59551/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -674,20 +1954,20 @@
         "validation": {
           "titleInvalid": null,
           "locationInvalid": null,
-          "titleDescribedBy": "create-title-error",
-          "locationDescribedBy": "create-location-error",
+          "titleDescribedBy": "event-title-error",
+          "locationDescribedBy": "event-location-error",
           "titleErrorRole": "alert",
           "locationErrorRole": "alert",
           "activeTestId": "create-close"
         },
         "trapped": {
-          "last": "create-submit",
-          "count": 6
+          "last": "create-event-submit",
+          "count": 7
         },
         "wrappedTo": "create-close",
         "restored": {
           "overlay": false,
-          "activeTestId": "new-event"
+          "activeTestId": "create-event"
         }
       }
     },
@@ -731,12 +2011,1232 @@
           {
             "state": "empty",
             "testId": "feed-empty",
-            "observed": "No plans yet. Make something happen."
+            "observed": "No plans yet.Make something happen when the group chat needs a destination."
           },
           {
             "state": "ready",
             "testId": "feed-ready",
             "observed": "🍊Sat, Aug 1, 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8, 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16, 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →"
+          }
+        ]
+      }
+    },
+    {
+      "name": "STEP4.UI.RESPONSIVE contract × snapback matches compact regular and expanded structure",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.RESPONSIVE",
+        "cell": "contract:snapback",
+        "observations": [
+          {
+            "id": "compact",
+            "width": 390,
+            "height": 844,
+            "columns": 1,
+            "count": 3,
+            "xs": [
+              54
+            ],
+            "identity": "752553b3-9d27-4996-8086-536d799e88fe",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 54,
+                "y": 599,
+                "width": 282,
+                "height": 343
+              },
+              {
+                "x": 54,
+                "y": 954,
+                "width": 282,
+                "height": 314
+              },
+              {
+                "x": 54,
+                "y": 1280,
+                "width": 282,
+                "height": 314
+              }
+            ]
+          },
+          {
+            "id": "regular",
+            "width": 768,
+            "height": 1024,
+            "columns": 2,
+            "count": 3,
+            "xs": [
+              54,
+              390
+            ],
+            "identity": "752553b3-9d27-4996-8086-536d799e88fe",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 54,
+                "y": 550,
+                "width": 324,
+                "height": 314
+              },
+              {
+                "x": 390,
+                "y": 550,
+                "width": 324,
+                "height": 314
+              },
+              {
+                "x": 54,
+                "y": 876,
+                "width": 324,
+                "height": 314
+              }
+            ]
+          },
+          {
+            "id": "expanded",
+            "width": 1280,
+            "height": 800,
+            "columns": 3,
+            "count": 3,
+            "xs": [
+              54,
+              449,
+              843
+            ],
+            "identity": "752553b3-9d27-4996-8086-536d799e88fe",
+            "path": "/",
+            "cardRects": [
+              {
+                "x": 54,
+                "y": 574,
+                "width": 382.65625,
+                "height": 314
+              },
+              {
+                "x": 448.65625,
+                "y": 574,
+                "width": 382.671875,
+                "height": 314
+              },
+              {
+                "x": 843.328125,
+                "y": 574,
+                "width": 382.65625,
+                "height": 314
+              }
+            ]
+          }
+        ],
+        "documentIdentityRetained": true
+      }
+    },
+    {
+      "name": "STEP4.UI.KEYBOARD contract × snapback completes the product flow with real key events",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.KEYBOARD",
+        "cell": "contract:snapback",
+        "created": "Keyboard Picnic",
+        "menu": {
+          "first": {
+            "tag": "BUTTON",
+            "testId": "event-options-first-item",
+            "role": "menuitem",
+            "text": "Copy invite link",
+            "insideMenu": true,
+            "insideDialog": false
+          },
+          "second": {
+            "tag": "BUTTON",
+            "testId": null,
+            "role": "menuitem",
+            "text": "Add to calendar",
+            "insideMenu": true,
+            "insideDialog": false
+          }
+        },
+        "rsvp": "EveGoing",
+        "guest": {
+          "first": {
+            "tag": "UL",
+            "testId": "guest-sheet-list",
+            "role": "listbox",
+            "text": "AdaHostingGraceGoingEveGoing",
+            "insideMenu": false,
+            "insideDialog": true
+          },
+          "second": {
+            "tag": "BUTTON",
+            "testId": "guest-sheet-user_ada",
+            "role": "option",
+            "text": "AdaHosting",
+            "insideMenu": false,
+            "insideDialog": true
+          },
+          "firstDescendant": null,
+          "secondDescendant": null
+        },
+        "wall": {
+          "pending": {
+            "seen": true,
+            "text": "Sending…"
+          },
+          "posted": "Keyboard picnic"
+        }
+      }
+    },
+    {
+      "name": "STEP4.UI.FOCUS contract × snapback traps and restores every overlay",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.FOCUS",
+        "cell": "contract:snapback",
+        "observations": [
+          {
+            "overlay": "create",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "create-close",
+              "role": null,
+              "text": "Close",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "create",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "create-event",
+              "role": null,
+              "text": "+ Make something happen",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "menu",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "event-options-first-item",
+              "role": "menuitem",
+              "text": "Copy invite link",
+              "insideMenu": true,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "menu",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "event-options-trigger",
+              "role": null,
+              "text": "Event options",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "guest-sheet",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "guest-sheet-close",
+              "role": null,
+              "text": "Close",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "guest-sheet",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "guest-list-trigger",
+              "role": null,
+              "text": "View all guests",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "guest-sheet-scrim",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "guest-list-trigger",
+              "role": null,
+              "text": "View all guests",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "rsvp",
+            "opened": {
+              "tag": "BUTTON",
+              "testId": "rsvp-cancel",
+              "role": null,
+              "text": "Cancel",
+              "insideMenu": false,
+              "insideDialog": true
+            }
+          },
+          {
+            "overlay": "rsvp-cancel",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "rsvp-trigger",
+              "role": null,
+              "text": "Change RSVP…",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "overlay": "rsvp-confirm",
+            "dismissed": {
+              "tag": "BUTTON",
+              "testId": "rsvp-trigger",
+              "role": null,
+              "text": "Change RSVP…",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          },
+          {
+            "route": "event-to-feed",
+            "focused": {
+              "tag": "BUTTON",
+              "testId": "create-event",
+              "role": null,
+              "text": "+ Make something happen",
+              "insideMenu": false,
+              "insideDialog": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "STEP4.UI.REDUCED-MOTION contract × snapback preserves non-motion outcomes",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.REDUCED-MOTION",
+        "cell": "contract:snapback",
+        "overlayMotion": {
+          "matches": true,
+          "nodes": [
+            {
+              "animationDuration": "0s",
+              "transitionDuration": "0s"
+            }
+          ]
+        },
+        "semanticEndState": {
+          "rsvp": "Going",
+          "pending": "Sending…",
+          "pendingVisibleMs": 463.10000002384186
+        }
+      }
+    },
+    {
+      "name": "STEP4.UI.A11Y contract × snapback satisfies semantic clauses and records axe",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.A11Y",
+        "cell": "contract:snapback",
+        "axeVersion": "4.12.1",
+        "criticalSerious": [],
+        "totalViolations": 0,
+        "audits": [
+          {
+            "scenario": {
+              "path": "/",
+              "params": {
+                "user": "eve"
+              },
+              "open": null
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2
+              ],
+              "skipped": false,
+              "listboxes": 0,
+              "dialogs": [],
+              "rsvpStates": []
+            },
+            "axe": {
+              "violations": []
+            }
+          },
+          {
+            "scenario": {
+              "path": "/events/event_sunset/",
+              "params": {
+                "user": "eve"
+              },
+              "open": "guest-list-trigger"
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2
+              ],
+              "skipped": false,
+              "listboxes": 2,
+              "dialogs": [
+                {
+                  "modal": "true",
+                  "name": "Guest list"
+                }
+              ],
+              "rsvpStates": [
+                {
+                  "id": "rsvp-going",
+                  "checked": "true"
+                },
+                {
+                  "id": "rsvp-maybe",
+                  "checked": "false"
+                },
+                {
+                  "id": "rsvp-cant",
+                  "checked": "false"
+                }
+              ]
+            },
+            "axe": {
+              "violations": []
+            }
+          },
+          {
+            "scenario": {
+              "path": "/events/new/",
+              "params": {
+                "user": "eve"
+              },
+              "open": null
+            },
+            "semantics": {
+              "main": 1,
+              "unnamed": [],
+              "headings": [
+                1,
+                2,
+                2
+              ],
+              "skipped": false,
+              "listboxes": 0,
+              "dialogs": [
+                {
+                  "modal": "true",
+                  "name": "Create an event"
+                }
+              ],
+              "rsvpStates": []
+            },
+            "axe": {
+              "violations": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "STEP4.UI.VISUAL contract × snapback implements every representative state",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.VISUAL",
+        "cell": "contract:snapback",
+        "scope": "13-state structural preflight; full 156-cell baseline lane remains separately approval-gated",
+        "states": [
+          {
+            "state": "feed-empty",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 464,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-empty",
+                "missing": false,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
+                "height": 320,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event",
+                "missing": false,
+                "x": 71,
+                "y": 368,
+                "width": 225.078125,
+                "height": 45,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "feed-populated",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 784,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_sunset",
+                "missing": false,
+                "x": 448.65625,
+                "y": 574,
+                "width": 382.671875,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_swim",
+                "missing": false,
+                "x": 843.328125,
+                "y": 574,
+                "width": 382.65625,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_ceramics",
+                "missing": false,
+                "x": 54,
+                "y": 900,
+                "width": 382.65625,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "feed-loading-skeleton",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 594,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-loading",
+                "missing": false,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
+                "height": 450,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-going",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 895,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-going",
+                "missing": false,
+                "x": 851.671875,
+                "y": 554,
+                "width": 48.359375,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 413,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 385,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-maybe",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 895,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-maybe",
+                "missing": false,
+                "x": 905.03125,
+                "y": 554,
+                "width": 51.9375,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 413,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 385,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "event-detail-error",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 1067,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-error",
+                "missing": false,
+                "x": 38,
+                "y": 91,
+                "width": 1204,
+                "height": 172,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-retry",
+                "missing": false,
+                "x": 69,
+                "y": 195,
+                "width": 1142,
+                "height": 37,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "guest-list-sheet-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "guest-list-trigger",
+                "missing": false,
+                "x": 851.671875,
+                "y": 510,
+                "width": 357.328125,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list-sheet",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 620,
+                "height": 293,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 413,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "guest-list-sheet",
+                  "rect": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 620,
+                    "bottom": 293,
+                    "width": 620,
+                    "height": 293
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
+          },
+          {
+            "state": "wall-composer-active",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall-composer",
+                "missing": false,
+                "x": 72,
+                "y": 704,
+                "width": 714.671875,
+                "height": 91,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-message",
+                "missing": false,
+                "x": 72,
+                "y": 704,
+                "width": 714.671875,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-submit",
+                "missing": false,
+                "x": 72,
+                "y": 756,
+                "width": 714.671875,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.45
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "wall-optimistic-pending",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 447,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-pending-row",
+                "missing": false,
+                "x": 72,
+                "y": 704,
+                "width": 714.671875,
+                "height": 46,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.68
+              },
+              {
+                "id": "wall-pending-status",
+                "missing": false,
+                "x": 738.21875,
+                "y": 719,
+                "width": 47.453125,
+                "height": 16,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "create-event-form-default",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 285,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title",
+                "missing": false,
+                "x": 106,
+                "y": 123,
+                "width": 580,
+                "height": 52,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-when",
+                "missing": false,
+                "x": 34,
+                "y": 185,
+                "width": 652,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-location",
+                "missing": false,
+                "x": 34,
+                "y": 239,
+                "width": 652,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-description",
+                "missing": false,
+                "x": 34,
+                "y": 293,
+                "width": 652,
+                "height": 62,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 34,
+                "y": 365,
+                "width": 652,
+                "height": 43,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "create-event-form-validation-error",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 360,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "form-error-summary",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 15,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title-error",
+                "missing": false,
+                "x": 34,
+                "y": 210,
+                "width": 652,
+                "height": 15,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 34,
+                "y": 440,
+                "width": 652,
+                "height": 43,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
+          },
+          {
+            "state": "options-menu-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-options-trigger",
+                "missing": false,
+                "x": 1152.453125,
+                "y": 38,
+                "width": 89.546875,
+                "height": 31,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-menu",
+                "missing": false,
+                "x": 1022,
+                "y": 77,
+                "width": 220,
+                "height": 129,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-first-item",
+                "missing": false,
+                "x": 1031,
+                "y": 86,
+                "width": 202,
+                "height": 37,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": {
+                "rightDelta": 0,
+                "verticalGap": 8
+              },
+              "contained": [
+                {
+                  "id": "event-options-menu",
+                  "rect": {
+                    "left": 1022,
+                    "top": 77,
+                    "right": 1242,
+                    "bottom": 206,
+                    "width": 220,
+                    "height": 129
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
+          },
+          {
+            "state": "rsvp-confirm-dialog-open",
+            "theme": "light",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "rsvp-trigger",
+                "missing": false,
+                "x": 851.671875,
+                "y": 598,
+                "width": 357.328125,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm-dialog",
+                "missing": false,
+                "x": 410,
+                "y": 308,
+                "width": 460,
+                "height": 184,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm",
+                "missing": false,
+                "x": 772.875,
+                "y": 423,
+                "width": 67.125,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-cancel",
+                "missing": false,
+                "x": 700.046875,
+                "y": 423,
+                "width": 62.828125,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "rsvp-confirm-dialog",
+                  "rect": {
+                    "left": 410,
+                    "top": 308,
+                    "right": 870,
+                    "bottom": 492,
+                    "width": 460,
+                    "height": 184
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
           }
         ]
       }
@@ -755,111 +3255,111 @@
             "sampleIndex": 0,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 4
+            "latencyMs": 7
           },
           {
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 5
           },
           {
             "sampleIndex": 2,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 6
           },
           {
             "sampleIndex": 3,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 4,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 5,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 4
           },
           {
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 5
           },
           {
             "sampleIndex": 8,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 4
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            3,
-            3,
-            3,
-            3,
-            3,
-            3,
-            3
+            6,
+            5,
+            5,
+            5,
+            4,
+            5,
+            4
           ],
-          "median": 3,
-          "p95": 3
+          "median": 5,
+          "p95": 6
         },
         "connectionBefore": "●live",
         "established": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c44979e1b85b506e53ec41f8",
-            "subscriptionId": "sub_019f8e57c44979e1b85b506e53ec41f8",
+            "bindingId": "sub_019f9b007c4a7a43bd8c9261d18ca3e0",
+            "subscriptionId": "sub_019f9b007c4a7a43bd8c9261d18ca3e0",
             "event": "established",
             "transport": "push",
             "scope": {},
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 19,
+            "lastDeltaVersion": 19,
             "correlation": {
-              "rootId": "snapback-online-surface:59b1ba61-c2d1-4f23-97ad-2b22cd051457",
+              "rootId": "snapback-online-surface:de15d535-5a16-45a7-8f99-ae560689d142",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1784799544394,
+            "receivedAtMs": 1785011928139,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46a7c10a24baeea37831305",
-            "subscriptionId": "sub_019f8e57c46a7c10a24baeea37831305",
+            "bindingId": "sub_019f9b007c7e70439c9845b2fd7c03bc",
+            "subscriptionId": "sub_019f9b007c7e70439c9845b2fd7c03bc",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 19,
+            "lastDeltaVersion": 19,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:58a1ffd2-7527-43ce-8048-f83098f2a00d",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784799544453,
+            "receivedAtMs": 1785011928224,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -868,22 +3368,22 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46a7c10a24baea676cf9574",
-            "subscriptionId": "sub_019f8e57c46a7c10a24baea676cf9574",
+            "bindingId": "sub_019f9b007c7f7163993755c3b9f1ef5c",
+            "subscriptionId": "sub_019f9b007c7f7163993755c3b9f1ef5c",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 19,
+            "lastDeltaVersion": 19,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:58a1ffd2-7527-43ce-8048-f83098f2a00d",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784799544454,
+            "receivedAtMs": 1785011928224,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -892,22 +3392,22 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
-            "subscriptionId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
+            "bindingId": "sub_019f9b007c7f7163993755abfd2f495e",
+            "subscriptionId": "sub_019f9b007c7f7163993755abfd2f495e",
             "event": "established",
             "transport": "push",
             "scope": {
               "eventId": "event_sunset"
             },
-            "snapshotVersion": 12,
-            "lastDeltaVersion": 12,
+            "snapshotVersion": 19,
+            "lastDeltaVersion": 19,
             "correlation": {
-              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
+              "rootId": "snapback-online-surface:58a1ffd2-7527-43ce-8048-f83098f2a00d",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784799544455,
+            "receivedAtMs": 1785011928224,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -915,9 +3415,277 @@
           }
         ]
       }
+    },
+    {
+      "name": "STEP4.UI.A11Y axe delta keeps Contract at or below the React control",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.A11Y",
+        "oracle": "react-control-delta",
+        "react": {
+          "claimId": "STEP4.UI.A11Y",
+          "cell": "react:snapback",
+          "axeVersion": "4.12.1",
+          "criticalSerious": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 6,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 6,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 7,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            }
+          ],
+          "totalViolations": 3,
+          "audits": [
+            {
+              "scenario": {
+                "path": "/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": null
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2,
+                  3,
+                  3,
+                  3,
+                  3
+                ],
+                "skipped": false,
+                "listboxes": 0,
+                "dialogs": [],
+                "rsvpStates": []
+              },
+              "axe": {
+                "violations": [
+                  {
+                    "id": "color-contrast",
+                    "impact": "serious",
+                    "nodes": 6,
+                    "help": "Elements must meet minimum color contrast ratio thresholds"
+                  }
+                ]
+              }
+            },
+            {
+              "scenario": {
+                "path": "/events/event_sunset/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": "guest-list-trigger"
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2,
+                  2
+                ],
+                "skipped": false,
+                "listboxes": 2,
+                "dialogs": [
+                  {
+                    "modal": "true",
+                    "name": "Guest list"
+                  }
+                ],
+                "rsvpStates": [
+                  {
+                    "id": "rsvp-going",
+                    "checked": "true"
+                  },
+                  {
+                    "id": "rsvp-maybe",
+                    "checked": "false"
+                  },
+                  {
+                    "id": "rsvp-cant",
+                    "checked": "false"
+                  }
+                ]
+              },
+              "axe": {
+                "violations": [
+                  {
+                    "id": "color-contrast",
+                    "impact": "serious",
+                    "nodes": 6,
+                    "help": "Elements must meet minimum color contrast ratio thresholds"
+                  }
+                ]
+              }
+            },
+            {
+              "scenario": {
+                "path": "/events/new/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": null
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2,
+                  3,
+                  3,
+                  3,
+                  3,
+                  2
+                ],
+                "skipped": false,
+                "listboxes": 0,
+                "dialogs": [
+                  {
+                    "modal": "true",
+                    "name": "What’s the plan?"
+                  }
+                ],
+                "rsvpStates": []
+              },
+              "axe": {
+                "violations": [
+                  {
+                    "id": "color-contrast",
+                    "impact": "serious",
+                    "nodes": 7,
+                    "help": "Elements must meet minimum color contrast ratio thresholds"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "contract": {
+          "claimId": "STEP4.UI.A11Y",
+          "cell": "contract:snapback",
+          "axeVersion": "4.12.1",
+          "criticalSerious": [],
+          "totalViolations": 0,
+          "audits": [
+            {
+              "scenario": {
+                "path": "/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": null
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2
+                ],
+                "skipped": false,
+                "listboxes": 0,
+                "dialogs": [],
+                "rsvpStates": []
+              },
+              "axe": {
+                "violations": []
+              }
+            },
+            {
+              "scenario": {
+                "path": "/events/event_sunset/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": "guest-list-trigger"
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2
+                ],
+                "skipped": false,
+                "listboxes": 2,
+                "dialogs": [
+                  {
+                    "modal": "true",
+                    "name": "Guest list"
+                  }
+                ],
+                "rsvpStates": [
+                  {
+                    "id": "rsvp-going",
+                    "checked": "true"
+                  },
+                  {
+                    "id": "rsvp-maybe",
+                    "checked": "false"
+                  },
+                  {
+                    "id": "rsvp-cant",
+                    "checked": "false"
+                  }
+                ]
+              },
+              "axe": {
+                "violations": []
+              }
+            },
+            {
+              "scenario": {
+                "path": "/events/new/",
+                "params": {
+                  "user": "eve"
+                },
+                "open": null
+              },
+              "semantics": {
+                "main": 1,
+                "unnamed": [],
+                "headings": [
+                  1,
+                  2,
+                  2
+                ],
+                "skipped": false,
+                "listboxes": 0,
+                "dialogs": [
+                  {
+                    "modal": "true",
+                    "name": "Create an event"
+                  }
+                ],
+                "rsvpStates": []
+              },
+              "axe": {
+                "violations": []
+              }
+            }
+          ]
+        },
+        "newCriticalSerious": []
+      }
     }
   ],
-  "expectedChecks": 19,
+  "expectedChecks": 32,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }

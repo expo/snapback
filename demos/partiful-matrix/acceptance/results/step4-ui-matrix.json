@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-26T09:49:59.349Z",
+  "generatedAt": "2026-07-26T22:36:31.118Z",
   "revisions": {
-    "snapback": "ef6d01d8ae44889ab60653bb34e9e026d50abaa1",
+    "snapback": "1d41cd7ef773218a0230f9cb99f6684ac9d47363",
     "exact": "5ea17e8772d9f2c36b5e9cb9af412baf33cfe9a3"
   },
   "oq9": {
@@ -755,136 +755,12 @@
     }
   ],
   "manualDeviceGate": {
-    "status": "pass",
-    "reason": null,
-    "requiredRowIds": [
-      "ios-safari-current:autofill-password-manager",
-      "ios-safari-current:bfcache-restore",
-      "ios-safari-current:find-on-page",
-      "ios-safari-current:focus-trap-restore",
-      "ios-safari-current:ime-composition"
-    ],
-    "duplicateIds": [],
-    "rows": [
-      {
-        "id": "ios-safari-current:autofill-password-manager",
-        "environment": "ios-safari-current",
-        "assertion": "autofill-password-manager",
-        "acceptedFixtures": [
-          "facet-form-fixture"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "facet-form-fixture",
-        "notes": "The operator selected a saved login through the real 1Password iOS extension; both named controls populated, the password stayed masked, and Contract exposed Credentials received by Contract state.",
-        "evidence": [
-          {
-            "kind": "physical-ios-attended-1password-screenshot-tree-and-result",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-autofill/README.md",
-              "sha256": "ca92f81084f3e42b92905f70663455adae03ccc0bd43a5740f1bac4b156fe924"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:bfcache-restore",
-        "environment": "ios-safari-current",
-        "assertion": "bfcache-restore",
-        "acceptedFixtures": [
-          "multi-route-bfcache"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "multi-route-bfcache",
-        "notes": "Physical Mobile Safari restored the unchanged Caltrain to Forms to Back fixture with Millbrae state and Matches intact; the causal old-remount A/B reset to Mountain View.",
-        "evidence": [
-          {
-            "kind": "physical-ios-xcresult-screenshot-tree-and-causal-ab",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-25-bfcache/README.md",
-              "sha256": "709d1aa899d7c8395370022cdf59484cbf5f0b74ca41950270805890e1a89108"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:find-on-page",
-        "environment": "ios-safari-current",
-        "assertion": "find-on-page",
-        "acceptedFixtures": [
-          "caltrain-contract-search"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "caltrain-contract-search",
-        "notes": "Physical Mobile Safari Find on Page located visible Contract text Mountain View, reported 1 of 1, dismissed cleanly, and left the page usable.",
-        "evidence": [
-          {
-            "kind": "physical-ios-screenshot-tree-and-observation",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:focus-trap-restore",
-        "environment": "ios-safari-current",
-        "assertion": "focus-trap-restore",
-        "acceptedFixtures": [
-          "facet-contract-overlay-fixture"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "facet-contract-overlay-fixture",
-        "notes": "Physical Mobile Safari opened the Contract-owned dialog, retained focus inside it, dismissed through Done, removed the dialog, and restored focus to Open Contract dialog.",
-        "evidence": [
-          {
-            "kind": "physical-ios-screenshot-tree-and-observation",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-24/README.md",
-              "sha256": "92182a6ee578946c60003352e9239560dfab9dcf9195d1e1d4f32f567467aa1e"
-            }
-          }
-        ]
-      },
-      {
-        "id": "ios-safari-current:ime-composition",
-        "environment": "ios-safari-current",
-        "assertion": "ime-composition",
-        "acceptedFixtures": [
-          "caltrain-contract-search",
-          "facet-form-fixture"
-        ],
-        "status": "pass",
-        "issues": [],
-        "fixture": "facet-form-fixture",
-        "notes": "The operator used the Japanese Romaji system keyboard in physical Mobile Safari to compose and commit 東京; Contract exposed Committed value: 東京 and Commit count: 1.",
-        "evidence": [
-          {
-            "kind": "physical-ios-attended-ime-screenshot-tree-and-result",
-            "ref": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
-            "artifact": {
-              "repository": "exact",
-              "path": "docs/reports/web-citizenship-ios-current-artifacts/2026-07-26-ime/README.md",
-              "sha256": "076ab65188fa6bcb980f16f3f059a9c916d38e4d8ca61b49348a0449c15f7c0a"
-            }
-          }
-        ]
-      }
-    ],
+    "status": "red",
+    "reason": "governed-device-receipt-invalid",
+    "validationError": "Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n",
     "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-    "sha256": "68fea2cc0656df20520de02d3adcea94b2a7cfa14e62a67287335f3a3cac877f"
+    "sha256": "f46c4b049c677ef38bbebd75d3b7f76d4febaa52a227eef1fe5f81f429e8d74d",
+    "rows": []
   },
   "visualApproval": {
     "status": "pass",
@@ -905,8 +781,8 @@
       "sha256": "8633ff33a15cddef650d505fd6090bba73d959840bb3051a8f6ff97c3db70e02"
     },
     "fixtureSourceParity": {
-      "status": "pass",
-      "reason": null,
+      "status": "red",
+      "reason": "physical-carrier-fixture-source-drift",
       "revision": "4f38a62edd04b0d9bc30d753f7893cc8b77c1756",
       "files": [
         {
@@ -960,20 +836,20 @@
         {
           "path": "demos/partiful-matrix/snapback/generated/artifacts.json",
           "expectedSha256": "fbfd0222952c5d44e93050129495563c284b438e8f0b63e827bea9a222c5a5d0",
-          "currentSha256": "fbfd0222952c5d44e93050129495563c284b438e8f0b63e827bea9a222c5a5d0",
-          "matches": true
+          "currentSha256": "40bcf15207c9067dc0fcd7f1ddef03b76ff7721a7df9b32c43d03a6186f35d6a",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/capability.manifest.json",
           "expectedSha256": "bbf836ccbd0b650f93f37fdb57b207fffca10cc632e329d5996c545752019725",
-          "currentSha256": "bbf836ccbd0b650f93f37fdb57b207fffca10cc632e329d5996c545752019725",
-          "matches": true
+          "currentSha256": "61252e713bdf9ef4156b55eaf390984fce45a00e383bba19c1257b8f214d1a68",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
           "expectedSha256": "dff2a9b893b510addf3942ca67be8f5340f938dc29b55ce5e98d72402fe181e1",
-          "currentSha256": "dff2a9b893b510addf3942ca67be8f5340f938dc29b55ce5e98d72402fe181e1",
-          "matches": true
+          "currentSha256": "6918279950df00c52dc7c72a437d772869e4df198fd61166f8d3835a6065396b",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/contract/createEvent.mutation.contract-meta.ts",
@@ -1068,8 +944,8 @@
         {
           "path": "demos/partiful-matrix/snapback/generated/functions.manifest.json",
           "expectedSha256": "43745a781419d5866850b595c18e800f99724bc28e8aaecbda2fe81ae275a7fd",
-          "currentSha256": "43745a781419d5866850b595c18e800f99724bc28e8aaecbda2fe81ae275a7fd",
-          "matches": true
+          "currentSha256": "c940ca16a788747e953ff9d097e151cc3b0e194cd21adee7adce06199db336dd",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/operations/createEvent.args.schema.json",
@@ -1128,20 +1004,20 @@
         {
           "path": "demos/partiful-matrix/snapback/generated/provider-bindings.json",
           "expectedSha256": "2bf0eec8de147e3cc3ae41a51739a9423dd86264e826c57f2e2381f61d2291ef",
-          "currentSha256": "2bf0eec8de147e3cc3ae41a51739a9423dd86264e826c57f2e2381f61d2291ef",
-          "matches": true
+          "currentSha256": "66c7640ac42fbd784b30f8976c45ccad7cab49b26a46a5e5fb899b99e94925e3",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/provider-introspection.json",
           "expectedSha256": "79f90c1b7d3f17771cea5939edcd28bfd809c5a65cc1adacc3495b18f1190cec",
-          "currentSha256": "79f90c1b7d3f17771cea5939edcd28bfd809c5a65cc1adacc3495b18f1190cec",
-          "matches": true
+          "currentSha256": "efc2fcf3ce96453e1f46985be3c5e4c9e085d2636b80778c3b7661a030ff1c77",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/generated/schema.manifest.json",
           "expectedSha256": "891c698bebffe8fc33437838c4338ebb2973f7fb1b5e75631762adf127a71fb4",
-          "currentSha256": "891c698bebffe8fc33437838c4338ebb2973f7fb1b5e75631762adf127a71fb4",
-          "matches": true
+          "currentSha256": "ea7e0dfacacc384d5fbeb7a4f5f3b0f9b7198387b9684214d37082be11ee92fe",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/snapback/schema.mjs",
@@ -1164,8 +1040,8 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
           "expectedSha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f",
-          "currentSha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f",
-          "matches": true
+          "currentSha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/convex-provider.ts",
@@ -1278,14 +1154,14 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/event.contract",
           "expectedSha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5",
-          "currentSha256": "22110a14290bac4272ee79f9b7ef2c5c4e82460f1cd55def96d3a091703a80f5",
-          "matches": true
+          "currentSha256": "8023709ec100d8cc4632e47143d4085cd7ab4b01474cb59dbb04f0494f229f98",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
           "expectedSha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b",
-          "currentSha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b",
-          "matches": true
+          "currentSha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
@@ -1296,8 +1172,8 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
           "expectedSha256": "b501afb709778283c1e8175430ddca21d5c86b8508663696551a314cbba95ea2",
-          "currentSha256": "b501afb709778283c1e8175430ddca21d5c86b8508663696551a314cbba95ea2",
-          "matches": true
+          "currentSha256": "2fa499ad7b9cfa5e544a6fc27ae1d2013d8d47fe8d2ac47fb154cf2d74f941df",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/index.html",
@@ -1308,8 +1184,8 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/main.ts",
           "expectedSha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d",
-          "currentSha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d",
-          "matches": true
+          "currentSha256": "df3e66009ad55c4fb2f9d3ff835627b419c3831132d5f304f17343a2d3363c4f",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/performance-v2-main.ts",
@@ -1332,14 +1208,14 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
           "expectedSha256": "8dc1a46c1e7be16bf8fa3f3b9e4d2fe79263ab546cfb54f02ee390d188ff42bd",
-          "currentSha256": "8dc1a46c1e7be16bf8fa3f3b9e4d2fe79263ab546cfb54f02ee390d188ff42bd",
-          "matches": true
+          "currentSha256": "b0983fcd88a0fb0dd92b2b91e78576489f3e82a24fd6b6a0c9a7097d18b20fe8",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
           "expectedSha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
-          "currentSha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
-          "matches": true
+          "currentSha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs",
@@ -1356,14 +1232,14 @@
         {
           "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
           "expectedSha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd",
-          "currentSha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd",
-          "matches": true
+          "currentSha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/contract/vite.config.ts",
           "expectedSha256": "87c4630820acfd82358570bab3026bfc0e1b60479fbae633dd94948d308e756d",
-          "currentSha256": "87c4630820acfd82358570bab3026bfc0e1b60479fbae633dd94948d308e756d",
-          "matches": true
+          "currentSha256": "a58d7d1b912eb5318333449513466100cce06217985584b357f1ec69687851c2",
+          "matches": false
         },
         {
           "path": "demos/partiful-matrix/surfaces/react/index.html",
@@ -1414,7 +1290,24 @@
           "matches": true
         }
       ],
-      "changedPaths": []
+      "changedPaths": [
+        "demos/partiful-matrix/snapback/generated/artifacts.json",
+        "demos/partiful-matrix/snapback/generated/capability.manifest.json",
+        "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
+        "demos/partiful-matrix/snapback/generated/functions.manifest.json",
+        "demos/partiful-matrix/snapback/generated/provider-bindings.json",
+        "demos/partiful-matrix/snapback/generated/provider-introspection.json",
+        "demos/partiful-matrix/snapback/generated/schema.manifest.json",
+        "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+        "demos/partiful-matrix/surfaces/contract/event.contract",
+        "demos/partiful-matrix/surfaces/contract/feed.contract",
+        "demos/partiful-matrix/surfaces/contract/helpers.ts",
+        "demos/partiful-matrix/surfaces/contract/main.ts",
+        "demos/partiful-matrix/surfaces/contract/production-hydration.ts",
+        "demos/partiful-matrix/surfaces/contract/provider.ts",
+        "demos/partiful-matrix/surfaces/contract/ui.ts",
+        "demos/partiful-matrix/surfaces/contract/vite.config.ts"
+      ]
     }
   },
   "documentedSupportLimitations": [
@@ -1480,13 +1373,13 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "pass",
-        "reason": null
+        "status": "red",
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {
       "claimId": "STEP4.UI.FOCUS",
-      "status": "pass",
+      "status": "red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1510,8 +1403,8 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "pass",
-        "reason": null
+        "status": "red",
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {
@@ -1542,7 +1435,7 @@
     },
     {
       "claimId": "STEP4.UI.A11Y",
-      "status": "pass",
+      "status": "red",
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1566,8 +1459,8 @@
         }
       ],
       "manualDeviceGate": {
-        "status": "pass",
-        "reason": null
+        "status": "red",
+        "reason": "governed-device-receipt-invalid"
       }
     },
     {

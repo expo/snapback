@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "snapback.package-publication.v1",
+  "mode": "publish",
+  "revision": "ca92d02943e72c2ced7861a0cff54b8821878d48",
+  "sourceDirty": false,
+  "version": "0.1.0",
+  "tag": "latest",
+  "registry": "https://registry.npmjs.org",
+  "scopePreset": "ccheever",
+  "runtimePlatforms": [
+    "darwin-arm64",
+    "linux-x64"
+  ],
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "name": "@ccheever/snapback-runtime-darwin-arm64",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.0.tgz",
+      "sha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
+      "files": 4,
+      "unpackedSize": 62560892,
+      "status": "skipped-already-published",
+      "registrySha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
+      "registryIntegrity": "sha512-RqoGCpIDIIdJYnFX9crnl9SaxYiNPwsnL85ItsXbHqF1pZ0xNkATjPuwk/GG75GYIOoNyPygdFUOIYVVuvRj+g==",
+      "registryShasum": "1f5b9e1905403a444765bef7bd6c4653311347d0"
+    },
+    {
+      "sourceName": "@snapback/runtime-linux-x64",
+      "name": "@ccheever/snapback-runtime-linux-x64",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-runtime-linux-x64-0.1.0.tgz",
+      "sha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
+      "files": 3,
+      "unpackedSize": 67340585,
+      "status": "skipped-already-published",
+      "registrySha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
+      "registryIntegrity": "sha512-6ndcbpEC8Hnl2wy6AsAX5dvPJnky2ycWssOqY7pHSScTEEKZ3bNqEh1Fx1VEirHhFHBlxk0qixv1Q8BSxk9a+g==",
+      "registryShasum": "8b6e411300fd875436ea782fed3e3ef274cbbf51"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "name": "@ccheever/snapback-contract",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-contract-0.1.0.tgz",
+      "sha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
+      "files": 20,
+      "unpackedSize": 711085,
+      "status": "skipped-already-published",
+      "registrySha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
+      "registryIntegrity": "sha512-g5mICwGM2UqYBSRDVHow3RKYR4dJ6D11HOPdCYfn6Ytoj9F0+xtiGAkJm1+NC3owuIrssnXqo9d5yFFglCmN3g==",
+      "registryShasum": "91fb171ce9931bc1cae7d3b1c9b20fb755eea5ee"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "name": "@ccheever/snapback-client",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-client-0.1.0.tgz",
+      "sha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
+      "files": 14,
+      "unpackedSize": 548659,
+      "status": "skipped-already-published",
+      "registrySha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
+      "registryIntegrity": "sha512-solv5BfGi30aQ13r9vDF6ADdUKlY3CapN+yY840L9Z+cP1UqBXqKpYRrB8I8JvBWuRgSYfuw/trvvIrLArxrOw==",
+      "registryShasum": "7b8c5bd027648b2bd95c0acc3aadbb0ff468ab9d"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "name": "@ccheever/snapback-codegen",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-codegen-0.1.0.tgz",
+      "sha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
+      "files": 162,
+      "unpackedSize": 1773200,
+      "status": "skipped-already-published",
+      "registrySha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
+      "registryIntegrity": "sha512-AkMVbzpWUIaF4dyEvnNZ6MOiVT5iJ3E4lLb+fSlHHT40UFUVZxp2O+PgUnNibW3fpr3zJRhAq5OJfmb/+qrm4Q==",
+      "registryShasum": "3f10eedd776d6d274e54192cfdcbdd005786da8e"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "name": "@ccheever/snapback-react",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-react-0.1.0.tgz",
+      "sha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
+      "files": 4,
+      "unpackedSize": 7897,
+      "status": "skipped-already-published",
+      "registrySha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
+      "registryIntegrity": "sha512-8MyxGfy7woFdA0ni2VoIL6eO9jeT3a7VoAvcJXBZf+VImbhZQ3QYTK/9YTaeEDwydwerzC3/TInpVBwezqvPiQ==",
+      "registryShasum": "cd8ecc210503c260ab3a239e098cf7ebe5a8d864"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "name": "@ccheever/snapback-app-cli",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-app-cli-0.1.0.tgz",
+      "sha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
+      "files": 3,
+      "unpackedSize": 8293,
+      "status": "skipped-already-published",
+      "registrySha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
+      "registryIntegrity": "sha512-tKVtzx/EZ/AEIIho6pQlbUh0DfQXbUZNfNAxvNzbpOsTvBL4Yc7TH32dmsuRSCOAooRlRR1DBQ2oi+rXist0Tw==",
+      "registryShasum": "c186e711d7d0d68590b658a3aee8d22d428cb762"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "name": "@ccheever/snapback-cli",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-cli-0.1.0.tgz",
+      "sha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
+      "files": 11,
+      "unpackedSize": 320304,
+      "status": "skipped-already-published",
+      "registrySha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
+      "registryIntegrity": "sha512-mczsTgYMHBjNS6QQY0qp0UeU/ZkrYZT5Hia6kc3fnKpx9MjyZ7VRwS1dStcD+AX+nIXnyQfJx0jkRdzZ9GbYDA==",
+      "registryShasum": "bf1ebfe39181a8dc1ef970005506913e8b68a640"
+    }
+  ]
+}

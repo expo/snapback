@@ -1,0 +1,233 @@
+{
+  "appId": "competitive-checkpoint",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "ec952ff4b7060f742cc9c72d7c9e92b55f45ddc095057f3ce1af57466d9ec0eb",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:04453498e78b891b",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "model",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "slug"
+          ],
+          "name": "by_owner_slug",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId",
+            "pageKey"
+          ],
+          "name": "by_owner_page_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId",
+            "createdAt"
+          ],
+          "name": "by_owner_created"
+        },
+        {
+          "fields": [
+            "model"
+          ],
+          "name": "by_model"
+        }
+      ],
+      "name": "conversations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "content",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "attemptId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "idempotencyKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "lastProgressAt",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "effectMayHaveExecuted",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "conversationId"
+          ],
+          "name": "by_owner_conversation"
+        },
+        {
+          "fields": [
+            "ownerId",
+            "attemptId"
+          ],
+          "name": "by_owner_attempt",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId",
+            "idempotencyKey"
+          ],
+          "name": "by_owner_idempotency",
+          "unique": true
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "models_by_slug",
+          "unique": true
+        }
+      ],
+      "name": "models",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "modelName",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId"
+          ],
+          "name": "cards_by_owner"
+        }
+      ],
+      "name": "conversationCards",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

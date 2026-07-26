@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// A minimal JSON tree used for all wire decoding.
 ///

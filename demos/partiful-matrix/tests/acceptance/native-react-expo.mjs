@@ -63,6 +63,7 @@ const reportExtra = {
       encoding: 'utf8',
     }).trim() !== '',
   },
+  environment: hostIdentity(),
   releaseArtifact: null,
   build: { performed: false, startedAtMs: null, completedAtMs: null },
   performance: performanceOnly ? { sample: null } : null,
@@ -72,6 +73,44 @@ const reportExtra = {
     sha256: createHash('sha256').update(readFileSync(resolve(repoRoot, path))).digest('hex'),
   })),
 };
+
+function hostIdentity() {
+  const commandText = (command, args) => {
+    try {
+      return execFileSync(command, args, { encoding: 'utf8' }).trim();
+    } catch {
+      return null;
+    }
+  };
+  const simulatorList = JSON.parse(
+    commandText('xcrun', ['simctl', 'list', 'devices', 'available', '-j'])
+      ?? '{"devices":{}}',
+  );
+  let simulator = { udid: deviceId, available: false };
+  for (const [runtime, devices] of Object.entries(simulatorList.devices)) {
+    const match = devices.find((device) => device.udid === deviceId);
+    if (match) {
+      simulator = {
+        udid: deviceId,
+        name: match.name,
+        state: match.state,
+        runtime,
+        available: match.isAvailable !== false,
+      };
+      break;
+    }
+  }
+  return {
+    hardware: commandText('uname', ['-m']),
+    model: commandText('sysctl', ['-n', 'hw.model']),
+    os: commandText('sw_vers', ['-productVersion']),
+    osBuild: commandText('sw_vers', ['-buildVersion']),
+    xcode: commandText('xcodebuild', ['-version'])?.split('\n') ?? null,
+    node: process.version,
+    bun: commandText('bun', ['--version']),
+    simulator,
+  };
+}
 
 const witness = createServer(async (request, response) => {
   if (request.method !== 'POST' || request.url !== '/event') {
@@ -144,7 +183,17 @@ await runAcceptance(suite, async () => {
     const nativeStage = await waitEvent('native-launch-stage');
     const startupAssets = digestStartupAssets(artifact);
     reportExtra.performance.sample = {
-      definitionVersion: 'partitime.native-launch-stage.v1',
+      definitionVersion: 'partitime.native-launch-stage.v2',
+      lane: {
+        laneId: 'partitime.native-ios-release-simulator-hbc-agent-off.v1',
+        buildConfiguration: 'Release',
+        simulatorBuild: true,
+        artifactMode: 'hermes-hbc',
+        agentLoadedBeforeFirstFrame: false,
+        debugOverlayEnabled: false,
+        firstFrameObserver: 'native-host',
+        authoritativeDataObserver: 'structured-product-marker',
+      },
       hermesEvaluationMs: nativeStage.details.hermesEvaluationMs,
       startupAssetWeightBytes: startupAssets.sizeBytes,
       coldLaunchMs: launch.atMs - launchRequest.requestedAtMs,
@@ -162,6 +211,11 @@ await runAcceptance(suite, async () => {
         assert(Number.isFinite(reportExtra.performance.sample[name]) && reportExtra.performance.sample[name] >= 0, JSON.stringify(reportExtra.performance.sample));
       }
       assert(startupAssets.files.length > 0, 'release carrier has no admitted JavaScript/Hermes startup asset');
+      assertEqual(
+        nativeStage.details.definitionVersion,
+        'partitime.native-launch-stage.v2',
+        'native launch-stage method',
+      );
     });
     return;
   }

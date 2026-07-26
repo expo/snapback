@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.relational-conversations.v1",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "helper": "defineRelationalQuery",
+  "title": "competitive checkpoint / relational conversations",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "the generated artifact pair carries the promoted relational capability honestly",
+      "ok": true,
+      "details": {
+        "helper": "defineRelationalQuery",
+        "capability": "relational_query_v1",
+        "maturity": "stable (promoted 2026-07-26)"
+      }
+    },
+    {
+      "name": "page 1 consumes the full take with explicit join leaves on both branches",
+      "ok": true,
+      "details": {
+        "take": 8,
+        "page1Rows": 8,
+        "cursorFamily": "sbrc1"
+      }
+    },
+    {
+      "name": "the continuation resumes with no skipped and no duplicated root, and the short page is terminal",
+      "ok": true,
+      "details": {
+        "page2Rows": 2,
+        "terminal": true
+      }
+    },
+    {
+      "name": "results stay owner-scoped",
+      "ok": true,
+      "details": {
+        "graceRows": 2
+      }
+    },
+    {
+      "name": "tampered and cross-user cursors refuse with one indistinguishable class",
+      "ok": true,
+      "details": {
+        "refusalClass": "SNAPBACK_RELATIONAL_CURSOR_INVALID",
+        "classes": [
+          "tampered",
+          "cross-user"
+        ]
+      }
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

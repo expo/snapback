@@ -6,5 +6,8 @@
   "minimumColumns": 60,
   "minimumRows": 18,
   "colorMode": "ansi-256",
-  "capabilities": { "mouse": false }
+  "capabilities": {
+    "mouse": false,
+    "networkHosts": ["127.0.0.1"]
+  }
 }

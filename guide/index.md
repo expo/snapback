@@ -58,8 +58,11 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
+  server-authored timestamps and IDs in JavaScript handlers, closed operation
+  arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
-  unique lookup, keyset pages, and server-derived time and IDs.
+  unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
@@ -118,6 +121,9 @@ you never build around a feature because you didn't know it existed.
   debug through the privileged Contract system app.
 
 ### Deploying
+- [Immutable releases and deploy plans](./deploying/releases.md) — build the
+  target-neutral release, register an exact VM/container target, inspect its
+  provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 

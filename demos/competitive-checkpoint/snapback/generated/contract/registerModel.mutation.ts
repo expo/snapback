@@ -5,7 +5,7 @@
 import { getSnapbackContractLinks } from './runtime-links';
 
 export const descriptor = 'registerModel';
-export type RegisterModelArgs = { slug: string; displayName: string };
+export type RegisterModelArgs = { slug: string; displayName: string; provider?: string };
 
 export function registerModel(args: RegisterModelArgs) {
   return getSnapbackContractLinks().registerModel(args);

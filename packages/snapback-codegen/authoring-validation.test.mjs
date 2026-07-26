@@ -392,6 +392,12 @@ const unsupportedHandlerCases = [
   ['WebAssembly.compile(new Uint8Array())', 'BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', 1],
 ];
 
+const ambientRepair = new Map([
+  ['BUNDLE_UNSUPPORTED_TIMER', /do not wait on ambient timers/],
+  ['BUNDLE_UNSUPPORTED_RANDOM', /use ctx\.runtime\.id\(\) for a fresh identifier/],
+  ['BUNDLE_UNSUPPORTED_TIME', /use ctx\.runtime\.now\(\) for a trusted integer timestamp/],
+]);
+
 for (const [statement, code, token, column] of unsupportedHandlerCases) {
   const diagnostics = await invalidCase({
     functions: jsActionFunctions,
@@ -404,6 +410,14 @@ for (const [statement, code, token, column] of unsupportedHandlerCases) {
     { file: 'handler.mjs', line: 2, column },
     `${statement}: authored source span drifted`,
   );
+  if (ambientRepair.has(code)) {
+    assert.match(hit.message, ambientRepair.get(code), `${statement}: expected an actionable repair`);
+    assert.match(
+      hit.message,
+      /guide\/backend\/trusted-runtime-values\.md/,
+      `${statement}: expected guide routing`,
+    );
+  }
 }
 
 // `.ts`/`.mts` are first-class handler extensions. Type-only syntax is parsed

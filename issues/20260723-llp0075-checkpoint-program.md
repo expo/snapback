@@ -17,6 +17,13 @@ and every unpinned input is deliberately marked `unpinned-blocks-timed-runs` in
 single source of truth; any protocol change is a dated amendment there plus a
 refreshed digest pin in the Spec.
 
+**Progress (2026-07-24):** the Accepted-vs-Review decision is closed: the
+author ratified v0.1–v0.3 and retained Accepted status without authorizing
+timed runs. Candidate statistics, metric, gate-matrix, run-capsule-verifier,
+and mechanical-scoring instruments pass their untimed tests but remain
+unratified. The concrete adapter/provider choices and remaining pre-run pins
+below still block every timed sample.
+
 Instrument corrections (code + prospective rerun; the only "do" work today):
 
 - `20260723-llp0075-instrument-corrections.md` — the retained local-streaming
@@ -32,8 +39,8 @@ author decision):
 
 Standalone author decisions:
 
-- `20260723-llp0075-status-disposition.md` — whether Accepted stands over the
-  two Codex NOT-READY verdicts, or the Spec reverts to Review
+- `20260723-llp0075-status-disposition.md` — **closed:** Accepted stands on
+  named-author authority over the recorded dissent
 - `20260723-llp0075-program-ownership.md` — the long-lived program owner, and
   the provider/region/object-store/credential backend for the first
   `single-instance-container-vm.v1` remote drill

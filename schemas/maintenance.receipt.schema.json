@@ -1,0 +1,355 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "AdapterLifecycleOperation": {
+      "enum": [
+        "acquireLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "rollback",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "activateRestoredGeneration",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "DeployStepReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/AdapterEvidenceRef"
+          },
+          "type": "array"
+        },
+        "factSha256": {
+          "type": "string"
+        },
+        "finishedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "idempotentReplay": {
+          "type": "boolean"
+        },
+        "inputSha256": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/AdapterLifecycleOperation"
+        },
+        "outputSha256": {
+          "type": "string"
+        },
+        "previousFactSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sequence": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/DeployStepState"
+        }
+      },
+      "required": [
+        "sequence",
+        "operation",
+        "state",
+        "inputSha256",
+        "outputSha256",
+        "evidence",
+        "startedAtMs",
+        "finishedAtMs",
+        "idempotentReplay",
+        "factSha256"
+      ],
+      "type": "object"
+    },
+    "DeployStepState": {
+      "enum": [
+        "completed",
+        "rolledBack",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "MaintenanceReceiptKind": {
+      "enum": [
+        "codeOnlyRollback",
+        "restore",
+        "restoreActivation"
+      ],
+      "type": "string"
+    },
+    "MaintenanceReceiptOutcome": {
+      "enum": [
+        "rolledBack",
+        "restoredPaused",
+        "restoreActivated",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "RestoreResult": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptanceSha256": {
+          "type": "string"
+        },
+        "activated": {
+          "type": "boolean"
+        },
+        "applicationSentinelSha256": {
+          "type": "string"
+        },
+        "backupId": {
+          "type": "string"
+        },
+        "componentsVerified": {
+          "type": "boolean"
+        },
+        "destinationDatabaseId": {
+          "type": "string"
+        },
+        "destinationDeploymentId": {
+          "type": "string"
+        },
+        "destinationStreamIncarnation": {
+          "type": "string"
+        },
+        "destinationTargetId": {
+          "type": "string"
+        },
+        "effectsFenced": {
+          "type": "boolean"
+        },
+        "externalEffectsDisabled": {
+          "type": "boolean"
+        },
+        "restoreEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sourceDatabaseId": {
+          "type": "string"
+        },
+        "sourceDeploymentId": {
+          "type": "string"
+        },
+        "sourceStreamIncarnation": {
+          "type": "string"
+        },
+        "sourceTargetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "backupId",
+        "sourceTargetId",
+        "sourceDeploymentId",
+        "sourceDatabaseId",
+        "sourceStreamIncarnation",
+        "destinationTargetId",
+        "destinationDeploymentId",
+        "destinationDatabaseId",
+        "destinationStreamIncarnation",
+        "restoreEpoch",
+        "effectsFenced",
+        "componentsVerified",
+        "applicationSentinelSha256",
+        "acceptanceSha256",
+        "externalEffectsDisabled",
+        "activated"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/maintenance.receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activationGenerationAfter": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "activationGenerationBefore": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "backupId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "databaseId": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "finishedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/$defs/MaintenanceReceiptKind"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/MaintenanceReceiptOutcome"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "receiptId": {
+      "type": "string"
+    },
+    "releaseIdAfter": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "releaseIdBefore": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "restore": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RestoreResult"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "startedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/DeployStepReceipt"
+      },
+      "type": "array"
+    },
+    "streamIncarnation": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "kind",
+    "planId",
+    "operationId",
+    "targetId",
+    "deploymentId",
+    "databaseId",
+    "streamIncarnation",
+    "activationGenerationBefore",
+    "activationGenerationAfter",
+    "outcome",
+    "remoteEvidence",
+    "steps",
+    "gaps",
+    "startedAtMs",
+    "finishedAtMs"
+  ],
+  "title": "MaintenanceReceipt",
+  "type": "object"
+}

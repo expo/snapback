@@ -1,0 +1,305 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-gate-matrix.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "arms": ["snapback", "convex"],
+  "rules": {
+    "missingDecision": "fail",
+    "duplicateDecision": "instrument-error",
+    "notApplicable": "forbidden-unless-the-gate-lists-the-arm-in-naAllowedArms",
+    "expectedRefusal": "passes-only-a-gate-whose-expectedOutcome-is-refusal",
+    "providerNativeEquivalence": "Different provider-native mechanisms are allowed only where equivalence is explicitly named; evidence must still prove the same user-visible fact and may not substitute a dashboard label for an executed witness.",
+    "armSpecificConstraints": "A gate scoped to one arm constrains that arm's implementation and is reported separately from the symmetric product-completeness result."
+  },
+  "gates": [
+    {
+      "id": "auth.server-derived-owner",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Authenticated owner identity is derived by the server and cannot be selected by client input."
+    },
+    {
+      "id": "conversation.create",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The authenticated owner can create a conversation."
+    },
+    {
+      "id": "conversation.rename",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The authenticated owner can rename a conversation."
+    },
+    {
+      "id": "conversation.list",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The authenticated owner can list only their conversations."
+    },
+    {
+      "id": "conversation.select",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The authenticated owner can select one of their conversations."
+    },
+    {
+      "id": "conversation.delete",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The authenticated owner can delete a conversation."
+    },
+    {
+      "id": "message.ordered",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Conversation messages have an authoritative stable order."
+    },
+    {
+      "id": "stream.user-and-placeholder",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Sending one prompt creates one user message and one assistant placeholder."
+    },
+    {
+      "id": "stream.intermediate-commits",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "A second client observes at least three distinct authoritative intermediate commits before terminal completion."
+    },
+    {
+      "id": "stream.deterministic-source",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "exact-fixture",
+      "requirement": "The source emits 16 numbered UTF-8 chunks over at least 800 ms."
+    },
+    {
+      "id": "stream.cancellation-late-fence",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Cancellation reaches the upstream reader, records cancelled settlement, and prevents every late commit."
+    },
+    {
+      "id": "stream.idempotent-retry",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Retry reuses one attempt identity and duplicates neither user nor assistant message."
+    },
+    {
+      "id": "stream.settlement-kinds",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Complete, failed, cancelled, timed-out, and ambiguous settlements remain distinct."
+    },
+    {
+      "id": "stream.bounds",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "exact-fixture",
+      "requirement": "The witness proves 1 MiB total, 64 KiB buffered, 30 s wall, 5 s idle, and 10 authoritative commits/second ceilings."
+    },
+    {
+      "id": "stream.backpressure",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The implementation applies backpressure instead of unbounded eager reads."
+    },
+    {
+      "id": "stream.safe-diagnostics",
+      "category": "stream",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Failure diagnostics are secret-safe and identify operation, source locus, expected shape, safe received summary, and repair guidance."
+    },
+    {
+      "id": "auth.cross-user-read",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "functional",
+      "requirement": "A second authenticated principal cannot read the first principal's conversations or messages."
+    },
+    {
+      "id": "auth.cross-user-subscribe",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "functional",
+      "requirement": "A second authenticated principal cannot subscribe to the first principal's data."
+    },
+    {
+      "id": "auth.cross-user-rename",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "functional",
+      "requirement": "A second authenticated principal cannot rename the first principal's conversation."
+    },
+    {
+      "id": "auth.cross-user-delete",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "functional",
+      "requirement": "A second authenticated principal cannot delete the first principal's conversation."
+    },
+    {
+      "id": "auth.cross-user-progress-patch",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "functional",
+      "requirement": "A second authenticated principal cannot patch stream progress for the first principal."
+    },
+    {
+      "id": "push.authoritative-reconnect",
+      "category": "product",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "Reconnect produces an authoritative provider-native push snapshot while fallback is disabled."
+    },
+    {
+      "id": "hosted.public-react-origin",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "An exact public HTTPS origin serves the actual React application."
+    },
+    {
+      "id": "hosted.isolated-target-identity",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "The receipt proves a newly isolated target and exact account, target, deployment, and origin identity."
+    },
+    {
+      "id": "hosted.immutable-release",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "The deployed code and artifacts are retained with immutable content identities."
+    },
+    {
+      "id": "hosted.compatibility-preflight",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "Schema, client, and runtime compatibility are checked before activation using the arm's native mechanism."
+    },
+    {
+      "id": "hosted.secret-declaration",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "Required secrets/configuration are declared and proven present without exposing values."
+    },
+    {
+      "id": "hosted.logs-and-inspection",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "Structured build/runtime logs and authenticated inspection are retained through provider-native CLI, dashboard, or receipt evidence."
+    },
+    {
+      "id": "hosted.code-only-rollback",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "A compatible next release can be activated and rolled back without data rewind."
+    },
+    {
+      "id": "hosted.backup-restore-drill",
+      "category": "hosted-lifecycle",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "provider-native",
+      "requirement": "Backup is read back and an isolated destroy, restore, verify, and activate drill succeeds."
+    },
+    {
+      "id": "hosted.target-confusion-refusal",
+      "category": "negative-authorization",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "refusal",
+      "equivalence": "provider-native",
+      "requirement": "Stale target, wrong account/origin, and preview/production confusion fail closed."
+    },
+    {
+      "id": "cleanup.created-resources-only",
+      "category": "cleanup",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "Cleanup retires every resource created by the run and no resource outside the run."
+    },
+    {
+      "id": "compatibility.expo-ios",
+      "category": "compatibility",
+      "requiredArms": ["snapback", "convex"],
+      "expectedOutcome": "pass",
+      "equivalence": "functional",
+      "requirement": "The shared product surface passes the untimed Expo iOS Simulator compatibility check."
+    },
+    {
+      "id": "snapback.generated-authoring-boundary",
+      "category": "arm-specific-authoring",
+      "requiredArms": ["snapback"],
+      "expectedOutcome": "pass",
+      "equivalence": "arm-specific",
+      "requirement": "One installed schema drives validators/types; the required owned CRUD, unique lookup, and keyset page generators are used; generated references are the only app-data call surface; trusted fields are server-derived; and no forbidden handwritten substitute satisfies the gate."
+    },
+    {
+      "id": "snapback.single-command-hosted-activation",
+      "category": "arm-specific-authoring",
+      "requiredArms": ["snapback"],
+      "expectedOutcome": "pass",
+      "equivalence": "arm-specific",
+      "requirement": "One authored command from the application root builds, preflights, deploys, and activates the hosted application."
+    },
+    {
+      "id": "snapback.public-package-provenance",
+      "category": "arm-specific-authoring",
+      "requiredArms": ["snapback"],
+      "expectedOutcome": "pass",
+      "equivalence": "arm-specific",
+      "requirement": "Every Snapback package resolves from the public npm registry with exact integrity and no workspace, path, Git, tarball, sibling, or repository-local runtime dependency."
+    }
+  ]
+}

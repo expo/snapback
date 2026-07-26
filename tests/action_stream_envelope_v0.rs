@@ -297,7 +297,9 @@ async fn stable_stream_requirement_admits_without_acknowledgment() {
         unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut unacknowledged = functions();
-        unacknowledged.acknowledged_experimental_capabilities.clear();
+        unacknowledged
+            .acknowledged_experimental_capabilities
+            .clear();
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback.load_functions(unacknowledged)
     })

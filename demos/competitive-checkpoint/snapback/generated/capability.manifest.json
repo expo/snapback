@@ -19,10 +19,6 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
-  "capabilityMaturity": {
-    "migration_keyset_scan_v1": "experimental",
-    "relational_query_v1": "experimental"
-  },
   "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,

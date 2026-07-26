@@ -9,18 +9,18 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: 681a98701db0b986d230e4be456f1a4694d6e50d
+reviewed: 2026-07-26
+reviewed-commit: 6aa857a8f426e0618c09e09f9f35fbfd72438638
 ---
 
 # Relational queries (bounded joins)
 
-> **Local target only, experimental capability.** Relational queries require
-> the `relational_query_v1` target capability, which is **experimental**
-> until LLP 0080's coupled acceptance suite passes: generated artifacts
-> acknowledge the experimental contract automatically, and a target without
-> the executor (for example the Cloudflare path) refuses at generation with
-> a machine-readable capability gap, never at runtime.
+> **Local target only.** Relational queries require the
+> `relational_query_v1` target capability — **stable** since LLP 0080/0081
+> flipped to Implemented (2026-07-26); no experimental acknowledgment is
+> emitted or required. A target without the executor (for example the
+> Cloudflare path) refuses at generation with a machine-readable capability
+> gap, never at runtime.
 
 Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is
@@ -123,6 +123,11 @@ versioned continuation cursor next to `rows`; pass it back as
 output table the runtime maintains inside **every source mutation's own
 commit** — source and projection either commit together or not at all,
 with no background repair and no separately visible projection version.
+A projection has no function carrier, so the generated bundle records its
+relational-engine dependence as a schema-level `relational_query_v1`
+requirement (derived from the projection's presence — never authored):
+a target without the engine refuses at generation and admission, not at
+activation.
 
 ```js source=demos/competitive-checkpoint/snapback/functions.mjs
 export const conversationCardsProjection = defineMaintainedProjection({

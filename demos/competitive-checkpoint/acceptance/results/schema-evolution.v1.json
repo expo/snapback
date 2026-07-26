@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.schema-evolution.v1",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md",
+  "change": "models.provider (additive optional string, intents derived from the schema diff)",
+  "title": "competitive checkpoint / reviewed schema evolution",
+  "passed": 6,
+  "skipped": 0,
+  "failed": 0,
+  "total": 6,
+  "ok": true,
+  "results": [
+    {
+      "name": "preview derives the additive intent from the schema diff and seals a reviewable plan",
+      "ok": true,
+      "details": {
+        "planId": "migration-v1:92ededf57b43636fa43a8b736320cfd5cf83a2da7e7dea5c8ebacd4911611461",
+        "planDigest": "92ededf57b43636fa43a8b736320cfd5cf83a2da7e7dea5c8ebacd4911611461",
+        "steps": 1
+      }
+    },
+    {
+      "name": "a tampered approval cannot execute",
+      "ok": true,
+      "details": {
+        "refused": true
+      }
+    },
+    {
+      "name": "apply executes the reviewed change once and releases with the §5 full proof",
+      "ok": true,
+      "details": {
+        "state": "released",
+        "proofMethod": "full",
+        "digestTables": [],
+        "publicationVersion": 5
+      }
+    },
+    {
+      "name": "verify re-proves the receipt against the journal after the fact",
+      "ok": true,
+      "details": {
+        "operationId": "operation-v1:019f9fe5af377cb38f566cd92986e0eb",
+        "state": "released"
+      }
+    },
+    {
+      "name": "every predecessor row survives the migration byte-for-byte on its logical leaves",
+      "ok": true,
+      "details": {
+        "conversations": 3,
+        "cards": 3
+      }
+    },
+    {
+      "name": "the successor schema is live: provider round-trips and the relational helper serves it",
+      "ok": true,
+      "details": {
+        "rows": 4,
+        "additiveFieldLive": true
+      }
+    }
+  ],
+  "expectedChecks": 6,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

@@ -3,6 +3,8 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type ConversationBySlugArgs = { "slug": string };
 export type ConversationBySlugResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>;
+export type ConversationsWithModelArgs = { "cursor"?: string };
+export type ConversationsWithModelResult = ReadonlyArray<{ "model": string; "modelName"?: string; "modelProvider"?: string; "slug": string; "title": string }>;
 export type FirstConversationPageArgs = Record<string, never>;
 export type FirstConversationPageResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "model": string; "ownerId": string; "pageKey": string; "slug": string; "title": string; "updatedAt": number }>;
 export type GetConversationArgs = { "id": string };
@@ -20,13 +22,14 @@ export type CancelReplyArgs = { "attemptId": string };
 export type CompleteReplyArgs = { "attemptId": string; "sequence": number; "tail": string };
 export type CreateConversationArgs = { "model": string; "slug": string; "title": string };
 export type DeleteConversationArgs = { "id": string };
-export type RegisterModelArgs = { "displayName": string; "slug": string };
+export type RegisterModelArgs = { "displayName": string; "provider"?: string; "slug": string };
 export type SettleReplyArgs = { "attemptId": string; "status": string };
 export type StartReplyArgs = { "content": string; "conversationId": string; "idempotencyKey": string };
 export type UpdateConversationArgs = { "id": string; "model": string; "title": string };
 
 export interface ProviderQueryBindings {
   "conversationBySlug": { args: ConversationBySlugArgs; result: ConversationBySlugResult };
+  "conversationsWithModel": { args: ConversationsWithModelArgs; result: ConversationsWithModelResult };
   "firstConversationPage": { args: FirstConversationPageArgs; result: FirstConversationPageResult };
   "getConversation": { args: GetConversationArgs; result: GetConversationResult };
   "listConversationCards": { args: ListConversationCardsArgs; result: ListConversationCardsResult };

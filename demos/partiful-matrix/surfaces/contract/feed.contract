@@ -78,7 +78,7 @@ component PartifulFeed
         row gap=18 align="center"
           button press=openCreate label="+ Make something happen" testId="create-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background=textFor(visualVariant)
             text "+ Make something happen" size=14 weight=700 color=backgroundFor(visualVariant)
-          ConnectionBadge(value=events.connection)
+          ConnectionBadge(value=events.connection, visualVariant=visualVariant)
       when creating
         stack portalTarget="root" portalLevel=100 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=100 testId="create-overlay"
           button press=closeCreate label="Close create event" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="create-backdrop"
@@ -99,11 +99,11 @@ component PartifulFeed
               when createForm.field("title").touched && createForm.field("title").error
                 text createForm.field("title").error nativeID="event-title-error" role="alert" live="polite" testId="event-title-error" size=12 color="#c43b2f"
               input label="When" value=createForm.field("when").value change=createForm.field("when").change testId="event-when" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
-              input label="Location" value=createForm.field("location").value change=createForm.field("location").change describedBy=createForm.field("location").error ? "event-location-error" : null testId="event-location" padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("location").error != null)
+              input label="Location" value=createForm.field("location").value change=createForm.field("location").change autoComplete="street-address" describedBy=createForm.field("location").error ? "event-location-error" : null testId="event-location" padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("location").error != null)
               when createForm.field("location").touched && createForm.field("location").error
                 text createForm.field("location").error nativeID="event-location-error" role="alert" live="polite" testId="event-location-error" size=12 color="#c43b2f"
               input label="Description" value=createForm.field("description").value change=createForm.field("description").change multiline=true numberOfLines=4 testId="event-description" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
-              button press=submit label="Send the invite" testId="create-event-submit" disabled=createForm.submitting opacity=canCreate ? 1 : 0.7 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background=textFor(visualVariant)
+              button press=submit label="Send the invite" testId="create-event-submit" disabled=createForm.submitting opacity=1 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background=canCreate ? textFor(visualVariant) : mutedFor(visualVariant)
                 text "Send the invite ↗" size=14 weight=700 color=backgroundFor(visualVariant)
       column gap=24 padding=54 testId="feed" style=surfaceStyle(visualVariant, "surface")
         row align="baseline"

@@ -18,7 +18,7 @@
       "schemaSha256": "3038ec48951acfd1b27c449d8234911a9387722be004e4a6bb19748c847baf00",
       "schemaBundlePathTemplate": "demos/partiful-matrix/acceptance/distribution/claims.v1.{sha256}.schema.json",
       "protocolPath": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "protocolSha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116",
+      "protocolSha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c",
       "protocolBundlePathTemplate": "demos/partiful-matrix/acceptance/distribution/claims.v1.{sha256}.protocol.json",
       "generator": "node demos/partiful-matrix/tests/acceptance/bundle-claims.mjs",
       "exactMirrorPath": "vendor/snapback-partitime/claims.v1.json",
@@ -31,89 +31,958 @@
   "outcomes": {
     "web-only": {
       "mandatoryClaimIds": [
-        "STEP0.COMPLETE", "STEP1.KEYED_SCOPES", "STEP1.MUTATION_PROJECTION",
-        "STEP2.REACT_WEB", "STEP2.VANILLA", "STEP3.PROVIDER_BOUNDARY",
-        "STEP3.DIAGNOSTICS", "STEP3.REACT_CONTRACT_PARITY", "STEP4.UI.RESPONSIVE",
-        "STEP4.UI.KEYBOARD", "STEP4.UI.FOCUS", "STEP4.UI.REDUCED-MOTION",
-        "STEP4.UI.A11Y", "STEP4.UI.VISUAL", "STEP4.PRODUCT_UI",
-        "STEP4.PRODUCTION_WEB", "STEP4.BUDGETS", "STEP5.PACKAGED_LOOP",
-        "STEP5.DECLARATION_REDUCTION", "STEP6.CHAT", "STEP6.DOCUMENTS",
-        "STEP6.COMMERCE", "FINAL.EXACT_AGENT_OPERABILITY", "FINAL.IMMUTABLE_REVISION_SET"
+        "STEP0.COMPLETE",
+        "STEP1.KEYED_SCOPES",
+        "STEP1.MUTATION_PROJECTION",
+        "STEP2.REACT_WEB",
+        "STEP2.VANILLA",
+        "STEP3.PROVIDER_BOUNDARY",
+        "STEP3.DIAGNOSTICS",
+        "STEP3.REACT_CONTRACT_PARITY",
+        "STEP4.UI.RESPONSIVE",
+        "STEP4.UI.KEYBOARD",
+        "STEP4.UI.FOCUS",
+        "STEP4.UI.REDUCED-MOTION",
+        "STEP4.UI.A11Y",
+        "STEP4.UI.VISUAL",
+        "STEP4.PRODUCT_UI",
+        "STEP4.PRODUCTION_WEB",
+        "STEP4.BUDGETS",
+        "STEP5.PACKAGED_LOOP",
+        "STEP5.DECLARATION_REDUCTION",
+        "STEP6.CHAT",
+        "STEP6.DOCUMENTS",
+        "STEP6.COMMERCE",
+        "FINAL.EXACT_AGENT_OPERABILITY",
+        "FINAL.IMMUTABLE_REVISION_SET"
       ]
     },
     "online-native": {
       "mandatoryClaimIds": [
-        "STEP0.COMPLETE", "STEP1.KEYED_SCOPES", "STEP1.MUTATION_PROJECTION",
-        "STEP2.REACT_WEB", "STEP2.VANILLA", "STEP2.REACT_EXPO_IOS_ONLINE",
-        "STEP2.REACT_EXPO_ANDROID_ONLINE", "STEP3.PROVIDER_BOUNDARY",
-        "STEP3.DIAGNOSTICS", "STEP3.REACT_CONTRACT_PARITY", "STEP4.UI.RESPONSIVE",
-        "STEP4.UI.KEYBOARD", "STEP4.UI.FOCUS", "STEP4.UI.REDUCED-MOTION",
-        "STEP4.UI.A11Y", "STEP4.UI.VISUAL", "STEP4.PRODUCT_UI",
-        "STEP4.PRODUCTION_WEB", "STEP4.BUDGETS", "STEP5.PACKAGED_LOOP",
-        "STEP5.DECLARATION_REDUCTION", "STEP6.CHAT", "STEP6.DOCUMENTS",
-        "STEP6.COMMERCE", "FINAL.EXACT_AGENT_OPERABILITY", "FINAL.IMMUTABLE_REVISION_SET"
+        "STEP0.COMPLETE",
+        "STEP1.KEYED_SCOPES",
+        "STEP1.MUTATION_PROJECTION",
+        "STEP2.REACT_WEB",
+        "STEP2.VANILLA",
+        "STEP2.REACT_EXPO_IOS_ONLINE",
+        "STEP2.REACT_EXPO_ANDROID_ONLINE",
+        "STEP3.PROVIDER_BOUNDARY",
+        "STEP3.DIAGNOSTICS",
+        "STEP3.REACT_CONTRACT_PARITY",
+        "STEP4.UI.RESPONSIVE",
+        "STEP4.UI.KEYBOARD",
+        "STEP4.UI.FOCUS",
+        "STEP4.UI.REDUCED-MOTION",
+        "STEP4.UI.A11Y",
+        "STEP4.UI.VISUAL",
+        "STEP4.PRODUCT_UI",
+        "STEP4.PRODUCTION_WEB",
+        "STEP4.BUDGETS",
+        "STEP5.PACKAGED_LOOP",
+        "STEP5.DECLARATION_REDUCTION",
+        "STEP6.CHAT",
+        "STEP6.DOCUMENTS",
+        "STEP6.COMMERCE",
+        "FINAL.EXACT_AGENT_OPERABILITY",
+        "FINAL.IMMUTABLE_REVISION_SET"
       ]
     },
     "full-north-star": {
       "mandatoryClaimIds": [
-        "STEP0.COMPLETE", "STEP1.KEYED_SCOPES", "STEP1.MUTATION_PROJECTION",
-        "STEP2.REACT_WEB", "STEP2.VANILLA", "STEP2.CONTRACT_IOS_PARITY",
-        "STEP2.CONTRACT_ANDROID_PARITY", "STEP3.PROVIDER_BOUNDARY",
-        "STEP3.DIAGNOSTICS", "STEP3.REACT_CONTRACT_PARITY", "STEP4.UI.RESPONSIVE",
-        "STEP4.UI.KEYBOARD", "STEP4.UI.FOCUS", "STEP4.UI.REDUCED-MOTION",
-        "STEP4.UI.A11Y", "STEP4.UI.VISUAL", "STEP4.PRODUCT_UI",
-        "STEP4.PRODUCTION_WEB", "STEP4.BUDGETS", "STEP5.PACKAGED_LOOP",
-        "STEP5.DECLARATION_REDUCTION", "STEP6.CHAT", "STEP6.DOCUMENTS",
-        "STEP6.COMMERCE", "FINAL.EXACT_AGENT_OPERABILITY", "FINAL.IMMUTABLE_REVISION_SET"
+        "STEP0.COMPLETE",
+        "STEP1.KEYED_SCOPES",
+        "STEP1.MUTATION_PROJECTION",
+        "STEP2.REACT_WEB",
+        "STEP2.VANILLA",
+        "STEP2.CONTRACT_IOS_PARITY",
+        "STEP2.CONTRACT_ANDROID_PARITY",
+        "STEP3.PROVIDER_BOUNDARY",
+        "STEP3.DIAGNOSTICS",
+        "STEP3.REACT_CONTRACT_PARITY",
+        "STEP4.UI.RESPONSIVE",
+        "STEP4.UI.KEYBOARD",
+        "STEP4.UI.FOCUS",
+        "STEP4.UI.REDUCED-MOTION",
+        "STEP4.UI.A11Y",
+        "STEP4.UI.VISUAL",
+        "STEP4.PRODUCT_UI",
+        "STEP4.PRODUCTION_WEB",
+        "STEP4.BUDGETS",
+        "STEP5.PACKAGED_LOOP",
+        "STEP5.DECLARATION_REDUCTION",
+        "STEP6.CHAT",
+        "STEP6.DOCUMENTS",
+        "STEP6.COMMERCE",
+        "FINAL.EXACT_AGENT_OPERABILITY",
+        "FINAL.IMMUTABLE_REVISION_SET"
       ]
     }
   },
   "claims": [
-    { "id": "STEP0.V0_DIAGNOSTICS", "step": 0, "cells": ["snapback-core"], "witnessClass": "stable-diagnostics", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.V0_RESET_SEED", "step": 0, "cells": ["snapback-core"], "witnessClass": "deterministic-state", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.V0_ATOMIC_SUBSCRIBE", "step": 0, "cells": ["snapback-core"], "witnessClass": "subscription-initial-snapshot", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.V0_DELIVERY_CONTROL", "step": 0, "cells": ["snapback-core"], "witnessClass": "deterministic-delivery", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.V0_CAPABILITY_GAPS", "step": 0, "cells": ["snapback-core"], "witnessClass": "capability-honesty", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.V0_ARTIFACT_FRESHNESS", "step": 0, "cells": ["snapback-core"], "witnessClass": "artifact-freshness", "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json", "sha256": "59dfa57ae7212297300373c53d8d1e8758bd130f7c80532af6029b4c35bf659c" }, "skip": "forbidden", "owner": "LLP 0012#versioning", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.REQUIRED_SKIP_NONPASS", "step": 0, "cells": ["web-matrix"], "witnessClass": "harness-integrity", "command": "node demos/partiful-matrix/tests/acceptance/required-skip-nonpass.mjs --out demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json", "sha256": "dc736770e887a6dcac77e42aacec5edb9618742fe0d67f83f1a3e2699ab076a5" }, "skip": "forbidden", "owner": "LLP 0010#ci-and-review-gates", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.WEB_RENDERING", "step": 0, "cells": ["react:snapback", "react:supabase", "react:convex", "react:sqlite", "contract:snapback", "contract:supabase", "contract:convex", "contract:sqlite", "vanilla:snapback", "vanilla:supabase", "vanilla:convex", "vanilla:sqlite"], "witnessClass": "rendering", "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-web.json", "sha256": "478fcc2f4d8a1b476b7cdbd5eac7844058c4ac3ead87d4aa998b9573613ba79c" }, "skip": "remote-dependency-only", "owner": "LLP 0063#sequence", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.WEB_RSVP_CONVERGENCE", "step": 0, "cells": ["react:snapback", "react:supabase", "react:convex", "react:sqlite", "contract:snapback", "contract:supabase", "contract:convex", "contract:sqlite", "vanilla:snapback", "vanilla:supabase", "vanilla:convex", "vanilla:sqlite"], "witnessClass": "mutation-convergence", "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-web.json", "sha256": "478fcc2f4d8a1b476b7cdbd5eac7844058c4ac3ead87d4aa998b9573613ba79c" }, "skip": "remote-dependency-only", "owner": "LLP 0063#evidence-and-limits", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.SNAPBACK_PUSH_PROVENANCE", "step": 0, "cells": ["react:snapback", "contract:snapback", "vanilla:snapback"], "witnessClass": "transport-provenance", "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-web.json", "sha256": "478fcc2f4d8a1b476b7cdbd5eac7844058c4ac3ead87d4aa998b9573613ba79c" }, "skip": "forbidden", "owner": "LLP 0063#evidence-and-limits", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.VANILLA_LIFECYCLE", "step": 0, "cells": ["vanilla:lifecycle"], "witnessClass": "differential-lifecycle-oracle", "command": "node demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs --receipt demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json", "sha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a" }, "skip": "forbidden", "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes; Exact counterpart §2.4", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.PACKAGE_PROVENANCE", "step": 0, "cells": ["react", "contract", "vanilla"], "witnessClass": "package-provenance", "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-web.json", "sha256": "478fcc2f4d8a1b476b7cdbd5eac7844058c4ac3ead87d4aa998b9573613ba79c" }, "skip": "forbidden", "owner": "LLP 0063#sequence; Exact counterpart §5.1", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.NATIVE_BASELINE", "step": 0, "cells": ["swiftui:macos:snapback", "swiftui:macos:supabase", "swiftui:macos:convex", "swiftui:macos:sqlite", "swiftui:ios:snapback", "swiftui:ios:supabase", "swiftui:ios:convex", "swiftui:ios:sqlite", "exact-contract:macos:snapback", "exact-contract:macos:supabase", "exact-contract:macos:convex", "exact-contract:macos:sqlite", "exact-contract:ios:snapback", "exact-contract:ios:supabase", "exact-contract:ios:convex", "exact-contract:ios:sqlite"], "witnessClass": "native-instrument-baseline", "command": "node demos/partiful-matrix/tests/acceptance/native-swiftui.mjs && node demos/partiful-matrix/tests/acceptance/native-exact.mjs && node demos/partiful-matrix/tests/acceptance/native-baseline.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-native.json", "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7" }, "skip": "remote-dependency-only", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.PROVIDER_ROW_SHAPE_SCOPE", "step": 0, "cells": ["gateway:supabase", "gateway:convex", "gateway:sqlite"], "witnessClass": "documentation-scope", "command": null, "artifact": { "path": "demos/partiful-matrix/README.md", "sha256": "41b94401888396345f8013a4ec694dbc35fd73cb08081aa3da18737474c1e254" }, "skip": "forbidden", "owner": "LLP 0063#evidence-and-limits; Exact counterpart §5.1", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.NO_EXACT_CORE", "step": 0, "cells": ["snapback-core"], "witnessClass": "dependency-exclusion", "command": "node demos/partiful-matrix/tests/acceptance/no-exact-core.mjs --out demos/partiful-matrix/acceptance/results/step0-no-exact-core.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json", "sha256": "6d5b3909afa5929dad7b05f5cafa1047c7a65bab5df9057b6701dbae547de54f" }, "skip": "forbidden", "owner": "LLP 0021#the-adapter-is-product-not-sample-code", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.SHARED_MANIFEST", "step": 0, "cells": ["snapback", "exact"], "witnessClass": "cross-repository-lock", "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json", "sha256": "be5b13622c772102001674119fd61cfa0b5dae03ed5f2fe4939c599104e8473a" }, "skip": "forbidden", "owner": "LLP 0063#sequence; Exact counterpart §5.1", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.COMPARISON_PROTOCOL", "step": 0, "cells": ["program"], "witnessClass": "preregistered-method", "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs", "artifact": { "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json", "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116" }, "skip": "forbidden", "owner": "LLP 0063#product-choice-at-the-start-of-the-program", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.ATTRIBUTION_BASELINE", "step": 0, "cells": ["web-matrix"], "witnessClass": "cost-attribution", "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json", "sha256": "e7452d1b35b1bb4d5b7194551688ab124690241c255114da21db2c67bf716690" }, "skip": "forbidden", "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets", "status": "passing", "supersededBy": null },
-    { "id": "STEP0.COMPLETE", "step": 0, "cells": ["program"], "witnessClass": "aggregate-gate", "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step0-complete.json", "sha256": "bcf433001cadcf5579bcae75fd06949788579d401a3c9a478dede1a9252a20a8" }, "skip": "forbidden", "owner": "LLP 0063#sequence", "status": "passing", "supersededBy": null },
-    { "id": "STEP1.KEYED_SCOPES", "step": 1, "cells": ["contract:snapback"], "witnessClass": "lifecycle", "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs --write", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json", "sha256": "f81cc550a01e3e55b8921f7a962162c36e6b08411ecdaf2b4af25cb5d5f301ba" }, "skip": "forbidden", "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes", "status": "passing", "supersededBy": null },
-    { "id": "STEP1.MUTATION_PROJECTION", "step": 1, "cells": ["contract:snapback", "contract:non-snapback"], "witnessClass": "mutation-outcome", "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs --write", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json", "sha256": "506bb02afaf7bbeabdb0a24ddc6028b297f511f3bbc88a2bf4615fef5eb65fa1" }, "skip": "forbidden", "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.REACT_WEB", "step": 2, "cells": ["react:snapback"], "witnessClass": "client-lifecycle", "command": "node demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs --profile react --out demos/partiful-matrix/acceptance/results/step2-react.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-react.json", "sha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.VANILLA", "step": 2, "cells": ["vanilla:snapback", "vanilla:supabase", "vanilla:convex", "vanilla:sqlite"], "witnessClass": "framework-neutral-client", "command": "node demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs --profile vanilla --out demos/partiful-matrix/acceptance/results/step2-vanilla.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-vanilla.json", "sha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.REACT_EXPO_IOS_ONLINE", "step": 2, "cells": ["react-expo:ios"], "witnessClass": "native-profile", "command": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform ios --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json", "sha256": "e2b6e4f80978ff8c0e4992037f64869d38684683fb21d5e17bc3d03803acfd11" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.REACT_EXPO_ANDROID_ONLINE", "step": 2, "cells": ["react-expo:android"], "witnessClass": "native-profile", "command": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform android --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json", "sha256": "9f9509f6b80ccde05264001cf2390abfbf86961c9019833f569590aa7dfa9390" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.CONTRACT_IOS_PARITY", "step": 2, "cells": ["exact-native:ios"], "witnessClass": "native-parity-profile", "command": "node demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs --platform ios --exact-root ../exact --exact-revision e94e50e5f2de05bba64be987ba105b61faf23750 --out demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json", "sha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP2.CONTRACT_ANDROID_PARITY", "step": 2, "cells": ["exact-native:android"], "witnessClass": "native-parity-profile", "command": "node demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs --platform android --exact-root ../exact --exact-revision e94e50e5f2de05bba64be987ba105b61faf23750 --out demos/partiful-matrix/acceptance/results/step2-exact-native-android.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-android.json", "sha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP3.PROVIDER_BOUNDARY", "step": 3, "cells": ["contract:snapback", "contract:non-snapback"], "witnessClass": "generated-provider-boundary", "command": "node demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs --exact-checkout ../exact --receipt demos/partiful-matrix/acceptance/results/step3-provider-boundary.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step3-provider-boundary.json", "sha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1" }, "skip": "forbidden", "owner": "LLP 0063#workstream-4--generated-provider-boundaries-and-a-closed-type-loop", "status": "passing", "supersededBy": null },
-    { "id": "STEP3.DIAGNOSTICS", "step": 3, "cells": ["contract:snapback"], "witnessClass": "diagnostic-quality", "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step3-diagnostics-parity.mjs --write", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json", "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079" }, "skip": "forbidden", "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics", "status": "passing", "supersededBy": null },
-    { "id": "STEP3.REACT_CONTRACT_PARITY", "step": 3, "cells": ["react:snapback", "contract:snapback"], "witnessClass": "cross-surface-parity", "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step3-diagnostics-parity.mjs --write", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json", "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079" }, "skip": "forbidden", "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections", "status": "passing", "supersededBy": null },
-    { "id": "STEP4.UI.RESPONSIVE", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest"], "witnessClass": "rendering", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.UI.KEYBOARD", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest", "real-device-manual"], "witnessClass": "interaction-outcome", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.UI.FOCUS", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest", "real-device-manual"], "witnessClass": "interaction-outcome", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.UI.REDUCED-MOTION", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest"], "witnessClass": "rendering", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.UI.A11Y", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest", "real-device-manual"], "witnessClass": "accessibility-semantics", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.UI.VISUAL", "step": 4, "cells": ["react:snapback:chrome-macos-latest", "contract:snapback:chrome-macos-latest", "react:snapback:safari-macos-latest", "contract:snapback:safari-macos-latest", "react:snapback:firefox-macos-latest", "contract:snapback:firefox-macos-latest", "react:snapback:safari-ios-latest", "contract:snapback:safari-ios-latest", "visual-baseline:156-cells"], "witnessClass": "visual-baseline", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json", "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.PRODUCT_UI", "step": 4, "cells": ["react:snapback", "contract:snapback"], "witnessClass": "product-ui-parity", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-product-ui.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-product-ui.json", "sha256": "2cbd2e9828670cc79a315e2eccce631d1d4dae5a0dce83af92b669a214bb4dec" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language", "status": "passing", "supersededBy": null },
-    { "id": "STEP4.PRODUCTION_WEB", "step": 4, "cells": ["contract:snapback"], "witnessClass": "production-web", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-production-web.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json", "sha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1" }, "skip": "forbidden", "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language", "status": "failing", "supersededBy": null },
-    { "id": "STEP4.BUDGETS", "step": 4, "cells": ["web-matrix", "claimed-native-profiles"], "witnessClass": "performance-budget", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-budgets.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json", "sha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90" }, "skip": "forbidden", "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets", "status": "failing", "supersededBy": null },
-    { "id": "STEP5.PACKAGED_LOOP", "step": 5, "cells": ["external-checkout"], "witnessClass": "packaged-dev-loop", "command": "node scripts/snapback-publish.mjs && node scripts/snapback-package-cold-install.mjs --receipt demos/partiful-matrix/acceptance/results/step5-packaged-loop.json", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json", "sha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56" }, "skip": "forbidden", "owner": "LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax", "status": "failing", "supersededBy": null },
-    { "id": "STEP5.DECLARATION_REDUCTION", "step": 5, "cells": ["snapback-backend"], "witnessClass": "authoring-economy", "command": "node demos/partiful-matrix/tests/acceptance/step5-declaration-reduction.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json", "sha256": "45f64c179eb4d2fbdcff6bf95824626a78ca2a19ff79ec93f0898ce1972f2ca1" }, "skip": "forbidden", "owner": "LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax", "status": "passing", "supersededBy": null },
-    { "id": "STEP6.CHAT", "step": 6, "cells": ["chat:admitted-profile"], "witnessClass": "production-vertical", "command": "node demos/partiful-matrix/tests/acceptance/step6-pressure-profile.mjs --profile chat --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step6-chat-entry-status.json", "sha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4" }, "skip": "forbidden", "owner": "LLP 0063#next-application-pressure-tests", "status": "pending", "supersededBy": null },
-    { "id": "STEP6.DOCUMENTS", "step": 6, "cells": ["documents:admitted-profile"], "witnessClass": "production-vertical", "command": "node demos/partiful-matrix/tests/acceptance/step6-pressure-profile.mjs --profile documents --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step6-documents-entry-status.json", "sha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b" }, "skip": "forbidden", "owner": "LLP 0063#next-application-pressure-tests", "status": "pending", "supersededBy": null },
-    { "id": "STEP6.COMMERCE", "step": 6, "cells": ["commerce:admitted-profile"], "witnessClass": "production-vertical", "command": "node demos/partiful-matrix/tests/acceptance/step6-pressure-profile.mjs --profile commerce --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/step6-commerce-entry-status.json", "sha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c" }, "skip": "forbidden", "owner": "LLP 0063#next-application-pressure-tests", "status": "pending", "supersededBy": null },
-    { "id": "FINAL.EXACT_AGENT_OPERABILITY", "step": 6, "cells": ["contract:snapback"], "witnessClass": "agent-operability", "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/final-exact-agent-operability.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json", "sha256": "e3732b745da6548a24c92eab5bc7d1be784e08f543a2d1539da13f8152e804ca" }, "skip": "forbidden", "owner": "Exact counterpart phase 5", "status": "passing", "supersededBy": null },
-    { "id": "FINAL.IMMUTABLE_REVISION_SET", "step": 6, "cells": ["target-profile-matrix"], "witnessClass": "aggregate-final-proof", "command": "node demos/partiful-matrix/tests/acceptance/final-program-readiness.mjs --require-pass", "artifact": { "path": "demos/partiful-matrix/acceptance/results/final-program-readiness.json", "sha256": "11748e0ef554bec86987e3b6dc271c7014ec6eb6630d80b7be2fcf633519ac75" }, "skip": "forbidden", "owner": "LLP 0063#sequence", "status": "pending", "supersededBy": null }
+    {
+      "id": "STEP0.V0_DIAGNOSTICS",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "stable-diagnostics",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.V0_RESET_SEED",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "deterministic-state",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.V0_ATOMIC_SUBSCRIBE",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "subscription-initial-snapshot",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.V0_DELIVERY_CONTROL",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "deterministic-delivery",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.V0_CAPABILITY_GAPS",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "capability-honesty",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0020#phase-0-freeze-the-good-v0-facts",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.V0_ARTIFACT_FRESHNESS",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "artifact-freshness",
+      "command": "node demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "330c0c3c31e6e0c5217b8d519f71fb934066414601acb6568d3c17e06708894a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0012#versioning",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.REQUIRED_SKIP_NONPASS",
+      "step": 0,
+      "cells": [
+        "web-matrix"
+      ],
+      "witnessClass": "harness-integrity",
+      "command": "node demos/partiful-matrix/tests/acceptance/required-skip-nonpass.mjs --out demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
+        "sha256": "ca0018633aa51cf30db34ee76b3e7e48a8808b7c5f3549ced7832b28ab733cb3"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0010#ci-and-review-gates",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.WEB_RENDERING",
+      "step": 0,
+      "cells": [
+        "react:snapback",
+        "react:supabase",
+        "react:convex",
+        "react:sqlite",
+        "contract:snapback",
+        "contract:supabase",
+        "contract:convex",
+        "contract:sqlite",
+        "vanilla:snapback",
+        "vanilla:supabase",
+        "vanilla:convex",
+        "vanilla:sqlite"
+      ],
+      "witnessClass": "rendering",
+      "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+      },
+      "skip": "remote-dependency-only",
+      "owner": "LLP 0063#sequence",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.WEB_RSVP_CONVERGENCE",
+      "step": 0,
+      "cells": [
+        "react:snapback",
+        "react:supabase",
+        "react:convex",
+        "react:sqlite",
+        "contract:snapback",
+        "contract:supabase",
+        "contract:convex",
+        "contract:sqlite",
+        "vanilla:snapback",
+        "vanilla:supabase",
+        "vanilla:convex",
+        "vanilla:sqlite"
+      ],
+      "witnessClass": "mutation-convergence",
+      "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+      },
+      "skip": "remote-dependency-only",
+      "owner": "LLP 0063#evidence-and-limits",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.SNAPBACK_PUSH_PROVENANCE",
+      "step": 0,
+      "cells": [
+        "react:snapback",
+        "contract:snapback",
+        "vanilla:snapback"
+      ],
+      "witnessClass": "transport-provenance",
+      "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#evidence-and-limits",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.VANILLA_LIFECYCLE",
+      "step": 0,
+      "cells": [
+        "vanilla:lifecycle"
+      ],
+      "witnessClass": "differential-lifecycle-oracle",
+      "command": "node demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs --receipt demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json",
+        "sha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes; Exact counterpart §2.4",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.PACKAGE_PROVENANCE",
+      "step": 0,
+      "cells": [
+        "react",
+        "contract",
+        "vanilla"
+      ],
+      "witnessClass": "package-provenance",
+      "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "795d1550aa00d9f47e6228aadae07e1f7804ba16c237c4cc484ff9508a8d38b4"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#sequence; Exact counterpart §5.1",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.NATIVE_BASELINE",
+      "step": 0,
+      "cells": [
+        "swiftui:macos:snapback",
+        "swiftui:macos:supabase",
+        "swiftui:macos:convex",
+        "swiftui:macos:sqlite",
+        "swiftui:ios:snapback",
+        "swiftui:ios:supabase",
+        "swiftui:ios:convex",
+        "swiftui:ios:sqlite",
+        "exact-contract:macos:snapback",
+        "exact-contract:macos:supabase",
+        "exact-contract:macos:convex",
+        "exact-contract:macos:sqlite",
+        "exact-contract:ios:snapback",
+        "exact-contract:ios:supabase",
+        "exact-contract:ios:convex",
+        "exact-contract:ios:sqlite"
+      ],
+      "witnessClass": "native-instrument-baseline",
+      "command": "node demos/partiful-matrix/tests/acceptance/native-swiftui.mjs && node demos/partiful-matrix/tests/acceptance/native-exact.mjs && node demos/partiful-matrix/tests/acceptance/native-baseline.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
+        "sha256": "5586996d92b5b4c50b949fd4b88f6f1f6fc28ef40ffcedc3451389deecb567d7"
+      },
+      "skip": "remote-dependency-only",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.PROVIDER_ROW_SHAPE_SCOPE",
+      "step": 0,
+      "cells": [
+        "gateway:supabase",
+        "gateway:convex",
+        "gateway:sqlite"
+      ],
+      "witnessClass": "documentation-scope",
+      "command": null,
+      "artifact": {
+        "path": "demos/partiful-matrix/README.md",
+        "sha256": "41b94401888396345f8013a4ec694dbc35fd73cb08081aa3da18737474c1e254"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#evidence-and-limits; Exact counterpart §5.1",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.NO_EXACT_CORE",
+      "step": 0,
+      "cells": [
+        "snapback-core"
+      ],
+      "witnessClass": "dependency-exclusion",
+      "command": "node demos/partiful-matrix/tests/acceptance/no-exact-core.mjs --out demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
+        "sha256": "7cfd91b73801280f809d4f3636652ce7af80e41395da0c7099c361d7e1c257bf"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0021#the-adapter-is-product-not-sample-code",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.SHARED_MANIFEST",
+      "step": 0,
+      "cells": [
+        "snapback",
+        "exact"
+      ],
+      "witnessClass": "cross-repository-lock",
+      "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
+        "sha256": "3ff9331d43244a395bbc99b0e1f2812a86c3494baf35f52a55bd75fa984e8bbb"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#sequence; Exact counterpart §5.1",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.COMPARISON_PROTOCOL",
+      "step": 0,
+      "cells": [
+        "program"
+      ],
+      "witnessClass": "preregistered-method",
+      "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+        "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#product-choice-at-the-start-of-the-program",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.ATTRIBUTION_BASELINE",
+      "step": 0,
+      "cells": [
+        "web-matrix"
+      ],
+      "witnessClass": "cost-attribution",
+      "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+        "sha256": "6057c3daab41de99f3f03f082290abf50cd493e912668c56d39165a9456f2030"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP0.COMPLETE",
+      "step": 0,
+      "cells": [
+        "program"
+      ],
+      "witnessClass": "aggregate-gate",
+      "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
+        "sha256": "a47c76d182deeb865ee213e6006275580bc3739753bf8008c0e469f3dd777076"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#sequence",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP1.KEYED_SCOPES",
+      "step": 1,
+      "cells": [
+        "contract:snapback"
+      ],
+      "witnessClass": "lifecycle",
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs --write",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json",
+        "sha256": "07109ed180a41f93fed1a29550edbcd44bf004b02d1ad2900145c614fe07d0f0"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP1.MUTATION_PROJECTION",
+      "step": 1,
+      "cells": [
+        "contract:snapback",
+        "contract:non-snapback"
+      ],
+      "witnessClass": "mutation-outcome",
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs --write",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json",
+        "sha256": "8b1d28ff501142c01130f643451ad7119ebf80bb9f1d99f514fa5ff0ad0cd558"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.REACT_WEB",
+      "step": 2,
+      "cells": [
+        "react:snapback"
+      ],
+      "witnessClass": "client-lifecycle",
+      "command": "node demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs --profile react --out demos/partiful-matrix/acceptance/results/step2-react.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-react.json",
+        "sha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.VANILLA",
+      "step": 2,
+      "cells": [
+        "vanilla:snapback",
+        "vanilla:supabase",
+        "vanilla:convex",
+        "vanilla:sqlite"
+      ],
+      "witnessClass": "framework-neutral-client",
+      "command": "node demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs --profile vanilla --out demos/partiful-matrix/acceptance/results/step2-vanilla.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-vanilla.json",
+        "sha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.REACT_EXPO_IOS_ONLINE",
+      "step": 2,
+      "cells": [
+        "react-expo:ios"
+      ],
+      "witnessClass": "native-profile",
+      "command": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform ios --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json",
+        "sha256": "e2b6e4f80978ff8c0e4992037f64869d38684683fb21d5e17bc3d03803acfd11"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.REACT_EXPO_ANDROID_ONLINE",
+      "step": 2,
+      "cells": [
+        "react-expo:android"
+      ],
+      "witnessClass": "native-profile",
+      "command": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform android --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
+        "sha256": "9f9509f6b80ccde05264001cf2390abfbf86961c9019833f569590aa7dfa9390"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.CONTRACT_IOS_PARITY",
+      "step": 2,
+      "cells": [
+        "exact-native:ios"
+      ],
+      "witnessClass": "native-parity-profile",
+      "command": "node demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs --platform ios --exact-root ../exact --exact-revision e94e50e5f2de05bba64be987ba105b61faf23750 --out demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json",
+        "sha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP2.CONTRACT_ANDROID_PARITY",
+      "step": 2,
+      "cells": [
+        "exact-native:android"
+      ],
+      "witnessClass": "native-parity-profile",
+      "command": "node demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs --platform android --exact-root ../exact --exact-revision e94e50e5f2de05bba64be987ba105b61faf23750 --out demos/partiful-matrix/acceptance/results/step2-exact-native-android.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-android.json",
+        "sha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP3.PROVIDER_BOUNDARY",
+      "step": 3,
+      "cells": [
+        "contract:snapback",
+        "contract:non-snapback"
+      ],
+      "witnessClass": "generated-provider-boundary",
+      "command": "node demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs --exact-checkout ../exact --receipt demos/partiful-matrix/acceptance/results/step3-provider-boundary.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-provider-boundary.json",
+        "sha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-4--generated-provider-boundaries-and-a-closed-type-loop",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP3.DIAGNOSTICS",
+      "step": 3,
+      "cells": [
+        "contract:snapback"
+      ],
+      "witnessClass": "diagnostic-quality",
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step3-diagnostics-parity.mjs --write",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP3.REACT_CONTRACT_PARITY",
+      "step": 3,
+      "cells": [
+        "react:snapback",
+        "contract:snapback"
+      ],
+      "witnessClass": "cross-surface-parity",
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step3-diagnostics-parity.mjs --write",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.RESPONSIVE",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest"
+      ],
+      "witnessClass": "rendering",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.KEYBOARD",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest",
+        "real-device-manual"
+      ],
+      "witnessClass": "interaction-outcome",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.FOCUS",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest",
+        "real-device-manual"
+      ],
+      "witnessClass": "interaction-outcome",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.REDUCED-MOTION",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest"
+      ],
+      "witnessClass": "rendering",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.A11Y",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest",
+        "real-device-manual"
+      ],
+      "witnessClass": "accessibility-semantics",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.UI.VISUAL",
+      "step": 4,
+      "cells": [
+        "react:snapback:chrome-macos-latest",
+        "contract:snapback:chrome-macos-latest",
+        "react:snapback:safari-macos-latest",
+        "contract:snapback:safari-macos-latest",
+        "react:snapback:firefox-macos-latest",
+        "contract:snapback:firefox-macos-latest",
+        "react:snapback:safari-ios-latest",
+        "contract:snapback:safari-ios-latest",
+        "visual-baseline:156-cells"
+      ],
+      "witnessClass": "visual-baseline",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "sha256": "7c68f8280eb64e9096a20ffdce7747fc3a79c11a942fa9b955eabac0e3798722"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language; Exact LLP 0373#p1-complete-the-product-ui-language",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.PRODUCT_UI",
+      "step": 4,
+      "cells": [
+        "react:snapback",
+        "contract:snapback"
+      ],
+      "witnessClass": "product-ui-parity",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-product-ui.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-product-ui.json",
+        "sha256": "f39111b1b331653b35ddb946e256366dc26d7cbe75919dba0b8fc5f31a46c3e1"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.PRODUCTION_WEB",
+      "step": 4,
+      "cells": [
+        "contract:snapback"
+      ],
+      "witnessClass": "production-web",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-production-web.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+        "sha256": "f3fa0a43889b935d54aad9239b846169e199d93d3f0116d8880722b98ad64f95"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-3--contract-as-a-complete-product-surface-language",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP4.BUDGETS",
+      "step": 4,
+      "cells": [
+        "web-matrix",
+        "claimed-native-profiles"
+      ],
+      "witnessClass": "performance-budget",
+      "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-budgets.mjs --require-pass",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+        "sha256": "431fec8236af87783f6436b5d19930ce2c4f74391bb7da623b902a6baab92c91"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
+      "status": "failing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP5.PACKAGED_LOOP",
+      "step": 5,
+      "cells": [
+        "external-checkout"
+      ],
+      "witnessClass": "packaged-dev-loop",
+      "command": "node scripts/snapback-package-proof-aggregate.mjs --ledger demos/partiful-matrix/acceptance/evidence/step5-package-publication.json --platform-receipt demos/partiful-matrix/acceptance/evidence/step5-package-public-darwin-arm64.json --platform-receipt demos/partiful-matrix/acceptance/evidence/step5-package-public-linux-x64.json --receipt demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+        "sha256": "4608a4346246749b184770064c06d711f113c716cacb66aaa59f776c60151092"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP5.DECLARATION_REDUCTION",
+      "step": 5,
+      "cells": [
+        "snapback-backend"
+      ],
+      "witnessClass": "authoring-economy",
+      "command": "node demos/partiful-matrix/tests/acceptance/step5-declaration-reduction.mjs --require-pass --out demos/partiful-matrix/acceptance/results/step5-declaration-reduction.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction.json",
+        "sha256": "26d061c03a5aa8e56ca73c2de220bee2135d89fb734517405f7a79570b0ce895"
+      },
+      "skip": "forbidden",
+      "owner": "LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax",
+      "status": "passing",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP6.CHAT",
+      "step": 6,
+      "cells": [
+        "chat:admitted-profile"
+      ],
+      "witnessClass": "production-vertical",
+      "command": null,
+      "artifact": null,
+      "skip": "forbidden",
+      "owner": "LLP 0063#next-application-pressure-tests",
+      "status": "pending",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP6.DOCUMENTS",
+      "step": 6,
+      "cells": [
+        "documents:admitted-profile"
+      ],
+      "witnessClass": "production-vertical",
+      "command": null,
+      "artifact": null,
+      "skip": "forbidden",
+      "owner": "LLP 0063#next-application-pressure-tests",
+      "status": "pending",
+      "supersededBy": null
+    },
+    {
+      "id": "STEP6.COMMERCE",
+      "step": 6,
+      "cells": [
+        "commerce:admitted-profile"
+      ],
+      "witnessClass": "production-vertical",
+      "command": null,
+      "artifact": null,
+      "skip": "forbidden",
+      "owner": "LLP 0063#next-application-pressure-tests",
+      "status": "pending",
+      "supersededBy": null
+    },
+    {
+      "id": "FINAL.EXACT_AGENT_OPERABILITY",
+      "step": 6,
+      "cells": [
+        "contract:snapback"
+      ],
+      "witnessClass": "agent-operability",
+      "command": null,
+      "artifact": null,
+      "skip": "forbidden",
+      "owner": "Exact counterpart phase 5",
+      "status": "pending",
+      "supersededBy": null
+    },
+    {
+      "id": "FINAL.IMMUTABLE_REVISION_SET",
+      "step": 6,
+      "cells": [
+        "target-profile-matrix"
+      ],
+      "witnessClass": "aggregate-final-proof",
+      "command": null,
+      "artifact": null,
+      "skip": "forbidden",
+      "owner": "LLP 0063#sequence",
+      "status": "pending",
+      "supersededBy": null
+    }
   ]
 }

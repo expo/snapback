@@ -360,3 +360,49 @@ and Convex in the same class — backend-owned streaming over the ordinary
 live-fan-out — with the gateway worker (Supabase/SQLite) as the only
 non-backend streamer left. Every TUI's blinking `▍` cursor on the snapback
 backend now shows real token growth instead of a long busy state.
+
+## 2026-07-25 — the Exact TUI cell crosses the loopback network boundary
+
+Exact's LLP 0368 network amendment and LLP 0379 dogfood follow-up changed the
+honest boundary recorded on July 20. The TUI manifest can now name outbound
+hosts, the host enforces that immutable ceiling, and `TextField` forwards
+submit. I replaced the scripted offline exchange with the same `/rpc` client
+shape as the other portable cells: create a conversation lazily, send, poll at
+700 ms, and render streaming assistant content in the terminal log.
+
+The grant is intentionally smaller than a configurable gateway URL:
+`networkHosts` contains only `127.0.0.1`, and the data module calls the fixed
+`http://127.0.0.1:4470/rpc` origin. The app gets outbound fetch/connect to that
+host and nothing else—no listener, local socket, filesystem, process, or
+environment capability. The import sidecar names the async functions as
+network/chat capabilities. I also removed its misleading generated-file
+header: Exact's metadata generator correctly inventories the pure exports but
+classifies async functions as opaque, so upgrading those two entries to
+capabilities is deliberately hand-authored.
+
+Verification against clean Exact `7dcae80ed195c8fb3be14d531717cad7e6dd53f7`:
+
+- `exact contract check src/tui/app.contract` passed the TUI profile and
+  reported all five Contract clauses as runtime-verified. Its standalone
+  single-document path does not load the adjacent helper sidecar, so it also
+  emitted non-fatal opaque-boundary warnings for the four imports; the
+  deterministic application build below exercised the integrated boundary.
+- `exact build tui --release` compiled the application twice to identical
+  901,454-byte HBC artifacts
+  (`85a0263eb7cdcf1b0a5a1dd9c1e98394d8a1b978c2768f81da3d8156a3cae7bd`)
+  and completed the deterministic copied-host closure.
+- `exact run tui --no-agent` mounted the real app. I typed “Reply with exactly
+  the word: pong” into the focused `TextField`; the SQLite backend showed the
+  user row, then an assistant streaming caret, then `p`, then completed
+  `pong`. Ctrl-\ restored the terminal and exited zero.
+
+One new Exact defect surfaced. The default TUI agent sidecar opens an inbound
+HTTP listener inside the same enforced runtime, so the correct deny-listener
+policy rejects it and the host times out before mounting. The release builder
+always includes that sidecar and exposes no `--no-agent` mode. Development is
+therefore truthfully paved through `exact run tui --no-agent` for this cell,
+at the cost of Acto inspection; the release closure is build-verified but not
+launch-green. The cross-repository fix is recorded in
+`issues/20260725-exact-tui-agent-listener-conflict.md`. This is a composition
+bug between trusted control-plane authority and the app fence, not a reason to
+widen the app's capabilities.

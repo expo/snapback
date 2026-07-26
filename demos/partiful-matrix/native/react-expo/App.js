@@ -48,6 +48,32 @@ const report = (event, details = {}) => {
   return delivery;
 };
 
+// @ref LLP 0063#workstream-8--performance-and-packaging-budgets — React
+// Native 0.86's bridgeless carrier exposes its native ReactMarker startup
+// timestamps through Performance.rnStartupTiming. Report only after
+// RUN_JS_BUNDLE_STOP has closed the interval; the timer callback itself is
+// outside the measured interval.
+const reportNativeLaunchStage = (attempt = 1) => {
+  const timing = globalThis.performance?.rnStartupTiming;
+  const start = timing?.executeJavaScriptBundleEntryPointStart;
+  const end = timing?.endTime;
+  if (
+    Number.isFinite(start) &&
+    Number.isFinite(end) &&
+    end >= start
+  ) {
+    void report('native-launch-stage', {
+      definitionVersion: 'partitime.native-launch-stage.v2',
+      hermesEvaluationMs: end - start,
+    });
+    return;
+  }
+  if (attempt < 50) {
+    setTimeout(() => reportNativeLaunchStage(attempt + 1), 10);
+  }
+};
+setTimeout(reportNativeLaunchStage, 0);
+
 async function createProvider() {
   const client = new SnapbackClient(snapbackOrigin);
   await client.health();

@@ -55,9 +55,10 @@ jobs:
           bun-version-file: package.json
 
       # Build-only gate: no engine, no submodules, no Hermes — just the web
-      # production builds of every required surface. Registry surfaces install
-      # inside the script (bun install --frozen-lockfile); a lockfile that
-      # drifts fails, not resolves.
+      # production builds of every required surface. The script performs one
+      # frozen root-workspace install for local Snapback package edges, then
+      # each registry surface's own frozen install for its Exact pin; a
+      # lockfile that drifts fails, not resolves.
       - name: Production-build every required demo web surface
         run: node scripts/check-required-surface-builds.mjs
 

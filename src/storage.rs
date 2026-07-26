@@ -5,11 +5,11 @@ use crate::manifest::{
     CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
     MutationOutput, MutationPlan, MutationStep, OrderDirection, OrderExpr,
-    PORTABLE_STORAGE_VERSION_MAX,
-    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
-    QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
-    auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
-    validate_portable_timestamp_millis, validate_query_plan_shape,
+    PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
+    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
+    SeedData, TableManifest, ValueExpr, auth_fingerprint, effective_query_limit,
+    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
+    validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -8957,33 +8957,45 @@ fn validate_read_set(
 ) -> SnapbackResult<()> {
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
     //   pre-publication baseline replays through the raised retention
-    //   floor: under a successor-only publication, an offline mutation
-    //   whose isolation baseline predates the floor receives the stable
-    //   resync-before-replay refusal (its payload is client-custodied and
-    //   quarantined by the client; the server neither silently replays nor
-    //   drops it). Compatible postures keep the ordinary conflict rules.
-    if let Some(stalest) = read_set.iter().map(|dependency| dependency.version).min() {
-        let floor = retention_floor_at_most(tx, current_version_on(tx)?)?;
-        if stalest < floor
-            && let Some(transition) = schema_transition_events_on(tx, 0)?.into_iter().last()
-            && matches!(
-                transition.body.compatibility_posture,
-                crate::migration::CompatibilityPosture::SuccessorOnly
-            )
-            && stalest < transition.body.retention_floor
+    //   floor. The load-bearing case is a baseline that is BOTH pre-floor
+    //   AND no longer current: the change journal below the floor is gone,
+    //   so the client cannot rebase incrementally and must resync whole. A
+    //   baseline that still equals the row's current version passes under
+    //   every posture — an unchanged row's pre-publication capture is
+    //   byte-identical to (and exactly as safe as) a fresh post-resync
+    //   capture, and refusing it would also refuse every compatible
+    //   client's post-resnapshot replay of untouched rows, forever.
+    //   Compatible postures keep the ordinary conflict rules throughout.
+    for dependency in read_set {
+        let table = schema_table(schema, &dependency.table)?;
+        let current = get_row_version(tx, table, &dependency.id, maximum)?;
+        if current == Some(dependency.version) {
+            continue;
+        }
+        // First mismatch decides the outcome (both arms below return), so
+        // the transition lookup runs at most once per validation.
+        let successor_only_floor = schema_transition_events_on(tx, 0)?
+            .into_iter()
+            .last()
+            .filter(|transition| {
+                matches!(
+                    transition.body.compatibility_posture,
+                    crate::migration::CompatibilityPosture::SuccessorOnly
+                )
+            })
+            .map(|transition| transition.body.retention_floor);
+        if let Some(floor) = successor_only_floor
+            && dependency.version < floor
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_RESYNC_REQUIRED",
                 "storage",
-                "this mutation's read baseline predates a successor-only schema publication; \
-                 resync before replaying client-custodied offline work",
+                "this mutation's read baseline predates a successor-only schema publication \
+                 and its row has since changed; resync before replaying client-custodied \
+                 offline work",
             ));
         }
-    }
-    for dependency in read_set {
-        let table = schema_table(schema, &dependency.table)?;
-        let current = get_row_version(tx, table, &dependency.id, maximum)?;
-        if current != Some(dependency.version) {
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_MUTATION_CONFLICT",
                 "storage",
@@ -14022,7 +14034,8 @@ mod guarded_commit_tests {
 
     fn relational_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(relational_schema()).expect("apply relational schema");
+        db.apply_schema(relational_schema())
+            .expect("apply relational schema");
         let row = |id: &str, fields: Value| {
             let mut object = fields.as_object().cloned().expect("row object");
             object.insert("_id".to_owned(), json!(id));
@@ -14033,17 +14046,35 @@ mod guarded_commit_tests {
                 (
                     "books".to_owned(),
                     vec![
-                        row("b1", json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row("b2", json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
-                        row("b3", json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" })),
-                        row("b4", json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" })),
+                        row(
+                            "b1",
+                            json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b2",
+                            json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b3",
+                            json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "b4",
+                            json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" }),
+                        ),
                     ],
                 ),
                 (
                     "authors".to_owned(),
                     vec![
-                        row("a1", json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
-                        row("a2", json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                        row(
+                            "a1",
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            "a2",
+                            json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" }),
+                        ),
                     ],
                 ),
             ]),
@@ -14161,7 +14192,10 @@ mod guarded_commit_tests {
         let error = corrupted
             .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect_err("duplicate unique key must refuse");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
+        );
 
         // Closed-shape refusals.
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
@@ -14380,7 +14414,11 @@ mod guarded_commit_tests {
             .query_relational(&plan, &input, None)
             .expect("first page");
         assert_eq!(
-            page1.rows.iter().map(|r| r["title"].clone()).collect::<Vec<_>>(),
+            page1
+                .rows
+                .iter()
+                .map(|r| r["title"].clone())
+                .collect::<Vec<_>>(),
             vec![json!("alpha"), json!("beta")],
         );
         let cursor = cursor.expect("full window continues");
@@ -14398,7 +14436,11 @@ mod guarded_commit_tests {
             .query_relational(&plan, &input, Some(&cursor))
             .expect("second page");
         assert_eq!(
-            page2.rows.iter().map(|r| r["title"].clone()).collect::<Vec<_>>(),
+            page2
+                .rows
+                .iter()
+                .map(|r| r["title"].clone())
+                .collect::<Vec<_>>(),
             vec![json!("delta"), json!("zeta")],
             "the untouched root is neither skipped nor duplicated; the moved \
              root reappears at its new position; the pre-boundary insert is \

@@ -1,0 +1,396 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "AdapterLifecycleOperation": {
+      "enum": [
+        "acquireLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "rollback",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "activateRestoredGeneration",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "BackupComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "objects": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "sha256",
+        "bytes",
+        "objects",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "BackupManifest": {
+      "additionalProperties": false,
+      "description": "Secret-free, read-back-verified backup identity. Required secret names and\ngenerations may be recorded by a later prepared-release artifact, but\ncredential values and control-plane handles never enter this manifest.",
+      "properties": {
+        "backupId": {
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/BackupComponent"
+          },
+          "type": "array"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "encryptionClass": {
+          "type": "string"
+        },
+        "excludedSecretClasses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retentionPolicy": {
+          "type": "string"
+        },
+        "schemaIdentitySha256": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "verifiedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "backupId",
+        "operationId",
+        "targetId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "schemaIdentitySha256",
+        "encryptionClass",
+        "storageClass",
+        "retentionPolicy",
+        "components",
+        "excludedSecretClasses",
+        "createdAtMs",
+        "verifiedAtMs"
+      ],
+      "type": "object"
+    },
+    "DeployReceiptOutcome": {
+      "enum": [
+        "activated",
+        "rolledBack",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "DeployStepReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/AdapterEvidenceRef"
+          },
+          "type": "array"
+        },
+        "factSha256": {
+          "type": "string"
+        },
+        "finishedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "idempotentReplay": {
+          "type": "boolean"
+        },
+        "inputSha256": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/AdapterLifecycleOperation"
+        },
+        "outputSha256": {
+          "type": "string"
+        },
+        "previousFactSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sequence": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/DeployStepState"
+        }
+      },
+      "required": [
+        "sequence",
+        "operation",
+        "state",
+        "inputSha256",
+        "outputSha256",
+        "evidence",
+        "startedAtMs",
+        "finishedAtMs",
+        "idempotentReplay",
+        "factSha256"
+      ],
+      "type": "object"
+    },
+    "DeployStepState": {
+      "enum": [
+        "completed",
+        "rolledBack",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "VmAdapterKind": {
+      "enum": [
+        "singleInstanceContainerVm"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/deploy.receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Final bounded control-plane receipt. `remote_evidence` is an explicit claim\nbit: deterministic/local harnesses must leave it false, so their success\ncannot be confused with LLP 0072 hosted-profile evidence.",
+  "properties": {
+    "activationGenerationAfter": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "activationGenerationBefore": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "adapterKind": {
+      "$ref": "#/$defs/VmAdapterKind"
+    },
+    "adapterVersion": {
+      "type": "string"
+    },
+    "backup": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BackupManifest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "databaseId": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "finishedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/ReleaseGap"
+      },
+      "type": "array"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/DeployReceiptOutcome"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "previousReleaseId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "providerFactsSha256": {
+      "type": "string"
+    },
+    "receiptId": {
+      "type": "string"
+    },
+    "releaseId": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "startedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/DeployStepReceipt"
+      },
+      "type": "array"
+    },
+    "streamIncarnation": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "planId",
+    "operationId",
+    "targetId",
+    "deploymentId",
+    "databaseId",
+    "streamIncarnation",
+    "releaseId",
+    "activationGenerationBefore",
+    "activationGenerationAfter",
+    "outcome",
+    "remoteEvidence",
+    "adapterKind",
+    "adapterVersion",
+    "providerFactsSha256",
+    "steps",
+    "gaps",
+    "startedAtMs",
+    "finishedAtMs"
+  ],
+  "title": "DeployReceipt",
+  "type": "object"
+}

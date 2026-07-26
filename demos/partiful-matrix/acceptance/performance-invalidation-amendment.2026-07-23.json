@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "partitime.performance-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-web-instrument-v3-2026-07-23",
+  "date": "2026-07-23",
+  "status": "ratified",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 remediation",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": "2026-07-24T11:37:04Z",
+  "ratificationStatement": "I ratify partitime-ws8-web-instrument-v3-2026-07-23.",
+  "requiredRatificationStatement": "I ratify partitime-ws8-web-instrument-v3-2026-07-23.",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "appliesToWorkloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "invalidates": {
+    "methodId": "partitime-ws8-performance-v2",
+    "thresholdSetId": "partitime-ws8-performance-thresholds-v2",
+    "scope": "The startup and idle-CPU rows in the v2 calibration and holdout. Byte, network, data-latency, fan-out, DOM/host-patch, and build rows remain retained diagnostic evidence but cannot be selectively promoted from a receipt whose combined v2 holdout is red.",
+    "calibrationArtifact": {
+      "revision": "e01443e330581a1a951532024f4c4c0329398b72",
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+      "sha256": "22411e3affed51759e7fceb14464cb15e40db6b67cc525b7551f3e78bfbaf3b0"
+    },
+    "holdoutArtifact": {
+      "revision": "d508d50fc51def5e1f483dd6f4b24be1d81e01c8",
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+      "sha256": "e5c9d531a0c0e56edaabdc4b976f0f3b722b65a0063725cc6bbc68a69e5f3728"
+    }
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-performance-v3",
+    "thresholdSetId": "partitime-ws8-performance-thresholds-v3",
+    "scope": "All twelve web/build cells rerun prospectively under the unchanged workload, sampling counts, hardware profile, warm-prime custody rule, and holdout isolation. The v2 artifacts remain historical and cannot validate v3.",
+    "firstUiRule": "Install the document-start observer immediately and observe parser mutations. A server-rendered or prerendered product shell records first UI when the parser makes that shell observable; a client-rendered shell records when its host mutation lands. DOMContentLoaded is not a surrogate for first UI.",
+    "idleCpuThresholdFormula": "min(max(react_same_cell_baseline * 1.05, 1.0), protocol_declared_absolute_idle_ceiling)",
+    "idleCpuResolutionFloorMsPerSecond": 1,
+    "idleCpuResolutionFloorRationale": "The floor is a method-level de minimis allowance, not a candidate-derived target. TaskDuration deltas below 1 ms per wall-clock second are dominated by browser/CDP observer and scheduler jitter: the same retained React controls moved by 0.02-0.32 ms/s between independent v2 cohorts while remaining at least 25x below the predeclared 25 ms/s absolute ceiling.",
+    "unchangedThresholdPolicy": "Every non-CPU formula remains unchanged. Recompute every v3 threshold from fresh React controls; equality continues to pass."
+  },
+  "cause": {
+    "class": "provably-invalid-instrument-and-resolution-floor",
+    "firstUiFinding": "The v2 observer deferred both its first scan and MutationObserver registration until DOMContentLoaded. Contract's production entry already contained a complete prerendered product shell, but the instrument did not observe it until module evaluation finished. The row therefore measured module completion rather than first UI for the candidate while measuring the client-rendered shell mutation for React.",
+    "idleCpuFinding": "The relative-only CPU formula derived thresholds as low as 0.1988 ms/s. Independent v2 React control p95s moved materially more than the five-percent margin (for example React x Snapback 0.1893 to 0.2827 ms/s) even though every value was de minimis against the predeclared 25 ms/s ceiling. A relative comparison at that scale classifies scheduler/observer jitter as product cost.",
+    "notAProductOptimization": "The correction does not change application code, polling cadence, cache behavior, background work, sample exclusion, or the 25 ms/s absolute ceiling. It makes first-UI observation match parser reality and establishes the resolution floor before any v3 candidate or control sample is collected."
+  },
+  "requiredValidation": {
+    "preserveOriginalArtifacts": true,
+    "rerunComparisonArmsAndControls": [
+      "react:snapback",
+      "react:supabase",
+      "react:convex",
+      "react:sqlite",
+      "contract:snapback",
+      "contract:supabase",
+      "contract:convex",
+      "contract:sqlite",
+      "vanilla:snapback",
+      "vanilla:supabase",
+      "vanilla:convex",
+      "vanilla:sqlite"
+    ],
+    "calibrationWarmups": 2,
+    "calibrationSamples": 7,
+    "holdoutWarmups": 2,
+    "holdoutSamples": 7,
+    "holdoutMustReadCommittedCalibration": true,
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}

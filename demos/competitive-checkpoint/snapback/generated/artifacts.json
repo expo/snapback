@@ -16,6 +16,7 @@
     "operations/cancelReply.args.schema.json",
     "operations/completeReply.args.schema.json",
     "operations/conversationBySlug.args.schema.json",
+    "operations/conversationsWithModel.args.schema.json",
     "operations/createConversation.args.schema.json",
     "operations/deleteConversation.args.schema.json",
     "operations/firstConversationPage.args.schema.json",
@@ -38,6 +39,8 @@
     "contract/completeReply.mutation.contract-meta.ts",
     "contract/conversationBySlug.query.ts",
     "contract/conversationBySlug.query.contract-meta.ts",
+    "contract/conversationsWithModel.query.ts",
+    "contract/conversationsWithModel.query.contract-meta.ts",
     "contract/createConversation.mutation.ts",
     "contract/createConversation.mutation.contract-meta.ts",
     "contract/deleteConversation.mutation.ts",
@@ -63,7 +66,7 @@
     "contract/updateConversation.mutation.ts",
     "contract/updateConversation.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:6fabe423be1c88af",
+  "bundleHash": "sha256:463c27f16b58c005",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -87,6 +90,11 @@
       "id": "competitive-checkpoint:conversationBySlug",
       "kind": "LiveQuery",
       "name": "conversationBySlug"
+    },
+    {
+      "id": "competitive-checkpoint:conversationsWithModel",
+      "kind": "LiveQuery",
+      "name": "conversationsWithModel"
     },
     {
       "id": "competitive-checkpoint:createConversation",
@@ -155,8 +163,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "979599bdca39f911a8eb90acbd7a65ce7e8fe7b019df521c482348e0a10b6c19",
-  "schemaHash": "sha256:04453498e78b891b",
+  "inputsHash": "36738131457f873177a7256304e55ee0479216c7521fd2a11f4725012c5c040f",
+  "schemaHash": "sha256:bdcfcd9c4e2f65a4",
   "schemaVersion": "snapback.v0",
   "tables": [
     "conversations",

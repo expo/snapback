@@ -1,0 +1,97 @@
+name: linux-runtime-package
+
+# @ref LLP 0041#runtime-distribution — prove the x86-64 Linux package on a
+# genuinely clean Linux machine: build against the pinned Hermes runtime,
+# launch with LD_LIBRARY_PATH absent, pack the public alias closure, then run
+# the same external cold-install/doctor/dev proof used by the macOS slice.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-runtime-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-runtime-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install JavaScript and native build dependencies
+        run: |
+          bun install --frozen-lockfile
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+
+      - name: Cache Hermes Linux build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      - name: Build and launch-test the relocatable Linux runtime
+        run: |
+          scripts/bootstrap-ibex-runtime
+          cargo build --release --bin snapback
+          node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
+          node packages/snapback-runtime-linux-x64/package.test.mjs
+          status="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$status" ]; then
+            printf '%s\n' "$status"
+            printf 'Linux runtime preparation dirtied the source checkout\n' >&2
+            exit 1
+          fi
+
+      - name: Pack and cold-install the Linux public-alias closure
+        env:
+          SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-linux-package
+        run: |
+          node scripts/snapback-publish.mjs \
+            --scope-preset ccheever \
+            --runtime-platforms host \
+            --version 0.1.0-linux-ci.1 \
+            --tag llp0063 \
+            --out "$SNAPBACK_PACKAGE_OUT"
+          node scripts/snapback-package-cold-install.mjs \
+            --ledger "$SNAPBACK_PACKAGE_OUT/publish-ledger.json" \
+            --receipt "$SNAPBACK_PACKAGE_OUT/cold-install-receipt.json"
+
+      - name: Retain the Linux package and cold-machine evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-linux-x64-proof-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/snapback-linux-package/*.tgz
+            ${{ runner.temp }}/snapback-linux-package/publish-ledger.json
+            ${{ runner.temp }}/snapback-linux-package/cold-install-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

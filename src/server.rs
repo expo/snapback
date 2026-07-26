@@ -7893,11 +7893,17 @@ fn session_online_protocol_refusal(
         AuthClientProtocolOffers::from_http_headers(headers)
     };
     if offers.auth_client != Some(AUTH_PROTOCOL_V1) {
+        // Name the repair, not just the violation. This refusal answers 503,
+        // which reads as "the server is down", so a caller who is told only
+        // that an offer is missing goes looking at the process instead of at
+        // their own headers.
         return Some(
             SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
-                "the request does not offer the exact supported auth-client protocol",
+                "add the request header `x-snapback-auth-client-protocol: 1`: this request \
+                 does not offer the exact supported auth-client protocol (on a WebSocket \
+                 upgrade, offer the `snapback.auth-client.1` subprotocol instead)",
             )
             .with_details(json!({
                 "capability": "onlineRequestResponse",
@@ -9156,7 +9162,7 @@ fn sender_admission_response(
     response
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // Keep every throttle dimension explicit at the fail-closed charge boundary.
 async fn charge_hosted_sender_attempt(
     runtime: &AppState,
     throttle: crate::auth::deployment::HostedAuthenticationThrottle,
@@ -9274,7 +9280,7 @@ async fn charge_hosted_body_auth_attempt(
 /// @ref LLP 0077#http-binding — canonical target authority comes only from
 /// the provider-authenticated hosted target, and the SQLite replay/nonce cut
 /// completes before any body poll.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // Admission inputs stay explicit until verification has produced a binding.
 async fn admit_hosted_sender_request(
     spec: RouteSpec,
     effective: EffectiveRoutePolicy,
@@ -19850,6 +19856,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
         | "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        | "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED"
         | "SNAPBACK_MIGRATION_PLAN_STALE"
         | "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE"
         | "SNAPBACK_MIGRATION_EXECUTOR_STALE"
@@ -20243,6 +20250,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // fences, and maintenance invariants (null/moved output keys).
         // (The privileged scan's plan refusals share the LLP 0081 §2/§3
         // SNAPBACK_MIGRATION_PLAN_INVALID arm above.)
+        | "SNAPBACK_MIGRATION_REHEARSAL_INVALID"
         | "SNAPBACK_PROJECTION_PLAN_INVALID"
         | "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"
         | "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"
@@ -25060,12 +25068,17 @@ globalThis.__snapbackHandlers = {
         );
 
         assert!(super::session_online_protocol_refusal(stream, &state, &headers).is_none());
+        let refusal = super::session_online_protocol_refusal(ordinary_http, &state, &headers)
+            .expect("ordinary HTTP must ignore WebSocket protocol tokens");
         assert_eq!(
-            super::session_online_protocol_refusal(ordinary_http, &state, &headers)
-                .expect("ordinary HTTP must ignore WebSocket protocol tokens")
-                .diagnostic
-                .code,
+            refusal.diagnostic.code,
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            refusal.diagnostic.message,
+            "add the request header `x-snapback-auth-client-protocol: 1`: this request \
+             does not offer the exact supported auth-client protocol (on a WebSocket \
+             upgrade, offer the `snapback.auth-client.1` subprotocol instead)"
         );
     }
 
@@ -32947,6 +32960,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MIGRATION_PLAN_INVALID",
         "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
         "SNAPBACK_MIGRATION_TARGET_MISMATCH",
+        "SNAPBACK_MIGRATION_REHEARSAL_INVALID",
         "SNAPBACK_PROJECTION_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
         "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED",
@@ -33074,6 +33088,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MIGRATION_VERIFICATION_FAILED",
         "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
         "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+        "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         // LLP 0092 §0D.3 idempotency replay-validity conflicts.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",
@@ -34019,7 +34034,8 @@ globalThis.__snapbackHandlers = {
             crate::cron::CronActivationState::Armed
         );
         assert!(
-            job.next_due_at_ms.is_some_and(|due| due <= super::now_millis()),
+            job.next_due_at_ms
+                .is_some_and(|due| due <= super::now_millis()),
             "fixture job must be past due: {:?}",
             job.next_due_at_ms
         );
@@ -35321,8 +35337,10 @@ globalThis.__snapbackHandlers = {
                     source: r#"globalThis.__snapbackHandlers = {
   async hungAttempt(ctx, args) {
     const started = await ctx.streamAttempt.start(args.clientKey);
-    const begun = Date.now();
-    while (Date.now() - begun < 2000) {}
+    if (!started.terminal) {
+      const begun = Date.now();
+      while (Date.now() - begun < 30000) {}
+    }
     return { started: started };
   }
 };"#
@@ -35364,7 +35382,7 @@ globalThis.__snapbackHandlers = {
             Arc::new(Semaphore::new(1)),
             1,
             counters,
-            150,
+            5_000,
         )
         .await
         .expect_err("the watchdog abandons the hung action");

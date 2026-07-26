@@ -4,6 +4,16 @@ import type {
   ExternalStoreSnapshot,
 } from '@snapback/client/external-store';
 
+export interface SnapbackFunctionReference<
+  Name extends string = string,
+  Kind extends 'Query' | 'Mutation' | 'LiveQuery' | 'Action' = 'Query' | 'Mutation' | 'LiveQuery' | 'Action',
+> {
+  readonly artifactKind: 'functionReference';
+  readonly id: string;
+  readonly name: Name;
+  readonly kind: Kind;
+}
+
 export interface SnapbackReactProvider {
   readonly backend?: string;
   readonly name?: string;
@@ -24,7 +34,7 @@ export interface SnapbackReactProvider {
 export interface SnapbackQueryResult<Row = unknown> extends ExternalStoreSnapshot<Row> {
   readonly store: ExternalQueryStore<Row>;
   readonly mutate: <Result>(
-    name: string,
+    mutation: string | SnapbackFunctionReference<string, 'Mutation'>,
     args: Record<string, unknown>,
     options?: {
       optimisticRows?: readonly Row[] | ((rows: readonly Row[]) => readonly Row[]);
@@ -41,7 +51,8 @@ export const SNAPBACK_EXTERNAL_STORE_PROTOCOL: 'snapback.external-store.v1';
 export function useExternalQueryStore<Row = unknown>(store: ExternalQueryStore<Row>): ExternalStoreSnapshot<Row>;
 export function useSnapbackQuery<Row = unknown>(options: {
   provider: SnapbackReactProvider;
-  name: string;
+  name?: string;
+  query?: SnapbackFunctionReference<string, 'Query' | 'LiveQuery'>;
   args?: Record<string, unknown>;
   userId?: string;
   authority?: string;

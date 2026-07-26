@@ -17,6 +17,10 @@ import { pathToFileURL } from 'node:url';
 import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import { writeMachineReport } from '../../../_kit/harness.mjs';
+import {
+  closeTargetReliably,
+  freshBrowserCommand,
+} from './cdp-target-cleanup.mjs';
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — one
 // external instrument measures all twelve production web cells without
@@ -27,9 +31,11 @@ const here = dirname(new URL(import.meta.url).pathname);
 const repoRoot = resolve(here, '../../../..');
 const demoRoot = resolve(here, '../..');
 const amendmentPath = join(demoRoot, 'acceptance', 'performance-amendment.2026-07-21.json');
-const invalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-22.json');
+const previousInvalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-22.json');
+const invalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-23.json');
 const protocolPath = join(demoRoot, 'acceptance', 'comparison-protocol.v1.json');
 const amendment = JSON.parse(readFileSync(amendmentPath, 'utf8'));
+const previousInvalidation = JSON.parse(readFileSync(previousInvalidationPath, 'utf8'));
 const invalidation = JSON.parse(readFileSync(invalidationPath, 'utf8'));
 const protocol = JSON.parse(readFileSync(protocolPath, 'utf8'));
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
@@ -69,9 +75,23 @@ assert.equal(amendment.appliesToProtocolId, protocol.protocolId);
 assert.equal(amendment.appliesToWorkloadVersion, protocol.workloadVersion);
 assert.equal(invalidation.appliesToProtocolId, protocol.protocolId);
 assert.equal(invalidation.appliesToWorkloadVersion, protocol.workloadVersion);
+assert.equal(invalidation.invalidates.methodId, previousInvalidation.replacement.methodId);
+assert.equal(invalidation.invalidates.thresholdSetId, previousInvalidation.replacement.thresholdSetId);
+assert(Number.isFinite(invalidation.replacement.idleCpuResolutionFloorMsPerSecond));
+assert(invalidation.replacement.idleCpuResolutionFloorMsPerSecond >= 0);
+assert.equal(
+  invalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-web-instrument-v3-2026-07-23.',
+  'performance v3 ratification statement drifted',
+);
 if (!quick) {
   assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
-  assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v2 claim-eligible sampling');
+  assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v3 claim-eligible sampling');
+  assert.equal(
+    invalidation.ratificationStatement,
+    invalidation.requiredRatificationStatement,
+    'performance v3 sampling requires the exact owner ratification statement',
+  );
 }
 assert(existsSync(serverBin), `missing Snapback server: ${serverBin}`);
 assert(existsSync(chromeBin), `missing Chrome: ${chromeBin}`);
@@ -86,11 +106,16 @@ try {
   const snapbackUrl = await startSnapback();
   const gateway = await startGateway(snapbackUrl);
   backendHealth = gateway.preflight;
+  for (const backend of new Set(cells.map((cell) => cell.backend))) {
+    const health = gateway.preflight.backends?.[backend];
+    assert(
+      health?.ok === true,
+      `backend preflight failed for ${backend}: ${JSON.stringify(health)}`,
+    );
+  }
   if (runWeb) {
     for (const cell of cells) {
       process.stderr.write(`[partitime-performance] web ${cellId(cell)} start\n`);
-      const health = gateway.preflight.backends?.[cell.backend];
-      assert(health?.ok === true, `backend preflight failed for ${cell.backend}: ${JSON.stringify(health)}`);
       buildMeasurementCell(cell, snapbackUrl, gateway.url);
       let chrome;
       let preview;
@@ -434,7 +459,10 @@ function deriveCalibrationThresholds(webCells, builds) {
       firstAuthoritativeDataMs: floorMargin(react.firstAuthoritativeDataMs.p95, 1.10),
       firstLiveDataMs: floorMargin(react.firstLiveDataMs.p95, 1.10),
       idleCpuTaskMsPerSecond: Math.min(
-        react.idleCpuTaskMsPerSecond.p95 * 1.05,
+        Math.max(
+          react.idleCpuTaskMsPerSecond.p95 * 1.05,
+          invalidation.replacement.idleCpuResolutionFloorMsPerSecond,
+        ),
         amendment.web.idle.absoluteCeilings.cpuTaskMsPerSecond,
       ),
       idleNetworkBytesPerSecond: Math.min(
@@ -675,16 +703,20 @@ async function connectCdp(url) {
           throw new Error(`navigation timed out: ${pageUrl}`);
         },
         close: async () => {
-          try {
-            const result = await send('Target.closeTarget', { targetId }, null, 5_000);
-            assert.notEqual(result.success, false, `Chrome refused to close target ${targetId}`);
-          } catch (error) {
-            // Chrome can destroy an attached target before delivering the
-            // closeTarget response. Verify absence rather than turning that
-            // successful cleanup race into a failed performance sample.
-            const { targetInfos = [] } = await send('Target.getTargets', {}, null, 5_000);
-            if (targetInfos.some((target) => target.targetId === targetId)) throw error;
-          }
+          await closeTargetReliably({
+            targetId,
+            closeTarget: () =>
+              send('Target.closeTarget', { targetId }, null, 15_000),
+            listTargetsFresh: async () => {
+              const { targetInfos = [] } = await freshBrowserCommand(
+                url,
+                'Target.getTargets',
+              );
+              return targetInfos;
+            },
+            closeTargetFresh: () =>
+              freshBrowserCommand(url, 'Target.closeTarget', { targetId }),
+          });
         },
         setCacheDisabled: (cacheDisabled) => send('Network.setCacheDisabled', { cacheDisabled }, sessionId),
         clearBrowserCache: () => send('Network.clearBrowserCache', {}, sessionId),
@@ -765,8 +797,11 @@ function observerSource() {
       if(state.recording)for(const record of records){state.targets.add(record.target);state.patches+=record.type==='childList'?record.addedNodes.length+record.removedNodes.length:1;}
       scan();
     });
-    const start=()=>{observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});scan();};
-    document.readyState==='loading'?addEventListener('DOMContentLoaded',start,{once:true}):start();
+    // Observe parser mutations immediately. Waiting for DOMContentLoaded makes
+    // a prerendered product shell look as slow as the module graph that follows
+    // it and therefore does not measure first UI.
+    observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});
+    scan();
     globalThis.__partitimePerf={
       snapshot:()=>({firstUiAt:state.firstUiAt,authoritativeAt:state.authoritativeAt,liveAt:state.liveAt,bootReadyAt:state.bootReadyAt}),
       beginUpdate:()=>{state.recording=true;state.targets.clear();state.patches=0;return true;},

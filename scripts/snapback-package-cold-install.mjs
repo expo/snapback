@@ -8,6 +8,7 @@
 
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import {
   chmodSync,
   cpSync,
@@ -19,36 +20,41 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { release as osRelease, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const args = process.argv.slice(2);
-const usage = `usage: node scripts/snapback-package-cold-install.mjs
-  [--ledger <publish-ledger.json>] [--install-source <tarball|registry>]
-  [--receipt <receipt.json>] [--keep]
+import {
+  parseArguments,
+  PUBLIC_NPM_REGISTRY,
+  runAsync,
+  usage,
+  validatePublicPublicationLedger,
+} from './snapback-package-cold-install-lib.mjs';
 
-Tarball mode is the default checkpoint. Registry mode requires a successful
-publish ledger and resolves every source import through its published npm
-identity.`;
-if (args.includes('--help') || args.includes('-h')) {
-  console.log(usage);
-  process.exit(0);
-}
-const valueAfter = (flag, fallback = null) => {
-  const index = args.indexOf(flag);
-  return index === -1 ? fallback : args[index + 1] ?? fallback;
-};
-const ledgerPath = resolve(valueAfter('--ledger', join(root, 'dist-publish', 'publish-ledger.json')));
-const receiptPath = valueAfter('--receipt');
-const installSource = valueAfter('--install-source', 'tarball');
-const keep = args.includes('--keep');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function fail(message) {
   console.error(`snapback-package-cold-install: ${message}`);
   process.exit(1);
 }
+
+let parsedArgs;
+try {
+  parsedArgs = parseArguments(process.argv.slice(2));
+} catch (error) {
+  fail(error.message);
+}
+if (parsedArgs.help) {
+  process.stdout.write(usage);
+  process.exit(0);
+}
+
+const ledgerPath = resolve(parsedArgs.ledger ?? join(root, 'dist-publish', 'publish-ledger.json'));
+const installSource = parsedArgs.installSource;
+const registry = parsedArgs.registry;
+const receiptPath = parsedArgs.receipt;
+const keep = parsedArgs.keep;
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -64,12 +70,80 @@ function run(command, commandArgs, options = {}) {
   return result.stdout;
 }
 
+async function runAsyncOrFail(command, commandArgs, options = {}) {
+  try {
+    return await runAsync(command, commandArgs, options);
+  } catch (error) {
+    fail(error.message);
+  }
+}
+
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-if (!['tarball', 'registry'].includes(installSource)) {
-  fail(`--install-source must be tarball or registry (observed ${installSource})`);
+function digest(path, algorithm, encoding) {
+  return createHash(algorithm).update(readFileSync(path)).digest(encoding);
+}
+
+async function startStagedRegistry(ledgerDirectory, ledger) {
+  const records = new Map();
+  for (const entry of ledger.packages ?? []) {
+    const tarballPath = join(ledgerDirectory, entry.tarball);
+    const manifest = JSON.parse(run('tar', ['-xzOf', tarballPath, 'package/package.json']));
+    records.set(entry.name, {
+      entry,
+      manifest,
+      tarballPath,
+      shasum: digest(tarballPath, 'sha1', 'hex'),
+      integrity: `sha512-${digest(tarballPath, 'sha512', 'base64')}`,
+    });
+  }
+  const server = createServer((request, response) => {
+    const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
+    if (pathname.startsWith('/tarballs/')) {
+      const filename = decodeURIComponent(pathname.slice('/tarballs/'.length));
+      const record = [...records.values()].find((candidate) => candidate.entry.tarball === filename);
+      if (!record) {
+        response.writeHead(404).end('missing tarball');
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/octet-stream' });
+      response.end(readFileSync(record.tarballPath));
+      return;
+    }
+    const name = decodeURIComponent(pathname.slice(1));
+    const record = records.get(name);
+    if (!record) {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'not_found', reason: `staged package ${name} is absent` }));
+      return;
+    }
+    const address = server.address();
+    const tarball = `http://127.0.0.1:${address.port}/tarballs/${encodeURIComponent(record.entry.tarball)}`;
+    const versionManifest = {
+      ...record.manifest,
+      dist: { tarball, shasum: record.shasum, integrity: record.integrity },
+    };
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({
+      _id: name,
+      name,
+      'dist-tags': { [ledger.tag ?? 'latest']: record.entry.version, latest: record.entry.version },
+      versions: { [record.entry.version]: versionManifest },
+    }));
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    server.once('error', rejectListen);
+    server.listen(0, '127.0.0.1', resolveListen);
+  });
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolveClose, rejectClose) => {
+      server.close((error) => error ? rejectClose(error) : resolveClose());
+    }),
+  };
 }
 
 async function provePackagedDevLoop({ cli, scaffoldRoot }) {
@@ -79,7 +153,9 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   const child = spawn(cli, ['dev', 'snapback'], {
     cwd: scaffoldRoot,
     env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    // Watch mode owns a machine-readable stdin control channel. Keep it open
+    // for the proof lifetime: EOF is intentionally interpreted as "stop".
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
   let stderr = '';
@@ -118,7 +194,9 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
       '--db', join(scaffoldRoot, '.snapback', 'different.sqlite3'),
     ], { cwd: scaffoldRoot, encoding: 'utf8', timeout: 30_000 });
     if (mismatch.status === 0 || !`${mismatch.stdout}\n${mismatch.stderr}`.includes('SNAPBACK_DEV_SERVER_TARGET_MISMATCH')) {
-      fail(`mismatched attach did not fail closed: ${mismatch.stdout}\n${mismatch.stderr}`);
+      fail(`mismatched attach did not fail closed: ${mismatch.stdout}\n${mismatch.stderr}`
+        + `\nmanaged exit=${child.exitCode} readyFile=${existsSync(readyFile)}`
+        + `\nmanaged stdout:\n${stdout}\nmanaged stderr:\n${stderr}`);
     }
 
     writeFileSync(functionsPath, `${readFileSync(functionsPath, 'utf8')}\n// packaged watch proof\n`);
@@ -143,46 +221,51 @@ const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
 if (ledger.schemaVersion !== 'snapback.package-publication.v1') fail('unsupported publication ledger');
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
-const installTargets = [];
+const runtimePackages = new Map([
+  ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
+  ['linux-x64', '@snapback/runtime-linux-x64'],
+]);
+const hostPlatform = `${process.platform}-${process.arch}`;
+const hostRuntime = runtimePackages.get(hostPlatform);
+if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
+const allExpectedPackages = [
+  ...runtimePackages.values(),
+  '@snapback/contract',
+  '@snapback/client',
+  '@snapback/codegen',
+  '@snapback/react',
+  '@snapback/app-cli',
+  '@snapback/cli',
+];
+let publicEntries = null;
+if (installSource === 'public') {
+  try {
+    publicEntries = validatePublicPublicationLedger(ledger, allExpectedPackages);
+  } catch (error) {
+    fail(error.message);
+  }
+  if (registry !== ledger.registry) {
+    fail(`public install registry differs from publication ledger: ${registry}`);
+  }
+}
+const tarballs = [];
 for (const entry of ledger.packages ?? []) {
-  if (installSource === 'tarball') {
-    if (entry.name !== entry.sourceName) {
-      fail(
-        `tarball mode cannot prove renamed package ${entry.sourceName} -> ${entry.name}; `
-        + 'its internal npm aliases require the registry, so use --install-source registry',
-      );
-    }
+  const runtimePlatform = [...runtimePackages.entries()]
+    .find(([, packageName]) => packageName === entry.sourceName)?.[0];
+  if (runtimePlatform && runtimePlatform !== hostPlatform) continue;
+  if (installSource === 'public') {
+    dependencies[entry.sourceName] = `npm:${entry.name}@${entry.version}`;
+  } else {
     const tarball = join(ledgerDirectory, entry.tarball);
     if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
     if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
     dependencies[entry.sourceName] = `file:${tarball}`;
-    installTargets.push(tarball);
-  } else {
-    if (ledger.mode !== 'publish') {
-      fail(`registry mode requires a publish ledger (observed ${ledger.mode})`);
-    }
-    if (!['published', 'skipped-already-published'].includes(entry.status)) {
-      fail(`registry mode requires published package status for ${entry.name} (observed ${entry.status})`);
-    }
-    const requested = `${entry.name}@${entry.version}`;
-    const registryRecord = JSON.parse(run('npm', [
-      'view', requested, 'name', 'version', 'dist.integrity', '--json',
-    ]));
-    if (registryRecord.name !== entry.name || registryRecord.version !== entry.version) {
-      fail(`registry identity mismatch for ${requested}: ${JSON.stringify(registryRecord)}`);
-    }
-    if (typeof registryRecord['dist.integrity'] !== 'string' || registryRecord['dist.integrity'].length === 0) {
-      fail(`registry integrity is missing for ${requested}`);
-    }
-    dependencies[entry.sourceName] = entry.name === entry.sourceName
-      ? entry.version
-      : `npm:${entry.name}@${entry.version}`;
-    entry.registryIntegrity = registryRecord['dist.integrity'] ?? null;
+    tarballs.push(tarball);
   }
 }
 
 const expectedPackages = [
-  '@snapback/runtime-darwin-arm64',
+  hostRuntime,
   '@snapback/contract',
   '@snapback/client',
   '@snapback/codegen',
@@ -195,6 +278,40 @@ for (const name of expectedPackages) {
 }
 
 const temporary = mkdtempSync(join(tmpdir(), 'snapback-package-cold-'));
+const registryTarballs = [];
+if (installSource === 'public') {
+  const downloadRoot = join(temporary, 'registry-tarballs');
+  mkdirSync(downloadRoot, { recursive: true });
+  for (const sourceName of allExpectedPackages) {
+    const entry = publicEntries.get(sourceName);
+    const packed = JSON.parse(run('npm', [
+      'pack',
+      `${entry.name}@${entry.version}`,
+      '--pack-destination', downloadRoot,
+      '--json',
+      '--ignore-scripts',
+      '--registry', registry,
+    ], { cwd: temporary, timeout: 360_000 }))[0];
+    const downloaded = join(downloadRoot, packed.filename);
+    if (sha256(downloaded) !== entry.registrySha256) {
+      fail(`public registry tarball digest mismatch for ${entry.name}@${entry.version}`);
+    }
+    const manifest = JSON.parse(run('tar', ['-xzOf', downloaded, 'package/package.json']));
+    if (manifest.name !== entry.name || manifest.version !== entry.version) {
+      fail(`public registry package identity drift for ${entry.name}@${entry.version}`);
+    }
+    registryTarballs.push({
+      sourceName,
+      publishedName: entry.name,
+      version: entry.version,
+      sha256: entry.registrySha256,
+    });
+  }
+}
+const stagedRegistry = installSource === 'staged'
+  ? await startStagedRegistry(ledgerDirectory, ledger)
+  : null;
+const installRegistry = stagedRegistry?.url ?? registry;
 const appRoot = join(temporary, 'partitime-external');
 const backendRoot = join(appRoot, 'snapback');
 mkdirSync(backendRoot, { recursive: true });
@@ -207,9 +324,12 @@ try {
     type: 'module',
     dependencies,
   }, null, 2)}\n`);
+  writeFileSync(
+    join(appRoot, '.npmrc'),
+    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+  );
   // Materialize the real Partitime backend source into the external checkout.
-  // From this point onward the proof runs only against that copy and installed
-  // package artifacts; it never imports from this repository.
+  // From this point onward the proof runs only against that copy and tarballs.
   for (const file of ['schema.mjs', 'functions.mjs', 'seed.json']) {
     cpSync(join(root, 'demos', 'partiful-matrix', 'snapback', file), join(backendRoot, file));
   }
@@ -254,11 +374,20 @@ await build({
 `);
 
   run('git', ['init', '--quiet'], { cwd: appRoot });
-  run('npm', ['install', '--no-audit', '--no-fund', ...installTargets], { cwd: appRoot, timeout: 360_000 });
+  await runAsyncOrFail('npm', [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--registry', PUBLIC_NPM_REGISTRY,
+    ...tarballs,
+  ], {
+    cwd: appRoot,
+    timeout: 360_000,
+  });
   for (const name of expectedPackages) {
     const installPath = join(appRoot, 'node_modules', ...name.split('/'));
     if (!existsSync(installPath) || lstatSync(installPath).isSymbolicLink()) {
-      fail(`${name} is not a materialized ${installSource} install`);
+      fail(`${name} is not a materialized tarball install`);
     }
   }
 
@@ -279,7 +408,16 @@ await build({
   const developerCli = join(appRoot, 'node_modules', '.bin', 'snapback');
   chmodSync(developerCli, 0o755);
   const doctor = JSON.parse(run(developerCli, ['doctor', '--json'], { cwd: appRoot }));
-  if (!doctor.ok || doctor.checks?.[0]?.code !== 'SNAPBACK_RUNTIME_LAUNCH_OK') {
+  if (
+    !doctor.ok
+    || doctor.probe !== 'vertical-slice'
+    || doctor.checks?.[0]?.code !== 'SNAPBACK_RUNTIME_LAUNCH_OK'
+    || !doctor.checks.some((check) => check.code === 'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK')
+    || !doctor.checks.some((check) => check.code === 'SNAPBACK_DOCTOR_QUERY_OK')
+    || !doctor.checks.some((check) => check.code === 'SNAPBACK_DOCTOR_MUTATION_OK')
+    || !doctor.checks.some((check) => check.code === 'SNAPBACK_DOCTOR_LIVE_OK')
+    || !doctor.checks.some((check) => check.code === 'SNAPBACK_DOCTOR_SHUTDOWN_OK')
+  ) {
     fail(`packaged runtime doctor failed: ${JSON.stringify(doctor)}`);
   }
   const scaffoldRoot = join(appRoot, 'todo-contract');
@@ -290,12 +428,53 @@ await build({
     if (dependencies[name]) scaffoldManifest.dependencies[name] = dependencies[name];
   }
   writeFileSync(scaffoldManifestPath, `${JSON.stringify(scaffoldManifest, null, 2)}\n`);
-  run('npm', ['install', '--no-audit', '--no-fund', ...installTargets], { cwd: scaffoldRoot, timeout: 360_000 });
+  writeFileSync(
+    join(scaffoldRoot, '.npmrc'),
+    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+  );
+  await runAsyncOrFail('npm', [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--registry', PUBLIC_NPM_REGISTRY,
+    ...tarballs,
+  ], {
+    cwd: scaffoldRoot,
+    timeout: 360_000,
+  });
   run(join(scaffoldRoot, 'node_modules', '.bin', 'snapback'), ['generate', 'snapback', '--json'], {
     cwd: scaffoldRoot,
     env: { ...process.env, npm_config_offline: 'true' },
   });
   run(process.execPath, ['acceptance.mjs'], { cwd: scaffoldRoot });
+  run('git', ['init', '--quiet'], { cwd: scaffoldRoot });
+  run('git', ['add', 'package.json', 'package-lock.json', 'acceptance.mjs', 'snapback'], { cwd: scaffoldRoot });
+  run('git', [
+    '-c', 'user.name=Snapback Package Proof',
+    '-c', 'user.email=snapback-package-proof@example.invalid',
+    'commit', '--quiet', '-m', 'cold install release fixture',
+  ], { cwd: scaffoldRoot });
+  const deployBuild = JSON.parse(run(
+    join(scaffoldRoot, 'node_modules', '.bin', 'snapback'),
+    [
+      'deploy', 'build', 'snapback',
+      '--target-profile', 'local-dev-sqlite-ibex',
+      '--output', join(temporary, 'release-proof'),
+      '--allow-dirty',
+      '--json',
+    ],
+    { cwd: scaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
+  ));
+  if (
+    !deployBuild.ok
+    || deployBuild.schemaVersion !== 'snapback.deploy-build.v1'
+    || deployBuild.activationEligible !== false
+    || deployBuild.componentCount < 1
+    || !deployBuild.gaps?.some((gap) => gap.id === 'control-plane.backup-restore' && gap.blocking === true)
+    || !existsSync(deployBuild.manifestPath)
+  ) {
+    fail(`packaged deploy build did not retain a verified fail-closed release: ${JSON.stringify(deployBuild)}`);
+  }
   await provePackagedDevLoop({
     cli: join(scaffoldRoot, 'node_modules', '.bin', 'snapback'),
     scaffoldRoot,
@@ -305,30 +484,55 @@ await build({
   if (/\bnode:/.test(browserBundle)) fail('browser adapter bundle contains a Node builtin import');
 
   const tree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
+  const cleanMachine = process.env.GITHUB_ACTIONS === 'true'
+    && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
   const receipt = {
     schemaVersion: 'snapback.package-cold-install.v1',
     ok: true,
     claimTreatment: 'checkpoint',
     claimSatisfied: false,
+    platformClaimSatisfied: installSource === 'public' && cleanMachine,
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
     publicationMode: ledger.mode,
     installSource,
+    registry: installSource === 'public' ? registry : 'disposable-loopback',
     scopePreset: ledger.scopePreset,
     version: ledger.version,
+    machine: {
+      platform: process.platform,
+      architecture: process.arch,
+      osRelease: osRelease(),
+      nodeVersion: process.version,
+      runtimePackage: hostRuntime,
+      runnerEnvironment: process.env.RUNNER_ENVIRONMENT ?? 'local',
+      separatelyProvisionedCleanMachine: cleanMachine,
+      githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+      githubRepository: process.env.GITHUB_REPOSITORY ?? null,
+      githubWorkflowSha: process.env.GITHUB_SHA ?? null,
+    },
     packages: ledger.packages.map((entry) => ({
       sourceName: entry.sourceName,
       publishedName: entry.name,
       version: entry.version,
       tarball: entry.tarball,
       sha256: entry.sha256,
-      ...(entry.registryIntegrity ? { registryIntegrity: entry.registryIntegrity } : {}),
+      registrySha256: entry.registrySha256 ?? null,
     })),
+    deployBuild: {
+      releaseId: deployBuild.releaseId,
+      targetProfileId: deployBuild.targetProfileId,
+      activationEligible: deployBuild.activationEligible,
+      componentCount: deployBuild.componentCount,
+      gapCount: deployBuild.gaps.length,
+    },
     checks: {
-      materializedPackageInstall: true,
-      materializedTarballInstall: installSource === 'tarball',
-      materializedRegistryInstall: installSource === 'registry',
-      publicRegistryInstall: installSource === 'registry',
+      materializedTarballInstall: true,
+      stagedRegistryAliasResolution: installSource === 'staged',
+      publicRegistryAliasResolution: installSource === 'public',
+      publicRegistryTarballDigestMatch: installSource === 'public',
+      registryTarballCount: registryTarballs.length,
       noSiblingSourceCheckout: true,
       partitimeBackendBuilt: true,
       localCodegenOffline: true,
@@ -338,23 +542,24 @@ await build({
       packagedCliIntrospection: true,
       packagedRuntimeDoctor: true,
       packagedScaffoldAndOfflineGenerate: true,
+      packagedDeployBuildAndVerify: true,
       packagedManagedDevReadyAttachWatchAndStop: true,
       browserAdapterBundle: true,
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,
       browserBundleBytes: Buffer.byteLength(browserBundle),
     },
     nonclaims: [
-      ...(installSource === 'registry' ? [] : [{
+      ...(installSource === 'public' ? [] : [{
         id: 'public-registry-install',
-        reason: 'This proof installs immutable npm tarballs; it does not install the package closure from a public registry.',
+        reason: 'The proof resolves the exact public aliases through a disposable loopback npm registry backed by immutable tarballs; the packages are not yet published in a public registry.',
       }]),
-      {
+      ...(cleanMachine ? [] : [{
         id: 'separately-provisioned-clean-machine',
         reason: 'The proof uses a fresh external directory on the development host, not a separately provisioned clean machine.',
-      },
+      }]),
       {
-        id: 'non-darwin-arm64-runtime',
-        reason: 'The packaged native runtime profile is Apple-silicon macOS only.',
+        id: 'other-runtime-platforms-not-executed',
+        reason: `This receipt launches ${hostPlatform}; every other retained runtime package requires its own clean machine proof.`,
       },
     ],
   };
@@ -362,6 +567,7 @@ await build({
   if (receiptPath) writeFileSync(resolve(receiptPath), rendered);
   process.stdout.write(rendered);
 } finally {
+  if (stagedRegistry) await stagedRegistry.close();
   if (keep) console.error(`kept ${temporary}`);
   else rmSync(temporary, { recursive: true, force: true });
 }

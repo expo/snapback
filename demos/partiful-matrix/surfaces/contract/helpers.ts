@@ -1,5 +1,24 @@
+const partitimeWhenFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'America/Los_Angeles',
+});
+
 export function fmtWhen(ms: number): string {
-  return new Date(ms).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
+  // static Bun output and hydrated browser output must be byte-identical; ICU
+  // owns the calendar fields, while the product owns their punctuation.
+  const fields = Object.fromEntries(
+    partitimeWhenFormatter
+      .formatToParts(new Date(ms))
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value }) => [type, value]),
+  );
+  return `${fields.weekday}, ${fields.month} ${fields.day}, ${fields.hour}:${fields.minute} ${fields.dayPeriod}`;
 }
 export function statusLabel(status: string): string {
   if (status === 'host') return 'Hosting';
@@ -33,15 +52,13 @@ export function navigatePartitimeCollection(key: string): void {
       ? (focusedOption ?? activeOption as HTMLElement)
       : active!,
   );
-  const next = current < 0
-    ? key === 'ArrowUp' || key === 'End' ? items.length - 1 : 0
-    : key === 'Home'
+  const next = key === 'Home'
     ? 0
     : key === 'End'
       ? items.length - 1
       : key === 'ArrowDown'
-        ? (current + 1) % items.length
-        : (current - 1 + items.length) % items.length;
+        ? current < 0 ? 0 : (current + 1) % items.length
+        : current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length;
   if (owner.getAttribute('role') === 'listbox') {
     const option = items[next];
     option?.focus();

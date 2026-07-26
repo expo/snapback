@@ -119,14 +119,14 @@ component PartifulEvent
                     text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
                     text ev.title headingLevel=1 size=52 weight=800 color="#171512"
                     text ev.description size=14 color="#473b31"
-                  ConnectionBadge(value=event.connection)
+                  ConnectionBadge(value=event.connection, visualVariant=visualVariant)
               else
                 column gap=18 padding=28 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
                   text ev.emoji size=48 background="rgba(255,255,255,0.22)" padding=20 radius=999
                   text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
                   text ev.title headingLevel=1 size=40 weight=800 color="#171512"
                   text ev.description size=14 color="#473b31"
-                  ConnectionBadge(value=event.connection)
+                  ConnectionBadge(value=event.connection, visualVariant=visualVariant)
             column gap=8 padding=32 borderWidth=1 borderColor="rgba(23,21,18,0.25)"
               text "MEET HERE" size=10 color=mutedFor(visualVariant)
               text ev.location size=27 weight=800 color=textFor(visualVariant)
@@ -178,15 +178,15 @@ component PartifulEvent
                   text "You're hosting this one ✦" size=12 color="#171512" background="#dce3bf" padding=12
                 else
                   row gap=5 role="radiogroup" label="RSVP"
-                    button press=respond("going") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "going" label="Going" testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Going" size=10 color=myStatus(guestRows, userId) == "going" ? "#ffffff" : "#171512"
-                    button press=respond("maybe") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "maybe" label="Maybe" testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? "#ffffff" : "#171512"
-                    button press=respond("cant") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "cant" label="Can't go" testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
-                      text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? "#ffffff" : "#171512"
+                    button press=respond("going") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "going" label="Going" testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Going" size=10 color=myStatus(guestRows, userId) == "going" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
+                    button press=respond("maybe") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "maybe" label="Maybe" testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
+                    button press=respond("cant") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "cant" label="Can't go" testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? accentFor(visualVariant) : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                      text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? (visualVariant == "night" ? "#171512" : "#ffffff") : textFor(visualVariant)
                   button press=requestRespond("going") label="Change RSVP" testId="rsvp-trigger" padding=10 background=textFor(visualVariant)
                     text "Change RSVP…" size=10 color=backgroundFor(visualVariant)
-                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 role="listbox" label="Event guests" tabIndex=-1 keydown=navigateCollection testId="virtual-guest-list"
+                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="virtual-guest-list"
                   button gap=10 align="center" paddingTop=8 paddingBottom=8 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-${guest.userId}` background="transparent" borderWidth=0
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
@@ -206,12 +206,12 @@ component PartifulEvent
               empty
                 text "Nobody yet." size=12 color=mutedFor(visualVariant)
               ready sheetRows
-                virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 role="listbox" label="Event guests" tabIndex=-1 keydown=navigateCollection testId="guest-sheet-list"
+                virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="guest-sheet-list"
                   button gap=10 align="center" paddingTop=10 paddingBottom=10 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-sheet-${guest.userId}` background="transparent" borderWidth=0
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""
-        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" align="center" justify="center" zIndex=120 testId="rsvp-confirm-overlay"
+        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 align="center" justify="center" padding=24 testId="rsvp-confirm-overlay"
           button press=cancelRespond label="Cancel RSVP change" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="rsvp-confirm-backdrop"
           section role="dialog" label="Confirm RSVP" accessibilityModal=true focusTrap=true focusRestore=true dismiss=cancelRespond presence="entered" testId="rsvp-confirm-dialog" zIndex=1 width="100%" maxWidth=460 padding=30 gap=18 style=surfaceStyle(visualVariant, "panel")
             text "Confirm RSVP" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)

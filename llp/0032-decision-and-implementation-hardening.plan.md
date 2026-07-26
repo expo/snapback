@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-17 (E2/L6 completeness and storage-ordering closure: buffered query overlays capture the exact overfetch and touched rows they consume; direct/live/in-memory query invocations pin their complete logical read view; query dependencies carry inseparable snapshot cursors; and SQLite allocates app commit versions only after its writer reservation). 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
+**Revised:** 2026-07-22 (LLP 0074 public-package checkpoint: the `@snapback/*` source/import namespace remains stable, while the first public artifacts use the already-implemented `@ccheever/snapback-*` alias mapping because a live npm probe found `@snapback/cli` occupied by an unrelated product and no project publication authority over that scope). 2026-07-17 (E2/L6 completeness and storage-ordering closure: buffered query overlays capture the exact overfetch and touched rows they consume; direct/live/in-memory query invocations pin their complete logical read view; query dependencies carry inseparable snapshot cursors; and SQLite allocates app commit versions only after its writer reservation). 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
 internal invalidation, per-subscription fan-out isolation, and receipt
 publication are distinct cuts; publication failure cannot recast a committed
 write as rejected). 2026-07-17 (L2 owned-cleanup failure closure: maintenance retains
@@ -1356,9 +1356,13 @@ drop is recorded by the *next* demo's diary.
   banner from R4 flips to "built" for the shipped verbs. **Landed
   2026-07-02.** Packaging: repo-root `package.json` + `bun.lock` with
   `packages/*` workspaces; the namespace decision (0021's open question) is
-  **`@snapback/*`** (`@snapback/contract`, `@snapback/codegen`; registry
-  claiming deferred to first publish with the reopen caveat recorded in
-  0021). Host-ops: `src/host_ops.rs` is the envelope source of truth
+  **`@snapback/*`** (`@snapback/contract`, `@snapback/codegen`) for source and
+  application imports. The deferred public-registry part was resolved at the
+  LLP 0074 checkpoint on 2026-07-22: the first published artifacts map to
+  `@ccheever/snapback-*`, because `@snapback/cli` is an unrelated live package
+  and this project has no recorded authority over that scope; staged npm alias
+  dependencies keep authored imports stable (LLP 0021). Host-ops:
+  `src/host_ops.rs` is the envelope source of truth
   (committed `schemas/host-ops.result.schema.json` +
   `schemas/host-ready.schema.json` per LLP 0037, drift-gated); the gated
   `POST /_snapback/api/host-ops` endpoint (route-registry entry) serves

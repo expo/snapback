@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "partitime.step5-declaration-reduction.v1",
+  "claimId": "STEP5.DECLARATION_REDUCTION",
+  "ok": true,
+  "disposition": "pass",
+  "authorities": {
+    "llp0065": {
+      "path": "llp/0065-generated-data-pattern-soundness.rfc.md",
+      "sha256": "5e3ffec8a3feba0b6b3f2c2a1b855c20c2426b11d5402cab17c16153e296b7b8",
+      "status": "Implemented"
+    },
+    "llp0080": {
+      "path": "llp/0080-portable-relational-queries-and-projections.rfc.md",
+      "sha256": "6387d379b18853bc089a34d567378801365452d4831a62abe692c375639af18a",
+      "status": "Accepted"
+    }
+  },
+  "sourceVolume": {
+    "actualLines": 136,
+    "thresholdLines": 152,
+    "marginLines": 16,
+    "pass": true,
+    "formula": "floor(partitime_snapback_backend_baseline_lines * 0.80)",
+    "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
+    "inventory": {
+      "files": [
+        {
+          "path": "demos/partiful-matrix/snapback/schema.mjs",
+          "lines": 20,
+          "bytes": 771,
+          "sha256": "c5198b128af62889125b04e4f9e551a8ee597b1ad863a0427d177a2400369bfc"
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/functions.mjs",
+          "lines": 94,
+          "bytes": 3655,
+          "sha256": "76f2be6b2cb31026cb257593476c5951ca76fee09c62ff9450a722b619accc7d"
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/seed.json",
+          "lines": 22,
+          "bytes": 2295,
+          "sha256": "dc6d193ed038443151c9ca4622a647b434afac0112c24d735fccbb8548fa38d4"
+        }
+      ],
+      "totalLines": 136
+    },
+    "baselineDescriptionNote": "LLP 0063:1207 describes the baseline as \"about 168 handwritten lines\"; floor(x*0.80)=152 implies a 190-line freeze source. Flagged for the next 0063 amendment; thresholds untouched."
+  },
+  "generatedHelperDemonstrations": {
+    "standardPatterns": {
+      "owningAuthoritySuites": true,
+      "realServerReceiptSha256": "dca3a308eb6c9c4b21a198dfe3919d49affb7a9e09ed382a75749f98ea0bd615",
+      "workloadSchemaExpressibility": {
+        "helper": "owned-unique-lookup.v1",
+        "function": "myRsvp",
+        "schemaSource": {
+          "path": "demos/partiful-matrix/snapback/schema.mjs",
+          "sha256": "c5198b128af62889125b04e4f9e551a8ee597b1ad863a0427d177a2400369bfc"
+        },
+        "ownerPredicate": "userId = ctx.auth.userId",
+        "uniqueIndex": "by_event_user (eventId, userId)"
+      }
+    },
+    "relationalAndProjections": {
+      "fixture": "demos/competitive-checkpoint",
+      "authoring": {
+        "path": "demos/competitive-checkpoint/snapback/functions.mjs",
+        "sha256": "3eb1f6b459a16d780cfae519f9208e6a2f30c2fc89546b303ca15b3ede2a5d2d"
+      },
+      "generatedManifest": {
+        "path": "demos/competitive-checkpoint/snapback/generated/functions.manifest.json",
+        "sha256": "92bde7f638a6d6238956e7df7702526bb96b6f7b3dcc3dc18c5a171de4b76a76"
+      },
+      "rustWitnesses": [
+        "tests/relational_corpus_v0.rs",
+        "tests/relational_migration_coupled_suite_v0.rs",
+        "src/local.rs::maintained_projection_engine_end_to_end",
+        "src/local.rs::relational_cursor_pages_and_refuses_end_to_end"
+      ]
+    }
+  },
+  "narrowing": {
+    "recordedUnder": "llp/reviews/0080-portable-relational-queries-and-projections.fable.md C7",
+    "finding": "The Partitime workload is shared-visibility (guests read all events, guest lists, and walls); LLP 0065's v1 owner-only visibility floor therefore fits none of its read functions, and adopting a relational join in-cell requires normalizing host identity into a new table, measured at roughly +15 to +20 inventory lines against 16 lines of frozen-threshold headroom. Forcing either would be a toy or a threshold game. The helper families are demonstrated against the workload schema (above) and in production shape in the competitive-checkpoint fixture; adopting that fixture as \"the admitted Step 5 fixture\" for LLP 0080's acceptance clause is an author decision this receipt deliberately does not make."
+  },
+  "cumulativeGates": {
+    "zeroRegressionArgument": {
+      "kind": "byte-identity",
+      "measuredCellMatchesAttestedBaseline": true,
+      "lastBackendCommit": "ddc2488c271e093804e1ebb35c99a8459aff11ef 2026-07-20T21:04:43-07:00",
+      "stepZeroLedgerClose": "5e346683 (2026-07-25)"
+    },
+    "reran": {
+      "noExactCore": {
+        "ok": true,
+        "receiptSha256": "6d5b3909afa5929dad7b05f5cafa1047c7a65bab5df9057b6701dbae547de54f"
+      },
+      "authorizationNegatives": {
+        "ok": true,
+        "via": "tests/acceptance/standard-patterns-v1.mjs"
+      },
+      "packageTestInventory": {
+        "ok": true
+      }
+    },
+    "notRerun": {
+      "browserMatrix": "measured cell byte-identical to the state the 43-check Step 0 receipt attests; instruments actively owned by the llp0063-postcheckpoint lane at run time",
+      "nativeCells": "remote Apple instrument; byte-identity argument applies; recorded as the protocol's remote-dependency posture, not silently green"
+    }
+  },
+  "executions": [
+    {
+      "command": "node packages/snapback-codegen/standard-patterns.test.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "./node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler packages/snapback-codegen/standard-patterns-types.fixture.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "node tests/acceptance/standard-patterns-v1.mjs --receipt <scratch>/standard-patterns-real-server.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node demos/partiful-matrix/tests/acceptance/no-exact-core.mjs --out <scratch>/step5-no-exact-core.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-package-test-inventory.mjs",
+      "exitCode": 0
+    }
+  ],
+  "frozenInputs": {
+    "protocol": {
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "d89b5f5f900474cfc4978c4760e44a9f5a1e5a990ed2383dfa0fcf918888e116"
+    },
+    "baseline": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "sha256": "294adc60fcb145104e0a1979fdeed770e34d3536bd22b87b1d624211d31bdb13"
+    },
+    "claimsManifest": {
+      "path": "demos/partiful-matrix/acceptance/claims.v1.json",
+      "sha256": "d42fdd271e72573172f2944117b47619bc34d0cdd0435e6c0e5f2f9d39987b80"
+    }
+  },
+  "limitations": [
+    "This receipt proves the frozen backend source-volume reduction and the generated-helper demonstrations named above.",
+    "It does not adopt generated helpers inside the measured Partitime cell (see narrowing) and does not decide fixture admission for LLP 0080's \"demonstrates both generated helpers\" acceptance clause.",
+    "It does not claim the Step 5 exit aggregate; STEP4.* and STEP5.PACKAGED_LOOP remain other lanes' work."
+  ]
+}

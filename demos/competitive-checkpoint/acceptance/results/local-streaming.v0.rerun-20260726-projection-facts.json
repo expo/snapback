@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.local-streaming.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "targetIdentitySource": "GET /inspect targetProfileId",
+  "capabilityManifestSha256": "82fe156469fc3c820dd5f75dc01c70c7ee00c13dc676787a70af12d6aa0f9557",
+  "title": "competitive checkpoint / local streamed actions",
+  "passed": 8,
+  "skipped": 0,
+  "failed": 0,
+  "total": 8,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated owner CRUD, unique lookup, and keyset pages retain negative authorization",
+      "ok": true,
+      "details": {
+        "generatedOperations": 8,
+        "visibility": {
+          "kind": "owner",
+          "field": "ownerId"
+        },
+        "crossUserDenialsWitnessed": [
+          "list",
+          "uniqueLookup",
+          "keysetPage",
+          "update",
+          "delete"
+        ]
+      }
+    },
+    {
+      "name": "maintained projection materializes cards in the source commits",
+      "ok": true,
+      "details": {
+        "projection": "conversation-cards",
+        "fanOut": "reverse-index by_model",
+        "readPath": "owner-composed live query"
+      }
+    },
+    {
+      "name": "16 upstream chunks become multiple authoritative native-push commits",
+      "ok": true,
+      "details": {
+        "sourceChunks": 16,
+        "sourceDurationMsMinimum": 800,
+        "intermediateAuthoritativeCommits": 8,
+        "transport": "native-websocket-push",
+        "fallback": false
+      }
+    },
+    {
+      "name": "reply start retries are idempotent and cross-user progress mutation is refused",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "durable cancellation stops the reader and fences every late patch",
+      "ok": true,
+      "details": {
+        "terminal": "cancelled",
+        "sequence": 1,
+        "latePatches": 0
+      }
+    },
+    {
+      "name": "idle response settles timed_out distinctly",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "GET transport failure and unkeyed POST ambiguity remain distinct",
+      "ok": true,
+      "details": {
+        "failed": "failed",
+        "ambiguous": "ambiguous"
+      }
+    },
+    {
+      "name": "terminal rows mirror the host-derived effect certainty",
+      "ok": true,
+      "details": {
+        "cancelled": true,
+        "timed_out": true,
+        "ambiguous": true
+      }
+    }
+  ],
+  "expectedChecks": 8,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

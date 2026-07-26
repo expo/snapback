@@ -38,24 +38,26 @@
         "snapback": "./cli.mjs",
       },
       "dependencies": {
-        "@snapback/codegen": "workspace:*",
+        "@snapback/client": "0.1.0",
+        "@snapback/codegen": "0.1.0",
       },
       "optionalDependencies": {
-        "@snapback/runtime-darwin-arm64": "workspace:*",
+        "@snapback/runtime-darwin-arm64": "0.1.0",
+        "@snapback/runtime-linux-x64": "0.1.0",
       },
     },
     "packages/snapback-client": {
       "name": "@snapback/client",
       "version": "0.1.0",
       "dependencies": {
-        "@snapback/contract": "workspace:*",
+        "@snapback/contract": "0.1.0",
       },
     },
     "packages/snapback-codegen": {
       "name": "@snapback/codegen",
       "version": "0.1.0",
       "dependencies": {
-        "@snapback/contract": "workspace:*",
+        "@snapback/contract": "0.1.0",
         "acorn": "^8.17.0",
         "esbuild": "^0.28.1",
         "typescript": "5.9.3",
@@ -77,6 +79,10 @@
     },
     "packages/snapback-runtime-darwin-arm64": {
       "name": "@snapback/runtime-darwin-arm64",
+      "version": "0.1.0",
+    },
+    "packages/snapback-runtime-linux-x64": {
+      "name": "@snapback/runtime-linux-x64",
       "version": "0.1.0",
     },
     "packages/snapback-vite": {
@@ -287,6 +293,8 @@
     "@snapback/react": ["@snapback/react@workspace:packages/snapback-react"],
 
     "@snapback/runtime-darwin-arm64": ["@snapback/runtime-darwin-arm64@workspace:packages/snapback-runtime-darwin-arm64"],
+
+    "@snapback/runtime-linux-x64": ["@snapback/runtime-linux-x64@workspace:packages/snapback-runtime-linux-x64"],
 
     "@snapback/vite": ["@snapback/vite@workspace:packages/snapback-vite"],
 

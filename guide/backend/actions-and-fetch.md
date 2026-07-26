@@ -3,9 +3,9 @@ title: Actions and outbound fetch
 id: backend.actions-and-fetch
 order: 3
 audience: agent-first
-capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard]
+capabilities: [backend.actions, backend.action-streams]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
@@ -147,3 +147,5 @@ is the repair.
   source compilation is denied even for egress-enabled actions.
 - **Do not launch unobserved Promise chains.** Await or return them so their
   failure remains part of the handler's explicit result.
+- **Do not split a buffered body after receipt and call it streaming.** The
+  witness must observe multiple durable commits before upstream completion.

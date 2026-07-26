@@ -1,11 +1,40 @@
 # LLP 0081 — Reviewed storage evolution and migrations
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+**Revised:** 2026-07-26 (open question 7 answered — author decision, delegated:
+`single-instance-container-vm.v1` carries the first separately admitted
+migration-executor conformance profile, aligning with LLP 0072's recorded
+first-adapter selection; the Durable Object profile is the explicit second
+target under the author directive that both hosted lines must reach
+production quality; DO-specific acceptance items stay parked with LLP 0014;
+conformance claiming remains gated on the container-VM adapter earning remote
+drill evidence under LLP 0072); 2026-07-26 (post-Implemented spec reconciliation, ticket
+20260726-0081-spec-amendment-frictions: §2's CLI list gains the implemented
+`rehearse` verb (thin wrapper over the §7 rehearsal machinery, receipt
+consumed by `apply --rehearsal-receipt`) and records the decision that
+`released` is `apply`'s journaled tail on the local profile — no `release`
+verb, because the single-writer profile has no operator hold point; hosted
+hold-then-open flows define their own release operation; §2 gains the
+admission-timing profile note — timing is profile-defined, the
+`MigrationAdmissionV1` record, its under-fence ordering, and
+one-consumed-approval are normative; `cancel_requested` verified consistent
+across prose, executor serde, and the committed journal-machine schema, its
+snake_case spelling among kebab-case states recorded as frozen by the closed
+vocabulary rather than renamed); 2026-07-26 (Implemented on the local SQLite admission profile, this RFC's own
+Step 5 admission scope: the durable executor/journal/fence corpus,
+quarantined-mutation settlement, restore-derived rehearsal, and
+dual-compatible/predeploy ordering fixtures are green, and the Step 5
+application witness reviewed and executed a real v0→v1 schema change on the
+admitted fixture through preview→approve→apply with gate reruns
+(acceptance/results/schema-evolution.v1.json) — the witness also found and
+fixed the migrate-CLI async-guard panic and the dual-slot schema-manifest
+publication defect; hosted/DO items stay deferred to separately versioned
+conformance profiles per the closing paragraph; `migration_keyset_scan_v1`
+promoted to stable as the same act); 2026-07-24 (Accepted by the author after the dual-family
 LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
 semantic per §Acceptance and lands with the same-landing LLP 0007
 journal-grammar and LLP 0072 `generationRepublish` amendments; the
@@ -204,7 +233,15 @@ cancellation, and receipt recovery are all keyed by `operationId` plus its
 audience — never by bare plan digest. At barrier
 time, admission emits a `MigrationAdmissionV1` binding the actual predecessor
 head, the enforced resource bounds, and the approval it consumes; the receipt
-carries both records. Editing source schemas, declarations, constants,
+carries both records. Admission timing is profile-defined: the local SQLite
+profile admits at the publication barrier under its single serialized
+writer, while a hosted profile fixes its own admission point (for example a
+control-plane enqueue ahead of the barrier) in its separately versioned
+conformance profile. What is normative across every profile is the record
+and its ordering, not the clock: admission emits `MigrationAdmissionV1`
+under the closed fence before any physical step, binds the actual
+predecessor state it admitted against, and consumes exactly one unexpired
+approval. Editing source schemas, declarations, constants,
 target identity, or capabilities invalidates approval and requires a new
 preview. The observed commit version is informational rather than an equality
 precondition: under the execution barrier, apply re-proves every data-dependent
@@ -225,7 +262,9 @@ The CLI surface is:
 snapback migrate preview --app <id> --target <target-id> \
     --profile <profile-id> --out migration.json
 snapback migrate approve migration.json
-snapback migrate apply migration.json
+snapback migrate rehearse migration.json --rehearsal-plan rehearsal.json \
+    --out rehearsal-receipt.json
+snapback migrate apply migration.json [--rehearsal-receipt rehearsal-receipt.json]
 snapback migrate cancel migration.json
 snapback migrate verify migration.json
 snapback migrate rollback migration-receipt.json
@@ -235,7 +274,15 @@ Each command emits the shared structured result envelope and supports a
 machine-readable dry run. `apply` requires the approved file by path; it never
 regenerates a possibly different plan implicitly. `cancel` requests
 cancellation at the next admitted boundary and never leaves the state machine
-outside a named state.
+outside a named state. `rehearse` executes the approved production plan as
+§7's rehearsal against the one restore-derived database its sealed rehearsal
+plan binds — never production — and writes the rehearsal-marked receipt that
+`apply --rehearsal-receipt` later consumes. There is deliberately no
+`release` verb on the local profile: `released` is the journaled tail of
+`apply` (and of its crash-resume re-invocation from `published-held`), so a
+distinct verb would imply an operator hold point the local single-writer
+profile does not have; a hosted profile that admits a genuine hold-then-open
+flow defines its own release operation in its conformance profile.
 
 ### 3. Typed migration steps
 
@@ -771,3 +818,15 @@ control-plane or LLP 0063's Step 5/6 claims without their own receipts.
    `transformed` adapters?
 7. Which hosted adapter, if any, should be the first separately admitted
    migration-executor conformance profile?
+   **Answered 2026-07-26 (author decision, Charlie Cheever, delegated):**
+   `single-instance-container-vm.v1` — the adapter LLP 0072's first-adapter
+   decision (2026-07-22) already selected — carries the first
+   migration-executor conformance profile. The Durable Object profile is
+   the explicit second target, not a discard: the author directive is that
+   both the container-VM and DO lines must reach production quality; the
+   DO-specific items (eviction and alarm contention through LLP 0014's
+   shared dispatcher) stay parked with LLP 0014 and travel with the
+   Cloudflare line whenever it qualifies under LLP 0072. Sequencing is
+   unchanged: the profile is buildable as a spec now, but its conformance
+   corpus can only be claimed after the container-VM adapter passes the
+   LLP 0072 drill corpus with remote evidence.

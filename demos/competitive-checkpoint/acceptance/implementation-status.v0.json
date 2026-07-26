@@ -2,20 +2,39 @@
   "schemaVersion": "snapback.competitive-checkpoint.implementation-status.v0",
   "protocol": "llp-0075-convex-checkpoint-v0",
   "protocolVersion": "v0.4",
-  "protocolSha256": "0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4",
+  "protocolSha256": "73572b1cf8942e87a260755851860ff833eb60a0b2b0f0ccf41098b25d303b62",
   "adjudicatedProtocolVersion": "v0",
   "recordedAt": "2026-07-22",
-  "revisedAt": "2026-07-23",
+  "revisedAt": "2026-07-26",
   "adjudicator": "Charlie Cheever",
   "adjudicatedAt": "2026-07-22",
   "adjudicatorDecision": "reprioritize",
   "recommendedOutcome": "reprioritize",
   "recommendationReason": "The target-neutral release builder, exact target registry, immutable planner, and normalized single-instance lifecycle orchestration are implemented, including leases, interruption resume, standalone retention-bound backup plan/apply, verified backup manifests, activation generation fencing, served-path failure rollback, explicit code-only rollback, destructive restore with paused verification and separate activation, bounded logs, authenticated inspection, hash-chained receipts, and a fail-closed local control-audit chain. The deterministic driver is explicitly non-remote: no concrete provider has supplied hosted auth/TLS, remote logs/inspection/restore/audit evidence, or other hosted lifecycle attestations, and public npm publication still requires unavailable registry authority.",
+  "candidateInstruments": {
+    "status": "implemented-unratified-blocks-timed-runs",
+    "lock": "demos/competitive-checkpoint/acceptance/instruments/instrument-lock.candidate.v0.json",
+    "lockSha256": "e4019f498d8cbc19962121a960a082b5657d80735ba0c377da5fb2d673b75cd9",
+    "covers": [
+      "statistics-implementation",
+      "metric-definitions",
+      "complete-machine-gate-matrix",
+      "run-capsule-verifier-contract",
+      "mechanical-scoring-engine"
+    ],
+    "gateMatrixLock": "demos/competitive-checkpoint/acceptance/instruments/gate-matrix-lock.candidate.v0.json",
+    "gateMatrixLockSha256": "ea293bfc18d9fac4e2389f8aa4b9b0f59aef75734b269685a38c4dc7f3e328d1",
+    "runCapsuleVerifierLock": "demos/competitive-checkpoint/acceptance/instruments/run-capsule-verifier-lock.candidate.v0.json",
+    "runCapsuleVerifierLockSha256": "73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d",
+    "scoringLock": "demos/competitive-checkpoint/acceptance/instruments/scoring-lock.candidate.v0.json",
+    "scoringLockSha256": "9ea895ab25213197565c3226c90d381a8803c3e822604d5a38ac7e1dd83419be",
+    "claimBoundary": "These are executable candidates only. They bind the current v0.4 machine-protocol identity, but ratified author authority ends at v0.3. The hardened verifier contract proves exact protocol bytes and amendment-backed authorization, complete non-symlink tree closure, a path-by-path exact npm v3 public-registry package closure with canonical SRI, and byte-bound policy, per-arm provisioning-plan, assistance, and credential-check instruments; it is not a populated run capsule. The scoring engine supplies no confidence anchors. Protocol prerequisites and pre-run matrix work remain open, v0.4 and every candidate lock remain unratified, and no timed run is authorized until a dated ratification adopts the exact candidate digests and a complete content-addressed capsule."
+  },
   "implementedEvidence": [
     {
       "claim": "local generated owner patterns and bounded authoritative stream progress",
       "artifact": "demos/competitive-checkpoint/acceptance/results/local-streaming.v0.json",
-      "status": "owner-patterns-with-delete-refusal-passed-on-committed-main-streaming-subset-pending-llp-0076-landing-see-knownInstrumentDefects"
+      "status": "full-six-case-local-rerun-passed-on-current-worktree-with-derived-target-identity-delete-refusal-native-push-cancellation-timeout-and-ambiguity-current-tree-uncommitted-and-v0.4-unratified"
     },
     {
       "claim": "shared authored ctx.fetchStream surface on the Workerd target",
@@ -33,6 +52,11 @@
       "status": "disposable-registry-proof-passed-public-publication-pending"
     },
     {
+      "claim": "the Linux x64 package proof runs on a fresh GitHub-hosted Ubuntu VM and retains machine facts, immutable tarballs, publication ledger, and cold-install receipt",
+      "artifact": ".github/workflows/linux-runtime-package.yml + scripts/snapback-package-cold-install.mjs",
+      "status": "workflow-and-retained-evidence-contract-implemented-unexecuted-on-current-uncommitted-tree"
+    },
+    {
       "claim": "packaged target-neutral release build retains and verifies an activation-ineligible immutable closure",
       "artifact": "demos/competitive-checkpoint/acceptance/results/package-cold-install.v1.json#deployBuild",
       "status": "passed-with-23-explicit-blocking-gaps"
@@ -43,9 +67,14 @@
       "status": "deterministic-lifecycle-passed-remote-evidence-explicitly-false"
     },
     {
+      "claim": "the first remote drill must pin provider, account, region, storage, TLS, supervisor, logs, credential handles, a cost ceiling, and narrow-profile nonclaims before provisioning",
+      "artifact": "packages/snapback-cli/deployment-control.mjs + schemas/remote-drill.plan.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "content-addressed-confirmation-fenced-plan-producer-and-rust-schema-passed-concrete-choices-and-provisioning-remain-absent"
+    },
+    {
       "claim": "production planning requires content-addressed adapter qualification and prepared-release evidence rather than an injectable eligibility assertion",
-      "artifact": "schemas/adapter.qualification.schema.json + schemas/prepared-release.manifest.schema.json",
-      "status": "verifier-and-schema-passed-positive-fixture-complete-profile-producer-pending"
+      "artifact": "packages/snapback-cli/deployment-control.mjs + schemas/adapter.qualification.schema.json + schemas/prepared-release.manifest.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "package-owned-positive-artifact-producers-verifier-and-schema-passed-concrete-provider-evidence-and-complete-profile-drill-pending"
     },
     {
       "claim": "code-only rollback and destructive restore use separate exact plans; restore remains effects-fenced and inactive until a second verified activation plan",
@@ -69,8 +98,13 @@
     },
     {
       "claim": "adapter qualification requires a closed executed hosted-auth drill receipt rather than a generic hostedAuth evidence label",
-      "artifact": "schemas/hosted-auth.drill-receipt.schema.json + schemas/adapter.qualification.schema.json + packages/snapback-cli/package.test.mjs",
-      "status": "verifier-and-positive-shape-fixture-passed-sender-constrained-runtime-composed-authenticated-adapter-producer-and-remote-drill-pending"
+      "artifact": "packages/snapback-cli/deployment-control.mjs + schemas/hosted-auth.drill-receipt.schema.json + schemas/adapter.qualification.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "content-addressed-drill-and-qualification-producers-verifier-and-positive-shape-fixture-passed-concrete-provider-execution-and-remote-drill-pending"
+    },
+    {
+      "claim": "hosted boot production requires a content-addressed atomic external-floor advance before strict owner-only admission/key projection, and refresh authenticates the prior envelope while preserving boot identity and floor",
+      "artifact": "packages/snapback-cli/hosted-admission-producer.mjs + schemas/auth.external-replay-floor-advance.schema.json + schemas/auth.hosted-admission-projection.schema.json + schemas/auth.hosted-admission-refresh.schema.json + packages/snapback-cli/hosted-admission-producer.test.mjs",
+      "status": "provider-neutral-producer-and-rust-schema-proof-passed-remote-store-secret-manager-supervisor-and-provider-evidence-pending"
     },
     {
       "claim": "sender-constrained browser proof uses structured-cloned non-extractable WebCrypto P-256 custody, closed ES256 verification, durable family binding, redacted pre-body admission, and atomic replay-plus-nonce-generation consumption",
@@ -80,17 +114,17 @@
   ],
   "knownInstrumentDefects": [
     {
-      "defect": "RESOLVED IN HARNESS, RERUN PARTIAL: the local-streaming harness hardcoded the invented target alias local-ibex-sqlite.v1. The harness now derives target identity from the served capability manifest (GET /inspect targetProfileId), asserts it matches the generated artifact pair, and pins the served manifest sha256 in the receipt, making the alias mistake structurally unrepeatable. Witnessed in acceptance/results/local-streaming.v0.rerun-20260723.json (targetProfile local-dev-sqlite-ibex, derived). The retained v0 baseline receipt still carries the old alias and is superseded on the next full rerun.",
+      "defect": "RESOLVED IN HARNESS AND CURRENT LOCAL RECEIPT: the local-streaming harness once hardcoded the invented target alias local-ibex-sqlite.v1. It now derives target identity from the served capability manifest (GET /inspect targetProfileId), asserts it matches the generated artifact pair, and pins the served manifest sha256 in the receipt, making the alias mistake structurally unrepeatable. The 2026-07-24 untimed current-worktree rerun passed 6/6 with targetProfile local-dev-sqlite-ibex; landing remains separate from this local evidence.",
       "recordedAt": "2026-07-23",
       "source": "issues/20260723-llp0075-instrument-corrections.md"
     },
     {
-      "defect": "RESOLVED: the local-streaming witness now covers cross-user delete refusal (SNAPBACK_ROW_NOT_VISIBLE, owner row intact) alongside list/lookup/page/update denial; witnessed passing against committed main in acceptance/results/local-streaming.v0.rerun-20260723.json check 1 (crossUserDenialsWitnessed includes delete). The generated-owner claim may widen to this witnessed subset.",
+      "defect": "RESOLVED: the local-streaming witness covers cross-user delete refusal alongside list/lookup/page/update denial and proves the owner row remains intact. After LLP 0065 adopted existence secrecy at the public boundary, the current instrument expects the same SNAPBACK_ROW_NOT_FOUND refusal for an absent row and another owner's row; SNAPBACK_ROW_NOT_VISIBLE remains confined to the server trace. The generated-owner claim may widen only to this witnessed subset.",
       "recordedAt": "2026-07-23",
       "source": "issues/20260723-llp0075-instrument-corrections.md"
     },
     {
-      "defect": "NEW (blocks the full prospective rerun): the retained local-streaming.v0.json baseline (6/6, recorded 2026-07-22) is not reproducible from any committed revision \u2014 the streamed-action surface it exercises (ctx.fetchStream host ops, timed_out/ambiguous settlement) is absent from origin/main src/server.rs and src/runtime.rs and exists only as in-flight LLP 0076 work in a concurrent working tree. The 2026-07-23 rerun on committed main passes checks 1 and 3 and fails the four streaming checks accordingly. The baseline receipt is retained unrewritten; a full prospective rerun and defect closure wait on the LLP 0076 streamed-action implementation landing.",
+      "defect": "IMPLEMENTED AND RERUN LOCALLY, LANDING PENDING: the 2026-07-23 committed-main rerun exposed that ctx.fetchStream host ops and timed_out/ambiguous settlement were absent from every committed revision. The current LLP 0076 worktree now contains that implementation, and an untimed 2026-07-24 full rerun passed all 6/6 cases, including multiple native-push progress commits, cancellation, timeout, and ambiguity. This proves the current local tree, not a landed revision, and neither ratifies protocol v0.4 nor authorizes a timed comparison.",
       "recordedAt": "2026-07-23",
       "source": "acceptance/results/local-streaming.v0.rerun-20260723.json"
     }

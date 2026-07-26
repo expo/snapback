@@ -21,8 +21,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const packages = [
-  'snapback-runtime-darwin-arm64',
+const publicRegistry = 'https://registry.npmjs.org';
+const runtimePackages = new Map([
+  ['darwin-arm64', 'snapback-runtime-darwin-arm64'],
+  ['linux-x64', 'snapback-runtime-linux-x64'],
+]);
+const commonPackages = [
   'snapback-contract',
   'snapback-client',
   'snapback-codegen',
@@ -30,13 +34,17 @@ const packages = [
   'snapback-app-cli',
   'snapback-cli',
 ];
+const allPackages = [...runtimePackages.values(), ...commonPackages];
 
 const usage = `usage: node scripts/snapback-publish.mjs [--version <semver>]
   [--scope-preset <identity|ccheever>] [--tag <tag>] [--out <dir>]
+  [--runtime-platforms <host|all|comma-list>]
   [--publish] [--otp <code>] [--allow-dirty]
 
 Default mode packs and runs npm publish --dry-run only. A real publish requires
-both --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really.`;
+both --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really, and publishes the
+complete runtime matrix. Cross-host release assembly supplies explicit runtime
+artifact paths to each platform package's prepare script.`;
 
 function fail(message, code = 1) {
   console.error(`snapback-publish: ${message}`);
@@ -55,6 +63,7 @@ function parseArgs(argv) {
     scopePreset: 'identity',
     tag: 'latest',
     out: join(root, 'dist-publish'),
+    runtimePlatforms: 'host',
     publish: false,
     otp: null,
     allowDirty: false,
@@ -70,6 +79,7 @@ function parseArgs(argv) {
     else if (arg === '--scope-preset') options.scopePreset = take();
     else if (arg === '--tag') options.tag = take();
     else if (arg === '--out') options.out = resolve(take());
+    else if (arg === '--runtime-platforms') options.runtimePlatforms = take();
     else if (arg === '--otp') options.otp = take();
     else if (arg === '--publish') options.publish = true;
     else if (arg === '--allow-dirty') options.allowDirty = true;
@@ -84,6 +94,21 @@ function parseArgs(argv) {
   if (!['identity', 'ccheever'].includes(options.scopePreset)) {
     fail(`unsupported scope preset ${options.scopePreset}`, 2);
   }
+  const hostPlatform = `${process.platform}-${process.arch}`;
+  const requestedPlatforms = options.runtimePlatforms === 'host'
+    ? [hostPlatform]
+    : options.runtimePlatforms === 'all'
+      ? [...runtimePackages.keys()]
+      : options.runtimePlatforms.split(',').filter(Boolean);
+  if (requestedPlatforms.length === 0
+      || new Set(requestedPlatforms).size !== requestedPlatforms.length
+      || requestedPlatforms.some((platform) => !runtimePackages.has(platform))) {
+    fail(
+      `unsupported runtime platform selection ${options.runtimePlatforms}; expected host, all, or ${[...runtimePackages.keys()].join(',')}`,
+      2,
+    );
+  }
+  options.runtimePlatforms = requestedPlatforms;
   return options;
 }
 
@@ -110,10 +135,48 @@ function sourceDirty() {
 }
 
 function versionExists(name, version) {
-  const result = run('npm', ['view', `${name}@${version}`, 'version', '--json']);
+  const result = run('npm', [
+    'view', `${name}@${version}`, 'version', '--json',
+    '--registry', publicRegistry,
+  ]);
   if (result.status === 0) return true;
   if (/E404|404 Not Found/.test(`${result.stdout}\n${result.stderr}`)) return false;
   fail(`registry probe failed for ${name}@${version}:\n${result.stderr}`);
+}
+
+function bindRegistryArtifact(row, out) {
+  const downloadRoot = mkdtempSync(join(out, '.registry-'));
+  try {
+    const packed = run('npm', [
+      'pack',
+      `${row.name}@${row.version}`,
+      '--pack-destination', downloadRoot,
+      '--json',
+      '--ignore-scripts',
+      '--registry', publicRegistry,
+    ], { timeout: 360_000 });
+    if (packed.status !== 0) {
+      fail(`could not retrieve published artifact for ${row.name}@${row.version}:\n${packed.stderr || packed.stdout}`);
+    }
+    const record = JSON.parse(packed.stdout)[0];
+    const downloaded = join(downloadRoot, record.filename);
+    const manifest = JSON.parse(execFileSync(
+      'tar', ['-xzOf', downloaded, 'package/package.json'], { encoding: 'utf8' },
+    ));
+    if (manifest.name !== row.name || manifest.version !== row.version) {
+      fail(`published registry identity drift for ${row.name}@${row.version}`);
+    }
+    row.registrySha256 = sha256(downloaded);
+    if (row.registrySha256 !== row.sha256) {
+      fail(
+        `published registry bytes differ from the staged artifact for ${row.name}@${row.version}`,
+      );
+    }
+    row.registryIntegrity = record.integrity ?? null;
+    row.registryShasum = record.shasum ?? null;
+  } finally {
+    rmSync(downloadRoot, { recursive: true, force: true });
+  }
 }
 
 function stage(options) {
@@ -121,7 +184,7 @@ function stage(options) {
   mkdirSync(out, { recursive: true });
   const stageRoot = mkdtempSync(join(out, '.stage-'));
   const nameMap = new Map();
-  for (const directory of packages) {
+  for (const directory of allPackages) {
     const sourceManifest = JSON.parse(
       readFileSync(join(root, 'packages', directory, 'package.json'), 'utf8'),
     );
@@ -130,6 +193,10 @@ function stage(options) {
 
   const rows = [];
   try {
+    const packages = [
+      ...options.runtimePlatforms.map((platform) => runtimePackages.get(platform)),
+      ...commonPackages,
+    ];
     for (const directory of packages) {
       const sourceDir = join(root, 'packages', directory);
       const sourceManifest = JSON.parse(readFileSync(join(sourceDir, 'package.json'), 'utf8'));
@@ -143,6 +210,8 @@ function stage(options) {
         ? 'prepare-runtime-artifacts.mjs'
         : directory === 'snapback-runtime-darwin-arm64'
           ? 'prepare-runtime.mjs'
+          : directory === 'snapback-runtime-linux-x64'
+            ? 'prepare-runtime.mjs'
           : null;
       if (prepareScript) {
         const prepared = run('node', [prepareScript], { cwd: sourceDir, timeout: 300_000 });
@@ -206,6 +275,12 @@ const options = parseArgs(process.argv.slice(2));
 if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
   fail('real publish requires --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really');
 }
+if (options.publish && options.runtimePlatforms.length !== runtimePackages.size) {
+  fail('real publish requires --runtime-platforms all so the CLI never points at a missing supported runtime');
+}
+if (options.publish && options.scopePreset === 'ccheever' && options.tag !== 'latest') {
+  fail('the decided @ccheever public closure must publish under the latest tag');
+}
 const dirty = sourceDirty();
 if (options.publish && dirty && !options.allowDirty) fail('refusing to publish a dirty source tree');
 const revision = run('git', ['rev-parse', 'HEAD']).stdout.trim();
@@ -217,22 +292,27 @@ const ledger = {
   sourceDirty: dirty,
   version: options.version,
   tag: options.tag,
+  registry: publicRegistry,
   scopePreset: options.scopePreset,
+  runtimePlatforms: options.runtimePlatforms,
   packages: rows,
 };
 const ledgerPath = join(options.out, 'publish-ledger.json');
 
 if (options.publish) {
-  const who = run('npm', ['whoami']);
+  const who = run('npm', ['whoami', '--registry', publicRegistry]);
   if (who.status !== 0) fail(`npm authentication required:\n${who.stderr}`);
   for (const row of rows) {
     if (versionExists(row.name, row.version)) {
       row.status = 'skipped-already-published';
+      bindRegistryArtifact(row, options.out);
+      writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
       continue;
     }
     const args = [
       'publish', join(options.out, row.tarball),
       '--access', 'public', '--tag', options.tag,
+      '--registry', publicRegistry,
     ];
     if (options.otp) args.push('--otp', options.otp);
     const result = run('npm', args);
@@ -247,14 +327,22 @@ if (options.publish) {
       fail(`publish failed for ${row.name}; rerun resumes safely:${otpHint}\n${redactAuthenticationUrls(result.stderr)}`);
     }
     row.status = 'published';
+    bindRegistryArtifact(row, options.out);
+    writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 } else {
   for (const row of rows) {
     const result = run('npm', [
       'publish', join(options.out, row.tarball), '--dry-run',
       '--access', 'public', '--tag', options.tag, '--json',
-    ]);
-    if (result.status !== 0) fail(`publish dry-run failed for ${row.name}:\n${result.stderr}`);
+      '--registry', publicRegistry,
+    ], { timeout: 360_000 });
+    if (result.status !== 0) {
+      fail(
+        `publish dry-run failed for ${row.name} (${result.error?.code ?? result.status ?? result.signal ?? 'unknown'}):\n`
+        + `${result.stderr || result.stdout}`,
+      );
+    }
     row.status = 'dry-run-ok';
   }
 }

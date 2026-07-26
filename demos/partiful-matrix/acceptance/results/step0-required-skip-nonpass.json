@@ -1,19 +1,23 @@
 {
   "revision": {
-    "snapback": "2e4f4c0cda7d39993951322549818533e0726da8",
-    "exact": "8946b8d62cd9ce8519a6a6953e78f6901d76f98f"
+    "snapback": "1d41cd7ef773218a0230f9cb99f6684ac9d47363",
+    "exact": "b458199579e62e6e19796c87186b8325815a3fa0"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v24.18.0",
+    "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "browser": "chrome",
     "browserBinary": "/definitely/not/chrome",
     "browserVersion": null,
     "iosSimulator": null,
+    "iosDevice": null,
+    "physicalNetworkHost": null,
+    "attendedOperator": null,
+    "attended": false,
     "chrome": "/definitely/not/chrome",
     "chromeVersion": null,
     "cpu": "Apple M5 Max",
@@ -101,38 +105,38 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "44e39a107abb959122037a2be870851d6c2b64cb8274567e0324cbfd7ae9373f",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "23d1c0377f1b68c074f5690c1a3ab98ca1cba9329680dd4082315e56f3b7c22f",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.6",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.6",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.6",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.6",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "requested": "npm:@ccheever/exact-contract@0.1.6",
           "resolvedName": "@ccheever/exact-contract",
           "resolvedVersion": "0.1.2",
           "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "requested": "npm:@ccheever/exact-devtools@0.1.6",
           "resolvedName": "@ccheever/exact-devtools",
           "resolvedVersion": "0.1.2",
           "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "requested": "npm:@ccheever/exact-facet-core@0.1.6",
           "resolvedName": "@ccheever/exact-facet-core",
           "resolvedVersion": "0.1.2",
           "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "requested": "npm:@ccheever/exact-renderer@0.1.6",
           "resolvedName": "@ccheever/exact-renderer",
           "resolvedVersion": "0.1.2",
           "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
@@ -154,7 +158,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "16eb27da8658ed6513b068d596fae8f0853fd35c1acbd4c360eb58a993bc2b0a",
+      "lockSha256": "e69a90711cd7a8f0bae0994c586e2051e021fdfdd8344cff6f4f19a9de9d6cb3",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -169,9 +173,9 @@
     }
   },
   "artifacts": {
-    "inputsHash": "ffbc919046a2c2886a8d3b56a301aae838b20007605dcaea8f17b10db92d9947",
-    "bundleHash": "sha256:6e8be90857e97698",
-    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
+    "inputsHash": "c382f64041d8698719c986163b2c0f4b2ef4cd5233fdb2f8b320db230e602dcd",
+    "bundleHash": "sha256:3c5d27fff65de8d6",
+    "diarySha256": "eace7b4bca5941d48cb64198d0f1b38130d1094c9cfa13dc6c8bf05418f78b92",
     "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
@@ -188,16 +192,20 @@
       "sha256": "4eddede8641c3f7c74a2c170633ed71da7a824429cd73fe19407d590ea2d6d71"
     },
     {
+      "path": "demos/partiful-matrix/backends/gateway/server.ts",
+      "sha256": "10a5f31d9ab006ee427fc1555340dac8c7f20184d2c5a91229f11aef9b569c31"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "a670a61f8e0f0eaca3d8045e30ce547f3e38e81fd564c0f88e59e4a5f1d3fe85"
+      "sha256": "ce6be81c9611602c98ebacd53edd59deb94af22911bc65389eba3483254da6bd"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
-      "sha256": "b5179aee88d2586f5d90d4197742bf7018ab39a054c116f1e495622ab335cfe9"
+      "sha256": "8a49e7a673bf9117e5cf90a4a116f9df8b7dae92892633607101b1230cec198a"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
-      "sha256": "da0677066ae5aee0bb48f2e29bba0c2c5c4d5c83ddc6785526e645c58c7485f7"
+      "sha256": "4cf5f7f735f52e439192e8344768db6bd44848bf2b0402b95747bbfbf423898d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -209,19 +217,19 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "b6255782abaf1437571560e2b28a6fb9d509cf8942350e9b78c33e2a50a2cb3d"
+      "sha256": "df3e66009ad55c4fb2f9d3ff835627b419c3831132d5f304f17343a2d3363c4f"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
+      "sha256": "c305faf9d79abcd5ae9402f3693fb12922694cc7e89af568af2656d98ad9f175"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
+      "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "ac8f57c2931b064e84b43da2112509a9534a26b47e8e45655a6be873c555f48a"
+      "sha256": "53fed94cf81dd7793c5013966fa12772e70dc6f774d5c3bb9e309b7dc9977c86"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -236,7 +244,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "03d8a681258219ae82ef5b53ba6365e4a93301dca43c18e0a6ac02bc07e634b7",
+  "testInventorySha256": "b151c4e0dac14deef6f979eb6a3927b131539ee17ba6024580110f1271f7c246",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -255,14 +263,14 @@
   "cleanupErrorCount": 0,
   "witness": {
     "command": [
-      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "/opt/homebrew/Cellar/node/25.9.0_3/bin/node",
       "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
       "--arm",
       "react",
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback-llp0373-declaration-reduction-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-27805"
+      "/Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-73244"
     ],
     "exitStatus": 1,
     "signal": null
@@ -274,7 +282,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "a670a61f8e0f0eaca3d8045e30ce547f3e38e81fd564c0f88e59e4a5f1d3fe85"
+      "sha256": "ce6be81c9611602c98ebacd53edd59deb94af22911bc65389eba3483254da6bd"
     },
     {
       "path": "demos/_kit/harness.mjs",

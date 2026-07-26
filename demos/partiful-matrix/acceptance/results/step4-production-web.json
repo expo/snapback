@@ -2,45 +2,45 @@
   "schemaVersion": "partitime.step4-production-web.v2",
   "claimId": "STEP4.PRODUCTION_WEB",
   "auditCompleted": true,
-  "ok": false,
-  "claimSatisfied": false,
-  "outcome": "red",
+  "ok": true,
+  "claimSatisfied": true,
+  "outcome": "pass",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-22T11:56:57.855Z",
+  "recordedAt": "2026-07-26T20:08:54.879Z",
   "repository": {
-    "snapbackRevision": "8bdede4b93a9048d56f17180f1a5906d9adec822",
-    "exactRevision": "fb9d484cfd189973dfb32bf61dfcceac0f7e9b2a"
+    "snapbackRevision": "12b5953eb70177006b6f1c21001b1a058ce5e89e",
+    "exactRevision": "fcfb89c9f9dedbecdb01aeb91137dee2e4c964b1"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
     },
     "step0WebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+      "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
     },
     "productionBrowserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-      "sha256": "cf87f8db9c5fb93e2274d67baf43f61bf4deea626a49877a86379a7c15edd299"
+      "sha256": "51f52f2f17ef7d6a512c93065f3435899be6aaaa0e27691ab3f57f16172f9927"
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "sha256": "b1c6c480d4c67058f7b21236d8ef5e61fda637aa42273e7884e7a0ef3661c294"
+      "sha256": "b900a4628d7e3a427ae14c4520afc0282dcc5167909d75514a966fa43464dd5a"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-      "sha256": "2358e86ad6c07911f47e15ab5d94b1815596e344a86dc4fbce5b7084a08285a5"
+      "sha256": "e675085f3bdbbfd0ace1f5b40207b042b2e543a472de5bacb339d40a93c3ca95"
     },
     "exactVerifyRegistry": {
-      "path": "../exact-llp0373-budget-runtime-pruning-codex/exact-verify.json",
-      "sha256": "23a35c3048eb65cf53e787a1196c64568fa13d7b6367323887dfea544a4860f2"
+      "path": "../../../../tmp/llp0063-cont-20260726.UIj5tD/step0-exact/exact-verify.json",
+      "sha256": "7abb9e7b1a62ca4d6b07fbaceb2b784efda820d3b6df5fa4373d7383f96f7085"
     }
   },
   "summary": {
-    "passed": 11,
-    "red": 1,
+    "passed": 12,
+    "red": 0,
     "nonclaims": 0,
     "total": 12
   },
@@ -52,7 +52,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-          "sha256": "cf87f8db9c5fb93e2274d67baf43f61bf4deea626a49877a86379a7c15edd299"
+          "sha256": "51f52f2f17ef7d6a512c93065f3435899be6aaaa0e27691ab3f57f16172f9927"
         },
         "result": {
           "export": {
@@ -66,75 +66,117 @@
               {
                 "routeId": "/",
                 "path": "index.html",
-                "htmlSha256": "3fde27738b56ab9d17423d426985efed27b6888397c262b2f7d397cefc3811c5",
+                "htmlSha256": "e3ab877b1a8e21167b4ce02bfec25672c69c317bd7057c9aeefcd293013300e2",
                 "nodes": 79
               },
               {
                 "routeId": "/events/event_sunset/",
                 "path": "events/event_sunset/index.html",
-                "htmlSha256": "4b538e30715e68b6e103c98c1a921b3a3b51873537df7d9e9341adad9c0bff8b",
-                "nodes": 79
+                "htmlSha256": "5fd2eb4f69dc8f0570cc9f88fddd90ecbb58ad92b7aa40e88ea24cc6bbd61d4c",
+                "nodes": 83
               },
               {
                 "routeId": "/events/event_swim/",
                 "path": "events/event_swim/index.html",
-                "htmlSha256": "c1a2b3565d3e8538c74e0fa5bf2479d81324ab2aff0731fc26b8730e5781f01f",
-                "nodes": 80
+                "htmlSha256": "e623cd3e80a79a9979502e9de8003f307a2897d751f378724d53c06ecfe19ef9",
+                "nodes": 83
               },
               {
                 "routeId": "/events/event_ceramics/",
                 "path": "events/event_ceramics/index.html",
-                "htmlSha256": "c46d9fdd489c5d9dcf1d7cb94211db653fbc8d6132c167dce94b5842320e7321",
-                "nodes": 71
+                "htmlSha256": "432c200642bf00daed7cf8264d48d60416d2bcf7839d6113b6490c7314446a21",
+                "nodes": 73
               }
             ]
           },
           "javascript": {
-            "bytes": 749946,
-            "sha256": "0d23cfb13f8f1ee94a31249b31d6d887196ab1b995dfb055eda9c894fd0861ca"
+            "bytes": 213267,
+            "sha256": "538330675b771b3247386a5ee2347e2a6d6fda2ecb207169c7dab490ecb433d2"
           }
         },
         "staticExport": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-          "sha256": "2358e86ad6c07911f47e15ab5d94b1815596e344a86dc4fbce5b7084a08285a5"
+          "sha256": "e675085f3bdbbfd0ace1f5b40207b042b2e543a472de5bacb339d40a93c3ca95"
         },
         "pages": [
           {
             "routeId": "/",
             "path": "index.html",
-            "htmlSha256": "5210084321c6cab081d17d7a4046110d4913803ce5b190f1041c3a5335f90778",
+            "htmlSha256": "e3ab877b1a8e21167b4ce02bfec25672c69c317bd7057c9aeefcd293013300e2",
             "nodes": 79
           },
           {
             "routeId": "/events/event_sunset/",
             "path": "events/event_sunset/index.html",
-            "htmlSha256": "f234294eb18156fed4209e1820a325d93b643907f520c7c36e6661eeda6cd759",
-            "nodes": 79
+            "htmlSha256": "5fd2eb4f69dc8f0570cc9f88fddd90ecbb58ad92b7aa40e88ea24cc6bbd61d4c",
+            "nodes": 83
           },
           {
             "routeId": "/events/event_swim/",
             "path": "events/event_swim/index.html",
-            "htmlSha256": "2c47f10fc34fea689df7d58498f0b665df9e836c090927df7fad9a5bf73de305",
-            "nodes": 80
+            "htmlSha256": "e623cd3e80a79a9979502e9de8003f307a2897d751f378724d53c06ecfe19ef9",
+            "nodes": 83
           },
           {
             "routeId": "/events/event_ceramics/",
             "path": "events/event_ceramics/index.html",
-            "htmlSha256": "3750d6aa5343c1ea2a27383c728b9e118fbdbfaca5a1534e0ec65ee1d42a7a34",
-            "nodes": 71
+            "htmlSha256": "432c200642bf00daed7cf8264d48d60416d2bcf7839d6113b6490c7314446a21",
+            "nodes": 73
           }
         ],
         "javascript": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-BpkWsi7x.js",
-              "minifiedBytes": 749933,
-              "deterministicGzipBytes": 177875,
-              "sha256": "34965eca40137cff54259935fa4594e943e9cf229e45c0ca3bd61a4ef40226c3"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/artifacts-BelHPElv.js",
+              "minifiedBytes": 2133,
+              "deterministicGzipBytes": 719,
+              "sha256": "14cdd3c158edfd1fd9105a4578badfe02d0d9d89d976e39d7bcdb8409d0d3f51"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/contract-data.manifest-DGNc9jj4.js",
+              "minifiedBytes": 6889,
+              "deterministicGzipBytes": 1501,
+              "sha256": "d349de864a7a4ba6b5c610f7e245e01832f267d00b5f46db82d3b522a2553d2c"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/event-DpzuS8CQ.js",
+              "minifiedBytes": 29847,
+              "deterministicGzipBytes": 7047,
+              "sha256": "73ce8f1ea9aee72272a3a151309bc18076cd939c9844a13f476d66a2e33fd55e"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/functions.manifest-h69NjMiB.js",
+              "minifiedBytes": 7505,
+              "deterministicGzipBytes": 1585,
+              "sha256": "57ca26a6bcc86a7a44800e39061fc2e95f2c456eba7849607c90b34b66b0aa8e"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-4oMkdGX6.js",
+              "minifiedBytes": 213267,
+              "deterministicGzipBytes": 65231,
+              "sha256": "538330675b771b3247386a5ee2347e2a6d6fda2ecb207169c7dab490ecb433d2"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-DvoEcE0h.js",
+              "minifiedBytes": 143259,
+              "deterministicGzipBytes": 38379,
+              "sha256": "b4bc84345c6f01426d89b9ccf550f626195547eaa0447e480cc21e546dfa2916"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/online-surface-BDBwyVJU.js",
+              "minifiedBytes": 12342,
+              "deterministicGzipBytes": 4077,
+              "sha256": "5d29de2a5179856429d002bb7a8d88f4f0a8968b9fbfa0b27d9db0d0dcae5ed9"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/schema.manifest-BSUlegbk.js",
+              "minifiedBytes": 2106,
+              "deterministicGzipBytes": 822,
+              "sha256": "1beb169caeeb18f35d4bed074a23b0f11c4789e7d4ac8c5811fdb54bfac328a1"
             }
           ],
-          "minifiedBytes": 749933,
-          "deterministicGzipBytes": 177875
+          "minifiedBytes": 417348,
+          "deterministicGzipBytes": 119361
         }
       }
     },
@@ -145,7 +187,7 @@
       "evidence": {
         "step0Receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-          "sha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e"
+          "sha256": "470ff1ce3809b522a8ddfc78ed2fc14a5556f51194be10dd89cc2d6f91e1c9b3"
         },
         "checks": [
           "contract × snapback boots its identified cell",
@@ -162,7 +204,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-          "sha256": "cf87f8db9c5fb93e2274d67baf43f61bf4deea626a49877a86379a7c15edd299"
+          "sha256": "51f52f2f17ef7d6a512c93065f3435899be6aaaa0e27691ab3f57f16172f9927"
         },
         "servedMode": "vite-preview-over-immutable-dist",
         "checks": [
@@ -184,19 +226,19 @@
       "reasonCode": "STEP4_WEB_HISTORY_PASSED",
       "evidence": {
         "before": {
-          "identity": "290324f0-faa5-4237-a2b6-def5efdf4ddb",
+          "identity": "55e99dc9-34c6-4c65-8d11-43c1aa5a6739",
           "navigations": 1
         },
         "event": {
           "pathname": "/partitime/events/event_sunset/",
           "title": "Sunset Supper Club · Partitime",
-          "identity": "290324f0-faa5-4237-a2b6-def5efdf4ddb",
+          "identity": "55e99dc9-34c6-4c65-8d11-43c1aa5a6739",
           "navigations": 1
         },
         "after": {
           "pathname": "/partitime/",
           "title": "Partitime · plans worth leaving the chat for",
-          "identity": "290324f0-faa5-4237-a2b6-def5efdf4ddb",
+          "identity": "55e99dc9-34c6-4c65-8d11-43c1aa5a6739",
           "navigations": 1
         }
       }
@@ -207,7 +249,7 @@
       "reasonCode": "STEP4_WEB_DEEP_LINKS_PASSED",
       "evidence": {
         "noJavaScriptEvent": {
-          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1, 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
           "title": "Sunset Supper Club · Partitime",
           "description": "A long table, tiny plates, and the last warm light of the day.",
           "canonical": "https://partitime.example/partitime/events/event_sunset/",
@@ -216,15 +258,22 @@
         "basepath": {
           "pathname": "/partitime/events/event_sunset/",
           "resources": [
-            "/partitime/assets/index-LZ9VbBlI.js"
+            "/partitime/assets/index-4oMkdGX6.js",
+            "/partitime/assets/online-surface-BDBwyVJU.js",
+            "/partitime/assets/artifacts-BelHPElv.js",
+            "/partitime/assets/online-DvoEcE0h.js",
+            "/partitime/assets/contract-data.manifest-DGNc9jj4.js",
+            "/partitime/assets/schema.manifest-BSUlegbk.js",
+            "/partitime/assets/functions.manifest-h69NjMiB.js",
+            "/partitime/assets/event-DpzuS8CQ.js"
           ],
           "scripts": [
-            "/partitime/assets/index-LZ9VbBlI.js"
+            "/partitime/assets/index-4oMkdGX6.js"
           ]
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "f234294eb18156fed4209e1820a325d93b643907f520c7c36e6661eeda6cd759"
+          "sha256": "5fd2eb4f69dc8f0570cc9f88fddd90ecbb58ad92b7aa40e88ea24cc6bbd61d4c"
         }
       }
     },
@@ -234,14 +283,14 @@
       "reasonCode": "STEP4_WEB_STATIC_AUTHORITY_PASSED",
       "evidence": {
         "feed": {
-          "text": "🍊Sat, Aug 1 at 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8 at 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16 at 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →",
+          "text": "🍊Sat, Aug 1, 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8, 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16, 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →",
           "title": "Partitime · plans worth leaving the chat for",
           "canonical": "https://partitime.example/partitime/",
           "manifest": true,
           "clientBooted": false
         },
         "event": {
-          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1, 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
           "title": "Sunset Supper Club · Partitime",
           "description": "A long table, tiny plates, and the last warm light of the day.",
           "canonical": "https://partitime.example/partitime/events/event_sunset/",
@@ -249,11 +298,11 @@
         },
         "feedArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-          "sha256": "5210084321c6cab081d17d7a4046110d4913803ce5b190f1041c3a5335f90778"
+          "sha256": "e3ab877b1a8e21167b4ce02bfec25672c69c317bd7057c9aeefcd293013300e2"
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "f234294eb18156fed4209e1820a325d93b643907f520c7c36e6661eeda6cd759"
+          "sha256": "5fd2eb4f69dc8f0570cc9f88fddd90ecbb58ad92b7aa40e88ea24cc6bbd61d4c"
         }
       }
     },
@@ -272,10 +321,10 @@
                 "recreatedNodeCount": 0,
                 "hydrationMismatchCount": 0,
                 "adoptionFallbacks": [],
-                "serverHtmlHash": "fnv1a32:f823d4c5",
+                "serverHtmlHash": "fnv1a32:5eeb609c",
                 "deferredMountTasks": 0,
                 "tasksReleasedBeforeAdoption": false,
-                "firstPaintHtmlHash": "fnv1a32:f823d4c5",
+                "firstPaintHtmlHash": "fnv1a32:5eeb609c",
                 "firstPaintByteIdentical": true
               }
             },
@@ -292,15 +341,15 @@
               "releasedLiveDeliveries": 1,
               "hydrationReleased": true
             },
-            "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1, 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8, 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16, 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
             "preMountSizeClass": "expanded"
           },
           "witness": {
             "sameRoot": true,
-            "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1, 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8, 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16, 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
             "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth leaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1, 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8, 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16, 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
             "rootReplacements": 0,
-            "childListMutations": 10,
+            "childListMutations": 11,
             "result": {
               "rootId": 1347682305,
               "adoptedNodes": 79,
@@ -316,20 +365,20 @@
               "rootId": 1347686401,
               "routeId": "/events/event_sunset/",
               "serverVerification": {
-                "adoptedNodeCount": 79,
+                "adoptedNodeCount": 83,
                 "recreatedNodeCount": 0,
                 "hydrationMismatchCount": 0,
                 "adoptionFallbacks": [],
-                "serverHtmlHash": "fnv1a32:fe68c2ba",
+                "serverHtmlHash": "fnv1a32:35c0175f",
                 "deferredMountTasks": 0,
                 "tasksReleasedBeforeAdoption": false,
-                "firstPaintHtmlHash": "fnv1a32:fe68c2ba",
+                "firstPaintHtmlHash": "fnv1a32:35c0175f",
                 "firstPaintByteIdentical": true
               }
             },
             "result": {
               "rootId": 1347686401,
-              "adoptedNodes": 79,
+              "adoptedNodes": 83,
               "recreatedNodes": 0,
               "mismatches": []
             },
@@ -340,17 +389,17 @@
               "releasedLiveDeliveries": 3,
               "hydrationReleased": true
             },
-            "adoptedText": "← All plans\nCONTRACT · snapback\nEvent options\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nView all guests\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "adoptedText": "← All plans\nCONTRACT · snapback\nEvent options\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nView all guests\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
             "preMountSizeClass": "expanded"
           },
           "witness": {
             "sameRoot": true,
-            "initialText": "← All plans\nCONTRACT · snapback\nEvent options\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nView all guests\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "initialText": "← All plans\nCONTRACT · snapback\nEvent options\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nView all guests\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
             "finalText": "← All plans\nCONTRACT · snapback\nEvent options\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nView all guests\nYou're hosting this one ✦\nAda\nHosting\nEve\nMaybe\nGrace\nGoing",
             "rootReplacements": 0,
             "result": {
               "rootId": 1347686401,
-              "adoptedNodes": 79,
+              "adoptedNodes": 83,
               "recreatedNodes": 0,
               "mismatches": [],
               "mountPath": "partitime-static-document"
@@ -365,7 +414,7 @@
       "reasonCode": "STEP4_WEB_ROUTE_METADATA_PASSED",
       "evidence": {
         "staticEvent": {
-          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "text": "← All plansCONTRACT · snapbackEvent options🍊Sat, Aug 1, 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2View all guestsYou're hosting this one ✦AdaHostingGraceGoingEveMaybe",
           "title": "Sunset Supper Club · Partitime",
           "description": "A long table, tiny plates, and the last warm light of the day.",
           "canonical": "https://partitime.example/partitime/events/event_sunset/",
@@ -374,7 +423,7 @@
         "clientRoute": {
           "title": "Sunset Supper Club · Partitime",
           "description": "A long table, tiny plates, and the last warm light of the day.",
-          "canonical": "http://127.0.0.1:59779/partitime/events/event_sunset/",
+          "canonical": "http://127.0.0.1:52020/partitime/events/event_sunset/",
           "themeColor": "#f4f0e8"
         }
       }
@@ -386,10 +435,17 @@
       "evidence": {
         "pathname": "/partitime/events/event_sunset/",
         "resources": [
-          "/partitime/assets/index-LZ9VbBlI.js"
+          "/partitime/assets/index-4oMkdGX6.js",
+          "/partitime/assets/online-surface-BDBwyVJU.js",
+          "/partitime/assets/artifacts-BelHPElv.js",
+          "/partitime/assets/online-DvoEcE0h.js",
+          "/partitime/assets/contract-data.manifest-DGNc9jj4.js",
+          "/partitime/assets/schema.manifest-BSUlegbk.js",
+          "/partitime/assets/functions.manifest-h69NjMiB.js",
+          "/partitime/assets/event-DpzuS8CQ.js"
         ],
         "scripts": [
-          "/partitime/assets/index-LZ9VbBlI.js"
+          "/partitime/assets/index-4oMkdGX6.js"
         ]
       }
     },
@@ -400,28 +456,13 @@
       "evidence": {
         "before": "EveMaybe",
         "after": "EveGoing",
-        "latencyMs": 8,
+        "latencyMs": 17,
         "pollFallback": "disabled",
         "evidence": [
           {
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f898970827ca38a08d2447188168e",
-            "subscriptionId": "sub_019f898970827ca38a08d2447188168e",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 1,
-            "lastDeltaVersion": 1,
-            "correlation": {
-              "rootId": "snapback-online-surface:841e57f1-48d3-4829-b7d0-2fcf8e9cef51",
-              "bindingIds": [
-                "eventDetails"
-              ]
-            },
-            "receivedAtMs": 1784718913686,
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -430,8 +471,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f898970827ca38a08d28dad8a0166",
-            "subscriptionId": "sub_019f898970827ca38a08d28dad8a0166",
+            "bindingId": "sub_019fa00b31f17360a5f1baad5ced07c9",
+            "subscriptionId": "sub_019fa00b31f17360a5f1baad5ced07c9",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -440,12 +481,54 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:841e57f1-48d3-4829-b7d0-2fcf8e9cef51",
+              "rootId": "snapback-online-surface:2246c328-ad1b-4103-b809-6dc275dd4f83",
               "bindingIds": [
-                "guestList"
+                "eventDetails"
               ]
             },
-            "receivedAtMs": 1784718913686,
+            "receivedAtMs": 1785096516082,
+            "queryName": "eventDetails",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019fa00b31f17360a5f1bac32e1ad45a",
+            "subscriptionId": "sub_019fa00b31f17360a5f1bac32e1ad45a",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "snapback-online-surface:2246c328-ad1b-4103-b809-6dc275dd4f83",
+              "bindingIds": [
+                "eventWall"
+              ]
+            },
+            "receivedAtMs": 1785096516083,
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "kind": "connection",
+            "connection": "live",
+            "previous": "connecting",
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -454,8 +537,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f898970827ca38a08d2a57734c2cb",
-            "subscriptionId": "sub_019f898970827ca38a08d2a57734c2cb",
+            "bindingId": "sub_019fa00b31f272f2bb64584813f16346",
+            "subscriptionId": "sub_019fa00b31f272f2bb64584813f16346",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -464,13 +547,13 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:841e57f1-48d3-4829-b7d0-2fcf8e9cef51",
+              "rootId": "snapback-online-surface:2246c328-ad1b-4103-b809-6dc275dd4f83",
               "bindingIds": [
-                "eventWall"
+                "guestList"
               ]
             },
-            "receivedAtMs": 1784718913686,
-            "queryName": "eventWall",
+            "receivedAtMs": 1785096516083,
+            "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
             }
@@ -484,8 +567,8 @@
       "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
       "evidence": {
         "registry": {
-          "path": "../exact-llp0373-budget-runtime-pruning-codex/exact-verify.json",
-          "sha256": "23a35c3048eb65cf53e787a1196c64568fa13d7b6367323887dfea544a4860f2"
+          "path": "../../../../tmp/llp0063-cont-20260726.UIj5tD/step0-exact/exact-verify.json",
+          "sha256": "7abb9e7b1a62ca4d6b07fbaceb2b784efda820d3b6df5fa4373d7383f96f7085"
         },
         "checks": [
           "contract-web-host-csr",
@@ -494,7 +577,6 @@
           "web-citizenship-axe-delta",
           "web-bundle-budget",
           "web-citizenship-desktop-chrome",
-          "web-citizenship-desktop-firefox",
           "web-citizenship-ime-forms"
         ],
         "missingChecks": []
@@ -502,319 +584,817 @@
     },
     {
       "id": "residual-browser-device-ime-forms-matrix",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_CITIZENSHIP_MATRIX_MISSING_OR_RED",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_CITIZENSHIP_MATRIX_PASSED",
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "sha256": "b1c6c480d4c67058f7b21236d8ef5e61fda637aa42273e7884e7a0ef3661c294"
+          "sha256": "b900a4628d7e3a427ae14c4520afc0282dcc5167909d75514a966fa43464dd5a"
         },
-        "issues": [
-          "receipt-not-green"
-        ],
+        "issues": [],
         "rows": [
           {
-            "id": "android-chrome-current:autofill-password-manager",
-            "environment": "android-chrome-current",
+            "environment": "ios-safari-current",
+            "assertion": "ime-composition",
+            "fixture": "partitime-create-form",
+            "status": "pass",
+            "notes": "On iOS 26.5 Mobile Safari, Japanese Romaji key taps produced visibly marked かんぱい text in the native Description control; selecting 乾杯 committed once, remained visible, and was returned as the control's accessibility value.",
+            "evidence": [
+              {
+                "kind": "device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/device-receipt.json",
+                "sha256": "2782de1dd84267f10984326881808bf0258adf4e9dbce0f979548aefae726897"
+              },
+              {
+                "kind": "device-screenshot-marked-composition",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/composing.png",
+                "sha256": "02d288cd187032c36cdd9379a6c50fda0f80ecd49d5264043f228dde880aae1d"
+              },
+              {
+                "kind": "device-screenshot-committed-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/committed.png",
+                "sha256": "aa3459b02fda0d46197abc52136e4ef2e617218851b48ae00c8c34d197f20e86"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.5 (8624.2.5.10.4)"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.5 (23F77)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-2694",
+              "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+              "snapbackRevision": "0df687d1a8c0097f768fc2693458f397da100532",
+              "exactRevision": "72ea2d9782a404f75aa5f0518eef44116c864418",
+              "pollFallbackEnabled": false,
+              "markedText": "かんぱい",
+              "committedValue": "乾杯"
+            }
+          },
+          {
+            "environment": "ios-safari-current",
             "assertion": "autofill-password-manager",
-            "acceptedFixtures": [
-              "facet-form-fixture"
+            "fixture": "partitime-create-form",
+            "status": "pass",
+            "notes": "On iOS 26.5 Mobile Safari, the native keyboard accessory exposed AutoFill Contact and the synthetic My Info home-address suggestion. Selecting it populated the controlled Contract Location input with 123 Market Street and left the dialog editable.",
+            "evidence": [
+              {
+                "kind": "device-screenshot-native-autofill-suggestion",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-autofill/suggestion.png",
+                "sha256": "6da43f1c154f791e9e7e2fb3aa2c0036ca6a6640bcc9732ab8977a67b771212a"
+              },
+              {
+                "kind": "device-screenshot-controlled-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-autofill/filled.png",
+                "sha256": "9a887aa58434e84ce1488639cf71ed0a6c3b5effd0841983204068880f670708"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.5"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.5 (23F77)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-2694",
+              "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+              "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+              "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+              "pollFallbackEnabled": false,
+              "identity": "synthetic Partitime Tester vCard selected as My Info",
+              "suggestion": "home — 123 Market Street, San Francisco, CA 94105, United States",
+              "committedValue": "123 Market Street"
+            }
           },
           {
-            "id": "android-chrome-current:bfcache-restore",
-            "environment": "android-chrome-current",
-            "assertion": "bfcache-restore",
-            "acceptedFixtures": [
-              "multi-route-bfcache"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "android-chrome-current:find-on-page",
-            "environment": "android-chrome-current",
-            "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "android-chrome-current:focus-trap-restore",
-            "environment": "android-chrome-current",
+            "environment": "ios-safari-current",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "A clean iOS 26.5 safaridriver run used keyboard Tab to reach the opener, observed focus move to create-close, verified reverse and forward wrapping inside the dialog, then Escape closed the scope and restored focus to new-event.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-webdriver/device-receipt.json",
+                "sha256": "4ea11d456cca91de3de51c320c4cccddb87d7fd4ab979a69fc49a76d1536b2e5",
+                "result": "contract × snapback traps and restores focus in ios-safari-current"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.5"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.5 (23F77)"
+            },
+            "channel": "current",
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "tabPath": [
+                null,
+                "theme-toggle",
+                "new-event"
+              ],
+              "fixtureActivation": "DOM click on the WebDriver-keyboard-focused opener"
+            }
           },
           {
-            "id": "android-chrome-current:ime-composition",
+            "environment": "ios-safari-current",
+            "assertion": "bfcache-restore",
+            "fixture": "partitime-feed-event-bfcache",
+            "status": "pass",
+            "notes": "A clean iOS 26.5 safaridriver run retained an unsubmitted Contract wall draft across event → about:blank → browser back, observed pageshow.persisted=true, edited the restored draft, and returned to the live feed.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-webdriver/device-receipt.json",
+                "sha256": "4ea11d456cca91de3de51c320c4cccddb87d7fd4ab979a69fc49a76d1536b2e5",
+                "result": "contract × snapback restores authored state from bfcache in ios-safari-current"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.5"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.5 (23F77)"
+            },
+            "channel": "current",
+            "details": {
+              "route": "feed -> event -> about:blank -> browser back -> feed",
+              "pageshowPersisted": true,
+              "retainedDraft": "bfcache-current-draft",
+              "interactiveAfterRestore": true
+            }
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "find-on-page",
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "iOS 26.5 Safari's native Page Menu Find UI found Sunset Supper Club with a 1 of 1 result and visibly highlighted the event copy. After dismissing Find, the event opened normally.",
+            "evidence": [
+              {
+                "kind": "device-screenshot-native-find-result",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-find/result.png",
+                "sha256": "bf40e802defbebeabfd89e6b0e53370ccb4797b51e5400f152143f51ca6f49a6"
+              },
+              {
+                "kind": "device-screenshot-usable-after-find",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-find/usable-after-dismiss.png",
+                "sha256": "974969ec0f6c982f92bead59b7b57b02e9e331b42de8d536515d4ebef95762ad"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.5"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.5 (23F77)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-2694",
+              "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+              "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+              "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+              "pollFallbackEnabled": false,
+              "query": "Sunset Supper Club",
+              "resultCount": "1 of 1",
+              "usableAfterFind": true
+            }
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "ime-composition",
+            "fixture": "partitime-create-form",
+            "status": "pass",
+            "notes": "On iOS 26.4 Mobile Safari, real Japanese Romaji key taps produced visibly marked かんぱい in the native Event title control with native candidates including 乾杯; Return committed かんぱい once and left it visible.",
+            "evidence": [
+              {
+                "kind": "device-screenshot-marked-composition",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-ime/composing.png",
+                "sha256": "eb6b03c15135737c93169d3f4f8f247d70b60dec07b8abac8d79fb7629bdfc99"
+              },
+              {
+                "kind": "device-screenshot-committed-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-ime/committed.png",
+                "sha256": "0448f1db6d20d9c72f34e16b3f62b3fe37fb104fe51f942b7f73c3c41ccf26c0"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.4"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.4 (23E244)"
+            },
+            "channel": "current-1",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-26.4",
+              "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+              "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+              "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+              "pollFallbackEnabled": false,
+              "keyboard": "Japanese Romaji",
+              "markedText": "かんぱい",
+              "nativeCandidate": "乾杯",
+              "committedValue": "かんぱい"
+            }
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "autofill-password-manager",
+            "fixture": "partitime-create-form",
+            "status": "pass",
+            "notes": "On iOS 26.4 Mobile Safari, the native keyboard accessory exposed AutoFill Contact and the synthetic My Info home-address suggestion. Selecting it populated the controlled Contract Location input with 123 Market Street and kept the dialog intact.",
+            "evidence": [
+              {
+                "kind": "device-screenshot-native-autofill-suggestion",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-autofill/suggestion.png",
+                "sha256": "65108772f930497408b84122ab41b91d0bfc4deda5945433355759442e69a6b7"
+              },
+              {
+                "kind": "device-screenshot-controlled-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-autofill/filled.png",
+                "sha256": "9202908e2edbb2c504c875324a70c9a9eb9b9b8e290c8be9e0d50f8587669297"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.4"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.4 (23E244)"
+            },
+            "channel": "current-1",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-26.4",
+              "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+              "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+              "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+              "pollFallbackEnabled": false,
+              "identity": "synthetic Partitime Tester vCard selected as My Info",
+              "suggestion": "home — 123 Market Street, San Francisco, CA 94105, United States",
+              "committedValue": "123 Market Street"
+            }
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "focus-trap-restore",
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "A clean iOS 26.4 safaridriver run used keyboard Tab to reach the opener, observed focus move to create-close, verified reverse and forward wrapping inside the dialog, then Escape closed the scope and restored focus to new-event.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-webdriver/device-receipt.json",
+                "sha256": "d3981473fcf5f487177ceb6e2e3913d4e70a032eb54e6506df0b7ada9f9161ad",
+                "result": "contract × snapback traps and restores focus in ios-safari-current-1"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.4"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.4 (23E244)"
+            },
+            "channel": "current-1",
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "tabPath": [
+                null,
+                "theme-toggle",
+                "new-event"
+              ],
+              "fixtureActivation": "DOM click on the WebDriver-keyboard-focused opener"
+            }
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "bfcache-restore",
+            "fixture": "partitime-feed-event-bfcache",
+            "status": "pass",
+            "notes": "A clean iOS 26.4 safaridriver run retained an unsubmitted Contract wall draft across event → about:blank → browser back, observed pageshow.persisted=true, edited the restored draft, and returned to the live feed.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-webdriver/device-receipt.json",
+                "sha256": "d3981473fcf5f487177ceb6e2e3913d4e70a032eb54e6506df0b7ada9f9161ad",
+                "result": "contract × snapback restores authored state from bfcache in ios-safari-current-1"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.4"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.4 (23E244)"
+            },
+            "channel": "current-1",
+            "details": {
+              "route": "feed -> event -> about:blank -> browser back -> feed",
+              "pageshowPersisted": true,
+              "retainedDraft": "bfcache-current-1-draft",
+              "interactiveAfterRestore": true
+            }
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "find-on-page",
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "iOS 26.4 Safari's native Page Menu Find UI found Sunset Supper Club with a 1 of 1 result and visibly highlighted the event copy. After dismissing Find, the event opened normally.",
+            "evidence": [
+              {
+                "kind": "device-screenshot-native-find-result",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-find/result.png",
+                "sha256": "6cdf64d3796805f2af4df7a43b2a97d997912add26a2624c3debefc6c8c69017"
+              },
+              {
+                "kind": "device-screenshot-usable-after-find",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-find/usable-after-dismiss.png",
+                "sha256": "a4785f891c89d197e407b73cf97b04bd83d8ddbda26c705969717cc4df853a0b"
+              }
+            ],
+            "browser": {
+              "name": "Mobile Safari",
+              "version": "26.4"
+            },
+            "os": {
+              "name": "iOS Simulator",
+              "version": "26.4 (23E244)"
+            },
+            "channel": "current-1",
+            "details": {
+              "device": "Codex-Partitime-iOS-Safari-26.4",
+              "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+              "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+              "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+              "pollFallbackEnabled": false,
+              "query": "Sunset Supper Club",
+              "resultCount": "1 of 1",
+              "usableAfterFind": true
+            }
+          },
+          {
             "environment": "android-chrome-current",
             "assertion": "ime-composition",
-            "acceptedFixtures": [
-              "caltrain-contract-search",
-              "facet-form-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "desktop-chrome:find-on-page",
-            "environment": "desktop-chrome",
-            "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
-            ],
+            "fixture": "partitime-create-form",
             "status": "pass",
-            "issues": [],
-            "fixture": "caltrain-contract-search",
-            "notes": "Chrome window.find located visible Caltrain Contract text and selected Mountain View in the real DOM.",
+            "notes": "On a physical Android 16 device in Chrome 150 Stable, real Japanese QWERTY Gboard key taps produced marked かんぱい with only composing input events. Selecting the native 乾杯 candidate emitted one compositionend and left 乾杯 visible in the controlled Contract title field.",
             "evidence": [
               {
-                "kind": "chrome-cdp-log",
-                "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/find-on-page",
-                "artifact": {
-                  "repository": "exact",
-                  "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
-                  "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
-                }
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+                "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+                "result": "real Gboard composition commits exactly once in Android Chrome current"
+              },
+              {
+                "kind": "device-screenshot-marked-composition",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/ime-composing.png",
+                "sha256": "a2b1c4f703a713fd9c541e62814edb4e58e948b2dbfb34e19e7aed805409f8b1"
+              },
+              {
+                "kind": "device-screenshot-committed-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/ime-committed.png",
+                "sha256": "20faf27ab041e8c8a8b08745672aba718466ef9ab4aec4c6e47bb66c2d57b0f9"
               }
-            ]
+            ],
+            "browser": {
+              "name": "Chrome",
+              "version": "150.0.7871.186"
+            },
+            "os": {
+              "name": "Android",
+              "version": "16 (SDK 36)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Nothing A069P (FroggerPro)",
+              "deviceSerial": "00339362A001843",
+              "snapbackRevision": "e3633c9617481b52cef93de941700938313a39c5",
+              "exactRevision": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
+              "pollFallbackEnabled": false,
+              "ime": "Gboard 17.1.5.887912998-release-arm64-v8a, Japanese QWERTY",
+              "markedText": "かんぱい",
+              "committedValue": "乾杯",
+              "compositionStarts": 1,
+              "compositionEnds": 1,
+              "nonComposingInputEventsBeforeCompositionEnd": 0
+            }
           },
           {
-            "id": "desktop-chrome:focus-trap-restore",
-            "environment": "desktop-chrome",
+            "environment": "android-chrome-current",
+            "assertion": "autofill-password-manager",
+            "fixture": "partitime-create-form",
+            "status": "pass",
+            "notes": "Chrome's native address suggestion appeared above Gboard for the Contract street-address control. Selecting the synthetic Partitime Tester profile populated 123 Market Street through one input and one change event while the dialog stayed open and editable.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+                "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+                "result": "native Chrome address autofill preserves the controlled Contract dialog"
+              },
+              {
+                "kind": "device-screenshot-native-autofill-suggestion",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/autofill-suggestion.png",
+                "sha256": "24823648b29390dc81eed8b5e6b383e044e4ee0daae85a7ead2e021871b72f39"
+              },
+              {
+                "kind": "device-screenshot-controlled-value",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/autofill-filled.png",
+                "sha256": "4e16010eba6464bf85e31cdcd271a845896ac9e73821cf8b66131698ce87a64c"
+              }
+            ],
+            "browser": {
+              "name": "Chrome",
+              "version": "150.0.7871.186"
+            },
+            "os": {
+              "name": "Android",
+              "version": "16 (SDK 36)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Nothing A069P (FroggerPro)",
+              "deviceSerial": "00339362A001843",
+              "snapbackRevision": "e3633c9617481b52cef93de941700938313a39c5",
+              "exactRevision": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
+              "pollFallbackEnabled": false,
+              "autofillService": "com.google.android.gms/.autofill.service.AutofillService",
+              "identity": "synthetic local Chrome profile Partitime Tester",
+              "suggestion": "123 Market Street",
+              "committedValue": "123 Market Street",
+              "dialogRemainedOpen": true
+            }
+          },
+          {
+            "environment": "android-chrome-current",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
-            ],
+            "fixture": "partitime-create-dialog",
             "status": "pass",
-            "issues": [],
-            "fixture": "facet-overlay-fixture",
-            "notes": "Chrome opened the Facet dialog, retained focus inside the dialog on Tab, dismissed with Escape, and restored focus to open-dialog.",
+            "notes": "On physical Android Chrome, Android hardware Enter opened the keyboard-focused dialog opener, Shift-Tab wrapped from create-close to create-submit, Tab wrapped forward to create-close, and hardware Escape closed the scope and restored new-event.",
             "evidence": [
               {
-                "kind": "chrome-cdp-log",
-                "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/focus-trap-restore",
-                "artifact": {
-                  "repository": "exact",
-                  "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
-                  "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
-                }
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+                "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+                "result": "physical Android hardware key events trap and restore focus"
+              },
+              {
+                "kind": "device-screenshot-restored-feed",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/focus-restored.png",
+                "sha256": "a0eeffd036f09c539763e0110a07c6cfc71aa9213ea080f69ba8733606accb31"
               }
-            ]
+            ],
+            "browser": {
+              "name": "Chrome",
+              "version": "150.0.7871.186"
+            },
+            "os": {
+              "name": "Android",
+              "version": "16 (SDK 36)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Nothing A069P (FroggerPro)",
+              "deviceSerial": "00339362A001843",
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "input": "ADB-delivered Android hardware Enter, Shift-Tab, Tab, and Escape"
+            }
           },
           {
-            "id": "desktop-firefox:find-on-page",
-            "environment": "desktop-firefox",
+            "environment": "android-chrome-current",
+            "assertion": "bfcache-restore",
+            "fixture": "partitime-feed-event-bfcache",
+            "status": "pass",
+            "notes": "Physical Android Chrome retained an unsubmitted Contract wall draft across event → about:blank → Android hardware Back, emitted pageshow.persisted=true, accepted a further edit, and returned to the live feed.",
+            "evidence": [
+              {
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+                "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+                "result": "physical Android Chrome restores authored state from bfcache"
+              },
+              {
+                "kind": "device-screenshot-interactive-after-restore",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/bfcache-interactive.png",
+                "sha256": "915f05779d506fead0066718d9d5223a457cece3c121b2f83954eb53e527925e"
+              }
+            ],
+            "browser": {
+              "name": "Chrome",
+              "version": "150.0.7871.186"
+            },
+            "os": {
+              "name": "Android",
+              "version": "16 (SDK 36)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Nothing A069P (FroggerPro)",
+              "deviceSerial": "00339362A001843",
+              "route": "feed -> event -> about:blank -> Android hardware Back -> feed",
+              "pageshowPersisted": true,
+              "retainedDraft": "bfcache-android-current-draft",
+              "editedAfterRestore": "bfcache-android-current-draft!",
+              "interactiveAfterRestore": true
+            }
+          },
+          {
+            "environment": "android-chrome-current",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
-            ],
+            "fixture": "partitime-visible-event-copy",
             "status": "pass",
-            "issues": [],
-            "fixture": "caltrain-contract-search",
-            "notes": "Firefox located and selected visible Caltrain Contract text through its find implementation.",
+            "notes": "Chrome's native Find in page toolbar found Sunset Supper Club with Result 1 of 1 and highlighted the visible event. After closing the native toolbar, a physical tap opened the event normally.",
             "evidence": [
               {
-                "kind": "firefox-webdriver-log",
-                "ref": "docs/reports/web-citizenship-desktop-firefox-evidence.json#results/desktop-firefox/find-on-page",
-                "artifact": {
-                  "repository": "exact",
-                  "path": "docs/reports/web-citizenship-desktop-firefox-evidence.json",
-                  "sha256": "f0591b691c77697f95875a612ffc88a4e005062bb806410a4f8d2832974d4e4c"
-                }
+                "kind": "machine-device-receipt",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+                "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+                "result": "native Chrome Find reports 1/1 and leaves the event usable"
+              },
+              {
+                "kind": "device-screenshot-native-find-result",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/find-result.png",
+                "sha256": "95ab0e52957e98ad5ae182a70ae4c9348fd4b46579bd63778a86983b085319d1"
+              },
+              {
+                "kind": "device-screenshot-usable-after-find",
+                "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/find-usable-after.png",
+                "sha256": "f9a33db076dc1f315b1794dab40ddef5962dd901e11c32693241995c5ebe0332"
               }
-            ]
+            ],
+            "browser": {
+              "name": "Chrome",
+              "version": "150.0.7871.186"
+            },
+            "os": {
+              "name": "Android",
+              "version": "16 (SDK 36)"
+            },
+            "channel": "current",
+            "details": {
+              "device": "Nothing A069P (FroggerPro)",
+              "deviceSerial": "00339362A001843",
+              "query": "Sunset Supper Club",
+              "resultCount": "1/1",
+              "resultAccessibility": "Result 1 of 1",
+              "usableAfterFind": true,
+              "eventUrl": "http://127.0.0.1:44103/partitime/events/event_sunset/?user=eve"
+            }
           },
           {
-            "id": "desktop-firefox:focus-trap-restore",
-            "environment": "desktop-firefox",
+            "environment": "desktop-safari",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
-            ],
+            "fixture": "partitime-create-dialog",
             "status": "pass",
-            "issues": [],
-            "fixture": "facet-overlay-fixture",
-            "notes": "Firefox retained keyboard focus inside the dialog and restored it to the trigger after Escape.",
+            "notes": "Fresh Safari WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
             "evidence": [
               {
-                "kind": "firefox-webdriver-log",
-                "ref": "docs/reports/web-citizenship-desktop-firefox-evidence.json#results/desktop-firefox/focus-trap-restore",
-                "artifact": {
-                  "repository": "exact",
-                  "path": "docs/reports/web-citizenship-desktop-firefox-evidence.json",
-                  "sha256": "f0591b691c77697f95875a612ffc88a4e005062bb806410a4f8d2832974d4e4c"
-                }
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+                "sha256": "0f6c5b70597ce408637965c94dc706bb3396282eb7f736e312380895ad70359a",
+                "result": "contract × snapback traps and restores focus in desktop safari"
               }
-            ]
+            ],
+            "browser": {
+              "name": "Safari",
+              "version": "26.5.2"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-event-submit",
+              "forwardWrapped": "create-close",
+              "restored": "create-event",
+              "input": "WebDriver key actions"
+            }
           },
           {
-            "id": "desktop-safari:find-on-page",
             "environment": "desktop-safari",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Safari run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+                "sha256": "0f6c5b70597ce408637965c94dc706bb3396282eb7f736e312380895ad70359a",
+                "result": "contract × snapback exposes visible content to desktop safari find-on-page"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Safari",
+              "version": "26.5.2"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "selection": "Sunset Supper Club",
+              "anchor": "AXButton:View Sunset Supper Club",
+              "nativeFind": {
+                "present": true,
+                "value": "Sunset Supper Club",
+                "status": "1 match",
+                "notFound": false
+              },
+              "usableAfterFind": true,
+              "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
+            }
           },
           {
-            "id": "desktop-safari:focus-trap-restore",
-            "environment": "desktop-safari",
+            "environment": "desktop-chrome",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run trapped focus inside the create-event dialog and restored it to the trigger after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+                "sha256": "22be671f7c4653ef2c696da4fdf209102c266dca5bbb36387193601ba6ad5ece",
+                "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.186"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "event-title-error",
+                "locationDescribedBy": "event-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-event-submit",
+                "count": 7
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "create-event"
+              }
+            }
           },
           {
-            "id": "ios-safari-current-1:autofill-password-manager",
-            "environment": "ios-safari-current-1",
-            "assertion": "autofill-password-manager",
-            "acceptedFixtures": [
-              "facet-form-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current-1:bfcache-restore",
-            "environment": "ios-safari-current-1",
-            "assertion": "bfcache-restore",
-            "acceptedFixtures": [
-              "multi-route-bfcache"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current-1:find-on-page",
-            "environment": "ios-safari-current-1",
+            "environment": "desktop-chrome",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run selected visible canonical event text with browser find and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
+                "sha256": "44661ceb834b7517f7aed35966cc5d6bcb0db07ba93267b4890fe5c904fdd0dd",
+                "result": "contract × snapback exposes visible content to browser find-on-page"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.186"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "matched": true,
+              "selection": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "usableAfterFind": true
+            }
           },
           {
-            "id": "ios-safari-current-1:focus-trap-restore",
-            "environment": "ios-safari-current-1",
+            "environment": "desktop-firefox",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "fc4288bef969430c5d831b672d7e2298787f4e849d5378cb04015a72afaa8990",
+                "result": "contract × snapback traps and restores focus in desktop firefox"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-event-submit",
+              "forwardWrapped": "create-close",
+              "restored": "create-event",
+              "input": "WebDriver key actions"
+            }
           },
           {
-            "id": "ios-safari-current-1:ime-composition",
-            "environment": "ios-safari-current-1",
-            "assertion": "ime-composition",
-            "acceptedFixtures": [
-              "caltrain-contract-search",
-              "facet-form-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current:autofill-password-manager",
-            "environment": "ios-safari-current",
-            "assertion": "autofill-password-manager",
-            "acceptedFixtures": [
-              "facet-form-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current:bfcache-restore",
-            "environment": "ios-safari-current",
-            "assertion": "bfcache-restore",
-            "acceptedFixtures": [
-              "multi-route-bfcache"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current:find-on-page",
-            "environment": "ios-safari-current",
+            "environment": "desktop-firefox",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "caltrain-contract-search"
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "fc4288bef969430c5d831b672d7e2298787f4e849d5378cb04015a72afaa8990",
+                "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
+              }
             ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current:focus-trap-restore",
-            "environment": "ios-safari-current",
-            "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "facet-overlay-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
-          },
-          {
-            "id": "ios-safari-current:ime-composition",
-            "environment": "ios-safari-current",
-            "assertion": "ime-composition",
-            "acceptedFixtures": [
-              "caltrain-contract-search",
-              "facet-form-fixture"
-            ],
-            "status": "red",
-            "issues": [
-              "evidence-missing"
-            ]
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "selection": "Sunset Supper Club",
+              "nativeFind": {
+                "hidden": false,
+                "present": true,
+                "status": "",
+                "value": "Sunset Supper Club"
+              },
+              "usableAfterFind": true,
+              "input": "Firefox native FindBar via privileged WebDriver"
+            }
           }
         ]
       }
     }
   ],
-  "conclusion": "Partitime passes the immutable production-web, hydration, routing, metadata, and push gates; the residual citizenship matrix remains red."
+  "conclusion": "Partitime passes the immutable production-web, hydration, routing, metadata, push, and residual citizenship gates."
 }

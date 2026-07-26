@@ -1,0 +1,26 @@
+{
+  "name": "snapback-competitive-checkpoint-react-expo",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "prepare:runtime": "node scripts/bundle-runtime.mjs",
+    "start": "expo start",
+    "web": "expo start --web",
+    "ios": "expo start --ios",
+    "typecheck": "bun run prepare:runtime && tsc --noEmit"
+  },
+  "dependencies": {
+    "expo": "~57.0.7",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "esbuild": "^0.28.1",
+    "typescript": "~6.0.3"
+  }
+}

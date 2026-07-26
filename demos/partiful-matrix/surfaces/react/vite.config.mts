@@ -8,6 +8,7 @@ import { loadLocalSecrets } from '../../backends/gateway/secrets.mjs';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
+const memoryEntry = process.env.PARTITIME_MEMORY_ENTRY === '1';
 // Browser-safe by design: only the publishable key may reach a bundle.
 const localSecrets = loadLocalSecrets(resolve(root, '..', '..', '..', '..'));
 const rawConvexUrl = process.env.CONVEX_URL ?? localSecrets.CONVEX_URL ?? localSecrets.CONVEX_DEPLOY_KEY ?? '';
@@ -42,5 +43,10 @@ export default defineConfig(({ mode }) => ({
   // production performance instrument exercises built assets through Vite's
   // preview server while retaining the same backend/proxy boundary as dev.
   preview: { host: '127.0.0.1', proxy },
+  ...(memoryEntry ? {
+    build: {
+      rollupOptions: { input: resolve(root, 'memory.html') },
+    },
+  } : {}),
   root,
 }));

@@ -7,9 +7,12 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "979599bdca39f911a8eb90acbd7a65ce7e8fe7b019df521c482348e0a10b6c19",
+  "inputsHash": "36738131457f873177a7256304e55ee0479216c7521fd2a11f4725012c5c040f",
   "portabilityFlags": [],
-  "schemaHash": "sha256:04453498e78b891b",
+  "requiredCapabilities": [
+    "relational_query_v1"
+  ],
+  "schemaHash": "sha256:bdcfcd9c4e2f65a4",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -185,6 +188,11 @@
           "field_type": "String",
           "name": "displayName",
           "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "provider",
+          "optional": true
         }
       ],
       "indexes": [

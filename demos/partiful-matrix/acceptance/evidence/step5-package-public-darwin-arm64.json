@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "snapback.package-cold-install.v1",
+  "ok": true,
+  "claimTreatment": "checkpoint",
+  "claimSatisfied": false,
+  "platformClaimSatisfied": true,
+  "sourceRevision": "ca92d02943e72c2ced7861a0cff54b8821878d48",
+  "sourceDirty": false,
+  "publicationMode": "publish",
+  "installSource": "public",
+  "registry": "https://registry.npmjs.org",
+  "scopePreset": "ccheever",
+  "version": "0.1.0",
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "osRelease": "24.6.0",
+    "nodeVersion": "v24.18.0",
+    "runtimePackage": "@snapback/runtime-darwin-arm64",
+    "runnerEnvironment": "github-hosted",
+    "separatelyProvisionedCleanMachine": true,
+    "githubRunId": "30216614778",
+    "githubRunAttempt": "1",
+    "githubRepository": "ccheever/snapback",
+    "githubWorkflowSha": "d20c0e484d7b5f660103d299d3f1d6b9230922bc"
+  },
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.0.tgz",
+      "sha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
+      "registrySha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc"
+    },
+    {
+      "sourceName": "@snapback/runtime-linux-x64",
+      "publishedName": "@ccheever/snapback-runtime-linux-x64",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-runtime-linux-x64-0.1.0.tgz",
+      "sha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
+      "registrySha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "publishedName": "@ccheever/snapback-contract",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-contract-0.1.0.tgz",
+      "sha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
+      "registrySha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "publishedName": "@ccheever/snapback-client",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-client-0.1.0.tgz",
+      "sha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
+      "registrySha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "publishedName": "@ccheever/snapback-codegen",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-codegen-0.1.0.tgz",
+      "sha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
+      "registrySha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "publishedName": "@ccheever/snapback-react",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-react-0.1.0.tgz",
+      "sha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
+      "registrySha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "publishedName": "@ccheever/snapback-app-cli",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-app-cli-0.1.0.tgz",
+      "sha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
+      "registrySha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "publishedName": "@ccheever/snapback-cli",
+      "version": "0.1.0",
+      "tarball": "ccheever-snapback-cli-0.1.0.tgz",
+      "sha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
+      "registrySha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca"
+    }
+  ],
+  "deployBuild": {
+    "releaseId": "sha256:d511a2590df61e053ef8a96e4faca4166733951fd82a7c55cfb94e0cd76d06de",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "activationEligible": false,
+    "componentCount": 20,
+    "gapCount": 23
+  },
+  "checks": {
+    "materializedTarballInstall": true,
+    "stagedRegistryAliasResolution": false,
+    "publicRegistryAliasResolution": true,
+    "publicRegistryTarballDigestMatch": true,
+    "registryTarballCount": 8,
+    "noSiblingSourceCheckout": true,
+    "partitimeBackendBuilt": true,
+    "localCodegenOffline": true,
+    "remoteCodegenOffline": true,
+    "bundledSchemasAndCorpus": true,
+    "repositoryRelativePublicationPaths": true,
+    "packagedCliIntrospection": true,
+    "packagedRuntimeDoctor": true,
+    "packagedScaffoldAndOfflineGenerate": true,
+    "packagedDeployBuildAndVerify": true,
+    "packagedManagedDevReadyAttachWatchAndStop": true,
+    "browserAdapterBundle": true,
+    "resolvedDependencyCount": 9,
+    "browserBundleBytes": 484052
+  },
+  "nonclaims": [
+    {
+      "id": "other-runtime-platforms-not-executed",
+      "reason": "This receipt launches darwin-arm64; every other retained runtime package requires its own clean machine proof."
+    }
+  ]
+}

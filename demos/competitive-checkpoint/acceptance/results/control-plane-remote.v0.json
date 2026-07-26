@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.control-plane-remote.v0",
+  "authority": "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+  "claim": "first concrete-adapter control-plane operations against the live provider: observation read-back, fail-closed negatives, remote-evidence control logs, platform interruption/resume. NOT the LLP 0072 acceptance corpus: no lifecycle train, release manifest, backup/restore, or activation evidence is claimed.",
+  "target": {
+    "provider": "fly-machines",
+    "app": "snapback-drill",
+    "machine": "849764f2e7dd58",
+    "region": "sjc",
+    "publicOrigin": "https://snapback-drill.fly.dev",
+    "adapterKind": "singleInstanceContainerVm",
+    "driverSha256": "sha256:b4893a21bb96a2f00a931dbc487e27908076a388701cf66f5704e452e1f0b10e",
+    "credentialCustody": "macOS keychain item snapback-fly-drill/drill (operator-staged; value never enters the repository or this receipt)"
+  },
+  "ok": true,
+  "checks": [
+    {
+      "name": "live provider read-back through the registered adapter (doctor + inspect)",
+      "ok": true,
+      "details": {
+        "state": "degraded",
+        "resourceId": "849764f2e7dd58",
+        "providerFactsSha256": "sha256:5b5c31fcedddc85def58e07a2cef5fe99cbefaf0b52ff81908aa5e047a81374a",
+        "capabilityGaps": [
+          "control-plane.release-manifest",
+          "control-plane.lifecycle-train",
+          "control-plane.state-store",
+          "control-plane.activation-history"
+        ],
+        "diagnostics": [
+          {
+            "code": "SNAPBACK_ADAPTER_ORIGIN_TLS_DEGRADED",
+            "severity": "warning",
+            "message": "public origin TLS probe failed: ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR"
+          }
+        ]
+      }
+    },
+    {
+      "name": "wrong-account descriptor refuses on live read-back",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_TARGET_IDENTITY_MISMATCH"
+      }
+    },
+    {
+      "name": "missing credential fails closed (no observation minted)",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_ADAPTER_REJECTED"
+      }
+    },
+    {
+      "name": "tampered driver bytes refuse at registration, before any provider call",
+      "ok": true,
+      "details": {
+        "code": "SNAPBACK_ADAPTER_DRIVER_TAMPERED"
+      }
+    },
+    {
+      "name": "control logs with remote evidence (verified provider attestation, read-back checked)",
+      "ok": true,
+      "details": {
+        "entryCount": 3,
+        "attestation": {
+          "uri": "https://api.machines.dev/v1/apps/snapback-drill/machines/849764f2e7dd58/events",
+          "sha256": "sha256:2b26f090a9cbf75cf978b2a255631d13670908b9caed838711ff0977a38e2cdd",
+          "bytes": 353
+        },
+        "retentionClass": "fly-platform-machine-events",
+        "deliveryLatencyMs": 125
+      }
+    },
+    {
+      "name": "platform interruption/resume observed through the adapter (stop → inactive → start → resumed, event pair in provider log)",
+      "ok": true,
+      "details": {
+        "stoppedState": "inactive",
+        "resumedState": "degraded",
+        "eventCodes": [
+          "fly-machine-start",
+          "fly-machine-exit",
+          "fly-machine-stop",
+          "fly-machine-launch"
+        ]
+      }
+    },
+    {
+      "name": "origin TLS posture is classified structurally (degraded on TLS failure, active when healthy)",
+      "ok": true,
+      "details": {
+        "state": "degraded",
+        "tlsDiagnostic": {
+          "code": "SNAPBACK_ADAPTER_ORIGIN_TLS_DEGRADED",
+          "severity": "warning",
+          "message": "public origin TLS probe failed: ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR"
+        }
+      }
+    }
+  ],
+  "generatedAt": "2026-07-26T21:09:41.622Z"
+}

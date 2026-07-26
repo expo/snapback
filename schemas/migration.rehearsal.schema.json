@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "MigrationRehearsalBindingV1": {
+      "additionalProperties": false,
+      "description": "Mint a fresh operation id. One plan may execute as different operations\nonly through separate approvals; the id is never derived from the plan\ndigest.\nThe control-plane-authorized rehearsal binding (LLP 0081 §7): the\nsource backup identity, the isolated restore-derived target, the\nrestore epoch, and the matching target profile. On the local profile\nthe binding is an operator record; hosted custody belongs to LLP 0072.",
+      "properties": {
+        "isolatedDatabaseId": {
+          "description": "The restore-derived database identity the rehearsal may execute\nagainst — and the only one.",
+          "type": "string"
+        },
+        "restoreEpochMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sourceBackupIdentity": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sourceBackupIdentity",
+        "isolatedDatabaseId",
+        "restoreEpochMs",
+        "targetProfileId"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.rehearsal.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`MigrationRehearsalPlanV1` (LLP 0081 §7): not the production plan with\nits target silently changed — the digest binds the UNCHANGED production\nplan digest plus the rehearsal binding, the rehearsal executes only\nagainst the restore-derived target, its journal and receipt are marked\nrehearsal, and it can never satisfy or replay as production apply.",
+  "properties": {
+    "binding": {
+      "$ref": "#/$defs/MigrationRehearsalBindingV1"
+    },
+    "productionPlanDigest": {
+      "type": "string"
+    },
+    "rehearsalDigest": {
+      "description": "SHA-256 (bare hex) over `snapback:migration-rehearsal:v1`, one\nnewline, and the JCS bytes of {schemaVersion, productionPlanDigest,\nbinding} — the same domain-separated preimage rule as the plan.",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "productionPlanDigest",
+    "binding",
+    "rehearsalDigest"
+  ],
+  "title": "MigrationRehearsalPlanV1",
+  "type": "object"
+}

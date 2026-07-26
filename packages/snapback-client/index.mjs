@@ -2882,7 +2882,7 @@ export class SnapbackClient {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
     }
-    const responseSenderNonce = res.headers.get('dpop-nonce');
+    const responseSenderNonce = res.headers?.get?.('dpop-nonce') ?? null;
     if (responseSenderNonce !== null && !isCanonicalSenderNonce(responseSenderNonce)) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       const error = new Error('SNAPBACK_AUTH_SENDER_PROOF_INVALID: response nonce is invalid');
@@ -3854,10 +3854,16 @@ export class SnapbackClient {
   // envelopes behind it, including a resync_required sentinel — the
   // ENG-22478 fix-G principle applied to delivery), and a payload that
   // fails to decode is surfaced as a SNAPBACK_ENVELOPE_DECODE_FAILED
-  // diagnostic in `decodeFailures` instead of an aborted batch.
+  // diagnostic in `decodeFailures` instead of an aborted batch. Because the
+  // malformed durable item is already acknowledged and cannot be attributed
+  // to one subscription, it also routes the same connection-wide
+  // clear-retained resync sentinel as a socket durable_bytes frame; processing
+  // then continues with the acknowledged batch remainder.
   //
   // @ref LLP 0059#durable-and-ephemeral-outboxes — leased selection,
   //   acknowledged removal at the ownership cut, redelivery on cancellation.
+  // @ref LLP 0095#4.3 —
+  //   post-cut poll decode loss forces the T-DB-P resync transition.
   async drainConnection(connectionId) {
     const envelopes = await this.drainEnvelopes(connectionId);
     const consumers = this.__laneConsumers.get(connectionId);
@@ -3878,6 +3884,8 @@ export class SnapbackClient {
               code: 'SNAPBACK_ENVELOPE_DECODE_FAILED',
               message: `durable envelope payload did not decode as JSON: ${error?.message ?? error}`,
             });
+            const sentinel = markAuthorityCapture(durableBytesResyncSentinel(), capture);
+            routeDurableLaneFrame(consumers, sentinel);
             return;
           }
           durable.push(update);

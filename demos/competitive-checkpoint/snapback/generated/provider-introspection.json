@@ -292,6 +292,11 @@
               "name": "string",
               "shape": "primitive"
             },
+            "provider": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
             "slug": {
               "name": "string",
               "shape": "primitive"
@@ -299,7 +304,8 @@
           },
           "order": [
             "slug",
-            "displayName"
+            "displayName",
+            "provider"
           ]
         },
         "effects": {
@@ -326,6 +332,12 @@
                     "values": {
                       "displayName": {
                         "Arg": "displayName"
+                      },
+                      "provider": {
+                        "Field": {
+                          "base": "Args",
+                          "key": "provider"
+                        }
                       },
                       "slug": {
                         "Arg": "slug"
@@ -606,6 +618,77 @@
               },
               "updatedAt": {
                 "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "cursor": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "cursor"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations",
+            "models"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "conversationsWithModel",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "modelName": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "modelProvider": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
                 "shape": "primitive"
               }
             },
@@ -1143,8 +1226,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:6fabe423be1c88af",
-    "inputsHash": "979599bdca39f911a8eb90acbd7a65ce7e8fe7b019df521c482348e0a10b6c19",
-    "schemaHash": "sha256:04453498e78b891b"
+    "implementationHash": "sha256:463c27f16b58c005",
+    "inputsHash": "36738131457f873177a7256304e55ee0479216c7521fd2a11f4725012c5c040f",
+    "schemaHash": "sha256:bdcfcd9c4e2f65a4"
   }
 }

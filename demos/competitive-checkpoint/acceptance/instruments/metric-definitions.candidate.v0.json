@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-metric-definitions.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "eventSchema": {
+    "path": "demos/competitive-checkpoint/acceptance/instruments/metric-events.candidate.v0.schema.json",
+    "sha256": "13ab68f7155dc676eb1a22825bffc5168ea9242ff2633e54a308a158aa82204f"
+  },
+  "projection": {
+    "path": "demos/competitive-checkpoint/acceptance/instruments/metric-events.v0.mjs",
+    "sha256": "36dc6b905ef9de0bb8e5b07b5f6cd809c7f4b8aff27e532ee94bc05a62bf4922"
+  },
+  "timer": {
+    "start": "the work-started event emitted when the neutral prompt and fresh starting scaffold become visible to the new agent session",
+    "firstLocalLiveRowStop": "the first milestone-observed:first-local-live-row event whose evidence digest proves a provider-native authoritative row is visible through the required React web surface",
+    "hostedLiveUrlStop": "the first milestone-observed:hosted-live-url event whose evidence digest proves the public origin serves the actual React application and reads one authoritative row from the hosted backend",
+    "clock": "one monotonic nanosecond clock per sample; wall clock is retained for audit and never computes elapsed margins"
+  },
+  "commands": {
+    "topLevel": "one command-started event with authored=true for each command deliberately issued by the agent; commands spawned by that command are not counted separately",
+    "wrapper": "a shell script, package script, task runner, or compound shell line authored during the timed sample counts as one command but must name its wrapper; a wrapper supplied byte-for-byte by the pinned starting scaffold counts as the invoked top-level command only",
+    "localAggregation": "count authored command-started events at or before first-local-live-row",
+    "hostedAggregation": "count authored command-started events at or before hosted-live-url"
+  },
+  "agentUsage": {
+    "tokens": "sum inputTokens and outputTokens from agent-usage events; cachedInputTokens is reported separately and is already included in inputTokens",
+    "toolCalls": "sum toolCalls from agent-usage events",
+    "sessionBoundary": "one fresh agent session per warmup or timed sample; no conversational state crosses samples or arms"
+  },
+  "sampleOrder": {
+    "executionSequence": "one safe-integer sequence is contiguous across retained timed observations; the first retained value may follow separately retained warmups",
+    "alternation": "timed slots are Convex 1, Snapback 1, through Convex 7, Snapback 7",
+    "invalidReplacement": "an instrument-invalid observation is retained and the immediately following observation repeats the same arm and ordinal; the slot advances only after a valid observation",
+    "closure": "the scoring input contains every retained timed observation from exactly one capsule and run, and its selected per-arm valid arrays exact-match the one valid observation closing each slot"
+  },
+  "classifications": {
+    "expected-refusal": "a required negative witness named by expectedByGateId; does not count as a failure",
+    "unexpected-failure": "a required operation failed outside an expected negative witness",
+    "retry": "the agent or harness repeats an operation because the prior outcome did not establish the required result",
+    "required-skip": "a required gate could not execute; never a pass",
+    "human-intervention": "a human changes state or gives sample-specific guidance after work-started",
+    "unplanned-credential-repair": "credentials require repair not included in the pinned precondition ceremony",
+    "correctness-failure": "the application violates a required product fact",
+    "security-failure": "cross-user access, secret exposure, authority bypass, target confusion, or another protocol security floor fails",
+    "cleanup-defect": "the sample cannot deterministically remove every resource named by its capsule",
+    "instrument-failure": "measurement infrastructure, not either product arm, failed; requires a named documenter and retained rationale"
+  },
+  "perMetricAggregation": {
+    "elapsed": "sample median decides; nearest-rank p95 and bootstrap intervals are informational",
+    "commands": "sample median of per-sample top-level counts decides",
+    "tokens": "sample median of per-sample total agent tokens decides",
+    "toolCalls": "sample median of per-sample tool calls decides",
+    "failureRetrySkipCounts": "sample median decides comparator-relative margins; every raw count remains in the receipt",
+    "absoluteZeroFloors": "sum across every valid and invalid observation; any human intervention, unplanned credential repair, correctness failure, security failure, or cleanup defect fails its zero floor"
+  }
+}

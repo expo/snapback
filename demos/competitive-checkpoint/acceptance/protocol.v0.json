@@ -92,6 +92,19 @@
         "Drill receipts retained: acceptance/results/remote-streaming.v0.json (7/7 PASS), durable-row-scan.v0.json (PASS, 0 findings over the post-run machine dumps), tigris-backup.v0.json (byte-exact read-back PASS), hosted-auth-refusal.v0.json (SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED witnessed on-machine, exit 1; the LLP 0077 sender-auth matrix cannot honestly run on this target — sessions refuse SNAPBACK_AUTH_TRANSPORT_INSECURE on a plaintext non-loopback bind with no override by design). hostedAuthCapable is NOT claimed; the LLP 0077 program gate stays open.",
         "claimScope.proposedHostedAdapterStatus updated: the replacement drill target is now live and drilled; trusted-single-tenant-app-complete.v1 remains unsupported and no control-plane adapter operations exist for this target (claim boundary of LLP 0072's first-instantiation record)."
       ]
+    },
+    {
+      "version": "v0.8",
+      "date": "2026-07-26",
+      "prospective": true,
+      "reason": "Step 5 fixture admission (author decision, Charlie Cheever, 2026-07-26, recorded in LLP 0063's header of the same date): this fixture is admitted as \"the admitted Step 5 fixture\" for LLP 0080's demonstrates-both-helpers acceptance clause and LLP 0081's Step 5 application witness. No timed sample has run; v0's cutoff, thresholds, retained evidence, and the local-streaming.v0 receipt are untouched (the post-change rerun is retained separately as local-streaming.v0.rerun-20260726.json, 8/8).",
+      "changes": [
+        "Fixture extension, prospective per the v0.5/v0.7 precedent: the backend adopts the callable relational helper conversationsWithModel (defineRelationalQuery, LLP 0080 §7) in production shape beside the retained conversationCardsProjection, and models gains the optional provider field. Generated artifacts regenerated in place; the predecessor (v0) generated artifacts stay pinned in-repo at tests/acceptance/fixtures/v0 as reproducible witness input.",
+        "The schema change executes ONLY through the reviewed LLP 0081 path: tests/acceptance/schema-evolution.mjs drives migrate preview (intent derived from the schema diff, plan reviewed on its sealed face) → approve → tamper refusal → dry-run → apply (released, journal-sealed receipt, exactly-once replay) → verify against the pinned v0 store, then reopens on the successor artifacts and proves every predecessor row and the relational helper serve (6/6; receipt acceptance/results/schema-evolution.v1.json).",
+        "New retained receipts: relational-conversations.v1.json (5/5 — paging via the opaque sbrc1 cursor, left-join null leaves, owner scoping, byte-identical tampered/cross-user cursor refusals), schema-evolution.v1.json, step5-both-helpers.v1.json (the demonstrates-both-helpers record with the source/glue-reduction measurement and cumulative gate reruns), local-streaming.v0.rerun-20260726.json.",
+        "Two engine defects the schema-evolution witness found are fixed in the same landing with regressions: the migrate.* CLI panicked the async-worker guard on its first SQLite read (missing pre-bind blocking handoff, src/cli.rs), and migration publication/§6 republish wrote only the legacy schema-manifest slot, leaving the pre-sessions capability-aware copy divergent and bricking the store at reopen with SNAPBACK_AUTH_MODE_STATE_CORRUPT (src/storage/auth_mode.rs publish_manifest_for_migration; file-backed reopen regression in tests/migration_corpus_v0.rs).",
+        "Claim-scope note: admission adds Step 5 acceptance evidence obligations to this fixture; it does not alter the v0 timed-comparison claim, its cutoff, or any frozen threshold, and it makes no hosted or timed-run assertion."
+      ]
     }
   ],
   "strategy": "llp/0074-convex-competitive-strategy.rfc.md",

@@ -3,10 +3,10 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CronJobDefinition, FilterExpr,
-    FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerPlan,
-    IbexModule, QueryPlan, SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION,
-    SchemaManifest, TargetCapabilityId, ValueExpr,
+    AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
+    CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionRuntime, HandlerPlan, IbexModule, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
 
 fn host_query(name: &str) -> FunctionDefinition {
@@ -241,27 +241,28 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             assert_eq!(
                 local
                     .require_capability(capability.as_str())
-                    .expect_err("the static target declaration keeps process-live egress disabled")
+                    .expect_err("the static local target keeps process-live egress disabled")
                     .diagnostic
                     .code,
                 "SNAPBACK_CAPABILITY_UNSUPPORTED"
             );
-        } else if matches!(
-            capability,
-            TargetCapabilityId::RelationalQueryV1 | TargetCapabilityId::MigrationKeysetScanV1
-        ) {
-            // Declared and supported, but at experimental maturity (LLP 0058
-            // capability-maturity dimension): plain requirement without an
-            // acknowledgment fails closed until LLP 0080/0081 witness suites
-            // flip the ids to stable.
+        } else if capability.maturity() != CapabilityMaturity::Stable {
             assert_eq!(
                 local
                     .require_capability(capability.as_str())
-                    .expect_err("experimental maturity is not plain support")
+                    .expect_err("experimental capabilities are not plain support")
                     .diagnostic
                     .code,
                 "SNAPBACK_CAPABILITY_UNSUPPORTED"
             );
+            if local.supported_capabilities.contains(&capability) {
+                local
+                    .require_capability_acknowledging(
+                        capability.as_str(),
+                        &std::collections::BTreeSet::from([capability]),
+                    )
+                    .expect("acknowledged experimental capability");
+            }
         } else {
             local
                 .require_capability(capability.as_str())

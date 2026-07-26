@@ -251,7 +251,10 @@ fn sequence_digest_parity_v1() {
     let committed = committed_fixture();
     let computed = compute_fixture();
     assert_eq!(committed["seq1"], computed["seq1"]);
-    assert_ne!(committed["seq1"]["digest"], committed["seq1"]["reversedDigest"]);
+    assert_ne!(
+        committed["seq1"]["digest"],
+        committed["seq1"]["reversedDigest"]
+    );
 }
 
 /// Obligation 5 — token MAC transcript parity: identical `tokenWire` (which

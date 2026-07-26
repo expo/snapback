@@ -1,0 +1,118 @@
+name: public-package-proof
+
+# @ref LLP 0041#acceptance — install the exact public package closure on new
+# GitHub-hosted macOS/arm64 and Linux/x64 VMs, then aggregate both receipts.
+# @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
+# the public-registry claim remains red unless every promised runtime tuple
+# agrees with one successful immutable publication ledger.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ledger_path:
+        description: Committed successful publication ledger
+        required: true
+        default: demos/partiful-matrix/acceptance/evidence/step5-package-publication.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-package-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  platform-proof:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: darwin-arm64
+            runner: macos-15
+          - id: linux-x64
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Preserve and validate the publication ledger
+        id: ledger
+        env:
+          LEDGER_PATH: ${{ inputs.ledger_path }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const path = process.env.LEDGER_PATH;
+            const ledger = JSON.parse(fs.readFileSync(path, "utf8"));
+            if (ledger.schemaVersion !== "snapback.package-publication.v1"
+                || ledger.mode !== "publish"
+                || ledger.sourceDirty === true
+                || !/^[0-9a-f]{40}$/.test(ledger.revision)) {
+              throw new Error("publication ledger is not an eligible immutable source");
+            }
+            fs.copyFileSync(path, process.env.RUNNER_TEMP + "/snapback-publication-ledger.json");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "revision=" + ledger.revision + "\n");
+          '
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.ledger.outputs.revision }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Prove the public package loop
+        env:
+          RECEIPT_PATH: ${{ runner.temp }}/snapback-${{ matrix.id }}-public-package-receipt.json
+        run: |
+          node scripts/snapback-package-cold-install.mjs \
+            --ledger "$RUNNER_TEMP/snapback-publication-ledger.json" \
+            --install-source public \
+            --receipt "$RECEIPT_PATH"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-${{ matrix.id }}-public-package-receipt
+          path: ${{ runner.temp }}/snapback-${{ matrix.id }}-public-package-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  aggregate:
+    needs: platform-proof
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: snapback-*-public-package-receipt
+          path: ${{ runner.temp }}/platform-receipts
+          merge-multiple: true
+
+      - name: Aggregate the complete public runtime matrix
+        env:
+          LEDGER_PATH: ${{ inputs.ledger_path }}
+          RECEIPT_PATH: ${{ runner.temp }}/step5-packaged-loop.json
+        run: |
+          node scripts/snapback-package-proof-aggregate.mjs \
+            --ledger "$LEDGER_PATH" \
+            --platform-receipt "$RUNNER_TEMP/platform-receipts/snapback-darwin-arm64-public-package-receipt.json" \
+            --platform-receipt "$RUNNER_TEMP/platform-receipts/snapback-linux-x64-public-package-receipt.json" \
+            --receipt "$RECEIPT_PATH"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-step5-packaged-loop-${{ github.sha }}
+          path: ${{ runner.temp }}/step5-packaged-loop.json
+          if-no-files-found: error
+          retention-days: 30

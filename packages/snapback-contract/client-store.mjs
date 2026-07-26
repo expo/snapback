@@ -2194,8 +2194,17 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
               // carried into the replacement artifact namespace. The old
               // identity remains in `diagnostic.previous`; binding the record
               // itself to that old namespace would make format-6 reject its
-              // own committed state on reload.
+              // own committed state on reload. The cursor must be rebound
+              // with the rest of the namespace: the shared scope filter and
+              // the reload validator both require `cursor.stream` to match
+              // the record's versionStreamId, so a cursor-less tombstone
+              // would be invisible to failedMutations() — silent loss of
+              // the one surface the app has for re-entering the write
+              // (witnessed in migration-quarantine.test.mjs).
               ...nextScope,
+              ...(nextScope.versionStreamId
+                ? { cursor: { stream: nextScope.versionStreamId, version: 0 } }
+                : {}),
               status: 'failed',
               diagnostic: {
                 code: 'SNAPBACK_CLIENT_ARTIFACT_STALE',

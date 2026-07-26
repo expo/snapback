@@ -6,10 +6,15 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use axum::http;
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use clap::ValueEnum;
+use ring::hmac;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::sync::Arc;
+use std::path::Path;
+use std::sync::{Arc, RwLock};
+use zeroize::Zeroize as _;
 
 use super::throttle::AuthenticationThrottleKey;
 pub use super::throttle::{AuthenticationBucketPolicy, SharedAuthenticationThrottleConfig};
@@ -220,6 +225,19 @@ pub const HOSTED_ADMISSION_VERSION: u64 = 1;
 pub const HOSTED_ADMISSION_MAX_LIFETIME_MS: u64 = 5 * 60 * 1_000;
 /// Largest integer every JavaScript implementation can represent exactly.
 pub const HOSTED_ADMISSION_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+// Retained as the Rust schema/test authority for LLP 0072's provider-neutral
+// HMAC projection protocol. LLP 0098's concrete runtime seam uses the stronger
+// release-bound Ed25519 path, so these are intentionally test-only for now.
+#[cfg_attr(not(test), allow(dead_code))]
+const HOSTED_ADMISSION_ENVELOPE_MAX_BYTES: usize = 64 * 1024;
+#[cfg_attr(not(test), allow(dead_code))]
+const HOSTED_ADMISSION_KEY_MAX_BYTES: usize = 4 * 1024;
+#[cfg_attr(not(test), allow(dead_code))]
+const HOSTED_ADMISSION_ENVELOPE_VERSION: &str = "snapback.hosted-admission-envelope.v1";
+#[cfg_attr(not(test), allow(dead_code))]
+const HOSTED_ADMISSION_KEY_VERSION: &str = "snapback.hosted-admission-key.v1";
+#[cfg_attr(not(test), allow(dead_code))]
+const HOSTED_ADMISSION_MAC_DOMAIN: &[u8] = b"snapback-hosted-admission-envelope-v1\0";
 
 /// Closed, deployment-bound facts required before a future hosted target can
 /// claim readiness. This is a schema authority only: no current target owns
@@ -299,6 +317,149 @@ impl HostedAdmission {
     }
 }
 
+/// Closed, MAC-authenticated handoff from the target control plane to one
+/// handler boot. The envelope contains no key material and is safe to retain
+/// as evidence; the sibling key file is a provider-secret-manager projection
+/// and is never copied into release, backup, log, or receipt artifacts.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct HostedAdmissionEnvelope {
+    schema_version: String,
+    #[schemars(pattern(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))]
+    key_id: String,
+    #[schemars(length(min = 1, max = 512))]
+    public_origin: String,
+    admission: HostedAdmission,
+    #[schemars(pattern(r"^[A-Za-z0-9_-]{43}$"))]
+    mac: String,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct HostedAdmissionKeyFile {
+    schema_version: String,
+    #[schemars(pattern(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))]
+    key_id: String,
+    #[schemars(pattern(r"^[A-Za-z0-9_-]{43}$"))]
+    material: String,
+}
+
+fn hosted_admission_invalid(message: &'static str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+        "auth-deployment",
+        message,
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn write_canonical_json(
+    output: &mut Vec<u8>,
+    value: &serde_json::Value,
+) -> Result<(), serde_json::Error> {
+    match value {
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => serde_json::to_writer(output, value)?,
+        serde_json::Value::Array(items) => {
+            output.push(b'[');
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                write_canonical_json(output, item)?;
+            }
+            output.push(b']');
+        }
+        serde_json::Value::Object(object) => {
+            output.push(b'{');
+            let mut keys = object.keys().collect::<Vec<_>>();
+            keys.sort_unstable();
+            for (index, key) in keys.into_iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                serde_json::to_writer(&mut *output, key)?;
+                output.push(b':');
+                write_canonical_json(
+                    output,
+                    object
+                        .get(key)
+                        .expect("canonical JSON key came from the same object"),
+                )?;
+            }
+            output.push(b'}');
+        }
+    }
+    Ok(())
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn hosted_admission_mac_input(envelope: &HostedAdmissionEnvelope) -> SnapbackResult<Vec<u8>> {
+    let content = serde_json::json!({
+        "schemaVersion": envelope.schema_version,
+        "keyId": envelope.key_id,
+        "publicOrigin": envelope.public_origin,
+        "admission": envelope.admission,
+    });
+    let mut encoded = Vec::new();
+    write_canonical_json(&mut encoded, &content)
+        .map_err(|_| hosted_admission_invalid("hosted admission could not be canonicalized"))?;
+    let mut input = Vec::with_capacity(HOSTED_ADMISSION_MAC_DOMAIN.len() + encoded.len());
+    input.extend_from_slice(HOSTED_ADMISSION_MAC_DOMAIN);
+    input.extend_from_slice(&encoded);
+    Ok(input)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn parse_hosted_admission_envelope(bytes: &[u8]) -> SnapbackResult<HostedAdmissionEnvelope> {
+    serde_json::from_slice(bytes).map_err(|_| {
+        hosted_admission_invalid("hosted admission envelope is not the closed version-1 shape")
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn verify_hosted_admission_envelope(
+    envelope: HostedAdmissionEnvelope,
+    expected_key_id: &str,
+    verification_key: &hmac::Key,
+) -> SnapbackResult<HostedAdmissionEnvelope> {
+    if envelope.schema_version != HOSTED_ADMISSION_ENVELOPE_VERSION
+        || envelope.key_id != expected_key_id
+        || !is_portable_identifier(&envelope.key_id)
+    {
+        return Err(hosted_admission_invalid(
+            "hosted admission envelope has an unsupported identity",
+        ));
+    }
+    let provided = URL_SAFE_NO_PAD
+        .decode(&envelope.mac)
+        .map_err(|_| hosted_admission_invalid("hosted admission MAC is not canonical base64url"))?;
+    if provided.len() != 32 || URL_SAFE_NO_PAD.encode(&provided) != envelope.mac {
+        return Err(hosted_admission_invalid(
+            "hosted admission MAC is not a canonical 32-byte value",
+        ));
+    }
+    let input = hosted_admission_mac_input(&envelope)?;
+    hmac::verify(verification_key, &input, &provided)
+        .map_err(|_| hosted_admission_invalid("hosted admission MAC verification failed"))?;
+    Ok(envelope)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn read_hosted_admission_envelope(path: &Path) -> SnapbackResult<HostedAdmissionEnvelope> {
+    let bytes =
+        crate::secure_file::read_strict_owner_only(path, HOSTED_ADMISSION_ENVELOPE_MAX_BYTES)
+            .map_err(|_| {
+                hosted_admission_invalid(
+                    "hosted admission envelope is not a strict owner-only regular file",
+                )
+            })?;
+    parse_hosted_admission_envelope(&bytes)
+}
+
 /// Provider-authenticated serving authority retained by one hosted target.
 ///
 /// The public origin is target configuration, never a request forwarding
@@ -355,48 +516,49 @@ impl HostedServingHandle {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
 pub(crate) struct HostedServingAuthority {
-    admission: HostedAdmission,
-    public_origin: String,
+    admission: Arc<RwLock<HostedAdmission>>,
+    public_origin: Arc<str>,
+    admission_key_id: Option<Arc<str>>,
+    admission_verification_key: Option<Arc<hmac::Key>>,
     authentication_throttle_key: Arc<AuthenticationThrottleKey>,
 }
 
 impl fmt::Debug for HostedServingAuthority {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let admission = self.admission.read().ok();
         formatter
             .debug_struct("HostedServingAuthority")
-            .field("admission_epoch", &self.admission.admission_epoch)
-            .field("expires_at_ms", &self.admission.expires_at_ms)
+            .field(
+                "admission_epoch",
+                &admission
+                    .as_ref()
+                    .map(|admission| admission.admission_epoch),
+            )
+            .field(
+                "expires_at_ms",
+                &admission.as_ref().map(|admission| admission.expires_at_ms),
+            )
             .field("public_origin", &"[REDACTED]")
             .finish()
     }
 }
 
 impl HostedServingAuthority {
-    /// Install facts only after the target adapter authenticated its
-    /// admission producer, live health, and canonical public origin.
-    #[allow(dead_code)] // Consumed by the first concrete hosted adapter.
-    pub(crate) fn from_authenticated_target(
-        public_origin: impl Into<String>,
-        admission: HostedAdmission,
+    fn validate_target_facts(
+        public_origin: &str,
+        admission: &HostedAdmission,
         observed_at_ms: u64,
-        authentication_throttle_key: [u8; 32],
-    ) -> SnapbackResult<Self> {
-        let public_origin = public_origin.into();
+    ) -> SnapbackResult<()> {
         let parsed = public_origin.parse::<http::Uri>().map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "auth-deployment",
+            hosted_admission_invalid(
                 "hosted serving authority has an invalid canonical public origin",
             )
         })?;
         let authority = parsed.authority().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "auth-deployment",
-                "hosted serving authority has no canonical public authority",
-            )
+            hosted_admission_invalid("hosted serving authority has no canonical public authority")
         })?;
         let origin_is_canonical = parsed.scheme_str() == Some("https")
             && parsed.path() == "/"
@@ -413,35 +575,200 @@ impl HostedServingAuthority {
             || observed_at_ms < admission.issued_at_ms
             || observed_at_ms > admission.expires_at_ms
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "auth-deployment",
+            return Err(hosted_admission_invalid(
                 "hosted serving authority is incomplete, expired, or non-canonical",
             ));
         }
+        Ok(())
+    }
+
+    /// Install facts only after the target adapter authenticated its
+    /// admission producer, live health, and canonical public origin.
+    #[allow(dead_code)] // Consumed by the first concrete hosted adapter.
+    pub(crate) fn from_authenticated_target(
+        public_origin: impl Into<String>,
+        admission: HostedAdmission,
+        observed_at_ms: u64,
+        authentication_throttle_key: [u8; 32],
+    ) -> SnapbackResult<Self> {
+        let public_origin = public_origin.into();
+        Self::validate_target_facts(&public_origin, &admission, observed_at_ms)?;
         Ok(Self {
-            admission,
-            public_origin,
+            admission: Arc::new(RwLock::new(admission)),
+            public_origin: Arc::from(public_origin),
+            admission_key_id: None,
+            admission_verification_key: None,
             authentication_throttle_key: Arc::new(AuthenticationThrottleKey::from_bytes(
                 authentication_throttle_key,
             )),
         })
     }
 
+    /// Authenticate the provider-produced boot envelope before database open
+    /// or listener bind. Both files are strict 0600, single-link, owner-owned
+    /// regular files; key material is zeroized after the in-memory authorities
+    /// are constructed.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — the serving process
+    /// consumes the external monotone floor only through authenticated
+    /// control-plane authority outside the application backup set.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn from_authenticated_envelope_files(
+        envelope_path: &Path,
+        key_path: &Path,
+        observed_at_ms: u64,
+    ) -> SnapbackResult<Self> {
+        let mut key_bytes =
+            crate::secure_file::read_strict_owner_only(key_path, HOSTED_ADMISSION_KEY_MAX_BYTES)
+                .map_err(|_| {
+                    hosted_admission_invalid(
+                        "hosted admission key is not a strict owner-only regular file",
+                    )
+                })?;
+        let parsed_key_file = serde_json::from_slice(&key_bytes);
+        key_bytes.zeroize();
+        let mut key_file: HostedAdmissionKeyFile = parsed_key_file.map_err(|_| {
+            hosted_admission_invalid("hosted admission key is not the closed version-1 shape")
+        })?;
+        if key_file.schema_version != HOSTED_ADMISSION_KEY_VERSION
+            || !is_portable_identifier(&key_file.key_id)
+        {
+            key_file.material.zeroize();
+            return Err(hosted_admission_invalid(
+                "hosted admission key has an unsupported identity",
+            ));
+        }
+        let decoded_material = URL_SAFE_NO_PAD.decode(&key_file.material);
+        let mut canonical_material = key_file.material.clone();
+        key_file.material.zeroize();
+        let mut material = match decoded_material {
+            Ok(material) => material,
+            Err(_) => {
+                canonical_material.zeroize();
+                return Err(hosted_admission_invalid(
+                    "hosted admission key material is not canonical base64url",
+                ));
+            }
+        };
+        let material_is_canonical =
+            material.len() == 32 && URL_SAFE_NO_PAD.encode(&material) == canonical_material;
+        canonical_material.zeroize();
+        if !material_is_canonical {
+            material.zeroize();
+            return Err(hosted_admission_invalid(
+                "hosted admission key material is not a canonical 32-byte value",
+            ));
+        }
+        let mut key_array = [0_u8; 32];
+        key_array.copy_from_slice(&material);
+        material.zeroize();
+        let verification_key = hmac::Key::new(hmac::HMAC_SHA256, &key_array);
+        let envelope_result = read_hosted_admission_envelope(envelope_path).and_then(|envelope| {
+            verify_hosted_admission_envelope(envelope, &key_file.key_id, &verification_key)
+        });
+        let envelope = match envelope_result {
+            Ok(envelope) => envelope,
+            Err(error) => {
+                key_array.zeroize();
+                return Err(error);
+            }
+        };
+        if envelope.admission.sender_replay_epoch_floor == 0 {
+            key_array.zeroize();
+            return Err(hosted_admission_invalid(
+                "hosted admission boot requires an external sender replay floor",
+            ));
+        }
+        let authority_result = Self::from_authenticated_target(
+            envelope.public_origin,
+            envelope.admission,
+            observed_at_ms,
+            key_array,
+        );
+        key_array.zeroize();
+        let mut authority = authority_result?;
+        authority.admission_key_id = Some(Arc::from(key_file.key_id));
+        authority.admission_verification_key = Some(Arc::new(verification_key));
+        Ok(authority)
+    }
+
+    /// Refresh one short-lived admission without changing the handler-boot
+    /// incarnation or its external replay floor. A next boot must allocate a
+    /// strictly newer floor; a live refresh may only extend authenticated
+    /// serving health for the already-reconciled boot.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn refresh_from_authenticated_envelope_file(
+        &self,
+        envelope_path: &Path,
+        observed_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        let key_id = self.admission_key_id.as_deref().ok_or_else(|| {
+            hosted_admission_invalid("hosted admission authority is not refreshable")
+        })?;
+        let verification_key = self.admission_verification_key.as_deref().ok_or_else(|| {
+            hosted_admission_invalid("hosted admission authority is not refreshable")
+        })?;
+        let envelope = verify_hosted_admission_envelope(
+            read_hosted_admission_envelope(envelope_path)?,
+            key_id,
+            verification_key,
+        )?;
+        if envelope.public_origin.as_str() != self.public_origin.as_ref() {
+            return Err(hosted_admission_invalid(
+                "hosted admission refresh changed the canonical public origin",
+            ));
+        }
+        Self::validate_target_facts(&envelope.public_origin, &envelope.admission, observed_at_ms)?;
+        let mut current = self
+            .admission
+            .write()
+            .map_err(|_| hosted_admission_invalid("hosted admission authority is unavailable"))?;
+        let next = envelope.admission;
+        if next.deployment_id != current.deployment_id
+            || next.configuration_sha256 != current.configuration_sha256
+            || next.support_sha256 != current.support_sha256
+            || next.authentication_throttle_config != current.authentication_throttle_config
+            || next.handler_protocol_version != current.handler_protocol_version
+            || next.handler_incarnation != current.handler_incarnation
+            || next.operator_surface != current.operator_surface
+            || next.browser_direct_bearer_seam != current.browser_direct_bearer_seam
+            || next.hosted_auth != current.hosted_auth
+            || next.sender_replay_epoch_floor != current.sender_replay_epoch_floor
+            || next.admission_epoch < current.admission_epoch
+            || next.limiter_epoch < current.limiter_epoch
+            || next.invalidation_epoch < current.invalidation_epoch
+            || next.issued_at_ms < current.issued_at_ms
+            || next.expires_at_ms < current.expires_at_ms
+        {
+            return Err(hosted_admission_invalid(
+                "hosted admission refresh is stale or changes handler-boot identity",
+            ));
+        }
+        *current = next;
+        Ok(())
+    }
+
     /// The capability tuple this verified admission attests.
     pub(crate) fn capabilities(&self) -> HostedAuthCapabilities {
-        self.admission.hosted_auth
+        self.admission
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .hosted_auth
     }
 
     pub(crate) fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
-        if now_ms < self.admission.issued_at_ms || now_ms > self.admission.expires_at_ms {
+        let admission = self
+            .admission
+            .read()
+            .map_err(|_| hosted_admission_invalid("hosted admission authority is unavailable"))?;
+        if now_ms < admission.issued_at_ms || now_ms > admission.expires_at_ms {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
                 "auth-deployment",
                 "hosted serving admission is not current",
             ));
         }
-        Ok(self.admission.admission_epoch)
+        Ok(admission.admission_epoch)
     }
 
     pub(crate) fn authentication_throttle_at(
@@ -449,10 +776,14 @@ impl HostedServingAuthority {
         now_ms: u64,
     ) -> SnapbackResult<HostedAuthenticationThrottle> {
         self.admission_epoch_at(now_ms)?;
+        let admission = self
+            .admission
+            .read()
+            .map_err(|_| hosted_admission_invalid("hosted admission authority is unavailable"))?;
         Ok(HostedAuthenticationThrottle {
-            limiter_epoch: self.admission.limiter_epoch,
-            deployment_id: self.admission.deployment_id.clone(),
-            config: self.admission.authentication_throttle_config.clone(),
+            limiter_epoch: admission.limiter_epoch,
+            deployment_id: admission.deployment_id.clone(),
+            config: admission.authentication_throttle_config.clone(),
             key: self.authentication_throttle_key.clone(),
         })
     }
@@ -461,7 +792,10 @@ impl HostedServingAuthority {
     /// namespace, applied at authority install (decision 1's anti-rollback
     /// composition).
     pub(crate) fn sender_replay_epoch_floor(&self) -> u64 {
-        self.admission.sender_replay_epoch_floor
+        self.admission
+            .read()
+            .map(|admission| admission.sender_replay_epoch_floor)
+            .unwrap_or(0)
     }
 
     /// Purpose key for the deterministic unknown-carrier cover nonce.
@@ -534,6 +868,16 @@ fn is_sha256_hex(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+fn is_portable_identifier(value: &str) -> bool {
+    (1..=128).contains(&value.len())
+        && value.bytes().enumerate().all(|(index, byte)| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' => true,
+            b'.' | b'_' | b'-' => index > 0,
+            _ => false,
+        })
+}
+
 pub fn deployment_unsupported(capabilities: HostedAuthCapabilities) -> SnapbackError {
     let mut blockers = capabilities.blockers();
     blockers.extend([
@@ -572,6 +916,24 @@ pub fn validate_auth_deployment(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn signed_envelope(
+        admission: HostedAdmission,
+        key_id: &str,
+        key: &[u8; 32],
+    ) -> HostedAdmissionEnvelope {
+        let mut envelope = HostedAdmissionEnvelope {
+            schema_version: HOSTED_ADMISSION_ENVELOPE_VERSION.to_owned(),
+            key_id: key_id.to_owned(),
+            public_origin: "https://app.example.test".to_owned(),
+            admission,
+            mac: String::new(),
+        };
+        let input = hosted_admission_mac_input(&envelope).unwrap();
+        envelope.mac =
+            URL_SAFE_NO_PAD.encode(hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, key), &input));
+        envelope
+    }
 
     fn positive_throttle_config() -> SharedAuthenticationThrottleConfig {
         let policy = AuthenticationBucketPolicy {
@@ -746,6 +1108,142 @@ mod tests {
             let uri: http::Uri = uri.parse().expect("syntactically valid test URI");
             assert!(authority.canonical_external_uri(&uri, 1_000).is_err());
         }
+    }
+
+    #[test]
+    fn strict_authenticated_envelope_installs_and_refreshes_without_changing_boot_floor() {
+        let directory = tempfile::tempdir().unwrap();
+        let key_path = directory.path().join("hosted-admission-key.json");
+        let envelope_path = directory.path().join("hosted-admission.json");
+        let refresh_path = directory.path().join("hosted-admission-refresh.json");
+        let key = [29_u8; 32];
+        let key_id = "hosted-key-1";
+        let key_file = serde_json::json!({
+            "schemaVersion": HOSTED_ADMISSION_KEY_VERSION,
+            "keyId": key_id,
+            "material": URL_SAFE_NO_PAD.encode(key),
+        });
+        crate::secure_file::write_owner_only(&key_path, &serde_json::to_vec(&key_file).unwrap())
+            .unwrap();
+        let mut initial_admission = positive_hosted_admission();
+        initial_admission.sender_replay_epoch_floor = 17;
+        let initial = signed_envelope(initial_admission, key_id, &key);
+        assert_eq!(
+            initial.mac, "tb12sK-_E81LB_DCFs2h4ZSwDewruaUk9S2LFU1RsRo",
+            "Rust and Node must share the exact canonical hosted-admission MAC vector",
+        );
+        crate::secure_file::write_owner_only(
+            &envelope_path,
+            &serde_json::to_vec(&initial).unwrap(),
+        )
+        .unwrap();
+
+        let authority = HostedServingAuthority::from_authenticated_envelope_files(
+            &envelope_path,
+            &key_path,
+            1_000,
+        )
+        .unwrap();
+        assert_eq!(authority.admission_epoch_at(1_000).unwrap(), 7);
+        assert_eq!(authority.sender_replay_epoch_floor(), 17);
+
+        let mut refreshed_admission = positive_hosted_admission();
+        refreshed_admission.sender_replay_epoch_floor = 17;
+        refreshed_admission.admission_epoch = 8;
+        refreshed_admission.limiter_epoch = 12;
+        refreshed_admission.invalidation_epoch = 14;
+        refreshed_admission.issued_at_ms = 2_000;
+        refreshed_admission.expires_at_ms = 302_000;
+        let refreshed = signed_envelope(refreshed_admission, key_id, &key);
+        crate::secure_file::write_owner_only(
+            &refresh_path,
+            &serde_json::to_vec(&refreshed).unwrap(),
+        )
+        .unwrap();
+        authority
+            .refresh_from_authenticated_envelope_file(&refresh_path, 2_000)
+            .unwrap();
+        assert_eq!(authority.admission_epoch_at(2_000).unwrap(), 8);
+
+        let mut changed_floor_admission = positive_hosted_admission();
+        changed_floor_admission.admission_epoch = 9;
+        changed_floor_admission.sender_replay_epoch_floor = 18;
+        changed_floor_admission.issued_at_ms = 3_000;
+        changed_floor_admission.expires_at_ms = 303_000;
+        let changed_floor = signed_envelope(changed_floor_admission, key_id, &key);
+        let changed_floor_path = directory.path().join("changed-floor.json");
+        crate::secure_file::write_owner_only(
+            &changed_floor_path,
+            &serde_json::to_vec(&changed_floor).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            authority
+                .refresh_from_authenticated_envelope_file(&changed_floor_path, 3_000)
+                .is_err(),
+            "a live refresh must not advance the handler-boot floor without database reconciliation",
+        );
+
+        let mut changed_policy_admission = positive_hosted_admission();
+        changed_policy_admission.sender_replay_epoch_floor = 17;
+        changed_policy_admission.admission_epoch = 9;
+        changed_policy_admission.limiter_epoch = 13;
+        changed_policy_admission.invalidation_epoch = 15;
+        changed_policy_admission.issued_at_ms = 3_000;
+        changed_policy_admission.expires_at_ms = 303_000;
+        changed_policy_admission
+            .authentication_throttle_config
+            .global
+            .burst += 1;
+        let changed_policy = signed_envelope(changed_policy_admission, key_id, &key);
+        let changed_policy_path = directory.path().join("changed-policy.json");
+        crate::secure_file::write_owner_only(
+            &changed_policy_path,
+            &serde_json::to_vec(&changed_policy).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            authority
+                .refresh_from_authenticated_envelope_file(&changed_policy_path, 3_000)
+                .is_err(),
+            "a live refresh must not change policy facts bound to the handler boot",
+        );
+
+        let mut tampered = initial;
+        tampered.admission.admission_epoch += 1;
+        let tampered_path = directory.path().join("tampered.json");
+        crate::secure_file::write_owner_only(
+            &tampered_path,
+            &serde_json::to_vec(&tampered).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            HostedServingAuthority::from_authenticated_envelope_files(
+                &tampered_path,
+                &key_path,
+                1_000,
+            )
+            .is_err(),
+        );
+
+        let mut no_floor_admission = positive_hosted_admission();
+        no_floor_admission.sender_replay_epoch_floor = 0;
+        let no_floor = signed_envelope(no_floor_admission, key_id, &key);
+        let no_floor_path = directory.path().join("no-floor.json");
+        crate::secure_file::write_owner_only(
+            &no_floor_path,
+            &serde_json::to_vec(&no_floor).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            HostedServingAuthority::from_authenticated_envelope_files(
+                &no_floor_path,
+                &key_path,
+                1_000,
+            )
+            .is_err(),
+            "a hosted boot must never admit the legacy zero replay floor",
+        );
     }
 
     #[test]

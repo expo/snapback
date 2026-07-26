@@ -203,7 +203,10 @@ if (webClaimIds.some((id) => passing.has(id))) {
     'Partitime report changed after the web receipt',
   );
   if (passing.has('STEP0.WEB_RSVP_CONVERGENCE')) {
-    const convergence = report.results.filter(({ name }) => name.endsWith('opens details and observes RSVP'));
+    const convergence = report.results.filter(
+      ({ name, outcome }) => name.endsWith('opens details and observes RSVP')
+        && outcome !== 'skip',
+    );
     const healthyCells = report.cells.filter((cell) => {
       const backend = cell.split(':')[1];
       return report.backendHealth.backends?.[backend]?.ok === true;
