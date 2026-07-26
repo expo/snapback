@@ -183,7 +183,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "35ec28f3115645ef4181afef24fe313425ab883122d04676c24f7a85576771c5",
+    "inputsHash": "670b5d42755cdad524827e7998ee7b1db37dfae31e19e307e264f5f8ff5a325e",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

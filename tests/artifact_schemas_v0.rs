@@ -2821,6 +2821,8 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             snapshot: Some(snapshot.clone()),
             resume: None,
             resume_refusal: None,
+            superseded: None,
+            supersession_refusal: None,
             permission_epochs: std::collections::BTreeMap::new(),
             receipt: Some(Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Established,
