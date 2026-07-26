@@ -1,6 +1,6 @@
 # 0081: verification proof, receipts, and generationRepublish rollback
 
-**Status:** Deferred (phase C)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, Storage, Deployment
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -73,3 +73,12 @@ client-facing refusal conformance (Wave 3a journal-events/handshake);
 hosted arms per the deferred DO-executor ticket; the planner does not yet
 attach default verification facts to derived steps — doing so changes
 canonical plan bytes, an author decision.
+
+## Closeout (2026-07-26)
+
+The local verification, sealed receipt, fast rollback, generation republish,
+staged steps, and systematic crash recovery requested here are complete.
+Generated-function successor validation landed in Phase D. The remaining
+items are deliberately owned by the LLP 0072 documentation posture, deferred
+hosted executor, future client conformance, and an explicit canonical-plan
+author decision; they are not unfinished implementation in this ticket.

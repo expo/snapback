@@ -1,6 +1,6 @@
 # 0081: durable executor, admission fence, lifecycle (local SQLite profile)
 
-**Status:** In progress (Wave 2 core landed 2026-07-25)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, Storage
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -128,3 +128,12 @@ transition event. The attest witness gains the admitted-ordering leg: a
 dual-compatible publication ADMITS the predecessor attest during the
 window (unmatched, never upgrade-required), while successor-only keeps
 refusing it — both orderings and both rejections covered.
+
+## Resolution (2026-07-26)
+
+All local SQLite lifecycle slices described by this ticket landed across
+Waves 2 through D: the closed durable state machine, crash-surviving admission
+fence, atomic batches, downtime ceiling, cancellation and release/rollback
+exits, generated-function publication check, physical cleanup tail, and
+ordering witnesses. The hosted Durable Object executor remains separately
+deferred as the ticket originally specified.

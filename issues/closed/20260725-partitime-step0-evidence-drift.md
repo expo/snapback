@@ -1,6 +1,6 @@
 # Partitime Step 0 evidence drift blocks an authoritative Step 4 refresh
 
-Status: Open
+Status: Closed (2026-07-26)
 Date: 2026-07-25
 Systems: Partitime matrix, LLP 0063, Exact mirror
 
@@ -57,3 +57,14 @@ From fresh continuation branches based on the checkpoint mains:
    its complete frozen gate is genuinely green.
 
 The full LLP 0063 objective remains active.
+
+## Closeout (2026-07-26)
+
+Commits `a7d389e6` and `147b529a` reconciled the merged Step 0 inputs and LLP
+0063 checkpoint evidence in the prescribed order. From a clean dependency
+install with the ignored surface bundles rebuilt, the current command
+`node demos/partiful-matrix/tests/acceptance/validate-step0.mjs
+--structural-only` passes with `validationOk: true`, all 19 Step 0 claims
+passing, and digest
+`0c835e6ab3d03fe2962d18c78499cfd02a479e96a18db629a51e3a9ddf1e1d16`.
+The broader LLP 0063 program remains governed by its own ledger.

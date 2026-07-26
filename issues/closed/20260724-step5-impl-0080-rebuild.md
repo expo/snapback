@@ -1,6 +1,6 @@
 # 0080: shadow rebuild under the 0081 barrier with the split oracle
 
-**Status:** In progress (local-profile slice landed 2026-07-25)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Storage, Migrations
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -37,3 +37,13 @@ digest-vs-independent-evaluation harness belongs to the coupled suite);
 injected crash-point fixtures beyond transaction-rollback equivalence;
 the durable batch-cursor state machine, downtime ceiling, and full
 approval records — the complete 0081 lane (Phase C).
+
+## Resolution (2026-07-26)
+
+The formerly remaining coupled work landed in the 0081 waves:
+`tests/relational_migration_coupled_suite_v0.rs` independently verifies the
+streaming rebuild digest against `materializeAll` over more than 1,024 roots,
+and the migration executor now carries durable state, downtime ceilings,
+approval records, and systematic crash-point recovery. The local-profile
+rebuild ticket is therefore complete; hosted execution remains a separate
+deferred arm.

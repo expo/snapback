@@ -1,6 +1,6 @@
 # 0065: implementation-conformance suite (gates Implemented + STEP5.DECLARATION_REDUCTION)
 
-**Status:** Open
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Testing, Authorization, Codegen
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -104,3 +104,12 @@ receipt `acceptance/results/step5-declaration-reduction.json` (136 ≤ 152,
 margin 16, frozen method). The receipt is the LLP 0063 gate deliverable
 LLP 0065 §6 named; the dated 0063 amendment records the C7 narrowing and
 leaves fixture admission to the author.
+
+## Resolution (2026-07-26)
+
+LLP 0065 is Implemented, its §6 witness index is assembled, and the Step 5
+declaration-reduction receipt is passing. The successful local-proof run
+`30191116596` re-executed the repository test and generated-artifact gates
+against the landed corpus. Any broader hosted or future fixture coverage is
+tracked by its owning program rather than keeping this implementation suite
+open.

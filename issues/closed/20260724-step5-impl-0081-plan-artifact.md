@@ -1,6 +1,6 @@
 # 0081: MigrationPlanArtifactV1 — canonical bytes, deterministic planner, deterministic IDs
 
-**Status:** In progress (Wave 1 landed 2026-07-25)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, Codegen
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -48,3 +48,12 @@ consumer. The precondition/verification vocabularies are the minimal
 closed v1 sets (`MaxAffectedRows`/`TotalConversion`/`TableEmpty`;
 `RowCountMatchesSource`/`ContentDigest`); the executor (Wave 2) and
 verification (Wave 3) widen by version if their tickets require.
+
+## Resolution (2026-07-26)
+
+The v1 artifact scope is complete: canonical bytes and digest/ID derivation,
+deterministic intent planning and step IDs, separately digested preview
+observations, ceilings, deterministic UUIDv7 synthesis, closed backfill
+validation, authority-bearing-table refusal, committed schemas, and pinned
+golden vectors all landed. Schema-diff-to-intent derivation remains an
+explicit later consumer rather than an unfinished part of this artifact.

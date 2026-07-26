@@ -1,6 +1,6 @@
 # 0081: closed step vocabulary + MigrationKeysetScanV1
 
-**Status:** In progress (scan half landed 2026-07-25)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Migrations, Storage, Codegen
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -53,3 +53,9 @@ authority-bearing-table refusal is plan validation (Wave 1). Remaining by
 design: the `hostOps:migrate` writer class for authority-bearing tables
 stays future work per §3, and physical generation cleanup stays fenced
 behind the cleanup-pending tail.
+
+## Closeout (2026-07-26)
+
+The cleanup-pending tail subsequently landed with durable, idempotent physical
+generation cleanup and crash recovery. The future `hostOps:migrate` writer
+class is outside the closed local v1 scope, so no work remains in this ticket.

@@ -1,6 +1,6 @@
 # LLP 0076 bounded streamed actions — gate-2 program (index)
 
-**Status:** Open
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -209,3 +209,11 @@ Workerd/Cloudflare arm of the stranded baseline is **not** yet landed; tickets
 whose Done-when says "both hosts" cannot close until it is (tracked per
 ticket). A guide gap also surfaced: stream diagnostics point at
 `guide/backend/actions-and-fetch#stream-a-response`, which does not exist yet.
+
+## Resolution (2026-07-26)
+
+Closed from the program's own acceptance record: LLP 0076 is Accepted,
+`bounded_response_stream_v1` is stable, the local and hosted instruments are
+green, and gate 2 is closed. The RFC's explicitly scoped OQ 6–7 and narrower
+Workerd evidence remain in the RFC ledger; they are refinements rather than
+unfinished items in this umbrella.
