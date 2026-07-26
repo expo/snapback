@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.step5-both-helpers.v1",
+  "claim": "LLP 0080 §Acceptance final item on the admitted Step 5 fixture",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "admission": "LLP 0063 Revised 2026-07-26 (author decision, Charlie Cheever)",
+  "ok": true,
+  "helpers": {
+    "relationalQuery": {
+      "helper": "defineRelationalQuery",
+      "function": "conversationsWithModel",
+      "capability": "relational_query_v1",
+      "witness": "tests/acceptance/relational-conversations.mjs (5/5 fresh in this run)"
+    },
+    "maintainedProjection": {
+      "helper": "defineMaintainedProjection",
+      "id": "conversation-cards",
+      "witness": "tests/acceptance/local-streaming.mjs check 2 (8/8, rerun receipt pinned below)"
+    }
+  },
+  "sourceGlueReduction": {
+    "method": "authored declaration lines for the two helper blocks in snapback/functions.mjs versus the generated closed-plan/contract/schema lines attributable to those functions; the runtime pagination, cursor authority, and same-commit maintenance logic have no authored in-cell representation at all",
+    "authoredLines": {
+      "relational": 23,
+      "projection": 23
+    },
+    "generatedReplacedLines": 196,
+    "note": "a reduction record for the admitted fixture, not a frozen-threshold claim; the frozen WS6 source-volume row remains Partitime-owned (LLP 0063)"
+  },
+  "cumulativeGates": {
+    "reran": {
+      "noExactCore": {
+        "ok": true,
+        "receiptSha256": "7cfd91b73801280f809d4f3636652ce7af80e41395da0c7099c361d7e1c257bf"
+      },
+      "authorizationNegatives": {
+        "ok": true,
+        "via": "tests/acceptance/standard-patterns-v1.mjs"
+      },
+      "packageTestInventory": {
+        "ok": true
+      },
+      "fixtureRelationalSuite": {
+        "ok": true,
+        "checks": "5/5"
+      }
+    },
+    "zeroRegressionArgument": {
+      "kind": "byte-identity",
+      "scope": "the Partitime measured cell and its browser/native instruments — this landing touches no demos/partiful-matrix path"
+    },
+    "fixtureSurface": {
+      "typecheck": "bun run typecheck reran green against the v1 generated artifacts in this landing",
+      "nativeExport": "untimed Expo compatibility posture per protocol requiredSurfaceTiming; not rerun here"
+    }
+  },
+  "pinnedReceipts": {
+    "schemaEvolution": {
+      "file": "acceptance/results/schema-evolution.v1.json",
+      "sha256": "7f50bd6650e0b419a987ccefb094439a228fc379ee2176b030812c64ec922764"
+    },
+    "relationalConversations": {
+      "file": "acceptance/results/relational-conversations.v1.json",
+      "sha256": "63565b8d6969fb6399de2e526d8d0307e55d9ef6e486ece686d34eebaea589a4"
+    },
+    "localStreamingRerun": {
+      "file": "acceptance/results/local-streaming.v0.rerun-20260726.json",
+      "sha256": "6a00ce4ccb1c4b70d83243c0aed3ea53f0ef573ef9ab2d0163d7da5775b1c267"
+    }
+  }
+}

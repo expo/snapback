@@ -119,6 +119,19 @@ dependency of both the 0065 and 0080 lanes.
   biggest unlock: it closes 0080's last item, one of 0081's last items,
   and delivers the LLP 0063 Step 5 receipt — and Step 0's refreshed
   ledger closed on 2026-07-25, so the claim path is open.
+  **Fixture admission (2026-07-26): executed.** Charlie admitted
+  `demos/competitive-checkpoint` as the admitted Step 5 fixture (LLP
+  0063 Revised 2026-07-26; protocol amendment v0.8). Both 0080 §7
+  helpers now run there in production shape (`conversationsWithModel`
+  landed callable + paged, 5/5; projection retained, 8/8 rerun), and
+  0081's witness reviewed and executed the real `models.provider`
+  change through `migrate` preview→approve→apply (6/6), finding and
+  fixing two engine defects (CLI async-guard panic; dual manifest-slot
+  publication divergence). Receipts: `step5-both-helpers.v1.json`,
+  `schema-evolution.v1.json`, `relational-conversations.v1.json`. Both
+  RFCs' Step 5 application witness items are witnessed; the audited
+  flip landing (0080/0081 → Implemented + `relational_query_v1`
+  promotion in one change) is the remaining act.
   **Receipt landed (2026-07-25):** `STEP5.DECLARATION_REDUCTION` is
   `passing` (136 ≤ 152 under the frozen method; dated LLP 0063 amendment;
   claim manifest + lock + bundles regenerated together). Honest residue:

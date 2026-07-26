@@ -87,3 +87,16 @@ relational_corpus_v0`), executed by `tests/relational_corpus_v0.rs`.
 
 Everything under fan-out, projections, materializeAll, rebuild, and the
 Step 5 fixture remains the Phase B half.
+
+**Step 5 application witness (2026-07-26): CLOSED.** Charlie admitted
+`demos/competitive-checkpoint` as the admitted Step 5 fixture (LLP 0063
+Revised 2026-07-26; LLP 0075 protocol amendment v0.8, prospective). The
+fixture demonstrates both LLP 0080 §7 generated helpers in production
+shape — `conversationsWithModel` (defineRelationalQuery; witness
+`relational-conversations.mjs`, 5/5) beside `conversationCardsProjection`
+(defineMaintainedProjection; streaming rerun 8/8) — and the
+demonstrates-both-helpers record with the source/glue-reduction
+measurement and the cumulative gate reruns is
+`demos/competitive-checkpoint/acceptance/results/step5-both-helpers.v1.json`.
+The final 0080 §Acceptance item is witnessed; the flip decision moves to
+the audited flip landing.

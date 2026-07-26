@@ -85,3 +85,22 @@ receipt consumed without substituting). Witnesses:
 blockers after this slice: the Step 5 application witness (shared with
 0080), the JS client quarantine UX residual, hosted/DO items (deferred
 profiles), and the `transformed` retained-work posture (spec-deferred).
+
+**Step 5 application witness (2026-07-26): CLOSED.** On the admitted
+fixture (`demos/competitive-checkpoint`, LLP 0063 Revised 2026-07-26,
+protocol amendment v0.8) the witness `schema-evolution.mjs` (6/6) reviewed
+and executed the REAL `models.provider` schema change through
+`snapback migrate` preview→approve→apply against the pinned v0 artifacts:
+sealed plan reviewed on its face, tamper refusal, dry-run admission,
+released journal-sealed receipt, exactly-once replay, verify re-proof,
+then reopen on the successor artifacts with every predecessor row and the
+relational helper serving. It found and fixed two engine defects with
+regressions (the migrate.* CLI async-guard panic — pre-bind blocking
+handoff in src/cli.rs; publication/§6 republish writing only the legacy
+manifest slot and bricking reopened stores —
+`publish_manifest_for_migration` dual-slot write plus the file-backed
+reopen regression in tests/migration_corpus_v0.rs). Gate reruns ride
+`step5-both-helpers.v1.json`. The 0081 Step 5 application witness item is
+witnessed; remaining flip residuals are the JS client quarantine UX,
+hosted/DO items (deferred profiles), and the `transformed` posture
+(spec-deferred).
