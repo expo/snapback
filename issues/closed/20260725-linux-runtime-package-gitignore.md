@@ -1,6 +1,6 @@
 # Linux runtime package artifacts are untracked, dirtying the tree and blocking publish
 
-**Status:** In Progress (2026-07-26; source hygiene fixed, clean-Linux proof pending)
+**Status:** Closed (2026-07-26)
 **Severity:** P2
 **Systems:** Build, Release, CI, Native runtime
 **Author:** Claude (Opus 5), directed by Charlie Cheever
@@ -84,3 +84,17 @@ tracked or untracked source-tree change after the package-local ignore rules
 take effect. Its existing package test launches the prepared binary with
 `LD_LIBRARY_PATH` removed; together those two checks make the remaining remote
 proof sufficient to close this ticket.
+
+## Resolution (2026-07-26)
+
+The clean-Ubuntu `linux-runtime-package` workflow run
+[30200583066](https://github.com/ccheever/snapback/actions/runs/30200583066)
+passed at commit `721cf6b6`. Its build step prepared the runtime, proved the
+working tree remained clean, and launched the packaged binary with
+`LD_LIBRARY_PATH` removed. The following step packed and cold-installed the
+public-alias closure, and the final step retained the tarballs, publication
+ledger, and cold-machine receipt. The package-local ignore rules and their
+regression are therefore proven end to end.
+
+The cross-host publisher interface question remains a separate lower-priority
+release UX concern; it does not reopen this source-hygiene defect.
