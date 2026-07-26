@@ -5,7 +5,15 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (first concrete adapter driver: the packaged Fly Machines driver
+**Revised:** 2026-07-26 (author-side review reconciliation: a shared external
+control authority and operation fence, provider-routing linearization, closed
+raw remote-evidence classes, signed prepared-artifact graph, separate
+serving/operation state machines, producer admission epochs, pre/post-release
+rollback boundary, multi-component backup barrier, new restore data/stream
+authority, TLS renewal/backend-exposure proof, key/floor rotation,
+operation-scoped grants, and canonical remote control audit are specified. The
+RFC remains Draft pending independent systems/security review and a complete
+remote drill). 2026-07-26 (first concrete adapter driver: the packaged Fly Machines driver
 for `single-instance-container-vm.v1` now implements the closed observation
 protocol (`doctor`/`inspect`) and the bounded provider-event `logs` query
 against the live Machines API, with keychain credential-handle resolution,
@@ -173,7 +181,8 @@ Every operation binds these immutable or monotonic identities:
 - `deploymentId`: one isolated running application/data authority;
 - `releaseId`: a content-addressed immutable release;
 - `activationGeneration`: increments whenever traffic authority changes;
-- `databaseId` and `streamIncarnation`: the application data/reset authority;
+- `databaseId`, `databaseIncarnation`, `streamIncarnation`, and
+  `restoreEpoch`: the application data/reset/restore authority;
 - `targetProfileId`: the exact capability profile; and
 - `operationId`: an idempotent control operation with actor and reason.
 
@@ -188,6 +197,37 @@ A target identity is resolved and displayed before every mutating operation.
 Aliases are convenience only. Destructive operations require exact ids and a
 fresh provider-side identity read, not a cached alias or broad selector.
 
+### Shared external control authority
+
+Each deployment has one canonical authority record outside the application
+database, its backup set, and operator workstations. It supports atomic
+compare/update over:
+
+- target, deployment, database/stream/restore incarnation;
+- current control-operation lease id, strictly increasing fence, actor/grant,
+  purpose, issue/expiry, and status;
+- serving state, traffic/effect pause posture, active/staged release digests,
+  provider-routing revision, and activation generation;
+- release admission epoch with allowed producer, worker, retained-client,
+  hosted-auth, configuration, and schema generation sets;
+- external sender-replay floor and hosted-admission MAC-key generation;
+- privacy/deletion/hold generation consumed from LLP 0071;
+- last completed operation/receipt digest and canonical control-audit head; and
+- monotonic restore and rate-limit epochs.
+
+Every mutating adapter request, runtime boot, hosted-admission refresh, worker
+claim, traffic switch, backup barrier, and restore translation carries the
+current fence and authority-record revision. A stale process cannot stage,
+route, write, publish completion, or mint admission. If the provider lacks a
+conditional resource API, the profile requires a separately deployed
+single-writer broker holding provider root credentials; ordinary operators and
+agents receive no bypass credentials. Local plans, journals, and audit chains
+are resumable caches/evidence, never the cross-machine lock.
+
+The selected Fly profile must name and provision this authority before it can
+leave Draft. Provider metadata or an object protected only by local
+last-writer-wins semantics is insufficient.
+
 ## Release artifact
 
 `snapback deploy build` produces an immutable release manifest containing:
@@ -201,7 +241,19 @@ fresh provider-side identity read, not a cached alias or broad selector.
 - target-profile requirements and explicit GAPs;
 - dependency lock, license/SBOM, and provenance attestations;
 - health/acceptance probe definitions; and
-- signature/key id when artifact signing is configured.
+- signature/key id; signing is optional for previews but required by
+  `trusted-single-tenant-app-complete.v1`.
+
+The activation authority is a prepared-release artifact graph, not an
+individual mutable image tag. Its root digest binds the base release, OCI image
+by registry digest, runtime/server and generated artifacts, worker/action
+closures, migrations, probes, SBOM/provenance, compatibility/admission policy,
+and every object-store version id. A domain-separated signature covers that
+root plus target-profile and signing-key generation. Verification checks key
+status and revocation at plan, stage, activation, rollback, restore, and worker
+claim time. Revocation quarantines a cryptographically valid old plan.
+Retention of every graph object outlives the longest queued-job, rollback,
+backup, or restore manifest that names it.
 
 Production activation refuses dirty-source artifacts by default. An explicit
 non-production profile may retain a dirty artifact for preview, but its manifest
@@ -264,12 +316,32 @@ the same operation/step ids; an ordinary failure attempts rollback and lease
 release before returning the retained failure receipt.
 
 The executable fixture proves success, an abrupt interruption and idempotent
-resume, served-path failure and automatic rollback, stale-generation refusal,
+resume, pre-release served-path failure and automatic rollback while
+traffic/effects remain fenced, stale-generation refusal,
 and secret-class exclusion. Fixture evidence is structurally incapable of
 passing production: every lifecycle response names whether it has remote
 evidence, a positive value requires a verified `remoteProviderAttestation`, and
 production apply rejects/rolls back a false value. The fixture's final receipt
 also retains a blocking `control-plane.remote-evidence` GAP.
+
+`remoteProviderAttestation` is admissible only as a package-derived projection
+over one of these retained closed evidence classes:
+
+- a TLS-authenticated or provider-signed API exchange binding endpoint, method,
+  canonical request/response digests, request/server time, provider request id,
+  account/resource/revision, and credential-handle fingerprint;
+- an independent served-path probe binding fresh challenge nonce, DNS answers,
+  SNI, certificate chain/OCSP facts, observed origin/backend address, release
+  health body digest, and observer identity;
+- an object-store read-back binding bucket/account, immutable version/etag,
+  authenticated-encryption/key generation, byte count, and full plaintext plus
+  ciphertext digests after verified decryption; or
+- an explicitly weaker operator observation, which is always a nonclaim for a
+  production qualification fact.
+
+The package verifier validates raw bytes, freshness window, account/resource
+binding, and claim-specific derivation; a driver-authored boolean or two equal
+reads never establishes provenance or semantics by itself.
 
 This closes the target-neutral orchestration contract, not the hosted profile.
 The normal release builder still returns only `activationEligible: false`, and
@@ -329,6 +401,14 @@ still must implement the atomic monotone store outside the application backup
 set, retrieve the MAC key from its provider secret manager, operate the refresh
 writer for the supervised process, and retain remote evidence for each fact.
 
+The external authority binds MAC-key and sender-floor generations to exact
+target/deployment/database/stream/restore incarnation. Rotation is a CASed
+single cutover or a bounded two-generation overlap whose acceptance rule is
+closed in the target profile; concurrent refresh cannot move backward or
+revive an old generation. Replacement, disaster recovery, and restore allocate
+new generations before boot. Rotation/revocation is mandatory control audit,
+and stale operators or restored envelopes cannot mint an accepted projection.
+
 The normalized operator-maintenance surface is also implemented behind the
 same remote-evidence fence. A code-only rollback plan binds a destination
 prepared release and compares its readable generation interval with
@@ -370,6 +450,14 @@ accidental loss or modification but does not claim independent tamper
 resistance; a concrete adapter still owes a remote/external sink and its
 retention evidence for the complete profile.
 
+For the complete profile, each finished operation receipt is also appended by
+CAS to the shared external authority's canonical sequence and copied to a
+separately permissioned remote object/log sink. Canonical bytes bind prior
+receipt, operation/fence, target/restore incarnation, plan/result digests, and
+actor/grant generation. Sequence gaps or competing heads are detected and
+block mutation. Local chains remain caches/evidence; workstation loss or a
+second operator cannot create an alternative valid history.
+
 Control-store reads open the target descriptor or retained artifact with
 `O_NOFOLLOW`, validate the descriptor rather than a pre-open pathname, reject
 multiple hardlinks and non-owner access, and compare inode/size/mtime facts
@@ -381,13 +469,31 @@ authority.
 
 ## Deployment state machine
 
-The durable control-plane states are:
+Serving state and control-operation state are independent durable projections.
+Serving state is `unprovisioned`, `inactive`, `ready`, `active`, `degraded`,
+`paused`, or `retired`. An operation is `planned`, `leased`, `running`,
+`awaitingConfirmation`, `succeeded`, `failed`, `ambiguous`, or `superseded`.
+Each transition CASes the shared authority revision/fence and appends canonical
+control audit:
 
-`registered → provisioning → inactive → staging → ready → active`
+| Serving / operation | Event and observation | Next | Traffic/effects and generation |
+| --- | --- | --- | --- |
+| `unprovisioned / running` | provider identity created under fence | `inactive / succeeded` | none; no activation change |
+| `inactive / running` | immutable graph staged and private probes green | `ready / succeeded` | none; no activation change |
+| `ready / running` | adapter linearization succeeds | `active / running` | switch traffic once; increment activation |
+| `active / running` | monitored validation green | `active / succeeded` | effects released per admission epoch |
+| `active / running` | health/log/inspection fault after release | `degraded / awaitingConfirmation` | public posture explicit; no automatic rollback |
+| any non-retired / running | backup barrier acquired | unchanged / running | writes/effects paused or participant-fenced |
+| non-production non-retired / running | restore translation starts | `paused / running` | no traffic/effects; increment restore epoch |
+| `paused / running` | reconciliation and explicit activation green | `active / succeeded` | switch once; increment activation |
+| any / lease expiry or newer fence | authority CAS | unchanged / `superseded` | stale caller has no provider/runtime authority |
+| any / uncertain provider outcome | no admissible observation | unchanged / `ambiguous` | fail closed; reconcile before new mutation |
+| non-active / authorized retirement | exact identity and backup/retention gate | `retired / succeeded` | permanently no traffic; id never reused |
 
-with `degraded`, `draining`, `failed`, `restoring`, and `retired` as explicit
-states. Transitions compare operation and activation generations and append an
-operator audit fact.
+`degraded` always reports whether traffic remains public and which effect
+classes are fenced. A failed/ambiguous operation does not redefine serving
+state. `retired` never reopens; restore creates a new target/deployment
+incarnation linked to its lineage.
 
 An activation follows a retained plan:
 
@@ -401,15 +507,36 @@ An activation follows a retained plan:
 5. create and verify the policy-required pre-deploy backup/checkpoint;
 6. upload/provision the inactive release without granting public traffic;
 7. run expand/compatible migrations and generated smoke/health probes;
-8. switch one activation generation to the ready release;
-9. verify public TLS, origin, authentication, health nonce, data sentinel,
+8. execute the adapter's provider-routing linearization point, switching one
+   activation generation to the ready release;
+9. verify public TLS, origin, authentication, challenge-bound health nonce,
+   data sentinel,
    realtime, logs, and inspection through the served path; and
-10. retain the result or automatically invoke the declared rollback path.
+10. retain the result or enter the declared post-release recovery path.
 
 Every step is idempotent under `operationId` and records its input/output digest.
 A retry resumes or proves completion; it does not begin an unrelated deploy.
 Concurrent deploy/rollback/restore operations are fenced by a deployment lease
 and activation generation.
+
+An adapter qualifies exactly one traffic linearization strategy:
+
+- a native conditional routing update binding immutable release digest and
+  provider revision;
+- a stable router/proxy whose routing record is CASed by the external control
+  authority; or
+- bounded-downtime stop/rebind/start under an exclusive provider fence.
+
+Recovery probes derive a fresh nonce from the active release and bind release,
+activation, deployment, database/stream/restore incarnation, authority record
+revision, and observer challenge. A status label or cached provider response is
+not activation evidence.
+
+The release admission epoch changes allowed old/new producer, worker,
+retained-client, hosted-auth, schema, and configuration generation sets under
+the same control fence as traffic. Compatibility preflight supplies the
+proposed intersection; the enforced epoch closes concurrent enqueue/write
+races that a point-in-time census cannot.
 
 The base profile may have bounded downtime and says so in its receipt. A target
 without inactive staging can implement stop/migrate/start only if the plan,
@@ -446,12 +573,29 @@ The minimum profile requires a successful code-only rollback drill across one
 compatible release pair and a separate backup/restore drill. It does not allow a
 dashboard button to imply every migration is reversible.
 
+Automatic rollback is allowed only before the release linearization point, or
+during a declared canary interval whose admission epoch proves that no
+incompatible writes, jobs, webhooks, notifications, payments, or expanded
+semantics were released. After public effects are possible, failure enters
+`degraded/awaitingConfirmation`; rollback requires a fresh enforced
+producer/worker/external-effect compatibility audit. Otherwise the only safe
+posture is `forwardFix` or `restoreRequired`. Every prepared release names the
+latest generation to which its predecessor can safely return.
+
 ## TLS and public origin
 
 The target adapter proves the canonical HTTPS origin, certificate chain,
 hostname, validity, automatic-renewal mechanism, HTTP-to-HTTPS behavior, minimum
 TLS policy, and backend origin exposure. Health checks use the public origin and
 SNI, not only an internal loopback port.
+
+Qualification safely exercises renewal or a provider-supported renewal
+simulation and retains raw evidence for certificate/key persistence across
+process and machine replacement. Negative probes cover expired,
+not-yet-valid, wrong-host, stale cached, and DNS-rebound observations. A
+separate network probe proves direct backend addresses cannot bypass the
+hosted-auth topology. Renewal failure and certificate persistence are observed
+states, not descriptor assertions.
 
 The application accepts browser credentials only under LLP 0060's origin,
 cookie/token, XSS, and hosted-auth contract. The deploy receipt records the
@@ -476,9 +620,27 @@ A backup is an immutable manifest over:
 Provider/application secrets and control-plane credentials are excluded. The
 manifest records required secret names and generations, never values.
 
+The base profile uses a bounded maintenance backup barrier; it makes no
+cross-provider online-snapshot claim. Under the shared control fence it:
+
+1. advances a snapshot epoch and pauses or fences application writes plus
+   external-effect publishers that cannot participate;
+2. commits a database frontier naming exact object generations, job/webhook/
+   payment/notification dispositions, audit roots, and excluded provider state;
+3. copies every referenced versioned object and proves authenticated read-back;
+4. records each non-restorable external fact as an explicit nonclaim; and
+5. durably commits the immutable manifest and control-audit receipt before
+   releasing the barrier.
+
 Backup succeeds only after read-back verification. Encryption keys live outside
 the protected deployment; the profile declares who can decrypt and restore.
 Retention and deletion are policy-controlled and audited.
+
+Periodic isolated verification restores use the exact manifest and key
+generation, decrypt every component, run database integrity and
+component/object reconciliation, execute generated read-only acceptance, and
+scan logs/output for secrets and private data. Receipts report measured
+recovery-point and recovery-time facts without promising a broader objective.
 
 Restore is always explicit and initially isolated:
 
@@ -487,14 +649,27 @@ Restore is always explicit and initially isolated:
    permitted replacement and presents its fresh sentinel/hash;
 3. fence deploys, traffic, cron, jobs, notifications, webhooks, and payment
    workers;
-4. restore into an inactive destination with a new activation and restore epoch;
-5. verify every component hash, schema/artifact compatibility, referential
-   checks, stream identity, and application sentinel;
-6. run generated application acceptance in read-only/external-effects-disabled
+4. restore into an inactive destination, then allocate from external authority
+   a new database incarnation, stream incarnation, restore epoch, activation
+   generation, rate-limit epoch, hosted-auth key/floor generations, and
+   release-admission epoch;
+5. translate/restamp system authority and reconcile sessions, sender replay
+   floors, authorization generations, retained clients/cursors, jobs, webhooks,
+   payments, notifications, caches, moderation/audit, deletion/hold/key
+   manifests, and idempotency windows before runtime open;
+6. verify every component hash, schema/artifact compatibility, referential
+   checks, new stream identity, source-lineage link, and application sentinel;
+7. run generated application acceptance in read-only/external-effects-disabled
    mode;
-7. require an explicit activation that reattests secrets, origins, provider
+8. require an explicit activation that reattests secrets, origins, provider
    environments, and worker posture; and
-8. retain the previous destination until policy permits deletion.
+9. retain the previous destination until policy permits deletion.
+
+Old row versions may be retained only when every consumer binds the new stream
+incarnation; otherwise translation restamps them under a receipt-bound mapping.
+The runtime refuses restored bytes before translation and external-authority
+reconciliation complete. Source backup lineage is append-only provenance and
+never reuses source execution authority.
 
 The Step 6 drill uses an isolated non-production deployment, writes a unique
 sentinel plus application fixture hashes, backs up, destroys/replaces the exact
@@ -513,6 +688,12 @@ default logs.
 Targets publish retention, indexing, delivery latency, drop/backpressure, and
 export capabilities. A log sink failure is visible in health; security-critical
 control operations follow LLP 0071's mandatory-audit posture.
+
+Application logs carry per-source sequence and explicit dropped, duplicated,
+delayed, and backpressured counters checked against an independent sink-health
+observation. They may truthfully be lossy; sustained loss degrades the profile.
+Mandatory control audit uses the external authority and remote sink above and
+does not infer durability from the application log pipeline.
 
 Authenticated inspection includes:
 
@@ -544,6 +725,17 @@ codes, idempotency operation ids, noninteractive credentials, and exact target
 identity. Production and destructive operations never infer confirmation from
 TTY presence. They require the declared policy's explicit confirmation token or
 signed automation authority after showing the immutable plan digest.
+
+Confirmation and automation authority are short-lived operation-scoped grants
+binding issuer, actor, actor/grant generation, audience, exact
+target/environment/deployment/restore incarnation, plan digest, allowed
+command/effect, maximum cost and data-loss window, issue/expiry, and one-use
+nonce. The shared control authority consumes the nonce atomically with lease
+acquisition. Copying a confirmation between machines, changing the plan, or
+revoking the actor cannot authorize a later operation. Especially destructive
+operations may require two independently scoped grants when target policy says
+so. Provider root credentials remain behind the control broker wherever the
+provider permits; ordinary inspection grants cannot call provider mutation APIs.
 
 The generated app CLI may link to these operations but cannot widen its grant.
 Agents can prepare plans and execute operations already granted to them; acquiring
@@ -690,29 +882,52 @@ remain and the LLP 0077 matrix has not run against a hosted-auth deployment.
 The chosen hosted adapter must retain executable evidence that:
 
 - a clean immutable release builds, scans, uploads, and verifies its manifest
-  and every artifact digest;
+  and every artifact digest, signed prepared-graph root, registry/object
+  version, and current signing-key status;
 - target aliases, stale descriptors, cross-account credentials, wrong origin,
   preview/production identity, and concurrent operations fail closed;
+- two operators on different machines serialize through the external authority;
+  stale fences, consumed confirmations, competing audit heads, and broker-bypass
+  attempts fail closed;
 - public TLS, authentication, application health nonce, live query/mutation,
   logs, and admin inspection pass against the activated release;
+- the chosen provider-routing linearization strategy survives a crash before
+  and after every authority/provider update, with a fresh challenge-bound health
+  response proving one authoritative release/generation;
+- every production qualification fact derives from retained admissible raw
+  evidence; a self-authored boolean, stale observation, or weaker operator
+  observation cannot pass;
 - a compatible next release migrates and activates, then code-only rollback
   returns traffic to the prior digest without data rewind or lost committed
   writes;
+- pre-release rollback remains automatic only while traffic/effects are fenced;
+  post-release faults exercise the compatibility audit and select rollback,
+  `forwardFix`, or `restoreRequired` without guessing;
 - an incompatible/irreversible release is refused or truthfully selects
   `forwardFix`/`restoreRequired` before activation;
-- backup read-back verifies all component hashes and excludes secret values;
+- the maintenance backup barrier freezes/fences nonparticipants, commits one
+  cross-component frontier, verifies every object/version, and excludes secret
+  values;
 - the isolated backup → destroy/replace → restore-paused → verify → activate
   drill recovers the exact fixture/sentinel, document/payment/job/audit facts
-  admitted by the pressure tests, and external effects remain fenced until
-  explicit activation;
+  admitted by the pressure tests under new database/stream/restore authority;
+  deletion/hold/key reconciliation prevents resurrection, and external effects
+  remain fenced until explicit activation;
 - process/platform restart and deployment interruption resume idempotently;
-- expired TLS, missing config, incompatible artifacts, failed migration, log
+- TLS renewal/persistence plus expired, future, wrong-host, stale-cache,
+  DNS-rebind, and direct-backend probes pass; missing config, incompatible
+  artifacts, failed migration, log
   sink failure, inspection failure, and health failure produce structured
   degraded/failed state and block profile completion;
+- hosted-admission MAC key and sender-floor rotation, restore, concurrent
+  refresh, and revocation never accept an older generation;
+- operation-scoped grants enforce target/plan/effect/cost/data-loss ceilings,
+  expiry, one-use nonce, revocation, and any declared two-person rule;
 - logs/diagnostics/artifacts/backups/receipts pass secret and private-data scans;
   and
 - the final receipt names costs, downtime, retention, performance, capacity,
-  target limitations, and all nonclaims.
+  target limitations, observed log loss, recovery point/time, and all
+  nonclaims.
 
 The retained receipt binds repository revisions, clean-state facts, release and
 adapter versions, target/environment/deployment/database/stream identities,
@@ -737,9 +952,13 @@ local dev, or an API-only deploy is not Step 6 evidence.
    Cloudflare or a single-instance container/VM the first complete hosted
    adapter? The container/VM shape is selected (LLP 0075 amendment v0.6) and
    first instantiated on Fly.io as the recorded drill target; whether that
-   provisioning grows into this RFC's complete adapter remains open.
-2. Which artifact-signing and external backup stores are mandatory for the base
-   profile rather than reported opt-ups?
-3. What measured downtime ceiling should the first profile declare?
-4. Which control-plane credential store and agent grant format should be the
+   provisioning grows into this RFC's complete adapter remains open, including
+   the provider/broker chosen for its shared external authority.
+2. What measured maintenance-downtime ceiling should the first profile declare?
+3. Which control-plane credential store and broker implementation should be the
    paved local operator experience?
+
+The base profile now requires signed prepared-release graphs and a separately
+permissioned external backup store. Its backup and migration consistency claim
+permits measured bounded maintenance downtime; it makes no online
+cross-component snapshot claim.
