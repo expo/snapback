@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "7518ac59543619c9f1a8a773a0548dd5aec1428c9429357bd8ff0ab14cb2eb34"
+        "sha256": "7dc974db640e3dbfa61075cf71c60c0c5a7209321ff4e21cc9376587cf126d72"
       }
     },
     {
@@ -169,8 +169,8 @@
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "7518ac59543619c9f1a8a773a0548dd5aec1428c9429357bd8ff0ab14cb2eb34",
-    "exactRevision": "fe34bf274da079675cce35d0e95d9c296a4a7e48"
+    "sha256": "7dc974db640e3dbfa61075cf71c60c0c5a7209321ff4e21cc9376587cf126d72",
+    "exactRevision": "591e69e03f5adcee39b6bfa7b572dbb65dda2ec1"
   },
   "inputs": {
     "semantics": {

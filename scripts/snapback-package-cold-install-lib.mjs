@@ -214,7 +214,6 @@ export function aggregatePublicPackageProofs({
     }
     byPlatform.set(platform, {
       platform,
-      path: record.path,
       sha256: record.sha256,
       machine: receipt.machine,
       checks: receipt.checks,

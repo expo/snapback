@@ -46,6 +46,19 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
+run `30216614778` installed the byte-bound public `0.1.0` closure on new
+GitHub-hosted macOS/arm64 and Linux/x64 machines. Both platform receipts prove
+public alias resolution, all eight registry tarball digests, the packaged
+native doctor, offline local/remote codegen, CLI introspection, scaffold
+acceptance, fail-closed deploy build, managed dev/watch/attach/stop, and browser
+bundling without a sibling checkout. Their fail-closed aggregate has
+`claimSatisfied: true` and no nonclaims at
+`demos/partiful-matrix/acceptance/results/step5-packaged-loop.json`;
+`STEP5.PACKAGED_LOOP` is therefore promoted. The proposal Status remains
+Draft pending its normal document-acceptance decision; the executable
+acceptance surface itself is implemented.)
+
 ## Summary
 
 This RFC turns Snapback's repo-local development experience into an installable
@@ -334,6 +347,9 @@ fail-closed public-registry instrument and its two-platform clean-machine
 aggregation workflow exist, but they have not yet executed against that
 publication. The prior tarball proof on a development host and the
 clean-Ubuntu staged-registry proof at workflow run `30215680492`, revision
-`ca92d029`, remain useful checkpoints; neither substitutes for the pending
-public-registry executions on new GitHub-hosted macOS/arm64 and Linux/x64
-machines.
+`ca92d029`, remain useful checkpoints. The authoritative public-registry
+executions completed in GitHub Actions run `30216614778` on new macOS/arm64 and
+Linux/x64 machines, and the retained aggregate now satisfies the packaged-loop
+claim with no nonclaims. LLP 0041 remains Draft only because its proposal
+status still awaits the normal document-acceptance decision, not because an
+executable acceptance item remains open.
