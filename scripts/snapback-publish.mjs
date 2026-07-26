@@ -21,6 +21,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const publicRegistry = 'https://registry.npmjs.org';
 const runtimePackages = new Map([
   ['darwin-arm64', 'snapback-runtime-darwin-arm64'],
   ['linux-x64', 'snapback-runtime-linux-x64'],
@@ -134,10 +135,48 @@ function sourceDirty() {
 }
 
 function versionExists(name, version) {
-  const result = run('npm', ['view', `${name}@${version}`, 'version', '--json']);
+  const result = run('npm', [
+    'view', `${name}@${version}`, 'version', '--json',
+    '--registry', publicRegistry,
+  ]);
   if (result.status === 0) return true;
   if (/E404|404 Not Found/.test(`${result.stdout}\n${result.stderr}`)) return false;
   fail(`registry probe failed for ${name}@${version}:\n${result.stderr}`);
+}
+
+function bindRegistryArtifact(row, out) {
+  const downloadRoot = mkdtempSync(join(out, '.registry-'));
+  try {
+    const packed = run('npm', [
+      'pack',
+      `${row.name}@${row.version}`,
+      '--pack-destination', downloadRoot,
+      '--json',
+      '--ignore-scripts',
+      '--registry', publicRegistry,
+    ], { timeout: 360_000 });
+    if (packed.status !== 0) {
+      fail(`could not retrieve published artifact for ${row.name}@${row.version}:\n${packed.stderr || packed.stdout}`);
+    }
+    const record = JSON.parse(packed.stdout)[0];
+    const downloaded = join(downloadRoot, record.filename);
+    const manifest = JSON.parse(execFileSync(
+      'tar', ['-xzOf', downloaded, 'package/package.json'], { encoding: 'utf8' },
+    ));
+    if (manifest.name !== row.name || manifest.version !== row.version) {
+      fail(`published registry identity drift for ${row.name}@${row.version}`);
+    }
+    row.registrySha256 = sha256(downloaded);
+    if (row.registrySha256 !== row.sha256) {
+      fail(
+        `published registry bytes differ from the staged artifact for ${row.name}@${row.version}`,
+      );
+    }
+    row.registryIntegrity = record.integrity ?? null;
+    row.registryShasum = record.shasum ?? null;
+  } finally {
+    rmSync(downloadRoot, { recursive: true, force: true });
+  }
 }
 
 function stage(options) {
@@ -239,6 +278,9 @@ if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
 if (options.publish && options.runtimePlatforms.length !== runtimePackages.size) {
   fail('real publish requires --runtime-platforms all so the CLI never points at a missing supported runtime');
 }
+if (options.publish && options.scopePreset === 'ccheever' && options.tag !== 'latest') {
+  fail('the decided @ccheever public closure must publish under the latest tag');
+}
 const dirty = sourceDirty();
 if (options.publish && dirty && !options.allowDirty) fail('refusing to publish a dirty source tree');
 const revision = run('git', ['rev-parse', 'HEAD']).stdout.trim();
@@ -250,6 +292,7 @@ const ledger = {
   sourceDirty: dirty,
   version: options.version,
   tag: options.tag,
+  registry: publicRegistry,
   scopePreset: options.scopePreset,
   runtimePlatforms: options.runtimePlatforms,
   packages: rows,
@@ -257,16 +300,19 @@ const ledger = {
 const ledgerPath = join(options.out, 'publish-ledger.json');
 
 if (options.publish) {
-  const who = run('npm', ['whoami']);
+  const who = run('npm', ['whoami', '--registry', publicRegistry]);
   if (who.status !== 0) fail(`npm authentication required:\n${who.stderr}`);
   for (const row of rows) {
     if (versionExists(row.name, row.version)) {
       row.status = 'skipped-already-published';
+      bindRegistryArtifact(row, options.out);
+      writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
       continue;
     }
     const args = [
       'publish', join(options.out, row.tarball),
       '--access', 'public', '--tag', options.tag,
+      '--registry', publicRegistry,
     ];
     if (options.otp) args.push('--otp', options.otp);
     const result = run('npm', args);
@@ -281,12 +327,15 @@ if (options.publish) {
       fail(`publish failed for ${row.name}; rerun resumes safely:${otpHint}\n${redactAuthenticationUrls(result.stderr)}`);
     }
     row.status = 'published';
+    bindRegistryArtifact(row, options.out);
+    writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 } else {
   for (const row of rows) {
     const result = run('npm', [
       'publish', join(options.out, row.tarball), '--dry-run',
       '--access', 'public', '--tag', options.tag, '--json',
+      '--registry', publicRegistry,
     ], { timeout: 360_000 });
     if (result.status !== 0) {
       fail(

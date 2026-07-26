@@ -1,5 +1,17 @@
 # LLP 0041: Packaged developer loop
 
+**Revised (public-registry proof instrument):** 2026-07-26 (the cold-install
+instrument now has an explicit fail-closed `public` mode: it accepts only a
+clean successful publication ledger for the complete decided
+`@ccheever/snapback-*` closure, downloads every exact registry tarball without
+scripts, checks the registry bytes against ledger-bound SHA-256 identities,
+and installs by public npm alias rather than local tarball path. A separate
+aggregate instrument admits the packaged-loop claim only when new
+GitHub-hosted `darwin-arm64` and `linux-x64` machines both return public,
+clean-machine receipts for the same source revision and package closure.
+Publication and those two executions remain pending, so this amendment creates
+no green claim.)
+
 **Revised (LLP 0074 doctor vertical slice):** 2026-07-22 (`snapback doctor`
 now proves launch, generated bundle load, VM query, isolated-database mutation,
 live subscription open/close, owned shutdown, and temporary-state cleanup with
@@ -306,9 +318,11 @@ adapter bundling all pass. The packaged doctor now executes the full disposable
 runtime/storage/live vertical slice rather than only `--help`. That is not yet
 the RFC exit. The public `@ccheever/snapback-*` alias set is decided and staged
 from `@snapback/*` source identities, but no package has been published to the
-public registry; npm authentication is not available in the recorded
-environment. The proof is a clean directory rather
-than an independently provisioned clean machine. A Linux x86-64 runtime
-package and clean-Ubuntu proof lane now exist in source, but no retained
-clean-Linux binary/receipt or public registry version exists yet; source
-presence is not multi-platform evidence.
+public registry. The fail-closed public-registry instrument and its
+two-platform clean-machine aggregation workflow now exist, but they have not
+executed against a publication. The tarball proof on a development host
+therefore remains ineligible for the public/clean-machine claim. The Linux
+x86-64 runtime package is independently proven by clean-Ubuntu workflow run
+`30200583066` at revision `721cf6b6`; that retained staged-registry receipt
+does not substitute for the pending public-registry executions on either
+platform.

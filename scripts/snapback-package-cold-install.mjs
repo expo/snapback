@@ -26,8 +26,10 @@ import { fileURLToPath } from 'node:url';
 
 import {
   parseArguments,
+  PUBLIC_NPM_REGISTRY,
   runAsync,
   usage,
+  validatePublicPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,6 +51,8 @@ if (parsedArgs.help) {
 }
 
 const ledgerPath = resolve(parsedArgs.ledger ?? join(root, 'dist-publish', 'publish-ledger.json'));
+const installSource = parsedArgs.installSource;
+const registry = parsedArgs.registry;
 const receiptPath = parsedArgs.receipt;
 const keep = parsedArgs.keep;
 
@@ -224,16 +228,40 @@ const runtimePackages = new Map([
 const hostPlatform = `${process.platform}-${process.arch}`;
 const hostRuntime = runtimePackages.get(hostPlatform);
 if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
+const allExpectedPackages = [
+  ...runtimePackages.values(),
+  '@snapback/contract',
+  '@snapback/client',
+  '@snapback/codegen',
+  '@snapback/react',
+  '@snapback/app-cli',
+  '@snapback/cli',
+];
+let publicEntries = null;
+if (installSource === 'public') {
+  try {
+    publicEntries = validatePublicPublicationLedger(ledger, allExpectedPackages);
+  } catch (error) {
+    fail(error.message);
+  }
+  if (registry !== ledger.registry) {
+    fail(`public install registry differs from publication ledger: ${registry}`);
+  }
+}
 const tarballs = [];
 for (const entry of ledger.packages ?? []) {
-  const tarball = join(ledgerDirectory, entry.tarball);
-  if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
-  if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
   const runtimePlatform = [...runtimePackages.entries()]
     .find(([, packageName]) => packageName === entry.sourceName)?.[0];
   if (runtimePlatform && runtimePlatform !== hostPlatform) continue;
-  dependencies[entry.sourceName] = `file:${tarball}`;
-  tarballs.push(tarball);
+  if (installSource === 'public') {
+    dependencies[entry.sourceName] = `npm:${entry.name}@${entry.version}`;
+  } else {
+    const tarball = join(ledgerDirectory, entry.tarball);
+    if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
+    if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
+    dependencies[entry.sourceName] = `file:${tarball}`;
+    tarballs.push(tarball);
+  }
 }
 
 const expectedPackages = [
@@ -249,8 +277,41 @@ for (const name of expectedPackages) {
   if (!dependencies[name]) fail(`publication closure omits ${name}`);
 }
 
-const stagedRegistry = await startStagedRegistry(ledgerDirectory, ledger);
 const temporary = mkdtempSync(join(tmpdir(), 'snapback-package-cold-'));
+const registryTarballs = [];
+if (installSource === 'public') {
+  const downloadRoot = join(temporary, 'registry-tarballs');
+  mkdirSync(downloadRoot, { recursive: true });
+  for (const sourceName of allExpectedPackages) {
+    const entry = publicEntries.get(sourceName);
+    const packed = JSON.parse(run('npm', [
+      'pack',
+      `${entry.name}@${entry.version}`,
+      '--pack-destination', downloadRoot,
+      '--json',
+      '--ignore-scripts',
+      '--registry', registry,
+    ], { cwd: temporary, timeout: 360_000 }))[0];
+    const downloaded = join(downloadRoot, packed.filename);
+    if (sha256(downloaded) !== entry.registrySha256) {
+      fail(`public registry tarball digest mismatch for ${entry.name}@${entry.version}`);
+    }
+    const manifest = JSON.parse(run('tar', ['-xzOf', downloaded, 'package/package.json']));
+    if (manifest.name !== entry.name || manifest.version !== entry.version) {
+      fail(`public registry package identity drift for ${entry.name}@${entry.version}`);
+    }
+    registryTarballs.push({
+      sourceName,
+      publishedName: entry.name,
+      version: entry.version,
+      sha256: entry.registrySha256,
+    });
+  }
+}
+const stagedRegistry = installSource === 'staged'
+  ? await startStagedRegistry(ledgerDirectory, ledger)
+  : null;
+const installRegistry = stagedRegistry?.url ?? registry;
 const appRoot = join(temporary, 'partitime-external');
 const backendRoot = join(appRoot, 'snapback');
 mkdirSync(backendRoot, { recursive: true });
@@ -263,7 +324,10 @@ try {
     type: 'module',
     dependencies,
   }, null, 2)}\n`);
-  writeFileSync(join(appRoot, '.npmrc'), `@ccheever:registry=${stagedRegistry.url}\n`);
+  writeFileSync(
+    join(appRoot, '.npmrc'),
+    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+  );
   // Materialize the real Partitime backend source into the external checkout.
   // From this point onward the proof runs only against that copy and tarballs.
   for (const file of ['schema.mjs', 'functions.mjs', 'seed.json']) {
@@ -310,7 +374,13 @@ await build({
 `);
 
   run('git', ['init', '--quiet'], { cwd: appRoot });
-  await runAsyncOrFail('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
+  await runAsyncOrFail('npm', [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--registry', PUBLIC_NPM_REGISTRY,
+    ...tarballs,
+  ], {
     cwd: appRoot,
     timeout: 360_000,
   });
@@ -358,8 +428,17 @@ await build({
     if (dependencies[name]) scaffoldManifest.dependencies[name] = dependencies[name];
   }
   writeFileSync(scaffoldManifestPath, `${JSON.stringify(scaffoldManifest, null, 2)}\n`);
-  writeFileSync(join(scaffoldRoot, '.npmrc'), `@ccheever:registry=${stagedRegistry.url}\n`);
-  await runAsyncOrFail('npm', ['install', '--no-audit', '--no-fund', ...tarballs], {
+  writeFileSync(
+    join(scaffoldRoot, '.npmrc'),
+    `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+  );
+  await runAsyncOrFail('npm', [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--registry', PUBLIC_NPM_REGISTRY,
+    ...tarballs,
+  ], {
     cwd: scaffoldRoot,
     timeout: 360_000,
   });
@@ -412,9 +491,12 @@ await build({
     ok: true,
     claimTreatment: 'checkpoint',
     claimSatisfied: false,
+    platformClaimSatisfied: installSource === 'public' && cleanMachine,
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
     publicationMode: ledger.mode,
+    installSource,
+    registry: installSource === 'public' ? registry : 'disposable-loopback',
     scopePreset: ledger.scopePreset,
     version: ledger.version,
     machine: {
@@ -425,6 +507,10 @@ await build({
       runtimePackage: hostRuntime,
       runnerEnvironment: process.env.RUNNER_ENVIRONMENT ?? 'local',
       separatelyProvisionedCleanMachine: cleanMachine,
+      githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+      githubRepository: process.env.GITHUB_REPOSITORY ?? null,
+      githubWorkflowSha: process.env.GITHUB_SHA ?? null,
     },
     packages: ledger.packages.map((entry) => ({
       sourceName: entry.sourceName,
@@ -432,6 +518,7 @@ await build({
       version: entry.version,
       tarball: entry.tarball,
       sha256: entry.sha256,
+      registrySha256: entry.registrySha256 ?? null,
     })),
     deployBuild: {
       releaseId: deployBuild.releaseId,
@@ -442,7 +529,10 @@ await build({
     },
     checks: {
       materializedTarballInstall: true,
-      stagedRegistryAliasResolution: true,
+      stagedRegistryAliasResolution: installSource === 'staged',
+      publicRegistryAliasResolution: installSource === 'public',
+      publicRegistryTarballDigestMatch: installSource === 'public',
+      registryTarballCount: registryTarballs.length,
       noSiblingSourceCheckout: true,
       partitimeBackendBuilt: true,
       localCodegenOffline: true,
@@ -459,10 +549,10 @@ await build({
       browserBundleBytes: Buffer.byteLength(browserBundle),
     },
     nonclaims: [
-      {
+      ...(installSource === 'public' ? [] : [{
         id: 'public-registry-install',
         reason: 'The proof resolves the exact public aliases through a disposable loopback npm registry backed by immutable tarballs; the packages are not yet published in a public registry.',
-      },
+      }]),
       ...(cleanMachine ? [] : [{
         id: 'separately-provisioned-clean-machine',
         reason: 'The proof uses a fresh external directory on the development host, not a separately provisioned clean machine.',
@@ -477,7 +567,7 @@ await build({
   if (receiptPath) writeFileSync(resolve(receiptPath), rendered);
   process.stdout.write(rendered);
 } finally {
-  await stagedRegistry.close();
+  if (stagedRegistry) await stagedRegistry.close();
   if (keep) console.error(`kept ${temporary}`);
   else rmSync(temporary, { recursive: true, force: true });
 }
