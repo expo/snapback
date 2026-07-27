@@ -307,7 +307,12 @@ fn local_workerd_invoke_requires_its_generated_bearer() {
             })
         })
         .expect_err("an unauthenticated local invoke must be refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_V8_RUNNER_INVOKE_FAILED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+            "{mode:?}: {error}; details={}",
+            error.diagnostic.details
+        );
         assert!(
             snapback
                 .invoke_query("listItems", input(json!({})))
@@ -1033,7 +1038,8 @@ fn detached_host_call_drain_is_bounded_by_the_remaining_invocation_deadline() {
     .expect_err("a never-returning detached host call must fail at the harness deadline");
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_HANDLER_DID_NOT_SETTLE",
-        "the shared harness deadline must win before the outer process kill: {error}"
+        "the shared harness deadline must win before the outer process kill: {error}; details={}",
+        error.diagnostic.details
     );
     assert_eq!(
         error.diagnostic.details.get("signal"),
