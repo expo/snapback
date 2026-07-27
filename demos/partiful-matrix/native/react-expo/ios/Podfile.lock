@@ -2168,11 +2168,11 @@ SPEC CHECKSUMS:
   ExpoFont: 59e1faf66ba9bcd232ae1e2ce58d202a48b6f65e
   ExpoKeepAwake: c26f14275017370cc8a4b7b43a0e23361f2053a5
   ExpoLogBox: 8a3cfa2897e088083cd49fc1ff7fdb2de4385547
-  ExpoModulesCore: 5f052c0618358ac876a0bf363d31918af293d83b
+  ExpoModulesCore: 7e45b57ccaec698b2bcecd0c0afdf1c0a5dcece0
   ExpoModulesJSI: 4b5d68bf019c251c2c8b7246aa36306dc381fe7f
   ExpoModulesWorklets: 2ba73eabbbd0470e43f8998757f4cb8abff8355b
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
-  hermes-engine: 4d72105a21f9de3856bfc6b63ede0261e75a3a13
+  hermes-engine: 76c982a0c6cd0fd50ccbebf88d9d27bfb2dc0fa0
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b
   RCTRequired: 30451112e6fef4e6f31b4e7eee0845156e35e4b0
   RCTSwiftUI: 5aaf0b07e747ba749dc6acc94d8bd41eea4b570f
@@ -2249,4 +2249,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: d0e311529ac74e97cbca5808cd0de1f13bebd6f4
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0
