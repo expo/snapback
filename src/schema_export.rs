@@ -45,8 +45,8 @@ use crate::ephemeral::{
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{
-    KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame,
-    OutboxDrainOutput, Receipt, ResumeWire,
+    KitSocketReplyFrame, KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage,
+    LiveSocketServerFrame, OutboxDrainOutput, Receipt, ResumeWire,
 };
 use crate::local::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
@@ -509,12 +509,15 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "handler.host-call.input.schema.json",
             schemars::schema_for!(HandlerHostCallRequest),
         ),
-        // The hosted kit-socket in-band REQUEST grammar (LLP 0094 §0A.1
-        // WS-kinds row / §0F item 2). The in-band REPLY grammar is
-        // deliberately absent until its §0C.6 item-6 kit-dialect convergence.
+        // The hosted kit-socket in-band request/reply grammars (LLP 0094
+        // §0A.1 WS-kinds row / §0F item 2).
         finish(
             "live.kit-socket-request.schema.json",
             schemars::schema_for!(KitSocketRequestFrame),
+        ),
+        finish(
+            "live.kit-socket-reply.schema.json",
+            schemars::schema_for!(KitSocketReplyFrame),
         ),
         // The bare-array drain response (LLP 0094 §0A.5).
         finish(

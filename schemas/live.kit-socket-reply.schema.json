@@ -1,0 +1,209 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "type": "string"
+    },
+    "ResumeMeta": {
+      "description": "Clear advisory copy of the token's identity fields (LLP 0091 §0B.1). The\nclient's digest-kind signal is `content_digest`'s self-describing prefix.",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "argsHash": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "queryArtifact": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "version",
+        "contentDigest",
+        "generation",
+        "versionStream",
+        "queryArtifact",
+        "argsHash"
+      ],
+      "type": "object"
+    },
+    "ResumeWire": {
+      "description": "The RQS resume object (LLP 0091 §0B.1): the opaque server-authenticated\ntoken plus its clear, client-advisory `meta` copy. `meta` repeats every\nidentity field the LLP 0090 D3 channel arbitration compares and is never\nan admission input — admission decodes the token itself. Exported as\n`live.resume-token.schema.json`, named distinctly from the reattach\noperation's `live.resume.*` schemas (LLP 0091 §0B.4).",
+      "properties": {
+        "meta": {
+          "$ref": "#/$defs/ResumeMeta"
+        },
+        "token": {
+          "description": "`tokenWire` (`sbrt1.` envelope, ≤ 1 KiB — LLP 0091 §0A.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "meta"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.kit-socket-reply.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The hosted kit-socket **in-band reply grammar** (LLP 0094 §0A.1 WS-kinds\nrow, §0C.6 item 6, §0F item 2), after the 2026-07-27 convergence to kit\ndialect. This is deliberately distinct from [`LiveEnvelope`] and\n[`LiveSocketServerFrame`]: the hosted in-band subscribe surface adds\n`snapshot` and `error`, while its heartbeat `pong` does not carry the local\ncontrol frame's `serverTimeMs`.\n\nThe outer frames are closed and reproduce the served casing exactly:\nsnapshot/current-as-of data members are snake_case, while the established\n`requestId` and `resumeRefusal` members remain camelCase. An unsubscribe is\nintentionally absent because it deletes session-scoped demand without a\nreply frame. The proof socket's `type`-tagged replies remain outside wire\nv1 and outside this authority.\n\n@ref LLP 0094#0f--remaining-hand-mirrored-frames-llp-0051-d4 — item 2:\n  kit replies are schema-governed; the proof-socket reply framing remains\n  exempt.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Answer to the kit-socket application heartbeat. `requestId` is echoed\nexactly when it was present on the request.",
+      "properties": {
+        "kind": {
+          "const": "pong",
+          "type": "string"
+        },
+        "requestId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Rung-1 answer: the caller's retained rows are current at `version`.",
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "current_as_of",
+          "type": "string"
+        },
+        "resume": {
+          "$ref": "#/$defs/ResumeWire"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id",
+        "function",
+        "version",
+        "resume"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Successful fresh or rung-3 subscribe answer.",
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "snapshot",
+          "type": "string"
+        },
+        "resume": {
+          "$ref": "#/$defs/ResumeWire"
+        },
+        "resumeRefusal": {
+          "description": "Per-cause `SNAPBACK_RESUME_*` observability code when a presented\ntoken was refused and the subscribe fell back to a fresh snapshot.",
+          "type": "string"
+        },
+        "rows": {
+          "items": true,
+          "type": "array"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "subscription_id",
+        "function",
+        "version",
+        "rows"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A subscribe failure. The shared full [`Diagnostic`] shape is the same\none committed for kit HTTP error envelopes.",
+      "properties": {
+        "diagnostic": {
+          "$ref": "#/$defs/Diagnostic"
+        },
+        "kind": {
+          "const": "error",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "diagnostic"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "KitSocketReplyFrame"
+}

@@ -384,13 +384,11 @@ pub enum LiveSocketClientMessage {
 /// (`deny_unknown_fields`), a closed `resumeFromToken` wrapper, but an
 /// **open** `resume` object of which only `token` is transport-validated, and
 /// a shape-unvalidated `membershipWitness` (accepted for wire compatibility;
-/// rung 2 deferred on this arm). The in-band **reply** grammar is
-/// deliberately not schematized: it is mixed-dialect as served and enters the
-/// gates only at its §0C.6 item-6 convergence to kit dialect
-/// (`issues/20260725-0094-hosted-response-shape-divergences.md` item 5).
+/// rung 2 deferred on this arm). The in-band reply grammar has its own
+/// [`KitSocketReplyFrame`] authority below.
 ///
 /// @ref LLP 0094#0a1-app-data-routes-root — the WS-kinds row: request grammar
-///   inside wire v1, reply grammar conformance-unclaimable until convergence.
+///   inside wire v1, paired with the separately governed kit reply grammar.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum KitSocketRequestFrame {
@@ -455,6 +453,66 @@ pub struct KitSocketResumeFromToken {
 pub struct KitSocketResumeEnvelope {
     #[schemars(length(min = 1, max = 1024))]
     pub token: String,
+}
+
+/// The hosted kit-socket **in-band reply grammar** (LLP 0094 §0A.1 WS-kinds
+/// row, §0C.6 item 6, §0F item 2), after the 2026-07-27 convergence to kit
+/// dialect. This is deliberately distinct from [`LiveEnvelope`] and
+/// [`LiveSocketServerFrame`]: the hosted in-band subscribe surface adds
+/// `snapshot` and `error`, while its heartbeat `pong` does not carry the local
+/// control frame's `serverTimeMs`.
+///
+/// The outer frames are closed and reproduce the served casing exactly:
+/// snapshot/current-as-of data members are snake_case, while the established
+/// `requestId` and `resumeRefusal` members remain camelCase. An unsubscribe is
+/// intentionally absent because it deletes session-scoped demand without a
+/// reply frame. The proof socket's `type`-tagged replies remain outside wire
+/// v1 and outside this authority.
+///
+/// @ref LLP 0094#0f--remaining-hand-mirrored-frames-llp-0051-d4 — item 2:
+///   kit replies are schema-governed; the proof-socket reply framing remains
+///   exempt.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum KitSocketReplyFrame {
+    /// Answer to the kit-socket application heartbeat. `requestId` is echoed
+    /// exactly when it was present on the request.
+    Pong {
+        #[serde(default, rename = "requestId", skip_serializing_if = "Option::is_none")]
+        #[schemars(with = "String")]
+        request_id: Option<String>,
+    },
+    /// Rung-1 answer: the caller's retained rows are current at `version`.
+    CurrentAsOf {
+        subscription_id: String,
+        function: String,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+        version: u64,
+        resume: ResumeWire,
+    },
+    /// Successful fresh or rung-3 subscribe answer.
+    Snapshot {
+        subscription_id: String,
+        function: String,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+        version: u64,
+        rows: Vec<Value>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(with = "ResumeWire")]
+        resume: Option<ResumeWire>,
+        /// Per-cause `SNAPBACK_RESUME_*` observability code when a presented
+        /// token was refused and the subscribe fell back to a fresh snapshot.
+        #[serde(
+            default,
+            rename = "resumeRefusal",
+            skip_serializing_if = "Option::is_none"
+        )]
+        #[schemars(with = "String")]
+        resume_refusal: Option<String>,
+    },
+    /// A subscribe failure. The shared full [`Diagnostic`] shape is the same
+    /// one committed for kit HTTP error envelopes.
+    Error { diagnostic: Diagnostic },
 }
 
 /// The `GET /outbox/{connection_id}` drain response body (LLP 0094 §0A.5): a

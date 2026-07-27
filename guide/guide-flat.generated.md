@@ -4697,13 +4697,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
-reviewed: 2026-07-17
-reviewed-commit: 069843fa72278a049e490233c68744a28c7fad70
+reviewed: 2026-07-27
+reviewed-commit: HEAD
 ---
 
 # Deploying the Cloudflare proof
@@ -4841,6 +4841,14 @@ subscription rows, not isolate memory or socket attachments, are the recovery
 authority. After wake/eviction, the object rehydrates them; socket loss takes a
 fresh snapshot-with-subscribe. Retained-version resume and HTTP outbox delta
 polling are explicit gaps.
+
+The hosted kit socket's in-band durable surface is independently governed:
+`live.kit-socket-request.schema.json` covers `subscribe`, `unsubscribe`, and
+`ping`; `live.kit-socket-reply.schema.json` covers the actually served
+`pong`, `snapshot`, `current_as_of`, and `error` frames. Unsubscribe is
+deliberately silent. The Cloudflare wire-schema gate validates real reply bytes
+against that Rust-derived contract; the older proof socket's `type`-tagged
+frames are a separate pinned protocol.
 
 The coordinator uses no always-awake interval. All Aboard's `warmPoll` is a
 single Durable Object alarm dispatcher job:

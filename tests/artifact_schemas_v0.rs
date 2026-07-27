@@ -3195,6 +3195,106 @@ fn kit_socket_request_schema_matches_the_served_validator_grammar() {
     }
 }
 
+/// The kit-socket in-band reply grammar after LLP 0094 §0C.6 item 6's
+/// convergence. The Cloudflare wire-schema gate validates real served bytes
+/// for all four variants against the same committed schema.
+#[test]
+fn kit_socket_reply_schema_accepts_only_the_converged_kit_dialect() {
+    const FILE: &str = "live.kit-socket-reply.schema.json";
+    let resume = json!({
+        "token": "sbrt1.opaque",
+        "meta": {
+            "app": "notes",
+            "version": 7,
+            "contentDigest": "mset1:opaque",
+            "generation": "gen1:opaque",
+            "versionStream": "stream-1",
+            "queryArtifact": "query-1",
+            "argsHash": "args-1"
+        }
+    });
+    let accepted = [
+        json!({ "kind": "pong" }),
+        json!({ "kind": "pong", "requestId": "req-1" }),
+        json!({
+            "kind": "current_as_of",
+            "subscription_id": "sub_1",
+            "function": "boardNotes",
+            "version": 7,
+            "resume": resume.clone()
+        }),
+        json!({
+            "kind": "snapshot",
+            "subscription_id": "sub_2",
+            "function": "boardNotes",
+            "version": 7,
+            "rows": [{ "_id": "note_1", "text": "hello" }]
+        }),
+        json!({
+            "kind": "snapshot",
+            "subscription_id": "sub_3",
+            "function": "boardNotes",
+            "version": 7,
+            "rows": [],
+            "resume": resume,
+            "resumeRefusal": "SNAPBACK_RESUME_STREAM_MISMATCH"
+        }),
+        json!({
+            "kind": "error",
+            "diagnostic": {
+                "code": "SNAPBACK_LIVE_NOT_A_LIVE_QUERY",
+                "severity": "error",
+                "subsystem": "realtime",
+                "message": "missing is not a live query",
+                "details": { "function": "missing" }
+            }
+        }),
+    ];
+    for frame in &accepted {
+        assert_validates(FILE, frame);
+    }
+
+    let rejected = [
+        // Proof-socket and broader local-socket families are not kit replies.
+        json!({ "type": "snapshot", "subscriptionId": "sub_1", "function": "boardNotes",
+                "version": 7, "rows": [], "connectionKey": "conn_1" }),
+        json!({ "kind": "live_replace", "subscription_id": "sub_1",
+                "function": "boardNotes", "version": 7, "rows": [] }),
+        json!({ "kind": "unsubscribe" }),
+        json!({ "kind": "pong", "requestId": null }),
+        json!({ "kind": "pong", "requestId": 7 }),
+        json!({ "kind": "pong", "serverTimeMs": 1 }),
+        json!({ "kind": "current_as_of", "subscription_id": "sub_1",
+                "function": "boardNotes", "version": 7 }),
+        json!({ "kind": "current_as_of", "subscriptionId": "sub_1",
+                "function": "boardNotes", "version": 7,
+                "resume": { "token": "sbrt1.opaque" } }),
+        json!({ "kind": "snapshot", "subscription_id": "sub_1",
+                "function": "boardNotes", "version": 7 }),
+        json!({ "kind": "snapshot", "subscription_id": "sub_1",
+                "function": "boardNotes", "version": 9_007_199_254_740_992_u64,
+                "rows": [] }),
+        json!({ "kind": "snapshot", "subscription_id": "sub_1",
+                "function": "boardNotes", "version": 7, "rows": [],
+                "resumeRefusal": null }),
+        json!({ "kind": "error", "code": "SNAPBACK_LIVE_NOT_A_LIVE_QUERY" }),
+        json!({ "kind": "error", "diagnostic": {
+            "code": "SNAPBACK_LIVE_NOT_A_LIVE_QUERY",
+            "message": "missing is not a live query"
+        } }),
+        json!({ "kind": "error", "diagnostic": {
+            "code": "SNAPBACK_LIVE_NOT_A_LIVE_QUERY",
+            "severity": "error",
+            "subsystem": "realtime",
+            "message": "missing is not a live query",
+            "details": {}
+        }, "operation": "subscribe" }),
+    ];
+    for frame in &rejected {
+        assert_rejects(FILE, frame);
+    }
+}
+
 /// LLP 0094 §0A.5: the drain response is a bare array of `RealtimeEnvelope`.
 /// Positive instances cover the empty drain and the synthesized
 /// unknown-or-reaped batch, built through the SAME constructors

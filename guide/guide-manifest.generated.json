@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ba193442b57c88908ce59d130a75735dcf07b524"
+    "commit": "6e00e6632a914dd40ea37e3c58ae74e68495d464"
   },
   "nav": {
     ".": [
@@ -1201,6 +1201,9 @@
         "llp/0014-cloudflare-strategy.rfc.md",
         "llp/0040-cloudflare-narrow-proof.rfc.md",
         "llp/0049-all-aboard-cloudflare-live.plan.md",
+        "llp/0094-wire-envelope-contract.spec.md",
+        "schemas/live.kit-socket-request.schema.json",
+        "schemas/live.kit-socket-reply.schema.json",
         "cloudflare/README.md",
         "cloudflare/deploy.sh",
         "cloudflare/src/coordinator.js"
@@ -1209,9 +1212,9 @@
         "demos/all-aboard",
         "cloudflare/app/all-aboard.app.js"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "069843fa72278a049e490233c68744a28c7fad70",
-      "sha256": "ccac39c624ecb56d19461803dbcfe9f5a071e9d11daba23a0652664251faa3e4",
+      "reviewed": "2026-07-27",
+      "reviewedCommit": "HEAD",
+      "sha256": "2cf096241361c4891a061a6c2827227cf717fafc7d1727d536a9ae849d2740c2",
       "snippets": [
         {
           "lang": "js",
@@ -1966,5 +1969,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "18367b10f297be9588da96a6920841907c6f2fd20031649ba28a860234c9078a"
+  "contentHash": "7d0c7bfdbf7c2df796039e56ba97c4648ee2b4faebf26de2804bee26fc58caf5"
 }

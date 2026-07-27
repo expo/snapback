@@ -54,7 +54,11 @@ self-review hardening: the hosted nullable offer now matches the Rust
 single-flight the endpoint probe; the kit validates the exact B1 echo,
 conservatively surfaces a successful missing-echo open as a legacy
 downgrade, and strict mode refuses both missing and cached-legacy
-witnesses)
+witnesses); 2026-07-27 (the remaining §0F item-2 residual landed: the converged
+kit-socket reply grammar now has the `KitSocketReplyFrame` Rust authority,
+the committed `live.kit-socket-reply.schema.json`, positive/negative schema
+instances, and real served-frame validation for all four reply variants;
+the §0A.1 conformance caveat is retired)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -149,7 +153,7 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed since 2026-07-27 by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged 2026-07-27): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. The reply grammar becomes conformance-claimable when its committed schemas land (§0F item-1 ticket per §0F item 2); until then the v1 conformant durable entry point on this arm remains HTTP subscribe/unsubscribe with a current socket session; no first-party client sends in-band durable frames |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged and schema-governed 2026-07-27 by `live.kit-socket-reply.schema.json`, Rust authority `KitSocketReplyFrame`): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. Positive/negative Rust instances and real served-frame validation for all four reply variants live in the shared schema gates. The row is conformance-claimable; no first-party client currently sends in-band durable frames |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
 | `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
@@ -834,8 +838,9 @@ deployment still observes the pre-convergence bytes.)
    committed `Diagnostic`; `pong`/`current_as_of` were already kit
    dialect, and unsubscribe keeps its no-reply semantics. Proof sockets
    keep the LLP 0040 pinned `type`-tagged frames byte-for-byte.
-   Schematizing the now-uniform reply grammar (and its entry into the
-   drift gates) rides the §0F item-1 ticket per §0F item 2.
+   The now-uniform reply grammar entered the drift gates on 2026-07-27
+   through `KitSocketReplyFrame` /
+   `live.kit-socket-reply.schema.json`, completing §0F item 2.
 7. **Hosted kit-route request-parse refusals** (`requestDiagnostic` via
    `parseJsonObjectRequest`, `coordinator.js`) emitted
    `{ok, code, message, diagnostic}` — top-level members the closed
@@ -1014,12 +1019,14 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    between the served validator and the schema proven over a shared
    corpus (Rust fixtures in `tests/artifact_schemas_v0.rs`; served-arm
    corpus in `wire-schema-gate.mjs`). The in-band **reply** grammar
-   converged to kit dialect the same day (§0C.6 item 6) and is now
-   **eligible for the gates** — its committed schemas are the one §0F
-   deliverable still open after this convergence
-   (`issues/20260727-kit-socket-reply-schemas.md`); schematizing the
-   previously mixed as-built replies would have contracted the wrong
-   protocol. The exemption is scoped to the proof socket only.
+   converged to kit dialect the same day (§0C.6 item 6) and is
+   **implemented** as `live.kit-socket-reply.schema.json` (authority
+   `KitSocketReplyFrame`, `src/live_wire.rs`). Positive/negative Rust
+   instances cover the closed grammar, and `wire-schema-gate.mjs`
+   validates real served `pong`, `snapshot`, `current_as_of`, and `error`
+   frames against it. Schematizing the previously mixed as-built replies
+   would have contracted the wrong protocol; the proof-socket exemption
+   remains scoped to that socket only.
 3. **The hosted kit-route response composition** (`kitSubscribe` et al.
    compose subscribe outputs in JS): governed by the committed schemas
    but previously with no hosted-side executable drift gate.
@@ -1064,7 +1071,9 @@ with: offer-matrix acceptance fixtures on both arms (known/unknown/absent
 `src/auth/handshake.rs`, and a re-run of the §0B.7 enumeration recorded
 in the landing commit. The §0C.6 convergence lands under its own ticket
 with hosted response-schema assertions in the Cloudflare acceptance
-suite for each ledger item.
+suite for each ledger item. The §0F item-2 reply residual extends the
+artifact-schema instances and the hosted wire-schema gate with all four
+served kit reply variants.
 
 Landed with the B1–B3 stage record (2026-07-27): `cargo test --lib
 wire_version` (the pure predicates plus the registry/HTTP/socket offer
@@ -1084,12 +1093,12 @@ package suite including `wire-version.test.mjs`;
   echo witnesses the lineage's **explicit binding** — never emitted for
   legacy lineages, emitted on every open/re-open response of an
   explicitly bound lineage (§0B.3).
-- **In-band durable subscribe on the hosted kit socket** (round 2): the
-  request surface is recorded as served; the reply grammar is
-  mixed-dialect as built and **not conformance-claimable** in v1 until
-  converged to kit dialect (§0A.1, §0C.6 item 6). The v1 durable entry
-  point on that arm is HTTP subscribe/unsubscribe with a current socket
-  session.
+- **In-band durable subscribe on the hosted kit socket** (round 2,
+  implemented 2026-07-27): the request surface is served and the reply
+  grammar converged to kit dialect (§0A.1, §0C.6 item 6). Both directions
+  now have committed schemas and hosted executable gates, so the in-band
+  entry point is conformance-claimable; the HTTP subscribe/unsubscribe
+  entry point remains available with a current socket session.
 - **Error-envelope governance** (round 2): `error.response.schema.json`
   governs every non-2xx JSON failure on §0A.1 kit routes, all lanes,
   both arms; divergent emitters are ledgered in §0C.6, not exempted.

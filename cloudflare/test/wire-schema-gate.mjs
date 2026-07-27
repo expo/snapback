@@ -14,15 +14,14 @@
 //   3. the kit-socket in-band REQUEST grammar: the served
 //      `validateLiveSocketFrame` verdicts must match schema validation of
 //      live.kit-socket-request.schema.json over a shared corpus (the Rust
-//      fixture twin is `kit_socket_request_schema_matches_the_served_validator_grammar`).
+//      fixture twin is `kit_socket_request_schema_matches_the_served_validator_grammar`);
+//   4. the kit-socket in-band REPLY grammar: real served pong, snapshot,
+//      current_as_of, and error frames validate against
+//      live.kit-socket-reply.schema.json.
 //
 // The LLP 0094 §0C.6 emitters converged 2026-07-27, so every exercised kit
 // route validates HARD against its committed schema (the transient
-// KNOWN_DIVERGENT allowlist this gate launched with is gone). The in-band
-// socket REPLY grammar is not validated here yet: its dialect converged to
-// kit but its committed schemas are still open
-// (issues/20260727-kit-socket-reply-schemas.md) — add reply validation with
-// that landing, not before.
+// KNOWN_DIVERGENT allowlist this gate launched with is gone).
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -259,7 +258,53 @@ async function main() {
     check('every captured handler→host call body validates against handler.host-call.input',
       hostCallsValid, hostCallDetail);
 
-    // -- 3. kit-socket in-band request grammar: served verdict === schema ---
+    // -- 3. kit-socket in-band reply grammar: real served bytes -------------
+    const { grant: replyGrant } = await openConnection('wiregate_replies');
+    const replySocket = await openSocket(replyGrant);
+
+    replySocket.send({ type: 'ping', requestId: 'reply-gate' });
+    const pongReply = await replySocket.nextFrame();
+    const pongVerdict = validate('live.kit-socket-reply.schema.json', pongReply);
+    check('kit socket serves a schema-valid pong reply',
+      pongReply.kind === 'pong' && pongVerdict.ok,
+      `${pongVerdict.errors} frame=${JSON.stringify(pongReply).slice(0, 400)}`);
+
+    replySocket.send({ type: 'subscribe', name: 'boardNotes', args: { boardId: 'wiregate' } });
+    const snapshotReply = await replySocket.nextFrame();
+    const snapshotVerdict = validate('live.kit-socket-reply.schema.json', snapshotReply);
+    check('kit socket serves a schema-valid snapshot reply',
+      snapshotReply.kind === 'snapshot' && snapshotVerdict.ok,
+      `${snapshotVerdict.errors} frame=${JSON.stringify(snapshotReply).slice(0, 400)}`);
+    check('the snapshot reply exposes a fresh resume token for current_as_of proof',
+      typeof snapshotReply.resume?.token === 'string',
+      JSON.stringify(snapshotReply).slice(0, 400));
+
+    if (snapshotReply.resume?.token) {
+      replySocket.send({
+        type: 'subscribe',
+        name: 'boardNotes',
+        args: { boardId: 'wiregate' },
+        resumeFromToken: { resume: snapshotReply.resume },
+      });
+      const currentAsOfReply = await replySocket.nextFrame();
+      const currentAsOfVerdict = validate('live.kit-socket-reply.schema.json', currentAsOfReply);
+      check('kit socket serves a schema-valid current_as_of reply',
+        currentAsOfReply.kind === 'current_as_of' && currentAsOfVerdict.ok,
+        `${currentAsOfVerdict.errors} frame=${JSON.stringify(currentAsOfReply).slice(0, 400)}`);
+    } else {
+      check('kit socket serves a schema-valid current_as_of reply', false,
+        'snapshot reply did not carry the resume token needed to exercise rung 1');
+    }
+
+    replySocket.send({ type: 'subscribe', name: 'noSuchLiveQuery', args: {} });
+    const errorReply = await replySocket.nextFrame();
+    const errorVerdict = validate('live.kit-socket-reply.schema.json', errorReply);
+    check('kit socket serves a schema-valid error reply',
+      errorReply.kind === 'error' && errorVerdict.ok,
+      `${errorVerdict.errors} frame=${JSON.stringify(errorReply).slice(0, 400)}`);
+    replySocket.ws.close(1000, 'gate section 3 done');
+
+    // -- 4. kit-socket in-band request grammar: served verdict === schema ---
     // One socket per case: the served validator answers an invalid frame by
     // CLOSING the socket (1008 + SNAPBACK_LIVE_FRAME_INVALID), so cases must
     // not share transport state. Accepted-frame observations: subscribe →
