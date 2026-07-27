@@ -48,7 +48,15 @@ for (const arm of arms) for (const theme of spec.themes) for (const viewport of 
   try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
   const states = receipt?.results?.[0]?.details?.states ?? [];
   const expectedCells = spec.states.length;
-  const artifacts = states.map((state) => state.artifact).filter(Boolean);
+  const artifacts = states
+    .filter((state) => state.artifact)
+    .map((state) => ({
+      state: state.state,
+      theme: state.theme,
+      viewport: state.viewport,
+      specVersion: state.specVersion,
+      ...state.artifact,
+    }));
   const ok = execution.status === 0 && receipt?.ok === true && states.length === expectedCells && artifacts.length === expectedCells;
   console.log(`  ${ok ? '✓' : '✗'} ${arm}/${theme.id}/${viewport.id} ${artifacts.length}/${expectedCells} visual cells`);
   if (!ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
