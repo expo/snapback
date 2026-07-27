@@ -17315,6 +17315,7 @@ fn wire_version_socket_refusal(headers: &HeaderMap) -> Option<ApiError> {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Keep ordered Axum auth, binding, version, and upgrade extractors explicit at this gate.
 async fn stream_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
