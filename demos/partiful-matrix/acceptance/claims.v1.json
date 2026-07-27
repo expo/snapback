@@ -814,10 +814,10 @@
         "target-profile-matrix"
       ],
       "witnessClass": "aggregate-final-proof",
-      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/final-immutable-revision-set.mjs --validate-existing --snapback-revision 2caa143e49244b91498d1bf510a696d7c62478b8 --exact-revision 4220bf27c9494e6d637fc70ac7e167fc9372fdd8",
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/final-immutable-revision-set.mjs --validate-existing --snapback-revision 795279d8754c8bed0c7e6e1cab4357680820379f --exact-revision f285dcb35c158ee2803d4de7cd1397ddb766f1b2",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/final-immutable-revision-set.json",
-        "sha256": "008b46c641a00077fac7a1f86549a14ae26b07905e4d7936ad26263a6540c645"
+        "sha256": "a9d3ec435b4d4fc6847605723763e3c73e8cd058527d4d8d4d167352891a0694"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",

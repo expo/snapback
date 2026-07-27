@@ -2,12 +2,12 @@
   "schemaVersion": "partitime.target-profile-receipt.v1",
   "revisionSet": {
     "snapback": {
-      "revision": "2caa143e49244b91498d1bf510a696d7c62478b8",
-      "tree": "ddc8ccd93d68e5d2bdf355a9f6a69e71dde2c79e"
+      "revision": "795279d8754c8bed0c7e6e1cab4357680820379f",
+      "tree": "b2175cb118dd0e830d5040e7713f6a56871839b0"
     },
     "exact": {
-      "revision": "4220bf27c9494e6d637fc70ac7e167fc9372fdd8",
-      "tree": "7a8f193f1edb007c312b2590092ce54aabf39550"
+      "revision": "f285dcb35c158ee2803d4de7cd1397ddb766f1b2",
+      "tree": "58d0b431b7787a8e1b7148bb613acc3f5ad189e5"
     }
   },
   "targetProfileMatrix": {
@@ -334,8 +334,8 @@
       "witnessClass": "aggregate-gate",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3",
-        "observedSha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3"
+        "sha256": "af340ed9683a87fcbcd93a81b946e653c6e8aa23b703ebada565306af5de2468",
+        "observedSha256": "af340ed9683a87fcbcd93a81b946e653c6e8aa23b703ebada565306af5de2468"
       }
     },
     {
