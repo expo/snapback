@@ -1,6 +1,12 @@
 # Shared result core: Rust-owned semantic core, engine-owned wrapper (LLP 0024 amendment)
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 2
+**Ease:** 1
+**Confidence:** 3
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Shared result core: Rust-owned semantic core, engine-owned wrapper (LLP 0024 amendment)” shows the issue materially affects a supported product or engineering path; it can wait behind current correctness blockers, while delivery is a dependency-heavy, multi-stage program, with a clear design but unresolved dependencies.
 **Severity:** P2
 **Systems:** API, Client integration, MCP
 **Author:** Claude (Fable 5), directed by Charlie Cheever

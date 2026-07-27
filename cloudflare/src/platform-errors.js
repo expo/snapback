@@ -6,6 +6,8 @@
 // handler-failed bucket so clients can distinguish permanent input failures
 // from transient pressure and apply backoff only to the latter (ENG-23849).
 
+import { wireDiagnostic } from './wire-diagnostic.js';
+
 export const DEFAULT_MAX_PENDING_INVOCATIONS = 16;
 const SERVICE_BINDING_INVOCATION_LIMIT = 32;
 const SUBREQUEST_DEPTH_MESSAGE = /subrequest depth limit exceeded/i;
@@ -101,6 +103,8 @@ export function platformFailureResponse(path, failure) {
     return new Response(JSON.stringify(failure), { status: 200, headers });
   }
   const status = failure.code === 'SNAPBACK_VALUE_TOO_LARGE' ? 413 : 503;
-  const diagnostic = { code: failure.code, message: failure.message, details: failure.details };
+  // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 9: the kit-route branch fills the committed
+  //   Diagnostic completely; details is never dropped when undefined.
+  const diagnostic = wireDiagnostic(failure.code, failure.message, failure.details ?? null);
   return new Response(JSON.stringify({ diagnostic }), { status, headers });
 }

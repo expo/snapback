@@ -1,5 +1,13 @@
 # 0093 P-0: implement the wire-version negotiation server changes (LLP 0094 §0B)
 
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-0: implement the wire-version negotiation server changes (LLP 0094 §0B)” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Systems:** Wire Protocol, Server, Cloudflare arm, Client SDK
 **Spec:** LLP 0094 §0B (contract), §0C.5 (adjacent-field alignment),

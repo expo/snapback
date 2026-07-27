@@ -1,6 +1,12 @@
 # DECISION: pin the pre-timed-run amendments
 
 **Status:** Open (author decisions; blocks the first timed run)
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 5
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “DECISION: pin the pre-timed-run amendments” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the ticket identifies a narrow, verified change or decision, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Competitive evaluation, Testing, Deployment
 **Author:** Claude (Fable 5), directed by Charlie Cheever

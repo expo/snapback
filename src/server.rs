@@ -4443,7 +4443,10 @@ impl ConnectionRegistry {
                 )))
             }
             PresentedSessionBearer::Candidate(raw) => {
-                let Ok(bearer) = SessionBearer::parse(raw) else {
+                // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both session
+                // spellings resolve here; on hosted lanes the sender
+                // admission has already proof-gated an `sbs2_` presentation.
+                let Ok(bearer) = SessionBearer::parse_any_version(raw) else {
                     self.consume_anonymous_open(&incarnation, monotonic_now)?;
                     return Err(ApiError::from(SnapbackError::error(
                         "SNAPBACK_AUTH_REQUIRED",
@@ -4728,7 +4731,14 @@ impl ConnectionRegistry {
                 },
             };
             let grant_id = Uuid::now_v7().to_string();
-            let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: sender-bound
+            // connection-open mints the structurally distinct `sct2_` grant
+            // spelling a v1 verifier cannot accept.
+            let connection_token = if hosted_sender.is_some() {
+                format!("sct2_{}", Uuid::new_v4().simple())
+            } else {
+                format!("sct_{}", Uuid::new_v4().simple())
+            };
             let authorization_invalidation = if auth_invalidation_protocol
                 == Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION)
             {
@@ -4861,7 +4871,13 @@ impl ConnectionRegistry {
                     "the pending connection grant is no longer installed",
                 )
             })?;
-        let token = format!("sct_{}", Uuid::new_v4().simple());
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: a rotated grant
+        // secret keeps its lane's spelling; sender-bound lanes stay `sct2_`.
+        let token = if record.hosted_sender.is_some() {
+            format!("sct2_{}", Uuid::new_v4().simple())
+        } else {
+            format!("sct_{}", Uuid::new_v4().simple())
+        };
         record.token = token.clone();
         Ok(token)
     }
@@ -5753,6 +5769,15 @@ pub struct MutationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
     pub receipt: Receipt,
+    /// Server-derived attribution (LLP 0055). Admitted explicitly so the
+    /// served bytes and the closed generated schema agree: the route used to
+    /// flatten this member through `FunctionResponse<T>` while the committed
+    /// `mutation.output.schema.json` did not admit it.
+    ///
+    /// @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4: the schema-side convergence; the schema
+    ///   is generated from the envelope actually served.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 #[derive(Serialize)]
@@ -5863,7 +5888,11 @@ impl AuthorizedLeaseQueryResponse {
 }
 
 impl MutationResponse {
-    fn from_output(output: MutationOutput, receipt: Receipt) -> Self {
+    fn from_output(
+        output: MutationOutput,
+        receipt: Receipt,
+        attribution: Option<FunctionAttribution>,
+    ) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
         // compile error here instead of silent drift in the public envelope.
         let MutationOutput {
@@ -5878,6 +5907,7 @@ impl MutationResponse {
             result,
             ctx_ledger,
             receipt,
+            attribution,
         }
     }
 }
@@ -8305,9 +8335,16 @@ async fn prepare_registered_route_authority(
                                 Some(service_publication),
                             )
                         } else {
-                            if classify_credential(&bearer)
-                                .is_some_and(|class| class != CredentialClass::Session)
-                            {
+                            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both
+                            // session spellings reach the resolver; on hosted
+                            // lanes the sender admission (proof + spelling
+                            // checks) has already run before this gate.
+                            if classify_credential(&bearer).is_some_and(|class| {
+                                !matches!(
+                                    class,
+                                    CredentialClass::Session | CredentialClass::SenderSession
+                                )
+                            }) {
                                 dispatch_credential_class(&bearer, CredentialClass::Session)
                                     .map_err(|error| ApiError::from(error.into_snapback_error()))?;
                                 unreachable!("wrong-class dispatch always refuses");
@@ -9347,6 +9384,19 @@ async fn admit_hosted_sender_request(
         else {
             return Ok(None);
         };
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the sender grant
+        // lane requires the versioned `sct2_` spelling. Exact-token equality
+        // already implies it for grants this process minted; the structural
+        // check is the verifier half of the downgrade defense and holds even
+        // if a future adapter restores grant state minted elsewhere.
+        if classify_credential(&connection_token) != Some(CredentialClass::SenderConnectionToken) {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "realtime",
+                "sender-bound connection grants require the v2 token spelling",
+            ))
+            .into_response());
+        }
         let thumbprint = binding.jwk_thumbprint.clone();
         charge_hosted_sender_attempt(
             runtime,
@@ -9429,8 +9479,17 @@ async fn admit_hosted_sender_request(
             return Ok(None);
         }
         PresentedSessionBearer::Candidate(candidate)
-            if classify_credential(candidate)
-                .is_some_and(|class| class != CredentialClass::Session) =>
+            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both session
+            // spellings enter sender admission (`sbs2_` is the sender-bound
+            // class the hosted exchange mints; the legacy `sbs_` spelling is
+            // refused inside the admit when its family is sender-bound).
+            // Every other credential class stays on its own lane.
+            if classify_credential(candidate).is_some_and(|class| {
+                !matches!(
+                    class,
+                    CredentialClass::Session | CredentialClass::SenderSession
+                )
+            }) =>
         {
             if spec.path == "/connection/open" {
                 charge_hosted_sender_attempt(
@@ -11473,7 +11532,9 @@ async fn prepare_connection_open_authority_with_scoped_token(
         && classify_credential(raw).is_some_and(|class| {
             !matches!(
                 class,
-                CredentialClass::Session | CredentialClass::ScopedToken
+                CredentialClass::Session
+                    | CredentialClass::SenderSession
+                    | CredentialClass::ScopedToken
             )
         })
     {
@@ -11834,7 +11895,9 @@ async fn coordinated_mint_session(
         let outcome = await_owned_auth_transaction(transaction).await?;
         match outcome? {
             IssuanceFinish::Committed(issue) => return Ok(issue),
-            IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
+            IssuanceFinish::CodeInvalid
+            | IssuanceFinish::CodeLocked
+            | IssuanceFinish::SenderKeyBound => {
                 return Err(auth_provider_unavailable_error());
             }
             IssuanceFinish::CandidateCollision => continue,
@@ -11905,7 +11968,10 @@ async fn coordinated_exchange_session(
             }
             PlannedExchange::Issue(mut plan) => {
                 if let Some(commitment) = sender_issuance.clone() {
-                    plan.bind_sender_issuance(commitment)?;
+                    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: binding
+                    // the sender issuance re-mints the candidate bearer in
+                    // the versioned `sbs2_` spelling before premark.
+                    plan.bind_sender_issuance(commitment, provider.agent_random_source())?;
                 }
                 let commit_code = code.clone();
                 let carrier = coordinator
@@ -11976,6 +12042,9 @@ async fn coordinated_exchange_session(
                     }
                     IssuanceFinish::CodeLocked => {
                         return Err(crate::auth::provider::code_locked());
+                    }
+                    IssuanceFinish::SenderKeyBound => {
+                        return Err(crate::auth::provider::sender_key_bound());
                     }
                     IssuanceFinish::CandidateCollision => continue,
                     IssuanceFinish::PredecessorChanged => continue,
@@ -16375,7 +16444,10 @@ async fn invoke_authorized_lease_query(
         )
         .into());
     }
-    let offers = AuthClientProtocolOffers::from_headers(&headers);
+    // @ref LLP 0096#2-per-profile-contract — the lease POST is an ordinary
+    // HTTP route: offers ride only the named decimal headers, and a forged
+    // `Sec-WebSocket-Protocol` header must not become a second grammar.
+    let offers = AuthClientProtocolOffers::from_http_headers(&headers);
     if offers.authorized_lease != Some(u64::from(AUTHORIZED_LEASE_PROTOCOL_VERSION))
         || offers.auth_invalidation != Some(AUTH_PROTOCOL_V1)
     {
@@ -16449,7 +16521,7 @@ async fn invoke_mutation(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<FunctionResponse<MutationResponse>>, ApiError> {
+) -> Result<Json<MutationResponse>, ApiError> {
     let attribution = authority.function_attribution();
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
@@ -16500,8 +16572,13 @@ async fn invoke_mutation(
     .map_err(ApiError::from)
     .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
-        Ok(output) => Ok(Json(FunctionResponse::new(
-            MutationResponse::from_output(output, receipt),
+        // The mutation envelope carries its attribution member directly
+        // (never through the FunctionResponse flatten) so the served bytes
+        // stay inside the closed generated mutation.output schema.
+        // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
+        Ok(output) => Ok(Json(MutationResponse::from_output(
+            output,
+            receipt,
             attribution,
         ))),
         Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
@@ -18404,9 +18481,14 @@ fn live_socket_request_id(message: &LiveSocketClientMessage) -> Option<String> {
 /// Session-mode socket requests deliberately omit every client-asserted
 /// identity field. The connection grant supplies authority after this closed
 /// shape has decoded; dev mode continues to decode the legacy DTO unchanged.
-#[derive(Deserialize)]
+///
+/// Committed as `live.socket-client.sessions.schema.json` (LLP 0094 §0F item
+/// 4 — the schema absence was an oversight, not an LLP 0043 exemption; the
+/// sessions surface owns the semantics, the schema commitment closes the
+/// §0C.1 gap row).
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum SessionLiveSocketClientMessage {
+pub enum SessionLiveSocketClientMessage {
     EphemeralSubscribe {
         #[serde(default, rename = "requestId", alias = "request_id")]
         request_id: Option<String>,
@@ -18433,17 +18515,17 @@ enum SessionLiveSocketClientMessage {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionSubscribeRequest {
+pub struct SessionSubscribeRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionPublishRequest {
+pub struct SessionPublishRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
@@ -18451,9 +18533,9 @@ struct SessionPublishRequest {
     ttl_ms: Option<u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionDeleteRequest {
+pub struct SessionDeleteRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
@@ -19334,7 +19416,13 @@ async fn drain_outbox(
         publication_authority.extend(permit);
         drained.push(envelope);
     }
-    let mut response = Json(drained).into_response();
+    // The drain response is the typed bare-array family (LLP 0094 §0A.5),
+    // committed as `live.outbox-drain.output.schema.json` — serving through
+    // the authority type keeps the served bytes and the drift-gated schema
+    // one definition.
+    // @ref LLP 0094#0a5-the-drain-response-shape-lane-p — bare
+    //   `[RealtimeEnvelope]`, in-band unknown_or_reaped batch, no client ack.
+    let mut response = Json(crate::live_wire::OutboxDrainOutput(drained)).into_response();
     retain_realtime_handoff_in(
         &mut response,
         publication_authority,
@@ -25599,6 +25687,27 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         );
 
+        // The lease POST is an ordinary HTTP route: a forged
+        // `Sec-WebSocket-Protocol` header is not an offer carrier there, so a
+        // lease offer riding only the subprotocol grammar refuses exactly like
+        // an absent offer (issues/20260725-0093-p3-lease-offer-parser-carrier.md).
+        let subprotocol_only = {
+            let mut request = request(None, false);
+            request.headers_mut().insert(
+                "sec-websocket-protocol",
+                axum::http::HeaderValue::from_static(
+                    "snapback.authorized-lease.1, snapback.auth-invalidation.1",
+                ),
+            );
+            request
+        };
+        let subprotocol_only = ready.clone().oneshot(subprotocol_only).await.unwrap();
+        assert_eq!(subprotocol_only.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(subprotocol_only).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+
         let unknown = ready
             .clone()
             .oneshot(request(Some("1"), true))
@@ -26958,6 +27067,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("issued hosted sender bearer")
             .to_owned();
+        // Decision 4 first layer: sender-bound issuance mints `sbs2_`.
+        assert!(
+            bearer_one.starts_with("sbs2_"),
+            "sender-bound exchange must mint the versioned spelling",
+        );
 
         let session_proof = sender_key.resource_proof(
             "GET",
@@ -27077,6 +27191,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("refresh successor bearer")
             .to_owned();
+        // Decision 4: successors of a sender-bound family stay `sbs2_`.
+        assert!(
+            bearer_two.starts_with("sbs2_"),
+            "sender-bound refresh successor must stay in the versioned spelling",
+        );
 
         let retryable_session_proof = sender_key.resource_proof(
             "GET",
@@ -27195,6 +27314,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("sender connection token")
             .to_owned();
+        // Decision 4: sender-bound connection-open mints `sct2_`.
+        assert!(
+            connection_token.starts_with("sct2_"),
+            "sender-bound connection grant must mint the versioned spelling",
+        );
 
         let mut grant_route_matrix = super::route_registry()
             .into_iter()
@@ -32643,6 +32767,10 @@ globalThis.__snapbackHandlers = {
         (
             "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY",
             "machine-readable replay-oracle marker emitted only by the LLP 0053 server acceptance test",
+        ),
+        (
+            "SNAPBACK_AUTH_HANDLER_V1",
+            "LLP 0060 D6 private marker echoed on the handler wire envelope (schema authority in src/handler_wire.rs), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_BUILD_GIT_COMMIT",

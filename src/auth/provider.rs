@@ -934,13 +934,25 @@ impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
 }
 
 impl ProviderSessionIssuancePlan {
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer: a
+    // sender-bound issuance re-mints its candidate bearer in the versioned
+    // `sbs2_` spelling before anything derives from the plan (binding runs
+    // before premark and before the commit plan is taken), so the projected
+    // digest, the durable row, and the returned credential all name the
+    // legacy-rejecting spelling.
     pub(crate) fn bind_sender_issuance(
         &mut self,
         commitment: crate::auth::sender_proof::SenderIssuanceCommitment,
+        random: &dyn RandomSource,
     ) -> ProviderResult<()> {
         if self.sender_issuance.replace(commitment).is_some() {
             return Err(provider_unavailable());
         }
+        let bearer = SessionBearer::generate_sender_v2(random).map_err(|_| provider_unavailable())?;
+        let token_hash = bearer.token_hash();
+        self.projected.token_digest = TokenDigest::from_token_hash(&token_hash);
+        self.candidate.bearer = Some(bearer);
+        self.candidate.token_hash = token_hash;
         Ok(())
     }
 
@@ -1028,6 +1040,10 @@ pub(crate) enum PlannedIssuanceCommit {
     },
     CodeInvalid,
     CodeLocked,
+    // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
+    // thumbprint: a valid proof over an already-bound key consumes its proof
+    // id and refuses without touching the challenge, session, or nonce state.
+    SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
 }
@@ -1589,7 +1605,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<ResolvedSession> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let lookup = database
             .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
@@ -1608,7 +1624,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<PlannedLogout> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
         let lookup = database
@@ -1659,11 +1675,29 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<PlannedRefresh> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
-        let lookup = database
-            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+        let (lookup, sender_bound) = database
+            .with_auth_read(|connection| {
+                let lookup = lookup_presented_session(connection, &token_hash)?;
+                // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable
+                // family binding (not the presented spelling) selects the
+                // successor spelling, so every successor of a sender-bound
+                // family stays `sbs2_`.
+                let sender_bound = crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                    connection,
+                    token_hash.as_bytes(),
+                )
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                        "auth",
+                        "sender family binding state is unavailable",
+                    )
+                })?;
+                Ok((lookup, sender_bound))
+            })
             .map_err(|_| provider_unavailable())?;
         Ok(match lookup {
             PresentedSessionLookup::Unknown => PlannedRefresh::AuthRequired,
@@ -1671,7 +1705,11 @@ impl AuthAdmission {
                 if !session.live_at(now_ms) {
                     PlannedRefresh::SessionExpired
                 } else {
-                    let successor = BearerCandidate::generate(&self.provider)?;
+                    let successor = if sender_bound {
+                        BearerCandidate::generate_sender_v2(&self.provider)?
+                    } else {
+                        BearerCandidate::generate(&self.provider)?
+                    };
                     let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
                     PlannedRefresh::Rotate(ProviderTokenRotationPlan {
                         session_id: session.session.session_id,
@@ -1717,7 +1755,7 @@ impl AuthAdmission {
         let started_at = self.provider.clock.monotonic_now();
         let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
         let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
-        let parsed = SessionBearer::parse(bearer).ok();
+        let parsed = SessionBearer::parse_any_version(bearer).ok();
         let token_hash = parsed
             .as_ref()
             .map(SessionBearer::token_hash)
@@ -1893,10 +1931,31 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<CredentialIssue> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let predecessor_hash = bearer.token_hash();
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: successors of a
+        // sender-bound family stay `sbs2_`, selected by the durable binding.
+        let sender_bound = database
+            .with_auth_read(|connection| {
+                crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                    connection,
+                    predecessor_hash.as_bytes(),
+                )
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                        "auth",
+                        "sender family binding state is unavailable",
+                    )
+                })
+            })
+            .map_err(|_| provider_unavailable())?;
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            let mut successor = BearerCandidate::generate(&self.provider)?;
+            let mut successor = if sender_bound {
+                BearerCandidate::generate_sender_v2(&self.provider)?
+            } else {
+                BearerCandidate::generate(&self.provider)?
+            };
             let outcome = database.with_auth_transaction(|transaction| {
                 refresh_transaction(
                     transaction,
@@ -1945,7 +2004,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<SessionRevocation> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let outcome = database
             .with_auth_transaction(|transaction| {
@@ -1973,7 +2032,7 @@ impl AuthAdmission {
         let started_at = self.provider.clock.monotonic_now();
         let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
         let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
-        let parsed = SessionBearer::parse(bearer).ok();
+        let parsed = SessionBearer::parse_any_version(bearer).ok();
         let parsed_hash = parsed.as_ref().map(SessionBearer::token_hash);
         let token_hash = parsed_hash
             .as_ref()
@@ -2771,6 +2830,19 @@ impl SessionCandidate {
 impl BearerCandidate {
     fn generate(provider: &AuthProvider) -> ProviderResult<Self> {
         let bearer = SessionBearer::generate(provider.random.as_ref())
+            .map_err(|_| provider_unavailable())?;
+        let token_hash = bearer.token_hash();
+        Ok(Self {
+            bearer: Some(bearer),
+            token_hash,
+        })
+    }
+
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: every successor of
+    // a sender-bound family stays in the `sbs2_` spelling; the durable family
+    // binding, not the presented spelling, selects this mint.
+    fn generate_sender_v2(provider: &AuthProvider) -> ProviderResult<Self> {
+        let bearer = SessionBearer::generate_sender_v2(provider.random.as_ref())
             .map_err(|_| provider_unavailable())?;
         let token_hash = bearer.token_hash();
         Ok(Self {
@@ -4194,6 +4266,26 @@ fn attempt_planned_session_issuance(
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
             }
         }
+        PlannedIssuanceCommit::SenderKeyBound => {
+            // The only durable write on this outcome is the proof-id
+            // consumption; its presence (with our exact expiry) alongside the
+            // absent binding and the pre-existing family's nonce cell is the
+            // committed witness.
+            let Some(sender_issuance) = plan.sender_issuance.as_ref() else {
+                return AuthTransactionAttempt::CommitUncertain(commit_error);
+            };
+            match database.with_auth_read(|connection| {
+                sender_issuance
+                    .is_key_bound_successor(connection, &plan.projected.session_id)
+                    .map_err(|_| internal_state_snapback())
+            }) {
+                Ok(true) => {
+                    AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+                }
+                Ok(false) => AuthTransactionAttempt::RolledBack(commit_error),
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
         PlannedIssuanceCommit::Committed { .. } => {
             match database.with_auth_read(|connection| reconcile_planned_issuance(connection, plan))
             {
@@ -4302,6 +4394,22 @@ fn planned_session_issuance_transaction(
         }
     } else if exchange_proof.is_some() {
         return Err(internal_state_snapback());
+    }
+    if let Some(sender_issuance) = &plan.sender_issuance
+        && sender_issuance
+            .thumbprint_has_live_family(transaction)
+            .map_err(|_| internal_state_snapback())?
+    {
+        // The code was correct, so no attempt is charged and the challenge
+        // stays live for a retry under a fresh key; the valid proof still
+        // consumes its `jti` (the LLP 0077 issuance-outcome rule). This check
+        // and `install`'s nonce insert run under the same immediate write
+        // transaction, so a concurrent same-key exchange serializes here
+        // rather than surfacing the nonce-table constraint as a 500.
+        sender_issuance
+            .consume_rejected_outcome(transaction)
+            .map_err(|_| internal_state_snapback())?;
+        return Ok(PlannedIssuanceCommit::SenderKeyBound);
     }
     let durable_identity: Option<(String, String)> = transaction
         .query_row(
@@ -5040,6 +5148,18 @@ pub(crate) fn code_invalid() -> ProviderError {
         "SNAPBACK_AUTH_CODE_INVALID",
         "auth",
         "verification code is invalid",
+    ))
+}
+
+// @ref LLP 0077#diagnostics-and-redaction — the public refusal set is closed;
+// an already-bound key folds into SNAPBACK_AUTH_SENDER_PROOF_INVALID with no
+// distinguishing detail. Only the key holder can reach this outcome (it
+// requires a valid signature), so the fold leaks nothing and is not an oracle.
+pub(crate) fn sender_key_bound() -> ProviderError {
+    ProviderError::new(SnapbackError::error(
+        "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "auth",
+        "sender proof is not valid for issuance",
     ))
 }
 
@@ -7081,7 +7201,7 @@ mod tests {
         )
         .expect("sender commitment");
         let expected_nonce = commitment.initial_nonce_for_transport().to_owned();
-        plan.bind_sender_issuance(commitment)
+        plan.bind_sender_issuance(commitment, &OsRandom)
             .expect("bind sender issuance to plan");
         let commit_plan = plan.commit_plan();
         assert!(matches!(
@@ -7127,6 +7247,139 @@ mod tests {
             })
             .expect("atomic sender issuance facts");
         assert_eq!(facts, (1, 1, 1, expected_nonce));
+    }
+
+    // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
+    // thumbprint. A second valid issuance over an already-bound key must
+    // refuse with a committed SenderKeyBound outcome (not a nonce-table
+    // constraint surfaced as INTERNAL_AUTH_STATE), consume only its proof id,
+    // and leave the incumbent family untouched; once the incumbent's nonce
+    // cell expires the same thumbprint issues again.
+    #[tokio::test]
+    async fn planned_issuance_refuses_a_second_family_for_a_live_thumbprint() {
+        let now_ms = 45_000;
+        let (provider, mut database) = provider_database(now_ms);
+        database
+            .initialize_sender_proof_after_hosted_preflight()
+            .expect("initialize hosted sender authority");
+        let thumbprint = URL_SAFE_NO_PAD.encode([4_u8; 32]);
+
+        let first_admission = provider
+            .admit_email("sender-key-bound-first@example.com")
+            .await
+            .expect("first issuance admission");
+        let mut first_plan = first_admission
+            .plan_mint_session(&database, now_ms)
+            .expect("first issuance plan");
+        let first_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [3; 16],
+                jwk_thumbprint: thumbprint.clone(),
+                issued_at_seconds: now_ms / 1_000,
+            },
+            now_ms / 1_000,
+            120,
+        )
+        .expect("first sender commitment");
+        let incumbent_nonce = first_commitment.initial_nonce_for_transport().to_owned();
+        first_plan
+            .bind_sender_issuance(first_commitment, &OsRandom)
+            .expect("bind first sender issuance");
+        assert!(matches!(
+            first_admission.commit_planned_issuance(&mut database, &first_plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
+
+        let second_admission = provider
+            .admit_email("sender-key-bound-second@example.com")
+            .await
+            .expect("second issuance admission");
+        let mut second_plan = second_admission
+            .plan_mint_session(&database, now_ms + 1)
+            .expect("second issuance plan");
+        let second_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [5; 16],
+                jwk_thumbprint: thumbprint.clone(),
+                issued_at_seconds: (now_ms + 1) / 1_000,
+            },
+            (now_ms + 1) / 1_000,
+            120,
+        )
+        .expect("second sender commitment");
+        second_plan
+            .bind_sender_issuance(second_commitment, &OsRandom)
+            .expect("bind second sender issuance");
+        let second_commit_plan = second_plan.commit_plan();
+        assert!(matches!(
+            second_admission.commit_planned_issuance(&mut database, &second_commit_plan),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+        ));
+
+        let facts: (i64, i64, i64, String, i64) = database
+            .with_auth_read(|connection| {
+                Ok((
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_family_binding",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT nonce FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection
+                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
+                ))
+            })
+            .expect("key-bound refusal facts");
+        // One binding and one session (the incumbent's), both proof ids
+        // consumed, and the incumbent's generation-one nonce untouched.
+        assert_eq!(
+            facts,
+            (1, 2, 1, incumbent_nonce, 1),
+            "a key-bound refusal consumes only its proof id"
+        );
+
+        // Past the incumbent nonce's lifetime the cell is expired: the same
+        // thumbprint issues a fresh family again (install garbage-collects the
+        // expired cell ahead of its insert).
+        let later_ms = now_ms + 200_000;
+        let third_admission = provider
+            .admit_email("sender-key-bound-third@example.com")
+            .await
+            .expect("third issuance admission");
+        let mut third_plan = third_admission
+            .plan_mint_session(&database, later_ms)
+            .expect("third issuance plan");
+        let third_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [7; 16],
+                jwk_thumbprint: thumbprint,
+                issued_at_seconds: later_ms / 1_000,
+            },
+            later_ms / 1_000,
+            120,
+        )
+        .expect("third sender commitment");
+        third_plan
+            .bind_sender_issuance(third_commitment, &OsRandom)
+            .expect("bind third sender issuance");
+        assert!(matches!(
+            third_admission.commit_planned_issuance(&mut database, &third_plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
     }
 
     #[tokio::test]

@@ -1,6 +1,12 @@
 # subscribe: durable live queries with pinned change semantics
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 2
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “subscribe: durable live queries with pinned change semantics” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the repair crosses several runtime, host, protocol, or policy seams, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Tooling, Realtime
 **Author:** Claude (Fable 5), directed by Charlie Cheever

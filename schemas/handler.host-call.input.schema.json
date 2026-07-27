@@ -1,0 +1,21 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/handler.host-call.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The handler→host call body: the JSON body of\n`POST /_snapback/host-call` (`handler-server.mjs` `hostCall`), the same\npath on both arms (LLP 0094 §0A.3 — one seam, one path). `rawOp` is\n`\"<epoch>|<op>\"`; the epoch prefix is what makes a stale continuation\nrefusable. The host-call capability rides the `x-snapback-host-token`\nheader, not this body.",
+  "properties": {
+    "argsJson": {
+      "description": "The op arguments, pre-serialized JSON text.",
+      "type": "string"
+    },
+    "rawOp": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rawOp",
+    "argsJson"
+  ],
+  "title": "HandlerHostCallRequest",
+  "type": "object"
+}

@@ -1,6 +1,12 @@
 # Flaky obsolete-socket assertion in the Cloudflare security-hardening gate
 
 **Status:** Open
+**Impact:** 3
+**Urgency:** 4
+**Ease:** 4
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Flaky obsolete-socket assertion in the Cloudflare security-hardening gate” shows the issue materially affects reliability, verification, or developer experience; delay compounds an active rollout, reliability, or verification risk, while the implementation is localized and has concrete acceptance witnesses, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Cloudflare target, Miniflare, Acceptance tests, Live queries
 **Author:** Claude (Fable 5), directed by Charlie Cheever

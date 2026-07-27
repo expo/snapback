@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "SessionDeleteRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "connection_id": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "collection",
+        "scope",
+        "connection_id"
+      ],
+      "type": "object"
+    },
+    "SessionPublishRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "connection_id": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "ttl_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "value": {
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "collection",
+        "scope",
+        "connection_id",
+        "value"
+      ],
+      "type": "object"
+    },
+    "SessionSubscribeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "connection_id": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "collection",
+        "scope",
+        "connection_id"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.socket-client.sessions.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Session-mode socket requests deliberately omit every client-asserted\nidentity field. The connection grant supplies authority after this closed\nshape has decoded; dev mode continues to decode the legacy DTO unchanged.\n\nCommitted as `live.socket-client.sessions.schema.json` (LLP 0094 §0F item\n4 — the schema absence was an oversight, not an LLP 0043 exemption; the\nsessions surface owns the semantics, the schema commitment closes the\n§0C.1 gap row).",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/SessionSubscribeRequest"
+        },
+        "requestId": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "ephemeral_subscribe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "request"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/SessionPublishRequest"
+        },
+        "requestId": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "ephemeral_publish",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "request"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/SessionDeleteRequest"
+        },
+        "requestId": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "ephemeral_delete",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "request"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/SessionSubscribeRequest"
+        },
+        "requestId": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "ephemeral_unsubscribe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "request"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "ping",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "SessionLiveSocketClientMessage"
+}

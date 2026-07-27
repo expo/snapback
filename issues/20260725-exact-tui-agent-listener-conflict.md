@@ -1,6 +1,12 @@
 # Exact TUI agent listener conflicts with an outbound-only app network fence
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 4
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Exact TUI agent listener conflicts with an outbound-only app network fence” shows the issue materially affects a supported product or engineering path; delay compounds an active rollout, reliability, or verification risk, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
 **Severity:** P2
 **Systems:** Chat matrix, Exact TUI, Agent API, Capability security
 **Date:** 2026-07-25

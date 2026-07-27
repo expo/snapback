@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "HandlerDeadlinePhase": {
+      "description": "Which harness deadline expired (`handler-server.mjs` `deadlineResponse`).",
+      "enum": [
+        "settlement",
+        "quiescence"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/handler.invoke.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "additionalProperties": false,
+      "description": "The harness refused or failed the invocation before settlement\n(transport auth, body limits, unknown route, missing deadline\ncapability). Also carried on non-200 statuses.",
+      "properties": {
+        "fatal": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fatal"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The handler (or its detached work) outlived the settlement deadline;\nthe invocation failed and committed no writes.",
+      "properties": {
+        "deadlinePhase": {
+          "$ref": "#/$defs/HandlerDeadlinePhase"
+        },
+        "didNotSettle": {
+          "type": "boolean"
+        },
+        "rejectionDetectionSupported": {
+          "type": "boolean"
+        },
+        "unhandledRejections": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "didNotSettle",
+        "deadlinePhase",
+        "unhandledRejections",
+        "rejectionDetectionSupported"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The invocation settled: `envelope` is the tagged completion envelope\n(pre-serialized JSON text; decoded by `parse_handler_output` /\n`parseHandlerEnvelope`), plus the unhandled-rejection sweep.",
+      "properties": {
+        "envelope": {
+          "type": "string"
+        },
+        "rejectionDetectionSupported": {
+          "type": "boolean"
+        },
+        "unhandledRejections": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "envelope",
+        "unhandledRejections",
+        "rejectionDetectionSupported"
+      ],
+      "type": "object"
+    }
+  ],
+  "description": "The handler→coordinator response envelope: the JSON body the handler\nserver answers `POST /invoke` with (`handler-server.mjs` `json(...)`\ncall sites). One of three mutually exclusive shapes, dispatched by the\nreceivers in mirrored order: `fatal` → `didNotSettle` → settled envelope\n(`src/workerd_exec.rs` / `coordinator.js` `invokeHandler`).\n\nOn the local arm the response additionally proves its origin with the\n`x-snapback-response-token` header echo before the body is read; that\ntransport-authentication echo is a header, not a body member.",
+  "title": "HandlerInvokeResponse"
+}

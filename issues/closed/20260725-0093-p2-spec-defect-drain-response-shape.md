@@ -1,5 +1,14 @@
 # 0093 P-2 spec defect: the drain response shape is not documented
 
+**Status:** Resolved (2026-07-27; left in issues/ for the integrator to
+move to issues/closed/)
+**Impact:** 4
+**Urgency:** 4
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-2 spec defect: the drain response shape is not documented” shows the issue materially affects a supported product or engineering path; delay compounds an active rollout, reliability, or verification risk, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Source:** LLP 0093 D4 clean-room discipline (P-2 Swift client build).
 **Systems:** Wire Protocol, Client SDK, Realtime
@@ -54,3 +63,32 @@ committed `live.outbox-drain.output.schema.json` emitted through
 `schema_export::artifact_instances()` so the array shape joins the schema
 drift gates. That is a Rust change (schema export + schemagen regeneration
 + gate updates), out of scope for this doc pass.
+
+## Resolution (2026-07-27) — remaining machine-governance residual closed
+
+The "ideally" deliverable landed on branch
+`agent/0094-schemagates-20260726`:
+
+- `schemas/live.outbox-drain.output.schema.json` is committed through the
+  schema export mechanism (`schema_export::artifact_schemas()`), generated
+  from the new transparent authority type
+  `OutboxDrainOutput(Vec<RealtimeEnvelope>)` in `src/live_wire.rs`.
+- `drain_outbox` (`src/server.rs`) now ends in
+  `Json(OutboxDrainOutput(drained))`, so the served local bytes and the
+  drift-gated schema are one definition (`@ref LLP 0094#0a5` at the site).
+- Positive instances per LLP 0094 §0A.5, pinned in
+  `tests/artifact_schemas_v0.rs::outbox_drain_schema_accepts_the_served_batches_and_rejects_wrappers`:
+  the **empty array** and the synthesized single-element
+  `resync_required { reason: "unknown_or_reaped", clear_retained: true }`
+  batch — built through the same constructors `drain_outbox` uses, so the
+  fixture cannot drift from the served bytes. Negative instances pin "no
+  object wrapper, no NDJSON-ish strings, no bare payloads".
+- The hosted arm's declared-empty drain (`[]`) is validated against the
+  same committed schema by `cloudflare/test/wire-schema-gate.mjs`.
+- LLP 0094 §0A.5's "does not exist yet" residual note was replaced with
+  the committed-schema facts in the same landing.
+
+Verification: `cargo test --test artifact_schemas_v0` (27/27, includes
+the drift-gate census with the new schema); `node
+cloudflare/test/wire-schema-gate.mjs` (12/12). Nothing remains open in
+this ticket.

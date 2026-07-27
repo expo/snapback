@@ -775,6 +775,18 @@ one token but changes observable refusal behavior for any caller relying
 on it, so it is ticketed, not landed here:
 `issues/20260725-0093-p3-lease-offer-parser-carrier.md`.
 
+**Fixed 2026-07-27.** The lease route now parses offers with
+`from_http_headers`, and the route-level regression
+(`authorized_lease_route_requires_readiness_and_exact_protocol_offer`)
+asserts that a lease offer riding only the `Sec-WebSocket-Protocol`
+grammar refuses `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` exactly like
+an absent offer. Blast radius: the only observable change is on callers
+that carried lease offers in the subprotocol header on the HTTP POST —
+none exist in-repo (the kit and the Swift client send the decimal
+headers); such a caller now receives the same refusal as an offerless
+request. §2's "every other route `from_http_headers`" rule now holds
+without exception.
+
 ### 8.3 Hosted profile surface
 
 No hosted finding beyond §2.6's structural fact (dev-only, no `/auth/*`

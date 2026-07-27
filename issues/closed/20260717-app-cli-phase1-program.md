@@ -1,6 +1,7 @@
 # App CLI phase-1 program (LLP 0062) — index
 
-**Status:** Rescoped (2026-07-19 checkpoint shipped; advanced program deferred)
+**Status:** Closed
+**Resolution:** Closed by c5d67b0a: the explicitly rescoped phase-1 client/app-CLI checkpoint and acceptance journey shipped; advanced work remains in its dedicated tickets.
 **Severity:** P2
 **Systems:** Client integration, Tooling, API, Auth, Codegen, Docs
 **Author:** Claude (Fable 5), directed by Charlie Cheever

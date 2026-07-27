@@ -1,5 +1,13 @@
 # 0093 P-3: add the auth-profile fixture classes to the LLP 0095 conformance corpus
 
+**Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-3: add the auth-profile fixture classes to the LLP 0095 conformance corpus” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Source:** LLP 0096 §2 / §8.4 (P-3 fixture obligations)
 **Systems:** Wire Protocol, Auth, Tests, Native Clients

@@ -1,0 +1,359 @@
+{
+  "$defs": {
+    "EphemeralEntry": {
+      "properties": {
+        "entry_version": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expires_at_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "key": {
+          "type": "string"
+        },
+        "received_at_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scope_epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "value": {
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "value",
+        "received_at_ms",
+        "expires_at_ms",
+        "scope_epoch",
+        "entry_version"
+      ],
+      "type": "object"
+    },
+    "EphemeralError": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/EphemeralErrorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "EphemeralErrorCode": {
+      "oneOf": [
+        {
+          "enum": [
+            "UnknownCollection",
+            "Unauthorized",
+            "InvalidScope",
+            "MissingKey",
+            "MissingOwner",
+            "InvalidTtl",
+            "ValueTooLarge",
+            "MetadataTooLarge",
+            "RateLimited",
+            "IncompatibleCollectionDefinition"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "RoomLimitExceeded",
+          "description": "A hard room/store limit (active rooms, entries per room, subscribers\nper room, aggregate room bytes) rejected the operation. The limits are\ncapability facts; hitting one is a structured rejection, never a\nsilent eviction of live entries.\n\n@ref LLP 0013#room-store-model — memory pressure must be explicit.",
+          "type": "string"
+        },
+        {
+          "const": "GenerationExhausted",
+          "description": "A client-visible room, entry, or delivery identity reached the final\nexact plain-JSON integer. Reuse would create an ABA, so the operation\nis refused without mutating predecessor state.",
+          "type": "string"
+        },
+        {
+          "const": "AuthorityPending",
+          "description": "A permission-changing transaction installed the room's precommit\nauthority barrier. No protected sink may act until exact finalization\nand fresh reauthorization complete.",
+          "type": "string"
+        },
+        {
+          "const": "PermissionDenied",
+          "description": "Trusted server-side durable membership denial. Unlike the legacy\n`Unauthorized` code, this is safe for the client auth coordinator to\ntreat as an authorization-loss transition.",
+          "type": "string"
+        }
+      ]
+    },
+    "RemoveReason": {
+      "description": "Why an entry was removed. `AuthRevoked` was removed 2026-07-02: durable\npermission-change revocation is not integrated yet (LLP 0026 §Auth and\nrevocation), so the variant was unreachable vocabulary. Reintroduce it with\nthe event that owns it.\n\n@ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.",
+      "enum": [
+        "Deleted",
+        "Disconnected",
+        "Expired",
+        "AuthRevoked"
+      ],
+      "type": "string"
+    },
+    "ResyncReason": {
+      "description": "Why a subscriber must resnapshot. `Restarted` is sent when an explicit\nruntime reset discards room state under live connections; `EpochChanged`\nwhen a destructive definition replacement retires room epochs (the\nENG-22478 review-fix-D reasons, ratified upstream and adopted by the\nsharded authority); `Disconnected` when a server-side disconnect (the L2\nreaper, or the admin route) wiped the connection's room registrations\nwhile its socket was still open and registered (ENG-23427). `AuthChanged`\nwas removed 2026-07-02: auth revocation is not integrated, so it was\nunreachable vocabulary.\n\n@ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.",
+      "enum": [
+        "QueueOverflow",
+        "EpochChanged",
+        "Restarted",
+        "Disconnected",
+        "AuthChanged"
+      ],
+      "type": "string"
+    },
+    "RoomId": {
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "routing_key": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "collection",
+        "scope",
+        "routing_key"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.subscribe.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "Snapshot": {
+          "properties": {
+            "entries": {
+              "items": {
+                "$ref": "#/$defs/EphemeralEntry"
+              },
+              "type": "array"
+            },
+            "high_water_version": {
+              "description": "Authoritative room cursor at the instant the snapshot and\nsubscriber registration became one operation. This remains valid\neven when `entries` is empty or the newest event was a delete.",
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "room": {
+              "$ref": "#/$defs/RoomId"
+            },
+            "room_authority_generation": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "scope_epoch": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "room",
+            "scope_epoch",
+            "room_authority_generation",
+            "high_water_version",
+            "entries"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Snapshot"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "Upsert": {
+          "properties": {
+            "entry": {
+              "$ref": "#/$defs/EphemeralEntry"
+            },
+            "room": {
+              "$ref": "#/$defs/RoomId"
+            },
+            "room_authority_generation": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "room",
+            "room_authority_generation",
+            "entry"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Upsert"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "Remove": {
+          "properties": {
+            "entry_version": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "key": {
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/$defs/RemoveReason"
+            },
+            "room": {
+              "$ref": "#/$defs/RoomId"
+            },
+            "room_authority_generation": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "scope_epoch": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "room",
+            "key",
+            "scope_epoch",
+            "room_authority_generation",
+            "entry_version",
+            "reason"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Remove"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "ResyncRequired": {
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/ResyncReason"
+            },
+            "room": {
+              "$ref": "#/$defs/RoomId"
+            },
+            "room_authority_generation": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "scope_epoch": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "room",
+            "scope_epoch",
+            "room_authority_generation",
+            "reason"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "ResyncRequired"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "Error": {
+          "properties": {
+            "error": {
+              "$ref": "#/$defs/EphemeralError"
+            },
+            "room": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RoomId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "room_authority_generation": {
+              "format": "uint64",
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Error"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "EphemeralMessage"
+}

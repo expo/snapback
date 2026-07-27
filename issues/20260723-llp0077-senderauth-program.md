@@ -1,6 +1,12 @@
 # LLP 0077 sender-constrained browser auth — hardening program (index)
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 1
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0077 sender-constrained browser auth — hardening program (index)” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while delivery is a dependency-heavy, multi-stage program, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -36,6 +42,17 @@ positive claim exists without the full matrix plus the LLP 0072 hosted-auth
 drill against a served origin. No ticket permits a
 positive capability claim until the whole matrix plus the LLP 0072
 hosted-auth drill receipt passes against a served origin.
+
+**Update 2026-07-27 (headline): the served-origin LLP 0077 matrix RAN for the
+first time and found a new served-origin defect, D-2, now fixed.** A bound-key
+re-exchange answered `500 INTERNAL_AUTH_STATE` on client-controllable input;
+the one-live-family-per-thumbprint rule is now normative in LLP 0077 §Issuance
+and enforced in the exchange transaction with Rust + wire witnesses. Decision
+4's versioned `sbs2_`/`sct2_` prefixes were confirmed reserved-unissued and
+annotated as such (`issues/closed/20260725-sender-constrained-classes-unwired.md`
+resolved; v2 minting is follow-on `issues/20260727-llp0077-v2-prefix-minting.md`).
+Full detail in the "served-origin matrix ran" section below; the exact
+remaining distance to `hostedAuthCapable` is restated there.
 
 Update 2026-07-25: the first served-origin drill (the LLP 0075 Fly.io
 `single-instance-container-vm.v1` target) produced the hosted-auth
@@ -158,45 +175,82 @@ day: with D-1 fixed, the identical composition reruns at **42/42** — receipt
 `hosted-sender-matrix.v0.rerun-20260725.json`; the gate now waits only on the
 served-origin rerun.)*
 
-### Exact remaining distance to `hostedAuthCapable` (2026-07-25, updated after the D-1 fix)
+### The served-origin matrix ran 2026-07-27 — and found D-2 (now fixed)
 
-Recorded so the remaining gap is legible rather than implied. The claim now
-waits on exactly one thing:
+The Let's Encrypt window cleared (retry-after 2026-07-27 ~01:06 UTC); the D4
+volume (`vol_r6815pkd59o1x614`) retained the certificate across the machine
+wake, and the D-1-fixed binary was redeployed to `snapback-drill.fly.dev`. The
+LLP 0077 matrix ran for the **first time against the real served public
+origin**, in the new `served-terminator` composition (the deployed Caddy is the
+trusted terminator, replacing `X-Forwarded-For`; effective-source rows assert
+composed spoof-immunity; the origin-confusion probe binds to the loopback
+upstream). Login codes were recovered over `fly ssh console -C` from the durable
+challenge digest + keyring (LLP 0057 capture-mailbox recovery), identical to the
+local `operator-digest` source.
 
-1. ~~**Defect count zero.**~~ **Reached 2026-07-25.** D-1 was the last open
-   code defect; its route-policy hoist landed with the witness set above, and
-   the full 42-check matrix rerun against the local hosted origin scores
-   **42/42** (receipt:
-   `demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.rerun-20260725.json`).
-2. **A served-origin rerun.** The 42/42 run was against a local hosted origin
-   composed identically to the deployed one. The served rerun remains blocked
-   by the Let's Encrypt duplicate-certificate limit after the no-volume cert
-   loss (LLP 0098 §8.1/§8.3). Update, later 2026-07-25: Charlie resolved the
-   cert-volume question (LLP 0098 author decision D4 — volume created,
-   `vol_r6815pkd59o1x614`, mounted at `/data/caddy`) and the deployment was
-   rebuilt from current main (D-1-fixed binary). The exact blocker, from the
-   machine's own ACME logs: HTTP 429 `urn:ietf:params:acme:error:rateLimited`,
-   "too many certificates (5) already issued for this exact set of identifiers
-   in the last 168h0m0s, **retry after 2026-07-27 01:06:44 UTC**"
-   (new-certificates-per-exact-set-of-identifiers). The volume prevents future
-   burn but cannot un-spend the window. Caddy's paced retries (30-minute
-   backoff) will self-heal issuance once the window clears, and the volume
-   then retains the certificate across redeploys — after which the served
-   rerun is a matrix invocation away (see LLP 0098 §8.4 for the exact
-   composition).
+**The served run was not a rubber stamp of the local 42/42 — it surfaced D-2.**
+On a served (any real) exchange sequence, a second `/auth/exchange` carrying a
+valid issuance proof over an **already-bound** custody key (fresh challenge,
+correct code) answered `500 INTERNAL_AUTH_STATE`: the issuance transaction hit
+the sender-nonce table's `(admission_epoch, jwk_thumbprint)` primary key and
+surfaced the constraint as a state-invariant failure, on client-controllable
+input. This is the same defect class as the §8.2 effective-source finding — a
+path exercised only by a real sequence, not by the per-check unit tests.
+
+**D-2 FIXED 2026-07-27.** The one-live-family-per-thumbprint rule is now
+normative in LLP 0077 §Issuance and enforced in the exchange transaction: it
+pre-checks the live nonce cell and refuses with the folded
+`SNAPBACK_AUTH_SENDER_PROOF_INVALID` **before** any session/identity/challenge/
+nonce write, consuming only the proof's `jti` (the correct code is not charged
+an attempt; the challenge stays live for a retry under a fresh key). The
+pre-check and the family install serialize on the same immediate write
+transaction, so a concurrent same-key exchange is refused deterministically
+rather than racing the primary key. An expired incumbent nonce cell does not
+count. Witnesses: Rust
+`planned_issuance_refuses_a_second_family_for_a_live_thumbprint` (asserts the
+coded outcome, that only the proof id is consumed and the incumbent family is
+untouched, and that the same thumbprint re-issues once the nonce lifetime
+elapses) and wire check `issuance/a-second-exchange-with-a-bound-key-refuses-coded`.
+The full matrix (now 43 checks) scores **43/43** against the local hosted
+origin in `instrument-terminator` composition. The served run's receipt is
+`demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.served-20260727.json`.
+
+### Exact remaining distance to `hostedAuthCapable` (2026-07-27)
+
+The defect count is zero again after D-2, and the matrix has now run against a
+real served origin. What the capability claim still needs, and this index still
+does **not** claim `hostedAuthCapable`:
+
+1. ~~**A clean served-origin 43/43 on the D-2-fixed binary.**~~ **Reached
+   2026-07-27.** The served run that *found* D-2 ran on the pre-fix binary;
+   after the fix landed the origin was redeployed (image
+   `deployment-01KYH0R5TN`, fresh chain), and the served matrix scored
+   **43/43** against `https://snapback-drill.fly.dev` in `served-terminator`
+   composition with operator-DB bucket observation over `fly ssh` — receipt
+   `demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.served-20260727.json`
+   (`ok: true`, `passed: 43`). Adapting the served composition surfaced and
+   fixed two *instrument* correctness bugs (not origin defects): the
+   connect-origin refusal axis and the issuance origin-confusion probe both had
+   to bind their wrong-origin htu to the loopback upstream, because on a served
+   run the connect origin IS the attested publicOrigin — otherwise a "wrong
+   origin" proof is valid, passes admission, and rotates the live nonce. The
+   serving window has since expired (expected withdrawal; no renewal loop yet,
+   LLP 0098 OQ1), which does not affect the captured green receipt.
+2. **The LLP 0072 hosted-auth drill legs that need public HTTPS.** The
+   `snapback.hosted-auth-drill-receipt.v1` production path
+   (`packages/snapback-cli/deployment-control.mjs`) additionally requires a
+   registered `trusted-single-tenant-app-complete.v1` target with a
+   content-addressed `remoteProviderAttestation`; codegen does not emit that
+   target profile today (LLP 0072 §Implemented target and plan slice), so the
+   drill receipt cannot be minted from the drill target as it stands. That is
+   the next tranche, tracked in the LLP 0072 program, not this index.
 
 Everything else the gate named is in place: the adapter attests and verifies,
 sessions runs under hosted admission, renewal composes with withdrawal, the
-operator surface is enforced, and effective source is enforced. **No one should
-claim `hostedAuthCapable` until the served-origin rerun is green**, and this
-program index does not claim it.
-
-This does **not** close the capability gate. `hostedAuthCapable` still
-requires the LLP 0077 matrix and the LLP 0072 hosted-auth drill to pass
-against a **real served public origin** under that attestation, which needs
-the in-container TLS terminator the profile requires. Until then the honest
-status is: the adapter exists and its refusals are proven; the served-origin
-matrix has not run.
+operator surface is enforced, effective source is enforced, and the sender
+matrix passes end to end against a served origin. **No one should claim
+`hostedAuthCapable` until item 2 lands and the served 43/43 is confirmed on the
+fixed binary**, and this program index does not claim it.
 
 Umbrella index for the work surfaced by the 9-round /llp-super-refine on LLP
 0077 (Fable READY at round 9; Codex NOT READY throughout — the spec is

@@ -1,5 +1,13 @@
 # all-aboard remote acceptance: directions check depends on OpenRouteService being up
 
+**Status:** Open
+**Impact:** 3
+**Urgency:** 3
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “all-aboard remote acceptance: directions check depends on OpenRouteService being up” shows the issue materially affects reliability, verification, or developer experience; it belongs in the current program but is not an immediate blocker, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Systems:** Cloudflare arm, All Aboard demo, acceptance suites
 

@@ -423,11 +423,18 @@ impl SessionBearer {
         parse_bearer(input, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
     }
 
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: accepts both session
+    // spellings. `sbs_` is the plain bearer class; `sbs2_` is the
+    // sender-constrained class the exchange mints for sender-bound issuance.
+    // Which spelling a surface actually honors is decided by the durable
+    // family binding plus the spelling checks in `sender_proof.rs`, not here.
     pub(crate) fn parse_any_version(input: &str) -> Result<Self, CryptoError> {
         Self::parse(input).or_else(|_| Self::parse_sender_v2(input))
     }
 
-    #[cfg(test)]
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer: the
+    // production exchange mints sender-bound sessions with the structurally
+    // distinct `sbs2_` spelling a v1 verifier cannot accept.
     pub(crate) fn generate_sender_v2(random: &dyn RandomSource) -> Result<Self, CryptoError> {
         mint_bearer(random, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
     }
@@ -547,6 +554,13 @@ pub enum CredentialClass {
     Session,
     /// `sbs2_` — sender-constrained browser session bearer. The v1 parser for
     /// `sbs_` cannot accept this versioned spelling.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer (the
+    /// legacy-rejecting versioned prefix): the exchange mints sender-bound
+    /// sessions with this spelling, refresh keeps successors in it, and the
+    /// sender-proof verifier refuses the `sbs_` spelling for sender-bound
+    /// families, so a pre-sender v1 server presented an `sbs2_` bearer fails
+    /// structurally instead of honoring it as a plain bearer.
     SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
@@ -572,6 +586,10 @@ pub enum CredentialClass {
     ConnectionToken,
     /// `sct2_` — a sender-constrained v2 connection token. A v1 connection
     /// token parser cannot accept this structurally distinct spelling.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4, issued exactly as
+    /// `SenderSession` above: sender-bound connection-open mints `sct2_`
+    /// grants, and the sender grant lane requires the v2 spelling.
     SenderConnectionToken,
     /// `sbrk_` — the secret-read root key.
     SecretReadRootKey,
@@ -612,9 +630,12 @@ impl CredentialClass {
         }
     }
 
-    pub fn is_session(self) -> bool {
-        matches!(self, Self::Session | Self::SenderSession)
-    }
+    // NOTE: there is deliberately no `is_session()` fold over `Session` and
+    // `SenderSession`. Such a fold would pre-declare that a v1 `sbs_` bearer
+    // satisfies any check written against the sender-constrained class — the
+    // opposite of what the class exists for
+    // (issues/closed/20260725-sender-constrained-classes-unwired.md). Call
+    // sites that admit both classes match both explicitly.
 
     /// Whether a value of this class can ever resolve to live authority when
     /// presented as a bearer. Identifiers (`sbc_`, `sbak_`) and the secret-read

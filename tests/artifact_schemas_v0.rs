@@ -2768,11 +2768,21 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             correlation: json!({ "actionInvocationId": "act_1" }),
             received_at_ms: 1,
         },
+        attribution: None,
     };
     let mutation_response = serde_json::to_value(mutation_response).unwrap();
     assert_validates("mutation.output.schema.json", &mutation_response);
     assert!(mutation_response.get("previousToken").is_none());
     assert!(mutation_response.get("connectionToken").is_none());
+    // The served sessions-mode envelope carries attribution directly; the
+    // closed schema admits exactly that member (LLP 0094 §0C.6 item 4).
+    let mut attributed_response = mutation_response.clone();
+    attributed_response["attribution"] = json!({
+        "actorUserId": "user_1",
+        "grantId": "grant_1",
+        "dryRun": false,
+    });
+    assert_validates("mutation.output.schema.json", &attributed_response);
     let mut missing_receipt = mutation_response.clone();
     missing_receipt.as_object_mut().unwrap().remove("receipt");
     assert_rejects("mutation.output.schema.json", &missing_receipt);
@@ -3012,4 +3022,332 @@ fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
         )
         .unwrap_or_else(|error| panic!("{backend}: capability manifest rejected: {error}"));
     }
+}
+
+/// LLP 0094 §0F items 1–2 / LLP 0051 §D4: positive and negative instances for
+/// the private handler-boundary marker envelopes and the hosted kit-socket
+/// in-band request grammar. The REAL produced bytes are additionally proven
+/// against the same schemas by the local twin capture test
+/// (`tests/workerd_twin_v0.rs`) and the hosted capture suite
+/// (`cloudflare/test/wire-schema-gate.mjs`); these fixtures pin the accept /
+/// reject envelope of each family.
+#[test]
+fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() {
+    // Invocation request — local-arm shape (no token/hostHeaders; the
+    // capability rides the generated workerd config).
+    let local_invoke = serde_json::to_value(snapback::handler_wire::HandlerInvokeRequest {
+        export: "addNote".to_owned(),
+        args_json: "{\"text\":\"hi\"}".to_owned(),
+        auth_json: "{}".to_owned(),
+        mode: snapback::handler_wire::HandlerInvocationMode::Mutation,
+        run_json: None,
+        secrets_json: None,
+        epoch: "42".to_owned(),
+        token: None,
+        settlement_timeout_ms: 9_750,
+        host_headers: None,
+    })
+    .expect("serialize local invoke request");
+    assert_validates("handler.invoke.input.schema.json", &local_invoke);
+    // Hosted-arm shape (coordinator.js invokeHandler): body token + DO
+    // routing header, action run metadata and secret grants.
+    let hosted_invoke = json!({
+        "export": "sendDigest",
+        "argsJson": "{}",
+        "authJson": "{}",
+        "mode": "action",
+        "runJson": "{\"runId\":\"r1\",\"trigger\":\"manual\",\"jobName\":null}",
+        "secretsJson": "{\"MAIL_KEY\":\"k\"}",
+        "epoch": "1753500000000-tok",
+        "token": "6f9619ff-8b86-d011-b42d-00cf4fc964ff",
+        "settlementTimeoutMs": 30_000,
+        "hostHeaders": { "x-snapback-do-id": "abc123" }
+    });
+    assert_validates("handler.invoke.input.schema.json", &hosted_invoke);
+    // Unknown member (the closed-emission drift catch).
+    let mut extended = hosted_invoke.clone();
+    extended["protocolVersion"] = json!(1);
+    assert_rejects("handler.invoke.input.schema.json", &extended);
+    // Missing epoch.
+    let mut missing_epoch = hosted_invoke.clone();
+    missing_epoch.as_object_mut().unwrap().remove("epoch");
+    assert_rejects("handler.invoke.input.schema.json", &missing_epoch);
+    // Mode outside the closed set.
+    let mut bad_mode = hosted_invoke.clone();
+    bad_mode["mode"] = json!("subscription");
+    assert_rejects("handler.invoke.input.schema.json", &bad_mode);
+    // Explicit null token (never emitted; optional-by-absence).
+    let mut null_token = hosted_invoke.clone();
+    null_token["token"] = Value::Null;
+    assert_rejects("handler.invoke.input.schema.json", &null_token);
+
+    // Response envelope — the three served shapes.
+    let settled = json!({
+        "envelope": "{\"r\":{\"__snapbackOk\":true,\"value\":{\"id\":\"n1\"}}}",
+        "unhandledRejections": [],
+        "rejectionDetectionSupported": true
+    });
+    let did_not_settle = json!({
+        "didNotSettle": true,
+        "deadlinePhase": "quiescence",
+        "unhandledRejections": [],
+        "rejectionDetectionSupported": true
+    });
+    let fatal = json!({ "fatal": "invoke transport authentication failed" });
+    assert_validates("handler.invoke.output.schema.json", &settled);
+    assert_validates("handler.invoke.output.schema.json", &did_not_settle);
+    assert_validates("handler.invoke.output.schema.json", &fatal);
+    let mut extended_settled = settled.clone();
+    extended_settled["marker"] = json!("SNAPBACK_AUTH_HANDLER_V1");
+    assert_rejects("handler.invoke.output.schema.json", &extended_settled);
+    let mut bad_phase = did_not_settle.clone();
+    bad_phase["deadlinePhase"] = json!("startup");
+    assert_rejects("handler.invoke.output.schema.json", &bad_phase);
+    assert_rejects("handler.invoke.output.schema.json", &json!({}));
+    let mut sweepless = settled;
+    sweepless.as_object_mut().unwrap().remove("unhandledRejections");
+    assert_rejects("handler.invoke.output.schema.json", &sweepless);
+
+    // Host-call body.
+    let host_call = serde_json::to_value(snapback::handler_wire::HandlerHostCallRequest {
+        raw_op: "42|db.insert".to_owned(),
+        args_json: "{\"table\":\"notes\",\"values\":{}}".to_owned(),
+    })
+    .expect("serialize host call");
+    assert_validates("handler.host-call.input.schema.json", &host_call);
+    let mut extended_call = host_call.clone();
+    extended_call["hostHeaders"] = json!({});
+    assert_rejects("handler.host-call.input.schema.json", &extended_call);
+    let mut argsless = host_call;
+    argsless.as_object_mut().unwrap().remove("argsJson");
+    assert_rejects("handler.host-call.input.schema.json", &argsless);
+}
+
+/// The kit-socket in-band request grammar (LLP 0094 §0A.1 WS-kinds row): the
+/// schema's verdicts mirror `validateLiveSocketFrame` (`coordinator.js`);
+/// `cloudflare/test/wire-schema-gate.mjs` proves the same corpus against the
+/// served validator.
+#[test]
+fn kit_socket_request_schema_matches_the_served_validator_grammar() {
+    const FILE: &str = "live.kit-socket-request.schema.json";
+    let accepted = [
+        json!({ "type": "subscribe", "name": "listNotes", "args": {} }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": { "boardId": "b1" },
+                "supersedes": "sub_1" }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": { "token": "sbrt1.abc", "meta": { "app": "notes" } } } }),
+        // membershipWitness is accepted at any shape on this arm (rung 2
+        // deferred): the transport check is presence-only.
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": { "token": "sbrt1.abc" },
+                                      "membershipWitness": { "unvalidated": true } } }),
+        json!({ "type": "unsubscribe", "subscriptionId": "sub_1" }),
+        json!({ "type": "ping" }),
+        json!({ "type": "ping", "requestId": "req-1" }),
+    ];
+    for frame in &accepted {
+        assert_validates(FILE, frame);
+    }
+    let rejected = [
+        json!("subscribe"),
+        json!({ "type": "snapshot" }),
+        json!({ "type": "subscribe", "name": "listNotes" }),
+        json!({ "type": "subscribe", "name": "", "args": {} }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": [] }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {}, "supersedes": "" }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {}, "supersedes": null }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {}, "extra": 1 }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": { "token": "" } } }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": { "token": "x".repeat(1025) } } }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": {} } }),
+        json!({ "type": "subscribe", "name": "listNotes", "args": {},
+                "resumeFromToken": { "resume": { "token": "t" }, "extra": 1 } }),
+        json!({ "type": "unsubscribe", "subscriptionId": "" }),
+        json!({ "type": "unsubscribe" }),
+        json!({ "type": "unsubscribe", "subscriptionId": "sub_1", "extra": 1 }),
+        json!({ "type": "ping", "requestId": 7 }),
+        json!({ "type": "ping", "requestId": null }),
+        json!({ "type": "ping", "extra": true }),
+    ];
+    for frame in &rejected {
+        assert_rejects(FILE, frame);
+    }
+}
+
+/// LLP 0094 §0A.5: the drain response is a bare array of `RealtimeEnvelope`.
+/// Positive instances cover the empty drain and the synthesized
+/// unknown-or-reaped batch, built through the SAME constructors
+/// `drain_outbox` uses so the fixture cannot drift from the served bytes.
+#[test]
+fn outbox_drain_schema_accepts_the_served_batches_and_rejects_wrappers() {
+    use snapback::ephemeral::{DurableMessage, RealtimeEnvelope};
+    use snapback::live_wire::{LiveEnvelope, OutboxDrainOutput};
+
+    const FILE: &str = "live.outbox-drain.output.schema.json";
+    let empty = serde_json::to_value(OutboxDrainOutput(Vec::new())).expect("serialize empty drain");
+    assert_eq!(empty, json!([]));
+    assert_validates(FILE, &empty);
+
+    // The admitted-but-unknown/reaped single-element batch (the
+    // `admitted.is_none()` arm of `drain_outbox`, LLP 0094 §0A.5).
+    let synthesized = OutboxDrainOutput(vec![RealtimeEnvelope::Durable(DurableMessage::new(
+        serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            reason: "unknown_or_reaped".to_owned(),
+            subscription_id: None,
+            scope: None,
+            epoch: None,
+            clear_retained: true,
+        })
+        .expect("serialize resync envelope"),
+    ))]);
+    let synthesized = serde_json::to_value(synthesized).expect("serialize synthesized batch");
+    assert_validates(FILE, &synthesized);
+
+    // Never an object wrapper, never NDJSON-ish strings, never bare payloads.
+    assert_rejects(FILE, &json!({ "batch": [] }));
+    assert_rejects(FILE, &json!([{ "kind": "live_replace" }]));
+    assert_rejects(FILE, &json!(["{\"Durable\":{\"payload\":[]}}"]));
+}
+
+/// LLP 0094 §0F item 4: the former §0C gap rows now have standalone committed
+/// schemas — `QueryOutput`, the action output, the ephemeral HTTP
+/// request/outcome families, and the sessions-mode socket family.
+#[test]
+fn gap_row_schemas_accept_representative_values() {
+    // QueryOutput: open family — the local arm's served envelope may flatten
+    // an `attribution` member onto it (`FunctionResponse<T>`), so the
+    // extension must validate.
+    let query_output = json!({ "version": 7, "rows": [{ "_id": "n1", "text": "hi" }] });
+    assert_validates("query.output.schema.json", &query_output);
+    let mut with_cursor = query_output.clone();
+    with_cursor["cursor"] = json!("cursor.v1.abc");
+    assert_validates("query.output.schema.json", &with_cursor);
+    let mut attributed = query_output.clone();
+    attributed["attribution"] = json!({ "principalId": "user_1" });
+    assert_validates("query.output.schema.json", &attributed);
+    let mut oversized = query_output.clone();
+    oversized["version"] = json!(9_007_199_254_740_992_u64);
+    assert_rejects("query.output.schema.json", &oversized);
+    assert_rejects("query.output.schema.json", &json!({ "rows": [] }));
+
+    // The action output (`FunctionResponse<FunctionRunResult>` minus the
+    // flattened attribution, which the open family likewise admits).
+    let action_output = serde_json::to_value(snapback::local::FunctionRunResult {
+        ok: true,
+        function: "sendDigest".to_owned(),
+        kind: Some(snapback::manifest::FunctionKind::Action),
+        reads: vec![],
+        writes: vec!["notes".to_owned()],
+        captured_reads: vec![],
+        captured_writes: vec![],
+        admin_bypass: false,
+        elapsed_ms: 12,
+        version: Some(7),
+        changed_count: Some(1),
+        rows: None,
+        result: Some(json!({ "sent": true })),
+        diagnostic: None,
+    })
+    .expect("serialize action output");
+    assert_validates("action.output.schema.json", &action_output);
+    assert_rejects("action.output.schema.json", &json!({ "ok": true }));
+
+    // Ephemeral HTTP requests (dev wire shape; sessions mode substitutes the
+    // closed Session* DTOs of the sessions socket family below).
+    let publish = json!({
+        "collection": "presence",
+        "scope": { "board": "b1" },
+        "connection_id": "conn_1",
+        "session_id": null,
+        "user_id": null,
+        "custom_key": null,
+        "value": [123, 34, 120, 34, 58, 49, 125],
+        "ttl_ms": 30_000,
+        "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
+    });
+    assert_validates("ephemeral.publish.input.schema.json", &publish);
+    let subscribe = json!({
+        "collection": "presence",
+        "scope": { "board": "b1" },
+        "connection_id": "conn_1",
+        "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
+    });
+    assert_validates("ephemeral.subscribe.input.schema.json", &subscribe);
+    let mut delete = publish.clone();
+    delete.as_object_mut().unwrap().remove("value");
+    delete.as_object_mut().unwrap().remove("ttl_ms");
+    assert_validates("ephemeral.delete.input.schema.json", &delete);
+    let mut authless = subscribe.clone();
+    authless.as_object_mut().unwrap().remove("auth");
+    assert_rejects("ephemeral.subscribe.input.schema.json", &authless);
+
+    // Ephemeral HTTP outcomes.
+    let room = json!({
+        "collection": "presence",
+        "scope": { "board": "b1" },
+        "routing_key": "board=b1"
+    });
+    let publish_outcome = json!({
+        "room": room,
+        "key": "connection:conn_1",
+        "scope_epoch": 1,
+        "entry_version": 3,
+        "expires_at_ms": 1_753_500_030_000_u64
+    });
+    assert_validates("ephemeral.publish.output.schema.json", &publish_outcome);
+    let mut versionless_outcome = publish_outcome.clone();
+    versionless_outcome
+        .as_object_mut()
+        .unwrap()
+        .remove("entry_version");
+    assert_rejects("ephemeral.publish.output.schema.json", &versionless_outcome);
+    let snapshot = json!({
+        "Snapshot": {
+            "room": room,
+            "scope_epoch": 1,
+            "room_authority_generation": 1,
+            "high_water_version": 3,
+            "entries": [{
+                "key": "connection:conn_1",
+                "value": [1, 2, 3],
+                "received_at_ms": 1_753_500_000_000_u64,
+                "expires_at_ms": 1_753_500_030_000_u64,
+                "scope_epoch": 1,
+                "entry_version": 3
+            }]
+        }
+    });
+    assert_validates("ephemeral.subscribe.output.schema.json", &snapshot);
+    assert_rejects(
+        "ephemeral.subscribe.output.schema.json",
+        &json!({ "Snapshot": {}, "Upsert": {} }),
+    );
+    // `/ephemeral/delete` answers the removed entry's final message, or
+    // `null` when nothing was present.
+    assert_validates("ephemeral.delete.output.schema.json", &Value::Null);
+
+    // Sessions-mode socket family: closed, identity-free.
+    let session_publish = json!({
+        "type": "ephemeral_publish",
+        "requestId": "req-1",
+        "request": {
+            "collection": "presence",
+            "scope": { "board": "b1" },
+            "connection_id": "conn_1",
+            "value": [1, 2, 3],
+            "ttl_ms": null
+        }
+    });
+    assert_validates("live.socket-client.sessions.schema.json", &session_publish);
+    let session_ping = json!({ "type": "ping" });
+    assert_validates("live.socket-client.sessions.schema.json", &session_ping);
+    let mut asserted_identity = session_publish.clone();
+    asserted_identity["request"]["user_id"] = json!("user_1");
+    assert_rejects("live.socket-client.sessions.schema.json", &asserted_identity);
+    let mut unknown_kind = session_publish;
+    unknown_kind["type"] = json!("ephemeral_broadcast");
+    assert_rejects("live.socket-client.sessions.schema.json", &unknown_kind);
 }

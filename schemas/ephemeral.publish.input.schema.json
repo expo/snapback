@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "AuthContext": {
+      "properties": {
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "permissions"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.publish.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthContext"
+    },
+    "collection": {
+      "type": "string"
+    },
+    "connection_id": {
+      "type": "string"
+    },
+    "custom_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scope": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ttl_ms": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "user_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "value": {
+      "items": {
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "collection",
+    "scope",
+    "connection_id",
+    "value",
+    "auth"
+  ],
+  "title": "PublishRequest",
+  "type": "object"
+}

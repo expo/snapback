@@ -1,5 +1,13 @@
 # Swift client: decode-class detection is over-broad against LLP 0094 §0B.6's pin
 
+**Status:** Open
+**Impact:** 3
+**Urgency:** 3
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Swift client: decode-class detection is over-broad against LLP 0094 §0B.6's pin” shows the issue materially affects reliability, verification, or developer experience; it belongs in the current program but is not an immediate blocker, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25 (LLP 0094 review round 1, Fable concern 3)
 **Systems:** Client SDK (Swift), Wire Protocol
 

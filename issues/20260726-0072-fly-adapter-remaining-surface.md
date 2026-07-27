@@ -1,6 +1,12 @@
 # LLP 0072: Fly adapter remaining surface after the first observation driver
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 1
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0072: Fly adapter remaining surface after the first observation driver” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while delivery is a dependency-heavy, multi-stage program, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Deployment, Control plane, TLS, Backup, Migrations
 **Author:** Claude (Fable 5), directed by Charlie Cheever

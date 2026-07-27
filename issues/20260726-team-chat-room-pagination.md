@@ -1,6 +1,12 @@
 # Team Chat needs membership-scoped opaque room-history pagination
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 2
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Team Chat needs membership-scoped opaque room-history pagination” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the repair crosses several runtime, host, protocol, or policy seams, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Team Chat, Standard patterns, Authorization, Pagination
 **Date:** 2026-07-26
@@ -30,6 +36,14 @@ identity, and instance keyring.
 The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
+
+**Progress 2026-07-27:** first independent cross-family review round done —
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(Claude family; the draft is Codex-authored). The pages surface (§4–§6) drew
+no Major; Minors touching this ticket: the per-resource unique `pageKey`
+idiom must land in the guide with the helper (LLP 0061), and acceptance
+should add the byte-identical nonexistent-room vs unjoined-room first-page
+negative. Gate: author revision + ratification, then implementation.
 
 ## Acceptance
 

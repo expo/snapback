@@ -38,6 +38,23 @@
 //                                                (this is how a remote machine is
 //                                                reached, e.g. via `fly ssh console -C`)
 // Optional:
+//   SNAPBACK_MATRIX_COMPOSITION    `instrument-terminator` (default: the
+//                                  instrument connects to the origin directly
+//                                  and plays the trusted terminator) or
+//                                  `served-terminator` (the instrument is an
+//                                  ordinary public client behind the REAL
+//                                  deployed terminator; the effective-source
+//                                  rows assert composed spoof-immunity and the
+//                                  origin-confusion probe binds to the
+//                                  internal upstream). See the block by the
+//                                  `composition` constant below.
+//   SNAPBACK_MATRIX_INTERNAL_ORIGIN  served-terminator only: the loopback
+//                                  upstream the terminator proxies to
+//                                  (default http://127.0.0.1:4287)
+//   SNAPBACK_MATRIX_SQL_COMMAND    shell template with `{sql}` substituted,
+//                                  stdout the scalar result — lets a served
+//                                  run observe the operator DB (bucket
+//                                  invariance) over e.g. `fly ssh console -C`
 //   SNAPBACK_MATRIX_EMAIL_PREFIX   default `sender-matrix`; each challenge uses a
 //                                  distinct address so the per-address
 //                                  request-code budget (5 / 10 min) is not spent
@@ -110,7 +127,7 @@ const GRANT_HEADER_ROUTES = [
   ['POST', '/ephemeral/delete', {}],
 ];
 
-const EXPECTED_CHECKS = 42;
+const EXPECTED_CHECKS = 43;
 
 const origin = required('SNAPBACK_MATRIX_ORIGIN').replace(/\/+$/, '');
 const adminToken = required('SNAPBACK_MATRIX_ADMIN_TOKEN');
@@ -119,6 +136,40 @@ const emailPrefix = process.env.SNAPBACK_MATRIX_EMAIL_PREFIX ?? 'sender-matrix';
 const clientIp = process.env.SNAPBACK_MATRIX_CLIENT_IP ?? '198.51.100.7';
 const receiptFile = process.env.SNAPBACK_MATRIX_RECEIPT
   ?? join(here, '..', '..', 'acceptance', 'results', 'hosted-sender-matrix.v0.json');
+
+// Which party terminates for the origin (SNAPBACK_MATRIX_COMPOSITION):
+//
+//   instrument-terminator (default)  the instrument connects to the origin
+//     directly and plays the trusted in-namespace terminator itself: it
+//     supplies X-Forwarded-For, and the effective-source rows assert the
+//     origin's own fail-closed derivation (E1–E3 refuse, E5 selects the
+//     rightmost entry).
+//   served-terminator  the instrument is an ordinary public client behind the
+//     REAL terminator (Caddy on the deployed machine), which REPLACES
+//     X-Forwarded-For with the socket peer address. The origin-side derivation
+//     is unchanged and stays proven by the instrument-terminator composition;
+//     what is observable — and asserted — from outside is the composed
+//     property LLP 0098 §6 exists to provide: no client-supplied forwarding
+//     header can deny admission or steer the derived source (each deformed
+//     probe is admitted and charges the terminator-derived bucket, never a
+//     client-chosen one). Origin-binding also changes shape: connect origin
+//     and publicOrigin coincide, so the origin-confusion probe binds its
+//     proof to SNAPBACK_MATRIX_INTERNAL_ORIGIN (the loopback upstream the
+//     terminator proxies to), which must refuse identically.
+const composition = process.env.SNAPBACK_MATRIX_COMPOSITION ?? 'instrument-terminator';
+if (!['instrument-terminator', 'served-terminator'].includes(composition)) {
+  throw new Error(`unknown SNAPBACK_MATRIX_COMPOSITION ${composition}`);
+}
+const servedComposition = composition === 'served-terminator';
+const internalOrigin = (process.env.SNAPBACK_MATRIX_INTERNAL_ORIGIN ?? 'http://127.0.0.1:4287')
+  .replace(/\/+$/, '');
+// Bucket-count observability: a local database path, or (for a served run
+// inside the operator trust boundary) SNAPBACK_MATRIX_SQL_COMMAND — a shell
+// template with `{sql}` substituted whose stdout is the scalar result, e.g.
+//   fly ssh console -a snapback-drill -C "sqlite3 /data/hosted.sqlite3 '{sql}'"
+const throttleDb = process.env.SNAPBACK_MATRIX_DB ?? null;
+const sqlCommand = process.env.SNAPBACK_MATRIX_SQL_COMMAND ?? null;
+const bucketObservable = throttleDb !== null || sqlCommand !== null;
 
 const suite = createSuite(
   'competitive checkpoint / LLP 0077 sender matrix on a served hosted origin',
@@ -449,11 +500,22 @@ await runAcceptance(suite, async () => {
   // SNAPBACK_MATRIX_DB is not provided (a remote run), that half of E4/E5 is
   // recorded as a documented limitation, not asserted as a pass.
 
-  const throttleDb = process.env.SNAPBACK_MATRIX_DB ?? null;
-  const sourceBucketCount = () => Number(execFileSync('sqlite3', [
-    throttleDb,
-    'select count(*) from _snapback_auth_throttle where bucket_kind = 2;',
-  ], { encoding: 'utf8' }).trim());
+  const BUCKET_COUNT_SQL = 'select count(*) from _snapback_auth_throttle where bucket_kind = 2;';
+  const sourceBucketCount = () => {
+    if (throttleDb !== null) {
+      return Number(execFileSync('sqlite3', [throttleDb, BUCKET_COUNT_SQL], {
+        encoding: 'utf8',
+      }).trim());
+    }
+    const output = execFileSync('/bin/sh', ['-c', sqlCommand.replaceAll('{sql}', BUCKET_COUNT_SQL)], {
+      encoding: 'utf8',
+    });
+    const scalar = output.trim().split('\n').filter(Boolean).pop() ?? '';
+    if (!/^\d+$/.test(scalar)) {
+      throw new Error(`SNAPBACK_MATRIX_SQL_COMMAND yielded no scalar: ${output.slice(0, 200)}`);
+    }
+    return Number(scalar);
+  };
   const freshEmail = (tag) => `${emailPrefix}-${tag}-${Date.now()}@example.com`;
   const expectUntrusted = (response, context) => {
     expect(
@@ -462,52 +524,127 @@ await runAcceptance(suite, async () => {
         + `${response.status} ${response.code ?? 'success'} ${response.text.slice(0, 200)}`,
     );
   };
-
-  await suite.check('effective-source/e1-absent-header-fails-closed-on-gated-routes', async () => {
-    // Row E1: absent ⇒ SOURCE_UNTRUSTED, no fallback to the peer address.
-    const auth = await request('POST', '/auth/request-code', {
-      body: { email: freshEmail('e1-probe') },
-      xff: null,
-    });
-    expectUntrusted(auth, 'POST /auth/request-code without X-Forwarded-For');
-    const appData = await request('POST', '/query/listNotes', { body: { args: {} }, xff: null });
-    expectUntrusted(appData, 'POST /query/listNotes without X-Forwarded-For');
-    return { code: 'SNAPBACK_AUTH_SOURCE_UNTRUSTED', routes: ['/auth/request-code', '/query/listNotes'] };
-  });
-
-  await suite.check('effective-source/e2-nine-entries-fail-closed', async () => {
-    // Row E2: the hop bound is eight; a nine-entry chain fails the whole header.
-    const chain = Array.from({ length: 9 }, (_, index) => `203.0.113.${index + 1}`).join(', ');
+  // Served-composition twin of expectUntrusted: the deformed client header
+  // must neither deny admission nor steer the source. Bucket invariance is the
+  // spoof half — the charge lands in the terminator-derived bucket that the
+  // priming request already minted, never a fresh client-chosen one.
+  const probeUnspoofable = async (tag, xff, extraHeaders = {}) => {
+    const before = bucketObservable ? sourceBucketCount() : null;
     const response = await request('POST', '/auth/request-code', {
-      body: { email: freshEmail('e2-probe') },
-      xff: chain,
+      body: { email: freshEmail(tag) },
+      xff,
+      headers: extraHeaders,
     });
-    expectUntrusted(response, `nine-entry chain ${JSON.stringify(chain)}`);
-    return { code: response.code, entries: 9 };
-  });
-
-  await suite.check('effective-source/e3-malformed-entries-fail-closed', async () => {
-    // Row E3: strict syntax — hostname, port, bracketed authority, and empty
-    // entries each fail the WHOLE header, never get skipped in favour of a
-    // different entry than the terminator meant.
-    const variants = [
-      ['hostname', 'evil.example.test'],
-      ['ipv4-with-port', '203.0.113.7:443'],
-      ['bracketed-ipv6-with-port', '[2001:db8::1]:443'],
-      ['empty-header-value', ''],
-      ['trailing-empty-entry', '203.0.113.7, '],
-    ];
-    const observed = [];
-    for (const [label, value] of variants) {
-      const response = await request('POST', '/auth/request-code', {
-        body: { email: freshEmail(`e3-${label}`) },
-        xff: value,
-      });
-      expectUntrusted(response, `malformed X-Forwarded-For (${label}) ${JSON.stringify(value)}`);
-      observed.push(label);
+    expect(
+      response.status === 200 && typeof response.json?.challengeId === 'string',
+      `${tag}: a client-supplied forwarding deformation must not deny admission through the `
+        + `real terminator; observed ${response.status} ${response.code}`,
+    );
+    if (!bucketObservable) return { status: 200, sourceSelection: 'unobserved' };
+    const after = sourceBucketCount();
+    expect(
+      after === before,
+      `${tag}: the charge must land in the existing terminator-derived bucket, never a `
+        + `client-chosen one: source buckets went ${before} -> ${after}`,
+    );
+    return { status: 200, sourceBuckets: { before, after } };
+  };
+  const servedLimitation = bucketObservable
+    ? null
+    : 'LIMITATION: without SNAPBACK_MATRIX_DB or SNAPBACK_MATRIX_SQL_COMMAND only the '
+      + 'admitted-not-denied half is asserted; bucket invariance needs operator DB access';
+  if (servedComposition) {
+    // Guarantee the terminator-derived source already owns its bucket so the
+    // invariance probes below can only fail by minting a client-chosen one.
+    const prime = await request('POST', '/auth/request-code', {
+      body: { email: freshEmail('served-prime') },
+    });
+    if (prime.status !== 200) {
+      throw new Error(`served-composition priming request failed: ${prime.status} ${prime.code}`);
     }
-    return { code: 'SNAPBACK_AUTH_SOURCE_UNTRUSTED', variants: observed };
-  });
+  }
+
+  await suite.check(
+    servedComposition
+      ? 'effective-source/e1-client-absent-header-is-replaced-by-the-terminator'
+      : 'effective-source/e1-absent-header-fails-closed-on-gated-routes',
+    async () => {
+      if (servedComposition) {
+        // Row E1's composed form: the real terminator writes the header from
+        // the socket peer, so a client sending none is indistinguishable from
+        // the default probe — admitted, same bucket. The origin-side
+        // fail-closed derivation stays proven by the instrument-terminator
+        // composition of this same row.
+        const details = await probeUnspoofable('e1-client-absent', null);
+        return { ...details, ...(servedLimitation ? { sourceSelection: servedLimitation } : {}) };
+      }
+      // Row E1: absent ⇒ SOURCE_UNTRUSTED, no fallback to the peer address.
+      const auth = await request('POST', '/auth/request-code', {
+        body: { email: freshEmail('e1-probe') },
+        xff: null,
+      });
+      expectUntrusted(auth, 'POST /auth/request-code without X-Forwarded-For');
+      const appData = await request('POST', '/query/listNotes', { body: { args: {} }, xff: null });
+      expectUntrusted(appData, 'POST /query/listNotes without X-Forwarded-For');
+      return { code: 'SNAPBACK_AUTH_SOURCE_UNTRUSTED', routes: ['/auth/request-code', '/query/listNotes'] };
+    },
+  );
+
+  await suite.check(
+    servedComposition
+      ? 'effective-source/e2-nine-entry-client-chain-cannot-spoof-or-deny'
+      : 'effective-source/e2-nine-entries-fail-closed',
+    async () => {
+      const chain = Array.from({ length: 9 }, (_, index) => `203.0.113.${index + 1}`).join(', ');
+      if (servedComposition) {
+        // Row E2's composed form: the terminator REPLACES the header, so the
+        // over-bound chain never reaches the origin's parser at all.
+        const details = await probeUnspoofable('e2-client-chain', chain);
+        return { ...details, entries: 9, ...(servedLimitation ? { sourceSelection: servedLimitation } : {}) };
+      }
+      // Row E2: the hop bound is eight; a nine-entry chain fails the whole header.
+      const response = await request('POST', '/auth/request-code', {
+        body: { email: freshEmail('e2-probe') },
+        xff: chain,
+      });
+      expectUntrusted(response, `nine-entry chain ${JSON.stringify(chain)}`);
+      return { code: response.code, entries: 9 };
+    },
+  );
+
+  await suite.check(
+    servedComposition
+      ? 'effective-source/e3-malformed-client-entries-cannot-spoof-or-deny'
+      : 'effective-source/e3-malformed-entries-fail-closed',
+    async () => {
+      const variants = [
+        ['hostname', 'evil.example.test'],
+        ['ipv4-with-port', '203.0.113.7:443'],
+        ['bracketed-ipv6-with-port', '[2001:db8::1]:443'],
+        ['empty-header-value', ''],
+        ['trailing-empty-entry', '203.0.113.7, '],
+      ];
+      const observed = [];
+      for (const [label, value] of variants) {
+        if (servedComposition) {
+          await probeUnspoofable(`e3-${label}`, value);
+        } else {
+          // Row E3: strict syntax — hostname, port, bracketed authority, and
+          // empty entries each fail the WHOLE header, never get skipped in
+          // favour of a different entry than the terminator meant.
+          const response = await request('POST', '/auth/request-code', {
+            body: { email: freshEmail(`e3-${label}`) },
+            xff: value,
+          });
+          expectUntrusted(response, `malformed X-Forwarded-For (${label}) ${JSON.stringify(value)}`);
+        }
+        observed.push(label);
+      }
+      return servedComposition
+        ? { status: 200, variants: observed, ...(servedLimitation ? { sourceSelection: servedLimitation } : {}) }
+        : { code: 'SNAPBACK_AUTH_SOURCE_UNTRUSTED', variants: observed };
+    },
+  );
 
   await suite.check('effective-source/e4-other-forwarding-headers-are-ignored', async () => {
     // Row E4: exactly one header family is consulted. A disagreeing
@@ -521,7 +658,7 @@ await runAcceptance(suite, async () => {
       body: { email: freshEmail('e4-prime') },
     });
     expect(prime.status === 200, `priming request-code failed: ${prime.status} ${prime.code}`);
-    const before = throttleDb === null ? null : sourceBucketCount();
+    const before = bucketObservable ? sourceBucketCount() : null;
     const response = await request('POST', '/auth/request-code', {
       body: { email: freshEmail('e4-probe') },
       headers: {
@@ -534,11 +671,12 @@ await runAcceptance(suite, async () => {
       'a disagreeing Forwarded/X-Real-IP must be ignored and the request must succeed '
         + `on the X-Forwarded-For value; observed ${response.status} ${response.code}`,
     );
-    if (throttleDb === null) {
+    if (!bucketObservable) {
       return {
         status: 200,
-        sourceSelection: 'LIMITATION: without SNAPBACK_MATRIX_DB the charged bucket is not '
-          + 'externally observable; only the ignored-not-conflicting half of E4 is asserted',
+        sourceSelection: 'LIMITATION: without SNAPBACK_MATRIX_DB or SNAPBACK_MATRIX_SQL_COMMAND '
+          + 'the charged bucket is not externally observable; only the '
+          + 'ignored-not-conflicting half of E4 is asserted',
       };
     }
     const after = sourceBucketCount();
@@ -550,7 +688,27 @@ await runAcceptance(suite, async () => {
     return { status: 200, sourceBuckets: { before, after }, xffWins: true };
   });
 
-  await suite.check('effective-source/e5-rightmost-entry-is-selected', async () => {
+  await suite.check(
+    servedComposition
+      ? 'effective-source/e5-client-chain-variation-never-selects-the-source'
+      : 'effective-source/e5-rightmost-entry-is-selected',
+    async () => {
+    if (servedComposition) {
+      // Row E5's composed form: rightmost-entry selection is the ORIGIN's rule
+      // and stays proven by the instrument-terminator composition; through the
+      // real terminator every client-controlled entry is discarded, so varying
+      // any of them must charge the same terminator-derived bucket. This is
+      // the end-to-end fact the derivation exists to provide.
+      await probeUnspoofable('e5-vary-leftmost', '198.51.100.9, 203.0.113.7');
+      await probeUnspoofable('e5-vary-rightmost', '198.51.100.9, 203.0.113.8');
+      return bucketObservable
+        ? { clientEntriesDiscarded: true }
+        : { status: 200, sourceSelection: servedLimitation };
+    }
+    return effectiveSourceE5Local();
+  });
+
+  async function effectiveSourceE5Local() {
     // Row E5: the chain is walked from the trusted edge toward the client —
     // the rightmost entry is the one the terminator appended, and the fully
     // client-controlled leftmost entry must never win. Observable via the
@@ -601,7 +759,7 @@ await runAcceptance(suite, async () => {
       rightmostSelected: true,
       sourceBuckets: { start: count0, afterBaseline: count1, afterLeftmostVaried: count2, afterRightmostVaried: count3 },
     };
-  });
+  }
 
   // --- A. issuance ---------------------------------------------------------
 
@@ -617,12 +775,22 @@ await runAcceptance(suite, async () => {
     return { status: response.status, code: response.code };
   });
 
-  await suite.check('issuance/refuses-a-proof-bound-to-the-connect-origin', async () => {
+  await suite.check(
+    servedComposition
+      ? 'issuance/refuses-a-proof-bound-to-the-internal-upstream-origin'
+      : 'issuance/refuses-a-proof-bound-to-the-connect-origin',
+    async () => {
     const challenge = await newChallenge();
-    // The connect URL, not the adapter's publicOrigin — the exact confusion
-    // LLP 0077's HTTP binding forbids.
+    // The exact confusion LLP 0077's HTTP binding forbids: an htu built from
+    // anything but the adapter's configured publicOrigin. In the
+    // instrument-terminator composition the natural wrong origin is the
+    // connect URL; in the served composition connect origin and publicOrigin
+    // coincide (that probe would be a valid proof), so the wrong origin is the
+    // loopback upstream address the terminator proxies to — the internal name
+    // that must never authorize anything.
+    const wrongOrigin = servedComposition ? internalOrigin : origin;
     const proof = await issuanceProof(custody, challenge.challengeId, {
-      payload: { htu: `${origin}/auth/exchange` },
+      payload: { htu: `${wrongOrigin}/auth/exchange` },
     });
     const response = await request('POST', '/auth/exchange', {
       body: {
@@ -632,7 +800,7 @@ await runAcceptance(suite, async () => {
       },
     });
     expect(response.status !== 200, `expected refusal, observed ${response.status}`);
-    return { status: response.status, code: response.code };
+    return { status: response.status, code: response.code, wrongOrigin };
   });
 
   const challenge = await newChallenge();
@@ -655,6 +823,10 @@ await runAcceptance(suite, async () => {
       ?? response.json?.credential?.token ?? null;
     expect(typeof bearer === 'string' && bearer.length > 0,
       `exchange returned no session token: ${JSON.stringify(response.json).slice(0, 300)}`);
+    // LLP 0077 decision 4, first layer: sender-bound issuance mints the
+    // structurally distinct, legacy-rejecting versioned spelling.
+    expect(bearer.startsWith('sbs2_'),
+      `sender-bound exchange must mint the sbs2_ spelling, observed ${bearer.slice(0, 6)}…`);
     return { status: 200, nonExtractableCustody: custody.extractable === false };
   });
 
@@ -665,6 +837,29 @@ await runAcceptance(suite, async () => {
         + `${JSON.stringify(custodyNonce.value)}`,
     );
     return { nonceLength: custodyNonce.value.length };
+  });
+
+  await suite.check('issuance/a-second-exchange-with-a-bound-key-refuses-coded', async () => {
+    // One live family per thumbprint. A fresh challenge + correct code + valid
+    // proof over the ALREADY-BOUND custody key must refuse with the folded
+    // coded diagnostic — never a 5xx state-invariant failure (the D-2 defect
+    // the first served-origin run surfaced: the nonce-table primary-key
+    // conflict answered 500 INTERNAL_AUTH_STATE on client-controllable input).
+    const retry = await newChallenge();
+    const proof = await issuanceProof(custody, retry.challengeId);
+    const response = await request('POST', '/auth/exchange', {
+      body: {
+        challengeId: retry.challengeId,
+        code: retry.code,
+        senderConstraint: { protocol: ISSUANCE_PROTOCOL, publicJwk: custody.publicJwk, proof },
+      },
+    });
+    expect(
+      response.status === 401 && response.code === 'SNAPBACK_AUTH_SENDER_PROOF_INVALID',
+      'a second exchange under a live-bound key must refuse 401 '
+        + `SNAPBACK_AUTH_SENDER_PROOF_INVALID, observed ${response.status} ${response.code}`,
+    );
+    return { status: response.status, code: response.code };
   });
 
   // --- B. protected request ------------------------------------------------
@@ -849,9 +1044,18 @@ await runAcceptance(suite, async () => {
   await axis('wrong-htu', () => probeRefusal({
     payload: { htu: canonicalUri('/query/someOtherQuery') },
   }));
-  await axis('htu-from-the-connect-origin', () => probeRefusal({
-    payload: { htu: `${origin}${bodyPath}` },
-  }));
+  // A proof htu built from an origin the trusted terminator did NOT attest must
+  // refuse at admission. In instrument-terminator composition that wrong origin
+  // is the connect URL; in served composition the connect URL IS the attested
+  // publicOrigin (a valid htu that would pass admission and rotate the live
+  // nonce), so the genuinely-wrong origin is the loopback upstream — same
+  // substitution as the issuance origin-confusion probe.
+  await axis(
+    servedComposition ? 'htu-from-the-internal-upstream-origin' : 'htu-from-the-connect-origin',
+    () => probeRefusal({
+      payload: { htu: `${servedComposition ? internalOrigin : origin}${bodyPath}` },
+    }),
+  );
   await axis('iat-older-than-the-window', () => probeRefusal({
     payload: { iat: nowSeconds() - 31 },
   }));
@@ -968,6 +1172,10 @@ await runAcceptance(suite, async () => {
     connectionToken = response.json?.connectionToken;
     expect(typeof connectionId === 'string' && typeof connectionToken === 'string',
       'connection/open returned no grant');
+    // LLP 0077 decision 4, first layer: sender-bound connection-open mints
+    // the sct2_ grant spelling the v1 verifier cannot accept.
+    expect(connectionToken.startsWith('sct2_'),
+      `sender-bound grant must mint the sct2_ spelling, observed ${connectionToken.slice(0, 6)}…`);
     return { status: 200, successorNonce: typeof response.nonce === 'string' };
   });
 
@@ -1099,8 +1307,11 @@ await runAcceptance(suite, async () => {
     governedBy: ['LLP 0077#acceptance', 'LLP 0098#8-acceptance--the-negative-test-ledger'],
     origin,
     publicOrigin,
+    composition,
+    ...(servedComposition ? { internalOrigin } : {}),
     clientIp,
     codeSource: process.env.SNAPBACK_MATRIX_CODE_SOURCE ?? 'operator-digest',
+    sourceBucketObservation: bucketObservable ? 'operator-db' : 'unobserved',
     runAt: new Date().toISOString(),
     facts,
   },

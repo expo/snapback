@@ -1,6 +1,12 @@
 # Codegen: API envelope, public projections, and app binding declarations
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 3
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Codegen: API envelope, public projections, and app binding declarations” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the fix requires a few coordinated implementation and test surfaces, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Codegen, Docs artifacts
 **Author:** Claude (Fable 5), directed by Charlie Cheever

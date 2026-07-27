@@ -1,6 +1,12 @@
 # Team Chat needs an owner-authorized member-removal surface
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Team Chat needs an owner-authorized member-removal surface” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Team Chat, Memberships, Authorization invalidation, Codegen
 **Date:** 2026-07-26
@@ -28,6 +34,16 @@ LLP 0053 invalidation as the sole governing mechanisms.
 The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
+
+**Progress 2026-07-27:** first independent cross-family review round done —
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(Claude family; the draft is Codex-authored). Verdict: revise and stay
+Draft — one Major (the authorization-version advance distinguishes
+present-target removal from the absent-target no-op, an existence observable
+the §1 claim does not scope; resolution is an author decision, not a
+redesign) plus four Minors. The gate is now the author's Major-1 decision,
+the Minor amendments, and ratification (LLP 0056 first, or the composed-slice
+ruling), then implementation.
 
 ## Acceptance
 

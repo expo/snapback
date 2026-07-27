@@ -1,6 +1,12 @@
 # Node session custody store and session lifecycle commands
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 2
+**Ease:** 2
+**Confidence:** 3
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Node session custody store and session lifecycle commands” shows the issue materially affects a supported product or engineering path; it can wait behind current correctness blockers, while the repair crosses several runtime, host, protocol, or policy seams, with a clear design but unresolved dependencies.
 **Severity:** P2
 **Systems:** Auth, Client integration, Tooling
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "HandlerInvocationMode": {
+      "description": "The invocation mode member of the invoke request. The closed set mirrors\n`IbexInvocationMode` (`src/runtime.rs` `mode_str`) and the coordinator's\n`invokeHandler(fnName, mode, …)` callers.",
+      "enum": [
+        "query",
+        "mutation",
+        "action"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/handler.invoke.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The coordinator→handler invocation request: the JSON body of\n`POST /invoke` on the handler server. The local arm serializes this type\ndirectly (`run_handler_workerd`); the Cloudflare `invokeHandler` composes\nthe same members in JS and is drift-gated against this schema by the\nhosted capture suite.",
+  "properties": {
+    "argsJson": {
+      "description": "The invocation args, pre-serialized JSON text (string-carried so the\nharness hands handler code exactly the bytes the host chose).",
+      "type": "string"
+    },
+    "authJson": {
+      "description": "The `ctx.auth` payload, pre-serialized JSON text.",
+      "type": "string"
+    },
+    "epoch": {
+      "description": "The invocation epoch every ctx host call must echo inside `rawOp`\n(`\"<epoch>|<op>\"`); a mismatch is a stale continuation.",
+      "type": "string"
+    },
+    "export": {
+      "description": "The handler export to invoke (`__snapbackHandlers[export]`).",
+      "type": "string"
+    },
+    "hostHeaders": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Host-routing headers the harness echoes onto every host call. The\nCloudflare arm passes `x-snapback-do-id` so the gateway routes the\ncall back to the invoking coordinator object; the local loopback\ntransport omits the member (optional-by-absence, never `null`).",
+      "type": "object"
+    },
+    "mode": {
+      "$ref": "#/$defs/HandlerInvocationMode"
+    },
+    "runJson": {
+      "description": "Action run metadata (`runId`/`trigger`/`jobName`), pre-serialized JSON\ntext; `null` for queries and mutations on both arms.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "secretsJson": {
+      "description": "Action secret grants, pre-serialized JSON text; `null` unless the mode\nis `action` with granted secrets (grants are action-only, LLP 0036).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "settlementTimeoutMs": {
+      "description": "The harness settlement + quiescence deadline (ENG-23605).",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "token": {
+      "description": "The per-invocation host-call capability. Emitted only by the\nCloudflare arm (`x-snapback-host-token` on every host call); the local\ntransport delivers the equivalent capability out-of-band via the\ngenerated workerd config (`SNAPBACK_HOST_TOKEN`), never in this body.\nOptional-by-absence: neither arm ever emits an explicit `null`.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "export",
+    "argsJson",
+    "authJson",
+    "mode",
+    "epoch",
+    "settlementTimeoutMs"
+  ],
+  "title": "HandlerInvokeRequest",
+  "type": "object"
+}

@@ -1222,3 +1222,68 @@ fn ctx_answer_ledger_is_equivalent_across_engines() {
         );
     }
 }
+
+/// LLP 0094 §0F item 1 / LLP 0051 §D4: the REAL bytes the workerd leg puts on
+/// the private handler-boundary transport — the JS harness's response
+/// envelope and host-call bodies, and the Rust-serialized invocation request
+/// — validate against the committed `handler.*` marker-envelope schemas. This
+/// is the local-arm real-bytes half of the drift gate; the hosted half is
+/// `cloudflare/test/wire-schema-gate.mjs`.
+#[test]
+fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
+    require_workerd!();
+    let mut snapback = configured();
+    let (result, captured) = snapback::workerd_exec::with_handler_wire_capture(|| {
+        on_v8(|| snapback.invoke_mutation("addItem", input(json!({"label": "wire", "rank": 7}))))
+    });
+    result.expect("captured workerd mutation succeeds");
+
+    let validate = |file: &str, raw: &str, role: &str| {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("schemas")
+            .join(file);
+        let schema: Value = serde_json::from_str(
+            &std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {file}")),
+        )
+        .unwrap_or_else(|error| panic!("parse {file}: {error}"));
+        let validator =
+            jsonschema::validator_for(&schema).unwrap_or_else(|error| panic!("compile {file}: {error}"));
+        let value: Value = serde_json::from_str(raw)
+            .unwrap_or_else(|error| panic!("{role} bytes were not JSON: {error}"));
+        let errors: Vec<String> = validator
+            .iter_errors(&value)
+            .map(|error| format!("  {}: {error}", error.instance_path()))
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "{role}: real workerd-transport bytes do not validate against {file}:\n{}\nbytes: {raw}",
+            errors.join("\n")
+        );
+    };
+
+    let invoke_request = captured
+        .invoke_request
+        .as_deref()
+        .expect("capture recorded the invocation request");
+    validate("handler.invoke.input.schema.json", invoke_request, "invoke request");
+    let invoke_response = captured
+        .invoke_response
+        .as_deref()
+        .expect("capture recorded the response envelope");
+    validate(
+        "handler.invoke.output.schema.json",
+        invoke_response,
+        "invoke response (workerd-produced)",
+    );
+    assert!(
+        !captured.host_call_bodies.is_empty(),
+        "the addItem mutation must issue ctx host calls through the loopback transport"
+    );
+    for (index, body) in captured.host_call_bodies.iter().enumerate() {
+        validate(
+            "handler.host-call.input.schema.json",
+            body,
+            &format!("host call #{index} (workerd-produced)"),
+        );
+    }
+}

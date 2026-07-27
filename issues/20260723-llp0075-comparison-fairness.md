@@ -1,6 +1,12 @@
 # DECISION: comparison fairness — Convex local-leg topology, margins, generalization
 
 **Status:** Open (author decisions)
+**Impact:** 4
+**Urgency:** 4
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “DECISION: comparison fairness — Convex local-leg topology, margins, generalization” shows the issue materially affects a supported product or engineering path; delay compounds an active rollout, reliability, or verification risk, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
 **Severity:** P2
 **Systems:** Competitive evaluation, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

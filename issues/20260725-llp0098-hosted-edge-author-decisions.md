@@ -1,6 +1,12 @@
 # LLP 0098 hosted-edge adapter — author decisions
 
 **Status:** Open (awaiting author)
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 5
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0098 hosted-edge adapter — author decisions” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the ticket identifies a narrow, verified change or decision, with a direct reproduction or current implementation proof.
 **Severity:** P2
 **Systems:** Auth, Security, Deployment, Control plane
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -58,6 +64,12 @@ The deployment duly withdrew with `SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED`.
 That promotes this from a preference to a **blocking implementation item**: a
 hot-swap renewal loop is required before the LLP 0077 matrix can run against the
 served origin at all, unless the whole matrix completes inside five minutes.
+
+**Blocking item closed 2026-07-25 (LLP 0098 §8.3):** the origin now holds a
+hot-swappable authority slot (`HostedServingHandle`), re-reads the delivered
+admission document every 30 seconds, and swaps in the snapshot covering the
+clock only after the identical §3.1 conjunction. What remains here is only the
+decision proper below.
 
 **The decision:** whether production requires `online` (which forces the
 deployment to make outbound control-plane connections, or the control plane to
@@ -125,10 +137,10 @@ loss.
 - ~~D-1 (unauthenticated caller reaches the JSON parser).~~ **Fixed
   2026-07-25** — the function-level `authRequirement` route-policy hoist; see
   the 0077 index (matrix 42/42 against the local hosted origin).
-- The LLP 0077 matrix has not run on the served origin. As of the D4 redeploy
-  the deployment stages sessions in a single boot and runs the D-1-fixed
-  binary; the sole remaining blocker is public TLS (Let's Encrypt
-  duplicate-certificate window, retry after 2026-07-27 00:53:37 UTC —
-  LLP 0098 §8.4 records the rerun recipe).
+- ~~The LLP 0077 matrix has not run on the served origin.~~ **Done
+  2026-07-27** — the TLS window cleared, the D4 volume retained the
+  certificate, and the served-origin matrix ran for the first time (LLP 0098
+  §8.3/§8.5), surfacing and fixing D-2 (bound-key re-exchange 500,
+  `2e8815ec`); 43/43 against both the served and local hosted origins.
 - A method-mismatched probe of a disabled operator route returns 405 before the
   disablement gate runs.

@@ -1,5 +1,13 @@
 # 0093 P-3: authorized-lease route parses protocol offers with the WebSocket-upgrade grammar
 
+**Status:** Open
+**Impact:** 5
+**Urgency:** 4
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-3: authorized-lease route parses protocol offers with the WebSocket-upgrade grammar” shows the issue reaches a security, correctness, release, or core product boundary; delay compounds an active rollout, reliability, or verification risk, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Source:** LLP 0096 §8.2 (P-3 verification pass)
 **Systems:** Auth, Server
@@ -40,3 +48,16 @@ carrier is ignored on the HTTP lease route. This changes observable
 refusal behavior for any caller relying on the subprotocol carrier
 there (none known in-repo; the kit sends headers), so land with a brief
 blast-radius note rather than silently.
+
+## Resolved 2026-07-27
+
+`invoke_authorized_lease_query` now parses offers with
+`from_http_headers` (annotated `@ref LLP 0096#2-per-profile-contract`),
+and `authorized_lease_route_requires_readiness_and_exact_protocol_offer`
+gained the regression case: a lease offer carried only in
+`Sec-WebSocket-Protocol` refuses `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`
+exactly like an absent offer. Blast radius recorded in LLP 0096 §8.2
+(amended in the same change): no in-repo caller used the subprotocol
+carrier on this route; an out-of-repo caller that did now receives the
+offerless refusal. §2's route rule ("every other route
+`from_http_headers`") holds without exception.

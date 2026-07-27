@@ -177,7 +177,14 @@ async function bundle(entry, appBundle, { seedOverride } = {}) {
 // `persistRoot` persists Durable Object storage under a directory so a
 // dispose + restart pair simulates a real DO restart (the RQS keyring
 // custody proof); default remains in-memory.
-export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride, assetsDirectory = null, persistRoot = null } = {}) {
+// `handlerWireCapture` interposes byte-transparent capture Workers on the
+// coordinator↔handler service bindings (the LLP 0060 D6 marker-envelope
+// seams) and appends `{lane, path, status, requestBody, responseBody}`
+// records to the given array — the hosted real-bytes half of the LLP 0094
+// §0F item-1 schema drift gate (`wire-schema-gate.mjs`). Test-only plumbing:
+// the production Workers are untouched; only the Miniflare binding graph
+// gains the proxies.
+export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride, assetsDirectory = null, persistRoot = null, handlerWireCapture = null } = {}) {
   // @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — fail closed on
   // an unsupported Node major before standing up Miniflare, rather than letting
   // the first real-loopback action reset (`read ECONNRESET`) under Node 25.
@@ -189,6 +196,52 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
     bundle('src/handler-worker.js', selected.bundle, { seedOverride }),
   ]);
 
+  // Byte-transparent capture proxy for one service-binding edge: forwards the
+  // request to INNER unchanged, replays the response bytes, and reports the
+  // observed pair to the Node-side SINK. `filterPath` scopes reporting to the
+  // marker-envelope seam carried on that edge.
+  const captureProxySource = (lane, filterPath) => `
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const method = request.method;
+    const requestBody = method === 'GET' || method === 'HEAD' ? null : await request.text();
+    const forwarded = await env.INNER.fetch(request.url, {
+      method,
+      headers: request.headers,
+      ...(requestBody === null ? {} : { body: requestBody }),
+    });
+    const responseBody = await forwarded.text();
+    if (${filterPath === null ? 'true' : `url.pathname === ${JSON.stringify(filterPath)}`}) {
+      try {
+        await env.SINK.fetch('http://capture-sink/record', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            lane: ${JSON.stringify(lane)},
+            path: url.pathname,
+            status: forwarded.status,
+            requestBody,
+            responseBody,
+          }),
+        });
+      } catch (_) {}
+    }
+    const headers = new Headers(forwarded.headers);
+    headers.delete('content-length');
+    return new Response(responseBody, { status: forwarded.status, headers });
+  },
+};
+`;
+  const invokeCaptureWorker = `${selected.handlerWorker}-wire-capture`;
+  const hostCaptureWorker = `${selected.gatewayWorker}-host-capture`;
+  const captureSink = async (request) => {
+    try {
+      handlerWireCapture.push(JSON.parse(await request.text()));
+    } catch (_) {}
+    return new Response('ok');
+  };
+
   const workers = [
     {
       name: selected.gatewayWorker,
@@ -196,7 +249,7 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
       ...compatibilityOptions,
       durableObjects: { COORDINATOR: { className: 'Coordinator', useSQLite: true } },
       serviceBindings: {
-        HANDLER: selected.handlerWorker,
+        HANDLER: handlerWireCapture ? invokeCaptureWorker : selected.handlerWorker,
         ...(selected.actionHandlerWorker ? { ACTION_HANDLER: selected.actionHandlerWorker } : {}),
       },
       // The admin-token gate on /_snapback/api/app/reset and /_snapback/api/object/evict (ENG-23587); the client
@@ -217,9 +270,33 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
       name: selected.handlerWorker,
       modules: [{ type: 'ESModule', path: path.join(root, 'src/handler-worker.js'), contents: handlerScript }],
       ...compatibilityOptions,
-      serviceBindings: { HOST: selected.gatewayWorker },
+      serviceBindings: { HOST: handlerWireCapture ? hostCaptureWorker : selected.gatewayWorker },
     },
   ];
+  if (handlerWireCapture) {
+    workers.push(
+      {
+        name: invokeCaptureWorker,
+        modules: [{
+          type: 'ESModule',
+          path: path.join(root, 'src/wire-capture-invoke.mjs'),
+          contents: captureProxySource('invoke', '/invoke'),
+        }],
+        ...compatibilityOptions,
+        serviceBindings: { INNER: selected.handlerWorker, SINK: captureSink },
+      },
+      {
+        name: hostCaptureWorker,
+        modules: [{
+          type: 'ESModule',
+          path: path.join(root, 'src/wire-capture-host.mjs'),
+          contents: captureProxySource('host-call', '/_snapback/host-call'),
+        }],
+        ...compatibilityOptions,
+        serviceBindings: { INNER: selected.gatewayWorker, SINK: captureSink },
+      }
+    );
+  }
   if (selected.actionHandlerWorker) {
     workers.push({
       name: selected.actionHandlerWorker,
