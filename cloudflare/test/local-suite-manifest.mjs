@@ -159,11 +159,10 @@ export const LOCAL_SUITES = Object.freeze([
   {
     // LLP 0094 §0F items 1–3: hosted served bytes vs the committed schemas —
     // kit-route responses, captured marker envelopes, kit-socket request
-    // grammar parity. Known-divergent emitters ride the suite's
-    // KNOWN_DIVERGENT allowlist (§0C.6 convergence ticket shrinks it).
+    // grammar parity, and all four served kit-socket reply variants.
     id: 'wire-schema-gate',
     file: 'cloudflare/test/wire-schema-gate.mjs',
-    evidence: ['cloudflare wire-schema gate: 15/15 checks passed'],
+    evidence: ['cloudflare wire-schema gate: 20/20 checks passed'],
   },
 ]);
 
