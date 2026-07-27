@@ -26,9 +26,10 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'index-scaling',
   'idle-evidence',
   'proof-runtime-preflight',
+  'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 22;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 23;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -143,6 +144,15 @@ export const LOCAL_SUITES = Object.freeze([
     file: 'cloudflare/test/proof-runtime-preflight.mjs',
     evidence: ['cloudflare proof-runtime preflight: node-major gate and diagnostic verified'],
   },
+  {
+    // LLP 0094 §0F items 1–3: hosted served bytes vs the committed schemas —
+    // kit-route responses, captured marker envelopes, kit-socket request
+    // grammar parity. Known-divergent emitters ride the suite's
+    // KNOWN_DIVERGENT allowlist (§0C.6 convergence ticket shrinks it).
+    id: 'wire-schema-gate',
+    file: 'cloudflare/test/wire-schema-gate.mjs',
+    evidence: ['cloudflare wire-schema gate: 12/12 checks passed'],
+  },
 ]);
 
 export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
@@ -175,4 +185,5 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['proof-runtime-preflight.mjs', 'gate'],
   ['twin-engine.mjs', 'protocol-child-of-cargo-twin'],
   ['validate-idle-measurement.mjs', 'gate'],
+  ['wire-schema-gate.mjs', 'gate'],
 ]);
