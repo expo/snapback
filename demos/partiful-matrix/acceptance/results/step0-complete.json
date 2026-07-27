@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+        "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+        "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+        "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+        "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
       }
     },
     {
@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "eebb8182006461bc6580bf11b60a49990835a70836c38d1138600edac1b339bc"
+        "sha256": "e812fed2db4333043a984b1213c4a2fda92dcab61b20f35cb93ee796121e2433"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
+        "sha256": "23cbc8243c14b56eb6ebd0d516f706f851fa3367ee1ddadf5550c1df050a5f1e"
       }
     }
   ],
@@ -169,8 +169,8 @@
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "eebb8182006461bc6580bf11b60a49990835a70836c38d1138600edac1b339bc",
-    "exactRevision": "2157a1a4dc27e5848110c36d2ed46287c75fccbb"
+    "sha256": "e812fed2db4333043a984b1213c4a2fda92dcab61b20f35cb93ee796121e2433",
+    "exactRevision": "5a2bef84b5ef2f8b559f1e79912b4c6c81bc727c"
   },
   "inputs": {
     "semantics": {
