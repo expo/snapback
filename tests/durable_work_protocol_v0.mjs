@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -17,6 +18,71 @@ const transitionByKey = new Map(
     transition,
   ]),
 );
+const MAX_PORTABLE_INTEGER = 9_007_199_254_740_991n;
+
+function uint32be(value) {
+  const bytes = Buffer.alloc(4);
+  bytes.writeUInt32BE(value);
+  return bytes;
+}
+
+function jitterV1(vector) {
+  const {
+    jobIdHex,
+    attempt,
+    baseDelayMs,
+    maxDelayMs,
+    serverNowMs,
+  } = vector;
+  if (
+    !/^(?:[0-9a-f]{2})+$/.test(jobIdHex)
+    || !Number.isSafeInteger(attempt)
+    || attempt < 1
+    || attempt > 0xffff_ffff
+    || !Number.isSafeInteger(baseDelayMs)
+    || baseDelayMs < 0
+    || !Number.isSafeInteger(maxDelayMs)
+    || maxDelayMs < 0
+    || !Number.isSafeInteger(serverNowMs)
+    || serverNowMs < 0
+  ) {
+    refuse('SNAPBACK_JOB_JITTER_INVALID');
+  }
+
+  const label = Buffer.from('retry-jitter-v1', 'utf8');
+  const attemptBytes = uint32be(attempt);
+  const message = Buffer.concat([
+    uint32be(label.length),
+    label,
+    uint32be(attemptBytes.length),
+    attemptBytes,
+  ]);
+  const mac = createHmac('sha256', Buffer.from(jobIdHex, 'hex'))
+    .update(message)
+    .digest();
+  const first64 = mac.readBigUInt64BE(0);
+  const base = BigInt(baseDelayMs);
+  const low = (base * 3n) / 4n;
+  const high = (base * 5n) / 4n;
+  const uncappedDelay = low + (first64 % (high - low + 1n));
+  const delay = uncappedDelay > BigInt(maxDelayMs)
+    ? BigInt(maxDelayMs)
+    : uncappedDelay;
+  const availableAt = BigInt(serverNowMs) + delay;
+  if (availableAt > MAX_PORTABLE_INTEGER) {
+    refuse('SNAPBACK_JOB_JITTER_OVERFLOW');
+  }
+  return {
+    messageHex: message.toString('hex'),
+    macHex: mac.toString('hex'),
+    first64: first64.toString(),
+    lowMs: Number(low),
+    highMs: Number(high),
+    uncappedDelayMs: Number(uncappedDelay),
+    delayMs: Number(delay),
+    availableAtMs: availableAt.toString(),
+  };
+}
 
 function stateFor(state) {
   const claimed = state === 'claimed' || state === 'cancelRequested';
@@ -110,6 +176,50 @@ test('durable-work corpus is explicitly Draft-bound and internally complete', ()
   for (const terminal of corpus.terminalStates) {
     assert.ok(corpus.states.includes(terminal));
   }
+});
+
+test('snapback-job-jitter-v1 matches every committed golden vector', () => {
+  for (const vector of corpus.jitterVectors) {
+    const expected = {
+      messageHex: vector.messageHex,
+      macHex: vector.macHex,
+      first64: vector.first64,
+      lowMs: vector.lowMs,
+      highMs: vector.highMs,
+      uncappedDelayMs: vector.uncappedDelayMs,
+      delayMs: vector.delayMs,
+      availableAtMs: vector.availableAtMs,
+    };
+    assert.deepEqual(jitterV1(vector), expected, vector.name);
+  }
+});
+
+test('snapback-job-jitter-v1 rejects malformed and overflowing inputs', () => {
+  const base = corpus.jitterVectors[0];
+  for (const invalid of [
+    { jobIdHex: '' },
+    { jobIdHex: '0' },
+    { jobIdHex: 'zz' },
+    { attempt: 0 },
+    { attempt: 0x1_0000_0000 },
+    { baseDelayMs: -1 },
+    { maxDelayMs: -1 },
+    { serverNowMs: -1 },
+  ]) {
+    assert.throws(
+      () => jitterV1({ ...base, ...invalid }),
+      { code: 'SNAPBACK_JOB_JITTER_INVALID' },
+    );
+  }
+  assert.throws(
+    () => jitterV1({
+      ...base,
+      baseDelayMs: 1000,
+      maxDelayMs: 5000,
+      serverNowMs: Number.MAX_SAFE_INTEGER,
+    }),
+    { code: 'SNAPBACK_JOB_JITTER_OVERFLOW' },
+  );
 });
 
 test('every admitted transition applies its version, attempt, fence, and slot rule', () => {

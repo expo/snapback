@@ -9,13 +9,16 @@
 //! @ref LLP 0070#acceptance — a shared corpus exercised by multiple language
 //!   arms is an input to, not a substitute for, target-specific fault evidence.
 
+use hmac::{Hmac, Mac};
 use serde::Deserialize;
+use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
 
 const CORPUS: &str = include_str!("conformance/durable-work-state-machine-v0.json");
 const CAS_STALE: &str = "SNAPBACK_JOB_CAS_STALE";
 const CLAIM_STALE: &str = "SNAPBACK_JOB_CLAIM_STALE";
 const TRANSITION_INVALID: &str = "SNAPBACK_JOB_TRANSITION_INVALID";
+const MAX_PORTABLE_INTEGER: u64 = 9_007_199_254_740_991;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +31,7 @@ struct Corpus {
     events: Vec<String>,
     transitions: Vec<Transition>,
     guard_vectors: Vec<GuardVector>,
+    jitter_vectors: Vec<JitterVector>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -65,6 +69,37 @@ struct GuardOverride {
     fence: Option<u64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JitterVector {
+    name: String,
+    job_id_hex: String,
+    attempt: u32,
+    base_delay_ms: u64,
+    max_delay_ms: u64,
+    server_now_ms: u64,
+    message_hex: String,
+    mac_hex: String,
+    first64: String,
+    low_ms: u64,
+    high_ms: u64,
+    uncapped_delay_ms: u64,
+    delay_ms: u64,
+    available_at_ms: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct JitterResult {
+    message_hex: String,
+    mac_hex: String,
+    first64: String,
+    low_ms: u64,
+    high_ms: u64,
+    uncapped_delay_ms: u64,
+    delay_ms: u64,
+    available_at_ms: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ModelState {
     state: String,
@@ -90,6 +125,82 @@ struct Guard {
 
 fn corpus() -> Corpus {
     serde_json::from_str(CORPUS).expect("durable-work corpus parses")
+}
+
+fn decode_hex(value: &str) -> Result<Vec<u8>, &'static str> {
+    if value.is_empty() || value.len() % 2 != 0 {
+        return Err("SNAPBACK_JOB_JITTER_INVALID");
+    }
+    value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let text = std::str::from_utf8(pair).map_err(|_| "SNAPBACK_JOB_JITTER_INVALID")?;
+            u8::from_str_radix(text, 16).map_err(|_| "SNAPBACK_JOB_JITTER_INVALID")
+        })
+        .collect()
+}
+
+fn encode_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn jitter_v1(vector: &JitterVector) -> Result<JitterResult, &'static str> {
+    if vector.attempt == 0
+        || vector.base_delay_ms > MAX_PORTABLE_INTEGER
+        || vector.max_delay_ms > MAX_PORTABLE_INTEGER
+        || vector.server_now_ms > MAX_PORTABLE_INTEGER
+    {
+        return Err("SNAPBACK_JOB_JITTER_INVALID");
+    }
+    let job_id = decode_hex(&vector.job_id_hex)?;
+    let label = b"retry-jitter-v1";
+    let attempt = vector.attempt.to_be_bytes();
+    let mut message = Vec::with_capacity(4 + label.len() + 4 + attempt.len());
+    message.extend_from_slice(&(label.len() as u32).to_be_bytes());
+    message.extend_from_slice(label);
+    message.extend_from_slice(&(attempt.len() as u32).to_be_bytes());
+    message.extend_from_slice(&attempt);
+
+    let mut hmac =
+        Hmac::<Sha256>::new_from_slice(&job_id).map_err(|_| "SNAPBACK_JOB_JITTER_INVALID")?;
+    hmac.update(&message);
+    let mac = hmac.finalize().into_bytes();
+    let first64 = u64::from_be_bytes(mac[..8].try_into().expect("eight digest bytes"));
+    let low = vector
+        .base_delay_ms
+        .checked_mul(3)
+        .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?
+        / 4;
+    let high = vector
+        .base_delay_ms
+        .checked_mul(5)
+        .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?
+        / 4;
+    let span = high
+        .checked_sub(low)
+        .and_then(|range| range.checked_add(1))
+        .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?;
+    let uncapped = low
+        .checked_add(first64 % span)
+        .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?;
+    let delay = uncapped.min(vector.max_delay_ms);
+    let available_at = vector
+        .server_now_ms
+        .checked_add(delay)
+        .filter(|value| *value <= MAX_PORTABLE_INTEGER)
+        .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?;
+
+    Ok(JitterResult {
+        message_hex: encode_hex(&message),
+        mac_hex: encode_hex(&mac),
+        first64: first64.to_string(),
+        low_ms: low,
+        high_ms: high,
+        uncapped_delay_ms: uncapped,
+        delay_ms: delay,
+        available_at_ms: available_at.to_string(),
+    })
 }
 
 fn table(corpus: &Corpus) -> BTreeMap<(String, String), Transition> {
@@ -214,6 +325,39 @@ fn corpus_is_explicitly_draft_bound_and_internally_complete() {
     for terminal in corpus.terminal_states {
         assert!(corpus.states.contains(&terminal));
     }
+}
+
+#[test]
+fn snapback_job_jitter_v1_matches_every_committed_golden_vector() {
+    for vector in corpus().jitter_vectors {
+        let expected = JitterResult {
+            message_hex: vector.message_hex.clone(),
+            mac_hex: vector.mac_hex.clone(),
+            first64: vector.first64.clone(),
+            low_ms: vector.low_ms,
+            high_ms: vector.high_ms,
+            uncapped_delay_ms: vector.uncapped_delay_ms,
+            delay_ms: vector.delay_ms,
+            available_at_ms: vector.available_at_ms.clone(),
+        };
+        assert_eq!(jitter_v1(&vector), Ok(expected), "{}", vector.name);
+    }
+}
+
+#[test]
+fn snapback_job_jitter_v1_rejects_malformed_and_overflowing_inputs() {
+    let mut corpus = corpus();
+    let mut vector = corpus.jitter_vectors.remove(0);
+    vector.job_id_hex.clear();
+    assert_eq!(jitter_v1(&vector), Err("SNAPBACK_JOB_JITTER_INVALID"));
+    vector.job_id_hex = "00".to_owned();
+    vector.attempt = 0;
+    assert_eq!(jitter_v1(&vector), Err("SNAPBACK_JOB_JITTER_INVALID"));
+    vector.attempt = 1;
+    vector.server_now_ms = MAX_PORTABLE_INTEGER;
+    vector.base_delay_ms = 1_000;
+    vector.max_delay_ms = 5_000;
+    assert_eq!(jitter_v1(&vector), Err("SNAPBACK_JOB_JITTER_OVERFLOW"));
 }
 
 #[test]

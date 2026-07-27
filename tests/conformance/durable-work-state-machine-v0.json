@@ -258,5 +258,87 @@
       },
       "code": "SNAPBACK_JOB_CLAIM_STALE"
     }
+  ],
+  "jitterVectors": [
+    {
+      "name": "attempt-one",
+      "jobIdHex": "000102030405060708090a0b0c0d0e0f",
+      "attempt": 1,
+      "baseDelayMs": 1000,
+      "maxDelayMs": 5000,
+      "serverNowMs": 1750000000000,
+      "messageHex": "0000000f72657472792d6a69747465722d76310000000400000001",
+      "macHex": "7b64c7edcb3b4a05974a7b9299bdbc8df079e757dd85d91599ad6bfbeb7f8aaf",
+      "first64": "8891451388467038725",
+      "lowMs": 750,
+      "highMs": 1250,
+      "uncappedDelayMs": 922,
+      "delayMs": 922,
+      "availableAtMs": "1750000000922"
+    },
+    {
+      "name": "attempt-two",
+      "jobIdHex": "000102030405060708090a0b0c0d0e0f",
+      "attempt": 2,
+      "baseDelayMs": 2000,
+      "maxDelayMs": 5000,
+      "serverNowMs": 1750000000000,
+      "messageHex": "0000000f72657472792d6a69747465722d76310000000400000002",
+      "macHex": "42b8f5244787a2a18cdc33d77972618315026a6467c92c660f8e574d98a2ca54",
+      "first64": "4807862138385703585",
+      "lowMs": 1500,
+      "highMs": 2500,
+      "uncappedDelayMs": 1688,
+      "delayMs": 1688,
+      "availableAtMs": "1750000001688"
+    },
+    {
+      "name": "one-ms-range",
+      "jobIdHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "attempt": 4294967295,
+      "baseDelayMs": 1,
+      "maxDelayMs": 10,
+      "serverNowMs": 0,
+      "messageHex": "0000000f72657472792d6a69747465722d763100000004ffffffff",
+      "macHex": "0ed64b68aeb085514c87791c3af2bca1c22a7e6e11821485c21d2cc00f31e5ac",
+      "first64": "1069124874526557521",
+      "lowMs": 0,
+      "highMs": 1,
+      "uncappedDelayMs": 1,
+      "delayMs": 1,
+      "availableAtMs": "1"
+    },
+    {
+      "name": "maximum-cap",
+      "jobIdHex": "6a6f623a706172746974696d653aceb1",
+      "attempt": 7,
+      "baseDelayMs": 10001,
+      "maxDelayMs": 3000,
+      "serverNowMs": 42,
+      "messageHex": "0000000f72657472792d6a69747465722d76310000000400000007",
+      "macHex": "d4b35217faf79ced4963cfe875b2f4b7c9fbe5df10e8553f72f6f368ffb355b3",
+      "first64": "15326684219820186861",
+      "lowMs": 7500,
+      "highMs": 12501,
+      "uncappedDelayMs": 10875,
+      "delayMs": 3000,
+      "availableAtMs": "3042"
+    },
+    {
+      "name": "zero-delay",
+      "jobIdHex": "00",
+      "attempt": 1,
+      "baseDelayMs": 0,
+      "maxDelayMs": 0,
+      "serverNowMs": 9007199254740991,
+      "messageHex": "0000000f72657472792d6a69747465722d76310000000400000001",
+      "macHex": "11499904c74da70cf359df99134c514962f72395acfc300451b09963258fb1a2",
+      "first64": "1245695017747326732",
+      "lowMs": 0,
+      "highMs": 0,
+      "uncappedDelayMs": 0,
+      "delayMs": 0,
+      "availableAtMs": "9007199254740991"
+    }
   ]
 }

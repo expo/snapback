@@ -5,12 +5,13 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (Draft-bound executable transition-model checkpoint:
-one shared corpus is now exercised independently by Rust and JavaScript for
-the complete state/event cross-product, CAS/fence refusals, cancellation
-precedence, reclaim supersession, slot transfer/release, and terminal
-immutability. It is explicitly a nonclaim with no runtime import path; storage,
-atomic settlement, fault injection, jitter/SQL parity, scheduling,
+**Revised:** 2026-07-26 (Draft-bound executable transition-and-jitter-model
+checkpoint: one shared corpus is now exercised independently by Rust and
+JavaScript for the complete state/event cross-product, CAS/fence refusals,
+cancellation precedence, reclaim supersession, slot transfer/release, terminal
+immutability, and frozen retry-jitter framing/arithmetic vectors. It is
+explicitly a nonclaim with no runtime import path; storage, atomic settlement,
+fault injection, SQL jitter parity, scheduling,
 authorization, recovery, and target receipts remain unimplemented).
 2026-07-26 (author-side review reconciliation: jobs and attempts
 are separate; replay creates a successor instead of reopening terminal state;
@@ -198,13 +199,16 @@ every settlement step and proves either one committed settlement or safe
 retry/reconciliation.
 
 Retry jitter is portable and versioned as `snapback-job-jitter-v1`:
-`HMAC-SHA256(jobIdBytes, frame("retry-jitter-v1", attemptU32BE))`; the first
-64 digest bits are an unsigned big-endian integer, mapped without floating
-point to the inclusive integer interval
-`[floor(baseDelayMs * 3/4), floor(baseDelayMs * 5/4)]`, then capped by the
-declared maximum and added to trusted server time. Attempt numbering starts at
-one. Length-prefixed UTF-8 framing, integer rounding, overflow refusal, and
-golden JS/Rust/SQL vectors are part of conformance.
+`HMAC-SHA256(jobIdBytes, frame("retry-jitter-v1", attemptU32BE))`. The frame
+is `u32be(labelUtf8.length) || labelUtf8 || u32be(4) || attemptU32BE`.
+The first 64 digest bits are an unsigned big-endian integer `sample`. Let
+`low = floor(baseDelayMs * 3/4)`, `high = floor(baseDelayMs * 5/4)`, and
+`span = high - low + 1`; the uncapped delay is
+`low + (sample mod span)`. The result is capped by the declared maximum and
+added to trusted server time. Attempt numbering starts at one. Job-id bytes
+must be nonempty, times and delays are nonnegative portable integers, and any
+intermediate or final overflow refuses. Golden JS/Rust/SQL vectors are part of
+conformance.
 
 ### Artifact and deploy compatibility
 
@@ -520,14 +524,16 @@ The implementation must retain executable evidence that:
   corpus before that storage tuple may claim the profile.
 
 The 2026-07-26 `durable-work-state-machine-v0` checkpoint makes only the
-transition skeleton executable. The committed corpus is consumed independently
-by Rust and JavaScript and is wired into the local proof. It exhausts every
-state/event pair and the named CAS/fence, cancellation-success, reclaim, slot,
-and terminal-state rules, but it does not touch product runtime or storage.
+transition skeleton and portable retry-jitter bytes/arithmetic executable. The
+committed corpus is consumed independently by Rust and JavaScript and is wired
+into the local proof. It exhausts every state/event pair and the named
+CAS/fence, cancellation-success, reclaim, slot, terminal-state, framing,
+integer-mapping, cap, and overflow rules, but it does not touch product runtime
+or storage.
 It is therefore review input, not evidence for `CaptureOnly`, `SingleProcess`,
 or any other capability class. The remaining acceptance bullets—including
-transactional enqueue, atomic settlement and fault injection, portable
-jitter/SQL parity, scheduler fairness, auth, artifact custody, restore,
+transactional enqueue, atomic settlement and fault injection, SQL jitter
+parity, scheduler fairness, auth, artifact custody, restore,
 SQLite/Postgres execution, and retained receipts—remain red.
 
 The retained receipt names the target profile, app/database/deployment/stream
