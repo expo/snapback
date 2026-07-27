@@ -1,0 +1,387 @@
+{
+  "schemaVersion": "partitime.step4-native-performance.v1",
+  "claimId": "STEP4.BUDGETS.NATIVE_PERFORMANCE",
+  "methodId": "partitime.native-launch-stage.v2",
+  "thresholdSetId": "partitime-ws8-native-performance-thresholds-v2",
+  "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+  "cohort": "holdout",
+  "quick": false,
+  "claimEligible": true,
+  "recordedAt": "2026-07-27T12:56:13.736Z",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+    "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+  },
+  "sampling": {
+    "warmups": 2,
+    "samples": 7,
+    "outlierPolicy": "retain every valid sample; invalidate only a receipt-recorded instrument failure"
+  },
+  "invalidation": {
+    "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+    "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+  },
+  "observerAmendment": {
+    "path": "demos/partiful-matrix/acceptance/native-performance-observer-amendment.2026-07-23.json",
+    "sha256": "a393a93dd96cd18fb17b947a02079dc9b5a568ee6dc924f46f5fb7f6c4b20f7a"
+  },
+  "platform": "ios",
+  "hostIdentity": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+      "available": true
+    }
+  },
+  "sourceReceipts": {
+    "react": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-01.json",
+        "sha256": "112eb0955e0a102cfe02b0724f851b423152b129cd573d79269230b68a54a8cb",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-02.json",
+        "sha256": "9a24740a1a3046cc24331251ec7b7ebc2365bebabd4a248a732ef19529d1d64e",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-03.json",
+        "sha256": "122818d7eb1b7e7f07d1d1a45e197d237f526aef479514028b64aeefbcf0c1ba",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-04.json",
+        "sha256": "9c94b746931dc8dee6615b3dede9840f23761b0e63246cae0603456a530e6947",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-05.json",
+        "sha256": "c0d35ddcf5f68e255d9c25e5a2fed53061a3c30142421cab5bfe9eed0b9acccc",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-06.json",
+        "sha256": "48df971e75f9621b90b8f7332775d1a91602ed57bc873d75f243004eb8111e4d",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-07.json",
+        "sha256": "fcda3a6ca8da8c8205414caf519c6e3d9f4d5c33e5938cfa0cf8b2fe91161ae3",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-08.json",
+        "sha256": "da16ebf454358178af54bbe1170220e234296536633d78ef22382baeace506b5",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-09.json",
+        "sha256": "8f9dc6f90e248f07c9b4dd7e93ab0a491e1660c3416bc745a073ad4f4c71ed4f",
+        "repositoryClean": true
+      }
+    ],
+    "exact": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-01.json",
+        "sha256": "06da14ac913de90c582c336c994e1ef5528a99fc63690f300b06007dba112589",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-02.json",
+        "sha256": "63a004e5831fe3c498908fcb1e449be9f46398a337cf32666966d4c48e2c25db",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-03.json",
+        "sha256": "8dbab995bde9b0dd639278f4f90ecd2052be7ee4f847a4bf2ce6fa4d70572b75",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-04.json",
+        "sha256": "92fe9e90ac738a6e1ce967cb32246f44ab99893ea2a1d6fb08cd765f1fe4b33c",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-05.json",
+        "sha256": "2ad36d902540e26c42c69a362f334c74c66717574ede6a13439a5b4a776a623e",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-06.json",
+        "sha256": "3c040d0a46af2b5d6fd8b4586455806a7b8d2e181f27add8b72c7729ada15752",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-07.json",
+        "sha256": "82a28fc0c84b6a64d2df111f2b833623d9cd9ec44f01535a5e5aeec4aaa11ea6",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-08.json",
+        "sha256": "f41b1c1a84f6afe6f2a7ffad6d2a208a3350ca4f85ad72a558e9827fd4a99d95",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-09.json",
+        "sha256": "d7001c52cc72ed9dc131cd9e38a8a1ab2ebfe669c3aa4e716260836d02b163aa",
+        "repositoryClean": true
+      }
+    ]
+  },
+  "cells": {
+    "react-expo:ios:snapback": {
+      "samples": [
+        {
+          "hermesEvaluationMs": 17.051333367824554,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 534,
+          "firstAuthoritativeDataMs": 563
+        },
+        {
+          "hermesEvaluationMs": 18.623458325862885,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 537,
+          "firstAuthoritativeDataMs": 567
+        },
+        {
+          "hermesEvaluationMs": 18.588791608810425,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 553,
+          "firstAuthoritativeDataMs": 586
+        },
+        {
+          "hermesEvaluationMs": 17.746291637420654,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 535,
+          "firstAuthoritativeDataMs": 567
+        },
+        {
+          "hermesEvaluationMs": 19.538291692733765,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 513,
+          "firstAuthoritativeDataMs": 541
+        },
+        {
+          "hermesEvaluationMs": 17.77275002002716,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 548,
+          "firstAuthoritativeDataMs": 581
+        },
+        {
+          "hermesEvaluationMs": 18.08016663789749,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 530,
+          "firstAuthoritativeDataMs": 558
+        }
+      ],
+      "aggregate": {
+        "hermesEvaluationMs": {
+          "samples": [
+            17.051333367824554,
+            18.623458325862885,
+            18.588791608810425,
+            17.746291637420654,
+            19.538291692733765,
+            17.77275002002716,
+            18.08016663789749
+          ],
+          "median": 18.08016663789749,
+          "p95": 19.538291692733765
+        },
+        "startupAssetWeightBytes": {
+          "samples": [
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547
+          ],
+          "median": 2272547,
+          "p95": 2272547
+        },
+        "coldLaunchMs": {
+          "samples": [
+            534,
+            537,
+            553,
+            535,
+            513,
+            548,
+            530
+          ],
+          "median": 535,
+          "p95": 553
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            563,
+            567,
+            586,
+            567,
+            541,
+            581,
+            558
+          ],
+          "median": 567,
+          "p95": 586
+        }
+      }
+    },
+    "exact-contract:ios:snapback": {
+      "samples": [
+        {
+          "hermesEvaluationMs": 6,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 781,
+          "firstAuthoritativeDataMs": 831
+        },
+        {
+          "hermesEvaluationMs": 6,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 689,
+          "firstAuthoritativeDataMs": 724
+        },
+        {
+          "hermesEvaluationMs": 6,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 752,
+          "firstAuthoritativeDataMs": 799
+        },
+        {
+          "hermesEvaluationMs": 6,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 711,
+          "firstAuthoritativeDataMs": 760
+        },
+        {
+          "hermesEvaluationMs": 7,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 694,
+          "firstAuthoritativeDataMs": 735
+        },
+        {
+          "hermesEvaluationMs": 6,
+          "startupAssetWeightBytes": 786162,
+          "coldLaunchMs": 698,
+          "firstAuthoritativeDataMs": 740
+        },
+        {
+          "hermesEvaluationMs": 5,
+          "startupAssetWeightBytes": 786166,
+          "coldLaunchMs": 672,
+          "firstAuthoritativeDataMs": 701
+        }
+      ],
+      "aggregate": {
+        "hermesEvaluationMs": {
+          "samples": [
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            5
+          ],
+          "median": 6,
+          "p95": 7
+        },
+        "startupAssetWeightBytes": {
+          "samples": [
+            786166,
+            786166,
+            786166,
+            786166,
+            786166,
+            786162,
+            786166
+          ],
+          "median": 786166,
+          "p95": 786166
+        },
+        "coldLaunchMs": {
+          "samples": [
+            781,
+            689,
+            752,
+            711,
+            694,
+            698,
+            672
+          ],
+          "median": 698,
+          "p95": 781
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            831,
+            724,
+            799,
+            760,
+            735,
+            740,
+            701
+          ],
+          "median": 740,
+          "p95": 831
+        }
+      }
+    }
+  },
+  "thresholds": null,
+  "holdoutValidation": {
+    "calibration": {
+      "revision": "ffc41b770320af2abe09068e08a7263d569c2ff5",
+      "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json",
+      "sha256": "3da1a60d883aae36022bc9ec80eefafead67634232da67c61c0723c80e3a3250"
+    },
+    "rows": [
+      {
+        "cell": "exact-contract:ios:snapback",
+        "metricName": "hermesEvaluationMs",
+        "actualP95": 7,
+        "threshold": 31,
+        "pass": true
+      },
+      {
+        "cell": "exact-contract:ios:snapback",
+        "metricName": "startupAssetWeightBytes",
+        "actualP95": 786166,
+        "threshold": 2499801,
+        "pass": true
+      },
+      {
+        "cell": "exact-contract:ios:snapback",
+        "metricName": "coldLaunchMs",
+        "actualP95": 781,
+        "threshold": 1136,
+        "pass": true
+      },
+      {
+        "cell": "exact-contract:ios:snapback",
+        "metricName": "firstAuthoritativeDataMs",
+        "actualP95": 831,
+        "threshold": 1248,
+        "pass": true
+      }
+    ],
+    "ok": true
+  },
+  "ok": true,
+  "outcome": "pass"
+}
