@@ -6,6 +6,22 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
 
+**Revised (Phase 4/5 union reconciliation):** 2026-07-26 (the active Phase 4
+evidence branch merged fresh Snapback `origin/main` at merge commit
+`ce4915d0b415b4e5666432d8f0fe1943a2bf542d` without rebasing. The resolution
+preserves the six mandatory `STEP4.UI.*` claims and the authored-source v4
+ratification while importing upstream's `FINAL.EXACT_AGENT_OPERABILITY`
+promotion and immutable-revision-set proof infrastructure. The current 43-check
+web gate was rerun from the clean merge checkpoint: 23 executions passed, 20
+remote Supabase/Convex cells used the existing `remote-dependency` skip policy,
+and no check failed. Its cumulative attribution rerun preserved threshold
+`partitime-thresholds-v1-sha256-343dcc1429e20e07` and every frozen threshold
+byte-for-byte; current formula values were recorded separately and did not
+replace the freeze. The 46-claim authority and content-addressed bundle pass
+the structural validator. Shared-repository mirror and Step-0 aggregate
+refresh remain a subsequent mechanical handshake; no failing Step 4 or Step 6
+claim is promoted by this amendment.)
+
 **Revised (Step 4 authored-source v4 ratified):** 2026-07-26 (Charlie
 Cheever supplied the exact required statement
 `I ratify partitime-ws8-authored-source-v4-2026-07-26.` in-session at

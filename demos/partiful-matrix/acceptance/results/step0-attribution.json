@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-27T05:15:25.535Z",
+  "measuredAt": "2026-07-27T05:18:10.147Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M5 Max",
@@ -16,7 +16,7 @@
   "inputs": {
     "claimManifestSemanticSha256": "beb41987db45cf92e69606e7d1c4ebd8f9724e981e86d2ea41971bafff2f8630",
     "protocolSha256": "66df29a44864d83550951d83af905cc46b6e10df67a53963ebe6657bc96ae0a3",
-    "webReceiptSha256": "e92c402573722488da3b7c2c25228d8ca9aa2d10df4d6e745ca3d365226a7788",
+    "webReceiptSha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91",
     "thresholdFreezeSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "revision": "508956134f3517169735078272a846e5ac86ba5c",
@@ -433,42 +433,42 @@
   "pushLatency": {
     "react": {
       "samples": [
-        41,
-        27,
-        9,
         7,
-        8,
-        8,
-        8
+        7,
+        7,
+        7,
+        6,
+        6,
+        6
       ],
-      "median": 8,
-      "p95": 41
+      "median": 7,
+      "p95": 7
     },
     "contract": {
       "samples": [
-        7,
         6,
+        5,
+        5,
+        5,
+        5,
         6,
-        15,
-        6,
-        15,
         5
-      ],
-      "median": 6,
-      "p95": 15
-    },
-    "vanilla": {
-      "samples": [
-        5,
-        5,
-        4,
-        5,
-        4,
-        5,
-        6
       ],
       "median": 5,
       "p95": 6
+    },
+    "vanilla": {
+      "samples": [
+        4,
+        3,
+        4,
+        3,
+        5,
+        4,
+        3
+      ],
+      "median": 4,
+      "p95": 5
     }
   },
   "currentFormulaThresholds": {
@@ -487,7 +487,7 @@
     "contractSourceLines": 643,
     "snapbackBackendLines": 108,
     "requiredWebCheckCount": 43,
-    "firstPushFreshnessLatencyMsP95": 45
+    "firstPushFreshnessLatencyMsP95": 7
   },
   "thresholds": {
     "emittedMinifiedJsBytes": {

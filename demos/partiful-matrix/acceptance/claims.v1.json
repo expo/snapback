@@ -259,7 +259,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "e92c402573722488da3b7c2c25228d8ca9aa2d10df4d6e745ca3d365226a7788"
+        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#sequence",
@@ -287,7 +287,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "e92c402573722488da3b7c2c25228d8ca9aa2d10df4d6e745ca3d365226a7788"
+        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
       },
       "skip": "remote-dependency-only",
       "owner": "LLP 0063#evidence-and-limits",
@@ -306,7 +306,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "e92c402573722488da3b7c2c25228d8ca9aa2d10df4d6e745ca3d365226a7788"
+        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#evidence-and-limits",
@@ -342,7 +342,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --receipt demos/partiful-matrix/acceptance/results/step0-web.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "e92c402573722488da3b7c2c25228d8ca9aa2d10df4d6e745ca3d365226a7788"
+        "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -462,7 +462,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "cb2948ccc53d0dc03033f30591e0ef85b04e28854fb1552d99ebf320ee8e4e7a"
+        "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
