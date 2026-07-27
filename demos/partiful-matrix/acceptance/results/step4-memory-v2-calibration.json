@@ -1,0 +1,4215 @@
+{
+  "schemaVersion": "partitime.step4-memory-v2.v1",
+  "claimId": "STEP4.MEMORY_V2",
+  "cohort": "calibration",
+  "claimEligible": true,
+  "quick": false,
+  "recordedAt": "2026-07-27T06:23:46.794Z",
+  "methodId": "partitime-ws8-memory-v2",
+  "workloadVersion": "partitime.web-memory-fit.v2",
+  "thresholdFormulaSetId": "partitime-ws8-memory-threshold-formulas-v2",
+  "thresholdSetId": "partitime-ws8-memory-thresholds-v2-sha256-37bf4c66f853daba",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+    "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
+  },
+  "sampling": {
+    "seed": 381202607,
+    "counts": [
+      1,
+      8,
+      32,
+      64
+    ],
+    "warmupsPerCount": 2,
+    "samplesPerCount": 7,
+    "totalWarmups": 2,
+    "totalSamples": 7,
+    "outlierPolicy": "retain every valid observation; invalidate only a receipt-recorded collector, browser, backend-health, or cleanup failure"
+  },
+  "repository": {
+    "snapbackRevision": "6e398bbec52a93424b2d8b7f6847d498032d96fb",
+    "exactRevision": "0956cd05101e6edd4010f2882b62ffc1d7d01e03",
+    "calibrationRevision": null
+  },
+  "environment": {
+    "node": "v24.3.0",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "Google Chrome 150.0.7871.186",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "cleanupErrors": [],
+  "cells": {
+    "react:snapback": {
+      "cell": "react:snapback",
+      "total": {
+        "samples": [
+          1532928,
+          1525072,
+          1532928,
+          1525072,
+          1532512,
+          1532916,
+          1524656
+        ],
+        "p95": 1532928
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              1,
+              32,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              32,
+              64,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1317440,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173560,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1553088,
+            "recoveredSizeBytes": 1501520,
+            "recoveryDeltaBytes": 184068,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1512400,
+            "recoveryDeltaBytes": 194948,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1317456,
+            "usedSizeBytes": 1491260,
+            "recoveredSizeBytes": 1491004,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1553100,
+            "recoveredSizeBytes": 1501520,
+            "recoveryDeltaBytes": 184068,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1512400,
+            "recoveryDeltaBytes": 194948,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1512388,
+            "recoveryDeltaBytes": 194936,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1317292,
+            "usedSizeBytes": 1552716,
+            "recoveredSizeBytes": 1501072,
+            "recoveryDeltaBytes": 183780,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1329988,
+            "usedSizeBytes": 1408548,
+            "recoveredSizeBytes": 1427188,
+            "recoveryDeltaBytes": 97200,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1553100,
+            "recoveredSizeBytes": 1501520,
+            "recoveryDeltaBytes": 184068,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1317292,
+            "usedSizeBytes": 1632336,
+            "recoveredSizeBytes": 1511952,
+            "recoveryDeltaBytes": 194660,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1553100,
+            "recoveredSizeBytes": 1501520,
+            "recoveryDeltaBytes": 184068,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1512400,
+            "recoveryDeltaBytes": 194948,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1331768,
+            "usedSizeBytes": 1504224,
+            "recoveredSizeBytes": 1491724,
+            "recoveryDeltaBytes": 159956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1331780,
+            "usedSizeBytes": 1408768,
+            "recoveredSizeBytes": 1427540,
+            "recoveryDeltaBytes": 95760,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1512400,
+            "recoveryDeltaBytes": 194948,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1328708,
+            "usedSizeBytes": 1562296,
+            "recoveredSizeBytes": 1502164,
+            "recoveryDeltaBytes": 173456,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1331588,
+            "usedSizeBytes": 1641500,
+            "recoveredSizeBytes": 1512596,
+            "recoveryDeltaBytes": 181008,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1331784,
+            "usedSizeBytes": 1562288,
+            "recoveredSizeBytes": 1502168,
+            "recoveryDeltaBytes": 170384,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1430647.749430189,
+          "slopeBytesPerLogicalSubscription": 3369.8870965370206,
+          "slopeStandardErrorBytes": 234.3968896513919,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3769.6786506704484,
+          "residualSumSquares": 24286106241.996124
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:supabase": {
+      "cell": "react:supabase",
+      "total": {
+        "samples": [
+          1277384,
+          1277000,
+          1277384,
+          1277000,
+          1280596,
+          1280980,
+          1280980
+        ],
+        "p95": 1280980
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              64,
+              1,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              32,
+              64,
+              1,
+              8
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1033936,
+            "usedSizeBytes": 1352408,
+            "recoveredSizeBytes": 1228320,
+            "recoveryDeltaBytes": 194384,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95904,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352472,
+            "recoveredSizeBytes": 1228384,
+            "recoveryDeltaBytes": 194436,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108004,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95732,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108004,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95732,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352768,
+            "recoveredSizeBytes": 1228772,
+            "recoveryDeltaBytes": 194664,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352844,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169084,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108004,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95732,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352832,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272512,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352768,
+            "recoveredSizeBytes": 1228772,
+            "recoveryDeltaBytes": 194664,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1033936,
+            "usedSizeBytes": 1212488,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168828,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352792,
+            "recoveredSizeBytes": 1228736,
+            "recoveryDeltaBytes": 194628,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95904,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1147200.8355267993,
+          "slopeBytesPerLogicalSubscription": 3403.6579663260068,
+          "slopeStandardErrorBytes": 241.97146240515636,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3816.368848090565,
+          "residualSumSquares": 25881086250.50268
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:convex": {
+      "cell": "react:convex",
+      "total": {
+        "samples": [
+          1277380,
+          1277380,
+          1280592,
+          1280976,
+          1280952,
+          1277444,
+          1280976
+        ],
+        "p95": 1280976
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              32,
+              64,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              8,
+              32,
+              1,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              1,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272508,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108000,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95732,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352456,
+            "recoveredSizeBytes": 1228420,
+            "recoveryDeltaBytes": 194472,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95904,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213204,
+            "recoveryDeltaBytes": 179096,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352392,
+            "recoveredSizeBytes": 1228356,
+            "recoveryDeltaBytes": 194408,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1197404,
+            "recoveryDeltaBytes": 163308,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1033936,
+            "usedSizeBytes": 1352456,
+            "recoveredSizeBytes": 1228384,
+            "recoveryDeltaBytes": 194448,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212472,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129988,
+            "recoveryDeltaBytes": 95880,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1272136,
+            "recoveredSizeBytes": 1212800,
+            "recoveryDeltaBytes": 178852,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213204,
+            "recoveryDeltaBytes": 179096,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1147179.274759209,
+          "slopeBytesPerLogicalSubscription": 3403.178648628776,
+          "slopeStandardErrorBytes": 241.45293080942278,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3815.0051135700824,
+          "residualSumSquares": 25770281600.36366
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:sqlite": {
+      "cell": "react:sqlite",
+      "total": {
+        "samples": [
+          1277356,
+          1277356,
+          1277388,
+          1277380,
+          1277368,
+          1277380,
+          1277380
+        ],
+        "p95": 1277388
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              32,
+              8,
+              1,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              32,
+              1,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              64,
+              1,
+              32,
+              8
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1232884,
+            "recoveredSizeBytes": 1205492,
+            "recoveryDeltaBytes": 231372,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 974204,
+            "usedSizeBytes": 1073004,
+            "recoveredSizeBytes": 1125552,
+            "recoveryDeltaBytes": 151348,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352468,
+            "recoveredSizeBytes": 1228384,
+            "recoveryDeltaBytes": 194436,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1173216,
+            "recoveredSizeBytes": 1195376,
+            "recoveryDeltaBytes": 221256,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203112,
+            "recoveryDeltaBytes": 168960,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129932,
+            "recoveryDeltaBytes": 95780,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1352776,
+            "recoveredSizeBytes": 1228692,
+            "recoveryDeltaBytes": 194540,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213148,
+            "recoveryDeltaBytes": 178996,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1107988,
+            "recoveredSizeBytes": 1129668,
+            "recoveryDeltaBytes": 95720,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212856,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352456,
+            "recoveredSizeBytes": 1228420,
+            "recoveryDeltaBytes": 194472,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129932,
+            "recoveryDeltaBytes": 95780,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1033992,
+            "usedSizeBytes": 1272136,
+            "recoveredSizeBytes": 1212732,
+            "recoveryDeltaBytes": 178740,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1313192,
+            "recoveredSizeBytes": 1221112,
+            "recoveryDeltaBytes": 246992,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1173536,
+            "recoveredSizeBytes": 1195760,
+            "recoveryDeltaBytes": 221544,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1233204,
+            "recoveredSizeBytes": 1205876,
+            "recoveryDeltaBytes": 231660,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1313524,
+            "recoveredSizeBytes": 1221496,
+            "recoveryDeltaBytes": 247280,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1125772,
+            "recoveryDeltaBytes": 91620,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1313140,
+            "recoveredSizeBytes": 1221048,
+            "recoveryDeltaBytes": 246928,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1173536,
+            "recoveredSizeBytes": 1195840,
+            "recoveryDeltaBytes": 221624,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1233192,
+            "recoveredSizeBytes": 1205876,
+            "recoveryDeltaBytes": 231660,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1073004,
+            "recoveredSizeBytes": 1125552,
+            "recoveryDeltaBytes": 151336,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1352852,
+            "recoveredSizeBytes": 1228732,
+            "recoveryDeltaBytes": 194580,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129932,
+            "recoveryDeltaBytes": 95780,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213148,
+            "recoveryDeltaBytes": 178996,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1173524,
+            "recoveredSizeBytes": 1195760,
+            "recoveryDeltaBytes": 221544,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1131382.8897875156,
+          "slopeBytesPerLogicalSubscription": 3373.7456951694717,
+          "slopeStandardErrorBytes": 256.17544168116,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3810.6831396588086,
+          "residualSumSquares": 29008761599.22745
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:snapback": {
+      "cell": "contract:snapback",
+      "total": {
+        "samples": [
+          2047828,
+          2045996,
+          2047500,
+          2045908,
+          2045980,
+          2045996,
+          2045924
+        ],
+        "p95": 2047828
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              64,
+              1,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              64,
+              1,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 885240,
+            "recoveredSizeBytes": 876148,
+            "recoveryDeltaBytes": 23836,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 898660,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 885240,
+            "recoveredSizeBytes": 876148,
+            "recoveryDeltaBytes": 23836,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 915584,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 898660,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 868728.4067347989,
+          "slopeBytesPerLogicalSubscription": 787.5110359532387,
+          "slopeStandardErrorBytes": 65.80842229677963,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 899.7550655742273,
+          "residualSumSquares": 1914331562.099015
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:supabase": {
+      "cell": "contract:supabase",
+      "total": {
+        "samples": [
+          1743844,
+          1743728,
+          1743728,
+          1743800,
+          1743824,
+          1743728,
+          1743800
+        ],
+        "p95": 1743844
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567367.9961767517,
+          "slopeBytesPerLogicalSubscription": 840.1198735387105,
+          "slopeStandardErrorBytes": 80.0549638281151,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.6630608332925,
+          "residualSumSquares": 2832896663.1262913
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:convex": {
+      "cell": "contract:convex",
+      "total": {
+        "samples": [
+          1744312,
+          1744276,
+          1744312,
+          1744356,
+          1744332,
+          1744312,
+          1744216
+        ],
+        "p95": 1744356
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              1,
+              64,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567369.7136975222,
+          "slopeBytesPerLogicalSubscription": 840.1415190059555,
+          "slopeStandardErrorBytes": 80.06533529008391,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.7023960527579,
+          "residualSumSquares": 2833630738.3624325
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:sqlite": {
+      "cell": "contract:sqlite",
+      "total": {
+        "samples": [
+          1743816,
+          1743816,
+          1743816,
+          1743824,
+          1743816,
+          1743792,
+          1743816
+        ],
+        "p95": 1743824
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              32,
+              8,
+              1,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              1,
+              32,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              8,
+              64,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567368.854937137,
+          "slopeBytesPerLogicalSubscription": 840.1306962723329,
+          "slopeStandardErrorBytes": 80.06015027188602,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.6827296587666,
+          "residualSumSquares": 2833263739.307182
+        },
+        "cleanupOk": true
+      }
+    }
+  },
+  "thresholds": {
+    "contract:snapback": {
+      "sourceCell": "react:snapback",
+      "warmHeapTotalBytesP95": 1686220,
+      "marginalHeapBytesPerLogicalSubscriptionUpper95": 4146
+    },
+    "contract:supabase": {
+      "sourceCell": "react:supabase",
+      "warmHeapTotalBytesP95": 1409078,
+      "marginalHeapBytesPerLogicalSubscriptionUpper95": 4198
+    },
+    "contract:convex": {
+      "sourceCell": "react:convex",
+      "warmHeapTotalBytesP95": 1409073,
+      "marginalHeapBytesPerLogicalSubscriptionUpper95": 4196
+    },
+    "contract:sqlite": {
+      "sourceCell": "react:sqlite",
+      "warmHeapTotalBytesP95": 1405126,
+      "marginalHeapBytesPerLogicalSubscriptionUpper95": 4191
+    }
+  },
+  "holdoutValidation": null,
+  "ok": true
+}
