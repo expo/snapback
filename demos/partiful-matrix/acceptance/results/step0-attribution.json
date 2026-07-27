@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-27T05:18:10.147Z",
+  "measuredAt": "2026-07-27T10:22:40.838Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M5 Max",
@@ -16,7 +16,7 @@
   "inputs": {
     "claimManifestSemanticSha256": "beb41987db45cf92e69606e7d1c4ebd8f9724e981e86d2ea41971bafff2f8630",
     "protocolSha256": "66df29a44864d83550951d83af905cc46b6e10df67a53963ebe6657bc96ae0a3",
-    "webReceiptSha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91",
+    "webReceiptSha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6",
     "thresholdFreezeSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "revision": "508956134f3517169735078272a846e5ac86ba5c",
@@ -436,22 +436,22 @@
         7,
         7,
         7,
-        7,
         6,
         6,
-        6
+        6,
+        7
       ],
       "median": 7,
       "p95": 7
     },
     "contract": {
       "samples": [
+        4,
         6,
         5,
         5,
         5,
-        5,
-        6,
+        4,
         5
       ],
       "median": 5,
@@ -459,16 +459,16 @@
     },
     "vanilla": {
       "samples": [
+        3,
         4,
+        2,
         3,
         4,
         3,
-        5,
-        4,
         3
       ],
-      "median": 4,
-      "p95": 5
+      "median": 3,
+      "p95": 4
     }
   },
   "currentFormulaThresholds": {

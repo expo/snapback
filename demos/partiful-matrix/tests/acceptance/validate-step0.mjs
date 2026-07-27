@@ -109,6 +109,19 @@ const validateInventory = (inventory, label) => {
     );
   }
 };
+const identityAtRevision = (path, revision) => {
+  safeRepoPath(path, `historical input at ${revision}`);
+  const child = spawnSync('git', ['show', `${revision}:${path}`], {
+    cwd: repoRoot,
+    encoding: null,
+  });
+  assert.equal(
+    child.status,
+    0,
+    `git show ${revision}:${path} failed: ${child.stderr?.toString('utf8')}`,
+  );
+  return { path, sha256: sha256(child.stdout) };
+};
 const passing = new Set(manifest.claims.filter(({ status }) => status === 'passing').map(({ id }) => id));
 for (const id of [
   'STEP0.V0_DIAGNOSTICS', 'STEP0.V0_RESET_SEED', 'STEP0.V0_ATOMIC_SUBSCRIBE',
@@ -287,8 +300,18 @@ if (passing.has('STEP0.NATIVE_BASELINE')) {
     assert.ok(child.packages, `${child.name} native child lacks package identity`);
     assert.ok(child.environment?.os, `${child.name} native child lacks environment identity`);
     assert.ok(child.testInventory?.length > 0, `${child.name} native child lacks test inventory`);
+    const sourceRevision = child.source.snapbackRevision ?? child.source.snapback?.revision;
+    assert.match(
+      sourceRevision ?? '',
+      /^[a-f0-9]{40}$/,
+      `${child.name} native child lacks its immutable Snapback source revision`,
+    );
     for (const entry of child.testInventory) {
-      assert.equal(sha256(readFileSync(resolve(repoRoot, entry.path))), entry.sha256, `native test input drifted: ${entry.path}`);
+      assert.deepEqual(
+        identityAtRevision(entry.path, sourceRevision),
+        entry,
+        `native test input drifted at ${sourceRevision}: ${entry.path}`,
+      );
     }
   }
 }

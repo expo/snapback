@@ -462,7 +462,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/measure-step0.mjs --build --out demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
+        "sha256": "23cbc8243c14b56eb6ebd0d516f706f851fa3367ee1ddadf5550c1df050a5f1e"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
