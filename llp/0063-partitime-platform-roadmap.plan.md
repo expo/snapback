@@ -6,6 +6,15 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
 
+**Revised (Step 4 authored-source v4 ratified):** 2026-07-26 (Charlie
+Cheever supplied the exact required statement
+`I ratify partitime-ws8-authored-source-v4-2026-07-26.` in-session at
+2026-07-27T04:32:36Z. The amendment and comparison-protocol registry now
+record `ratified`; the v4 source inventory is eligible for its existing
+fail-closed validation under the already frozen 46,470-byte Contract
+threshold. This ratification changes no source bytes, formula, threshold,
+workload, prior result, or other Step-4 gate.)
+
 **Revised (Step 4 authored-source v4 proposal):** 2026-07-26 (the
 source-bound final UI workload changed both governed product inventories after
 the v3 freeze: React is 42,246 bytes rather than 41,447 and Contract is 36,691
