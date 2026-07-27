@@ -156,4 +156,10 @@ reset-atomic, action-timeout, cron-recovery — all passing. Rust:
 - Item 5 of the ledger (`kitQuery` shape) required no change (no
   committed schema; not a violation).
 
-Left open for the integrator to close.
+**Integration close-out (2026-07-27):** merged after the §0F schema-gate
+branch; `cloudflare/test/wire-schema-gate.mjs`'s transient
+`KNOWN_DIVERGENT` allowlist is removed and the mutation/unsubscribe/error
+lanes now validate hard there as well as in `acceptance.wire-shapes.mjs`.
+The reply-grammar committed schemas ride
+`issues/20260727-kit-socket-reply-schemas.md`; the shared-deployment
+redeploy remains a separate operator step. Closed.

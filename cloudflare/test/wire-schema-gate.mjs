@@ -16,13 +16,13 @@
 //      live.kit-socket-request.schema.json over a shared corpus (the Rust
 //      fixture twin is `kit_socket_request_schema_matches_the_served_validator_grammar`).
 //
-// Known-divergent hosted emitters (LLP 0094 §0C.6 ledger) are listed in ONE
-// allowlist below and are validated in report-only mode; the convergence
-// branch (issues/20260725-0094-hosted-response-shape-divergences.md) shrinks
-// that allowlist as it fixes each emitter. The in-band socket REPLY grammar
-// is deliberately not validated here at all: it is mixed-dialect as served
-// and enters the gates only at its §0C.6 item-6 convergence (do not add it
-// without that landing).
+// The LLP 0094 §0C.6 emitters converged 2026-07-27, so every exercised kit
+// route validates HARD against its committed schema (the transient
+// KNOWN_DIVERGENT allowlist this gate launched with is gone). The in-band
+// socket REPLY grammar is not validated here yet: its dialect converged to
+// kit but its committed schemas are still open
+// (issues/20260727-kit-socket-reply-schemas.md) — add reply validation with
+// that landing, not before.
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -31,17 +31,6 @@ import { startProof } from './harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-
-// LLP 0094 §0C.6: served hosted bytes that do NOT yet satisfy the committed
-// schemas. Tracked — and shrunk — by
-// issues/20260725-0094-hosted-response-shape-divergences.md; entries here are
-// exercised in report-only mode (a PASS prints a removal hint instead of
-// hard-failing, so that branch and this gate merge in either order).
-const KNOWN_DIVERGENT = new Map([
-  ['POST /mutation/{name}', 'divergences ticket item 1 — kitMutation omits the required `receipt`'],
-  ['POST /live/{name}/unsubscribe', 'divergences ticket item 2 — kitUnsubscribe answers {removed:true}'],
-  ['kit-route error envelope', 'divergences ticket items 3/6–8 — under-filled inner Diagnostic'],
-]);
 
 const results = [];
 function check(name, condition, detail) {
@@ -78,22 +67,6 @@ function checkServed(name, file, bodyText, extraDetail = '') {
   const verdict = validate(file, value);
   check(name, verdict.ok, `${verdict.errors}${extraDetail} body=${bodyText.slice(0, 400)}`);
   return value;
-}
-
-// Report-only check for a KNOWN_DIVERGENT emitter: never fails the gate, but
-// prints when the divergence has been fixed so the allowlist entry (and this
-// report-only mode) can be removed by the convergence branch.
-function reportDivergent(route, file, bodyText) {
-  const why = KNOWN_DIVERGENT.get(route);
-  let verdict = { ok: false, errors: 'response was not JSON' };
-  try {
-    verdict = validate(file, JSON.parse(bodyText));
-  } catch (_) {}
-  if (verdict.ok) {
-    console.log(`  [NOTE] ${route} now validates against ${file} — remove its KNOWN_DIVERGENT entry`);
-  } else {
-    console.log(`  [SKIP] ${route} — known-divergent (${why})`);
-  }
 }
 
 // A minimal awaitable wrapper over a Miniflare-dispatched kit socket.
@@ -199,13 +172,14 @@ async function main() {
       'query.output.schema.json', await queryResponse.text());
 
     // The mutation drives handler + host-call traffic for the capture checks
-    // below; its response bytes are a §0C.6 item-1 divergence (report-only).
+    // below; its response bytes converged (§0C.6 item 1) and validate hard.
     const mutationResponse = await client.raw('/mutation/addNote', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ args: { boardId: 'lobby', text: 'wire gate' } }),
     });
-    reportDivergent('POST /mutation/{name}', 'mutation.output.schema.json', await mutationResponse.text());
+    checkServed('POST /mutation/{name} serves a schema-valid mutation output',
+      'mutation.output.schema.json', await mutationResponse.text());
 
     const outboxResponse = await client.raw(`/outbox/${grant.connectionId}`, {
       headers: { 'x-snapback-connection-token': grant.connectionToken },
@@ -231,16 +205,16 @@ async function main() {
       },
       body: JSON.stringify({ connection_id: grant.connectionId, subscription_id: 'sub_unknown' }),
     });
-    reportDivergent('POST /live/{name}/unsubscribe', 'live.unsubscribe.output.schema.json',
-      await unsubscribeResponse.text());
+    checkServed('POST /live/{name}/unsubscribe serves a schema-valid unsubscribe output',
+      'live.unsubscribe.output.schema.json', await unsubscribeResponse.text());
 
     const failureResponse = await client.raw('/query/noSuchFunction', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ args: {} }),
     });
-    reportDivergent('kit-route error envelope', 'error.response.schema.json',
-      await failureResponse.text());
+    checkServed('kit-route error envelope serves the closed ErrorResponse',
+      'error.response.schema.json', await failureResponse.text());
 
     socket.ws.close(1000, 'gate section 1 done');
 
