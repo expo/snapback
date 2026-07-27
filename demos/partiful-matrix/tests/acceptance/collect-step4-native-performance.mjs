@@ -15,6 +15,8 @@ import { tmpdir } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { validateNativePerformanceCollectionResult } from './native-performance-collection-result.mjs';
+
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — paired
 // native calibration and holdout reverse framework order on every sample,
 // preserve two warmups plus seven observations, and publish raw receipts only
@@ -210,17 +212,12 @@ try {
   });
 
   const aggregate = JSON.parse(readFileSync(aggregatePath, 'utf8'));
-  if (quick) {
-    assert.equal(aggregate.claimEligible, false, 'quick native aggregate became claim-eligible');
-    assert(aggregate.cells?.['react-expo:ios:snapback'], 'quick aggregate omitted React');
-    assert(aggregate.cells?.['exact-contract:ios:snapback'], 'quick aggregate omitted Exact');
-  } else {
-    assert.equal(aggregate.ok, true, `native ${cohort} aggregate is red`);
-  }
+  validateNativePerformanceCollectionResult(aggregate, { cohort, quick });
   console.log(JSON.stringify({
     ok: true,
     cohort,
     quick,
+    verdict: aggregate.outcome,
     inputs: inputPath,
     aggregate: aggregatePath,
     rawReceipts: {

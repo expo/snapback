@@ -6,6 +6,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+import { validateNativePerformanceCollectionResult } from './native-performance-collection-result.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const collector = resolve(here, 'step4-native-performance.mjs');
 
@@ -93,6 +95,43 @@ test('native performance validator checks authority without inputs or a receipt'
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('native performance collection accepts a complete red holdout', () => {
+  assert.doesNotThrow(() => validateNativePerformanceCollectionResult({
+    cohort: 'holdout',
+    claimEligible: true,
+    ok: false,
+    outcome: 'red',
+    holdoutValidation: {
+      ok: false,
+      rows: [
+        { pass: false },
+        { pass: true },
+        { pass: false },
+        { pass: false },
+      ],
+    },
+  }, {
+    cohort: 'holdout',
+    quick: false,
+  }));
+});
+
+test('native performance collection rejects an inconsistent red holdout', () => {
+  assert.throws(() => validateNativePerformanceCollectionResult({
+    cohort: 'holdout',
+    claimEligible: true,
+    ok: false,
+    outcome: 'red',
+    holdoutValidation: {
+      ok: true,
+      rows: [{}, {}, {}, {}],
+    },
+  }, {
+    cohort: 'holdout',
+    quick: false,
+  }), /verdict disagrees/);
 });
 
 test('native performance collector aggregates only comparable structured samples', () => {
