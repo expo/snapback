@@ -47,6 +47,7 @@ const option = (name) => {
   return at < 0 ? null : process.argv[at + 1];
 };
 const flag = (name) => process.argv.includes(`--${name}`);
+const validateOnly = flag('validate-only');
 const cohort = option('cohort') ?? 'calibration';
 assert(['calibration', 'holdout'].includes(cohort), '--cohort must be calibration or holdout');
 const quick = flag('quick');
@@ -84,7 +85,7 @@ assert.equal(
   'I ratify partitime-ws8-web-instrument-v3-2026-07-23.',
   'performance v3 ratification statement drifted',
 );
-if (!quick) {
+if (!quick || validateOnly) {
   assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
   assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v3 claim-eligible sampling');
   assert.equal(
@@ -92,6 +93,19 @@ if (!quick) {
     invalidation.requiredRatificationStatement,
     'performance v3 sampling requires the exact owner ratification statement',
   );
+}
+if (validateOnly) {
+  process.stdout.write(`${JSON.stringify({
+    schemaVersion: 'partitime.step4-performance-validator.v1',
+    ok: true,
+    amendmentId: amendment.amendmentId,
+    amendmentStatus: amendment.status,
+    invalidationId: invalidation.amendmentId,
+    invalidationStatus: invalidation.status,
+    methodId: invalidation.replacement.methodId,
+    thresholdSetId: invalidation.replacement.thresholdSetId,
+  })}\n`);
+  process.exit(0);
 }
 assert(existsSync(serverBin), `missing Snapback server: ${serverBin}`);
 assert(existsSync(chromeBin), `missing Chrome: ${chromeBin}`);

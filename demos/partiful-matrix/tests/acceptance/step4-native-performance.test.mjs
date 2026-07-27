@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +63,37 @@ function writeFixture(root, reactSample, exactSample) {
     exact: { hostIdentity, receipts: ['exact.json'] },
   })}\n`);
 }
+
+test('native performance validator checks authority without inputs or a receipt', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'partitime-native-performance-validator-test-'));
+  try {
+    const output = resolve(root, 'must-not-exist.json');
+    const child = spawnSync(process.execPath, [
+      collector,
+      '--validate-only',
+      '--out', output,
+    ], { encoding: 'utf8' });
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(existsSync(output), false);
+    const result = JSON.parse(child.stdout);
+    assert.deepEqual(result, {
+      schemaVersion: 'partitime.step4-native-performance-validator.v1',
+      ok: true,
+      amendmentId: 'partitime-ws8-prospective-2026-07-21',
+      amendmentStatus: 'ratified',
+      invalidationId: 'partitime-ws8-native-lane-invalidation-2026-07-22',
+      invalidationStatus: 'ratified',
+      observerAmendmentId: 'partitime-ws8-native-observer-v3-2026-07-23',
+      observerAmendmentStatus: 'ratified',
+      methodId: 'partitime.native-launch-stage.v2',
+      thresholdSetId: 'partitime-ws8-native-performance-thresholds-v2',
+      laneId: 'partitime.native-ios-release-simulator-hbc-agent-off.v1',
+      observerId: 'capsec-simulator-performance-observer-v1',
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('native performance collector aggregates only comparable structured samples', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'partitime-native-performance-test-'));

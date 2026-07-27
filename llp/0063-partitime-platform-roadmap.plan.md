@@ -38,6 +38,7 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 collector preflight is non-measuring):** 2026-07-26 (the web-v3 and native-v3 collectors now expose `--validate-only` authority preflights matching the memory-v2 collector. Each verifies the ratified amendment/invalidation identities and frozen method/lane/threshold-set selection, emits a typed validator result, and exits before checking runtime binaries, reading native sample inputs, starting providers/browsers, or writing a receipt. Regression tests prove the requested output path remains absent. This is operational readiness only: it creates no sample, threshold, receipt, or claim evidence.)
 **Revised (Step 4 Exact production-program checkpoint):** 2026-07-26 (Exact
 revision `62a7338c8…`, published to Exact `origin/main`, lands the ratified,
 private, non-default LLP 0381 P1-to-P3 production-program slice, prospective
@@ -1729,6 +1730,13 @@ receipts whose launch-stage definitions match. Both collectors retain every
 valid sample, separate two warmups from seven reported observations, and make
 holdout consume thresholds from an explicitly named committed calibration
 revision. Production builds emit a four-layer, non-executable module ledger.
+
+The web-v3, memory-v2, and native-v3 collectors each expose a non-measuring
+`--validate-only` preflight. These paths validate the ratified protocol
+identities and frozen selection, emit typed validator results, and exit before
+runtime prerequisite checks, provider/browser startup, native input reads, or
+receipt writes. They are readiness checks only and cannot satisfy a budget
+category.
 
 This machinery does not itself satisfy WS8. Charlie Cheever ratified amendment
 `partitime-ws8-prospective-2026-07-21` on 2026-07-21. A clean calibration at
