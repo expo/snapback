@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-27T06:13:51.037Z",
+  "recordedAt": "2026-07-27T06:31:13.038Z",
   "repository": {
-    "snapbackRevision": "8fabaa5cf52418d6afeac32bd128f0622f8079b2",
+    "snapbackRevision": "0cc0a84ee381dacdae08837c88d6dbd1f1192a9c",
     "exactRevision": "b458199579e62e6e19796c87186b8325815a3fa0"
   },
   "inputs": {
@@ -24,7 +24,7 @@
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "8fabaa5cf52418d6afeac32bd128f0622f8079b2",
+      "revision": "0cc0a84ee381dacdae08837c88d6dbd1f1192a9c",
       "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
     },
     "nativeReceipts": [
@@ -864,10 +864,73 @@
           "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
           "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
         },
-        "amendmentStatus": "ratified-but-v2-receipts-missing",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json",
+          "sha256": "faf153e1a636bd56a6d9e3a44d110fd1f0f9fe547dbd44b842da2e03b0e5baab"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json",
+          "sha256": "55469616254a4b2861829db535e188c265483cbf9032d39609479b719e9c7aa9"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "warmHeapTotalBytesP95",
+            "actual": 2047616,
+            "threshold": 1686220,
+            "pass": false
+          },
+          {
+            "cell": "contract:snapback",
+            "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+            "actual": 899.9279965523439,
+            "threshold": 4146,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "warmHeapTotalBytesP95",
+            "actual": 1743832,
+            "threshold": 1409078,
+            "pass": false
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+            "actual": 976.7518674282107,
+            "threshold": 4198,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "warmHeapTotalBytesP95",
+            "actual": 1744312,
+            "threshold": 1409073,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+            "actual": 976.7322057113827,
+            "threshold": 4196,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "warmHeapTotalBytesP95",
+            "actual": 1743816,
+            "threshold": 1405126,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+            "actual": 976.7125415639057,
+            "threshold": 4191,
+            "pass": true
+          }
+        ],
         "expectedRows": 8,
         "historicalMetric": {
           "name": "memoryPerActiveSubscriptionBytes",
@@ -1818,14 +1881,17 @@
         },
         "amendmentStatus": "ratified",
         "nativeAmendmentStatus": "ratified-but-v2-receipts-missing",
-        "memoryAmendmentStatus": "ratified-but-v2-receipts-missing",
+        "memoryAmendmentStatus": "ratified",
         "authoredSourceAmendmentStatus": "ratified",
         "holdoutValidationArtifacts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
             "sha256": "4fe17da4346b7b3279c293931069418abe2badcd54316a89f0ff502c6180aa9e"
           },
-          null,
+          {
+            "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json",
+            "sha256": "55469616254a4b2861829db535e188c265483cbf9032d39609479b719e9c7aa9"
+          },
           null
         ],
         "finding": "Invalid historical artifacts remain preserved; every replacement requires owner-ratified authority plus an independently bound green holdout before claim promotion."
@@ -1890,11 +1956,11 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "db1d1c23112b0b7fe3247d1ad2f60cae915dd8f8238790b87857b486b1f18dbf",
+        "stdoutSha256": "37893dae2a9f6c909ed995063d93d292dbcd1aae537c925aced65eff0981b70f",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/index-S0Adsy_y.js          223.95 kB │ gzip: 70.36 kB",
-          "✓ built in 786ms",
+          "✓ built in 706ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 53 modules transformed.",
@@ -1904,7 +1970,7 @@
           "dist/sqlite/partitime-cost-attribution.json   10.82 kB │ gzip:  0.89 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css         14.09 kB │ gzip:  3.96 kB",
           "dist/sqlite/assets/index-Ue2tIxA9.js         223.64 kB │ gzip: 70.25 kB",
-          "✓ built in 575ms"
+          "✓ built in 626ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -1925,8 +1991,8 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "8b076ec12d26df88a13aaa4c1623510584a2044b32ca9274152f75a9a9f773ad",
-        "stderrSha256": "22d4b056d93f47e02548732248817347c197068db79ef12a302f7de464648d85",
+        "stdoutSha256": "67d9432c3a25e7dd6d6ebb73026ccf8e942739084d1313ace559151f453ee99b",
+        "stderrSha256": "0c308ac3fc64ff09182d6396f14d9803bae7bc54455c901123e71c1849a4feca",
         "stdoutTail": [
           "computing gzip size...",
           "dist/sqlite/assets/exact-contract/connection-badge.contract.48de20d6b30f30b0.witness.json    0.79 kB │ gzip:  0.36 kB",
@@ -1937,23 +2003,23 @@
           "dist/sqlite/assets/event-6Heaw5W8.js                                                        30.69 kB │ gzip:  7.33 kB",
           "dist/sqlite/assets/index-wGace9FA.js                                                       205.68 kB │ gzip: 63.41 kB",
           "",
-          "✓ built in 203ms",
+          "✓ built in 298ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
         "stderrTail": [
+          "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex --outDir dist/convex && bun scripts/prerender.mjs --mode convex --out-dir dist/convex",
           "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "WebSocket server error: Port undefined is already in use",
+          "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
+          "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex-realtime --outDir dist/convex-realtime && bun scripts/prerender.mjs --mode convex-realtime --out-dir dist/convex-realtime",
           "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
           "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "WebSocket server error: Port undefined is already in use",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode sqlite --outDir dist/sqlite && bun scripts/prerender.mjs --mode sqlite --out-dir dist/sqlite",
           "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
-          "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "WebSocket server error: Port undefined is already in use"
+          "[contract] /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/feed.contract:41 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
         ]
       },
       {
@@ -1965,11 +2031,11 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "a17a8bdf6e3a3928fc8a9d4966aad20e5a8c0000ee87dbc8bbce80a92a721f9a",
+        "stdoutSha256": "937c033d412364da83a1fccc21e047bc1345ab8d44c8f744d410f352053c4c4a",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Cueaew6r.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 217ms",
+          "✓ built in 273ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 26 modules transformed.",
@@ -1979,7 +2045,7 @@
           "dist/sqlite/partitime-cost-attribution.json   3.19 kB │ gzip: 0.57 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css        14.09 kB │ gzip: 3.96 kB",
           "dist/sqlite/assets/index-Dn3Xzqfp.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 215ms"
+          "✓ built in 272ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -2535,8 +2601,14 @@
         "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
         "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
       },
-      "memoryCalibration": null,
-      "memoryHoldout": null,
+      "memoryCalibration": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json",
+        "sha256": "faf153e1a636bd56a6d9e3a44d110fd1f0f9fe547dbd44b842da2e03b0e5baab"
+      },
+      "memoryHoldout": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json",
+        "sha256": "55469616254a4b2861829db535e188c265483cbf9032d39609479b719e9c7aa9"
+      },
       "authoredSourceInvalidation": {
         "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-26-v4.json",
         "sha256": "18559e5fb4f359407112537eee8e5f99d6bbc4c15828631cef3a993506be6e42"
