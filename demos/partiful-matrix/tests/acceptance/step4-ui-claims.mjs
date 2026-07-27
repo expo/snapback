@@ -101,6 +101,11 @@ try {
         cwd: repoRoot,
         env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
         encoding: 'utf8',
+        // Physical-iOS runs are attended: the child prints the exact text and
+        // device-setting action while it polls the phone. Forward stdout so
+        // the operator can act before that poll expires, while retaining
+        // stderr for the governed per-cell failure diagnostic below.
+        stdio: ['ignore', 'inherit', 'pipe'],
         maxBuffer: 20 * 1024 * 1024,
       });
       let receipt = null;
