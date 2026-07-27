@@ -32750,6 +32750,10 @@ globalThis.__snapbackHandlers = {
             "machine-readable replay-oracle marker emitted only by the LLP 0053 server acceptance test",
         ),
         (
+            "SNAPBACK_AUTH_HANDLER_V1",
+            "LLP 0060 D6 private marker echoed on the handler wire envelope (schema authority in src/handler_wire.rs), never an HTTP diagnostic",
+        ),
+        (
             "SNAPBACK_BUILD_GIT_COMMIT",
             "compile-time environment variable carrying build provenance",
         ),
