@@ -30,7 +30,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 23;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 24;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -157,7 +157,7 @@ export const LOCAL_SUITES = Object.freeze([
     // KNOWN_DIVERGENT allowlist (§0C.6 convergence ticket shrinks it).
     id: 'wire-schema-gate',
     file: 'cloudflare/test/wire-schema-gate.mjs',
-    evidence: ['cloudflare wire-schema gate: 12/12 checks passed'],
+    evidence: ['cloudflare wire-schema gate: 15/15 checks passed'],
   },
 ]);
 
