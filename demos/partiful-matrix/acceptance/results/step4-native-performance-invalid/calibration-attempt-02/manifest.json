@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "partitime.native-performance-invalid-attempt.v1",
+  "phase": "calibration",
+  "attemptOrdinal": 2,
+  "valid": false,
+  "claimEligible": false,
+  "recordedAt": "2026-07-27T08:56:38.254Z",
+  "reason": {
+    "code": "PARTITIME_NATIVE_EXACT_OBSERVER_IMAGE_AUTHENTICATION_FAILURE",
+    "message": "Pair 4 Exact failed before Hermes evaluation because the feature-bound observer could not authenticate the mapped Hermes simulator __text image."
+  },
+  "source": {
+    "snapbackRevision": "a6f5350c09519f37912976c200bb09b0accf5ea0",
+    "exactRevision": "7f793c5cb885ba8471c3792e244d6a3ec43e6378",
+    "sourceDirty": false
+  },
+  "environment": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3"
+    }
+  },
+  "method": {
+    "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+    "observerId": "capsec-simulator-performance-observer-v1",
+    "pairOrder": [
+      "react-then-exact",
+      "exact-then-react",
+      "react-then-exact",
+      "exact-then-react"
+    ]
+  },
+  "observations": {
+    "completePairs": 3,
+    "failedAt": "pair-04-exact",
+    "rawReceipts": [
+      {
+        "path": "raw/react-01.json",
+        "sha256": "72587e97119b4a8c2e2416121b1e3eadd7e6b9b6cb63510af7b0552bdad06ef0"
+      },
+      {
+        "path": "raw/exact-01.json",
+        "sha256": "67f540093fe4e601f6b13c9b8f78621018c43fc7cf3ccd59221ae87d31cc2fb7"
+      },
+      {
+        "path": "raw/exact-02.json",
+        "sha256": "7b72ab7010527433ed622759f1c4651d82b3c7ba7b535500c0cad7bd704b31b1"
+      },
+      {
+        "path": "raw/react-02.json",
+        "sha256": "19c4e8b92a0a680db7fc943af1d0d5bf751054cd480f6fea3e24398326525e38"
+      },
+      {
+        "path": "raw/react-03.json",
+        "sha256": "0c3061391886a56785e736a55592edf6cc5d97e5fbd36c8501c1d313b66103d3"
+      },
+      {
+        "path": "raw/exact-03.json",
+        "sha256": "45070d717c318453251e14d09f76f906e8c2393339cc4ce087b8da7e3dde0ae6"
+      },
+      {
+        "path": "raw/exact-04.json",
+        "sha256": "62b87be70270819844c59451b2e7eb5ccb7fdd81602693b93c1f3750ec346aae"
+      }
+    ],
+    "scratchPathAtCapture": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-calibration-qR79mE"
+  },
+  "disposition": "All partial observations are excluded from aggregation. A retry must repeat the complete nine-pair cycle under the identical protocol."
+}

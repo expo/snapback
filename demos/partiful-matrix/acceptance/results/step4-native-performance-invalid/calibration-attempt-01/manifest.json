@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "partitime.native-performance-invalid-attempt.v1",
+  "phase": "calibration",
+  "attemptOrdinal": 1,
+  "valid": false,
+  "claimEligible": false,
+  "recordedAt": "2026-07-27T08:53:00Z",
+  "reason": {
+    "code": "PARTITIME_NATIVE_OPERATOR_INVOCATION_ERROR",
+    "message": "The collector has no --help mode; an attempted help query began the default calibration command and was terminated during the first React build before any receipt or complete pair existed."
+  },
+  "source": {
+    "snapbackRevision": "a6f5350c09519f37912976c200bb09b0accf5ea0",
+    "exactRevision": "7f793c5cb885ba8471c3792e244d6a3ec43e6378"
+  },
+  "observations": {
+    "completePairs": 0,
+    "rawReceipts": [],
+    "scratchPathAtCapture": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-calibration-TM3opw"
+  },
+  "disposition": "Excluded from aggregation. Counted as invalid attempt 1; only a complete cycle may be retried."
+}

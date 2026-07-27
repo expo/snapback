@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "partitime.native-exact-performance-receipt.v2",
+  "profileId": "exact-contract/ios",
+  "claimId": "STEP4.BUDGETS.NATIVE_PERFORMANCE",
+  "claimEligible": true,
+  "quick": false,
+  "recordedAt": "2026-07-27T08:56:38.254Z",
+  "ok": false,
+  "outcome": "fail",
+  "repository": {
+    "sourceDirty": false
+  },
+  "source": {
+    "snapback": {
+      "revision": "a6f5350c09519f37912976c200bb09b0accf5ea0",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exact": {
+      "revision": "7f793c5cb885ba8471c3792e244d6a3ec43e6378",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exactAfterBuild": {
+      "revision": "7f793c5cb885ba8471c3792e244d6a3ec43e6378",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "snapbackAfterBuild": {
+      "revision": "a6f5350c09519f37912976c200bb09b0accf5ea0",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "environment": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+      "available": true
+    }
+  },
+  "lane": {
+    "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+    "buildConfiguration": "Release",
+    "simulatorBuild": true,
+    "artifactMode": "hermes-hbc",
+    "agentLoadedBeforeFirstFrame": false,
+    "debugOverlayEnabled": false,
+    "firstFrameObserver": "native-host",
+    "authoritativeDataObserver": "structured-product-marker"
+  },
+  "observer": {
+    "amendment": {
+      "path": "demos/partiful-matrix/acceptance/native-performance-observer-amendment.2026-07-23.json",
+      "sha256": "a393a93dd96cd18fb17b947a02079dc9b5a568ee6dc924f46f5fb7f6c4b20f7a",
+      "status": "ratified"
+    },
+    "id": "capsec-simulator-performance-observer-v1",
+    "claimUseAuthorized": true,
+    "build": {
+      "exactEnvironment": "EXACT_PARTITIME_NATIVE_PERFORMANCE_OBSERVER=1",
+      "swiftCompileCondition": "EXACT_PARTITIME_NATIVE_PERFORMANCE_OBSERVER",
+      "cargoFeature": "capsec-simulator-performance-observer",
+      "archiveStampPath": "ios/GeneratedLibs/libexact_runtime-sim.a.build-stamp",
+      "archiveStampSha256": "fb9f8eb2ed556a8992a1b2b5a7b147f810c133e23d5ca6e9bc3bd2c05866d480",
+      "featureBound": true
+    },
+    "runtime": null
+  },
+  "build": {
+    "performed": true,
+    "configuration": "Release",
+    "simulatorBuild": true,
+    "startedAtMs": 1785142618299,
+    "completedAtMs": 1785142620949,
+    "status": 0,
+    "timedOut": false,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutTail": [],
+    "stderrTail": []
+  },
+  "productionBundle": {
+    "kind": "vite-production-rollup-single-entry-iife",
+    "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-production-bundle-H7Nylv/partitime-native.js",
+    "sizeBytes": 3435118,
+    "sha256": "9d26dc19aa15ed6fb079a46931e70d8734555fbbd810595ab2350d0f27bcba3d",
+    "sourceMap": {
+      "sizeBytes": 6660911,
+      "sha256": "c501e506e5612011e0dea2306f988b4baf842e6f3f89414727578324db7d2ce9",
+      "moduleCount": 366,
+      "staticRouteSources": [
+        "../../../../../../Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/native/exact-contract/src/app/routes/index.contract"
+      ]
+    },
+    "dynamicImportCount": 0,
+    "opaqueDynamicImportFallbackCount": 5,
+    "routeDynamicImportFallback": false,
+    "forbiddenDevelopmentMarkers": [],
+    "viteBuild": {
+      "status": 0,
+      "stdoutSha256": "60ed7400fc4a82b67780432deac9309b7e75ac27de4649c4d7d7c13c847389cb",
+      "stderrSha256": "980ff5a522584ac8f00e5453b888ed64d1b6710d07e14bf99840856e1fe60644"
+    }
+  },
+  "hbcCompile": {
+    "status": 0,
+    "timedOut": false,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutTail": [],
+    "stderrTail": []
+  },
+  "startupArtifact": {
+    "source": {
+      "kind": "vite-production-rollup-single-entry-iife",
+      "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-production-bundle-H7Nylv/partitime-native.js",
+      "sizeBytes": 3435118,
+      "sha256": "9d26dc19aa15ed6fb079a46931e70d8734555fbbd810595ab2350d0f27bcba3d",
+      "sourceMap": {
+        "sizeBytes": 6660911,
+        "sha256": "c501e506e5612011e0dea2306f988b4baf842e6f3f89414727578324db7d2ce9",
+        "moduleCount": 366,
+        "staticRouteSources": [
+          "../../../../../../Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/native/exact-contract/src/app/routes/index.contract"
+        ]
+      },
+      "dynamicImportCount": 0,
+      "opaqueDynamicImportFallbackCount": 5,
+      "routeDynamicImportFallback": false,
+      "forbiddenDevelopmentMarkers": [],
+      "viteBuild": {
+        "status": 0,
+        "stdoutSha256": "60ed7400fc4a82b67780432deac9309b7e75ac27de4649c4d7d7c13c847389cb",
+        "stderrSha256": "980ff5a522584ac8f00e5453b888ed64d1b6710d07e14bf99840856e1fe60644"
+      }
+    },
+    "hbc": {
+      "sizeBytes": 2344005,
+      "sha256": "580e63885623680d5cd41a584f425539220f7e17f3b071f849d6f745b31452d9",
+      "hermesBytecodeVersion": 99,
+      "hermesCompilerVersion": "LLVM (http://llvm.org/):\n  LLVH version 8.0.0svn\n  Optimized build\n\nHermes JavaScript compiler.\n  Hermes release version: 1.0.0\n  HBC bytecode version: 99"
+    },
+    "diagnostics": {
+      "moduleCount": 366,
+      "sourceBytesRootIndependent": 3435118,
+      "hbcStatus": "ready",
+      "hbcBytes": 2344005,
+      "hermesBytecodeVersion": 99
+    }
+  },
+  "releaseArtifact": {
+    "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-exact-performance-derived/Build/Products/Release-iphonesimulator/ExactApp.app",
+    "kind": "directory",
+    "files": 20,
+    "sizeBytes": 110813832,
+    "sha256": "7e650d3f658b73bbf8b2418e23a19bf2c9b4296f6680958c57163a9459004626"
+  },
+  "performance": {
+    "sample": null
+  },
+  "cleanupErrors": [],
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      },
+      "convex": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    }
+  },
+  "error": "Error: 2026-07-27 01:57:03.238 Df ExactApp[7395:5a9e564] (Foundation) [ContentView] Embedded runtime context eval failed for partitime-ws8: Ibex refused armed-runtime artifact preparation: failed to authenticate the mapped Hermes simulator __text image\npreceding carrier logs:\n[unified-log-error] getpwuid_r did not find a match for uid 501\n[unified-log] Filtering the log data using \"process == \"ExactApp\" AND (composedMessage CONTAINS \"[ContentView]\" OR composedMessage CONTAINS \"[ExactRuntimeEngine]\" OR composedMessage CONTAINS \"[Ibex]\" OR composedMessage CONTAINS \"[ExactAgent]\")\"\n[console] 2026-07-27 01:57:03.025 ExactApp[7395:95020184] [ContentView] Startup mark: app-init-begin\n[unified-log] Timestamp               Ty Process[PID:TID]\n[unified-log] 2026-07-27 01:57:03.025 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: app-init-begin\n[console] 2026-07-27 01:57:03.102 ExactApp[7395:95020184] [ContentView] Startup mark: app-init-end\n[console] 2026-07-27 01:57:03.103 ExactApp[7395:95020184] [ContentView] Startup mark: app-delegate-did-finish-launching\n[unified-log] 2026-07-27 01:57:03.102 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: app-init-end\n[unified-log] 2026-07-27 01:57:03.102 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: app-delegate-did-finish-launching\n[console] 2026-07-27 01:57:03.117 ExactApp[7395:95020184] [ContentView] Startup mark: scene-will-connect\n[unified-log] 2026-07-27 01:57:03.117 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: scene-will-connect\n[console] 2026-07-27 01:57:03.212 ExactApp[7395:95020184] [ContentView] Startup mark: start\n[unified-log] 2026-07-27 01:57:03.212 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: start\n[console] 2026-07-27 01:57:03.213 ExactApp[7395:95020184] [ContentView] Startup mark: setupJS-begin\n[console] 2026-07-27 01:57:03.213 ExactApp[7395:95020184] [ContentView] Startup mark: runtime-create-begin\n[unified-log] 2026-07-27 01:57:03.213 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: setupJS-begin\n[unified-log] 2026-07-27 01:57:03.213 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: runtime-create-begin\n[console] 2026-07-27 01:57:03.213 ExactApp[7395:95020184] [ContentView] Startup mark: runtime-create-end\n[console] 2026-07-27 01:57:03.213 ExactApp[7395:95020388] [ContentView] Startup mark: hermes-runtime-create-begin\n[console] [ExactRuntimeEngine] PARTITIME_CAPSEC_SIMULATOR_PERFORMANCE_OBSERVER_V1 enabled\n[unified-log] 2026-07-27 01:57:03.213 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: runtime-create-end\n[unified-log] 2026-07-27 01:57:03.213 Df ExactApp[7395:5a9e564] (Foundation) [ContentView] Startup mark: hermes-runtime-create-begin\n[console] 2026-07-27 01:57:03.217 ExactApp[7395:95020184] [ContentView] Startup mark: setupJS-end\n[unified-log] 2026-07-27 01:57:03.217 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: setupJS-end\n[console] 2026-07-27 01:57:03.218 ExactApp[7395:95020184] [ContentView] Startup mark: embedded-bytecode-read-begin\n[unified-log] 2026-07-27 01:57:03.218 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: embedded-bytecode-read-begin\n[console] 2026-07-27 01:57:03.218 ExactApp[7395:95020184] [ContentView] Startup mark: embedded-bytecode-read-end\n[console] 2026-07-27 01:57:03.219 ExactApp[7395:95020184] [ContentView] Loading embedded bytecode partitime-ws8 from /Users/ccheever/Library/Developer/CoreSimulator/Devices/E0E49A2F-54A7-4355-8EB4-D52138E3361B/data/Containers/Bundle/Application/5915F306-AFB4-4B77-8387-B578A0D58E37/ExactApp.app/bytecode/partitime-ws8.hbc\n[unified-log] 2026-07-27 01:57:03.218 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: embedded-bytecode-read-end\n[unified-log] 2026-07-27 01:57:03.219 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Loading embedded bytecode partitime-ws8 from /Users/ccheever/Library/Developer/CoreSimulator/Devices/E0E49A2F-54A7-4355-8EB4-D52138E3361B/data/Containers/Bundle/Application/5915F306-AFB4-4B77-8387-B578A0D58E37/ExactApp.app/bytecode/partitime-ws8.hbc\n[console] [ExactRuntimeEngine] Armed startup refused: Ibex refused armed-runtime artifact preparation: failed to authenticate the mapped Hermes simulator __text image\n[console] 2026-07-27 01:57:03.230 ExactApp[7395:95020388] [ContentView] Startup mark: hermes-runtime-create-end\n[console] [ExactRuntimeEngine] Failed to create runtime\n[unified-log] 2026-07-27 01:57:03.230 Df ExactApp[7395:5a9e564] (Foundation) [ContentView] Startup mark: hermes-runtime-create-end\n[console] 2026-07-27 01:57:03.235 ExactApp[7395:95020184] [ContentView] Startup mark: native-uikit-host-start\n[unified-log] 2026-07-27 01:57:03.235 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: native-uikit-host-start\n[unified-log] 2026-07-27 01:57:03.237 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: bundle-received\n[console] 2026-07-27 01:57:03.237 ExactApp[7395:95020184] [ContentView] Startup mark: bundle-received\n[console] 2026-07-27 01:57:03.238 ExactApp[7395:95020184] [ContentView] Embedded bytecode partitime-ws8: 2344005 bytes\n[console] 2026-07-27 01:57:03.238 ExactApp[7395:95020184] [ContentView] Startup mark: evaluate-begin\n[unified-log] 2026-07-27 01:57:03.238 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Embedded bytecode partitime-ws8: 2344005 bytes\n[unified-log] 2026-07-27 01:57:03.238 Df ExactApp[7395:5a9e498] (Foundation) [ContentView] Startup mark: evaluate-begin\n[console] 2026-07-27 01:57:03.238 ExactApp[7395:95020388] [ContentView] Embedded runtime context eval failed for partitime-ws8: Ibex refused armed-runtime artifact preparation: failed to authenticate the mapped Hermes simulator __text image\n[unified-log] 2026-07-27 01:57:03.238 Df ExactApp[7395:5a9e564] (Foundation) [ContentView] Embedded runtime context eval failed for partitime-ws8: Ibex refused armed-runtime artifact preparation: failed to authenticate the mapped Hermes simulator __text image\n    at scanLine (file:///Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/tests/acceptance/native-exact-performance.mjs:778:21)\n    at Socket.<anonymous> (file:///Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/tests/acceptance/native-exact-performance.mjs:855:33)\n    at Socket.emit (node:events:509:20)\n    at addChunk (node:internal/streams/readable:564:12)\n    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)\n    at Readable.push (node:internal/streams/readable:395:5)\n    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)"
+}
