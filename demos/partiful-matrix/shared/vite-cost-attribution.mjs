@@ -17,6 +17,11 @@ export function classifyPartitimeCostModule(id) {
     || /\/surfaces\/(?:react|contract|vanilla)\/(?:src\/)?(?:provider|convex-provider|convex-direct|supabase-direct|production-hydration)\.[^/]+$/.test(path)
     || /\/node_modules\/(?:@supabase|convex)\//.test(path)
   ) return 'provider-runtime';
+  // A package manager may install framework dependencies below the measured
+  // surface itself. Classify the dependency boundary before the broader
+  // surface-path rule so `surfaces/contract/node_modules/@exact/*` does not
+  // become application code merely because of its install location.
+  if (/\/node_modules\//.test(path)) return 'framework-runtime';
   if (/\/surfaces\/(?:react|contract|vanilla)\//.test(path)) return 'application-code';
   return 'framework-runtime';
 }
