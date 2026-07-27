@@ -1,5 +1,7 @@
 # LLP 0063: Partitime platform roadmap
 
+**Revised (Step 4 gateway bundle boundary diagnosed):** 2026-07-26 (fresh published-Exact 0.1.6 gateway builds reproduce the three remaining Contract bundle failures at about 235.6 KB minified / 69.8 KB gzip against about 213.5 KB / 67.2 KB frozen limits. A disposable Terser experiment established that ordinary multi-pass compression barely changes minified bytes; broad property mangling can report about 208.3 KB / 65.5 KB, but the production Chrome gate then passes only static feed visibility and fails both live boot identity and routed RSVP behavior, 1/3. That candidate is rejected and no receipt is retained: it makes byte counters green by breaking the shipped program. The remaining gateway delta is therefore assigned to the Exact compact statement-plan/runtime boundary, not an app-local property-mangling workaround. Thresholds, method, workload, and the red STEP4.BUDGETS verdict are unchanged.)
+
 **Revised (Step 4 cost-attribution classifier repair):** 2026-07-26 (the four-layer diagnostic ledger now classifies surface-local package-manager dependencies before the broader surface-path rule. Exact/React runtime modules under `surfaces/*/node_modules` remain framework runtime, while Supabase/Convex dependencies remain provider runtime; regression vectors cover POSIX and Windows paths. The defect changed diagnostic bucket labels only: executable bundle bytes, frozen thresholds, workload, calibration/holdout custody, and every claim verdict are untouched.)
 
 **Revised (WS6 baseline prose reconciled):** 2026-07-26 (the flagged 168-vs-190 discrepancy is resolved by inspection of the pinned freeze source, `demos/partiful-matrix/acceptance/results/step0-attribution.json` at revision 508956134f3517169735078272a846e5ac86ba5c, measured 2026-07-20: the frozen `snapbackBackendLines` inventory is FOUR files totaling 190 lines - schema.mjs 32, functions.mjs 75, handlers.mjs 61, seed.json 22 - and floor(190 * 0.80) = 152 is exactly the frozen threshold; WS6’s "about 168 handwritten lines" counted only the three handwritten code files (32+75+61 = 168), excluding the 22-line seed.json data fixture the formula’s inventory includes, so both figures were true of different file sets and the threshold derivation was never wrong; WS6 prose should be read as code-files-only color, the four-file inventory is the operative freeze; thresholds, method, thresholdId, and workloadVersion untouched - ticket 20260726-0081-spec-amendment-frictions item 5)
@@ -1759,6 +1761,29 @@ launch is red: 7,109,789 script bytes, 460 modules, 6,231,550 module-source
 bytes, and 6,414.54 ms evaluation led to no rendered frame within 15 seconds.
 Without a frame or first-authoritative-data stage, that run is diagnostic
 evidence, not an admissible native performance sample.
+
+### 2026-07-26 gateway bundle optimizer rejection
+
+Fresh production builds against the published Exact 0.1.6 closure reproduce
+the three non-Snapback Contract overruns: each is about 235.6 KB minified and
+69.8 KB gzip against its frozen roughly 213.5 KB and 67.2 KB limits. The
+four-layer ledger assigns most retained source to Exact's Contract runtime and
+the generated feed/event statement plans; the provider layer is small.
+
+A disposable build tested whether a more aggressive generic minifier could
+close the gap without changing the application or Exact. Ordinary three-pass
+Terser compression remained about 235.1 KB total. Property mangling with
+quoted/public keys protected produced about 208.3 KB and 65.5 KB, but the
+production Chrome matrix passed only the prerendered canonical-feed check and
+failed the two live-program checks: the boot identity promise did not settle,
+and the routed event/RSVP turn did not complete. The 1/3 candidate was
+discarded; no measurement receipt or claim artifact was authored.
+
+This rules out app-local property mangling as a truthful Step 4 optimization.
+The remaining minified delta requires the Exact compact statement-plan/runtime
+boundary (the pending Exact LLP 0185 §4.3.2 decision) or another
+semantics-preserving Exact architecture change. `STEP4.BUDGETS` stays red;
+the frozen thresholds, method, workload, and retained evidence are untouched.
 
 ### 2026-07-23 two-part subscription-memory construct
 
