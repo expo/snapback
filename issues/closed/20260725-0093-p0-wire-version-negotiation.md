@@ -142,5 +142,7 @@ this is the recorded reading of B2's deployment gate. **B4 is not
 implemented** and stays gated on the §0B.7 zero-offerless audit plus its
 own dated LLP 0094 amendment.
 
-Code-wise this ticket is fully resolved. Left in `issues/` for the
-integrator to close after the redeploy decision.
+Code-wise this ticket is fully resolved. **Integration close-out
+(2026-07-27):** the redeploy is consolidated with the other two hosted-arm
+landings into `issues/20260727-cloudflare-redeploy-wire-landings.md` (one
+operational ticket instead of three tails); closing this one.
