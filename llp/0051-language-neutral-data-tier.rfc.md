@@ -5,7 +5,12 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-21 (fan-out ratio marked superseded per the `37f1a2f` benchmark corrections — LLP 0035's 2026-07-21 note). 2026-07-15 (registers LLP 0060 D6's three private hosted marker
+**Revised:** 2026-07-27 (the three D6 private marker envelopes are now
+IMPLEMENTED in D4's mechanism as served-shape authorities —
+`src/handler_wire.rs`, `handler.*` schemas, instances, drift gates, and
+real-bytes validation on both arms; LLP 0094 §0F items 2–4 landed the
+kit-socket request grammar, the drain-response array, and the last
+standalone-schema gaps through the same export). 2026-07-21 (fan-out ratio marked superseded per the `37f1a2f` benchmark corrections — LLP 0035's 2026-07-21 note). 2026-07-15 (registers LLP 0060 D6's three private hosted marker
 envelopes in D4's generated/registered/drift-gated schema inventory without
 moving their hosted semantics or rollout ownership). 2026-07-15 (integrates ENG-24556's independently managed `remote-service-sqlite-ibex` target: Rust-owned capability/profile schemas, generated todo-v2 operation schemas, host-private-only HTTPS/credential policy, and commit-addressed data-tier/corpus identity; this is authority publication, not live-service evidence). 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
@@ -635,6 +640,16 @@ shapes DK-7 stopped short of:
   generated committed schemas under `schemas/`, schema registration,
   positive/negative instances, and the shared drift gate. Being private makes
   them non-client-visible; it does not create a hand-mirror exemption.
+  *As built (2026-07-27, LLP 0094 §0F item 1):* the three families are
+  schema-governed **as served today** — `src/handler_wire.rs` authorities,
+  `handler.invoke.input` / `handler.invoke.output` /
+  `handler.host-call.input` committed schemas, instances in
+  `tests/artifact_schemas_v0.rs`, and real-bytes validation on both arms
+  (the local twin's capture seam in `tests/workerd_twin_v0.rs`; the hosted
+  service-binding capture in `cloudflare/test/wire-schema-gate.mjs`). The
+  local invoke request is serialized from the authority type itself. The D6
+  versioned marker fields remain unimplemented; when 0060's rollout adds
+  them, they land as ordinary schema changes through this same gate.
 - A `snapback-protocol` **crate** is deliberately *not* carved yet — the
   repo is a single crate and the first Rust-client consumer doesn't
   exist. The schemas come first; the crate boundary is mechanical
@@ -944,10 +959,19 @@ disciplines.
    non-JS HTTP inventory is schema-governed; adding a new client-visible route
    body must join `artifact_schemas()` and its round-trip gate.
    LLP 0060 subsequently assigned D6's private invocation-request, response,
-   and host-call marker schemas to the same machinery. They land
-   with the future hosted D6 implementation; that additional private inventory
-   neither reopens the completed local client-visible HTTP claim nor implies a
-   hosted target exists today.
+   and host-call marker schemas to the same machinery.
+   *Completed 2026-07-27 (LLP 0094 §0F execution):* the three private
+   families are committed as served-shape schemas with drift gates and
+   real-bytes validation on both arms, ahead of the still-unimplemented D6
+   marker fields (which remain 0060-owned rollout work); the same landing
+   closed the last §0C gap rows (`query.output`, `action.output`, the
+   ephemeral HTTP request/outcome schemas,
+   `live.socket-client.sessions`), the kit-socket in-band request grammar
+   (`live.kit-socket-request`), and the drain response
+   (`live.outbox-drain.output`), and added the hosted executable
+   response-schema gate (`cloudflare/test/wire-schema-gate.mjs`). That
+   private inventory neither reopens the completed local client-visible
+   HTTP claim nor implies a hosted target exists today.
 2. **The ctx-answer ledger (D1):** first, close the Ibex
    deterministic-member gap for queries/mutations — two mechanisms, as
    on V8: member deny-stubs single-sourced from the allowlist
