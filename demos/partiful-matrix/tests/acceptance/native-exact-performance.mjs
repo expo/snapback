@@ -597,6 +597,8 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
   const source = readFileSync(sourcePath, 'utf8');
   const sourceMap = JSON.parse(readFileSync(sourceMapPath, 'utf8'));
   const sourceModules = [...new Set(sourceMap.sources ?? [])].sort();
+  const staticRouteSources = sourceModules.filter((moduleId) =>
+    moduleId.endsWith('/src/app/routes/index.contract'));
   const dynamicImportCount = source.match(/\bimport\s*\(/g)?.length ?? 0;
   const forbiddenDevelopmentMarkers = [
     '__exactDevModules',
@@ -604,6 +606,7 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
     '@exact/devtools/agent',
     'agent-bootstrap',
     'agent/server',
+    'Dynamic import is unavailable in Exact release HBC',
   ].filter((marker) => source.includes(marker));
   report.productionBundle = {
     kind: 'vite-production-rollup-single-entry-iife',
@@ -614,6 +617,7 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
       sizeBytes: statSync(sourceMapPath).size,
       sha256: sha256(readFileSync(sourceMapPath)),
       moduleCount: sourceModules.length,
+      staticRouteSources,
     },
     dynamicImportCount,
     forbiddenDevelopmentMarkers,
@@ -632,6 +636,11 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
     dynamicImportCount,
     0,
     'Exact production Rollup graph retains dynamic imports and cannot form the ratified single-HBC carrier',
+  );
+  assert.deepEqual(
+    staticRouteSources.map((moduleId) => moduleId.slice(moduleId.lastIndexOf('/src/'))),
+    ['/src/app/routes/index.contract'],
+    'Exact production Rollup graph did not close the generated Contract route into the single HBC',
   );
 
   const hbcPath = resolve(outputRoot, 'partitime-native.hbc');
@@ -841,7 +850,11 @@ async function collectLaunch({ bundleId, witness, startupAssetWeightBytes }) {
     await sleep(300);
     const requestedAtMs = Date.now();
     consoleLaunch = spawn('xcrun', [
-      'simctl', 'launch', '--terminate-running-process', '--console',
+      // CoreSimulator 26's plain --console FIFO can stop draining stdout while
+      // stderr remains live, blocking the app inside process.stdout.write
+      // during the startup microtask checkpoint. The PTY carrier preserves the
+      // same byte stream and signal forwarding without injecting that stall.
+      'simctl', 'launch', '--terminate-running-process', '--console-pty',
       deviceId, bundleId,
     ], {
       detached: true,
