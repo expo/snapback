@@ -94,7 +94,6 @@ try {
     ['a v2 token', 'snapback.v2'],
     ['a malformed suffix', 'snapback.v1.0'],
     ['a non-string offer', 1],
-    ['null (present, uninterpretable)', null],
   ]) {
     const unknown = await open({ wireVersion: offer });
     check(
@@ -103,6 +102,12 @@ try {
       JSON.stringify(unknown),
     );
   }
+  const nullableAbsent = await open({ connectionId: 'wire-null', wireVersion: null });
+  check(
+    'null follows the Rust Option/schema semantics and opens a legacy lineage',
+    nullableAbsent.status === 200 && !('wireVersion' in nullableAbsent.body),
+    JSON.stringify(nullableAbsent),
+  );
   const conflicting = await open({ wireVersion: 'snapback.v1', wire_version: 'snapback.v2' });
   check(
     'conflicting camelCase/snake_case duplicates refuse',
@@ -180,6 +185,16 @@ try {
     invalidationKnown.status === 200,
     JSON.stringify(invalidationKnown),
   );
+  const invalidationConflict = await open({
+    authInvalidationProtocol: 1,
+    auth_invalidation_protocol: 2,
+  });
+  check(
+    'conflicting authInvalidationProtocol aliases refuse instead of preferring one',
+    invalidationConflict.status === 400
+      && code(invalidationConflict.body) === 'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',
+    JSON.stringify(invalidationConflict),
+  );
 
   // --- kit-socket classification matrix (§0B.4, B1 present-offer + B3 absent)
 
@@ -238,8 +253,8 @@ try {
     JSON.stringify(proofSocket),
   );
 
-  assert.equal(checks, 23, 'wire-version acceptance check inventory drifted');
-  console.log(`cloudflare wire-version acceptance: ${checks}/23 checks passed`);
+  assert.equal(checks, 24, 'wire-version acceptance check inventory drifted');
+  console.log(`cloudflare wire-version acceptance: ${checks}/24 checks passed`);
 } finally {
   await proof.dispose();
 }

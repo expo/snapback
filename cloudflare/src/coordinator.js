@@ -177,6 +177,10 @@ function classifyOpenWireVersionOffer(payload) {
     return { kind: 'unknown' };
   }
   const offered = camel !== undefined ? camel : snake;
+  // The Rust authority is Option<String>, whose generated input schema
+  // admits null and whose decoder maps null to the absent class. Preserve
+  // that exact schema/decoder behavior on the open-decoded hosted arm.
+  if (offered === null) return { kind: 'absent' };
   if (typeof offered === 'string' && SUPPORTED_WIRE_VERSIONS.includes(offered)) {
     return { kind: 'known', token: offered };
   }
@@ -4319,10 +4323,18 @@ export class Coordinator {
     // refuse instead of silently degrading; absent keeps degrading to legacy.
     // (This arm implements no invalidation surface, so a known offer of 1 is
     // read but yields no authorizationInvalidation member, exactly as today.)
-    const invalidationOffer = payload.authInvalidationProtocol !== undefined
-      ? payload.authInvalidationProtocol
-      : payload.auth_invalidation_protocol;
-    if (invalidationOffer !== undefined && invalidationOffer !== null && invalidationOffer !== 1) {
+    const invalidationCamel = payload.authInvalidationProtocol;
+    const invalidationSnake = payload.auth_invalidation_protocol;
+    const invalidationAliasesConflict = invalidationCamel !== undefined
+      && invalidationSnake !== undefined
+      && invalidationCamel !== invalidationSnake;
+    const invalidationOffer = invalidationCamel !== undefined
+      ? invalidationCamel
+      : invalidationSnake;
+    if (
+      invalidationAliasesConflict
+      || (invalidationOffer !== undefined && invalidationOffer !== null && invalidationOffer !== 1)
+    ) {
       return kitError(
         400,
         'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',

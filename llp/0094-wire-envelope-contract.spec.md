@@ -48,7 +48,13 @@ the tolerate-the-divergence caveat is retired for the converged items);
 implemented on both arms with the kit offer, under
 `issues/20260725-0093-p0-wire-version-negotiation.md`: §0B.5 stage record,
 §0B.7 blast-radius re-run with a corrected in-crate-population finding,
-§0C.5 alignment implemented; B4 stays staged)
+§0C.5 alignment implemented; B4 stays staged); 2026-07-27 (P-0
+self-review hardening: the hosted nullable offer now matches the Rust
+`Option<String>` authority and committed schema; concurrent first opens
+single-flight the endpoint probe; the kit validates the exact B1 echo,
+conservatively surfaces a successful missing-echo open as a legacy
+downgrade, and strict mode refuses both missing and cached-legacy
+witnesses)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -346,7 +352,11 @@ The `/connection/open` request body gains one optional field:
   the DTO's existing convention: every `OpenConnectionRequest` member
   carries a `#[serde(alias = "snake_case")]` twin).
 - **Value:** an exact version token (LLP 0064 doctrine). The only token
-  defined by this spec is `"snapback.v1"`.
+  defined by this spec is `"snapback.v1"`. The Rust authority is
+  `Option<String>` and the generated input schema admits `null`; therefore
+  explicit JSON `null` follows the absent/legacy row on both arms. Other
+  present non-string values are invalid or unsupported according to the
+  arm's decoder posture (§0C.3), never known.
 - **Offer matrix** (normative, per LLP 0093 D1):
 
 | Offer | Server behavior |
@@ -463,7 +473,9 @@ stages, each a named gate:
   Cloudflare deployment, a redeploy carrying B1). Non-kit clients are
   **sanctioned to offer early** — before B1, carrying §0B.6's
   legacy-server detection and downgrade diagnostic (the Swift client's
-  shipped behavior); B2's gate binds the kit because the kit cannot
+  shipped behavior, since corrected to the exact decode-class signal under
+  `issues/closed/20260725-0094-swift-decode-class-heuristic.md`); B2's
+  gate binds the kit because the kit cannot
   surface a per-app downgrade diagnostic to every embedding demo.
 - **B3 — socket refusal enabled.** The §0B.4 offerless-upgrade
   (absent-class) refusal turns on, after the recorded blast-radius check
@@ -495,7 +507,13 @@ the other:
   (`packages/snapback-client/index.mjs`), with the §0B.6 fallback, a
   process-lifetime per-endpoint verdict cache, the structured
   `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` diagnostic, and an optional
-  `strictWireVersion` mode. Gate reading, recorded: B1 exists on every
+  `strictWireVersion` mode. Concurrent first opens single-flight the
+  endpoint probe. An offered success is considered explicitly bound only
+  when its echo is exactly `snapback.v1`; a missing echo conservatively
+  records/surfaces a legacy downgrade (without an unnecessary second open),
+  an unequal echo refuses client-side, and strict mode refuses missing-echo
+  and cached-legacy cases rather than opening offerless. Gate reading,
+  recorded: B1 exists on every
   in-repo arm in the same tree; toward the not-yet-redeployed shared
   Cloudflare deployment the offer is non-breaking by the §0B.6 hosted
   caveat itself — a pre-B1 hosted open decoder ignores the member and
@@ -529,17 +547,25 @@ exactly once per endpoint**, caches the verdict for the process
 lifetime, and MUST surface the downgrade as a structured diagnostic
 (never silently). A client may be configured strict (refuse instead of
 downgrade); conformance claims made against a strict configuration are
-claims about v1-bound connections only. (The P-2 Swift client currently
-triggers on any 400/422 except `UNSUPPORTED` — over-broad against this
-pin; ticketed, `issues/20260725-0094-swift-decode-class-heuristic.md`.)
+claims about v1-bound connections only. (The P-2 Swift client formerly
+triggered on any 400/422 except `UNSUPPORTED`; that over-broad heuristic is
+resolved under
+`issues/closed/20260725-0094-swift-decode-class-heuristic.md`.)
 The JS kit implements this pin as of B2 (2026-07-27):
-`SNAPBACK_REQUEST_JSON_INVALID` alone triggers the differential, the
+the exact HTTP 400 + `SNAPBACK_REQUEST_JSON_INVALID` pair triggers the
+differential (the same code at 422 or any other status does not), the
 verdict cache is per endpoint for the process lifetime, the downgrade
 surfaces as `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` (client-minted,
 `SNAPBACK_CLIENT_*` namespace — deliberately not in the §0E server
 registry), and `strictWireVersion: true` refuses with
 `SNAPBACK_CLIENT_WIRE_VERSION_STRICT`; a failed differential re-try
-records no verdict.
+records no verdict. Concurrent first opens share one endpoint probe, so the
+decode-class differential cannot race into multiple offers. The B1 echo is
+also validated: exact `snapback.v1` caches a modern verdict, a different echo
+refuses `SNAPBACK_CLIENT_WIRE_VERSION_ECHO_INVALID`, and an absent echo after
+an offered success is treated conservatively as an unproven/legacy binding,
+surfaced without reopening; strict mode refuses that case and any cached
+legacy verdict.
 
 Hosted caveat, stated plainly: a pre-B1 **hosted** server produces **no
 distinguishing bytes at all** for a `wireVersion`-carrying open — the
@@ -727,7 +753,9 @@ be silently downgraded to v1 semantics it may be unable to satisfy
 value any in-repo caller ever offers is `1`, and absent behavior is
 unchanged, so no deployed caller observes the difference. The change
 ships inside B1, not independently, so the two fields' semantics never
-diverge again.
+diverge again. On the hosted open decoder, conflicting camelCase and
+snake_case alias values are unsupported rather than silently preferring one;
+the local closed serde DTO already refuses duplicate aliases at decode time.
 
 ### 0C.6 Response-shape divergences (audited at `137dee8c`): defects, not contract
 

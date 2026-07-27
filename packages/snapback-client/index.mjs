@@ -181,12 +181,16 @@ const RQS_PERSIST_MAX_DELAY_MS = 10_000;
 // @ref LLP 0094#0b5-staged-bootstrap — B2: the kit offers at open, carrying
 //   the §0B.6 legacy-server detection fallback below.
 const WIRE_VERSION_TOKEN = 'snapback.v1';
-// §0B.6 per-endpoint legacy-server verdicts, cached for the process lifetime:
-// baseUrl -> 'legacy'. A verdict is recorded only when the pinned differential
-// (decode-class rejection that disappears when the offer member alone is
-// removed) proves a pre-B1 server; later opens against that endpoint go
-// offerless without re-probing.
+// §0B.6 per-endpoint server verdicts, cached for the process lifetime:
+// baseUrl -> 'modern' | 'legacy'. `modern` requires the exact §0B.3 echo;
+// `legacy` is proven either by the pinned decode-class differential or by a
+// successful offered open with no echo (the hosted pre-B1 shape). Later opens
+// against a legacy endpoint go offerless without re-probing.
 const wireVersionEndpointVerdicts = new Map();
+// Only one unknown-endpoint probe may run at a time. Concurrent clients wait
+// for its process-wide verdict before deciding whether their own open offers,
+// so the first legacy differential is not multiplied by a race.
+const wireVersionEndpointProbes = new Map();
 
 // The live wire kinds this kit dispatches on, pinned to the committed
 // Rust-generated schemas (LLP 0051 D4 / ENG-23891):
@@ -2820,52 +2824,137 @@ export class SnapbackClient {
       undefined,
       { externalBearerTransitionPermit },
     );
-    const offering = wireVersionEndpointVerdicts.get(this.baseUrl) !== 'legacy';
-    grant = openRequest(offering).catch((error) => {
-      // §0B.6 legacy-server detection. The trigger is exact, not heuristic:
-      // only the decode-class rejection a closed pre-B1 open DTO produces
-      // (SNAPBACK_REQUEST_JSON_INVALID) may start the differential re-try;
-      // SNAPBACK_WIRE_VERSION_UNSUPPORTED is a version-aware refusal and
-      // MUST NOT, nor may any unrelated open-time 400.
-      const rejectionCode = error?.diagnostic?.code ?? error?.code;
-      if (!offering || rejectionCode !== 'SNAPBACK_REQUEST_JSON_INVALID') throw error;
-      if (this.strictWireVersion) {
+    const strictRefusal = (cause, reason) => {
+      const diagnostic = {
+        code: 'SNAPBACK_CLIENT_WIRE_VERSION_STRICT',
+        message: `the server at ${this.baseUrl} ${reason} and this client is configured strict`,
+        details: {
+          endpoint: this.baseUrl,
+          offered: WIRE_VERSION_TOKEN,
+          cause,
+        },
+      };
+      this.#surfaceWireVersionDiagnostic(diagnostic);
+      const refusal = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+      refusal.code = diagnostic.code;
+      refusal.diagnostic = diagnostic;
+      refusal.cause = cause;
+      throw refusal;
+    };
+    const surfaceDowngrade = (detection) => {
+      this.#surfaceWireVersionDiagnostic({
+        code: 'SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED',
+        message: `the server at ${this.baseUrl} did not establish the offered `
+          + `${WIRE_VERSION_TOKEN} binding (${detection}); this client is using a legacy `
+          + '(implicitly v1) connection and will stay offerless toward this endpoint '
+          + 'for the process lifetime',
+        details: {
+          endpoint: this.baseUrl,
+          offered: WIRE_VERSION_TOKEN,
+          detection,
+        },
+      });
+    };
+    const validateOfferedGrant = (granted) => {
+      if (granted?.wireVersion === WIRE_VERSION_TOKEN) {
+        wireVersionEndpointVerdicts.set(this.baseUrl, 'modern');
+        return granted;
+      }
+      if (granted?.wireVersion != null) {
         const diagnostic = {
-          code: 'SNAPBACK_CLIENT_WIRE_VERSION_STRICT',
-          message: `the server at ${this.baseUrl} rejected the wireVersion offer as a `
-            + 'body-decode failure (pre-B1 legacy server suspected) and this client is '
-            + 'configured strict',
+          code: 'SNAPBACK_CLIENT_WIRE_VERSION_ECHO_INVALID',
+          message: `the server at ${this.baseUrl} echoed a wire version other than `
+            + `the offered ${WIRE_VERSION_TOKEN}`,
           details: {
             endpoint: this.baseUrl,
             offered: WIRE_VERSION_TOKEN,
-            cause: error?.diagnostic ?? { code: rejectionCode },
+            echoed: granted.wireVersion,
           },
         };
         this.#surfaceWireVersionDiagnostic(diagnostic);
         const refusal = new Error(`${diagnostic.code}: ${diagnostic.message}`);
         refusal.code = diagnostic.code;
         refusal.diagnostic = diagnostic;
-        refusal.cause = error;
         throw refusal;
       }
-      // The differential: re-open with the offer member alone removed,
-      // exactly once per endpoint. Success proves the pre-B1 closed-DTO
-      // shape; the verdict is cached for the process lifetime and the
-      // downgrade is surfaced as a structured diagnostic. A failed re-try
-      // proves nothing about versions and propagates without a verdict.
-      return openRequest(false).then((granted) => {
-        wireVersionEndpointVerdicts.set(this.baseUrl, 'legacy');
-        this.#surfaceWireVersionDiagnostic({
-          code: 'SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED',
-          message: `the server at ${this.baseUrl} does not admit the wireVersion offer `
-            + '(pre-B1 legacy server); this client opened a legacy (implicitly v1) '
-            + 'connection and will stay offerless toward this endpoint for the process '
-            + 'lifetime',
-          details: { endpoint: this.baseUrl, offered: WIRE_VERSION_TOKEN },
-        });
-        return granted;
+      // A successful offered open without the additive B1 echo is the hosted
+      // pre-B1 shape. It cannot be distinguished from an offerless success by
+      // response bytes alone, but the caller knows it offered; the missing
+      // witness means this connection is not proven explicitly bound.
+      const firstDowngrade = wireVersionEndpointVerdicts.get(this.baseUrl) !== 'legacy';
+      wireVersionEndpointVerdicts.set(this.baseUrl, 'legacy');
+      if (this.strictWireVersion) {
+        return strictRefusal(
+          { code: 'SNAPBACK_CLIENT_WIRE_VERSION_ECHO_MISSING' },
+          `accepted the wireVersion member without echoing the required bound-version witness`,
+        );
+      }
+      if (firstDowngrade) surfaceDowngrade('missing wireVersion response echo');
+      return granted;
+    };
+    const openWithNegotiation = async () => {
+      const verdict = wireVersionEndpointVerdicts.get(this.baseUrl);
+      if (verdict === 'legacy') {
+        if (this.strictWireVersion) {
+          return strictRefusal(
+            { code: 'SNAPBACK_CLIENT_WIRE_VERSION_LEGACY_CACHED' },
+            `was already proven to be a pre-B1 legacy endpoint`,
+          );
+        }
+        return openRequest(false);
+      }
+      if (verdict === 'modern') {
+        return validateOfferedGrant(await openRequest(true));
+      }
+
+      const activeProbe = wireVersionEndpointProbes.get(this.baseUrl);
+      if (activeProbe) {
+        await activeProbe;
+        return openWithNegotiation();
+      }
+
+      let settleProbe;
+      const probe = new Promise((resolve) => {
+        settleProbe = resolve;
       });
-    }).then(
+      wireVersionEndpointProbes.set(this.baseUrl, probe);
+      try {
+        try {
+          return validateOfferedGrant(await openRequest(true));
+        } catch (error) {
+          // §0B.6 legacy-server detection. The trigger is exact, not
+          // heuristic: only the decode-class rejection a closed pre-B1 open
+          // DTO produces may start the differential re-try. The code is not
+          // sufficient by itself: LLP 0094 pins the exact HTTP 400 + code
+          // pair, so a proxy or future 422 using the same code cannot
+          // accidentally authorize a downgrade.
+          const rejectionCode = error?.diagnostic?.code ?? error?.code;
+          if (
+            error?.status !== 400
+            || rejectionCode !== 'SNAPBACK_REQUEST_JSON_INVALID'
+          ) throw error;
+          if (this.strictWireVersion) {
+            return strictRefusal(
+              error?.diagnostic ?? { code: rejectionCode },
+              `rejected the wireVersion offer as a body-decode failure `
+                + `(pre-B1 legacy server suspected)`,
+            );
+          }
+          // Re-open with the offer member alone removed. Success proves the
+          // legacy closed-DTO shape; failure records no verdict.
+          const granted = await openRequest(false);
+          wireVersionEndpointVerdicts.set(this.baseUrl, 'legacy');
+          surfaceDowngrade('decode-class differential');
+          return granted;
+        }
+      } finally {
+        if (wireVersionEndpointProbes.get(this.baseUrl) === probe) {
+          wireVersionEndpointProbes.delete(this.baseUrl);
+        }
+        settleProbe();
+      }
+    };
+    grant = openWithNegotiation().then(
       (granted) => {
         const authorizationInvalidation = granted.authorizationInvalidation == null
           ? null

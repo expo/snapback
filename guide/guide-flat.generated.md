@@ -5852,6 +5852,13 @@ Both local lanes begin with `POST /connection/open`. Offer
 connection-scoped request. A WebSocket offers `snapback.v1` plus
 `snapback.connection-token.<token>` as subprotocols.
 
+`@snapback/client` verifies the open response echoes that exact version. Its
+compatibility bridge downgrades only when the exact pre-B1 decode refusal
+disappears on one offerless retry, or when an offered hosted open succeeds
+without the B1 echo; either case emits a structured diagnostic and is cached
+per endpoint. Set `strictWireVersion: true` to refuse any unproven legacy
+binding instead of using the bridge.
+
 ## Keep the envelope families distinct
 
 The casing differences are wire contract, not style:

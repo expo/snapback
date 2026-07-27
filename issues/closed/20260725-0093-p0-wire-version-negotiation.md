@@ -92,8 +92,9 @@ are implemented and verified on both arms in one landing.
   branch, and echoes on explicitly bound lineages.
 - **§0C.5 alignment, both arms:** unknown `authInvalidationProtocol`
   refuses `SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED`; absent still
-  degrades to legacy (hosted reads the member for exactly this refusal
-  while implementing no invalidation surface).
+  degrades to legacy; conflicting hosted camelCase/snake_case aliases also
+  refuse instead of silently preferring one (hosted reads the member for
+  exactly this refusal while implementing no invalidation surface).
 - **§0B.4 socket refusals, both arms** (`stream_live` /
   `acceptKitSocket`, pre-upgrade HTTP refusals after the credential
   gates): bound-version-present accepts and echoes; known-unequal
@@ -104,13 +105,19 @@ are implemented and verified on both arms in one landing.
 - **B2 kit** (`packages/snapback-client/index.mjs`): offers
   `wireVersion: "snapback.v1"` at open, threads the echo onto the grant
   (`grant.wireVersion`), and implements the §0B.6 pinned fallback —
-  trigger exactly `SNAPBACK_REQUEST_JSON_INVALID`, one offerless
-  differential re-open per endpoint, process-lifetime verdict cache,
+  trigger exactly HTTP 400 + `SNAPBACK_REQUEST_JSON_INVALID` (same code
+  at 422 is a must-not-retry regression), one offerless
+  differential re-open per endpoint, a process-wide single-flight preventing
+  concurrent first opens from multiplying that probe, process-lifetime
+  modern/legacy verdict cache, exact B1 echo validation (missing echo
+  conservatively downgrades and surfaces without another request; unequal
+  echo refuses),
   structured `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` diagnostic
   (recorded on `wireVersionDiagnostics` + `onWireVersionDiagnostic`
   sink / console.warn — never silent), optional `strictWireVersion`
-  refusing with `SNAPBACK_CLIENT_WIRE_VERSION_STRICT`, and no verdict on
-  a failed differential. `SNAPBACK_WIRE_VERSION_UNSUPPORTED` never
+  refusing missing-echo and cached-legacy bindings with
+  `SNAPBACK_CLIENT_WIRE_VERSION_STRICT`, and no verdict on a failed
+  differential. `SNAPBACK_WIRE_VERSION_UNSUPPORTED` never
   triggers the fallback (fixture).
 - **§0B.7 re-run at B3 enablement:** recorded in LLP 0094 §0B.7, with a
   correction — the prior record's "Rust in-crate socket tests are

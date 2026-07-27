@@ -119,7 +119,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-wire-version',
     file: 'cloudflare/test/acceptance.wire-version.mjs',
-    evidence: ['cloudflare wire-version acceptance: 23/23 checks passed'],
+    evidence: ['cloudflare wire-version acceptance: 24/24 checks passed'],
   },
   {
     id: 'config-set',

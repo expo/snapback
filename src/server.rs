@@ -39649,6 +39649,25 @@ globalThis.__snapbackHandlers = {
             "legacy grants must not echo: {legacy}"
         );
 
+        // The Rust Option<String> authority and generated input schema admit
+        // null as the absent class; the hosted arm mirrors this exactly.
+        let nullable_legacy = router
+            .clone()
+            .oneshot(open(json!({
+                "connectionId": "wire_http_null",
+                "wireVersion": null,
+            })))
+            .await
+            .expect("nullable-absent open");
+        assert_eq!(nullable_legacy.status(), StatusCode::OK);
+        assert!(
+            response_json(nullable_legacy)
+                .await
+                .get("wireVersion")
+                .is_none(),
+            "a null offer opens a legacy lineage without an echo"
+        );
+
         // §0C.5 alignment: an unknown authInvalidationProtocol refuses.
         let invalidation = router
             .clone()
