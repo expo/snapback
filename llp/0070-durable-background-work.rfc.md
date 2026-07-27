@@ -5,7 +5,14 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (author-side review reconciliation: jobs and attempts
+**Revised:** 2026-07-26 (Draft-bound executable transition-model checkpoint:
+one shared corpus is now exercised independently by Rust and JavaScript for
+the complete state/event cross-product, CAS/fence refusals, cancellation
+precedence, reclaim supersession, slot transfer/release, and terminal
+immutability. It is explicitly a nonclaim with no runtime import path; storage,
+atomic settlement, fault injection, jitter/SQL parity, scheduling,
+authorization, recovery, and target receipts remain unimplemented).
+2026-07-26 (author-side review reconciliation: jobs and attempts
 are separate; replay creates a successor instead of reopening terminal state;
 the complete transition/CAS precedence, atomic fenced settlement, claim
 supersession, deployment admission epoch, executable-artifact custody,
@@ -511,6 +518,17 @@ The implementation must retain executable evidence that:
   remains invalid at the same logical target; and
 - SQLite and single-process Postgres each run the same state-machine and fault
   corpus before that storage tuple may claim the profile.
+
+The 2026-07-26 `durable-work-state-machine-v0` checkpoint makes only the
+transition skeleton executable. The committed corpus is consumed independently
+by Rust and JavaScript and is wired into the local proof. It exhausts every
+state/event pair and the named CAS/fence, cancellation-success, reclaim, slot,
+and terminal-state rules, but it does not touch product runtime or storage.
+It is therefore review input, not evidence for `CaptureOnly`, `SingleProcess`,
+or any other capability class. The remaining acceptance bullets—including
+transactional enqueue, atomic settlement and fault injection, portable
+jitter/SQL parity, scheduler fairness, auth, artifact custody, restore,
+SQLite/Postgres execution, and retained receipts—remain red.
 
 The retained receipt names the target profile, app/database/deployment/stream
 identities, repository and artifact digests, queue declarations, effective

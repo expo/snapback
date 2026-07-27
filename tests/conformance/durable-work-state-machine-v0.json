@@ -1,0 +1,262 @@
+{
+  "version": "durable-work-state-machine-v0",
+  "rfc": "LLP 0070",
+  "claimClass": "draft-nonclaim",
+  "states": [
+    "pending",
+    "claimed",
+    "cancelRequested",
+    "ambiguous",
+    "succeeded",
+    "dead",
+    "cancelled"
+  ],
+  "terminalStates": [
+    "succeeded",
+    "dead",
+    "cancelled"
+  ],
+  "events": [
+    "claim",
+    "cancel",
+    "deadline",
+    "retry",
+    "terminalSucceeded",
+    "terminalDead",
+    "requestCancel",
+    "cancelBeforeEffect",
+    "ambiguousOutcome",
+    "reclaim",
+    "reconcileSucceeded",
+    "reconcileDead",
+    "reconcileCancelled"
+  ],
+  "transitions": [
+    {
+      "current": "pending",
+      "event": "claim",
+      "next": "claimed",
+      "claimGuard": false,
+      "attemptDelta": 1,
+      "fenceDelta": 1,
+      "slot": "acquire",
+      "attemptDisposition": "opened"
+    },
+    {
+      "current": "pending",
+      "event": "cancel",
+      "next": "cancelled",
+      "claimGuard": false,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "none",
+      "attemptDisposition": "cancelled_before_claim"
+    },
+    {
+      "current": "pending",
+      "event": "deadline",
+      "next": "dead",
+      "claimGuard": false,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "none",
+      "attemptDisposition": "deadline_before_claim"
+    },
+    {
+      "current": "claimed",
+      "event": "retry",
+      "next": "pending",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "retryable"
+    },
+    {
+      "current": "claimed",
+      "event": "terminalSucceeded",
+      "next": "succeeded",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "succeeded"
+    },
+    {
+      "current": "claimed",
+      "event": "terminalDead",
+      "next": "dead",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "dead"
+    },
+    {
+      "current": "claimed",
+      "event": "requestCancel",
+      "next": "cancelRequested",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "retain",
+      "attemptDisposition": "open_cancel_requested"
+    },
+    {
+      "current": "claimed",
+      "event": "ambiguousOutcome",
+      "next": "ambiguous",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "ambiguous"
+    },
+    {
+      "current": "claimed",
+      "event": "reclaim",
+      "next": "claimed",
+      "claimGuard": true,
+      "attemptDelta": 1,
+      "fenceDelta": 1,
+      "slot": "transfer",
+      "attemptDisposition": "superseded"
+    },
+    {
+      "current": "cancelRequested",
+      "event": "cancelBeforeEffect",
+      "next": "cancelled",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "cancelled"
+    },
+    {
+      "current": "cancelRequested",
+      "event": "terminalSucceeded",
+      "next": "succeeded",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "succeeded"
+    },
+    {
+      "current": "cancelRequested",
+      "event": "terminalDead",
+      "next": "dead",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "dead"
+    },
+    {
+      "current": "cancelRequested",
+      "event": "ambiguousOutcome",
+      "next": "ambiguous",
+      "claimGuard": true,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "release",
+      "attemptDisposition": "ambiguous"
+    },
+    {
+      "current": "cancelRequested",
+      "event": "reclaim",
+      "next": "claimed",
+      "claimGuard": true,
+      "attemptDelta": 1,
+      "fenceDelta": 1,
+      "slot": "transfer",
+      "attemptDisposition": "superseded"
+    },
+    {
+      "current": "ambiguous",
+      "event": "reconcileSucceeded",
+      "next": "succeeded",
+      "claimGuard": false,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "none",
+      "attemptDisposition": "reconciled_succeeded"
+    },
+    {
+      "current": "ambiguous",
+      "event": "reconcileDead",
+      "next": "dead",
+      "claimGuard": false,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "none",
+      "attemptDisposition": "reconciled_dead"
+    },
+    {
+      "current": "ambiguous",
+      "event": "reconcileCancelled",
+      "next": "cancelled",
+      "claimGuard": false,
+      "attemptDelta": 0,
+      "fenceDelta": 0,
+      "slot": "none",
+      "attemptDisposition": "reconciled_cancelled"
+    }
+  ],
+  "guardVectors": [
+    {
+      "name": "stale state version",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "stateVersion": 6
+      },
+      "code": "SNAPBACK_JOB_CAS_STALE"
+    },
+    {
+      "name": "wrong target incarnation",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "targetIncarnation": "target-b"
+      },
+      "code": "SNAPBACK_JOB_CAS_STALE"
+    },
+    {
+      "name": "wrong restore epoch",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "restoreEpoch": 3
+      },
+      "code": "SNAPBACK_JOB_CAS_STALE"
+    },
+    {
+      "name": "wrong execution domain",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "executionDomain": "domain-b"
+      },
+      "code": "SNAPBACK_JOB_CAS_STALE"
+    },
+    {
+      "name": "wrong claim id",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "claimId": "claim-stale"
+      },
+      "code": "SNAPBACK_JOB_CLAIM_STALE"
+    },
+    {
+      "name": "wrong fence",
+      "state": "claimed",
+      "event": "terminalSucceeded",
+      "override": {
+        "fence": 1
+      },
+      "code": "SNAPBACK_JOB_CLAIM_STALE"
+    }
+  ]
+}
