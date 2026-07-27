@@ -172,6 +172,9 @@ pub enum ReplayConsumeError {
     Capacity,
     Unavailable,
     Invalid,
+    /// The thumbprint already holds a live family nonce cell under the current
+    /// epoch; a second family cannot be installed for the same key.
+    KeyBound,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -645,8 +648,101 @@ impl SenderIssuanceCommitment {
                     self.initial_nonce_expires_at_seconds as i64,
                 ],
             )
-            .map_err(|_| ReplayConsumeError::Unavailable)?;
+            .map_err(|error| {
+                if error
+                    .sqlite_error_code()
+                    .is_some_and(|code| code == ErrorCode::ConstraintViolation)
+                {
+                    ReplayConsumeError::KeyBound
+                } else {
+                    ReplayConsumeError::Unavailable
+                }
+            })?;
         Ok(())
+    }
+
+    /// True when the current epoch already holds a live (unexpired) nonce cell
+    /// for this commitment's thumbprint — i.e. another session family is bound
+    /// to the same key. `install` would refuse such an insert on its
+    /// `(admission_epoch, jwk_thumbprint)` primary key; callers use this check
+    /// inside the same write transaction to refuse with a coded outcome before
+    /// any session state is written. Expired cells do not count: `install`
+    /// garbage-collects them ahead of its insert.
+    pub(crate) fn thumbprint_has_live_family(
+        &self,
+        transaction: &Transaction<'_>,
+    ) -> Result<bool, ReplayConsumeError> {
+        let sender_replay_epoch = sender_replay_epoch(transaction)?;
+        transaction
+            .query_row(
+                &format!(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM {NONCE_TABLE}
+                       WHERE admission_epoch = ?1 AND jwk_thumbprint = ?2
+                         AND expires_at_seconds >= ?3
+                     )"
+                ),
+                params![
+                    sender_replay_epoch as i64,
+                    self.jwk_thumbprint,
+                    self.committed_at_seconds as i64,
+                ],
+                |row| row.get(0),
+            )
+            .map_err(|_| ReplayConsumeError::Unavailable)
+    }
+
+    /// Durable witness that a key-bound refusal committed: the proof id was
+    /// consumed, no family binding exists for the refused session id, and the
+    /// thumbprint's nonce cell still belongs to the pre-existing family.
+    pub(crate) fn is_key_bound_successor(
+        &self,
+        connection: &Connection,
+        session_id: &str,
+    ) -> Result<bool, ReplayConsumeError> {
+        let sender_replay_epoch = sender_replay_epoch(connection)?;
+        let binding: bool = connection
+            .query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _snapback_sender_family_binding WHERE session_id = ?1
+                 )",
+                params![session_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+        let replay_expiry: Option<i64> = connection
+            .query_row(
+                &format!(
+                    "SELECT expires_at_seconds FROM {REPLAY_TABLE}
+                     WHERE admission_epoch = ?1 AND proof_id = ?2"
+                ),
+                params![sender_replay_epoch as i64, self.proof_id.as_slice()],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+        let foreign_nonce: bool = connection
+            .query_row(
+                &format!(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM {NONCE_TABLE}
+                       WHERE admission_epoch = ?1 AND jwk_thumbprint = ?2
+                         AND nonce <> ?3
+                     )"
+                ),
+                params![
+                    sender_replay_epoch as i64,
+                    self.jwk_thumbprint,
+                    self.initial_nonce,
+                ],
+                |row| row.get(0),
+            )
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+        Ok(
+            !binding
+                && foreign_nonce
+                && replay_expiry == Some(self.proof_expires_at_seconds as i64),
+        )
     }
 
     pub(crate) fn is_exact_successor(

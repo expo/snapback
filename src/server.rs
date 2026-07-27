@@ -11834,7 +11834,9 @@ async fn coordinated_mint_session(
         let outcome = await_owned_auth_transaction(transaction).await?;
         match outcome? {
             IssuanceFinish::Committed(issue) => return Ok(issue),
-            IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
+            IssuanceFinish::CodeInvalid
+            | IssuanceFinish::CodeLocked
+            | IssuanceFinish::SenderKeyBound => {
                 return Err(auth_provider_unavailable_error());
             }
             IssuanceFinish::CandidateCollision => continue,
@@ -11976,6 +11978,9 @@ async fn coordinated_exchange_session(
                     }
                     IssuanceFinish::CodeLocked => {
                         return Err(crate::auth::provider::code_locked());
+                    }
+                    IssuanceFinish::SenderKeyBound => {
+                        return Err(crate::auth::provider::sender_key_bound());
                     }
                     IssuanceFinish::CandidateCollision => continue,
                     IssuanceFinish::PredecessorChanged => continue,

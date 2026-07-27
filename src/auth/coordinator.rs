@@ -265,6 +265,7 @@ pub(crate) enum IssuanceFinish {
     Committed(CredentialIssue),
     CodeInvalid,
     CodeLocked,
+    SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
 }
@@ -926,6 +927,10 @@ impl AuthCoordinator {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CodeLocked)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::SenderKeyBound)
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
                 session,

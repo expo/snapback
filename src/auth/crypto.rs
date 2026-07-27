@@ -423,6 +423,10 @@ impl SessionBearer {
         parse_bearer(input, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
     }
 
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: accepts both session
+    // spellings so the verifier side is v2-ready, but nothing mints `sbs2_`
+    // yet (issues/20260727-llp0077-v2-prefix-minting.md), so this resolves
+    // only the v1 spelling in production today.
     pub(crate) fn parse_any_version(input: &str) -> Result<Self, CryptoError> {
         Self::parse(input).or_else(|_| Self::parse_sender_v2(input))
     }
@@ -547,6 +551,14 @@ pub enum CredentialClass {
     Session,
     /// `sbs2_` — sender-constrained browser session bearer. The v1 parser for
     /// `sbs_` cannot accept this versioned spelling.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer (the
+    /// legacy-rejecting versioned prefix). RESERVED, NOT YET ISSUED: the
+    /// production exchange still mints sender-bound sessions with the `sbs_`
+    /// spelling, and the sender constraint is enforced through the durable
+    /// family binding, not the prefix. Until the v2 minting lands
+    /// (`issues/20260727-llp0077-v2-prefix-minting.md`), the mixed-version
+    /// rollback defense rests on LLP 0060 D6 alone.
     SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
@@ -572,6 +584,10 @@ pub enum CredentialClass {
     ConnectionToken,
     /// `sct2_` — a sender-constrained v2 connection token. A v1 connection
     /// token parser cannot accept this structurally distinct spelling.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4, reserved and unissued
+    /// exactly as `SenderSession` above; sender-bound grants currently ride
+    /// `sct_` tokens whose sender-ness is durable grant state.
     SenderConnectionToken,
     /// `sbrk_` — the secret-read root key.
     SecretReadRootKey,
@@ -612,9 +628,13 @@ impl CredentialClass {
         }
     }
 
-    pub fn is_session(self) -> bool {
-        matches!(self, Self::Session | Self::SenderSession)
-    }
+    // NOTE: there is deliberately no `is_session()` fold over `Session` and
+    // `SenderSession`. While `sbs2_` is reserved-unissued, such a fold would
+    // pre-declare that a v1 `sbs_` bearer satisfies any check written against
+    // the sender-constrained class — the opposite of what the class exists
+    // for (issues/closed/20260725-sender-constrained-classes-unwired.md).
+    // Reintroduce it, if ever, only alongside the v2 minting path with a call
+    // site that needs it.
 
     /// Whether a value of this class can ever resolve to live authority when
     /// presented as a bearer. Identifiers (`sbc_`, `sbak_`) and the secret-read

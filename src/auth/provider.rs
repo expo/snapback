@@ -1028,6 +1028,10 @@ pub(crate) enum PlannedIssuanceCommit {
     },
     CodeInvalid,
     CodeLocked,
+    // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
+    // thumbprint: a valid proof over an already-bound key consumes its proof
+    // id and refuses without touching the challenge, session, or nonce state.
+    SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
 }
@@ -4194,6 +4198,26 @@ fn attempt_planned_session_issuance(
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
             }
         }
+        PlannedIssuanceCommit::SenderKeyBound => {
+            // The only durable write on this outcome is the proof-id
+            // consumption; its presence (with our exact expiry) alongside the
+            // absent binding and the pre-existing family's nonce cell is the
+            // committed witness.
+            let Some(sender_issuance) = plan.sender_issuance.as_ref() else {
+                return AuthTransactionAttempt::CommitUncertain(commit_error);
+            };
+            match database.with_auth_read(|connection| {
+                sender_issuance
+                    .is_key_bound_successor(connection, &plan.projected.session_id)
+                    .map_err(|_| internal_state_snapback())
+            }) {
+                Ok(true) => {
+                    AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+                }
+                Ok(false) => AuthTransactionAttempt::RolledBack(commit_error),
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
         PlannedIssuanceCommit::Committed { .. } => {
             match database.with_auth_read(|connection| reconcile_planned_issuance(connection, plan))
             {
@@ -4302,6 +4326,22 @@ fn planned_session_issuance_transaction(
         }
     } else if exchange_proof.is_some() {
         return Err(internal_state_snapback());
+    }
+    if let Some(sender_issuance) = &plan.sender_issuance
+        && sender_issuance
+            .thumbprint_has_live_family(transaction)
+            .map_err(|_| internal_state_snapback())?
+    {
+        // The code was correct, so no attempt is charged and the challenge
+        // stays live for a retry under a fresh key; the valid proof still
+        // consumes its `jti` (the LLP 0077 issuance-outcome rule). This check
+        // and `install`'s nonce insert run under the same immediate write
+        // transaction, so a concurrent same-key exchange serializes here
+        // rather than surfacing the nonce-table constraint as a 500.
+        sender_issuance
+            .consume_rejected_outcome(transaction)
+            .map_err(|_| internal_state_snapback())?;
+        return Ok(PlannedIssuanceCommit::SenderKeyBound);
     }
     let durable_identity: Option<(String, String)> = transaction
         .query_row(
@@ -5040,6 +5080,18 @@ pub(crate) fn code_invalid() -> ProviderError {
         "SNAPBACK_AUTH_CODE_INVALID",
         "auth",
         "verification code is invalid",
+    ))
+}
+
+// @ref LLP 0077#diagnostics-and-redaction — the public refusal set is closed;
+// an already-bound key folds into SNAPBACK_AUTH_SENDER_PROOF_INVALID with no
+// distinguishing detail. Only the key holder can reach this outcome (it
+// requires a valid signature), so the fold leaks nothing and is not an oracle.
+pub(crate) fn sender_key_bound() -> ProviderError {
+    ProviderError::new(SnapbackError::error(
+        "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        "auth",
+        "sender proof is not valid for issuance",
     ))
 }
 
@@ -7127,6 +7179,139 @@ mod tests {
             })
             .expect("atomic sender issuance facts");
         assert_eq!(facts, (1, 1, 1, expected_nonce));
+    }
+
+    // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
+    // thumbprint. A second valid issuance over an already-bound key must
+    // refuse with a committed SenderKeyBound outcome (not a nonce-table
+    // constraint surfaced as INTERNAL_AUTH_STATE), consume only its proof id,
+    // and leave the incumbent family untouched; once the incumbent's nonce
+    // cell expires the same thumbprint issues again.
+    #[tokio::test]
+    async fn planned_issuance_refuses_a_second_family_for_a_live_thumbprint() {
+        let now_ms = 45_000;
+        let (provider, mut database) = provider_database(now_ms);
+        database
+            .initialize_sender_proof_after_hosted_preflight()
+            .expect("initialize hosted sender authority");
+        let thumbprint = URL_SAFE_NO_PAD.encode([4_u8; 32]);
+
+        let first_admission = provider
+            .admit_email("sender-key-bound-first@example.com")
+            .await
+            .expect("first issuance admission");
+        let mut first_plan = first_admission
+            .plan_mint_session(&database, now_ms)
+            .expect("first issuance plan");
+        let first_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [3; 16],
+                jwk_thumbprint: thumbprint.clone(),
+                issued_at_seconds: now_ms / 1_000,
+            },
+            now_ms / 1_000,
+            120,
+        )
+        .expect("first sender commitment");
+        let incumbent_nonce = first_commitment.initial_nonce_for_transport().to_owned();
+        first_plan
+            .bind_sender_issuance(first_commitment)
+            .expect("bind first sender issuance");
+        assert!(matches!(
+            first_admission.commit_planned_issuance(&mut database, &first_plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
+
+        let second_admission = provider
+            .admit_email("sender-key-bound-second@example.com")
+            .await
+            .expect("second issuance admission");
+        let mut second_plan = second_admission
+            .plan_mint_session(&database, now_ms + 1)
+            .expect("second issuance plan");
+        let second_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [5; 16],
+                jwk_thumbprint: thumbprint.clone(),
+                issued_at_seconds: (now_ms + 1) / 1_000,
+            },
+            (now_ms + 1) / 1_000,
+            120,
+        )
+        .expect("second sender commitment");
+        second_plan
+            .bind_sender_issuance(second_commitment)
+            .expect("bind second sender issuance");
+        let second_commit_plan = second_plan.commit_plan();
+        assert!(matches!(
+            second_admission.commit_planned_issuance(&mut database, &second_commit_plan),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+        ));
+
+        let facts: (i64, i64, i64, String, i64) = database
+            .with_auth_read(|connection| {
+                Ok((
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_family_binding",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT nonce FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection
+                        .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| row.get(0))?,
+                ))
+            })
+            .expect("key-bound refusal facts");
+        // One binding and one session (the incumbent's), both proof ids
+        // consumed, and the incumbent's generation-one nonce untouched.
+        assert_eq!(
+            facts,
+            (1, 2, 1, incumbent_nonce, 1),
+            "a key-bound refusal consumes only its proof id"
+        );
+
+        // Past the incumbent nonce's lifetime the cell is expired: the same
+        // thumbprint issues a fresh family again (install garbage-collects the
+        // expired cell ahead of its insert).
+        let later_ms = now_ms + 200_000;
+        let third_admission = provider
+            .admit_email("sender-key-bound-third@example.com")
+            .await
+            .expect("third issuance admission");
+        let mut third_plan = third_admission
+            .plan_mint_session(&database, later_ms)
+            .expect("third issuance plan");
+        let third_commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [7; 16],
+                jwk_thumbprint: thumbprint,
+                issued_at_seconds: later_ms / 1_000,
+            },
+            later_ms / 1_000,
+            120,
+        )
+        .expect("third sender commitment");
+        third_plan
+            .bind_sender_issuance(third_commitment)
+            .expect("bind third sender issuance");
+        assert!(matches!(
+            third_admission.commit_planned_issuance(&mut database, &third_plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
     }
 
     #[tokio::test]

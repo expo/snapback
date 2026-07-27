@@ -1,6 +1,22 @@
 # Sender-constrained credential classes are registered but nothing mints or enforces them
 
-**Status:** Open
+**Status:** Resolved (2026-07-27)
+
+**Resolution:** both options, split by hazard. The trap half of option 1 is
+taken: `CredentialClass::is_session()` is deleted (zero callers; an unused
+fold that would have granted v1 `sbs_` acceptance to any future
+sender-constrained check). The classes themselves and `parse_any_version`
+stay, per option 2, with `@ref LLP 0077#author-decisions` annotations in
+`src/auth/crypto.rs` recording them as reserved-unissued: they are the
+commissioned first layer of decision 4's downgrade defense (the
+legacy-rejecting versioned prefix), which production has not minted yet —
+sender-bound sessions still carry the `sbs_` spelling and their sender-ness
+is durable family-binding state. The v2 minting is its own reviewed change,
+filed as `issues/20260727-llp0077-v2-prefix-minting.md` (P2, since a
+pre-sender v1 *server* rollback would honor an `sbs_` sender-bound token as
+a plain bearer; only the prefix closes that, and decision 4 rejects sole
+reliance on LLP 0060 D6). LLP 0077's decision-4 checkpoint records the same
+caveat.
 **Severity:** P3
 **Systems:** Auth, Credentials
 **Author:** Claude (Opus 5), directed by Charlie Cheever

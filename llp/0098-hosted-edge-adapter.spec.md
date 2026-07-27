@@ -5,7 +5,11 @@
 **Systems:** Auth, Security, Deployment, Control plane, HTTP, TLS, Realtime, Operations, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial contract: the first concrete adapter that
+**Revised:** 2026-07-27 (§8.5: the served-origin LLP 0077 matrix ran for the
+first time against the real public HTTPS origin and found D-2, a bound-key
+re-exchange 500 on client-controllable input, now fixed in LLP 0077;
+§8.3 resolved, the D4 volume retained the certificate across the wake) 2026-07-25
+(initial contract: the first concrete adapter that
 owns LLP 0060's hosted-edge attestation)
 **Related:** LLP 0009, LLP 0012, LLP 0031, LLP 0039, LLP 0051, LLP 0053,
 LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0072, LLP 0074, LLP 0075,
@@ -653,9 +657,10 @@ deployment. S4's fix is confirmed live: `/_snapback/admin` and
 
 The LLP 0077 matrix was executed by a new instrument,
 `demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs`
-(38 checks: issuance, protected requests, the nonce protocol and its
-anti-oracle rule, replay, the grant matrix over both carriers, the WebSocket
-`sender_nonce` release, and ten refusal axes).
+(now 43 checks: issuance including the bound-key re-exchange refusal added for
+D-2, protected requests, the nonce protocol and its anti-oracle rule, replay,
+the grant matrix over both carriers, the WebSocket `sender_nonce` release, and
+the refusal axes).
 
 **A third attested-but-unenforced fact, and it was mine.** The matrix found
 that `effectiveSource: "trusted"` was attested while
@@ -705,24 +710,25 @@ prove refused requests never poll the body. The matrix's
 `refusal/absent-authorization-refuses-before-body-ingestion` check now passes;
 see LLP 0077 §HTTP binding for the normative statement of the hoist.
 
-### 8.3 Served-origin rerun blocked by the recorded platform limit
+### 8.3 Served-origin rerun blocked by the recorded platform limit (resolved 2026-07-27)
 
 The matrix run in §8.2 was against a *local* hosted origin composed identically
 to the deployed one. The served-origin rerun (which would additionally exercise
-the real in-container terminator and the platform edge) was attempted and is
+the real in-container terminator and the platform edge) was attempted and was
 **blocked by the exact no-volume risk §8.1 recorded**: the redeploy carrying the
-effective-source fix wiped Caddy's certificate storage, and re-issuance now
-fails against Let's Encrypt's duplicate-certificate rate limit ("could not get
-certificate from issuer"). The origin itself is healthy — it listens on
+effective-source fix wiped Caddy's certificate storage, and re-issuance failed
+against Let's Encrypt's duplicate-certificate rate limit ("could not get
+certificate from issuer"). The origin itself was healthy — it listens on
 `127.0.0.1:4287`, sessions is active, and the loopback path works — but the
-public HTTPS leg has no certificate until the weekly limit clears.
+public HTTPS leg had no certificate until the weekly limit cleared.
 
-This blocks the served rerun; it does **not** change the verdict. D-1 is a
-genuine defect, so `hostedAuthCapable` cannot be claimed on either origin. The
-served rerun is a strengthening of already-red evidence, not the thing standing
-between the program and a positive claim. Reproducing it needs either the
-rate-limit window to clear or a persistent volume for Caddy's cert storage (the
-production answer §8.1 already names).
+**The window cleared 2026-07-27 (§8.5 records the served run).** The D4 volume
+(§8.4) retained the certificate across the wake and redeploy, and the served
+matrix ran for the first time. It did not merely reproduce the local verdict:
+it surfaced D-2 (§8.5), a real state-invariant defect on client-controllable
+input that only a served — or any real — exchange sequence exposed. Consistent
+with §8.2's lesson: the served origin is where "the code is correct locally"
+is separated from "the code is correct under real sequencing".
 
 **Not run in the first run.** The LLP 0077 matrix. The deployment's active auth mode is `dev`;
 sessions mode is selected by the application schema and requires a
@@ -799,24 +805,67 @@ witnessed on the served deployment:
   (no operator hammering) will obtain the certificate once the window clears,
   and it then persists on the volume across redeploys and stop/start cycles.
 
-**What remains for `hostedAuthCapable`, exactly.** One leg: the served-origin
-LLP 0077 matrix (42 checks, currently 42/42 against the identically composed
-local origin) plus the LLP 0072 drill legs that need public HTTPS. Recipe for
-the session that runs it after the window clears: (1) mint a fresh chain
-(`snapback-hosted-admission mint` with the control-plane seed; the delivered
-chain expires ~4 h after mint, and the renewal loop hot-swaps from
-`/data/admission.json`, so a live chain can be delivered by `fly ssh sftp`
-without a restart); (2) run
-`demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs` with
-`SNAPBACK_MATRIX_ORIGIN=https://snapback-drill.fly.dev`,
-`SNAPBACK_MATRIX_PUBLIC_ORIGIN=https://snapback-drill.fly.dev`, and
-`SNAPBACK_MATRIX_CODE_SOURCE=command` where the command recovers the code by
-reading the challenge digest row and keyring over `fly ssh console -C`
-(sqlite3 ships in the image; the digest recomputation is LLP 0057's
-capture-mailbox recovery, identical to the local `operator-digest` source).
-No fence was weakened anywhere in this pass: the D1 plaintext refusal now
-extends to the terminator, the hosted profile still requires loopback, and no
-`hostedAuthCapable` claim is made.
+**Recipe for the served run** (executed 2026-07-27, §8.5). After the window
+clears: (1) mint a fresh chain (`snapback-hosted-admission mint` with the
+control-plane seed; the delivered chain expires ~4 h after mint, and the
+renewal loop hot-swaps from `/data/admission.json`, so a live chain can be
+delivered by `fly secrets set SNAPBACK_HOSTED_ADMISSION_B64` or `fly ssh sftp`);
+(2) run `demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs`
+with `SNAPBACK_MATRIX_ORIGIN=https://snapback-drill.fly.dev`,
+`SNAPBACK_MATRIX_PUBLIC_ORIGIN=https://snapback-drill.fly.dev`,
+`SNAPBACK_MATRIX_COMPOSITION=served-terminator` (the deployed Caddy is the
+trusted terminator, not the instrument), and `SNAPBACK_MATRIX_CODE_SOURCE=command`
+where the command recovers the code by reading the challenge digest row and
+keyring over `fly ssh console -C` (sqlite3 ships in the image; the digest
+recomputation is LLP 0057's capture-mailbox recovery, identical to the local
+`operator-digest` source). No fence was weakened anywhere in this pass: the D1
+plaintext refusal now extends to the terminator, the hosted profile still
+requires loopback, and no `hostedAuthCapable` claim is made in this document.
+
+### 8.5 The served-origin matrix ran, and it found D-2 (2026-07-27)
+
+The rate-limit window cleared, the D4 volume retained the certificate across
+the machine wake, and the D-1-fixed binary was redeployed. The LLP 0077 matrix
+ran against the served origin `https://snapback-drill.fly.dev` in the
+`served-terminator` composition — the first time it executed against a real
+public HTTPS origin behind the real in-namespace terminator rather than in
+process. It surfaced **D-2**, filed as an LLP 0077 ledger defect and fixed
+there:
+
+- **D-2 — a bound-key re-exchange answered `500 INTERNAL_AUTH_STATE`.** A second
+  `/auth/exchange` carrying a valid issuance proof over an *already-bound*
+  custody key (fresh challenge, correct code) hit the sender-nonce table's
+  `(admission_epoch, jwk_thumbprint)` primary key and surfaced the constraint
+  as a state-invariant 500 — on client-controllable input. Fixed by hoisting
+  the one-live-family-per-thumbprint rule into the exchange transaction: it
+  pre-checks the live nonce cell and refuses with the folded
+  `SNAPBACK_AUTH_SENDER_PROOF_INVALID` before any write, consuming only the
+  proof's `jti`. See LLP 0077 §Issuance and the Revised header. This is the
+  same defect class as §8.2's effective-source finding: a path exercised only
+  by a real sequence, not by the per-check unit tests.
+
+The instrument gained a `served-terminator` composition so the effective-source
+rows (E1–E5) assert the *composed* property through the real terminator —
+no client-supplied forwarding header can deny admission or steer the derived
+source — rather than the origin's own fail-closed derivation, which stays
+proven by the `instrument-terminator` composition (43/43 local). Two wrong-origin
+probes (the issuance origin-confusion check and the connect-origin refusal axis)
+bind their proof to the loopback upstream origin, because on a served run the
+connect origin and publicOrigin coincide, so a proof bound to the connect origin
+is *valid* and would pass admission and rotate the live nonce — the substitution
+keeps them genuine refusals.
+
+**After the D-2 fix landed, the origin was redeployed and the served matrix
+scored 43/43** against `https://snapback-drill.fly.dev` in `served-terminator`
+composition, with operator-DB bucket observation over `fly ssh` — receipt
+`demos/competitive-checkpoint/acceptance/results/hosted-sender-matrix.v0.served-20260727.json`
+(`ok: true`). The serving window then expired as designed (no renewal loop;
+open question 1), which does not affect the captured receipt.
+
+The remaining distance to `hostedAuthCapable` is recorded in the LLP 0077
+program index (the LLP 0072 drill-receipt legs, blocked on a codegen-emitted
+`trusted-single-tenant-app-complete.v1` target); this document claims no
+capability.
 
   **It cannot widen the serving window.** Each installed authority keeps its own
   `issuedAtMs`/`expiresAtMs` and every request re-checks them; the loop only

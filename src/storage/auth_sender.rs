@@ -43,6 +43,8 @@ impl LocalDatabase {
                 ReplayConsumeError::Replay => "replay",
                 ReplayConsumeError::Unavailable => "unavailable",
                 ReplayConsumeError::Invalid => "invalid",
+                // Table DDL performs no family install; unreachable here.
+                ReplayConsumeError::KeyBound => "key-bound",
             };
             SnapbackError::error(
                 "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",

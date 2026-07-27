@@ -5,7 +5,27 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-25 (D-1 fixed — the served-origin matrix's ordering
+**Revised:** 2026-07-27 (served-origin matrix run for real, and D-2 fixed — the
+first true served-origin run of the LLP 0077 matrix against
+`https://snapback-drill.fly.dev` (D-1-fixed binary, sessions staged under
+hosted admission) surfaced D-2: a second `/auth/exchange` over an
+already-bound custody key answered `500 INTERNAL_AUTH_STATE` because the
+issuance transaction hit the sender-nonce table's `(admission_epoch,
+jwk_thumbprint)` primary key on client-controllable input. Fixed by the
+one-live-family-per-thumbprint rule now normative in §Issuance: the exchange
+transaction pre-checks the live nonce cell and refuses with the folded
+`SNAPBACK_AUTH_SENDER_PROOF_INVALID` before any session/challenge/nonce write,
+consuming only the proof's `jti`; a Rust negative test
+(`planned_issuance_refuses_a_second_family_for_a_live_thumbprint`) and a wire
+check (`issuance/a-second-exchange-with-a-bound-key-refuses-coded`) pin it. The
+matrix instrument gained a served-terminator composition (the real Caddy
+terminator replaces `X-Forwarded-For`, so the effective-source rows assert
+composed spoof-immunity and the origin-confusion probe binds to the internal
+upstream) and now runs 43/43 against the local hosted origin. The served rerun
+after the D-2 fix is recorded in the program index. Decision 4's versioned
+`sbs2_`/`sct2_` prefixes are annotated reserved-unissued with follow-on
+`issues/20260727-llp0077-v2-prefix-minting.md`.) 2026-07-25 (D-1 fixed — the
+served-origin matrix's ordering
 defect, an unauthenticated caller reaching the JSON parser on
 function-authenticated invocation routes, is closed by hoisting the
 function-level closed `authRequirement` into the hosted route-policy
@@ -753,6 +773,24 @@ issuance transaction: no supported server API may attach a constraint to an
 already-existing session id, so a v1 (bearer-only) family can never be
 upgraded in place — migration is deletion-and-re-exchange, never attachment.
 
+**One live family per thumbprint.** A thumbprint's nonce cell is unique within
+the `sender_replay_epoch` (its storage primary key), so a live family already
+owns it. A second issuance over an already-bound key — a valid proof plus a
+correct code — MUST therefore refuse with the folded
+`SNAPBACK_AUTH_SENDER_PROOF_INVALID` diagnostic *inside the same immediate
+write transaction*, before any session, identity, challenge-consumption, or
+nonce write. The valid proof still consumes its `jti` (the issuance-outcome
+rule below); the correct code is not charged an attempt and the challenge stays
+live for a retry under a fresh key. The refusal is a committed outcome, not a
+storage-constraint surfaced as a state-invariant failure: the pre-check and the
+family install serialize on the same write transaction, so a concurrent same-key
+exchange is refused deterministically rather than racing the nonce-table
+primary key. An expired incumbent nonce cell does not count — issuance
+garbage-collects it ahead of the install, so the same thumbprint issues again
+once its prior family's nonce lifetime elapses. Only the key holder can reach
+this outcome (it requires a valid signature over the challenge), so folding it
+into `_INVALID` with no distinguishing detail is not an oracle.
+
 The replay uniqueness namespace is the tuple `(sender_replay_epoch,
 proof_id)` within a deployment, and nonces are keyed by the same
 `sender_replay_epoch`. The epoch's lifecycle is normative, not an open
@@ -840,11 +878,32 @@ code-attempt counter:
   did not commit; a wrong code still increments the LLP 0057 attempt counter;
   and
 - only a valid proof plus a correct code binds the thumbprint and publishes
-  the credential, all in one transaction.
+  the credential, all in one transaction; and
+- **one live family per thumbprint** (normative as of 2026-07-27, closing
+  served-origin defect D-2 below): a valid proof plus a correct code whose
+  thumbprint already holds a live (unexpired) nonce cell under the current
+  `sender_replay_epoch` refuses issuance with the folded
+  `SNAPBACK_AUTH_SENDER_PROOF_INVALID` (the closed diagnostics set admits no
+  key-bound distinction; only the key holder can reach this outcome, since it
+  requires a valid signature, so the fold is not an oracle). The refusal
+  consumes the proof's `jti` (the valid-proof rule above), charges no code
+  attempt, and leaves the challenge live — the conforming client (which mints
+  a fresh non-extractable key per issuance) retries under a fresh key without
+  re-requesting a code. The check runs inside the same immediate write
+  transaction as family install, so a concurrent same-key exchange serializes
+  into the same coded refusal rather than surfacing the nonce-table
+  primary-key conflict as a 500.
 
-LLP 0057 carries a corresponding Revised note covering both the extended
-exchange member/header and this issuance-outcome accounting; for the extended
-member, header, and this outcome table this Spec has precedence.
+**D-2 (found 2026-07-25 era code, surfaced by the first served-origin matrix
+run 2026-07-27, fixed the same day):** a second `/auth/exchange` presenting a
+valid issuance proof over an already-bound key answered
+`500 INTERNAL_AUTH_STATE` — the `(admission_epoch, jwk_thumbprint)` nonce-table
+primary-key violation was blanket-mapped to the state-invariant error, an
+uncoded 5xx on client-controllable input. Fixed by the pre-insert live-family
+check above (`PlannedIssuanceCommit::SenderKeyBound`), with the Rust witness
+`planned_issuance_refuses_a_second_family_for_a_live_thumbprint` (including
+the expired-cell re-issuance half) and the matrix check
+
 
 Refresh requires both the current credential and a protected-resource proof.
 Every successor remains bound to the same thumbprint. Rotation to another key
@@ -1130,7 +1189,8 @@ The public diagnostics are:
 - `SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE`.
 
 Within `SNAPBACK_AUTH_SENDER_PROOF_INVALID`, they expose no distinction
-between unknown token, wrong key, bad signature, stale time, or wrong target.
+between unknown token, wrong key, bad signature, stale time, wrong target, or
+a valid re-issuance over an already-bound key (the one-live-family rule above).
 A wrong or retired nonce is the one deliberate distinction: it returns the
 `_REQUIRED` challenge with the still-current nonce (the RFC 9449
 `use_dpop_nonce` pattern), because the legitimate client must be able to
