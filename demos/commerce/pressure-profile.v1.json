@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "snapback.commerce-pressure-profile.v1",
+  "profileId": "commerce/local-transaction-kernel-v0",
+  "roadmapClaim": "STEP6.COMMERCE",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "claimEligible": false,
+  "status": "red",
+  "governing": [
+    "LLP 0063#next-application-pressure-tests",
+    "LLP 0069#acceptance"
+  ],
+  "pressures": [
+    {
+      "id": "server-trusted-order-pricing",
+      "status": "implemented-local-bounded",
+      "witness": "tests/acceptance/headless.mjs",
+      "covered": "one-line USD orders copy product price/version into immutable order facts; checkout arguments contain only orderId"
+    },
+    {
+      "id": "inventory-contention",
+      "status": "implemented-local",
+      "witness": "tests/acceptance/headless.mjs",
+      "covered": "two clients contend for one unit; exactly one reservation and one payment-intent row commit"
+    },
+    {
+      "id": "exact-money-domain",
+      "status": "implemented-local-partial",
+      "witness": "tests/acceptance/headless.mjs",
+      "covered": "USD exponent and safe-integer multiplication fail closed",
+      "blocker": "the Draft proposes unsigned-64 minor units, but current local JSON/SQLite authoring exposes only exact safe integers"
+    },
+    {
+      "id": "reservation-lifecycle",
+      "status": "red",
+      "blocker": "only active/provider-not-called exists; releaseEligible, released, ambiguousHold, consumed, late success, and manualReview are absent"
+    },
+    {
+      "id": "durable-payment-work",
+      "status": "red",
+      "blocker": "LLP 0070 remains Draft and no command claim/retry/reconciliation worker is implemented"
+    },
+    {
+      "id": "provider-conformance-and-stripe-test-mode",
+      "status": "red",
+      "blocker": "no deterministic provider, Stripe test adapter, pinned request, idempotent network call, lookup, capture, cancellation, or refund exists"
+    },
+    {
+      "id": "signed-webhooks-and-projection",
+      "status": "red",
+      "blocker": "no raw-byte signature verification, immutable event ledger, exact authenticated links, or deterministic projection exists"
+    },
+    {
+      "id": "fulfillment-and-audit",
+      "status": "red",
+      "blocker": "no fulfillment command, abuse/moderation/audit profile, encrypted raw-event retention, or operator repair exists"
+    },
+    {
+      "id": "anonymous-seo-storefront",
+      "status": "red",
+      "blocker": "no React or Contract product surface, anonymous checkout authority, metadata, SSR/SSG, or hosted served-path witness exists"
+    },
+    {
+      "id": "hosted-control-plane",
+      "status": "red",
+      "blocker": "LLP 0072 remains Draft and no deploy/TLS/auth/backup/restore/rollback/inspection drill exists"
+    },
+    {
+      "id": "protocol-admission",
+      "status": "red",
+      "blocker": "LLPs 0069–0072 require independent review and maintainer ratification"
+    }
+  ]
+}

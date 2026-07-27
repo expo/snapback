@@ -1,0 +1,43 @@
+{
+  "tables": {
+    "products": [
+      {
+        "_id": "seed_product_final_unit",
+        "slug": "last-seat",
+        "name": "Last seat",
+        "currency": "USD",
+        "exponent": 2,
+        "unitMinorUnits": 2500,
+        "priceVersion": 1,
+        "availableUnits": 1,
+        "listed": true
+      },
+      {
+        "_id": "seed_product_bad_exponent",
+        "slug": "bad-exponent",
+        "name": "Invalid exponent fixture",
+        "currency": "USD",
+        "exponent": 3,
+        "unitMinorUnits": 100,
+        "priceVersion": 1,
+        "availableUnits": 2,
+        "listed": true
+      },
+      {
+        "_id": "seed_product_overflow",
+        "slug": "overflow",
+        "name": "Overflow fixture",
+        "currency": "USD",
+        "exponent": 2,
+        "unitMinorUnits": 9007199254740991,
+        "priceVersion": 1,
+        "availableUnits": 2,
+        "listed": true
+      }
+    ],
+    "orders": [],
+    "orderLines": [],
+    "paymentAttempts": [],
+    "reservations": []
+  }
+}

@@ -1,0 +1,397 @@
+{
+  "app": {
+    "description": "A claim-ineligible local kernel for server-trusted order pricing and final-unit inventory contention. It records a payment intent but performs no provider call.",
+    "name": "Commerce — LLP 0063 exploratory transaction kernel"
+  },
+  "appId": "commerce",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "6b308a2b64c27205bdb1ec27116549ef8db73f75ef221f5a28ae60487cb2d15f",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:8278171a8b7f8bb9",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "currency",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "exponent",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "unitMinorUnits",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "priceVersion",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "availableUnits",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "listed",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "by_slug",
+          "unique": true
+        }
+      ],
+      "name": "products",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "clientOrderKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "state",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "currency",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "exponent",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "totalMinorUnits",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "paymentAttempts"
+            }
+          },
+          "name": "attemptId",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "clientOrderKey"
+          ],
+          "name": "by_owner_client_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId",
+            "createdAt"
+          ],
+          "name": "by_owner_created"
+        }
+      ],
+      "name": "orders",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "orders"
+            }
+          },
+          "name": "orderId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "products"
+            }
+          },
+          "name": "productId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "productSlug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "productName",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "priceVersion",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "currency",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "exponent",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "unitMinorUnits",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "quantity",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "lineMinorUnits",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "orderId"
+          ],
+          "name": "by_owner_order"
+        },
+        {
+          "fields": [
+            "orderId",
+            "productId"
+          ],
+          "name": "by_order_product",
+          "unique": true
+        }
+      ],
+      "name": "orderLines",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "attemptKey",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "orders"
+            }
+          },
+          "name": "orderId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "state",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "currency",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "exponent",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "minorUnits",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "providerProfile",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "providerCommandKey",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "providerCallAdmitted",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "attemptKey"
+          ],
+          "name": "by_attempt_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "orderId"
+          ],
+          "name": "by_order",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId"
+          ],
+          "name": "by_owner"
+        }
+      ],
+      "name": "paymentAttempts",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "orders"
+            }
+          },
+          "name": "orderId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "paymentAttempts"
+            }
+          },
+          "name": "attemptId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "products"
+            }
+          },
+          "name": "productId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "quantity",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "state",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "providerRequestMayHaveArrived",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "expiresAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderId"
+          ],
+          "name": "by_order",
+          "unique": true
+        },
+        {
+          "fields": [
+            "ownerId",
+            "orderId"
+          ],
+          "name": "by_owner_order",
+          "unique": true
+        },
+        {
+          "fields": [
+            "productId"
+          ],
+          "name": "by_product"
+        }
+      ],
+      "name": "reservations",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

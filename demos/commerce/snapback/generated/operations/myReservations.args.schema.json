@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/commerce/myReservations.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "orderId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "orderId"
+  ],
+  "title": "commerce:myReservations arguments",
+  "type": "object"
+}

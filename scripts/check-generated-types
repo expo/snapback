@@ -45,6 +45,7 @@ fi
     demos/graffiti/snapback/generated/api.d.ts \
     demos/card-game/snapback/generated/api.d.ts \
     demos/rbac/snapback/generated/api.d.ts \
+    demos/commerce/snapback/generated/api.d.ts \
     demos/_kit/tests/typed-consumer-fixture.ts
 
 echo "[check-generated-types] ok: generated .d.ts + typed consumer fixture compile clean"

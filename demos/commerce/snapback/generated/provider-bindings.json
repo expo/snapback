@@ -1,0 +1,189 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"orderId\": string }",
+        "effects": {
+          "invalidates": [
+            "orders",
+            "products",
+            "paymentAttempts",
+            "reservations"
+          ],
+          "writes": [
+            "orders",
+            "products",
+            "paymentAttempts",
+            "reservations"
+          ]
+        },
+        "name": "beginCheckout",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"clientOrderKey\": string; \"productId\": string; \"quantity\": number }",
+        "effects": {
+          "invalidates": [
+            "orders",
+            "orderLines"
+          ],
+          "writes": [
+            "orders",
+            "orderLines"
+          ]
+        },
+        "name": "createOrder",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "products"
+          ]
+        },
+        "name": "catalog",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"availableUnits\": number; \"currency\": string; \"exponent\": number; \"listed\": boolean; \"name\": string; \"priceVersion\": number; \"slug\": string; \"unitMinorUnits\": number }>"
+      },
+      {
+        "argumentsType": "{ \"orderId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "orderLines"
+          ]
+        },
+        "name": "myOrderLines",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"currency\": string; \"exponent\": number; \"lineMinorUnits\": number; \"orderId\": string; \"ownerId\": string; \"priceVersion\": number; \"productId\": string; \"productName\": string; \"productSlug\": string; \"quantity\": number; \"unitMinorUnits\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "orders"
+          ]
+        },
+        "name": "myOrders",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptId\"?: string; \"clientOrderKey\": string; \"createdAt\": number; \"currency\": string; \"exponent\": number; \"ownerId\": string; \"state\": string; \"totalMinorUnits\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "paymentAttempts"
+          ]
+        },
+        "name": "myPaymentAttempts",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptKey\": string; \"createdAt\": number; \"currency\": string; \"exponent\": number; \"minorUnits\": number; \"orderId\": string; \"ownerId\": string; \"providerCallAdmitted\": boolean; \"providerCommandKey\": string; \"providerProfile\": string; \"state\": string }>"
+      },
+      {
+        "argumentsType": "{ \"orderId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "name": "myReservations",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"attemptId\": string; \"expiresAt\": number; \"orderId\": string; \"ownerId\": string; \"productId\": string; \"providerRequestMayHaveArrived\": boolean; \"quantity\": number; \"state\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "6b308a2b64c27205bdb1ec27116549ef8db73f75ef221f5a28ae60487cb2d15f",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

@@ -1,0 +1,596 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "orderId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "orderId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "orders",
+            "products",
+            "paymentAttempts",
+            "reservations"
+          ],
+          "writes": [
+            "orders",
+            "products",
+            "paymentAttempts",
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "beginCheckout",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "clientOrderKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "productId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "quantity": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "productId",
+            "quantity",
+            "clientOrderKey"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "orders",
+            "orderLines"
+          ],
+          "writes": [
+            "orders",
+            "orderLines"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createOrder",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "products"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "catalog",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "availableUnits": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "currency": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "exponent": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "listed": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "name": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "priceVersion": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "unitMinorUnits": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "orderId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "orderId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "orderLines"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "myOrderLines",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "currency": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "exponent": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "lineMinorUnits": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "orderId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "priceVersion": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "productId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "productName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "productSlug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "quantity": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "unitMinorUnits": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "orders"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "myOrders",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "attemptId": {
+                "name": "string",
+                "optional": true,
+                "shape": "primitive"
+              },
+              "clientOrderKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "currency": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "exponent": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "state": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "totalMinorUnits": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "paymentAttempts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "myPaymentAttempts",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "attemptKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "currency": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "exponent": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "minorUnits": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "orderId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "providerCallAdmitted": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "providerCommandKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "providerProfile": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "state": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "orderId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "orderId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "myReservations",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "attemptId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "expiresAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "orderId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "productId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "providerRequestMayHaveArrived": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "quantity": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "state": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:a19c2d281621fd53",
+    "inputsHash": "6b308a2b64c27205bdb1ec27116549ef8db73f75ef221f5a28ae60487cb2d15f",
+    "schemaHash": "sha256:8278171a8b7f8bb9"
+  }
+}

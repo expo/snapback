@@ -1,0 +1,64 @@
+{
+  "id": "commerce",
+  "title": "Commerce — LLP 0063 exploratory transaction kernel",
+  "description": "A claim-ineligible local kernel for server-trusted order pricing and final-unit inventory contention. It records a payment intent but performs no provider call.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Commerce", "Storage", "Auth", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "dev",
+    "transactionalMutations": true,
+    "uniqueIndexes": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/commerce/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headlessLocalTransactionKernel": {
+      "requirement": "required-local-nonclaim",
+      "buildTargets": [],
+      "runner": "node demos/commerce/tests/acceptance/headless.mjs",
+      "toolchain": "node>=24, cargo"
+    }
+  },
+  "acceptanceChecks": {
+    "headlessLocalTransactionKernel": [
+      "checkout arguments are closed over orderId and cannot carry money or quantity",
+      "order lines copy server-owned price/version facts",
+      "two buyers contending for the final unit produce one reservation and one payment intent",
+      "the loser leaves no partial reservation, attempt, or inventory decrement",
+      "cross-user order reads and checkout fail without disclosing order existence",
+      "invalid currency exponent and safe-integer overflow fail before order creation"
+    ]
+  },
+  "capabilityGaps": [
+    "accepted commerce-payments-v1 protocol",
+    "full unsigned-64 money domain",
+    "reservation settlement lifecycle",
+    "durable background work",
+    "payment provider and signed webhooks",
+    "deterministic payment projection and fulfillment",
+    "anonymous SEO product surface",
+    "hosted control plane and recovery drills"
+  ],
+  "notClaiming": [
+    "STEP6.COMMERCE completion",
+    "commerce-payments-v1 support",
+    "payment success, provider interoperability, PCI compliance, tax, or accounting",
+    "hosted or production operation"
+  ]
+}

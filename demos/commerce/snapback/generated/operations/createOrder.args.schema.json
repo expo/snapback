@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/commerce/createOrder.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clientOrderKey": {
+      "type": "string"
+    },
+    "productId": {
+      "type": "string"
+    },
+    "quantity": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "productId",
+    "quantity",
+    "clientOrderKey"
+  ],
+  "title": "commerce:createOrder arguments",
+  "type": "object"
+}

@@ -1,0 +1,90 @@
+{
+  "appId": "commerce",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/beginCheckout.args.schema.json",
+    "operations/catalog.args.schema.json",
+    "operations/createOrder.args.schema.json",
+    "operations/myOrderLines.args.schema.json",
+    "operations/myOrders.args.schema.json",
+    "operations/myPaymentAttempts.args.schema.json",
+    "operations/myReservations.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/beginCheckout.mutation.ts",
+    "contract/beginCheckout.mutation.contract-meta.ts",
+    "contract/catalog.query.ts",
+    "contract/catalog.query.contract-meta.ts",
+    "contract/createOrder.mutation.ts",
+    "contract/createOrder.mutation.contract-meta.ts",
+    "contract/myOrderLines.query.ts",
+    "contract/myOrderLines.query.contract-meta.ts",
+    "contract/myOrders.query.ts",
+    "contract/myOrders.query.contract-meta.ts",
+    "contract/myPaymentAttempts.query.ts",
+    "contract/myPaymentAttempts.query.contract-meta.ts",
+    "contract/myReservations.query.ts",
+    "contract/myReservations.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:a19c2d281621fd53",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "commerce:beginCheckout",
+      "kind": "Mutation",
+      "name": "beginCheckout"
+    },
+    {
+      "id": "commerce:catalog",
+      "kind": "LiveQuery",
+      "name": "catalog"
+    },
+    {
+      "id": "commerce:createOrder",
+      "kind": "Mutation",
+      "name": "createOrder"
+    },
+    {
+      "id": "commerce:myOrderLines",
+      "kind": "LiveQuery",
+      "name": "myOrderLines"
+    },
+    {
+      "id": "commerce:myOrders",
+      "kind": "LiveQuery",
+      "name": "myOrders"
+    },
+    {
+      "id": "commerce:myPaymentAttempts",
+      "kind": "LiveQuery",
+      "name": "myPaymentAttempts"
+    },
+    {
+      "id": "commerce:myReservations",
+      "kind": "LiveQuery",
+      "name": "myReservations"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "6b308a2b64c27205bdb1ec27116549ef8db73f75ef221f5a28ae60487cb2d15f",
+  "schemaHash": "sha256:8278171a8b7f8bb9",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "products",
+    "orders",
+    "orderLines",
+    "paymentAttempts",
+    "reservations"
+  ]
+}
