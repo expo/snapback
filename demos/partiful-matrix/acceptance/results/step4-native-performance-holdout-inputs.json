@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "partitime.native-performance-inputs.v1",
+  "platform": "ios",
+  "cohort": "holdout",
+  "recordedAt": "2026-07-27T09:41:55.499Z",
+  "samplePlan": {
+    "warmups": 2,
+    "samples": 7,
+    "pairedReceipts": 9,
+    "order": [
+      "react-then-exact",
+      "exact-then-react",
+      "react-then-exact",
+      "exact-then-react",
+      "react-then-exact",
+      "exact-then-react",
+      "react-then-exact",
+      "exact-then-react",
+      "react-then-exact"
+    ],
+    "cacheProtocol": "Each receipt performs an in-process incremental Release rebuild; app termination precedes launch; framework order reverses on every pair."
+  },
+  "hostIdentity": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+      "available": true
+    }
+  },
+  "react": {
+    "hostIdentity": {
+      "hardware": "arm64",
+      "model": "Mac17,6",
+      "os": "26.5.2",
+      "osBuild": "25F84",
+      "xcode": [
+        "Xcode 26.6",
+        "Build version 17F113"
+      ],
+      "node": "v25.9.0",
+      "bun": "1.3.12",
+      "simulator": {
+        "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+        "name": "iPhone 17 Pro",
+        "state": "Booted",
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+        "available": true
+      }
+    },
+    "receipts": [
+      "step4-native-performance-holdout-raw/react-01.json",
+      "step4-native-performance-holdout-raw/react-02.json",
+      "step4-native-performance-holdout-raw/react-03.json",
+      "step4-native-performance-holdout-raw/react-04.json",
+      "step4-native-performance-holdout-raw/react-05.json",
+      "step4-native-performance-holdout-raw/react-06.json",
+      "step4-native-performance-holdout-raw/react-07.json",
+      "step4-native-performance-holdout-raw/react-08.json",
+      "step4-native-performance-holdout-raw/react-09.json"
+    ]
+  },
+  "exact": {
+    "hostIdentity": {
+      "hardware": "arm64",
+      "model": "Mac17,6",
+      "os": "26.5.2",
+      "osBuild": "25F84",
+      "xcode": [
+        "Xcode 26.6",
+        "Build version 17F113"
+      ],
+      "node": "v25.9.0",
+      "bun": "1.3.12",
+      "simulator": {
+        "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+        "name": "iPhone 17 Pro",
+        "state": "Booted",
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+        "available": true
+      }
+    },
+    "receipts": [
+      "step4-native-performance-holdout-raw/exact-01.json",
+      "step4-native-performance-holdout-raw/exact-02.json",
+      "step4-native-performance-holdout-raw/exact-03.json",
+      "step4-native-performance-holdout-raw/exact-04.json",
+      "step4-native-performance-holdout-raw/exact-05.json",
+      "step4-native-performance-holdout-raw/exact-06.json",
+      "step4-native-performance-holdout-raw/exact-07.json",
+      "step4-native-performance-holdout-raw/exact-08.json",
+      "step4-native-performance-holdout-raw/exact-09.json"
+    ]
+  }
+}
