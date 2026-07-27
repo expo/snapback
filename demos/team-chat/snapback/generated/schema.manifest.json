@@ -1,0 +1,313 @@
+{
+  "app": {
+    "description": "A local non-claiming Slack/Discord-shaped kernel that exercises protected rooms, membership changes, bounded recipient fan-out, unread state, keyset-paged inbox delivery, and leave-time revocation.",
+    "name": "Team Chat — LLP 0063 Step 6 pressure app"
+  },
+  "appId": "team-chat",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "5a38105fee21da42e8f977a770dff8a6103d5a1f64f514516e447f3d2f5a1b49",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:90aebbc8bf8129af",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "rooms",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "roomMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "pendingRoles": [
+          "invited"
+        ],
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "roomId",
+        "resourceTable": "rooms",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "invited"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited"
+            ],
+            "op": "setRole",
+            "target": "self",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited",
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "roomMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "changedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "roomId"
+          ],
+          "name": "by_room"
+        },
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "roomId",
+            "userId"
+          ],
+          "name": "by_room_user",
+          "unique": true
+        }
+      ],
+      "name": "roomParticipants",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "roomId",
+            "pageKey"
+          ],
+          "name": "by_room_page_key",
+          "unique": true
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "recipientId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "rooms"
+            }
+          },
+          "name": "roomId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "messageId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "unread",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "recipientId",
+            "pageKey"
+          ],
+          "name": "by_recipient_page_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "recipientId",
+            "roomId"
+          ],
+          "name": "by_recipient_room"
+        },
+        {
+          "fields": [
+            "messageId",
+            "recipientId"
+          ],
+          "name": "by_message_recipient",
+          "unique": true
+        }
+      ],
+      "name": "deliveries",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

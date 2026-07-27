@@ -1,0 +1,887 @@
+{
+  "appId": "team-chat",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:fa5f79109a8425ff",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "acceptInvite",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "exportedName": "acceptInvite",
+      "id": "team-chat:acceptInvite",
+      "kind": "Mutation",
+      "name": "acceptInvite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomParticipants",
+        "tables": [
+          "roomParticipants"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "acceptInvite",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "createRoom",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rooms"
+          }
+        ]
+      },
+      "exportedName": "createRoom",
+      "id": "team-chat:createRoom",
+      "kind": "Mutation",
+      "name": "createRoom",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "createRoom",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "firstInboxPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "firstInboxPage",
+      "id": "team-chat:firstInboxPage",
+      "kind": "LiveQuery",
+      "name": "firstInboxPage",
+      "readSetSummary": {
+        "authScopeField": "recipientId",
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "recipientId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_recipient_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "deliveries"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "inviteMember",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "exportedName": "inviteMember",
+      "id": "team-chat:inviteMember",
+      "kind": "Mutation",
+      "name": "inviteMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "inviteMember",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "leaveRoom",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "exportedName": "leaveRoom",
+      "id": "team-chat:leaveRoom",
+      "kind": "Mutation",
+      "name": "leaveRoom",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants",
+          "deliveries"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "leaveRoom",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants",
+          "deliveries"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listMyRooms",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listMyRooms",
+      "id": "team-chat:listMyRooms",
+      "kind": "LiveQuery",
+      "name": "listMyRooms",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "roomParticipants",
+        "tables": [
+          "roomParticipants"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "changedAt"
+              }
+            ],
+            "table": "roomParticipants"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "markRoomRead",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          }
+        ]
+      },
+      "exportedName": "markRoomRead",
+      "id": "team-chat:markRoomRead",
+      "kind": "Mutation",
+      "name": "markRoomRead",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "deliveries"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "markRoomRead",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "nextInboxPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "nextInboxPage",
+      "id": "team-chat:nextInboxPage",
+      "kind": "LiveQuery",
+      "name": "nextInboxPage",
+      "readSetSummary": {
+        "authScopeField": "recipientId",
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "recipientId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "pageKey",
+                "op": "Gt",
+                "value": {
+                  "Arg": "after"
+                }
+              }
+            ],
+            "indexed_by": "by_recipient_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "deliveries"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "roomDetails",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "roomDetails",
+      "id": "team-chat:roomDetails",
+      "kind": "LiveQuery",
+      "name": "roomDetails",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "roomMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "roomId"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "roomMembers",
+                "resource": {
+                  "arg": {
+                    "path": "roomId",
+                    "resourceTable": "rooms"
+                  }
+                }
+              }
+            ],
+            "order": [],
+            "table": "rooms"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "roomMessages",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_room_page_key",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "roomMessages",
+      "id": "team-chat:roomMessages",
+      "kind": "LiveQuery",
+      "name": "roomMessages",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "roomMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "roomId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "roomId"
+                }
+              }
+            ],
+            "indexed_by": "by_room_page_key",
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "roomMembers",
+                "resource": {
+                  "arg": {
+                    "path": "roomId",
+                    "resourceTable": "rooms"
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "messages"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "sendMessage",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "sendMessage",
+      "id": "team-chat:sendMessage",
+      "kind": "Mutation",
+      "name": "sendMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants",
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "sendMessage",
+          "source": "const MAX_ACTIVE_RECIPIENTS = 64;\nconst MAX_ROOM_DELIVERIES_PER_MUTATION = 256;\nconst MAX_ROOM_MESSAGES = 256;\n\nfunction requiredText(value, label) {\n  const normalized = String(value ?? '').trim();\n  if (!normalized) throw new Error(`${label} is required`);\n  return normalized;\n}\n\nasync function myParticipant(ctx, roomId) {\n  return (await ctx.db\n    .query('roomParticipants')\n    .withIndex('by_user')\n    .eq('userId', ctx.auth.userId)\n    .collect())\n    .find((row) => row.roomId === roomId);\n}\n\nasync function myRoomDeliveries(ctx, roomId) {\n  return await ctx.db\n    .query('deliveries')\n    .withIndex('by_recipient_room')\n    .eq('recipientId', ctx.auth.userId)\n    .eq('roomId', roomId)\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = {\n  async createRoom(ctx, args) {\n    const title = requiredText(args.title, 'room title');\n    const displayName = requiredText(args.displayName, 'display name');\n    const now = ctx.runtime.now();\n    const roomId = await ctx.membership.roomMembers.bootstrap({\n      title,\n      createdBy: ctx.auth.userId,\n      createdAt: now,\n    });\n    await ctx.db.insert('roomParticipants', {\n      roomId,\n      userId: ctx.auth.userId,\n      displayName,\n      status: 'owner',\n      changedAt: now,\n    });\n    return roomId;\n  },\n\n  async inviteMember(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner');\n    const displayName = requiredText(args.displayName, 'display name');\n    const existing = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .find((row) => row.userId === args.userId);\n    if (existing !== undefined && existing.status !== 'left') {\n      throw new Error('room participant already exists');\n    }\n    await ctx.membership.roomMembers.insert({\n      roomId: args.roomId,\n      userId: args.userId,\n      role: 'invited',\n    });\n    if (existing !== undefined) {\n      await ctx.db.patch('roomParticipants', existing._id, {\n        displayName,\n        status: 'invited',\n        changedAt: ctx.runtime.now(),\n      });\n      return existing._id;\n    }\n    return await ctx.db.insert('roomParticipants', {\n      roomId: args.roomId,\n      userId: args.userId,\n      displayName,\n      status: 'invited',\n      changedAt: ctx.runtime.now(),\n    });\n  },\n\n  async acceptInvite(ctx, args) {\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'invited') {\n      throw new Error('room invitation not found');\n    }\n    await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'member',\n      changedAt: ctx.runtime.now(),\n    });\n    return participant._id;\n  },\n\n  async leaveRoom(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'member');\n    const participant = await myParticipant(ctx, args.roomId);\n    if (participant === undefined || participant.status !== 'member') {\n      throw new Error('active room membership not found');\n    }\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded leave mutation');\n    }\n    for (const delivery of deliveries) {\n      await ctx.db.delete('deliveries', delivery._id);\n    }\n    await ctx.membership.roomMembers.removeSelf(args.roomId);\n    await ctx.db.patch('roomParticipants', participant._id, {\n      status: 'left',\n      changedAt: ctx.runtime.now(),\n    });\n    return { removedDeliveries: deliveries.length };\n  },\n\n  async sendMessage(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const body = requiredText(args.body, 'message');\n    const existingMessages = await ctx.db\n      .query('messages')\n      .withIndex('by_room_page_key')\n      .eq('roomId', args.roomId)\n      .collect();\n    if (existingMessages.length >= MAX_ROOM_MESSAGES) {\n      throw new Error('room message history exceeds the admitted application bound');\n    }\n    const participants = (await ctx.db\n      .query('roomParticipants')\n      .withIndex('by_room')\n      .eq('roomId', args.roomId)\n      .collect())\n      .filter((row) => row.status === 'owner' || row.status === 'member');\n    if (participants.length === 0 || participants.length > MAX_ACTIVE_RECIPIENTS) {\n      throw new Error('room recipient fan-out exceeds the admitted application bound');\n    }\n    const author = participants.find((row) => row.userId === ctx.auth.userId);\n    if (author === undefined) throw new Error('active display participant not found');\n    const now = ctx.runtime.now();\n    const messageId = await ctx.db.insert('messages', {\n      roomId: args.roomId,\n      authorId: ctx.auth.userId,\n      authorName: author.displayName,\n      body,\n      pageKey: ctx.runtime.id(),\n      createdAt: now,\n    });\n    for (const participant of participants) {\n      await ctx.db.insert('deliveries', {\n        recipientId: participant.userId,\n        roomId: args.roomId,\n        messageId,\n        authorId: ctx.auth.userId,\n        authorName: author.displayName,\n        body,\n        pageKey: ctx.runtime.id(),\n        createdAt: now,\n        unread: participant.userId !== ctx.auth.userId,\n      });\n    }\n    return { messageId, recipients: participants.length };\n  },\n\n  async markRoomRead(ctx, args) {\n    await ctx.permissions.roomMembers.requireRole(args.roomId, 'owner', 'member');\n    const deliveries = await myRoomDeliveries(ctx, args.roomId);\n    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {\n      throw new Error('room inbox exceeds the bounded mark-read mutation');\n    }\n    let changed = 0;\n    for (const delivery of deliveries) {\n      if (!delivery.unread) continue;\n      await ctx.db.patch('deliveries', delivery._id, { unread: false });\n      changed += 1;\n    }\n    return { changed };\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "deliveries"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "unreadDeliveries",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "unreadDeliveries",
+      "id": "team-chat:unreadDeliveries",
+      "kind": "LiveQuery",
+      "name": "unreadDeliveries",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "recipientId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "unread",
+                "op": "Eq",
+                "value": {
+                  "Literal": true
+                }
+              }
+            ],
+            "indexed_by": "by_recipient_page_key",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "deliveries"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "5a38105fee21da42e8f977a770dff8a6103d5a1f64f514516e447f3d2f5a1b49",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

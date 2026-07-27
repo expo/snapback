@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "snapback.team-chat-pressure-profile.v1",
+  "profileId": "team-chat/local-pressure-v0",
+  "roadmapClaim": "STEP6.CHAT",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "claimEligible": false,
+  "status": "red",
+  "governing": [
+    "LLP 0063#next-application-pressure-tests",
+    "LLP 0056#declaring-a-membership-table",
+    "LLP 0071#acceptance",
+    "LLP 0072#acceptance",
+    "LLP 0073#acceptance"
+  ],
+  "pressures": [
+    {
+      "id": "protected-rooms",
+      "status": "implemented-local",
+      "witness": "tests/acceptance/headless.mjs"
+    },
+    {
+      "id": "membership-changes",
+      "status": "implemented-local-partial",
+      "witness": "tests/acceptance/headless.mjs",
+      "nonclaim": "invite, self-accept, and self-leave are covered; host-initiated removal is not",
+      "issue": "issues/20260726-team-chat-owner-removal.md"
+    },
+    {
+      "id": "high-fan-out-rooms",
+      "status": "implemented-local-bounded",
+      "witness": "tests/acceptance/headless.mjs",
+      "limit": {
+        "activeRecipientsPerMessage": 32,
+        "hardApplicationCeiling": 64,
+        "messagesPerRoom": 256
+      },
+      "nonclaim": "single-process SQLite only; the local kernel refuses a 257th room message"
+    },
+    {
+      "id": "unread-counts",
+      "status": "implemented-local",
+      "witness": "tests/acceptance/headless.mjs"
+    },
+    {
+      "id": "pagination",
+      "status": "implemented-local-partial",
+      "witness": "tests/acceptance/headless.mjs",
+      "nonclaim": "recipient inbox is keyset-paged; channel-history-scoped pagination remains open",
+      "issue": "issues/20260726-team-chat-room-pagination.md"
+    },
+    {
+      "id": "search",
+      "status": "red",
+      "blocker": "LLP 0073 remains Draft and no portable implementation witness exists"
+    },
+    {
+      "id": "attachments",
+      "status": "red",
+      "blocker": "no asset-ingestion and hosted-delivery product path exists"
+    },
+    {
+      "id": "notifications",
+      "status": "red",
+      "blocker": "no executable provider-delivery witness exists"
+    },
+    {
+      "id": "moderation",
+      "status": "red",
+      "blocker": "LLP 0071 remains Draft and no target-specific moderation/audit witness exists"
+    },
+    {
+      "id": "hosted-app-complete",
+      "status": "red",
+      "blocker": "trusted-single-tenant-app-complete.v1 has no conjunctive TLS/auth/deploy/rollback/backup/restore/logs/inspection receipt"
+    },
+    {
+      "id": "complete-product-ui",
+      "status": "red",
+      "blocker": "headless product kernel only"
+    }
+  ]
+}

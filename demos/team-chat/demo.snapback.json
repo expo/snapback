@@ -1,0 +1,67 @@
+{
+  "id": "team-chat",
+  "title": "Team Chat — LLP 0063 Step 6 pressure app",
+  "description": "A local non-claiming Slack/Discord-shaped kernel that exercises protected rooms, membership changes, bounded recipient fan-out, unread state, keyset-paged inbox delivery, and leave-time revocation.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Auth", "RBAC", "Codegen", "Storage", "Realtime", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "dev",
+    "membershipDeclarations": true,
+    "membershipRuleHelpers": true,
+    "generatedMembershipWrites": true,
+    "standardPatterns": true,
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/team-chat/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headlessLocalPressure": {
+      "requirement": "required-local-nonclaim",
+      "buildTargets": [],
+      "runner": "node demos/team-chat/tests/acceptance/headless.mjs",
+      "toolchain": "node>=24, cargo"
+    }
+  },
+  "acceptanceChecks": {
+    "headlessLocalPressure": [
+      "room bootstrap atomically seats the owner",
+      "an invitation does not grant room visibility until self-accept",
+      "a 32-recipient message fan-out commits one message and one private inbox row per active participant",
+      "unread state is recipient-owned, live, and clearable by room",
+      "opaque keyset cursors page a recipient inbox without overlap",
+      "self-leave revokes protected room reads and purges that room from the former member's inbox"
+    ]
+  },
+  "capabilityGaps": [
+    "portable full-text search under LLP 0073",
+    "attachments and hosted asset delivery",
+    "notification delivery",
+    "moderation and audit under LLP 0071",
+    "hosted auth and trusted-single-tenant operations under LLP 0072",
+    "channel-history-scoped continuation cursors",
+    "complete React and Contract product UI"
+  ],
+  "notClaiming": [
+    "STEP6.CHAT completion",
+    "sessions-mode or hosted authentication",
+    "host removal of another member; the current accepted membership surface exposes self-leave but no application-reachable private roster id",
+    "horizontal or multi-process fan-out",
+    "that displayable roomParticipants rows are an authorization source"
+  ]
+}
