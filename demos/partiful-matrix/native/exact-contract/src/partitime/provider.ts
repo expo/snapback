@@ -154,7 +154,12 @@ export class GatewayContractProvider implements ContractDataProvider {
         }
       }
     };
-    void poll();
+    // Publish the pending cell during mount, but start transport work on the
+    // managed timer turn. Entering fetch synchronously here materializes the
+    // native compatibility transport while Hermes is still evaluating the
+    // startup HBC; subsequent polls already use this timer-owned path.
+    timer = globalThis.setTimeout(poll, 0);
+    this.#timers.add(timer);
     return {
       dispose: () => {
         disposed = true;
