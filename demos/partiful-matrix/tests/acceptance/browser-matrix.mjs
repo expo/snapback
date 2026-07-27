@@ -188,7 +188,18 @@ async function startSnapback() {
     '--memory',
     '--ready-file', readyFile,
     ...(isPhysicalIosSafari ? ['--allow-insecure-dev-auth'] : []),
-  ], { cwd: repoRoot, detached: true, stdio: ['ignore','ignore','pipe'] });
+  ], {
+    cwd: repoRoot,
+    detached: true,
+    env: {
+      ...process.env,
+      // The physical-device carrier binds plaintext only to the selected
+      // private LAN address. Production correctly refuses the dev-auth
+      // override, so make this lane's non-production posture explicit.
+      ...(isPhysicalIosSafari ? { SNAPBACK_PROFILE: 'test' } : {}),
+    },
+    stdio: ['ignore','ignore','pipe'],
+  });
   cleanups.push(
     () => rmSync(readyDir, { recursive: true, force: true }),
     () => stopChild(child, 'Snapback'),
