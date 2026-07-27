@@ -113,7 +113,11 @@ run cargo clippy --all-targets -- -D warnings
 # dependency graph. Keep its PEM-parser migration closed by failing on both
 # vulnerabilities and packages RustSec has marked unmaintained.
 run cargo audit --deny unmaintained
-run cargo test
+# @ref LLP 0048#limits-testbed-llp-0047 — each workerd twin invocation owns a
+# fresh process. Bound libtest fan-out so high-core developer hosts do not
+# spend the handler's wall budget on simultaneous process startup; concurrency
+# suites create and measure their own explicit contention.
+run cargo test -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-8}"
 # @ref LLP 0053#acceptance — compose the Rust invalidation/room receipts with
 # production Contract-store measurements and reject drift in the committed
 # blast-radius/property-oracle report. This remains before CI test-profile
