@@ -5,7 +5,14 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-27 (served-origin matrix run for real, and D-2 fixed — the
+**Revised:** 2026-07-27 (decision 4 first layer implemented — sender-bound
+issuance mints `sbs2_`, refresh successors of a sender-bound family stay
+`sbs2_`, sender-bound connection-open/rotation mint `sct2_`, and the sender
+lanes require the v2 spellings (legacy `sbs_` over a bound family refuses at
+proof time; migration is deletion-and-re-exchange). The v1-family
+activation/rollback matrix is documented under §Credential classes; the
+hosted matrix gained prefix assertions on issuance and connection-open.
+Closes `issues/20260727-llp0077-v2-prefix-minting.md`.) 2026-07-27 (served-origin matrix run for real, and D-2 fixed — the
 first true served-origin run of the LLP 0077 matrix against
 `https://snapback-drill.fly.dev` (D-1-fixed binary, sessions staged under
 hosted admission) surfaced D-2: a second `/auth/exchange` over an
@@ -1178,6 +1185,34 @@ and are outside the app-browser claim. Agent credentials, scoped automation
 tokens, pairing secrets, and secret-read leases are non-browser authorities and
 remain outside this protocol. An adapter must not broaden `hostedAuthCapable`
 to those classes.
+
+### Versioned spellings and the v1-family activation/rollback matrix (landed 2026-07-27)
+
+Decision 4's first layer is implemented: sender-bound issuance mints session
+bearers in the structurally distinct `sbs2_` spelling, every refresh successor
+of a sender-bound family stays `sbs2_` (selected by the durable family
+binding, not the presented spelling), sender-bound connection-open and grant
+rotation mint `sct2_`, and the sender lanes require the v2 spellings — the
+sender-proof verifier refuses a proof presented over the legacy `sbs_`
+spelling of a sender-bound family, and the sender grant lane refuses a
+non-`sct2_` token. The proofless path still answers with a challenge, so the
+decision-3 anti-oracle posture is unchanged: a bearer-only holder cannot
+distinguish a bound family from an unknown carrier by the refusal shape.
+
+The activation/rollback matrix decision 4 requires alongside the syntax
+change:
+
+| Server | Credential | Outcome |
+| --- | --- | --- |
+| pre-sender v1 | `sbs_` plain bearer | honored as today |
+| pre-sender v1 | `sbs2_`/`sct2_` | structural parse failure → `SNAPBACK_AUTH_REQUIRED`-class refusal; the v1 server cannot honor a sender-bound credential as a plain bearer (the rollback defense this layer exists for) |
+| v2 (this revision) | `sbs_` plain bearer, no binding | honored as today (plain bearer lanes are unchanged) |
+| v2 | `sbs_` spelling over a sender-bound family, with proof | refused `SNAPBACK_AUTH_SENDER_PROOF_INVALID`; migration for live pre-change families is deletion-and-re-exchange (never attachment): the custody machine treats the refusal as deletion-only and re-authenticates under a fresh custody key |
+| v2 | `sbs2_` over its bound family | admitted through the sender lanes; refuses as a bare bearer on every carrier exactly as before (the binding, not the spelling, carries the constraint) |
+| v2 rolled back to v1 | live `sbs2_`/`sct2_` credentials | all fail structurally; clients re-exchange under the v1 flow — bounded re-authentication, never silent downgrade to bearer semantics |
+
+LLP 0060 D6's mixed-version activation barrier remains the deployment-level
+defense; this layer removes the sole reliance on it that decision 4 rejects.
 
 ## Diagnostics and redaction
 

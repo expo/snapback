@@ -53,3 +53,41 @@ Scope of the fix (one reviewed change, not a drive-by):
 Until this lands, the annotations in `src/auth/crypto.rs` record the classes
 as reserved-unissued, and LLP 0077's decision-4 checkpoint carries the same
 caveat.
+
+## Resolved 2026-07-27
+
+All five scope items landed as one reviewed change:
+
+- **Minting:** `SessionBearer::generate_sender_v2` is production
+  (`#[cfg(test)]` removed); `bind_sender_issuance` re-mints the issuance
+  candidate as `sbs2_` before premark/commit, so the projected digest, the
+  durable row, and the returned credential all carry the versioned spelling.
+- **Successors:** both refresh paths (`plan_refresh` and direct `refresh`)
+  select the successor spelling from the durable family binding
+  (`presented_token_has_sender_family_binding`, callable on any profile —
+  reports unbound when the sender preflight never ran), so sender-bound
+  families stay `sbs2_` across rotation.
+- **Grants:** sender-bound connection-open and grant rotation mint `sct2_`;
+  the sender grant lane structurally refuses a non-`sct2_` token
+  (`SNAPBACK_CONNECTION_TOKEN_INVALID`).
+- **Verifier half:** `admit_sender_constrained_request` refuses a proof
+  presented over the legacy `sbs_` spelling of a live bound family
+  (`SNAPBACK_AUTH_SENDER_PROOF_INVALID`, nonce state untouched); the
+  proofless path still answers a challenge so the decision-3 anti-oracle
+  posture is preserved, and the revoked-family tombstone path deliberately
+  keeps accepting the v1 spelling so stranded pre-change logout clients
+  converge. Migration for live pre-change families is
+  deletion-and-re-exchange (never attachment). Presented-bearer surfaces
+  (`resolve_session`, logout, family alarm, connection-open, throttle
+  family lookup, class gates) accept both spellings; the constraint rides
+  the binding, not the parse.
+- **Docs and matrix:** the v1-family activation/rollback matrix landed in
+  LLP 0077 §Credential classes; `hosted-sender-matrix.mjs` asserts the
+  `sbs2_`/`sct2_` prefixes at issuance and connection-open; the Rust router
+  test asserts them on exchange, refresh, and open. The browser client
+  needed no change (tokens are opaque to it), as predicted.
+
+New/updated tests: `v1_spelling_over_a_live_bound_family_refuses_at_proof_time`
+(sender_proof), prefix assertions in
+`hosted_sender_issuance_session_and_refresh_compose_through_the_router`,
+sender fixtures migrated to v2 minting where they model live bound families.

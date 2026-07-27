@@ -934,13 +934,25 @@ impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
 }
 
 impl ProviderSessionIssuancePlan {
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer: a
+    // sender-bound issuance re-mints its candidate bearer in the versioned
+    // `sbs2_` spelling before anything derives from the plan (binding runs
+    // before premark and before the commit plan is taken), so the projected
+    // digest, the durable row, and the returned credential all name the
+    // legacy-rejecting spelling.
     pub(crate) fn bind_sender_issuance(
         &mut self,
         commitment: crate::auth::sender_proof::SenderIssuanceCommitment,
+        random: &dyn RandomSource,
     ) -> ProviderResult<()> {
         if self.sender_issuance.replace(commitment).is_some() {
             return Err(provider_unavailable());
         }
+        let bearer = SessionBearer::generate_sender_v2(random).map_err(|_| provider_unavailable())?;
+        let token_hash = bearer.token_hash();
+        self.projected.token_digest = TokenDigest::from_token_hash(&token_hash);
+        self.candidate.bearer = Some(bearer);
+        self.candidate.token_hash = token_hash;
         Ok(())
     }
 
@@ -1593,7 +1605,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<ResolvedSession> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let lookup = database
             .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
@@ -1612,7 +1624,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<PlannedLogout> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
         let lookup = database
@@ -1663,11 +1675,29 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<PlannedRefresh> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
-        let lookup = database
-            .with_auth_read(|connection| lookup_presented_session(connection, &token_hash))
+        let (lookup, sender_bound) = database
+            .with_auth_read(|connection| {
+                let lookup = lookup_presented_session(connection, &token_hash)?;
+                // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable
+                // family binding (not the presented spelling) selects the
+                // successor spelling, so every successor of a sender-bound
+                // family stays `sbs2_`.
+                let sender_bound = crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                    connection,
+                    token_hash.as_bytes(),
+                )
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                        "auth",
+                        "sender family binding state is unavailable",
+                    )
+                })?;
+                Ok((lookup, sender_bound))
+            })
             .map_err(|_| provider_unavailable())?;
         Ok(match lookup {
             PresentedSessionLookup::Unknown => PlannedRefresh::AuthRequired,
@@ -1675,7 +1705,11 @@ impl AuthAdmission {
                 if !session.live_at(now_ms) {
                     PlannedRefresh::SessionExpired
                 } else {
-                    let successor = BearerCandidate::generate(&self.provider)?;
+                    let successor = if sender_bound {
+                        BearerCandidate::generate_sender_v2(&self.provider)?
+                    } else {
+                        BearerCandidate::generate(&self.provider)?
+                    };
                     let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
                     PlannedRefresh::Rotate(ProviderTokenRotationPlan {
                         session_id: session.session.session_id,
@@ -1721,7 +1755,7 @@ impl AuthAdmission {
         let started_at = self.provider.clock.monotonic_now();
         let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
         let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
-        let parsed = SessionBearer::parse(bearer).ok();
+        let parsed = SessionBearer::parse_any_version(bearer).ok();
         let token_hash = parsed
             .as_ref()
             .map(SessionBearer::token_hash)
@@ -1897,10 +1931,31 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<CredentialIssue> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let predecessor_hash = bearer.token_hash();
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: successors of a
+        // sender-bound family stay `sbs2_`, selected by the durable binding.
+        let sender_bound = database
+            .with_auth_read(|connection| {
+                crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                    connection,
+                    predecessor_hash.as_bytes(),
+                )
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                        "auth",
+                        "sender family binding state is unavailable",
+                    )
+                })
+            })
+            .map_err(|_| provider_unavailable())?;
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            let mut successor = BearerCandidate::generate(&self.provider)?;
+            let mut successor = if sender_bound {
+                BearerCandidate::generate_sender_v2(&self.provider)?
+            } else {
+                BearerCandidate::generate(&self.provider)?
+            };
             let outcome = database.with_auth_transaction(|transaction| {
                 refresh_transaction(
                     transaction,
@@ -1949,7 +2004,7 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<SessionRevocation> {
         validate_now(now_ms)?;
-        let bearer = SessionBearer::parse(bearer).map_err(|_| auth_required())?;
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let outcome = database
             .with_auth_transaction(|transaction| {
@@ -1977,7 +2032,7 @@ impl AuthAdmission {
         let started_at = self.provider.clock.monotonic_now();
         let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
         let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
-        let parsed = SessionBearer::parse(bearer).ok();
+        let parsed = SessionBearer::parse_any_version(bearer).ok();
         let parsed_hash = parsed.as_ref().map(SessionBearer::token_hash);
         let token_hash = parsed_hash
             .as_ref()
@@ -2775,6 +2830,19 @@ impl SessionCandidate {
 impl BearerCandidate {
     fn generate(provider: &AuthProvider) -> ProviderResult<Self> {
         let bearer = SessionBearer::generate(provider.random.as_ref())
+            .map_err(|_| provider_unavailable())?;
+        let token_hash = bearer.token_hash();
+        Ok(Self {
+            bearer: Some(bearer),
+            token_hash,
+        })
+    }
+
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: every successor of
+    // a sender-bound family stays in the `sbs2_` spelling; the durable family
+    // binding, not the presented spelling, selects this mint.
+    fn generate_sender_v2(provider: &AuthProvider) -> ProviderResult<Self> {
+        let bearer = SessionBearer::generate_sender_v2(provider.random.as_ref())
             .map_err(|_| provider_unavailable())?;
         let token_hash = bearer.token_hash();
         Ok(Self {
@@ -7133,7 +7201,7 @@ mod tests {
         )
         .expect("sender commitment");
         let expected_nonce = commitment.initial_nonce_for_transport().to_owned();
-        plan.bind_sender_issuance(commitment)
+        plan.bind_sender_issuance(commitment, &OsRandom)
             .expect("bind sender issuance to plan");
         let commit_plan = plan.commit_plan();
         assert!(matches!(
@@ -7215,7 +7283,7 @@ mod tests {
         .expect("first sender commitment");
         let incumbent_nonce = first_commitment.initial_nonce_for_transport().to_owned();
         first_plan
-            .bind_sender_issuance(first_commitment)
+            .bind_sender_issuance(first_commitment, &OsRandom)
             .expect("bind first sender issuance");
         assert!(matches!(
             first_admission.commit_planned_issuance(&mut database, &first_plan.commit_plan()),
@@ -7240,7 +7308,7 @@ mod tests {
         )
         .expect("second sender commitment");
         second_plan
-            .bind_sender_issuance(second_commitment)
+            .bind_sender_issuance(second_commitment, &OsRandom)
             .expect("bind second sender issuance");
         let second_commit_plan = second_plan.commit_plan();
         assert!(matches!(
@@ -7306,7 +7374,7 @@ mod tests {
         )
         .expect("third sender commitment");
         third_plan
-            .bind_sender_issuance(third_commitment)
+            .bind_sender_issuance(third_commitment, &OsRandom)
             .expect("bind third sender issuance");
         assert!(matches!(
             third_admission.commit_planned_issuance(&mut database, &third_plan.commit_plan()),

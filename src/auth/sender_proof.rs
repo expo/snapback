@@ -1126,7 +1126,11 @@ pub fn admit_sender_constrained_request(
         token_digest.copy_from_slice(&digest);
         (key, token_digest)
     });
-    let session_bearer = SessionBearer::parse(access_token).ok();
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both spellings hash
+    // and resolve, but the verifier requires the versioned `sbs2_` spelling
+    // for a sender-bound family (the "v2 verifiers require it" half below).
+    let presented_v1_spelling = SessionBearer::parse(access_token).is_ok();
+    let session_bearer = SessionBearer::parse_any_version(access_token).ok();
     let family = match session_bearer.as_ref() {
         Some(bearer) => {
             let now_ms = now_seconds
@@ -1142,6 +1146,17 @@ pub fn admit_sender_constrained_request(
         }
         None => None,
     };
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4, verifier half: a
+    // sender-bound family presented in the legacy `sbs_` spelling refuses at
+    // proof time. Migration for live pre-change families is deletion-and-
+    // re-exchange (LLP 0077: "never attachment"): the custody machine treats
+    // the refusal as deletion-only and re-authenticates under a fresh key.
+    // The proofless branch below still answers with a challenge, so a
+    // bearer-only holder learns nothing it could not learn before (the
+    // decision-3 anti-oracle posture is preserved).
+    if presented_v1_spelling && family.is_some() && compact_proof.is_some() {
+        return Err(rejection(SenderAdmissionRejectionKind::Invalid, None));
+    }
     let Some(compact_proof) = compact_proof else {
         return Err(fresh_challenge(
             connection,
@@ -1610,6 +1625,40 @@ pub fn sender_constraint_for_presented_token(
         )
         .optional()
         .map_err(|_| ReplayConsumeError::Unavailable)
+}
+
+/// Whether the presented token's live session carries a durable sender family
+/// binding. Callable on any profile: a database that never ran the hosted
+/// sender preflight has no binding table and reports unbound.
+///
+/// @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable binding
+/// selects the `sbs2_` spelling for successors of a sender-bound family.
+pub(crate) fn presented_token_has_sender_family_binding(
+    connection: &Connection,
+    token_hash: &[u8],
+) -> Result<bool, ReplayConsumeError> {
+    if token_hash.len() != 32 {
+        return Err(ReplayConsumeError::Invalid);
+    }
+    match connection.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM _auth_sessions AS session
+           JOIN _snapback_sender_family_binding AS binding
+             ON binding.session_id = session.id
+           WHERE session.token_hash = ?1
+             AND session.revoked_at_ms IS NULL
+         )",
+        params![token_hash],
+        |row| row.get(0),
+    ) {
+        Ok(exists) => Ok(exists),
+        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+            if message.contains("no such table") =>
+        {
+            Ok(false)
+        }
+        Err(_) => Err(ReplayConsumeError::Unavailable),
+    }
 }
 
 /// Atomically consume one verified proof id. SQLite is the shared serialized
@@ -2683,7 +2732,7 @@ mod tests {
             )
             .unwrap();
         initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
-        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let bearer = SessionBearer::generate_sender_v2(&OsRandom).unwrap();
         let token_hash = bearer.token_hash();
         connection
             .execute(
@@ -2829,6 +2878,93 @@ mod tests {
         );
     }
 
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4, verifier half: a
+    // live sender-bound family presented in the legacy `sbs_` spelling
+    // refuses at proof time without touching nonce state; the proofless path
+    // still answers with a challenge so the decision-3 anti-oracle posture is
+    // preserved. Migration for pre-change families is deletion-and-re-exchange.
+    #[test]
+    fn v1_spelling_over_a_live_bound_family_refuses_at_proof_time() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE _auth_sessions (
+                    id TEXT PRIMARY KEY,
+                    token_hash BLOB NOT NULL,
+                    revoked_at_ms INTEGER
+                 ) STRICT;",
+            )
+            .unwrap();
+        initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let token_hash = bearer.token_hash();
+        connection
+            .execute(
+                "INSERT INTO _auth_sessions(id, token_hash, revoked_at_ms)
+                 VALUES ('session-v1-bound', ?1, NULL)",
+                params![token_hash.as_bytes()],
+            )
+            .unwrap();
+        let key = proof_key();
+        let transaction = connection.transaction().unwrap();
+        bind_issued_session_sender_constraint(&transaction, "session-v1-bound", &key.thumbprint)
+            .unwrap();
+        transaction.commit().unwrap();
+
+        // Proofless: a challenge, indistinguishable from any other carrier.
+        let challenge = admit_sender_constrained_request(
+            &mut connection,
+            11,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            None,
+            1_000,
+            60,
+            true,
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(challenge.kind, SenderAdmissionRejectionKind::Required);
+        let nonce = challenge
+            .challenge()
+            .expect("fresh challenge")
+            .expose_for_transport()
+            .to_owned();
+
+        // A fully valid proof over the current nonce still refuses: the
+        // spelling, not the proof, is what is wrong.
+        let proof = sign_proof(&key, bearer.expose_secret(), &nonce, 1_000, [21_u8; 16]);
+        let refused = admit_sender_constrained_request(
+            &mut connection,
+            11,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&proof),
+            1_000,
+            60,
+            true,
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(refused.kind, SenderAdmissionRejectionKind::Invalid);
+        assert!(refused.challenge().is_none());
+        assert_eq!(
+            read_sender_nonce(&connection, 11, &key.thumbprint, 1_000)
+                .unwrap()
+                .unwrap()
+                .generation,
+            1,
+            "the spelling refusal never consumes or rotates nonce state",
+        );
+    }
+
     #[test]
     fn production_admission_refuses_replay_at_final_inclusive_second() {
         let mut connection = Connection::open_in_memory().unwrap();
@@ -2843,7 +2979,7 @@ mod tests {
             )
             .unwrap();
         initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
-        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let bearer = SessionBearer::generate_sender_v2(&OsRandom).unwrap();
         connection
             .execute(
                 "INSERT INTO _auth_sessions(id, token_hash, revoked_at_ms)
@@ -3191,6 +3327,10 @@ mod tests {
             )
             .unwrap();
         initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+        // Deliberately the legacy `sbs_` spelling: a pre-change client
+        // stranded by a lost logout response must still converge through the
+        // tombstone (the decision-4 spelling refusal applies only to live
+        // bound families, never to the revoked-family terminal outcome).
         let bearer = SessionBearer::generate(&OsRandom).unwrap();
         let revoked_at_ms: u64 = 900_000;
         let now_seconds: u64 = 1_000;

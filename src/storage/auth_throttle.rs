@@ -41,7 +41,7 @@ impl LocalDatabase {
     ) -> Result<AuthenticationThrottleDecision, AuthenticationThrottleError> {
         let family = match bound_family {
             Some(family) => Some(family.to_owned()),
-            None => SessionBearer::parse(access_token.unwrap_or_default())
+            None => SessionBearer::parse_any_version(access_token.unwrap_or_default())
                 .ok()
                 .and_then(|bearer| {
                     sender_constraint_for_presented_token(

@@ -424,14 +424,17 @@ impl SessionBearer {
     }
 
     // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: accepts both session
-    // spellings so the verifier side is v2-ready, but nothing mints `sbs2_`
-    // yet (issues/20260727-llp0077-v2-prefix-minting.md), so this resolves
-    // only the v1 spelling in production today.
+    // spellings. `sbs_` is the plain bearer class; `sbs2_` is the
+    // sender-constrained class the exchange mints for sender-bound issuance.
+    // Which spelling a surface actually honors is decided by the durable
+    // family binding plus the spelling checks in `sender_proof.rs`, not here.
     pub(crate) fn parse_any_version(input: &str) -> Result<Self, CryptoError> {
         Self::parse(input).or_else(|_| Self::parse_sender_v2(input))
     }
 
-    #[cfg(test)]
+    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer: the
+    // production exchange mints sender-bound sessions with the structurally
+    // distinct `sbs2_` spelling a v1 verifier cannot accept.
     pub(crate) fn generate_sender_v2(random: &dyn RandomSource) -> Result<Self, CryptoError> {
         mint_bearer(random, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
     }
@@ -553,12 +556,11 @@ pub enum CredentialClass {
     /// `sbs_` cannot accept this versioned spelling.
     ///
     /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer (the
-    /// legacy-rejecting versioned prefix). RESERVED, NOT YET ISSUED: the
-    /// production exchange still mints sender-bound sessions with the `sbs_`
-    /// spelling, and the sender constraint is enforced through the durable
-    /// family binding, not the prefix. Until the v2 minting lands
-    /// (`issues/20260727-llp0077-v2-prefix-minting.md`), the mixed-version
-    /// rollback defense rests on LLP 0060 D6 alone.
+    /// legacy-rejecting versioned prefix): the exchange mints sender-bound
+    /// sessions with this spelling, refresh keeps successors in it, and the
+    /// sender-proof verifier refuses the `sbs_` spelling for sender-bound
+    /// families, so a pre-sender v1 server presented an `sbs2_` bearer fails
+    /// structurally instead of honoring it as a plain bearer.
     SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
@@ -585,9 +587,9 @@ pub enum CredentialClass {
     /// `sct2_` — a sender-constrained v2 connection token. A v1 connection
     /// token parser cannot accept this structurally distinct spelling.
     ///
-    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4, reserved and unissued
-    /// exactly as `SenderSession` above; sender-bound grants currently ride
-    /// `sct_` tokens whose sender-ness is durable grant state.
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 4, issued exactly as
+    /// `SenderSession` above: sender-bound connection-open mints `sct2_`
+    /// grants, and the sender grant lane requires the v2 spelling.
     SenderConnectionToken,
     /// `sbrk_` — the secret-read root key.
     SecretReadRootKey,
@@ -629,12 +631,11 @@ impl CredentialClass {
     }
 
     // NOTE: there is deliberately no `is_session()` fold over `Session` and
-    // `SenderSession`. While `sbs2_` is reserved-unissued, such a fold would
-    // pre-declare that a v1 `sbs_` bearer satisfies any check written against
-    // the sender-constrained class — the opposite of what the class exists
-    // for (issues/closed/20260725-sender-constrained-classes-unwired.md).
-    // Reintroduce it, if ever, only alongside the v2 minting path with a call
-    // site that needs it.
+    // `SenderSession`. Such a fold would pre-declare that a v1 `sbs_` bearer
+    // satisfies any check written against the sender-constrained class — the
+    // opposite of what the class exists for
+    // (issues/closed/20260725-sender-constrained-classes-unwired.md). Call
+    // sites that admit both classes match both explicitly.
 
     /// Whether a value of this class can ever resolve to live authority when
     /// presented as a bearer. Identifiers (`sbc_`, `sbak_`) and the secret-read

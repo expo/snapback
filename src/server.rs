@@ -4443,7 +4443,10 @@ impl ConnectionRegistry {
                 )))
             }
             PresentedSessionBearer::Candidate(raw) => {
-                let Ok(bearer) = SessionBearer::parse(raw) else {
+                // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both session
+                // spellings resolve here; on hosted lanes the sender
+                // admission has already proof-gated an `sbs2_` presentation.
+                let Ok(bearer) = SessionBearer::parse_any_version(raw) else {
                     self.consume_anonymous_open(&incarnation, monotonic_now)?;
                     return Err(ApiError::from(SnapbackError::error(
                         "SNAPBACK_AUTH_REQUIRED",
@@ -4728,7 +4731,14 @@ impl ConnectionRegistry {
                 },
             };
             let grant_id = Uuid::now_v7().to_string();
-            let connection_token = format!("sct_{}", Uuid::new_v4().simple());
+            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: sender-bound
+            // connection-open mints the structurally distinct `sct2_` grant
+            // spelling a v1 verifier cannot accept.
+            let connection_token = if hosted_sender.is_some() {
+                format!("sct2_{}", Uuid::new_v4().simple())
+            } else {
+                format!("sct_{}", Uuid::new_v4().simple())
+            };
             let authorization_invalidation = if auth_invalidation_protocol
                 == Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION)
             {
@@ -4861,7 +4871,13 @@ impl ConnectionRegistry {
                     "the pending connection grant is no longer installed",
                 )
             })?;
-        let token = format!("sct_{}", Uuid::new_v4().simple());
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: a rotated grant
+        // secret keeps its lane's spelling; sender-bound lanes stay `sct2_`.
+        let token = if record.hosted_sender.is_some() {
+            format!("sct2_{}", Uuid::new_v4().simple())
+        } else {
+            format!("sct_{}", Uuid::new_v4().simple())
+        };
         record.token = token.clone();
         Ok(token)
     }
@@ -8305,9 +8321,16 @@ async fn prepare_registered_route_authority(
                                 Some(service_publication),
                             )
                         } else {
-                            if classify_credential(&bearer)
-                                .is_some_and(|class| class != CredentialClass::Session)
-                            {
+                            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both
+                            // session spellings reach the resolver; on hosted
+                            // lanes the sender admission (proof + spelling
+                            // checks) has already run before this gate.
+                            if classify_credential(&bearer).is_some_and(|class| {
+                                !matches!(
+                                    class,
+                                    CredentialClass::Session | CredentialClass::SenderSession
+                                )
+                            }) {
                                 dispatch_credential_class(&bearer, CredentialClass::Session)
                                     .map_err(|error| ApiError::from(error.into_snapback_error()))?;
                                 unreachable!("wrong-class dispatch always refuses");
@@ -9347,6 +9370,19 @@ async fn admit_hosted_sender_request(
         else {
             return Ok(None);
         };
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the sender grant
+        // lane requires the versioned `sct2_` spelling. Exact-token equality
+        // already implies it for grants this process minted; the structural
+        // check is the verifier half of the downgrade defense and holds even
+        // if a future adapter restores grant state minted elsewhere.
+        if classify_credential(&connection_token) != Some(CredentialClass::SenderConnectionToken) {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_CONNECTION_TOKEN_INVALID",
+                "realtime",
+                "sender-bound connection grants require the v2 token spelling",
+            ))
+            .into_response());
+        }
         let thumbprint = binding.jwk_thumbprint.clone();
         charge_hosted_sender_attempt(
             runtime,
@@ -9429,8 +9465,17 @@ async fn admit_hosted_sender_request(
             return Ok(None);
         }
         PresentedSessionBearer::Candidate(candidate)
-            if classify_credential(candidate)
-                .is_some_and(|class| class != CredentialClass::Session) =>
+            // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: both session
+            // spellings enter sender admission (`sbs2_` is the sender-bound
+            // class the hosted exchange mints; the legacy `sbs_` spelling is
+            // refused inside the admit when its family is sender-bound).
+            // Every other credential class stays on its own lane.
+            if classify_credential(candidate).is_some_and(|class| {
+                !matches!(
+                    class,
+                    CredentialClass::Session | CredentialClass::SenderSession
+                )
+            }) =>
         {
             if spec.path == "/connection/open" {
                 charge_hosted_sender_attempt(
@@ -11473,7 +11518,9 @@ async fn prepare_connection_open_authority_with_scoped_token(
         && classify_credential(raw).is_some_and(|class| {
             !matches!(
                 class,
-                CredentialClass::Session | CredentialClass::ScopedToken
+                CredentialClass::Session
+                    | CredentialClass::SenderSession
+                    | CredentialClass::ScopedToken
             )
         })
     {
@@ -11907,7 +11954,10 @@ async fn coordinated_exchange_session(
             }
             PlannedExchange::Issue(mut plan) => {
                 if let Some(commitment) = sender_issuance.clone() {
-                    plan.bind_sender_issuance(commitment)?;
+                    // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: binding
+                    // the sender issuance re-mints the candidate bearer in
+                    // the versioned `sbs2_` spelling before premark.
+                    plan.bind_sender_issuance(commitment, provider.agent_random_source())?;
                 }
                 let commit_code = code.clone();
                 let carrier = coordinator
@@ -26987,6 +27037,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("issued hosted sender bearer")
             .to_owned();
+        // Decision 4 first layer: sender-bound issuance mints `sbs2_`.
+        assert!(
+            bearer_one.starts_with("sbs2_"),
+            "sender-bound exchange must mint the versioned spelling",
+        );
 
         let session_proof = sender_key.resource_proof(
             "GET",
@@ -27106,6 +27161,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("refresh successor bearer")
             .to_owned();
+        // Decision 4: successors of a sender-bound family stay `sbs2_`.
+        assert!(
+            bearer_two.starts_with("sbs2_"),
+            "sender-bound refresh successor must stay in the versioned spelling",
+        );
 
         let retryable_session_proof = sender_key.resource_proof(
             "GET",
@@ -27224,6 +27284,11 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("sender connection token")
             .to_owned();
+        // Decision 4: sender-bound connection-open mints `sct2_`.
+        assert!(
+            connection_token.starts_with("sct2_"),
+            "sender-bound connection grant must mint the versioned spelling",
+        );
 
         let mut grant_route_matrix = super::route_registry()
             .into_iter()

@@ -823,6 +823,10 @@ await runAcceptance(suite, async () => {
       ?? response.json?.credential?.token ?? null;
     expect(typeof bearer === 'string' && bearer.length > 0,
       `exchange returned no session token: ${JSON.stringify(response.json).slice(0, 300)}`);
+    // LLP 0077 decision 4, first layer: sender-bound issuance mints the
+    // structurally distinct, legacy-rejecting versioned spelling.
+    expect(bearer.startsWith('sbs2_'),
+      `sender-bound exchange must mint the sbs2_ spelling, observed ${bearer.slice(0, 6)}…`);
     return { status: 200, nonExtractableCustody: custody.extractable === false };
   });
 
@@ -1168,6 +1172,10 @@ await runAcceptance(suite, async () => {
     connectionToken = response.json?.connectionToken;
     expect(typeof connectionId === 'string' && typeof connectionToken === 'string',
       'connection/open returned no grant');
+    // LLP 0077 decision 4, first layer: sender-bound connection-open mints
+    // the sct2_ grant spelling the v1 verifier cannot accept.
+    expect(connectionToken.startsWith('sct2_'),
+      `sender-bound grant must mint the sct2_ spelling, observed ${connectionToken.slice(0, 6)}…`);
     return { status: 200, successorNonce: typeof response.nonce === 'string' };
   });
 
