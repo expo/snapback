@@ -37,7 +37,13 @@ the §0C gap-row families, and the drain-response schema joined the LLP
 0051 §D4 drift gates; the hosted executable schema-validation gate landed
 as `cloudflare/test/wire-schema-gate.mjs`; §0A.5/§0C rows updated in
 place — the in-band reply grammar deliberately stays out pending its
-§0C.6 item-6 convergence)
+§0C.6 item-6 convergence); 2026-07-27 (§0C.6 convergence
+executed under its ticket: ledger items 1-4 and 6-9 converged — hosted
+emitters now satisfy the committed schemas, the in-band kit-socket reply
+grammar is kit dialect, the local `attribution` flatten is admitted into
+the regenerated `mutation.output.schema.json`, and the executable
+emitter audit landed as `cloudflare/test/acceptance.wire-shapes.mjs`;
+the tolerate-the-divergence caveat is retired for the converged items)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -120,19 +126,19 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/capability` | GET | Public | not served under this name (the manifest rides `/inspect`/`/`) | capability manifest (`capability.manifest.schema.json`) |
 | `/connection/open` | POST | Public credential; `auth/rr` offer required in sessions mode (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
 | `/query/{name}` | POST | app auth (mode-dependent, LLP 0031 matrix) | served | served (`kitQuery`) |
-| `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) — response bytes currently diverge from `mutation.output.schema.json` (§0C.6 item 1) |
+| `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) — emits the committed `mutation.output.schema.json` envelope including the required `receipt` (§0C.6 item 1, converged 2026-07-27) |
 | `/action/{name}` | POST | app auth | served | served (`executeAction`) |
 | `/query/{name}/authorized-lease` | POST | sessions-mode resolved caller + exact protocol offers (LLP 0043/0053) | served | **not served** (hosted auth profile gap) |
 | `/client-mutations/acknowledge` | POST | app auth + authority descriptor | served | **not served** |
 | `/live/{name}/subscribe` | POST | Conn grant (`Authorization` bearer ignored after open) | served; open decoder body (§0C) | served (`kitSubscribe`); **refuses without a current socket session** (`SNAPBACK_CONNECTION_SOCKET_REQUIRED`, HTTP **409** on this arm — `coordinator.js` `kitSubscribe`/`kitUnsubscribe` guards) |
-| `/live/{name}/unsubscribe` | POST | Conn grant (bearer ignored) | served | served (`kitUnsubscribe`) — response bytes currently diverge from `live.unsubscribe.output.schema.json` (§0C.6 item 2) |
+| `/live/{name}/unsubscribe` | POST | Conn grant (bearer ignored) | served | served (`kitUnsubscribe`) — emits the committed `live.unsubscribe.output.schema.json` shape (§0C.6 item 2, converged 2026-07-27) |
 | `/live/{name}/resume` (reattach) | POST | Conn grant (bearer ignored) | served (LLP 0090 keeps it; no first-party caller) | **not served** (gateway forwards `subscribe\|unsubscribe` only — `KIT_ROUTE`, `gateway.js:67`) |
 | `/live/{connection_id}/stream` | GET (WS upgrade) | Conn grant (header or `snapback.connection-token.<token>` subprotocol; never URL; bearer does not replace bound authority) | served (`stream_live`) | served (`acceptKitSocket`) |
 | `/outbox/{connection_id}` | GET | Conn grant (bearer ignored) | leased-batch drain (LLP 0059 ownership cut; response shape §0A.5) | grant-verified, **declared-empty batch** (`coordinator.js` kit outbox arm; `http_outbox_poll_fallback` is a manifest gap) |
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed since 2026-07-27 by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar as served is **mixed-dialect**: ping → kit `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → kit `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → **proof-dialect** `{type: "snapshot", subscriptionId, function, version, rows, connectionKey}`; every error → proof-dialect `{type: "error", code, …}`; unsubscribe → session-scoped delete, **no reply frame**. Decision (v0.3): the in-band durable **request** surface is recorded as served; its **reply** grammar is **not conformance-claimable wire v1** until converged to kit dialect (§0C.6 item 6 ledger + ticket). The v1 conformant durable entry point on this arm is HTTP subscribe/unsubscribe with a current socket session; no first-party client sends in-band durable frames |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed since 2026-07-27 by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged 2026-07-27): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. The reply grammar becomes conformance-claimable when its committed schemas land (§0F item-1 ticket per §0F item 2); until then the v1 conformant durable entry point on this arm remains HTTP subscribe/unsubscribe with a current socket session; no first-party client sends in-band durable frames |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
 | `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
@@ -587,8 +593,8 @@ clients are not proven tolerant needs capability gating or a new token
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
 | `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |
 | `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |
-| `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm currently under-fills it (§0C.6 item 3) |
-| `MutationResponse` (`mutation.output.schema.json`) | **closed** | but the served local bytes ride `FunctionResponse<T>`, which flattens an optional `attribution` member the closed schema does not admit — a real schema-generation defect, §0C.6 item 4 |
+| `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm fills it completely since the §0C.6 item-3 convergence (2026-07-27) |
+| `MutationResponse` (`mutation.output.schema.json`) | **closed** | `attribution` is admitted explicitly since the §0C.6 item-4 convergence (2026-07-27): the type carries `Option<FunctionAttribution>` directly and the schema is regenerated from the served envelope |
 | `QueryOutput` / action output (`QueryOutput` in `src/manifest.rs`; the action route serves `FunctionResponse<FunctionRunResult>`, `src/local.rs`) | open | `query.output.schema.json` / `action.output.schema.json` (committed 2026-07-27); open families, so the served `FunctionResponse` attribution flatten validates |
 | `/app/ensure` outcomes (`EnsureAppAttestOutcome` / `EnsureAppProvisionOutcome` / legacy `EnsureAppOutcome`, `src/local.rs`) | **closed** (`deny_unknown_fields`; `additionalProperties: false` in `app.ensure.output.schema.json`) | closed-family rule: additions need gating or a new token (v0.2 misclassified this row open — corrected) |
 | `/app/bundle` output (`app.bundle.output.schema.json`) | open object | additive-optional evolution, same rule as the live outputs |
@@ -648,80 +654,131 @@ diverge again.
 
 The precedence rule (Summary) holds the committed schemas as the
 contract target on both arms. This ledger enumerates every audited place
-where **served bytes today do not satisfy them**. Divergences are
-**defects** — tracked by
+where served bytes **as of the audit** did not satisfy them. Divergences
+are **defects** — tracked by
 `issues/20260725-0094-hosted-response-shape-divergences.md` — not
-renegotiated contract; until they are fixed, a client targeting the
-hosted arm MUST tolerate the enumerated shapes (tolerate means: accept
-these specific narrower/looser payloads; it licenses no other
-deviation), and a conformance claim on the affected tuples carries this
-ledger by reference.
+renegotiated contract.
+
+**Convergence record (2026-07-27, executed under the ticket):** items
+1–4 and 6–9 are **converged** — the emitters now satisfy the committed
+schemas, with per-item assertions plus a schema-validating audit gate in
+`cloudflare/test/acceptance.wire-shapes.mjs` (registered in the
+non-remote local suite). The per-item entries below keep the audited
+divergence as a dated historical record and note what converged. The
+former caveat — clients targeting the hosted arm MUST tolerate the
+enumerated shapes, and conformance claims on affected tuples carry this
+ledger by reference — is **retired for the converged items**: served
+bytes on those lanes are the committed schemas, and no tolerance license
+remains. (The shared Cloudflare deployment serves the converged shapes
+only after its next redeploy; until then a client of that specific
+deployment still observes the pre-convergence bytes.)
 
 1. **Hosted `/mutation/{name}`** (`kitMutation`, `coordinator.js`)
-   returns `{version, changed_count, result}` — no `receipt`, which
-   `mutation.output.schema.json` requires.
-2. **Hosted `/live/{name}/unsubscribe`** (`kitUnsubscribe`) returns
+   returned `{version, changed_count, result}` — no `receipt`, which
+   `mutation.output.schema.json` requires. **Converged 2026-07-27**: the
+   route emits the required terminal mutation receipt with honest
+   hosted facts — a per-invocation minted `mutationId` (this arm has no
+   client-mutation replay ledger, so `clientMutationId` is never
+   echoed), declared-write-set `affectedTables` (`null` = explicitly
+   unknown), `snapshotVersion` at the commit, `transport: "http"`, and
+   the caller's opaque `correlation` echoed verbatim. Hosted rejected
+   mutations still omit the *optional* `ErrorResponse.receipt` member:
+   this arm has no retention ring, and its failure lane cannot yet
+   distinguish gate refusals from post-admission rejections, so it does
+   not fabricate a receipt boundary it does not have.
+2. **Hosted `/live/{name}/unsubscribe`** (`kitUnsubscribe`) returned
    `{removed: true}` — neither `subscription_id` nor `disposed`, both
-   required by `live.unsubscribe.output.schema.json`.
-3. **Hosted error envelopes** (`kitError`/`kitFailure`) emit
-   `{diagnostic: {code, message[, details]}}` — the envelope shape is
-   right, but the inner `Diagnostic` omits `severity` and `subsystem`
-   and makes `details` optional, all required by the schema.
-4. **Local function responses** ride `FunctionResponse<T>`
-   (`src/server.rs`), which serde-flattens an optional `attribution`
+   required by `live.unsubscribe.output.schema.json`. **Converged
+   2026-07-27**: the route answers `{subscription_id, disposed}`;
+   unknown/foreign ids answer `disposed: false` (the session-scoped
+   delete is this arm's ownership cut, unlike the local arm's
+   ownership refusal).
+3. **Hosted error envelopes** (`kitError`/`kitFailure`) emitted
+   `{diagnostic: {code, message[, details]}}` — the envelope shape was
+   right, but the inner `Diagnostic` omitted `severity` and `subsystem`
+   and made `details` optional, all required by the schema. **Converged
+   2026-07-27**: every kit-lane emitter composes the full Diagnostic
+   through `cloudflare/src/wire-diagnostic.js`, whose code-family →
+   subsystem classification mirrors the local vocabulary (`realtime`,
+   `server`, `storage`, `auth`, default `runtime`) and always emits
+   `details` (`{}` when empty, the local default).
+4. **Local function responses** rode `FunctionResponse<T>`
+   (`src/server.rs`), which serde-flattened an optional `attribution`
    member onto the output; `mutation.output.schema.json` is closed and
-   does not admit it, so a sessions-mode mutation response with
-   attribution violates the committed schema on the **local** arm. The
-   schema should be generated from the served envelope (or `attribution`
-   admitted explicitly); this is the one divergence whose fix is a
-   schema-side correction rather than a JS emitter fix.
+   did not admit it, so a sessions-mode mutation response with
+   attribution violated the committed schema on the **local** arm — the
+   one schema-side divergence. **Converged 2026-07-27** by admitting
+   `attribution` explicitly: `MutationResponse` carries
+   `Option<FunctionAttribution>` directly (the mutation route no longer
+   wraps in `FunctionResponse`), and `mutation.output.schema.json` was
+   regenerated (`snapback-schemagen`; served bytes unchanged, the
+   member set is identical). The schema stays closed.
 5. **Hosted `/query/{name}`** (`kitQuery`) returns `{version, rows}` —
    shape-compatible with `QueryOutput` (no committed standalone schema;
    §0C.2 gap row), noted here for completeness, not a schema violation.
 6. **Hosted in-band durable subscribe replies** (§0A.1 WS-kinds row):
-   plain (non-resume) subscribe answers proof-dialect
-   `{type: "snapshot", …, connectionKey}` and every in-band error is
+   plain (non-resume) subscribe answered proof-dialect
+   `{type: "snapshot", …, connectionKey}` and every in-band error was
    proof-dialect `{type: "error", code, …}` — frames outside both
-   committed socket-frame families. Convergence target: kit dialect
-   (`kind`-tagged), matching the already-kit-dialect `current_as_of`
-   and `pong` replies; until then the reply grammar is
-   conformance-unclaimable (the §0A.1 decision).
+   committed socket-frame families. **Converged 2026-07-27** to kit
+   dialect on kit sockets: `kind: "snapshot"` with the same snake_case
+   members as the kit `live_replace`/`current_as_of` frames (no
+   proof-only `connectionKey`), and `kind: "error"` carrying the full
+   committed `Diagnostic`; `pong`/`current_as_of` were already kit
+   dialect, and unsubscribe keeps its no-reply semantics. Proof sockets
+   keep the LLP 0040 pinned `type`-tagged frames byte-for-byte.
+   Schematizing the now-uniform reply grammar (and its entry into the
+   drift gates) rides the §0F item-1 ticket per §0F item 2.
 7. **Hosted kit-route request-parse refusals** (`requestDiagnostic` via
-   `parseJsonObjectRequest`, `coordinator.js`) emit
+   `parseJsonObjectRequest`, `coordinator.js`) emitted
    `{ok, code, message, diagnostic}` — top-level members the closed
    `ErrorResponse` does not admit, plus the under-filled inner
-   `Diagnostic` of item 3.
+   `Diagnostic` of item 3. **Converged 2026-07-27**: kit routes parse
+   with `errorDialect: 'kit'` and refuse with the closed ErrorResponse;
+   the LLP 0040 proof and `/_snapback/*` system/testing lanes keep the
+   pinned `{ok, code, message, diagnostic}` shape (outside the
+   governance rule below, byte-pinned by the protocol-hardening suite).
 8. **Gateway-lane refusals** (`cloudflare/src/gateway.js`): kit-route
-   method refusals emit an under-filled `Diagnostic`
+   method refusals emitted an under-filled `Diagnostic`
    (`SNAPBACK_METHOD_NOT_ALLOWED`); the kit-stream non-upgrade branch
-   emits `{error: "expected websocket upgrade"}` (426) and the
-   `/_snapback/*`/fallthrough 404s emit `{error: "not found", path}` —
-   no `diagnostic` envelope at all.
+   emitted `{error: "expected websocket upgrade"}` (426) and the
+   `/_snapback/*`/fallthrough 404s emitted `{error: "not found", path}`
+   — no `diagnostic` envelope at all. **Converged 2026-07-27**: method
+   refusals fill the Diagnostic (with `path`/`expectedMethod` details);
+   the non-upgrade 426 mints `SNAPBACK_UPGRADE_REQUIRED` (the same code
+   the coordinator's own pre-upgrade gate mints); the `/_snapback/*`
+   and fallthrough 404s mint `SNAPBACK_ROUTE_UNKNOWN` diagnostics. The
+   `/__exact/*` asset-lane JSON 404s are Exact-protocol surface and
+   deliberately keep their shapes (pinned in the audit gate's
+   exemption inventory).
 9. **Hosted platform-failure responses on kit routes**
    (`platformFailureResponse`, `cloudflare/src/platform-errors.js`,
    non-proof branch): `{diagnostic: {code, message, details}}` with the
    under-filled inner `Diagnostic` (no `severity`/`subsystem`; `details`
-   dropped when undefined).
+   dropped when undefined). **Converged 2026-07-27**: the kit branch
+   composes the full Diagnostic and never drops `details`.
 
 Governance decision (answers what the envelope rule covers):
 `error.response.schema.json` governs **every** non-2xx JSON failure on
 §0A.1 kit routes on both arms — gateway lane, parse lane, platform lane,
-and handler lane alike; items 3 and 7–9 are the audited divergences from
-that rule. The ledger enumerates **emitter functions**, not sampled
-responses (`kitError`, `kitFailure`, `requestDiagnostic`, the gateway
-`json(...)` refusal sites, `platformFailureResponse`); the convergence
-ticket owns an executable audit that fails when a new non-conformant
-emitter appears. The fix direction is decided: **converge the emitters
-to the schemas** (hosted kit routes gain the missing members; the local
-`attribution` flatten gets admitted into the generated schema; in-band
-replies converge to kit dialect). The hosted-side executable
-response-schema gate landed 2026-07-27
-(`cloudflare/test/wire-schema-gate.mjs`): conformant kit routes are
-hard-validated against the committed schemas, and this ledger's audited
-divergent emitters are enumerated in the suite's single
-`KNOWN_DIVERGENT` allowlist, exercised report-only — the convergence
-ticket shrinks that allowlist as each emitter is fixed. Nothing in this
-ledger is an evolution precedent.
+and handler lane alike; items 3 and 7–9 were the audited divergences from
+that rule. The convergence also brought the previously-unenumerated
+kit-lane emitters under the rule: the `appBundle` failure helper, the
+action kind-mismatch 400, the coded-refusal catch
+(`SNAPBACK_CAPABILITY_UNSUPPORTED` et al.), and the stale-deployment 409
+now emit the closed envelope **on kit routes only** (proof/system lanes
+keep their pinned shapes). The ledger enumerates **emitter functions**,
+not sampled responses; the executable audit the ticket owned is
+implemented in `cloudflare/test/acceptance.wire-shapes.mjs`: it
+schema-validates every enumerated lane's served bytes against the
+committed schemas AND pins the exact fingerprint set of remaining
+non-`wireDiagnostic` 4xx/5xx emitters in the served sources, so a **new**
+non-conformant error emitter fails the suite. The broader hosted-side
+response-schema gate landed the same day as
+`cloudflare/test/wire-schema-gate.mjs` (§0F items 1/3): conformant kit
+routes are hard-validated against the committed schemas, and its
+`KNOWN_DIVERGENT` allowlist — seeded from this ledger — shrinks to empty
+with this convergence. Nothing in this ledger is an evolution precedent.
 
 ## 0D — Subscription receipt typing (implemented)
 
@@ -850,11 +907,12 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    between the served validator and the schema proven over a shared
    corpus (Rust fixtures in `tests/artifact_schemas_v0.rs`; served-arm
    corpus in `wire-schema-gate.mjs`). The in-band **reply** grammar
-   remains **deliberately unschematized**: it is mixed-dialect as
-   served (§0A.1) and enters the gates only at its §0C.6 item-6
-   convergence to kit dialect — schematizing the mixed as-built replies
-   would contract the wrong protocol. The exemption is scoped to the
-   proof socket only.
+   converged to kit dialect the same day (§0C.6 item 6) and is now
+   **eligible for the gates** — its committed schemas are the one §0F
+   deliverable still open after this convergence
+   (`issues/20260727-kit-socket-reply-schemas.md`); schematizing the
+   previously mixed as-built replies would have contracted the wrong
+   protocol. The exemption is scoped to the proof socket only.
 3. **The hosted kit-route response composition** (`kitSubscribe` et al.
    compose subscribe outputs in JS): governed by the committed schemas
    but previously with no hosted-side executable drift gate.
