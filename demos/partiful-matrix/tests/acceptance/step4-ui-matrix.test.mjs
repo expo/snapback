@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -6,6 +7,7 @@ import {
   inspectAttendedTextEvidence,
   inspectPartitimeEngineClaim,
   inspectPartitimeManualDeviceGate,
+  validateRetainedWebReceipt,
 } from './step4-closure-helpers.mjs';
 
 const required = [
@@ -30,6 +32,21 @@ const receipt = (rows) => ({
   skipped: 0,
   structuralFailures: [],
   rows,
+});
+
+test('retained Step 0 web evidence validates against its recorded revision', () => {
+  const retained = JSON.parse(readFileSync(new URL(
+    '../../acceptance/results/step0-web.json',
+    import.meta.url,
+  )));
+  assert.doesNotThrow(() => validateRetainedWebReceipt(retained));
+  assert.throws(
+    () => validateRetainedWebReceipt({
+      ...retained,
+      revision: { ...retained.revision, snapback: '0'.repeat(40) },
+    }),
+    /git show/,
+  );
 });
 
 test('all preregistered current-iOS rows pass even when deferred profile rows remain red', () => {

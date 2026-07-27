@@ -126,6 +126,11 @@ export function gitRevision(root = repoRoot) {
 }
 
 export function validateRetainedWebReceipt(receipt) {
+  assert.match(
+    receipt.revision?.snapback ?? '',
+    /^[a-f0-9]{40}$/,
+    'retained Step 0 web receipt lacks its immutable Snapback revision',
+  );
   assert.equal(receipt.ok, true, 'retained Step 0 web receipt is not green');
   assert.equal(receipt.failed, 0, 'retained Step 0 web receipt contains failures');
   assert.equal(receipt.total, 43, 'retained Step 0 web receipt check count drifted');
@@ -160,8 +165,33 @@ export function validateRetainedWebReceipt(receipt) {
     );
   }
   for (const entry of receipt.testInventory ?? []) {
-    assert.deepEqual(identity(entry.path), entry, `retained Step 0 input drifted: ${entry.path}`);
+    // Step 0 is frozen historical evidence. Validate the input bytes at the
+    // revision recorded by that receipt; comparing them to the mutable Phase
+    // 4 worktree would either make legitimate later harness fixes impossible
+    // or tempt callers to rewrite the baseline.
+    assert.deepEqual(
+      identityAtRevision(entry.path, receipt.revision.snapback),
+      entry,
+      `retained Step 0 input drifted at ${receipt.revision.snapback}: ${entry.path}`,
+    );
   }
+}
+
+function identityAtRevision(path, revision) {
+  const normalized = relative(repoRoot, resolve(repoRoot, path));
+  const child = spawnSync('git', ['show', `${revision}:${normalized}`], {
+    cwd: repoRoot,
+    encoding: null,
+  });
+  assert.equal(
+    child.status,
+    0,
+    `git show ${revision}:${normalized} failed: ${child.stderr?.toString('utf8')}`,
+  );
+  return {
+    path: normalized,
+    sha256: sha256(child.stdout),
+  };
 }
 
 export function validateCitizenshipReceipt(receipt, reportPath, validatorPath, generatorPath) {
