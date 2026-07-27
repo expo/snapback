@@ -15,6 +15,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'partiful-matrix',
   'rbac',
   'shindig',
+  'team-chat',
   'todo',
   'todo-v2',
 ]);
