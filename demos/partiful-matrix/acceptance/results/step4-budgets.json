@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-27T10:18:33.285Z",
+  "recordedAt": "2026-07-27T10:24:16.712Z",
   "repository": {
-    "snapbackRevision": "7814ff49e22993273a7909aa2429cda1b2241aa5",
-    "exactRevision": "f37a3e3ae9b04e60e17625b0feaf340fecbc2520"
+    "snapbackRevision": "8558dd6b05a1a08087fcd536f6eee9cf3f1c4c5a",
+    "exactRevision": "21e7c88fb21d703302a237b33114501b081ddd59"
   },
   "inputs": {
     "protocol": {
@@ -24,8 +24,8 @@
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "7814ff49e22993273a7909aa2429cda1b2241aa5",
-      "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
+      "revision": "8558dd6b05a1a08087fcd536f6eee9cf3f1c4c5a",
+      "sha256": "23cbc8243c14b56eb6ebd0d516f706f851fa3367ee1ddadf5550c1df050a5f1e"
     },
     "nativeReceipts": [
       {
@@ -2014,11 +2014,11 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "f7e78b0bd23ff9c290d4727d0ee4b2c7cd8318b13e174c3178835acd41c91330",
+        "stdoutSha256": "fe8ba85b738ccf6bcc26e4b0275b08b4051ec8f0d6ea86e08f6a479339d12e4e",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/index-S0Adsy_y.js          223.95 kB │ gzip: 70.36 kB",
-          "✓ built in 1.44s",
+          "✓ built in 1.99s",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 53 modules transformed.",
@@ -2028,7 +2028,7 @@
           "dist/sqlite/partitime-cost-attribution.json   10.82 kB │ gzip:  0.89 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css         14.09 kB │ gzip:  3.96 kB",
           "dist/sqlite/assets/index-Ue2tIxA9.js         223.64 kB │ gzip: 70.25 kB",
-          "✓ built in 967ms"
+          "✓ built in 1.07s"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -2049,7 +2049,7 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "e539c47340b5c59f67d038c3f49e960f47dd86cb1b7f195f2b4fb5e5876f815e",
+        "stdoutSha256": "813301148d1be30295fe195dfa78ba1928149a815695aa534ab0141c8f472c12",
         "stderrSha256": "0c308ac3fc64ff09182d6396f14d9803bae7bc54455c901123e71c1849a4feca",
         "stdoutTail": [
           "computing gzip size...",
@@ -2061,7 +2061,7 @@
           "dist/sqlite/assets/event-6Heaw5W8.js                                                        30.69 kB │ gzip:  7.33 kB",
           "dist/sqlite/assets/index-wGace9FA.js                                                       205.68 kB │ gzip: 63.41 kB",
           "",
-          "✓ built in 226ms",
+          "✓ built in 250ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
@@ -2089,11 +2089,11 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "746de3dc7d31df49f4d1ff432bef726b108e3bd39b0312aa5f79eebeedf45db6",
+        "stdoutSha256": "10e6e3e4b55343d753043ca7d7171d2158a6e26d542242a2ff863447b932163e",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Cueaew6r.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 324ms",
+          "✓ built in 281ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 26 modules transformed.",
@@ -2103,7 +2103,7 @@
           "dist/sqlite/partitime-cost-attribution.json   3.19 kB │ gzip: 0.57 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css        14.09 kB │ gzip: 3.96 kB",
           "dist/sqlite/assets/index-Dn3Xzqfp.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 303ms"
+          "✓ built in 285ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
