@@ -1,5 +1,23 @@
 # LLP 0063: Partitime platform roadmap
 
+**Type:** Plan
+**Status:** Draft
+**Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-19
+
+**Revised (Step 4 authored-source v4 proposal):** 2026-07-26 (the
+source-bound final UI workload changed both governed product inventories after
+the v3 freeze: React is 42,246 bytes rather than 41,447 and Contract is 36,691
+rather than 36,212. Proposed amendment
+`partitime-ws8-authored-source-v4-2026-07-26` preserves v3 as immutable
+historical evidence, declares workload
+`partitime.web-product-authoring.v4`, and derives a 46,470-byte Contract
+threshold solely from the frozen React control using the unchanged 1.10
+formula. The proposal remains red and claim-ineligible until Charlie Cheever
+supplies its exact ratification statement; no v3 artifact, formula, or result
+is rewritten.)
+
 **Revised (Phase 4 upstream-integration checkpoint):** 2026-07-26 (the
 Phase 4 evidence branch merged Snapback `origin/main` revision
 `e87a630907a86494b56f7280ee2da0322ca295de` without rebasing or rewriting
@@ -45,11 +63,6 @@ separately-provisioned clean-machine/multi-platform evidence, and the other
 Step 5 semantic prerequisites remain open, so no Step 5 claim is promoted by
 this note.)
 
-**Type:** Plan
-**Status:** Draft
-**Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
-**Author:** Charlie Cheever / Codex
-**Date:** 2026-07-19
 **Revised (Step 4 Exact production-program checkpoint):** 2026-07-26 (Exact
 revision `62a7338c8…`, published to Exact `origin/main`, lands the ratified,
 private, non-default LLP 0381 P1-to-P3 production-program slice, prospective

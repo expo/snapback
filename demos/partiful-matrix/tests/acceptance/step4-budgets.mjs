@@ -43,7 +43,7 @@ const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/con
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
 const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json';
 const nativePerformanceInvalidationPath = 'demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json';
-const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json';
+const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-26-v4.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
@@ -112,13 +112,13 @@ assert.equal(protocolAuthoredSourceInvalidation.path, authoredSourceInvalidation
 assert.equal(protocolAuthoredSourceInvalidation.status, authoredSourceInvalidation.status);
 assert.equal(
   authoredSourceInvalidation.requiredRatificationStatement,
-  'I ratify partitime-ws8-authored-source-v3-2026-07-23.',
+  'I ratify partitime-ws8-authored-source-v4-2026-07-26.',
 );
 if (authoredSourceInvalidation.status === 'ratified') {
   assert.equal(
     authoredSourceInvalidation.ratificationStatement,
     authoredSourceInvalidation.requiredRatificationStatement,
-    'authored-source v3 authority lacks the exact owner ratification statement',
+    'authored-source v4 authority lacks the exact owner ratification statement',
   );
 }
 const performanceInvalidationIdentity = identity(performanceInvalidationPath);
@@ -467,10 +467,10 @@ const requirements = [
     ),
   }),
   requirement('authored-source-lines', sourcePass ? 'pass' : 'red', sourcePass
-    ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_PASSED'
+    ? 'STEP4_BUDGET_SOURCE_VOLUME_V4_PASSED'
     : authoredSourceInvalidation.status === 'ratified'
-      ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_EXCEEDS_THRESHOLDS'
-      : 'STEP4_BUDGET_SOURCE_VOLUME_V3_AMENDMENT_NOT_RATIFIED', {
+      ? 'STEP4_BUDGET_SOURCE_VOLUME_V4_EXCEEDS_THRESHOLDS'
+      : 'STEP4_BUDGET_SOURCE_VOLUME_V4_AMENDMENT_NOT_RATIFIED', {
     methodId: authoredSourceInvalidation.replacement.methodId,
     workloadVersion: authoredSourceInvalidation.replacement.workloadVersion,
     thresholdFormulaSetId: authoredSourceInvalidation.replacement.thresholdFormulaSetId,

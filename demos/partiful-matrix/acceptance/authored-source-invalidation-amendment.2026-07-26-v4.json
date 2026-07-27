@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "partitime.authored-source-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-authored-source-v4-2026-07-26",
+  "date": "2026-07-26",
+  "status": "proposed",
+  "proposedBy": "Codex, implementing the source-bound LLP 0063 Step 4 final product workload",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": null,
+  "ratificationStatement": null,
+  "requiredRatificationStatement": "I ratify partitime-ws8-authored-source-v4-2026-07-26.",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "supersedes": {
+    "amendmentId": "partitime-ws8-authored-source-v3-2026-07-23",
+    "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
+    "disposition": "The ratified v3 authority and every result bound to it remain immutable historical evidence for partitime.web-product-authoring.v3. They do not govern the source-bound final product workload."
+  },
+  "invalidates": {
+    "category": "authoredProductSourceBytes",
+    "thresholdFormula": "floor(react_same_workload_product_source_bytes * 1.10)",
+    "threshold": 45591,
+    "thresholdArtifact": {
+      "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
+      "amendmentId": "partitime-ws8-authored-source-v3-2026-07-23"
+    },
+    "disposition": "Preserve the v3 amendment, its 45,591-byte threshold, and every receipt that evaluated it. They may not validate the replacement workload."
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-authored-source-v4",
+    "workloadVersion": "partitime.web-product-authoring.v4",
+    "thresholdFormulaSetId": "partitime-ws8-authored-source-threshold-formulas-v4",
+    "metric": "authoredProductSourceBytes",
+    "thresholdFormula": "floor(react_same_workload_product_source_bytes * 1.10)",
+    "reactBaselineBytes": 42246,
+    "contractThresholdBytes": 46470,
+    "contractCandidateBytes": 36691,
+    "comparison": {
+      "react": [
+        "demos/partiful-matrix/surfaces/react/src/App.tsx",
+        "demos/partiful-matrix/surfaces/react/src/styles.css"
+      ],
+      "contract": [
+        "demos/partiful-matrix/surfaces/contract/feed.contract",
+        "demos/partiful-matrix/surfaces/contract/event.contract",
+        "demos/partiful-matrix/surfaces/contract/helpers.ts",
+        "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+        "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+        "demos/partiful-matrix/surfaces/contract/ui.ts",
+        "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts"
+      ]
+    },
+    "frozenInventory": {
+      "react": [
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+          "bytes": 26361,
+          "lines": 411,
+          "sha256": "ba756e5f9fe7b2e635e0b621ec89bc9e77061846ce3568ee220ac1186dae5d42"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+          "bytes": 15885,
+          "lines": 63,
+          "sha256": "7ceb2bd83f32798bca294348345f167344a4c969c1079cbe6853835ca009be23"
+        }
+      ],
+      "contract": [
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+          "bytes": 12295,
+          "lines": 184,
+          "sha256": "be6860b0910d0ea644775e014c594ebf5c87ce5ff011374a35cece8a8c564d29"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+          "bytes": 16186,
+          "lines": 223,
+          "sha256": "8023709ec100d8cc4632e47143d4085cd7ab4b01474cb59dbb04f0494f229f98"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+          "bytes": 4173,
+          "lines": 99,
+          "sha256": "840403ff31db705b7a4ac8e9247090728af34e24400a3bdb298a55c0a359ea11"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+          "bytes": 886,
+          "lines": 12,
+          "sha256": "73c940497146dbe4dd29b3d9df8a35f21890fa3701cee1a1435b43cc54a8c5ea"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+          "bytes": 399,
+          "lines": 14,
+          "sha256": "05be2777c60ebc4d7e6ee0bdad33269c6cadf67c2d1c1810c3ab2d4060459be7"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+          "bytes": 1536,
+          "lines": 55,
+          "sha256": "bab1241753ea142d58209ae7e5b03c4adf0843b0e64829b2338784d77e000f7a"
+        },
+        {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+          "bytes": 1216,
+          "lines": 28,
+          "sha256": "7d4abeb9ea82e044bd9d5815c93fbb891decd0f557f1da22b6ecb5258fd5668f"
+        }
+      ]
+    },
+    "supportInventory": {
+      "gating": false,
+      "rule": "Report entry, provider, hydration, prerender, and other integration-support files separately with both bytes and physical lines. Do not silently charge a capability implemented by only one arm to the shared product-authoring row."
+    },
+    "snapbackBackendLines": {
+      "disposition": "unchanged",
+      "threshold": 152,
+      "thresholdFormula": "floor(partitime_snapback_backend_baseline_lines * 0.80)"
+    }
+  },
+  "cause": {
+    "class": "governed-workload-rollover",
+    "finding": "After v3 ratification, the source-bound final UI workload added the symmetric visual treatment used by the 156-cell capture matrix and corrected Contract focus, accessibility, and interaction behavior required by OQ9. The fail-closed collector observed React at 42,246 bytes instead of 41,447 and Contract at 36,691 instead of 36,212, and refused to reuse v3.",
+    "retainedEvidence": {
+      "v3ReactProductBytes": 41447,
+      "v3ContractProductBytes": 36212,
+      "v3ThresholdBytes": 45591,
+      "v4ReactProductBytes": 42246,
+      "v4ContractProductBytes": 36691,
+      "v4ThresholdBytes": 46470
+    },
+    "notAThresholdLoosening": "V3 remains valid and immutable for its v3 workload. V4 declares a prospective workload identity, freezes both final inventories before ratification, and derives its Contract threshold only from the v4 React control using the unchanged 1.10 multiplier."
+  },
+  "requiredValidation": {
+    "preserveOriginalArtifacts": true,
+    "measureEveryListedFile": true,
+    "recordPathBytesLinesAndSha256": true,
+    "deriveThresholdOnlyFromReactReplacementInventory": true,
+    "retainSupportInventoryAsNonGatingEvidence": true,
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}
