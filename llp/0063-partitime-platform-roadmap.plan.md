@@ -50,10 +50,14 @@ whose terminal result is hard-bound to `full-north-star`; the aggregate claim
 is removed only from its own prerequisite evaluation, so it cannot satisfy
 itself. Collection requires clean checkouts exactly at both admitted
 revisions, unsafe artifact paths and byte drift fail closed, and a red receipt
-requires the explicit non-promoting `--allow-red` mode. This is infrastructure
-only: the retained receipt has not yet been generated or wired into the
-manifest, and STEP4.BUDGETS, STEP6.CHAT, STEP6.DOCUMENTS,
-STEP6.COMMERCE, and FINAL.IMMUTABLE_REVISION_SET remain failing or pending.)
+requires the explicit non-promoting `--allow-red` mode. The first retained
+aggregate and its three profile receipts bind clean Snapback
+`2caa143e49244b91498d1bf510a696d7c62478b8` and clean Exact
+`4220bf27c9494e6d637fc70ac7e167fc9372fdd8`; the pending manifest claim now
+points at that honestly red artifact and its normal validation command still
+exits nonzero. The receipt names exactly four blockers: STEP4.BUDGETS,
+STEP6.CHAT, STEP6.DOCUMENTS, and STEP6.COMMERCE. No claim is promoted;
+FINAL.IMMUTABLE_REVISION_SET remains pending.)
 **Revised (FINAL.EXACT_AGENT_OPERABILITY promoted):** 2026-07-26 (the
 Exact-owned mandatory final claim is promoted to `passing` under the shared
 manifest's Exact-claim change control. Exact LLP 0373 already records Phase 5

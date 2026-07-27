@@ -1,0 +1,534 @@
+{
+  "schemaVersion": "partitime.target-profile-receipt.v1",
+  "revisionSet": {
+    "snapback": {
+      "revision": "2caa143e49244b91498d1bf510a696d7c62478b8",
+      "tree": "ddc8ccd93d68e5d2bdf355a9f6a69e71dde2c79e"
+    },
+    "exact": {
+      "revision": "4220bf27c9494e6d637fc70ac7e167fc9372fdd8",
+      "tree": "7a8f193f1edb007c312b2590092ce54aabf39550"
+    }
+  },
+  "targetProfileMatrix": {
+    "schemaVersion": "partitime.claims.v1",
+    "manifestId": "partitime-cumulative-gates-v1",
+    "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+    "manifestSemanticSha256": "e080b785a3e37c9d8701454045358261117c98c0ac7bbe8651bc13ce3be854ce",
+    "protocol": {
+      "protocolId": "partitime-method-rubric-v1",
+      "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "c0a126cc72370148f88d383f794b5efa66f7c28c8fcaf419e48f27ac9a6e1b9c"
+    },
+    "profiles": {
+      "web-only": {
+        "mandatoryClaimIds": [
+          "STEP0.COMPLETE",
+          "STEP1.KEYED_SCOPES",
+          "STEP1.MUTATION_PROJECTION",
+          "STEP2.REACT_WEB",
+          "STEP2.VANILLA",
+          "STEP3.PROVIDER_BOUNDARY",
+          "STEP3.DIAGNOSTICS",
+          "STEP3.REACT_CONTRACT_PARITY",
+          "STEP4.PRODUCT_UI",
+          "STEP4.PRODUCTION_WEB",
+          "STEP4.BUDGETS",
+          "STEP5.PACKAGED_LOOP",
+          "STEP5.DECLARATION_REDUCTION",
+          "STEP6.CHAT",
+          "STEP6.DOCUMENTS",
+          "STEP6.COMMERCE",
+          "FINAL.EXACT_AGENT_OPERABILITY",
+          "FINAL.IMMUTABLE_REVISION_SET"
+        ]
+      },
+      "online-native": {
+        "mandatoryClaimIds": [
+          "STEP0.COMPLETE",
+          "STEP1.KEYED_SCOPES",
+          "STEP1.MUTATION_PROJECTION",
+          "STEP2.REACT_WEB",
+          "STEP2.VANILLA",
+          "STEP2.REACT_EXPO_IOS_ONLINE",
+          "STEP2.REACT_EXPO_ANDROID_ONLINE",
+          "STEP3.PROVIDER_BOUNDARY",
+          "STEP3.DIAGNOSTICS",
+          "STEP3.REACT_CONTRACT_PARITY",
+          "STEP4.PRODUCT_UI",
+          "STEP4.PRODUCTION_WEB",
+          "STEP4.BUDGETS",
+          "STEP5.PACKAGED_LOOP",
+          "STEP5.DECLARATION_REDUCTION",
+          "STEP6.CHAT",
+          "STEP6.DOCUMENTS",
+          "STEP6.COMMERCE",
+          "FINAL.EXACT_AGENT_OPERABILITY",
+          "FINAL.IMMUTABLE_REVISION_SET"
+        ]
+      },
+      "full-north-star": {
+        "mandatoryClaimIds": [
+          "STEP0.COMPLETE",
+          "STEP1.KEYED_SCOPES",
+          "STEP1.MUTATION_PROJECTION",
+          "STEP2.REACT_WEB",
+          "STEP2.VANILLA",
+          "STEP2.CONTRACT_IOS_PARITY",
+          "STEP2.CONTRACT_ANDROID_PARITY",
+          "STEP3.PROVIDER_BOUNDARY",
+          "STEP3.DIAGNOSTICS",
+          "STEP3.REACT_CONTRACT_PARITY",
+          "STEP4.PRODUCT_UI",
+          "STEP4.PRODUCTION_WEB",
+          "STEP4.BUDGETS",
+          "STEP5.PACKAGED_LOOP",
+          "STEP5.DECLARATION_REDUCTION",
+          "STEP6.CHAT",
+          "STEP6.DOCUMENTS",
+          "STEP6.COMMERCE",
+          "FINAL.EXACT_AGENT_OPERABILITY",
+          "FINAL.IMMUTABLE_REVISION_SET"
+        ]
+      }
+    }
+  },
+  "packageSets": [
+    {
+      "packageSetId": "snapback-published-runtime",
+      "packageCount": 8,
+      "sourceRevision": "ca92d02943e72c2ced7861a0cff54b8821878d48",
+      "input": {
+        "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+        "sha256": "4608a4346246749b184770064c06d711f113c716cacb66aaa59f776c60151092"
+      },
+      "packages": [
+        {
+          "sourceName": "@snapback/runtime-darwin-arm64",
+          "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
+          "version": "0.1.0",
+          "registrySha256": "d92bb126a521bc4c529b18c428200d87a65622702d8e94c6d79b643eca6adfcc",
+          "registryIntegrity": "sha512-RqoGCpIDIIdJYnFX9crnl9SaxYiNPwsnL85ItsXbHqF1pZ0xNkATjPuwk/GG75GYIOoNyPygdFUOIYVVuvRj+g=="
+        },
+        {
+          "sourceName": "@snapback/runtime-linux-x64",
+          "publishedName": "@ccheever/snapback-runtime-linux-x64",
+          "version": "0.1.0",
+          "registrySha256": "5390fec95a8e6d181e911bd2e75dadd058a4b4c4b39f1c52ed0bd1f6832772cc",
+          "registryIntegrity": "sha512-6ndcbpEC8Hnl2wy6AsAX5dvPJnky2ycWssOqY7pHSScTEEKZ3bNqEh1Fx1VEirHhFHBlxk0qixv1Q8BSxk9a+g=="
+        },
+        {
+          "sourceName": "@snapback/contract",
+          "publishedName": "@ccheever/snapback-contract",
+          "version": "0.1.0",
+          "registrySha256": "a4ff4a2ecdab51ec4796518cd2f02e9ffd6ecba7085226e8f674ef2ac9eecd4c",
+          "registryIntegrity": "sha512-g5mICwGM2UqYBSRDVHow3RKYR4dJ6D11HOPdCYfn6Ytoj9F0+xtiGAkJm1+NC3owuIrssnXqo9d5yFFglCmN3g=="
+        },
+        {
+          "sourceName": "@snapback/client",
+          "publishedName": "@ccheever/snapback-client",
+          "version": "0.1.0",
+          "registrySha256": "0bdbe5e9d628fd2bed693ad9e78b3c1fbfca6fd80347057f992605c36bdfbeef",
+          "registryIntegrity": "sha512-solv5BfGi30aQ13r9vDF6ADdUKlY3CapN+yY840L9Z+cP1UqBXqKpYRrB8I8JvBWuRgSYfuw/trvvIrLArxrOw=="
+        },
+        {
+          "sourceName": "@snapback/codegen",
+          "publishedName": "@ccheever/snapback-codegen",
+          "version": "0.1.0",
+          "registrySha256": "aff8d7de2657b6189ab834cac06d15748c659b48930f51098c6e9c1999a2c894",
+          "registryIntegrity": "sha512-AkMVbzpWUIaF4dyEvnNZ6MOiVT5iJ3E4lLb+fSlHHT40UFUVZxp2O+PgUnNibW3fpr3zJRhAq5OJfmb/+qrm4Q=="
+        },
+        {
+          "sourceName": "@snapback/react",
+          "publishedName": "@ccheever/snapback-react",
+          "version": "0.1.0",
+          "registrySha256": "571bced4c2cbd60aa800c94a39e122d02871da9d20ea24b5072792cb07aaeb6d",
+          "registryIntegrity": "sha512-8MyxGfy7woFdA0ni2VoIL6eO9jeT3a7VoAvcJXBZf+VImbhZQ3QYTK/9YTaeEDwydwerzC3/TInpVBwezqvPiQ=="
+        },
+        {
+          "sourceName": "@snapback/app-cli",
+          "publishedName": "@ccheever/snapback-app-cli",
+          "version": "0.1.0",
+          "registrySha256": "149be2b4698d78fc36097944fbef9d4638c47a267d43d548974ac1ccb2011a20",
+          "registryIntegrity": "sha512-tKVtzx/EZ/AEIIho6pQlbUh0DfQXbUZNfNAxvNzbpOsTvBL4Yc7TH32dmsuRSCOAooRlRR1DBQ2oi+rXist0Tw=="
+        },
+        {
+          "sourceName": "@snapback/cli",
+          "publishedName": "@ccheever/snapback-cli",
+          "version": "0.1.0",
+          "registrySha256": "fab408cbc52e893a38a312fda495d31ad9313031dcc7b171438680682f798aca",
+          "registryIntegrity": "sha512-mczsTgYMHBjNS6QQY0qp0UeU/ZkrYZT5Hia6kc3fnKpx9MjyZ7VRwS1dStcD+AX+nIXnyQfJx0jkRdzZ9GbYDA=="
+        }
+      ],
+      "packageSetSha256": "9521d755b2e39ce50e4406c95dfab4c7d7dee59846abfb52de206768c14a76e6"
+    },
+    {
+      "packageSetId": "exact-contract-consumer-lock",
+      "packageCount": 18,
+      "version": "0.1.6",
+      "inputs": {
+        "manifest": {
+          "path": "demos/partiful-matrix/surfaces/contract/package.json",
+          "sha256": "44e39a107abb959122037a2be870851d6c2b64cb8274567e0324cbfd7ae9373f"
+        },
+        "lock": {
+          "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
+          "sha256": "1e95bad2ad29267aa377c29ccf5fe15c1a7dca089f794b06c3931e3ccadf84f7"
+        }
+      },
+      "packages": [
+        {
+          "sourceName": "@exact/contract",
+          "publishedName": "@ccheever/exact-contract",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-NLHUKRIY9UOQ5WjeNdDOmX3I+SRWSFY/oOOfSE2EacLDLcvJjlNNLcWgC6fYYr1H+jo9nV3n8jWRQ22LYPUc0w=="
+        },
+        {
+          "sourceName": "@exact/core",
+          "publishedName": "@ccheever/exact-core",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-G6rETc2mHqWR/8p59B9XHV0b7vNRWskBbGf2AI9sWJJu8D1cDiCL28Nj5d2zvkb0vEYKXHc8iHkn+Z0bR+259g=="
+        },
+        {
+          "sourceName": "@exact/design-cloud",
+          "publishedName": "@ccheever/exact-design-cloud",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-z9yth49lY9iKdlWgFopkC5bclzsjK1RvDhmVpBaPplOyv5pHGPl3R6uLcDVhPvR9pH4GFT+1Dkg9mQNFpobeDA=="
+        },
+        {
+          "sourceName": "@exact/devtools",
+          "publishedName": "@ccheever/exact-devtools",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-HuxD5ZqsqpJQI/spbFCW+ZBn8opIphz3INJAjHs7diFT4LSRNUClSDqnqN3m2ig8A6LgnDoJ8lO490dBBJaI5g=="
+        },
+        {
+          "sourceName": "@exact/facet-core",
+          "publishedName": "@ccheever/exact-facet-core",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-N6N5ZGAGYKxHen8eLm4bswgT09Zas6MqlL23RaawLeZEwtnjPmuJndSMRw20I/mxYlgVYF0ggn2n+L2ZgyOQ/w=="
+        },
+        {
+          "sourceName": "@exact/floating",
+          "publishedName": "@ccheever/exact-floating",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-quBGhFafAetNnnCIB6E0+zCHiJrTAUMzBVIuDvQQ6w6/Hea+YAqE3NRsn0TeZrtcK0rjkt9+I5Zvxjufpcdmgg=="
+        },
+        {
+          "sourceName": "@exact/graphics",
+          "publishedName": "@ccheever/exact-graphics",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-gSCu/I/bVWRGB5jLpOXedOruIc1lwlLSptDdYEOQT9D5uXURSM20s5gpkIRqmGUUV3JiEchPnrs39R1f1a5hMA=="
+        },
+        {
+          "sourceName": "@exact/list-core",
+          "publishedName": "@ccheever/exact-list-core",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-Yy7nTtIyh4LiaRtVcYG8lwadfsVp1l8q0GWmCGPfhv4bLHcN5QUVQ6VRL8iaY+AK+T2f/8SbEpt/khYM0OVWbw=="
+        },
+        {
+          "sourceName": "@exact/lottie",
+          "publishedName": "@ccheever/exact-lottie",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-Y2i8LIzLyQeRup14lCmT845BMP6d7PGmJwzuHcDXzHGioQ+fnetZdovt8NJtW+vvlRL6Hx/Qb6lqKX+DMxs6dw=="
+        },
+        {
+          "sourceName": "@exact/modules",
+          "publishedName": "@ccheever/exact-modules",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-o32T4X3eEMu4BUuQz0nB51dUEum/WzHeAimTfrPzbQkg10mFzXZeHfYVi6I/S2a3H+g1gr0J6S/Q9mOlmHOreQ=="
+        },
+        {
+          "sourceName": "@exact/observability",
+          "publishedName": "@ccheever/exact-observability",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-O37CY2qqg5xn9N/l2D+JbMPYiYoqIsb/yh8EIWNj456IoGxtQMhVuPNdxMYr4xAZMbYMX+mpCxRPNQbwuR5rAg=="
+        },
+        {
+          "sourceName": "@exact/renderer",
+          "publishedName": "@ccheever/exact-renderer",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-H0u59sUxbqGj1+3ceQ/hmhRaFUykA+VXFIyS9yBUOKhVdvy+hLsumid0AViIxYBQ4MQlluELPqEglco4n8JHtg=="
+        },
+        {
+          "sourceName": "@exact/router",
+          "publishedName": "@ccheever/exact-router",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-c/S+1f/TqZTYI0/gDNm9utEA3a6B2WvLXvvnFR9seLlewBd1v8zrqlNTx/H9nuDuvkYLHaU6cVPAQ3mnJHp6gQ=="
+        },
+        {
+          "sourceName": "@exact/runtime-js",
+          "publishedName": "@ccheever/exact-runtime-js",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-EJ9ZtvYSjnTpdsXWTr/WAwCj3CM5OjY99aGZUraCafE5VhRkuytmvjoFCaHBKT00mwpxPnpjfgLySt8sCsxuHw=="
+        },
+        {
+          "sourceName": "@exact/server",
+          "publishedName": "@ccheever/exact-server",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-t30LcnRkUa5Ylu7MBD56isG3JWsbySenluPj/04g94+dr6ZMe7geUZZENwlpA+eBmSxKVa+aYP2lP3ii+MoAoA=="
+        },
+        {
+          "sourceName": "@exact/text",
+          "publishedName": "@ccheever/exact-text",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-ALBt3j2XSlnIJl2u6OBzwuEhHFakJKK8b35A8jECKZ0/0GEwZDgccmZOOjvnyQNf6OA2hKY0s/j5A5fU1yURgg=="
+        },
+        {
+          "sourceName": "@exact/video",
+          "publishedName": "@ccheever/exact-video",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-csO8rc+vySzAfTzZP26uCEvNdtk6mlAMJNALJ1IFQUMM8cdnsHWMBZJYfxzNCLUfa4jp5B6g9nmfA/ZL8VbjaA=="
+        },
+        {
+          "sourceName": "@ibex/runtime-js",
+          "publishedName": "@ccheever/exact-ibex-runtime",
+          "version": "0.1.6",
+          "registryIntegrity": "sha512-qig1uSVK8e4VwiFmojJoir0bysWIFHEqgQyn58WfmdPDRBUaiQbd2bTzRPYgYECDy/rYK7aoKlar19IU9dJvuQ=="
+        }
+      ],
+      "packageSetSha256": "ea3eb32f2b0a4ce527c691ecb3b902c6811d2a769080a4a2cd96021980e9c0a6"
+    }
+  ],
+  "instruments": {
+    "collector": {
+      "path": "demos/partiful-matrix/tests/acceptance/final-immutable-revision-set.mjs",
+      "sha256": "019f8ad169d409fcb8fc59b10ed9f2bd5f88c349d9a9b96e77271a48b0ee34e2"
+    },
+    "library": {
+      "path": "demos/partiful-matrix/tests/acceptance/final-immutable-revision-set-lib.mjs",
+      "sha256": "a0839c1155c4dce1664567f3f8cd9408c7a70a752bf6c224e17baff0f105fc44"
+    },
+    "manifestSemantics": {
+      "path": "demos/partiful-matrix/tests/acceptance/manifest-semantics.mjs",
+      "sha256": "ed0fdb490a820f1c3ec727068b02cba1badcea66965746cfeacf11c4ecf26185"
+    }
+  },
+  "profileId": "full-north-star",
+  "terminal": true,
+  "mandatoryClaimIds": [
+    "STEP0.COMPLETE",
+    "STEP1.KEYED_SCOPES",
+    "STEP1.MUTATION_PROJECTION",
+    "STEP2.REACT_WEB",
+    "STEP2.VANILLA",
+    "STEP2.CONTRACT_IOS_PARITY",
+    "STEP2.CONTRACT_ANDROID_PARITY",
+    "STEP3.PROVIDER_BOUNDARY",
+    "STEP3.DIAGNOSTICS",
+    "STEP3.REACT_CONTRACT_PARITY",
+    "STEP4.PRODUCT_UI",
+    "STEP4.PRODUCTION_WEB",
+    "STEP4.BUDGETS",
+    "STEP5.PACKAGED_LOOP",
+    "STEP5.DECLARATION_REDUCTION",
+    "STEP6.CHAT",
+    "STEP6.DOCUMENTS",
+    "STEP6.COMMERCE",
+    "FINAL.EXACT_AGENT_OPERABILITY",
+    "FINAL.IMMUTABLE_REVISION_SET"
+  ],
+  "aggregateClaimId": "FINAL.IMMUTABLE_REVISION_SET",
+  "prerequisiteClaims": [
+    {
+      "id": "STEP0.COMPLETE",
+      "status": "passing",
+      "witnessClass": "aggregate-gate",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
+        "sha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3",
+        "observedSha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3"
+      }
+    },
+    {
+      "id": "STEP1.KEYED_SCOPES",
+      "status": "passing",
+      "witnessClass": "lifecycle",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json",
+        "sha256": "07109ed180a41f93fed1a29550edbcd44bf004b02d1ad2900145c614fe07d0f0",
+        "observedSha256": "07109ed180a41f93fed1a29550edbcd44bf004b02d1ad2900145c614fe07d0f0"
+      }
+    },
+    {
+      "id": "STEP1.MUTATION_PROJECTION",
+      "status": "passing",
+      "witnessClass": "mutation-outcome",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json",
+        "sha256": "8b1d28ff501142c01130f643451ad7119ebf80bb9f1d99f514fa5ff0ad0cd558",
+        "observedSha256": "8b1d28ff501142c01130f643451ad7119ebf80bb9f1d99f514fa5ff0ad0cd558"
+      }
+    },
+    {
+      "id": "STEP2.REACT_WEB",
+      "status": "passing",
+      "witnessClass": "client-lifecycle",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-react.json",
+        "sha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc",
+        "observedSha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc"
+      }
+    },
+    {
+      "id": "STEP2.VANILLA",
+      "status": "passing",
+      "witnessClass": "framework-neutral-client",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-vanilla.json",
+        "sha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b",
+        "observedSha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b"
+      }
+    },
+    {
+      "id": "STEP2.CONTRACT_IOS_PARITY",
+      "status": "passing",
+      "witnessClass": "native-parity-profile",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json",
+        "sha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5",
+        "observedSha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5"
+      }
+    },
+    {
+      "id": "STEP2.CONTRACT_ANDROID_PARITY",
+      "status": "passing",
+      "witnessClass": "native-parity-profile",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-android.json",
+        "sha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c",
+        "observedSha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c"
+      }
+    },
+    {
+      "id": "STEP3.PROVIDER_BOUNDARY",
+      "status": "passing",
+      "witnessClass": "generated-provider-boundary",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-provider-boundary.json",
+        "sha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1",
+        "observedSha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1"
+      }
+    },
+    {
+      "id": "STEP3.DIAGNOSTICS",
+      "status": "passing",
+      "witnessClass": "diagnostic-quality",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "observedSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079"
+      }
+    },
+    {
+      "id": "STEP3.REACT_CONTRACT_PARITY",
+      "status": "passing",
+      "witnessClass": "cross-surface-parity",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "sha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "observedSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079"
+      }
+    },
+    {
+      "id": "STEP4.PRODUCT_UI",
+      "status": "passing",
+      "witnessClass": "product-ui-parity",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-product-ui.json",
+        "sha256": "f39111b1b331653b35ddb946e256366dc26d7cbe75919dba0b8fc5f31a46c3e1",
+        "observedSha256": "f39111b1b331653b35ddb946e256366dc26d7cbe75919dba0b8fc5f31a46c3e1"
+      }
+    },
+    {
+      "id": "STEP4.PRODUCTION_WEB",
+      "status": "passing",
+      "witnessClass": "production-web",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+        "sha256": "f3fa0a43889b935d54aad9239b846169e199d93d3f0116d8880722b98ad64f95",
+        "observedSha256": "f3fa0a43889b935d54aad9239b846169e199d93d3f0116d8880722b98ad64f95"
+      }
+    },
+    {
+      "id": "STEP4.BUDGETS",
+      "status": "failing",
+      "witnessClass": "performance-budget",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+        "sha256": "431fec8236af87783f6436b5d19930ce2c4f74391bb7da623b902a6baab92c91"
+      }
+    },
+    {
+      "id": "STEP5.PACKAGED_LOOP",
+      "status": "passing",
+      "witnessClass": "packaged-dev-loop",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+        "sha256": "4608a4346246749b184770064c06d711f113c716cacb66aaa59f776c60151092",
+        "observedSha256": "4608a4346246749b184770064c06d711f113c716cacb66aaa59f776c60151092"
+      }
+    },
+    {
+      "id": "STEP5.DECLARATION_REDUCTION",
+      "status": "passing",
+      "witnessClass": "authoring-economy",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction.json",
+        "sha256": "26d061c03a5aa8e56ca73c2de220bee2135d89fb734517405f7a79570b0ce895",
+        "observedSha256": "26d061c03a5aa8e56ca73c2de220bee2135d89fb734517405f7a79570b0ce895"
+      }
+    },
+    {
+      "id": "STEP6.CHAT",
+      "status": "pending",
+      "witnessClass": "production-vertical",
+      "artifact": null
+    },
+    {
+      "id": "STEP6.DOCUMENTS",
+      "status": "pending",
+      "witnessClass": "production-vertical",
+      "artifact": null
+    },
+    {
+      "id": "STEP6.COMMERCE",
+      "status": "pending",
+      "witnessClass": "production-vertical",
+      "artifact": null
+    },
+    {
+      "id": "FINAL.EXACT_AGENT_OPERABILITY",
+      "status": "passing",
+      "witnessClass": "agent-operability",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json",
+        "sha256": "a0b69dbbbb29841bb0b8ee5ddd9f6fe90722a89d42f8de2572b0c4a625b43972",
+        "observedSha256": "a0b69dbbbb29841bb0b8ee5ddd9f6fe90722a89d42f8de2572b0c4a625b43972"
+      }
+    }
+  ],
+  "blockers": [
+    {
+      "claimId": "STEP4.BUDGETS",
+      "reason": "claim-status",
+      "status": "failing"
+    },
+    {
+      "claimId": "STEP6.CHAT",
+      "reason": "claim-status",
+      "status": "pending"
+    },
+    {
+      "claimId": "STEP6.DOCUMENTS",
+      "reason": "claim-status",
+      "status": "pending"
+    },
+    {
+      "claimId": "STEP6.COMMERCE",
+      "reason": "claim-status",
+      "status": "pending"
+    }
+  ],
+  "claimSatisfied": false
+}

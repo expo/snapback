@@ -55,7 +55,7 @@
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "cadd8b63ae9653449028743d778e3383ed1379efeefbd6079436825b40e14eb6"
+      "sha256": "61397fa83507c389b206124728ee412338a6278b893254c5adcc64aacfc6875c"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
@@ -63,7 +63,7 @@
     }
   },
   "exact": {
-    "revision": "7a1a073b6da782e78c3e812b1d0cd44ec0bd910d",
+    "revision": "0530a7da6b6be6ed6e97dcdee66cf2baff45eafd",
     "dirty": false
   },
   "inputs": {

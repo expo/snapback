@@ -410,7 +410,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "c85e73948ea290ead9a818b645c55da6ab0f3d5969aa694abfe81892a4f70ee3"
+        "sha256": "ed392e849f3292e9e1f0511316d9921e8bd21528635a8872e24cd8b27be4994f"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -461,7 +461,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3"
+        "sha256": "af340ed9683a87fcbcd93a81b946e653c6e8aa23b703ebada565306af5de2468"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
@@ -814,8 +814,11 @@
         "target-profile-matrix"
       ],
       "witnessClass": "aggregate-final-proof",
-      "command": null,
-      "artifact": null,
+      "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/final-immutable-revision-set.mjs --validate-existing --snapback-revision 2caa143e49244b91498d1bf510a696d7c62478b8 --exact-revision 4220bf27c9494e6d637fc70ac7e167fc9372fdd8",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/final-immutable-revision-set.json",
+        "sha256": "008b46c641a00077fac7a1f86549a14ae26b07905e4d7936ad26263a6540c645"
+      },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
       "status": "pending",
