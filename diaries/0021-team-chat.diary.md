@@ -146,3 +146,24 @@ runtime plumbing and makes observable action/state contracts explicit. The
 tradeoff is a rougher published-package boundary and less forgiving control
 flow around asynchronous actions. The local kernel is convincing; the hosted
 and package-consumer story still needs its own evidence.
+
+## 2026-07-26 — semantic-gap proposal
+
+The next pass did not patch either remaining Team Chat authoring gap into the
+application. Reading LLP 0053, LLP 0056, LLP 0065, and the guide confirmed that
+both boundaries are deliberate: private membership rows expose no other-
+principal id, and the generated keyset helper authorizes only owner-partitioned
+rows.
+
+Draft LLP 0100 now proposes the narrow platform extensions. Principal-addressed
+removal is opt-in and non-oracular: only a total other-principal remove policy
+can generate the command, target lookup stays host-private, and present/absent
+success returns the same `null`. Membership-scoped pages execute the membership
+predicate per page and bind the opaque continuation to the room arguments,
+authority epoch, exact plan/index/order, activation/target, and instance
+keyring.
+
+This is useful progress but not product evidence. No Team Chat source or
+generated artifact uses the proposal; both pressure-profile rows remain partial
+and the two filesystem issues stay open pending independent review,
+ratification, implementation, and product receipts.

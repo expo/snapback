@@ -5,6 +5,7 @@
 **Systems:** Team Chat, Standard patterns, Authorization, Pagination
 **Date:** 2026-07-26
 **Governing:** LLP 0056, LLP 0065, LLP 0063 Step 6
+**Proposed authority:** LLP 0100 (Draft)
 
 The `team-chat/local-pressure-v0` checkpoint proves opaque keyset pagination
 for each principal's recipient-owned inbox. It does not prove the required
@@ -16,12 +17,19 @@ index shaped `[owner, cursor]`. A team room instead needs an index shaped
 or application-minted cursors would weaken the current authority-bound cursor
 contract and are not acceptable workarounds.
 
-## Needed decision
+## Proposed decision
 
-Extend an accepted query/profile authority with a closed
-membership-scoped-keyset shape, or explicitly choose another portable
-mechanism. The cursor must bind the app, function pair, room argument,
-authorization partition and epoch, index/order schema, and target generation.
+LLP 0100 proposes `defineMembershipKeysetPages` with stable
+`membership-keyset-pages.v1` / `membership.v1` identities. The closed profile
+requires an exact `[resource, cursor]` unique index, executes the
+declaration-bound membership predicate on every page, and reuses the opaque
+MAC cursor envelope with bindings over the app, function pair, room argument,
+authority/authorization epoch, plan/index/order schema, activation/target
+identity, and instance keyring.
+
+The proposal remains Draft. This issue stays open until the RFC is independently
+reviewed, ratified, implemented, and exercised by the Team Chat product
+receipts.
 
 ## Acceptance
 

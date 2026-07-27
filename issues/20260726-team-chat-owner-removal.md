@@ -5,6 +5,7 @@
 **Systems:** Team Chat, Memberships, Authorization invalidation, Codegen
 **Date:** 2026-07-26
 **Governing:** LLP 0056, LLP 0053, LLP 0063 Step 6
+**Proposed authority:** LLP 0100 (Draft)
 
 The `team-chat/local-pressure-v0` checkpoint can invite, self-accept,
 self-leave, and rejoin through the declared `roomMembers` membership. It
@@ -15,13 +16,18 @@ id. Current id-addressed `ctx.membership.*.remove(...)` therefore is not an
 application authoring path, and treating the displayable
 `roomParticipants` row as authority would violate LLP 0056.
 
-## Needed decision
+## Proposed decision
 
-Amend the membership authoring contract with a host-owned, declaration-bound
-other-principal transition that does not disclose private roster ids or
-membership existence. A likely shape is resource + target principal, admitted
-only when the transition matrix names the caller role, target relation, source
-role, and operation.
+LLP 0100 proposes an explicit `principalAddressedWrites.remove` declaration
+and generated `removePrincipal(resource, targetPrincipal)` command. It admits
+only a total `target: "other"` remove transition, resolves the target row
+inside the host, returns the same `null` for present and absent targets, and
+keeps the transition matrix, provenance, `lastHolder`, delegated consent, and
+LLP 0053 invalidation as the sole governing mechanisms.
+
+The proposal remains Draft. This issue stays open until the RFC is independently
+reviewed, ratified, implemented, and exercised by the Team Chat product
+receipts.
 
 ## Acceptance
 

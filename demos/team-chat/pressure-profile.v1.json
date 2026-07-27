@@ -23,6 +23,7 @@
       "status": "implemented-local-partial",
       "witness": "tests/acceptance/headless.mjs",
       "nonclaim": "invite, self-accept, and self-leave are covered; host-initiated removal is not",
+      "blocker": "LLP 0100 principal-addressed removal remains Draft and unimplemented",
       "issue": "issues/20260726-team-chat-owner-removal.md"
     },
     {
@@ -46,6 +47,7 @@
       "status": "implemented-local-partial",
       "witness": "tests/acceptance/headless.mjs",
       "nonclaim": "recipient inbox is keyset-paged; channel-history-scoped pagination remains open",
+      "blocker": "LLP 0100 membership-scoped keyset pages remains Draft and unimplemented",
       "issue": "issues/20260726-team-chat-room-pagination.md"
     },
     {

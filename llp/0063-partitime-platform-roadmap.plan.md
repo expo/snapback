@@ -35,6 +35,17 @@ cross-family systems/security/payments/privacy review those proposals require;
 the maintainer has not ratified the choices; no executable semantic witness is
 created; STEP6.CHAT, STEP6.DOCUMENTS, and STEP6.COMMERCE remain pending.)
 
+**Revised (Team Chat membership-operation/page proposal):** 2026-07-26 (the
+local Team Chat pressure app's two platform-level authoring gaps now have a
+single child proposal, Draft LLP 0100: an opt-in total other-principal
+membership removal command that exposes neither roster ids nor a present/
+absent result, and a closed membership-scoped keyset profile whose opaque
+cursor binds room arguments, plan/index/order, authority and authorization
+epoch, activation/target identity, and instance custody. This is protocol
+authoring only. LLP 0100 has no independent review or maintainer ratification,
+no implementation or generated artifact uses it, both filesystem issues and
+pressure rows remain open/partial, and STEP6.CHAT remains pending.)
+
 **Revised (Step 6 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLPs
 0068–0073 now propose the missing convergence, payment, durable-work,
 abuse/moderation/audit, trusted-single-tenant control-plane, and portable-search

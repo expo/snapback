@@ -43,6 +43,10 @@ the LLP 0005 independent review/ratification boundary.
   authorization-epoch cursors; synchronous chat indexing; the remaining
   scorer, resource, and sensitive-field choices in its Draft still require
   disposition during independent review.
+- LLP 0100: total, non-oracular principal-addressed membership removal plus a
+  membership-scoped opaque keyset profile. This proposal is narrower than the
+  Team Chat product claim and preserves private rosters, transition policy,
+  authorization invalidation, owner-only LLP 0065 semantics, and red claims.
 
 ## Required independent reviews
 
@@ -53,6 +57,8 @@ the LLP 0005 independent review/ratification boundary.
 4. LLP 0071: non-GPT security and privacy/retention review.
 5. LLP 0072: non-GPT deployment/distributed-systems/security review.
 6. LLP 0073: non-GPT search/security review.
+7. LLP 0100: non-GPT authorization/privacy and query/cursor review, including
+   adversarial concurrency and revocation schedules.
 
 Reviews must be actually received and retained with provider/runtime,
 date, method, source revision, and redaction provenance. This Codex authoring
