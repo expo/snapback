@@ -35,6 +35,16 @@ The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
 
+**Progress 2026-07-27:** first independent cross-family review round done —
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(Claude family; the draft is Codex-authored). Verdict: revise and stay
+Draft — one Major (the authorization-version advance distinguishes
+present-target removal from the absent-target no-op, an existence observable
+the §1 claim does not scope; resolution is an author decision, not a
+redesign) plus four Minors. The gate is now the author's Major-1 decision,
+the Minor amendments, and ratification (LLP 0056 first, or the composed-slice
+ruling), then implementation.
+
 ## Acceptance
 
 - an owner removes an active member without obtaining a private roster id;

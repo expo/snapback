@@ -37,6 +37,14 @@ The proposal remains Draft. This issue stays open until the RFC is independently
 reviewed, ratified, implemented, and exercised by the Team Chat product
 receipts.
 
+**Progress 2026-07-27:** first independent cross-family review round done —
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(Claude family; the draft is Codex-authored). The pages surface (§4–§6) drew
+no Major; Minors touching this ticket: the per-resource unique `pageKey`
+idiom must land in the guide with the helper (LLP 0061), and acceptance
+should add the byte-identical nonexistent-room vs unjoined-room first-page
+negative. Gate: author revision + ratification, then implementation.
+
 ## Acceptance
 
 - a member traverses a pinned multi-page room fixture without overlap;
