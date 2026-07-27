@@ -19,12 +19,17 @@ bun install --cwd demos/team-chat/surfaces/react
 bun run --cwd demos/team-chat/surfaces/react typecheck
 bun run --cwd demos/team-chat/surfaces/react build
 node demos/team-chat/tests/acceptance/react-browser.mjs
+bun install --cwd demos/team-chat/surfaces/contract
+bun run --cwd demos/team-chat/surfaces/contract typecheck
+bun run --cwd demos/team-chat/surfaces/contract build
+node demos/team-chat/tests/acceptance/contract-browser.mjs
 ```
 
 The headless suite boots an isolated real Snapback server, loads the committed
 generated artifacts, and drives the product through the ordinary client. The
-browser suite opens three independent Chrome windows against the local React
-surface and exercises the same authority transitions through product forms.
+browser suites open three independent Chrome windows against the local React
+and Contract surfaces and exercise the same authority transitions through
+product forms and compiled actions.
 Set `SNAPBACK_SERVER_BINARY` when the current Snapback binary is not in the
 default target directory.
 
@@ -44,6 +49,13 @@ API references. It exposes local development personas for the owner, invited
 member, and unrelated outsider; that switcher is test scaffolding, not an
 authentication claim.
 
+The Contract surface uses generated query and mutation links, the published
+Exact 0.1.6 runtime, and Snapback's official online Contract adapter. Its route
+identity is fixed at boot: opening a room remounts the surface with that room's
+exact query scope. Development identity is likewise selected only from the
+boot URL. Polling fallback is disabled, so its browser witness fails unless
+push delivery works.
+
 The private membership table is the authorization source. `roomParticipants`
 is ordinary display/fan-out data updated in the same mutations, but it is never
 consulted as permission.
@@ -53,7 +65,7 @@ consulted as permission.
 [`pressure-profile.v1.json`](./pressure-profile.v1.json) is the fail-closed
 ledger. Search, attachments, notifications, moderation/audit, hosted
 authentication and operations, full channel-history pagination, and the
-complete cross-surface product UI remain red. The local React witness is only a
-partial implementation of the admitted kernel; it is not a hosted or Contract
+complete hosted product remain red. The local React and Contract witnesses are
+only partial implementations of the admitted kernel; neither is a hosted
 surface claim. Draft LLPs 0071–0073 cannot be replaced by application-local
 approximations.

@@ -76,8 +76,11 @@
     {
       "id": "complete-product-ui",
       "status": "implemented-local-partial",
-      "witness": "tests/acceptance/react-browser.mjs",
-      "nonclaim": "the local React surface covers the admitted room, membership, messaging, and unread kernel; Contract, hosted deployment, and every still-red product pressure remain absent"
+      "witnesses": [
+        "tests/acceptance/react-browser.mjs",
+        "tests/acceptance/contract-browser.mjs"
+      ],
+      "nonclaim": "the local React and Contract surfaces cover the admitted room, membership, messaging, and unread kernel; hosted deployment and every still-red product pressure remain absent"
     }
   ]
 }

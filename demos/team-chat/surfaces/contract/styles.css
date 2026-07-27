@@ -1,0 +1,48 @@
+:root {
+  color: #e7ebf4;
+  background: #0b1020;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#exact-root {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: #0b1020;
+}
+
+#boot-status {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 999;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 8px 11px;
+  border: 1px solid #35415d;
+  border-radius: 999px;
+  color: #9ba8c1;
+  background: rgb(13 20 36 / 92%);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+#boot-status[data-state="ready"] {
+  display: none;
+}
+
+#boot-status[data-state="error"] {
+  color: #ff9bad;
+  border-color: #7e2b3d;
+}

@@ -1,0 +1,161 @@
+// Team Chat protected-room surface.
+//
+// @ref LLP 0034#dynamic-keyed-query-scopes — the published-runtime surface
+// is intentionally boot-scoped: route identity freezes roomId before mount,
+// and navigation remounts a new exact query scope instead of smuggling
+// binding-time args through the compatibility path.
+
+use roomDetails from "../../snapback/generated/contract/roomDetails.query.ts"
+use roomMessages from "../../snapback/generated/contract/roomMessages.query.ts"
+use unreadDeliveries from "../../snapback/generated/contract/unreadDeliveries.query.ts"
+use inviteMember from "../../snapback/generated/contract/inviteMember.mutation.ts"
+use sendMessage from "../../snapback/generated/contract/sendMessage.mutation.ts"
+use markRoomRead from "../../snapback/generated/contract/markRoomRead.mutation.ts"
+use leaveRoom from "../../snapback/generated/contract/leaveRoom.mutation.ts"
+use navigateHome from "./helpers.ts"
+use unreadForRoom from "./helpers.ts"
+
+component TeamChatRoom
+  props
+    roomId: string
+    userId: string
+    displayName: string
+    inviteeId: string
+    inviteeName: string
+
+  state draft = ""
+  state errorMessage = ""
+
+  query room = roomDetails({ roomId: roomId })
+  query messages = roomMessages({ roomId: roomId })
+  query unread = unreadDeliveries({})
+  mutation invite = inviteMember
+  mutation sendMessageMut = sendMessage
+  mutation markRead = markRoomRead
+  mutation leave = leaveRoom
+
+  derive canSend = draft.trim() != ""
+
+  action back
+    navigateHome()
+
+  action setDraft(value) writes draft
+    draft = value
+
+  action send writes draft, errorMessage mutates sendMessageMut
+    let body = draft.trim()
+    let result = await sendMessageMut({ roomId: roomId, body: body })
+    if result.ok
+      draft = ""
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  action inviteDefault writes errorMessage mutates invite
+    let result = await invite({ roomId: roomId, userId: inviteeId, displayName: inviteeName })
+    if result.ok
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  action settleRead writes errorMessage mutates markRead
+    let result = await markRead({ roomId: roomId })
+    if result.ok
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  action leaveProtectedRoom writes errorMessage mutates leave
+    let result = await leave({ roomId: roomId })
+    if result.ok
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  contract
+    has node testId="team-chat-room"
+    has input testId="message-input"
+    press button "Send" -> send
+    change input testId="message-input" -> setDraft
+    when canSend then state node testId="message-send" is enabled
+    when !canSend then state node testId="message-send" is disabled
+    action send writes draft, errorMessage
+    derive canSend depends only on draft
+
+  view
+    main width="100%" minHeight="100vh" background="#0b1020" testId="team-chat-room"
+      async room
+        loading
+          column padding=28 gap=12
+            text "Opening protected room…" size=14 color="#8794ad" testId="room-loading"
+        error roomError
+          column padding=28 gap=12
+            text roomError.message role="alert" size=13 color="#ff8ca0" testId="room-error"
+            button press=back label="Back to rooms" padding=10 radius=9 background="#182238"
+              text "← Rooms" color="#e9edf5"
+        empty
+          column padding=28 gap=12 testId="room-locked"
+            text "This room is no longer available to this identity." size=14 color="#f6c967"
+            button press=back label="Back to rooms" testId="locked-back-to-rooms" padding=10 radius=9 background="#182238"
+              text "← Rooms" color="#e9edf5"
+        ready roomRows
+          each details in roomRows key=details._id
+            column width="100%" minHeight="100vh" safeArea={ regions: ["container", "keyboard"] }
+              header
+                row gap=14 align="center" wrap="wrap" padding=18 width="100%" background="#101728" borderBottomWidth=1 borderColor="#2c3852"
+                  button press=back label="Back to rooms" testId="back-to-rooms" padding=9 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
+                    text "← Rooms" size=12 weight=700 color="#e9edf5"
+                  column gap=3 flex=1 minWidth=180
+                    text `#${details.title}` headingLevel=1 size=22 weight=820 color="#f4f6fb" testId="room-title"
+                    text `CONTRACT · ${messages.connection}` size=9 weight=750 letterSpacing=1 color=messages.connection == "live" ? "#62d99d" : "#f6c967" testId="room-connection"
+                  async unread
+                    loading
+                      text "Unread…" size=11 color="#8794ad"
+                    error unreadError
+                      text unreadError.message size=11 color="#ff8ca0"
+                    empty
+                      button press=settleRead label="Mark room read" testId="unread-count" padding=9 radius=999 background="#201b3d" borderWidth=1 borderColor="#4e4279"
+                        text "0 unread" size=11 weight=700 color="#c3b9ff"
+                    ready deliveryRows
+                      button press=settleRead label="Mark room read" testId="unread-count" padding=9 radius=999 background="#201b3d" borderWidth=1 borderColor="#4e4279"
+                        text `${unreadForRoom(deliveryRows, roomId)} unread` size=11 weight=700 color="#c3b9ff"
+
+              row flex=1 minHeight=0 width="100%" wrap="wrap"
+                aside width=260 minWidth=220 padding=22 gap=14 background="#0d1424" borderWidth=1 borderColor="#26324d" testId="room-sidebar"
+                  text "#" size=26 weight=850 color="#aa9cff" background="#273452" width=52 height=52 textAlign="center" paddingTop=10 radius=13
+                  text "Protected room" size=10 weight=750 letterSpacing=1 color="#9585ff"
+                  text details.title size=21 weight=800 color="#f4f6fb"
+                  text `Signed in locally as ${displayName}` size=11 color="#8794ad"
+                  when details.createdBy == userId
+                    button press=inviteDefault label=`Invite ${inviteeName}` testId="invite-member" padding=10 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
+                      text `Invite ${inviteeName}` size=12 weight=700 color="#e9edf5"
+                  else
+                    button press=leaveProtectedRoom label="Leave room" testId="leave-room" padding=10 radius=9 background="#3c1822" borderWidth=1 borderColor="#7e2b3d"
+                      text "Leave room" size=12 weight=700 color="#ffb0bd"
+                  when errorMessage != ""
+                    text errorMessage role="alert" size=11 color="#ff8ca0" testId="room-action-error"
+
+                column flex=1 minWidth=320 minHeight=0 background="#0b1020" testId="conversation"
+                  async messages
+                    loading
+                      column flex=1 padding=28
+                        text "Loading messages…" size=13 color="#8794ad"
+                    error messageError
+                      column flex=1 padding=28
+                        text messageError.message role="alert" size=13 color="#ff8ca0"
+                    empty
+                      column flex=1 padding=28 justify="center" align="center" testId="messages-empty"
+                        text "No messages yet. Say hello." size=13 color="#8794ad"
+                    ready messageRows
+                      virtualList items=messageRows as="message" key=message._id estimateSize=70 viewportSize=520 overscan=100 stickToBottom=true stickToBottomThreshold=36 flex=1 minHeight=0 width="100%" padding=26 label="Room messages" testId="message-list"
+                        row gap=12 width="100%" paddingTop=8 paddingBottom=8 testId=`message-${message._id}`
+                          text message.authorName.slice(0, 2).toUpperCase() size=11 weight=850 color="#ffffff" background="#7557ff" width=42 height=42 textAlign="center" paddingTop=13 radius=12
+                          column gap=4 flex=1 minWidth=0
+                            text message.authorName size=12 weight=800 color="#f4f6fb"
+                            text message.body size=13 lineHeight=20 color="#d4d9e5"
+
+                  section role="form" label="Send a message" gap=8 padding=18 background="#101728" borderWidth=1 borderColor="#26324d" testId="message-composer"
+                    row gap=10 align="center"
+                      input value=draft change=setDraft submit=send label=`Message ${details.title}` placeholder=`Message #${details.title}` testId="message-input" flex=1 minWidth=0 padding=12 radius=10 background="#0a1020" borderWidth=1 borderColor="#3a4661" color="#f4f6fb"
+                      button press=send disabled=!canSend opacity=canSend ? 1 : 0.45 label="Send" testId="message-send" paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 radius=10 background="#7557ff"
+                        text "Send" size=13 weight=750 color="#ffffff"

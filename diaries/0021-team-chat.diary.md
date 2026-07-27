@@ -94,3 +94,55 @@ generated API and provider exist. Snapback's advantage is that leave-time
 revocation and recipient cursor authority are tested platform behavior; the
 tradeoff is that the local package boundary is still less polished than a
 normal registry-installed frontend dependency.
+
+## 2026-07-26 — local Contract product surface
+
+The third slice renders the same admitted kernel through compiled Contract.
+Its three-window browser witness repeats the owner/member/outsider authority
+path with polling fallback disabled: create and open a room, invite and
+self-accept, exchange live messages, clear recipient-owned unread state,
+self-leave, re-invite, and prove that the outsider remains empty.
+
+### What felt good
+
+- Generated Contract query and mutation links let the view name the same
+  operations as the React surface without rebuilding an app-local provider.
+  Explicit mutation result branches also kept denied actions visible instead
+  of swallowing them.
+- Boot-scoped route identity was a clean fit for the published adapter. A room
+  URL freezes `roomId`, binds exactly `roomDetails`, `roomMessages`, and
+  `unreadDeliveries`, and remounts on navigation. No dynamic query args or
+  retained-scope behavior are implied.
+- Revocation was especially legible in Contract. After self-leave, the live
+  protected query became empty and the room rendered its locked state before
+  the user navigated back to the `left` membership card.
+- The same eight product checks passed in real Chrome through compiled actions,
+  including post-rejoin delivery and an empty unrelated-authority window.
+
+### What remains awkward or missing
+
+- Exact 0.1.6 exposes internal TypeScript sources at the consumer package
+  boundary. A normal strict app typecheck therefore walks optional peers and
+  unrelated package implementation files. This surface uses a narrow typed
+  runtime facade so its typecheck covers authored consumer code while Bun
+  still executes the published packages in development and production builds.
+- `@ccheever/exact-facet-contract` is not in the published registry closure.
+  The surface consequently uses raw Contract layout/style primitives rather
+  than pretending to prove a published Facet authoring path.
+- Navigation from an async mutation continuation was not a dependable product
+  transition in this slice. Acceptance is stronger and clearer when accept
+  first becomes a live `member` card and leave first becomes a locked room;
+  the user then performs an explicit navigation action.
+- The production bundle is about 545 KB minified / 149 KB gzip before any
+  application-specific optimization. This is a local pressure witness, not a
+  new bundle-budget receipt or evidence that the remaining Step 4 Contract
+  architecture problem is solved.
+- Search, attachments, notifications, moderation/audit, host removal,
+  room-history continuation, real sessions auth, deployment, and operational
+  drills are still absent. The pressure ledger stays red and claim-ineligible.
+
+Compared with React plus Convex or Supabase, Contract removes more component
+runtime plumbing and makes observable action/state contracts explicit. The
+tradeoff is a rougher published-package boundary and less forgiving control
+flow around asynchronous actions. The local kernel is convincing; the hosted
+and package-consumer story still needs its own evidence.
