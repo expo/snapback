@@ -1,5 +1,13 @@
 # 0093 P-2 spec defect: the drain response shape is not documented
 
+**Status:** Open
+**Impact:** 4
+**Urgency:** 4
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-2 spec defect: the drain response shape is not documented” shows the issue materially affects a supported product or engineering path; delay compounds an active rollout, reliability, or verification risk, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Source:** LLP 0093 D4 clean-room discipline (P-2 Swift client build).
 **Systems:** Wire Protocol, Client SDK, Realtime

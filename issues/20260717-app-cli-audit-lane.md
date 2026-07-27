@@ -1,6 +1,12 @@
 # Code-mode audit lane: framed, value-free, leak-resistant stderr
 
 **Status:** Open
+**Impact:** 3
+**Urgency:** 2
+**Ease:** 3
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Code-mode audit lane: framed, value-free, leak-resistant stderr” shows the issue materially affects reliability, verification, or developer experience; it can wait behind current correctness blockers, while the fix requires a few coordinated implementation and test surfaces, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Tooling, Security, Observability
 **Author:** Claude (Fable 5), directed by Charlie Cheever

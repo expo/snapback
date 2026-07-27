@@ -1,6 +1,12 @@
 # 0081: hosted Durable Object executor profile (deferred)
 
 **Status:** Open — OQ7 answered 2026-07-26 (container-VM first, DO explicit second; both must reach production quality). Slice 1 done: LLP 0099 (`container-vm-migration-executor.v1`, Draft) specifies the profile, including the 0072-lane custody residuals below as spec. Slices 2-3 (executor arm, remote corpus) gated on LLP 0099 G1: the container-VM adapter passing the LLP 0072 drill corpus with remote evidence.
+**Impact:** 3
+**Urgency:** 1
+**Ease:** 1
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0081: hosted Durable Object executor profile (deferred)” shows the issue materially affects reliability, verification, or developer experience; the work is explicitly deferred behind prerequisites, while delivery is a dependency-heavy, multi-stage program, with specific cited code, progress, or acceptance criteria.
 **Severity:** P3
 **Systems:** Migrations, Deployment, Cloudflare
 **Author:** Claude (Fable 5), directed by Charlie Cheever

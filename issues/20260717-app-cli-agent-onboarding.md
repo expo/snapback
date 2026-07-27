@@ -1,6 +1,12 @@
 # Agent onboarding: credential profile, pair, fence bootstrap, token lifecycle
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 2
+**Confidence:** 3
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Agent onboarding: credential profile, pair, fence bootstrap, token lifecycle” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the repair crosses several runtime, host, protocol, or policy seams, with a clear design but unresolved dependencies.
 **Severity:** P2
 **Systems:** Auth, Tooling
 **Author:** Claude (Fable 5), directed by Charlie Cheever

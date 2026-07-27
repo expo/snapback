@@ -1,6 +1,12 @@
 # LLP 0075 Convex checkpoint protocol — pre-rerun program (index)
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 4
+**Ease:** 1
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0075 Convex checkpoint protocol — pre-rerun program (index)” shows the issue materially affects a supported product or engineering path; delay compounds an active rollout, reliability, or verification risk, while delivery is a dependency-heavy, multi-stage program, with specific cited code, progress, or acceptance criteria.
 **Severity:** P2
 **Systems:** Competitive evaluation, Developer experience, Deployment, Actions, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

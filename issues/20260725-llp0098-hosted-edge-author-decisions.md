@@ -1,6 +1,12 @@
 # LLP 0098 hosted-edge adapter — author decisions
 
 **Status:** Open (awaiting author)
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 5
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0098 hosted-edge adapter — author decisions” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the ticket identifies a narrow, verified change or decision, with a direct reproduction or current implementation proof.
 **Severity:** P2
 **Systems:** Auth, Security, Deployment, Control plane
 **Author:** Claude (Fable 5), directed by Charlie Cheever

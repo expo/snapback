@@ -1,5 +1,13 @@
 # 0093 P-3: authorized-lease route parses protocol offers with the WebSocket-upgrade grammar
 
+**Status:** Open
+**Impact:** 5
+**Urgency:** 4
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “0093 P-3: authorized-lease route parses protocol offers with the WebSocket-upgrade grammar” shows the issue reaches a security, correctness, release, or core product boundary; delay compounds an active rollout, reliability, or verification risk, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25
 **Source:** LLP 0096 §8.2 (P-3 verification pass)
 **Systems:** Auth, Server

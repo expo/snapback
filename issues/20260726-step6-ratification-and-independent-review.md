@@ -1,6 +1,12 @@
 # Step 6 RFC ratification and independent review
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 3
+**Ease:** 3
+**Confidence:** 4
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Step 6 RFC ratification and independent review” shows the issue materially affects a supported product or engineering path; it belongs in the current program but is not an immediate blocker, while the fix requires a few coordinated implementation and test surfaces, with specific cited code, progress, or acceptance criteria.
 
 LLP 0063 Step 6 remains blocked on accepted semantics and executable
 hosted witnesses. `STEP6.CHAT`, `STEP6.DOCUMENTS`, and `STEP6.COMMERCE` remain

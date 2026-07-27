@@ -1,6 +1,12 @@
 # Team Chat needs membership-scoped opaque room-history pagination
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 2
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Team Chat needs membership-scoped opaque room-history pagination” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the repair crosses several runtime, host, protocol, or policy seams, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Team Chat, Standard patterns, Authorization, Pagination
 **Date:** 2026-07-26

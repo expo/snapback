@@ -1,6 +1,12 @@
 # LLP 0077 decision 4, first layer: mint the versioned `sbs2_`/`sct2_` spellings
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0077 decision 4, first layer: mint the versioned `sbs2_`/`sct2_` spellings” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the implementation is localized and has concrete acceptance witnesses, with a direct reproduction or current implementation proof.
 **Severity:** P2
 **Systems:** Auth, Browser client, WebSocket
 **Author:** Claude (Fable 5), directed by Charlie Cheever

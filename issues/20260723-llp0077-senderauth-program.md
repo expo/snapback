@@ -1,6 +1,12 @@
 # LLP 0077 sender-constrained browser auth — hardening program (index)
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 1
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “LLP 0077 sender-constrained browser auth — hardening program (index)” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while delivery is a dependency-heavy, multi-stage program, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -1,6 +1,13 @@
 # Upgrade required demo surfaces to portable Exact artifacts
 
-**Status:** Blocked
+**Status:** Open
+**Impact:** 4
+**Urgency:** 2
+**Ease:** 1
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Upgrade required demo surfaces to portable Exact artifacts” shows the issue materially affects a supported product or engineering path; it can wait behind current correctness blockers, while delivery is a dependency-heavy, multi-stage program, with a direct reproduction or current implementation proof.
+**Progress:** Blocked
 **Severity:** P2
 **Systems:** Exact integration, Required demo surfaces, Generated artifacts, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever

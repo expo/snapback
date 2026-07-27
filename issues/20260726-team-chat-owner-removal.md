@@ -1,6 +1,12 @@
 # Team Chat needs an owner-authorized member-removal surface
 
 **Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Team Chat needs an owner-authorized member-removal surface” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
 **Severity:** P1
 **Systems:** Team Chat, Memberships, Authorization invalidation, Codegen
 **Date:** 2026-07-26

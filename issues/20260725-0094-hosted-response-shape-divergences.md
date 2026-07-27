@@ -1,5 +1,13 @@
 # Converge served response bytes to the committed schemas (LLP 0094 §0C.6 ledger)
 
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 3
+**Confidence:** 5
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Converge served response bytes to the committed schemas (LLP 0094 §0C.6 ledger)” shows the issue reaches a security, correctness, release, or core product boundary; the defect is blocking or unsafe on a live path now, while the fix requires a few coordinated implementation and test surfaces, with a direct reproduction or current implementation proof.
+
 **Opened:** 2026-07-25 (LLP 0094 review round 1, Codex Major 1)
 **Systems:** Cloudflare arm, Wire Protocol, Schema governance
 

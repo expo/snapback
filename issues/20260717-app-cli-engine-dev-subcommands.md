@@ -1,6 +1,12 @@
 # Engine package with dev-target subcommands (sub-stage a core)
 
 **Status:** Open
+**Impact:** 4
+**Urgency:** 2
+**Ease:** 2
+**Confidence:** 3
+**Score reviewed:** 2026-07-26
+**Score rationale:** The ticket evidence for “Engine package with dev-target subcommands (sub-stage a core)” shows the issue materially affects a supported product or engineering path; it can wait behind current correctness blockers, while the repair crosses several runtime, host, protocol, or policy seams, with a clear design but unresolved dependencies.
 **Severity:** P2
 **Systems:** Tooling, Client integration
 **Author:** Claude (Fable 5), directed by Charlie Cheever
