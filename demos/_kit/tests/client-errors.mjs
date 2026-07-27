@@ -383,6 +383,7 @@ try {
         return response(200, {
           connectionId: granted.id,
           connectionToken: granted.token,
+          wireVersion: 'snapback.v1',
         });
       }
       if (path === '/ephemeral/subscribe') {
@@ -407,10 +408,11 @@ try {
     });
     try {
       assertEqual(openBodies, [
-        { connectionId: label },
+        { connectionId: label, wireVersion: 'snapback.v1' },
         {
           connectionId: originalGrant.id,
           previousToken: originalGrant.token,
+          wireVersion: 'snapback.v1',
         },
       ], 'refresh keeps the label-keyed cache but re-suggests the granted wire id');
       assertEqual(
