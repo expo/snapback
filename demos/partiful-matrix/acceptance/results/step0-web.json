@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "ce4915d0b415b4e5666432d8f0fe1943a2bf542d",
-    "exact": "b458199579e62e6e19796c87186b8325815a3fa0"
+    "snapback": "7814ff49e22993273a7909aa2429cda1b2241aa5",
+    "exact": "2c86ac7e0d442f92a0633d7871fb3de9109362da"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -280,22 +280,20 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       },
       "convex": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       }
     }
   },
   "title": "partiful matrix / twelve browser cells",
-  "passed": 23,
-  "skipped": 20,
+  "passed": 43,
+  "skipped": 0,
   "failed": 0,
   "total": 43,
   "ok": true,
@@ -334,7 +332,7 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 16
+            "latencyMs": 10
           },
           {
             "sampleIndex": 1,
@@ -364,7 +362,7 @@
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 7
+            "latencyMs": 6
           },
           {
             "sampleIndex": 6,
@@ -382,7 +380,7 @@
             "sampleIndex": 8,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 6
+            "latencyMs": 7
           }
         ],
         "freshnessLatencyMs": {
@@ -390,10 +388,10 @@
             7,
             7,
             7,
-            7,
             6,
             6,
-            6
+            6,
+            7
           ],
           "median": 7,
           "p95": 7
@@ -404,52 +402,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20137c7766082fd47713d280d21",
-            "subscriptionId": "sub_019fa20137c7766082fd47713d280d21",
+            "bindingId": "sub_019fa313931372108c1513e96036b390",
+            "subscriptionId": "sub_019fa313931372108c1513e96036b390",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785129416649
+            "receivedAtMs": 1785147396918
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20137c873e0a2c7632aeec0cbf1",
-            "subscriptionId": "sub_019fa20137c873e0a2c7632aeec0cbf1",
+            "bindingId": "sub_019fa313931372108c151412d4bbbe30",
+            "subscriptionId": "sub_019fa313931372108c151412d4bbbe30",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785129416683
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019fa201381f7221aa84a0a9fcecd11d",
-            "subscriptionId": "sub_019fa201381f7221aa84a0a9fcecd11d",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1785129416739
+            "receivedAtMs": 1785147396920
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa201382078c191ae8ce7a3f26635",
-            "subscriptionId": "sub_019fa201382078c191ae8ce7a3f26635",
+            "bindingId": "sub_019fa313936f7c5084305442c3496971",
+            "subscriptionId": "sub_019fa313936f7c5084305442c3496971",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -458,62 +440,46 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785129416740
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019fa20138217190b72f48d468fa8bb6",
-            "subscriptionId": "sub_019fa20138217190b72f48d468fa8bb6",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1785129416740
+            "receivedAtMs": 1785147396984
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa201381f7221aa84a080ad86503e",
-            "subscriptionId": "sub_019fa201381f7221aa84a080ad86503e",
+            "bindingId": "sub_019fa31393707d109fbf929d4d370aa3",
+            "subscriptionId": "sub_019fa31393707d109fbf929d4d370aa3",
             "event": "established",
-            "transport": "push",
+            "transport": "poll",
             "scope": {
               "eventId": "event_sunset"
             },
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785129416794
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019fa20138217190b72f48f6943db5bf",
-            "subscriptionId": "sub_019fa20138217190b72f48f6943db5bf",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1785129416805
+            "receivedAtMs": 1785147396984
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20138217190b72f491969889933",
-            "subscriptionId": "sub_019fa20138217190b72f491969889933",
+            "bindingId": "sub_019fa31393717e83abc2321ac272ac66",
+            "subscriptionId": "sub_019fa31393717e83abc2321ac272ac66",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1785147396990
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019fa313936e7653abffbeba2fecd357",
+            "subscriptionId": "sub_019fa313936e7653abffbeba2fecd357",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -522,99 +488,81 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1785129416817
+            "receivedAtMs": 1785147397021
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019fa31393707d109fbf92d12438c9a7",
+            "subscriptionId": "sub_019fa31393707d109fbf92d12438c9a7",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1785147397033
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019fa31393707d109fbf92b3635568ef",
+            "subscriptionId": "sub_019fa31393707d109fbf92b3635568ef",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1785147397044
           }
         ]
       }
     },
     {
       "name": "react × supabase boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "react × supabase renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "react × supabase opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
       "name": "react × convex boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "react × convex renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "react × convex opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -671,25 +619,25 @@
             "sampleIndex": 0,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 6
+            "latencyMs": 7
           },
           {
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 6
+            "latencyMs": 5
           },
           {
             "sampleIndex": 2,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 6
+            "latencyMs": 4
           },
           {
             "sampleIndex": 3,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 5
+            "latencyMs": 6
           },
           {
             "sampleIndex": 4,
@@ -713,7 +661,7 @@
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 6
+            "latencyMs": 4
           },
           {
             "sampleIndex": 8,
@@ -724,12 +672,12 @@
         ],
         "freshnessLatencyMs": {
           "samples": [
+            4,
             6,
             5,
             5,
             5,
-            5,
-            6,
+            4,
             5
           ],
           "median": 5,
@@ -740,28 +688,28 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20177cb7fe293db9ef10432f1bf",
-            "subscriptionId": "sub_019fa20177cb7fe293db9ef10432f1bf",
+            "bindingId": "sub_019fa31435637f62b6219c5c09ddfa80",
+            "subscriptionId": "sub_019fa31435637f62b6219c5c09ddfa80",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:518da936-80aa-474c-ac12-791776d74950",
+              "rootId": "snapback-online-surface:0ccb9e4e-cac5-4196-aeac-150589842296",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1785129433036,
+            "receivedAtMs": 1785147438436,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20177f677119c041e7a27be1ede",
-            "subscriptionId": "sub_019fa20177f677119c041e7a27be1ede",
+            "bindingId": "sub_019fa314358f7140ab34ee19ebc61806",
+            "subscriptionId": "sub_019fa314358f7140ab34ee19ebc61806",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -770,12 +718,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:9dd15689-8879-47bb-bf55-926fb635c752",
+              "rootId": "snapback-online-surface:08ac0afc-9669-4b28-847a-a310407ba273",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1785129433128,
+            "receivedAtMs": 1785147438516,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -784,8 +732,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20177f876c1a61ade172e209965",
-            "subscriptionId": "sub_019fa20177f876c1a61ade172e209965",
+            "bindingId": "sub_019fa31435907c32a56b4f7162e9779b",
+            "subscriptionId": "sub_019fa31435907c32a56b4f7162e9779b",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -794,12 +742,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:9dd15689-8879-47bb-bf55-926fb635c752",
+              "rootId": "snapback-online-surface:08ac0afc-9669-4b28-847a-a310407ba273",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1785129433129,
+            "receivedAtMs": 1785147438516,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -808,8 +756,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa20177f774b3aef1e4fcd4f8475d",
-            "subscriptionId": "sub_019fa20177f774b3aef1e4fcd4f8475d",
+            "bindingId": "sub_019fa31435907c32a56b4f564e852b66",
+            "subscriptionId": "sub_019fa31435907c32a56b4f564e852b66",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -818,12 +766,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:9dd15689-8879-47bb-bf55-926fb635c752",
+              "rootId": "snapback-online-surface:08ac0afc-9669-4b28-847a-a310407ba273",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1785129433130,
+            "receivedAtMs": 1785147438516,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -834,92 +782,42 @@
     },
     {
       "name": "contract × supabase boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "contract × supabase renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "contract × supabase opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
       "name": "contract × convex boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "contract × convex renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "contract × convex opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -989,11 +887,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 161.10000002384186,
-          "boot-started": 161.30000001192093,
-          "provider-ready": 173.69999998807907,
-          "ui-mounted": 175.80000001192093,
-          "first-authoritative-snapshot": 192.39999997615814
+          "module-evaluated": 116.60000002384186,
+          "boot-started": 116.69999998807907,
+          "provider-ready": 125,
+          "ui-mounted": 126.60000002384186,
+          "first-authoritative-snapshot": 138.4000000357628
         }
       }
     },
@@ -1011,31 +909,31 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 5
+            "latencyMs": 3
           },
           {
             "sampleIndex": 1,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 2,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 3,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 3
+            "latencyMs": 4
           },
           {
             "sampleIndex": 4,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 2
           },
           {
             "sampleIndex": 5,
@@ -1047,13 +945,13 @@
             "sampleIndex": 6,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
@@ -1064,16 +962,16 @@
         ],
         "freshnessLatencyMs": {
           "samples": [
+            3,
             4,
+            2,
             3,
             4,
             3,
-            5,
-            4,
             3
           ],
-          "median": 4,
-          "p95": 5
+          "median": 3,
+          "p95": 4
         },
         "connectionBefore": "live",
         "established": [
@@ -1081,22 +979,22 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa2018e1f75f2b32262880d06e91a",
-            "subscriptionId": "sub_019fa2018e1f75f2b32262880d06e91a",
+            "bindingId": "sub_019fa314648f7b9184003c703b906393",
+            "subscriptionId": "sub_019fa314648f7b9184003c703b906393",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785129438752
+            "receivedAtMs": 1785147450512
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa2018e4c7513a435dc2a7feb00b9",
-            "subscriptionId": "sub_019fa2018e4c7513a435dc2a7feb00b9",
+            "bindingId": "sub_019fa31464f87e63b8419c25e61097a8",
+            "subscriptionId": "sub_019fa31464f87e63b8419c25e61097a8",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1105,14 +1003,14 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785129438797
+            "receivedAtMs": 1785147450617
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa2018e4d767282ad2c5f0af8665a",
-            "subscriptionId": "sub_019fa2018e4d767282ad2c5f0af8665a",
+            "bindingId": "sub_019fa31464f97c81b4e4459e1329222e",
+            "subscriptionId": "sub_019fa31464f97c81b4e4459e1329222e",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1121,14 +1019,14 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785129438810
+            "receivedAtMs": 1785147450629
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019fa2018e4e78a0b6b7c8e7f8ac11fc",
-            "subscriptionId": "sub_019fa2018e4e78a0b6b7c8e7f8ac11fc",
+            "bindingId": "sub_019fa31464f97c81b4e445c48e4b80c4",
+            "subscriptionId": "sub_019fa31464f97c81b4e445c48e4b80c4",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1137,128 +1035,118 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1785129438821
+            "receivedAtMs": 1785147450642
           }
         ]
       }
     },
     {
       "name": "vanilla × supabase boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "vanilla × supabase renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "vanilla × supabase opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
       "name": "vanilla × supabase replaces its keyed subscription scope without leaks",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "supabase",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "eventScope": {
+          "generation": 2,
+          "activeSubscriptions": 3,
+          "disposedSubscriptions": 1,
+          "ignoredStaleUpdates": 0,
+          "closed": false,
+          "authoring": "vanilla",
+          "backend": "supabase",
+          "view": "event",
+          "eventId": "event_sunset"
+        },
+        "feedScope": {
+          "generation": 3,
+          "activeSubscriptions": 1,
+          "disposedSubscriptions": 4,
+          "ignoredStaleUpdates": 0,
+          "closed": false,
+          "authoring": "vanilla",
+          "backend": "supabase",
+          "view": "feed",
+          "eventId": null
+        },
+        "startupMilestones": {
+          "module-evaluated": 155,
+          "boot-started": 155.29999995231628,
+          "provider-ready": 155.39999997615814,
+          "ui-mounted": 156.89999997615814,
+          "first-authoritative-snapshot": 261.5999999642372
         }
       }
     },
     {
       "name": "vanilla × convex boots its identified cell",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "vanilla × convex renders the canonical feed",
-      "ok": false,
-      "outcome": "skip",
-      "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
-      }
+      "ok": true,
+      "details": null
     },
     {
       "name": "vanilla × convex opens details and observes RSVP",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-        }
+        "actor": "user_eve",
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
       "name": "vanilla × convex replaces its keyed subscription scope without leaks",
-      "ok": false,
-      "outcome": "skip",
+      "ok": true,
       "details": {
-        "skipClass": "remote-dependency",
-        "backend": "convex",
-        "health": {
-          "ok": false,
-          "skipClass": "remote-dependency",
-          "stage": "initialization",
-          "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "eventScope": {
+          "generation": 2,
+          "activeSubscriptions": 3,
+          "disposedSubscriptions": 1,
+          "ignoredStaleUpdates": 0,
+          "closed": false,
+          "authoring": "vanilla",
+          "backend": "convex",
+          "view": "event",
+          "eventId": "event_sunset"
+        },
+        "feedScope": {
+          "generation": 3,
+          "activeSubscriptions": 1,
+          "disposedSubscriptions": 4,
+          "ignoredStaleUpdates": 0,
+          "closed": false,
+          "authoring": "vanilla",
+          "backend": "convex",
+          "view": "feed",
+          "eventId": null
+        },
+        "startupMilestones": {
+          "module-evaluated": 119.60000002384186,
+          "boot-started": 119.69999998807907,
+          "provider-ready": 119.89999997615814,
+          "ui-mounted": 121,
+          "first-authoritative-snapshot": 218.30000001192093
         }
       }
     },
@@ -1309,11 +1197,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 140.39999997615814,
-          "boot-started": 140.60000002384186,
-          "provider-ready": 140.69999998807907,
-          "ui-mounted": 142.10000002384186,
-          "first-authoritative-snapshot": 155
+          "module-evaluated": 125.60000002384186,
+          "boot-started": 125.80000001192093,
+          "provider-ready": 125.90000003576279,
+          "ui-mounted": 127,
+          "first-authoritative-snapshot": 138.10000002384186
         }
       }
     }

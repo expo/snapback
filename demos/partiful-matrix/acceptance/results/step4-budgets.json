@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-27T09:45:42.896Z",
+  "recordedAt": "2026-07-27T10:18:33.285Z",
   "repository": {
-    "snapbackRevision": "34031089fa363d4628a09387d517550fd18c7f19",
-    "exactRevision": "073985f9f0232a9a44d277ec3ca4ac1437981703"
+    "snapbackRevision": "7814ff49e22993273a7909aa2429cda1b2241aa5",
+    "exactRevision": "f37a3e3ae9b04e60e17625b0feaf340fecbc2520"
   },
   "inputs": {
     "protocol": {
@@ -19,12 +19,12 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+      "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "34031089fa363d4628a09387d517550fd18c7f19",
+      "revision": "7814ff49e22993273a7909aa2429cda1b2241aa5",
       "sha256": "75f52b21375558af4b42b007328e0fe4bc5fa956e316455c8da6f4819184696d"
     },
     "nativeReceipts": [
@@ -63,8 +63,8 @@
     ]
   },
   "summary": {
-    "passed": 15,
-    "red": 11,
+    "passed": 16,
+    "red": 10,
     "nonclaims": 8,
     "total": 26
   },
@@ -437,13 +437,13 @@
     },
     {
       "id": "required-web-check-count",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_REQUIRED_CHECK_COUNT_FAILED",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_REQUIRED_CHECK_COUNT_PASSED",
       "evidence": {
-        "actual": 23,
+        "actual": 43,
         "threshold": 43,
         "formula": "partitime_full_web_matrix_required_check_count",
-        "pass": false
+        "pass": true
       }
     },
     {
@@ -456,12 +456,12 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
+          4,
           6,
           5,
           5,
           5,
-          5,
-          6,
+          4,
           5
         ],
         "pass": true
@@ -2014,11 +2014,11 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "e74f79017699b026f51958fd2525f2720201b1f5de3c33ecaa414ea6a6def85f",
+        "stdoutSha256": "f7e78b0bd23ff9c290d4727d0ee4b2c7cd8318b13e174c3178835acd41c91330",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/index-S0Adsy_y.js          223.95 kB │ gzip: 70.36 kB",
-          "✓ built in 585ms",
+          "✓ built in 1.44s",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 53 modules transformed.",
@@ -2028,7 +2028,7 @@
           "dist/sqlite/partitime-cost-attribution.json   10.82 kB │ gzip:  0.89 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css         14.09 kB │ gzip:  3.96 kB",
           "dist/sqlite/assets/index-Ue2tIxA9.js         223.64 kB │ gzip: 70.25 kB",
-          "✓ built in 615ms"
+          "✓ built in 967ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -2049,7 +2049,7 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "309b853e374c9bda5ed3210933e8b9b693d70dac8828ac8b0ef86f822874c5e1",
+        "stdoutSha256": "e539c47340b5c59f67d038c3f49e960f47dd86cb1b7f195f2b4fb5e5876f815e",
         "stderrSha256": "0c308ac3fc64ff09182d6396f14d9803bae7bc54455c901123e71c1849a4feca",
         "stdoutTail": [
           "computing gzip size...",
@@ -2061,7 +2061,7 @@
           "dist/sqlite/assets/event-6Heaw5W8.js                                                        30.69 kB │ gzip:  7.33 kB",
           "dist/sqlite/assets/index-wGace9FA.js                                                       205.68 kB │ gzip: 63.41 kB",
           "",
-          "✓ built in 143ms",
+          "✓ built in 226ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
@@ -2089,11 +2089,11 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "639ef1fe61a5363c54f1277413f89e5596d8a63a1148b2afa581723bfe125ffd",
+        "stdoutSha256": "746de3dc7d31df49f4d1ff432bef726b108e3bd39b0312aa5f79eebeedf45db6",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Cueaew6r.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 172ms",
+          "✓ built in 324ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 26 modules transformed.",
@@ -2103,7 +2103,7 @@
           "dist/sqlite/partitime-cost-attribution.json   3.19 kB │ gzip: 0.57 kB",
           "dist/sqlite/assets/index-5YFJ0x8S.css        14.09 kB │ gzip: 3.96 kB",
           "dist/sqlite/assets/index-Dn3Xzqfp.js         20.89 kB │ gzip: 7.41 kB",
-          "✓ built in 163ms"
+          "✓ built in 303ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -2616,7 +2616,7 @@
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "d24eb91bda04d9abde1075fe04e6bd6c9b04304178d1fcee8e33ab14a5cf6a91"
+      "sha256": "e0b2101583e3c705cdd4aec41b8cbf51ab4c346ec7e387f6f911dbf655417ed6"
     },
     "pushLatency": {
       "contract": {
@@ -2625,12 +2625,12 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
+          4,
           6,
           5,
           5,
           5,
-          5,
-          6,
+          4,
           5
         ],
         "pass": true
@@ -2697,5 +2697,5 @@
     "requiredWebCheckCount": 43,
     "firstPushFreshnessLatencyMsP95": 8
   },
-  "conclusion": "The aggregate Step 4 budget claim remains red: emitted-minified-javascript-by-cell, compressed-javascript-by-cell, required-web-check-count, idle-cpu, two-part-subscription-memory-v2, update-fanout-count-p95, production-build-latency-ms-p95, native-hermes-evaluation-ms-p95, native-cold-launch-ms-p95, native-first-authoritative-data-ms-p95, prospective-category-amendments-and-holdout-validation."
+  "conclusion": "The aggregate Step 4 budget claim remains red: emitted-minified-javascript-by-cell, compressed-javascript-by-cell, idle-cpu, two-part-subscription-memory-v2, update-fanout-count-p95, production-build-latency-ms-p95, native-hermes-evaluation-ms-p95, native-cold-launch-ms-p95, native-first-authoritative-data-ms-p95, prospective-category-amendments-and-holdout-validation."
 }
