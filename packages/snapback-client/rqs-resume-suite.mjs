@@ -55,7 +55,15 @@ export function createFakeServer() {
       if (subscribe) {
         const call = { name: decodeURIComponent(subscribe[1]), body };
         server.subscribeCalls.push(call);
-        return Response.json(server.answer(body, call));
+        const answer = server.answer(body, call);
+        if (
+          body.supersedes !== undefined
+          && answer.superseded === undefined
+          && answer.supersessionRefusal === undefined
+        ) {
+          answer.superseded = body.supersedes;
+        }
+        return Response.json(answer);
       }
       if (/^\/live\/[^/]+\/unsubscribe$/.test(target.pathname)) {
         return Response.json({ disposed: true });

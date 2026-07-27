@@ -4,13 +4,13 @@ id: auth.protecting-data
 order: 2
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/auth/service_fence.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Protecting live and retained data
@@ -45,6 +45,13 @@ server and client negotiate `authInvalidationProtocol: 1`. Retained reads also
 require `authorizedLeaseProtocol: 1`. A route present behind an unavailable
 facet is not a supported capability.
 
+Configure `SnapbackClient` with `authInvalidationProtocol: 1`; the client then
+offers `x-snapback-auth-invalidation-protocol: 1` on finite live requests and
+includes `authInvalidationProtocol: 1` when it opens a connection. A clean-room
+HTTP client must send those same values itself. If Snapback answers
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`, add the missing offer or
+reopen a stale connection with it before retrying.
+
 ## Connection grants bind live work to authority
 
 The string your app supplies as `connectionId` is a logical sharing label. On
@@ -74,6 +81,25 @@ rebind the grant. Every live subscribe/resume, outbox drain, ephemeral act, and
 publication validates the grant token and binding at its final effect fence.
 HTTP sends the token in `x-snapback-connection-token`; browser WebSockets use
 the negotiated `snapback.connection-token.*` subprotocol.
+
+Every auth-scoped live subscribe also carries this closed
+`authorizationNamespace` identity:
+
+```js fragment reason="closed wire shape for clean-room client authors"
+{
+  clientStoreId: 'durable-store-id',
+  queryKey: 'canonical-query-and-arguments',
+  queryInstanceId: 1,
+}
+```
+
+`clientStoreId` identifies the durable client store, `queryKey` is the
+client's canonical query-plus-arguments key, and `queryInstanceId` is a
+positive counter distinguishing successive materializations of that key.
+`SnapbackClient` creates this object for its live-query path. Clean-room
+clients must persist and advance the identity with their store rather than
+minting all three fields per request. Omitting it is refused as
+`SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED`.
 
 An auth transition clears cached grants and reconnects under a fresh grant.
 Never persist, copy between clients, log, or manually reuse a connection

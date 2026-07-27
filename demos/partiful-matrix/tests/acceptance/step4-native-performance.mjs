@@ -32,11 +32,11 @@ const option = (name) => {
   const at = process.argv.indexOf(`--${name}`);
   return at < 0 ? null : process.argv[at + 1];
 };
-const quick = process.argv.includes('--quick');
+const flag = (name) => process.argv.includes(`--${name}`);
+const quick = flag('quick');
+const validateOnly = flag('validate-only');
 const cohort = option('cohort') ?? 'calibration';
 assert(['calibration', 'holdout'].includes(cohort), '--cohort must be calibration or holdout');
-const inputPath = resolve(option('inputs') ?? '');
-assert(option('inputs'), '--inputs <native sample manifest> is required');
 const output = resolve(option('out') ?? resolve(
   demoRoot,
   `acceptance/results/step4-native-performance-${cohort}.json`,
@@ -45,7 +45,7 @@ const calibrationRevision = option('calibration-revision');
 if (cohort === 'holdout' && !quick) {
   assert.match(calibrationRevision ?? '', /^[a-f0-9]{40}$/, 'holdout requires --calibration-revision <committed sha>');
 }
-if (!quick) {
+if (!quick || validateOnly) {
   assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
   assert.equal(
     invalidation.status,
@@ -58,7 +58,26 @@ if (!quick) {
     'native performance observer amendment must be ratified before claim-eligible sampling',
   );
 }
+if (validateOnly) {
+  process.stdout.write(`${JSON.stringify({
+    schemaVersion: 'partitime.step4-native-performance-validator.v1',
+    ok: true,
+    amendmentId: amendment.amendmentId,
+    amendmentStatus: amendment.status,
+    invalidationId: invalidation.amendmentId,
+    invalidationStatus: invalidation.status,
+    observerAmendmentId: observerAmendment.amendmentId,
+    observerAmendmentStatus: observerAmendment.status,
+    methodId: invalidation.replacement.methodId,
+    thresholdSetId: invalidation.replacement.thresholdSetId,
+    laneId: invalidation.replacement.laneId,
+    observerId: observerAmendment.observer.id,
+  })}\n`);
+  process.exit(0);
+}
 
+const inputPath = resolve(option('inputs') ?? '');
+assert(option('inputs'), '--inputs <native sample manifest> is required');
 const input = JSON.parse(readFileSync(inputPath, 'utf8'));
 assert.equal(input.schemaVersion, 'partitime.native-performance-inputs.v1');
 assert.equal(input.platform, 'ios');

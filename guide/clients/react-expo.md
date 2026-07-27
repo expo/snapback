@@ -95,6 +95,13 @@ transitions in addition to the OS events. It does not claim the durable queue,
 local execution, replay/rebase, or authority-safe retained store required for
 Exact Native Parity.
 
+Use `bindSnapbackAppLifecycle(AppState, liveHandle)` from `@snapback/react`
+(or `@snapback/client/online`) when a provider exposes the first-party
+`liveQuery` handle. The helper has no React Native package dependency: it
+serializes AppState changes onto the handle's `pause()` / `resume()` methods
+and removes the listener on disposal. This is the supported replacement for a
+timer that tears down a merely quiet socket.
+
 ## Anti-patterns
 
 - **Do not transfer evidence between operating systems.** Native evidence is

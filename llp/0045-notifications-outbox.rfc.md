@@ -159,6 +159,22 @@ provider; they do not authorize app code to contact arbitrary recipients.
 - The All Aboard "leave now" reminder can be represented as an intent even if
   SMS/push delivery remains a gap.
 
+### Dated amendment — external identity brokers are a separate session-entry seam (2026-07-26)
+
+A trusted server-side identity broker may authenticate a native user through
+its own front door and invoke LLP 0024/0057's `auth.mintSession`, then return
+the genuine Snapback session bearer to that user. This is a supported
+**dev/test/demo** bridge when the broker is co-deployed with the local target:
+it must hold AdminWrite and the process-bound impersonation capability, neither
+of which may enter a client bundle. Protocol clients adopt the bearer under LLP
+0096's exact `auth/rr` / `auth/live` offers.
+
+This seam does not deliver an email code and does not move plaintext into the
+durable outbox, so it neither implements nor weakens this RFC. In particular,
+it is not a production-delivery claim: `auth.mintSession` remains
+non-production, the SMTP/provider adapter above remains unbuilt, and a hosted
+arm without sessions routes remains unable to authenticate native users.
+
 ## Open Questions
 
 - Should a permanent recipient failure persist as a suppression fact that

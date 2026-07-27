@@ -32,6 +32,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'adapters/fly-machines-vm-driver.test.mjs',
       'dev-loop.test.mjs',
       'hosted-admission-producer.test.mjs',
       'mcp-control.test.mjs',
@@ -134,6 +135,7 @@ const inventories = [
       'index.test.mjs',
       'keyed-provider.test.mjs',
       'lifecycle-generation-exhaustion.test.mjs',
+      'migration-quarantine.test.mjs',
       'multi-live-poll-reconcile.test.mjs',
       'mutation-reconcile-failure.test.mjs',
       'offline-replay.test.mjs',
@@ -227,7 +229,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // updating this canonical inventory; caught by the cumulative-gate rerun.
 // 83 -> 85 (LLP 0074 integration): retain the Linux runtime package proof
 // and the CLI hosted-admission producer suite alongside current main.
-assert.equal(total, 85, 'reviewed package/admin test count changed');
+// 85 -> 86 (LLP 0081 §6): @snapback/contract gains the maintained
+// migration-boundary quarantine regression.
+// 86 -> 87 (LLP 0072 Fly adapter landing): @snapback/cli gains the
+// maintained Fly Machines VM driver suite.
+assert.equal(total, 87, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -1,0 +1,20 @@
+{
+  "name": "snapback-team-chat-contract-surface",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun node_modules/.bin/vite --config vite.config.ts --host 127.0.0.1 --port 5195",
+    "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@exact/contract": "npm:@ccheever/exact-contract@0.1.6",
+    "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.6",
+    "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  }
+}

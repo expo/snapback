@@ -5,12 +5,14 @@
 **Systems:** Client integration, React/Expo, Exact Native, Code generation, Auth, Live Queries, Offline, Packaging, Testing
 **Author:** Snapback maintainers
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 — Initial native carrier and client-surface contract
+**Revised:** 2026-07-26 — Adds the protocol-native surface implemented by the
+Swift proving client, explicit host lifecycle hooks, and the framework-binding
+value boundary. 2026-07-20 — Initial native carrier and client-surface contract
 **Related:** LLP 0008 (local-first sync), LLP 0012 (headless integration and capability classes), LLP 0016 (multi-surface evaluation), LLP 0034 (provider lifecycle), LLP 0043 (offline replay), LLP 0053 (authorization invalidation), LLP 0063 (Partitime roadmap); Exact LLP 0331/0332 (Exact Native platforms), Exact LLP 0373 (Partitime counterpart)
 
 ## Summary
 
-Snapback supports native applications through two explicit, non-equivalent
+Snapback supports native applications through three explicit, non-equivalent
 client surfaces:
 
 1. React Native/Expo consumes the shipped framework-neutral external-store
@@ -21,6 +23,10 @@ client surfaces:
    It may claim `Parity` only when deterministic local handler execution,
    retained reads, durable queued mutations, replay/rebase, and authorization
    fencing are composed into the shipped OS carrier.
+3. A protocol-native client consumes the versioned wire contract and
+   language-neutral fixture corpus directly. It may claim only the exact
+   arm × lane × auth-profile tuples its implementation and live evidence
+   prove; it executes no handlers locally and therefore cannot claim `Parity`.
 
 Neither surface embeds the Snapback server. Evidence is per operating system;
 an iOS receipt never establishes Android behavior or the reverse. A carrier
@@ -76,6 +82,26 @@ not introduce a second cache.
 The protocol string is an exact compatibility token. Unknown or missing
 versions refuse synchronously. A later incompatible change requires a new
 token and a migration path; silently accepting a shape superset is forbidden.
+
+A framework binding over this store earns its keep through identity
+replacement, connection re-grant, background/foreground, structured error
+state, typed retry, and scope-dispose teardown. Query-hook syntax alone is a
+thin community projection and does not justify a second cache or transport
+owner.
+
+### 2.1 Protocol-native clients
+
+The shared contract is LLP 0093–0096 plus the committed JSON Schemas and
+fixture corpus. The proving implementation is
+`clients/swift/SnapbackClient`, a SwiftPM package for iOS and macOS claiming
+`poll/local` and `live/local`. Its session profile repeats exact offers, creates
+authorization namespaces, applies version-guarded invalidation snapshots
+before acknowledgement, and exposes explicit background/foreground methods.
+
+Swift is the only committed maintained protocol-native artifact. Kotlin and
+Dart clean-room implementations are reference evidence until their packaging,
+ownership, and CI surfaces land. Neither a reference implementation nor one OS
+receipt establishes a supported distribution.
 
 ### 3. React Native/Expo Online surface
 
@@ -162,6 +188,13 @@ OS-specific hosts translate their lifecycle callbacks into this shared policy.
 Recording a lifecycle fact without changing provider behavior is useful
 instrumentation but is insufficient for `Parity`.
 
+The JavaScript live-query handle realizes this policy as `pause()` / `resume()`;
+the Swift proving client realizes it as `pauseForBackground()` /
+`resumeAfterForeground()`. Both preserve desired query identity while
+re-entering through fresh snapshot-with-subscribe. A first-party binding maps
+host lifecycle to these provider methods once; view code never owns socket
+freshness.
+
 ### 6. Build graph and artifact integrity
 
 Native build systems must declare generated artifacts and workspace client
@@ -225,9 +258,9 @@ claims join those receipts but never replace them.
 
 ## Open questions
 
-1. Should a future pure-Swift client be a generated transport projection of
-   the same protocol, or should Swift call the generated Rust core used by
-   Exact Native?
+1. Should the existing pure-Swift transport remain hand-maintained against the
+   fixture corpus, or should future DTOs be generated from the committed
+   Schemas?
 2. Which physical-device checks must supplement simulator/emulator evidence
    before a native profile can be called production-supported rather than a
    roadmap graduation proof?

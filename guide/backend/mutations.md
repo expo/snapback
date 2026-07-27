@@ -4,13 +4,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/server.rs, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Mutations
@@ -104,6 +104,17 @@ to force a last-writer-wins commit. Predicate-shaped captured reads are
 validated at predicate granularity, so unrelated writes do not spuriously
 conflict.
 
+Authorization-protected writes have one additional pre-transaction conflict:
+`SNAPBACK_AUTH_RESERVATION_STALE`. It is HTTP 409 with
+`details.retryable: true`, `details.effectCommitted: false`, and
+`details.retryStrategy: "short-jitter"`. The attempt committed nothing, so
+retry the complete write after a short jitter and re-evaluate its result. Do
+not treat it as backend downtime or use service-style exponential backoff.
+
+Tests for an authorization rule must assert the intended denial code
+(`SNAPBACK_AUTH_PERMISSION_DENIED`, for example), not merely that the write
+failed. A stale reservation is contention, not evidence that the rule ran.
+
 ## Declare structural uniqueness
 
 For one-row-per-key application invariants, declare a true unique index instead
@@ -142,6 +153,8 @@ that needs its successor fails before writing with
   read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
+- **Do not count `SNAPBACK_AUTH_RESERVATION_STALE` as an authorization-rule
+  denial.** Retry the whole attempt, then assert the rule's exact code.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
   They are server-owned.
 - **Do not infer success from HTTP status alone.** Consume the result,

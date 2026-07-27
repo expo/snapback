@@ -1687,6 +1687,10 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
             header::AUTHORIZATION,
             "Bearer unresolved_session".parse().expect("bearer header"),
         );
+        request.headers_mut().insert(
+            "x-snapback-auth-client-protocol",
+            "1".parse().expect("auth client protocol header"),
+        );
         let response = router
             .clone()
             .oneshot(request)
@@ -1695,7 +1699,7 @@ async fn sessions_presented_optional_bearer_fails_closed_before_dispatch() {
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{uri}");
         assert_eq!(
             diagnostic_code(response).await,
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
             "{uri} treated an unresolved presented bearer as anonymous"
         );
     }

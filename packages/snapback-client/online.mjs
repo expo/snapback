@@ -5,4 +5,8 @@
 // contract, and backend/capability selection must remain tree-shakeable.
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — capability
 // costs stay outside consumers that do not select them.
-export { SnapbackClient } from './index.mjs';
+export {
+  SnapbackClient,
+  bindSnapbackAppLifecycle,
+  createExternalSessionClient,
+} from './index.mjs';

@@ -7,7 +7,7 @@ import PackageDescription
 
 let package = Package(
     name: "SnapbackClient",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v13), .iOS(.v16)],
     products: [
         .library(name: "SnapbackClient", targets: ["SnapbackClient"]),
         .executable(name: "snapback-prove", targets: ["snapback-prove"]),

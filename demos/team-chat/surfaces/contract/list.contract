@@ -1,0 +1,140 @@
+// Team Chat list/create surface.
+//
+// @ref LLP 0063#next-application-pressure-tests — this Contract surface
+// exercises the admitted protected-room and membership kernel without
+// claiming the still-red chat pressures or hosted operation.
+
+use listMyRooms from "../../snapback/generated/contract/listMyRooms.query.ts"
+use unreadDeliveries from "../../snapback/generated/contract/unreadDeliveries.query.ts"
+use createRoom from "../../snapback/generated/contract/createRoom.mutation.ts"
+use acceptInvite from "../../snapback/generated/contract/acceptInvite.mutation.ts"
+use navigateToRoom from "./helpers.ts"
+use unreadForRoom from "./helpers.ts"
+use shortRoomId from "./helpers.ts"
+
+component TeamChatList
+  props
+    userId: string
+    displayName: string
+
+  state title = ""
+  state errorMessage = ""
+
+  query rooms = listMyRooms({})
+  query unread = unreadDeliveries({})
+  mutation create = createRoom
+  mutation accept = acceptInvite
+
+  derive canCreate = title.trim() != ""
+
+  action setTitle(value) writes title
+    title = value
+
+  action createProtectedRoom writes title, errorMessage mutates create
+    let nextTitle = title.trim()
+    let result = await create({ title: nextTitle, displayName: displayName })
+    if result.ok
+      title = ""
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  action openRoom(roomId)
+    navigateToRoom(roomId)
+
+  action acceptRoom(roomId) writes errorMessage mutates accept
+    let result = await accept({ roomId: roomId })
+    if result.ok
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  contract
+    has node testId="team-chat-list"
+    has input testId="room-title-input"
+    press button "Create protected room" -> createProtectedRoom
+    change input testId="room-title-input" -> setTitle
+    when canCreate then state node testId="create-room" is enabled
+    when !canCreate then state node testId="create-room" is disabled
+    action createProtectedRoom writes title, errorMessage
+    derive canCreate depends only on title
+
+  view
+    main width="100%" minHeight="100vh" background="#0b1020" padding=28 testId="team-chat-list"
+      column width="100%" maxWidth=980 alignSelf="center" gap=26
+        header
+          row gap=18 align="center" wrap="wrap" width="100%"
+            column gap=5 flex=1 minWidth=240
+              text "SB · CONTRACT" size=10 weight=800 letterSpacing=1.4 color="#9585ff"
+              text "Team Chat" headingLevel=1 size=38 weight=850 letterSpacing=-1 color="#f4f6fb"
+              text `Signed in locally as ${displayName}` size=13 color="#91a0ba"
+            column gap=3 align="flex-end"
+              text "local pressure profile" size=10 weight=750 letterSpacing=1 color="#71809b"
+              text `${rooms.connection}` size=12 color=rooms.connection == "live" ? "#62d99d" : "#f6c967" testId="list-connection"
+
+        section role="form" label="Create a protected room" gap=12 padding=20 radius=16 background="#11182a" borderWidth=1 borderColor="#303c57" testId="create-room-form"
+          text "Create a protected room" headingLevel=2 size=17 weight=750 color="#f4f6fb"
+          text "Membership is private authority; the visible roster is display data only." size=12 color="#8e9bb4"
+          row gap=10 align="center" wrap="wrap"
+            input value=title change=setTitle submit=createProtectedRoom label="Room title" placeholder="Compiler Club" testId="room-title-input" flex=1 minWidth=220 padding=12 radius=10 background="#0a1020" borderWidth=1 borderColor="#3a4661" color="#f4f6fb"
+            button press=createProtectedRoom disabled=!canCreate opacity=canCreate ? 1 : 0.45 label="Create protected room" testId="create-room" paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 radius=10 background="#7557ff"
+              text "Create protected room" size=13 weight=750 color="#ffffff"
+          when errorMessage != ""
+            text errorMessage role="alert" size=12 color="#ff8ca0" testId="list-error"
+
+        section role="region" label="Your rooms" gap=14 testId="rooms-section"
+          row align="baseline" width="100%"
+            text "Your rooms" headingLevel=2 size=22 weight=800 color="#f4f6fb" flex=1
+            text `${rooms.connection}` size=11 color="#75839e"
+          async rooms
+            loading
+              text "Loading rooms…" size=13 color="#8794ad" testId="rooms-loading"
+            error roomError
+              text roomError.message role="alert" size=13 color="#ff8ca0" testId="rooms-error"
+            empty
+              column padding=24 radius=14 background="#11182a" borderWidth=1 borderColor="#303c57" testId="rooms-empty"
+                text "No rooms yet." size=14 color="#8794ad"
+            ready roomRows
+              async unread
+                loading
+                  text "Loading private inbox…" size=13 color="#8794ad"
+                error unreadError
+                  text unreadError.message role="alert" size=13 color="#ff8ca0"
+                empty
+                  list gap=10 width="100%" label="Rooms"
+                    each participant in roomRows key=participant._id
+                      listitem width="100%" testId=`room-card-${participant.roomId}`
+                        row gap=14 align="center" wrap="wrap" width="100%" padding=17 radius=14 background="#11182a" borderWidth=1 borderColor="#303c57"
+                          text "#" size=22 weight=850 color="#aa9cff" background="#273452" width=44 height=44 textAlign="center" paddingTop=8 radius=11
+                          column gap=4 flex=1 minWidth=180
+                            text participant.status == "owner" ? "Your protected room" : participant.status == "invited" ? "Room invitation" : "Protected room" size=15 weight=750 color="#f4f6fb"
+                            text `${participant.status} · ${shortRoomId(participant.roomId)}` size=10 letterSpacing=0.8 color=participant.status == "invited" ? "#f6c967" : "#62d99d" testId="room-status"
+                          when participant.status == "invited"
+                            button press=acceptRoom(participant.roomId) label="Accept invitation" testId=`accept-invite-${participant.roomId}` padding=10 radius=9 background="#7557ff"
+                              text "Accept invitation" size=12 weight=750 color="#ffffff"
+                          else
+                            when participant.status == "left"
+                              text "Waiting for another invitation" size=11 color="#8794ad"
+                            else
+                              button press=openRoom(participant.roomId) label="Open room" testId=`open-room-${participant.roomId}` padding=10 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
+                                text "Open room" size=12 weight=700 color="#e9edf5"
+                ready unreadRows
+                  list gap=10 width="100%" label="Rooms"
+                    each participant in roomRows key=participant._id
+                      listitem width="100%" testId=`room-card-${participant.roomId}`
+                        row gap=14 align="center" wrap="wrap" width="100%" padding=17 radius=14 background="#11182a" borderWidth=1 borderColor="#303c57"
+                          text "#" size=22 weight=850 color="#aa9cff" background="#273452" width=44 height=44 textAlign="center" paddingTop=8 radius=11
+                          column gap=4 flex=1 minWidth=180
+                            text participant.status == "owner" ? "Your protected room" : participant.status == "invited" ? "Room invitation" : "Protected room" size=15 weight=750 color="#f4f6fb"
+                            text `${participant.status} · ${shortRoomId(participant.roomId)}` size=10 letterSpacing=0.8 color=participant.status == "invited" ? "#f6c967" : "#62d99d" testId="room-status"
+                          when unreadForRoom(unreadRows, participant.roomId) > 0
+                            text `${unreadForRoom(unreadRows, participant.roomId)} unread` size=10 weight=750 color="#c3b9ff" background="#201b3d" padding=8 radius=999
+                          when participant.status == "invited"
+                            button press=acceptRoom(participant.roomId) label="Accept invitation" testId=`accept-invite-${participant.roomId}` padding=10 radius=9 background="#7557ff"
+                              text "Accept invitation" size=12 weight=750 color="#ffffff"
+                          else
+                            when participant.status == "left"
+                              text "Waiting for another invitation" size=11 color="#8794ad"
+                            else
+                              button press=openRoom(participant.roomId) label="Open room" testId=`open-room-${participant.roomId}` padding=10 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
+                                text "Open room" size=12 weight=700 color="#e9edf5"

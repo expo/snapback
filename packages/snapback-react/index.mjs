@@ -6,6 +6,7 @@ import {
   createExternalQueryStoreRegistry,
   externalStoreIdentity,
 } from '@snapback/client/external-store';
+export { bindSnapbackAppLifecycle } from '@snapback/client';
 
 // @ref LLP 0012#react-and-expo-requirements — the framework adapter delegates
 // lifecycle ownership to the shared external store and uses React's supported

@@ -276,7 +276,7 @@
         }
       ],
       "default": null,
-      "description": "Store-owned identity for an auth-scoped live materialization. It is\nignored for explicitly authority-independent functions and required in\nsessions mode for every other live function."
+      "description": "Store-owned identity for an auth-scoped live materialization (LLP 0096\n§2.2, `authorizationNamespace`). `clientStoreId` is stable for the\ndurable store shared by every context that shares these bytes;\n`queryKey` is that store's canonical function-plus-arguments key; and\n`queryInstanceId` comes from a never-reused store-wide durable monotone\nallocator (or a never-reused process allocator for live-only state).\nIt is ignored for explicitly authority-independent functions and\nrequired in sessions mode for every other live function."
     },
     "connection_id": {
       "type": "string"

@@ -1,0 +1,621 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:fa5f79109a8425ff",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "3f738b2b561db4bcfef8a8fee49b2c2bab8a72122eecedb8834d9bbbdd199dce",
+  "manifestVersion": 2,
+  "mutations": {
+    "acceptInvite": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "roomMembers",
+        "roomParticipants"
+      ],
+      "name": "acceptInvite",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "roomMembers",
+        "roomParticipants"
+      ]
+    },
+    "createRoom": {
+      "argOrder": [
+        "title",
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "rooms",
+        "roomMembers",
+        "roomParticipants"
+      ],
+      "name": "createRoom",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "rooms",
+        "roomMembers",
+        "roomParticipants"
+      ]
+    },
+    "inviteMember": {
+      "argOrder": [
+        "roomId",
+        "userId",
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "roomMembers",
+        "roomParticipants"
+      ],
+      "name": "inviteMember",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "roomMembers",
+        "roomParticipants"
+      ]
+    },
+    "leaveRoom": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "roomMembers",
+        "roomParticipants",
+        "deliveries"
+      ],
+      "name": "leaveRoom",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "roomMembers",
+        "roomParticipants",
+        "deliveries"
+      ]
+    },
+    "markRoomRead": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "deliveries"
+      ],
+      "name": "markRoomRead",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "deliveries"
+      ]
+    },
+    "sendMessage": {
+      "argOrder": [
+        "roomId",
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "messages",
+        "deliveries"
+      ],
+      "name": "sendMessage",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "deliveries"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "firstInboxPage": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "firstInboxPage",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "deliveries"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "messageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "recipientId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unread": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "listMyRooms": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listMyRooms",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "roomParticipants"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "changedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "nextInboxPage": {
+      "argOrder": [
+        "after"
+      ],
+      "args": {
+        "after": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "nextInboxPage",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "deliveries"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "messageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "recipientId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unread": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "roomDetails": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "roomDetails",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "rooms",
+        "roomMembers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdBy": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "roomMessages": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "roomMessages",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messages",
+        "roomMembers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "unreadDeliveries": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "unreadDeliveries",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "deliveries"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "messageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "recipientId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unread": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:90aebbc8bf8129af",
+  "schemaVersion": "snapback.v0"
+}

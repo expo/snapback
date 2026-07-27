@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d3425ea7e42b11d089acab4e72710d2f4b9670d9"
+    "commit": "c8a77077b100bc4972752a79f9b61915acd35e65"
   },
   "nav": {
     ".": [
@@ -52,6 +52,11 @@
         "id": "auth.agent-principals",
         "order": 4,
         "title": "Agent principals and scoped grants"
+      },
+      {
+        "id": "auth.native-apps",
+        "order": 6,
+        "title": "Authenticate a native app"
       }
     ],
     "backend": [
@@ -118,9 +123,19 @@
         "title": "The React client"
       },
       {
+        "id": "clients.swift",
+        "order": 2,
+        "title": "Swift client"
+      },
+      {
         "id": "clients.react-expo",
         "order": 3,
         "title": "React Expo Online clients"
+      },
+      {
+        "id": "clients.framework-bindings",
+        "order": 8,
+        "title": "Framework bindings"
       }
     ],
     "deploying": [
@@ -167,6 +182,13 @@
         "id": "operating.admin-console",
         "order": 4,
         "title": "Admin console"
+      }
+    ],
+    "protocol": [
+      {
+        "id": "clients.protocol",
+        "order": 1,
+        "title": "Client protocol"
       }
     ],
     "realtime": [
@@ -237,6 +259,33 @@
       "sha256": "92d47555dae17bd9d9e6d578c2d8b067a3e95939dda7d5e02d1f7cfd8956ad79",
       "snippets": []
     },
+    "auth.native-apps": {
+      "path": "guide/auth/native-apps.md",
+      "title": "Authenticate a native app",
+      "order": 6,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "auth.external-identity-broker"
+      ],
+      "authorities": [
+        "llp/0024-agent-operating-surface.spec.md",
+        "llp/0045-notifications-outbox.rfc.md",
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "packages/snapback-client/index.mjs",
+        "clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift"
+      ],
+      "examples": [],
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "a7fae224cfd6d0b593000ddd78ee498aea22aa6e384a86000965f6c4fd2d9d84",
+      "snippets": []
+    },
     "auth.protecting-data": {
       "path": "guide/auth/protecting-data.md",
       "title": "Protecting live and retained data",
@@ -253,25 +302,32 @@
       "authorities": [
         "llp/0053-authorization-invalidation.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/auth/invalidation.rs",
         "src/auth/mode.rs",
         "src/auth/service_fence.rs",
+        "src/local.rs",
         "src/local/authorization_acceptance.rs",
         "src/server.rs",
         "demos/_kit/tests/auth-invalidation-client.mjs",
+        "packages/snapback-client/index.mjs",
         "packages/snapback-contract/authorized-lease.mjs"
       ],
       "examples": [
         "demos/card-game",
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "959a3324360ca36ce2c6791d1769e98007a4bcaff259daf2a3ac14d24dfa008d",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "5116fb2c1b1a7b9e7316ff1d39d6e9f9adfbfcf313fe74cdad62999533ab6e79",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/_kit/tests/auth-invalidation-client.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -362,18 +418,24 @@
       "authorities": [
         "llp/0039-auth-vertical-slice.rfc.md",
         "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "src/auth/mode.rs",
+        "packages/snapback-client/index.mjs",
         "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "e7cb9fa29786d63647fca483886ad629affd38e03f199c62d95e779a3e76d40c",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "698c11e16466079c5ae769a23159b85d30f152a56189f16cc17fd149502d65a7",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -545,6 +607,8 @@
         "llp/0003-local-code-hosting-and-storage-core.rfc.md",
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "src/server.rs",
         "schemas/mutation.output.schema.json",
         "demos/todo/snapback/functions.mjs",
         "demos/todo/snapback/handlers.mjs",
@@ -554,9 +618,9 @@
         "demos/todo",
         "demos/todo-v2"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "d80751abf4c13cb89fee7459c1d5ca6374fe0e96e6aa1de85325ab1f8d3fe85f",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "2999677b8434ab7b93f28d9dab67e7739754e22852868cb4011005b528358603",
       "snippets": [
         {
           "lang": "js",
@@ -814,7 +878,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "0c96f9f99adf479bdc111830ad662261ba5ffaa6d93e5a27ae68792dbc3d2e9b",
+      "sha256": "006f01f08067eeaf2d6a0702a3b09386900a63b822edfe09e2923ebc1f0352a3",
       "snippets": []
     },
     "clients.app-cli": {
@@ -921,6 +985,35 @@
         }
       ]
     },
+    "clients.framework-bindings": {
+      "path": "guide/clients/framework-bindings.md",
+      "title": "Framework bindings",
+      "order": 8,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "clients.framework-bindings"
+      ],
+      "authorities": [
+        "llp/0012-headless-integration-contract.spec.md",
+        "llp/0034-contract-source-seam-provider-side.rfc.md",
+        "llp/0053-authorization-invalidation.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-react/index.mjs"
+      ],
+      "examples": [
+        "demos/partiful-matrix/surfaces/vanilla"
+      ],
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "b1bec318a03efe0e01750dd2eca9f69ce121058dc3af1ecfa56601863911aa91",
+      "snippets": []
+    },
     "clients.headless": {
       "path": "guide/clients/headless.md",
       "title": "The headless client",
@@ -956,12 +1049,16 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "b5e8d33a87f37b0374a0ceecffc5309f67eb3826a9381e7119b4e64bfa16a940",
+      "sha256": "75297c7ee38d90578afba8ab25753ed7d9794db733d0ab0efa987ad5d81b07b0",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/index.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -997,7 +1094,7 @@
       ],
       "reviewed": "2026-07-22",
       "reviewedCommit": "HEAD",
-      "sha256": "16404ca8ccc68f951e07b6f061eaba532513ca13861ea0348a62caf8ad334079",
+      "sha256": "600304b3025c9f351373822f84d1cc28e710f5effc585462641378a555a8407b",
       "snippets": [
         {
           "lang": "tsx",
@@ -1040,6 +1137,34 @@
           "source": "demos/competitive-checkpoint/surfaces/react-expo/App.tsx"
         }
       ]
+    },
+    "clients.swift": {
+      "path": "guide/clients/swift.md",
+      "title": "Swift client",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "clients.swift"
+      ],
+      "authorities": [
+        "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0093-client-protocol-and-native-clients.rfc.md",
+        "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "clients/swift/SnapbackClient/Package.swift",
+        "clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift"
+      ],
+      "examples": [
+        "clients/swift/SnapbackClient"
+      ],
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "ad3a6b86a58ecb27ec966f7498e74cbf4aca9ce026a24c80f43dc8d6accd3170",
+      "snippets": []
     },
     "meta.conventions": {
       "path": "guide/conventions.md",
@@ -1195,16 +1320,18 @@
       "authorities": [
         "llp/0004-application-data-api.rfc.md",
         "llp/0037-schema-source-of-truth.decision.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-codegen/index.mjs"
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/index.mjs"
       ],
       "examples": [
         "demos/todo/snapback",
         "demos/todo-v2/snapback"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a98aa99ebb6cd7273eb21510bac4157de3b6edd081ee480700ce29b3a0c6d2cb",
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "1fa34879814e032fbb175350e6db4dfd162d2279971f016cb51c68827fa066ba",
       "snippets": [
         {
           "lang": "js",
@@ -1243,6 +1370,10 @@
         },
         {
           "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
         }
@@ -1275,7 +1406,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "c17fa6ad8e076252588c36fde1dd89cbcf2f64a00a652dae831fe5dc2717b941",
+      "sha256": "ce0858b9d0c88816dee60b4b6c06e086cecbc9d79028216bee92ea4db26549e5",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1422,6 +1553,35 @@
           "source": "demos/all-aboard/tests/acceptance/egress.mjs"
         }
       ]
+    },
+    "clients.protocol": {
+      "path": "guide/protocol/client-protocol.md",
+      "title": "Client protocol",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.protocol"
+      ],
+      "authorities": [
+        "llp/0093-client-protocol-and-native-clients.rfc.md",
+        "llp/0094-wire-envelope-contract.spec.md",
+        "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "schemas/live.envelope.schema.json",
+        "schemas/live.socket-server.schema.json",
+        "schemas/live.wire-fixtures.v1.json"
+      ],
+      "examples": [
+        "clients/swift/SnapbackClient"
+      ],
+      "reviewed": "2026-07-26",
+      "reviewedCommit": "HEAD",
+      "sha256": "7b0106639dda418ed622c02423564aa35a90abc19e8703773dc63629ca20ae15",
+      "snippets": []
     },
     "realtime.ephemeral-state": {
       "path": "guide/realtime/ephemeral-state.md",
@@ -1745,6 +1905,7 @@
     "covered": [
       "auth.agent-principals",
       "auth.authorized-leases",
+      "auth.external-identity-broker",
       "auth.invalidation-barrier",
       "auth.scoped-queries",
       "auth.scoped-roles",
@@ -1769,11 +1930,14 @@
       "clients.contract-keyed-scopes",
       "clients.contract-provider-generation",
       "clients.external-store",
+      "clients.framework-bindings",
       "clients.headless",
       "clients.mutation-outcomes",
       "clients.optimistic-overlays",
+      "clients.protocol",
       "clients.react",
       "clients.react-expo",
+      "clients.swift",
       "deploy.cloudflare",
       "deploy.release-build",
       "deploy.target-control",
@@ -1793,6 +1957,8 @@
       "testing.acceptance"
     ],
     "gaps": [
+      "clients.non-js",
+      "clients.poll-hosted",
       "realtime.snapshot-bundles"
     ]
   },
@@ -1800,5 +1966,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "5eb7f0a3c7b190a63019b736882e0399f29d587c82dce989a25ba52781b71907"
+  "contentHash": "5b6eeda18caba198e279709379d4f396e339af405d9060fd99eba313aa5aad55"
 }

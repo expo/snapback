@@ -4,7 +4,7 @@
   "ok": true,
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "6e7d6f32cd29fed17be4045b49b2599f009d88d3d5adc163cdea662923ed3caa",
+  "manifestSemanticSha256": "e080b785a3e37c9d8701454045358261117c98c0ac7bbe8651bc13ce3be854ce",
   "authority": {
     "repository": "snapback",
     "path": "demos/partiful-matrix/acceptance/claims.v1.json",
@@ -27,7 +27,7 @@
   "validators": {
     "snapback": {
       "path": "demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
-      "sha256": "bd39ce2f3798592669a5050d6505561049861e219629584025a53fa0a9f205bd",
+      "sha256": "85e4e05bd0f0295ca7235a74a5f10529b07d372f565571e3b13fdb473d448922",
       "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
       "resultSchemaVersion": "partitime.claim-manifest-validation.v1"
     },
@@ -39,7 +39,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "06f4f4357c9785217d81186bdc86463ec478ee8a02b85c2a9d1609956af7fd35"
+        "sha256": "e97a27dc5fba0e73f5ccd985c6ae4493db82a38362f2bfd3e915a659d0e0ce0a"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -55,15 +55,15 @@
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "1d2a31fb007888519acfb496c53e19b07c089e031e7538957736f80b3020315b"
+      "sha256": "61397fa83507c389b206124728ee412338a6278b893254c5adcc64aacfc6875c"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "a52103fd12a4f0fd583e8f8a5ec5cb5968babbfbca73972bd084ce5453e4dc47"
+      "sha256": "1aae0150b37045449fb2f9abbbb38e4fadc3c1f796e94a991a8c85dd9c3ff452"
     }
   },
   "exact": {
-    "revision": "f3a9505d34b031252f48faddef966e1e1c20bec0",
+    "revision": "0530a7da6b6be6ed6e97dcdee66cf2baff45eafd",
     "dirty": false
   },
   "inputs": {

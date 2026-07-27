@@ -38,8 +38,7 @@ export const createTodo = defineMutation({
 `;
 }
 
-// The app id is the backend dir's parent directory name, so nest a named app
-// root inside the mkdtemp dir to hold it fixed across regenerations.
+// A bare backend keeps the compatibility fallback to its parent directory.
 function makeBackend(appName) {
   const root = mkdtempSync(join(tmpdir(), 'snapback-function-id-'));
   dirs.push(root);
@@ -50,11 +49,93 @@ function makeBackend(appName) {
   return dir;
 }
 
+function makeManifestBackend(appId) {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-function-id-manifest-'));
+  dirs.push(root);
+  const appRoot = join(root, 'arbitrary-checkout-folder');
+  const dir = join(appRoot, 'backends', 'snapback');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(appRoot, 'demo.snapback.json'),
+    JSON.stringify({ id: appId, title: 'Manifest-owned identity' }),
+  );
+  writeFileSync(join(dir, 'schema.mjs'), schema);
+  writeFileSync(join(dir, 'functions.mjs'), functionsSource('listTodos'));
+  return dir;
+}
+
 async function generatedFunctions(dir) {
   const result = await generate(dir);
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   return manifest.functions;
+}
+
+// 5. Nested matrix layouts take identity from the nearest demo manifest,
+// never from a generic intermediate directory such as "backends".
+{
+  const dir = makeManifestBackend('partitime-stable');
+  const functions = await generatedFunctions(dir);
+  for (const fn of functions) {
+    assert.equal(fn.id, `partitime-stable:${fn.name}`);
+  }
+  const schemaManifest = JSON.parse(
+    readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'),
+  );
+  assert.equal(schemaManifest.appId, 'partitime-stable');
+  assert.match(
+    JSON.parse(
+      readFileSync(
+        join(dir, 'generated', 'operations', 'listTodos.args.schema.json'),
+        'utf8',
+      ),
+    ).$id,
+    /\/apps\/partitime-stable\/listTodos\.args\.schema\.json$/,
+  );
+}
+
+// 6. An explicit manifest id is closed portable input: path separators,
+// whitespace, controls, non-ASCII lookalikes, case-folding ambiguity, and
+// overlong values fail before reaching function ids or schema URI paths.
+for (const invalidAppId of [
+  '',
+  '  ',
+  'parti time',
+  '../partitime',
+  '/',
+  'partitime/other',
+  'partitime\\other',
+  'parti\u0000time',
+  'partítime',
+  'Partitime',
+  '-partitime',
+  'partitime-',
+  'a'.repeat(65),
+]) {
+  const dir = makeManifestBackend(invalidAppId);
+  const result = await generate(dir);
+  assert.equal(result.ok, false, JSON.stringify({ invalidAppId, result }));
+  assert(
+    result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'DEMO_MANIFEST_APP_ID_INVALID'
+    )),
+    JSON.stringify({ invalidAppId, diagnostics: result.diagnostics }),
+  );
+}
+
+// 7. Once a nearest demo manifest is discovered it is the identity
+// authority; a missing id must fail closed instead of silently falling back
+// to an intermediate directory such as "backends".
+{
+  const dir = makeManifestBackend(undefined);
+  const result = await generate(dir);
+  assert.equal(result.ok, false, JSON.stringify(result));
+  assert(
+    result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'DEMO_MANIFEST_APP_ID_INVALID'
+    )),
+    JSON.stringify(result.diagnostics),
+  );
 }
 
 function idsByName(functions) {

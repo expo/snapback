@@ -43,6 +43,80 @@ regression-tested; the current integrated OQ9 receipt therefore fails closed at
 completed. No threshold, workload, mandatory-claim inventory, or gate status
 was weakened, and this checkpoint promotes no phase.)
 
+**Revised (final immutable-revision-set proof infrastructure):** 2026-07-26
+(the final claim now has a fail-closed collector and aggregate validator ready
+to bind one explicit Snapback commit/tree, one explicit Exact commit/tree, the
+frozen comparison protocol and semantic target-profile matrix, every
+mandatory prerequisite artifact, the eight-package Snapback publication
+receipt, and the eighteen Exact 0.1.6 registry artifacts actually installed
+by Partitime's Contract lock. It emits one content-addressed receipt per
+`web-only`, `online-native`, and `full-north-star` profile and an aggregate
+whose terminal result is hard-bound to `full-north-star`; the aggregate claim
+is removed only from its own prerequisite evaluation, so it cannot satisfy
+itself. Collection requires clean checkouts exactly at both admitted
+revisions, unsafe artifact paths and byte drift fail closed, and a red receipt
+requires the explicit non-promoting `--allow-red` mode. The first retained
+aggregate and its three profile receipts bind clean Snapback
+`2caa143e49244b91498d1bf510a696d7c62478b8` and clean Exact
+`4220bf27c9494e6d637fc70ac7e167fc9372fdd8`; the pending manifest claim now
+points at that honestly red artifact and its normal validation command still
+exits nonzero. The receipt names exactly four blockers: STEP4.BUDGETS,
+STEP6.CHAT, STEP6.DOCUMENTS, and STEP6.COMMERCE. No claim is promoted;
+FINAL.IMMUTABLE_REVISION_SET remains pending.)
+
+**Revised (FINAL.EXACT_AGENT_OPERABILITY promoted):** 2026-07-26 (the
+Exact-owned mandatory final claim is promoted to `passing` under the shared
+manifest's Exact-claim change control. Exact LLP 0373 already records Phase 5
+complete on the Exact side; the new Snapback integration witness runs the
+failed-RSVP operation suite and the registered agent-operation parity check
+against clean Exact `27b6ce7cb4855d511222bcd01625d42899631141`. The retained
+receipt binds five read-only operations — `exact_contract_bindings`,
+`exact_contract_mutation_outcomes`, `exact_contract_source_map`,
+`exact_contract_verify_claims`, and the one shared `exact_causal_trace`
+surface — plus the owning action, mutation descriptor, typed receipt/error
+outcome, affected query cell, current render branch, source span, structural
+fix-it anchor, and registry-owned HTTP/MCP/typed-client parity. Receipt:
+`demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json`.
+This changes only later-claim evidence metadata, which the frozen semantic
+projection excludes. The current-source rerun of the independently passing
+`STEP0.NO_EXACT_CORE` package witness also refreshes that receipt and the
+self-reference-safe Step-0 aggregate/mirrors mechanically; no Step-0
+semantics, workload, method, threshold, or status changes. Exact
+Phase-4/graduation parity, STEP4.BUDGETS, all three Step-6 verticals, and
+FINAL.IMMUTABLE_REVISION_SET remain red or pending.)
+
+**Revised (Step 4 collector preflight is non-measuring):** 2026-07-26 (the
+web-v3 and native-v3 collectors now expose `--validate-only` authority
+preflights matching the memory-v2 collector. Each verifies the ratified
+amendment/invalidation identities and frozen method/lane/threshold-set
+selection, emits a typed validator result, and exits before checking runtime
+binaries, reading native sample inputs, starting providers/browsers, or writing
+a receipt. Regression tests prove the requested output path remains absent.
+This is operational readiness only: it creates no sample, threshold, receipt,
+or claim evidence.)
+
+**Revised (Step 4 gateway bundle boundary diagnosed):** 2026-07-26 (fresh
+published-Exact 0.1.6 gateway builds reproduce the three remaining Contract
+bundle failures at about 235.6 KB minified / 69.8 KB gzip against about 213.5
+KB / 67.2 KB frozen limits. A disposable Terser experiment established that
+ordinary multi-pass compression barely changes minified bytes; broad property
+mangling can report about 208.3 KB / 65.5 KB, but the production Chrome gate
+then passes only static feed visibility and fails both live boot identity and
+routed RSVP behavior, 1/3. That candidate is rejected and no receipt is
+retained: it makes byte counters green by breaking the shipped program. The
+remaining gateway delta is therefore assigned to the Exact compact
+statement-plan/runtime boundary, not an app-local property-mangling workaround.
+Thresholds, method, workload, and the red STEP4.BUDGETS verdict are unchanged.)
+
+**Revised (Step 4 cost-attribution classifier repair):** 2026-07-26 (the
+four-layer diagnostic ledger now classifies surface-local package-manager
+dependencies before the broader surface-path rule. Exact/React runtime modules
+under `surfaces/*/node_modules` remain framework runtime, while Supabase/Convex
+dependencies remain provider runtime; regression vectors cover POSIX and
+Windows paths. The defect changed diagnostic bucket labels only: executable
+bundle bytes, frozen thresholds, workload, calibration/holdout custody, and
+every claim verdict are untouched.)
+
 **Revised (WS6 baseline prose reconciled):** 2026-07-26 (the flagged 168-vs-190 discrepancy is resolved by inspection of the pinned freeze source, `demos/partiful-matrix/acceptance/results/step0-attribution.json` at revision 508956134f3517169735078272a846e5ac86ba5c, measured 2026-07-20: the frozen `snapbackBackendLines` inventory is FOUR files totaling 190 lines - schema.mjs 32, functions.mjs 75, handlers.mjs 61, seed.json 22 - and floor(190 * 0.80) = 152 is exactly the frozen threshold; WS6’s "about 168 handwritten lines" counted only the three handwritten code files (32+75+61 = 168), excluding the 22-line seed.json data fixture the formula’s inventory includes, so both figures were true of different file sets and the threshold derivation was never wrong; WS6 prose should be read as code-files-only color, the four-file inventory is the operative freeze; thresholds, method, thresholdId, and workloadVersion untouched - ticket 20260726-0081-spec-amendment-frictions item 5)
 
 **Revised (first remote-drill provider pinned):** 2026-07-24 (author decision, Charlie Cheever, against `issues/20260723-llp0075-program-ownership.md`: the first `single-instance-container-vm.v1` remote drill — the sequencing decision this Plan owns and LLP 0075's adjudication deferred here — is pinned by LLP 0075 protocol amendment v0.6 to provider fly.io (single Fly Machine VM), region default sjc, backup object store Fly's Tigris S3-compatible storage, and credential backend `FLY_API_TOKEN` from the git-ignored machine-local `.agent-local-secrets.md`. Recorded honestly as a decision, not provisioning: credential health is pending-not-provisioned, flyctl/Tigris package identities and the drill instrument version are unpinned-blocks-drill, and no live drill target exists or is claimed. Charlie Cheever is recorded as the named long-lived competitive-program owner/ratifier — a session-directed default subject to his own amendment. The Workstream 7 capability-matrix row updates in place; no v0 cutoff or evidence is rewritten.)

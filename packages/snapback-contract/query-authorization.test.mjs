@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   createLiveQueryAuthorizationFence,
@@ -423,6 +424,139 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
   assert.equal(replaced.disposition, 'delete');
   assert.equal(events.at(-1).kind, 'delete');
   assert.equal(fence.isRenderable(), false);
+}
+
+// Format-v2 auth/live adversarial fixtures execute against the same JS fence
+// used by the first-party client. This is semantic conformance, not merely a
+// corpus-shape assertion.
+{
+  const corpus = JSON.parse(readFileSync(
+    new URL('../../schemas/live.wire-fixtures.v1.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(corpus.formatVersion, 2);
+  const fixture = (name) => {
+    const found = corpus.fixtures.find((entry) => entry.name === name);
+    assert(found, `missing conformance fixture ${name}`);
+    return found;
+  };
+  const fenceForFixture = (entry) => {
+    const held = entry.given.subscriptions[0];
+    const expectation = entry.given.authorizationExpectation;
+    return createLiveQueryAuthorizationFence({
+      namespace: held.authorizationNamespace,
+      authorityGeneration: 1,
+      issuerId: expectation.issuerId,
+      authorizationScope: held.authorizationScope,
+      connectionGeneration: expectation.connectionGeneration,
+      authorization: expectation.authorization,
+      versionStream: expectation.versionStream,
+      initialSnapshot: {
+        rows: held.rows,
+        version: held.version,
+      },
+    });
+  };
+
+  const mismatched = fixture(
+    'auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged',
+  );
+  assert.throws(
+    () => fenceForFixture(mismatched).receiveObligation(
+      mismatched.frame.obligation,
+      { commit: () => assert.fail('foreign scope quarantined owned rows') },
+    ),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID' },
+  );
+  const validSnapshot = fixture('auth.live.invalidation_snapshot_apply_then_ack');
+  const validSnapshotFrame = validSnapshot.steps[0].frame;
+  for (const mutateScope of [
+    (foreign) => { foreign.connectionGeneration += 1; },
+    (foreign) => {
+      foreign.subscriptionId = 'sub_foreign_same_namespace';
+      foreign.scopeSequence += 1;
+    },
+  ]) {
+    const foreignObligation = structuredClone(validSnapshotFrame.obligation);
+    mutateScope(foreignObligation.scopeId);
+    assert.throws(
+      () => fenceForFixture(validSnapshot).receiveObligation(
+        foreignObligation,
+        { commit: () => assert.fail('foreign exact scope quarantined owned rows') },
+      ),
+      { code: 'SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID' },
+    );
+  }
+
+  const invalid = fixture('auth.live.invalidation_invalid_resolution_never_acknowledged');
+  const invalidFence = fenceForFixture(invalid);
+  const belowFloor = invalid.steps[0].frame;
+  const belowFloorAccepted = invalidFence.receiveObligation(
+    belowFloor.obligation,
+    { commit() {} },
+  );
+  assert.throws(
+    () => invalidFence.applyResolution({
+      fence: belowFloorAccepted.fence,
+      resolution: belowFloor.resolution,
+      snapshot: belowFloor.snapshot,
+      commit: () => assert.fail('below-floor snapshot applied'),
+    }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE' },
+  );
+  const terminalWithSnapshot = invalid.steps[1].frame;
+  const terminalAccepted = invalidFence.receiveObligation(
+    terminalWithSnapshot.obligation,
+    { commit() {} },
+  );
+  assert.throws(
+    () => invalidFence.applyResolution({
+      fence: terminalAccepted.fence,
+      resolution: terminalWithSnapshot.resolution,
+      snapshot: terminalWithSnapshot.snapshot,
+      commit: () => assert.fail('terminal delete with rows applied'),
+    }),
+    { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT' },
+  );
+
+  const terminal = fixture(
+    'auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse',
+  );
+  const terminalFence = fenceForFixture(terminal);
+  const terminalFrame = terminal.steps[0].frame;
+  const terminalObligation = terminalFence.receiveObligation(
+    terminalFrame.obligation,
+    { commit() {} },
+  );
+  const terminalApplied = terminalFence.applyResolution({
+    fence: terminalObligation.fence,
+    resolution: terminalFrame.resolution,
+    snapshot: null,
+    commit() {},
+  });
+  assert.equal(terminalFence.acknowledge(terminalApplied.ackToken).status, 'acknowledged');
+  const ordinary = terminal.steps[1].frame;
+  assert.throws(
+    () => terminalFence.applyLiveSnapshot({
+      fence: terminalFence.capture(),
+      snapshot: { rows: ordinary.rows, version: ordinary.version },
+      commit: () => assert.fail('ordinary live frame resurrected terminal rows'),
+    }),
+    { code: 'SNAPBACK_AUTH_QUERY_QUARANTINED' },
+  );
+  const expectation = terminal.given.authorizationExpectation;
+  assert.throws(
+    () => terminalFence.replaceAuthenticatedExpectation({
+      issuerId: expectation.issuerId,
+      authorizationScope: terminal.given.subscriptions[0].authorizationScope,
+      connectionGeneration: expectation.connectionGeneration,
+      authorization: expectation.authorization,
+      versionStream: expectation.versionStream,
+      snapshot: { rows: ordinary.rows, version: ordinary.version },
+      commit: () => assert.fail('ordinary fresh subscribe resurrected terminal rows'),
+    }),
+    { code: 'SNAPBACK_AUTH_QUERY_FENCE_STALE' },
+  );
 }
 
 console.log('live query authorization fence conformance: ok');

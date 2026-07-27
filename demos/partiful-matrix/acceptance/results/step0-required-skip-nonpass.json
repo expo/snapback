@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "b37acb9d680cf4c4f7f6aa797627dd718410892f",
+    "snapback": "ae567457cde87facc918b9a4d5f6ecab1e09fc39",
     "exact": "b458199579e62e6e19796c87186b8325815a3fa0"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -107,7 +107,7 @@
     "contract": {
       "manifestSha256": "44e39a107abb959122037a2be870851d6c2b64cb8274567e0324cbfd7ae9373f",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "23d1c0377f1b68c074f5690c1a3ab98ca1cba9329680dd4082315e56f3b7c22f",
+      "lockSha256": "c7cf51b14da44496dc6518952acd71aa5cd5d2f811193a9aba0a390e9e6eedf5",
       "dependencies": {
         "@exact/contract": "npm:@ccheever/exact-contract@0.1.6",
         "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.6",
@@ -120,26 +120,26 @@
         "@exact/contract": {
           "requested": "npm:@ccheever/exact-contract@0.1.6",
           "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "8a5861beb2cba56a9b1ccaf8c9f5a2dea7841bef004f11cd8f364fcf5f91b5ed"
         },
         "@exact/devtools": {
           "requested": "npm:@ccheever/exact-devtools@0.1.6",
           "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "e076bdd3acde8cc3588e59fcdc7f744b4d65d04134175c13c324b2daab571757"
         },
         "@exact/facet-core": {
           "requested": "npm:@ccheever/exact-facet-core@0.1.6",
           "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "30e872c37cd1aa90ae2a45b7cec32f06396c6df0a8bae1df20585fed8d617a40"
         },
         "@exact/renderer": {
           "requested": "npm:@ccheever/exact-renderer@0.1.6",
           "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+          "resolvedVersion": "0.1.6",
+          "manifestSha256": "b057c723bd36675ad13e2eee9c0784b020b8c84428fd63900f7e3954d659e4c8"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -197,11 +197,11 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "ce6be81c9611602c98ebacd53edd59deb94af22911bc65389eba3483254da6bd"
+      "sha256": "849c046d1763befa9de1ebb0e6900c50485ed959ea1ad552bbe6189293b7dafe"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
-      "sha256": "8a49e7a673bf9117e5cf90a4a116f9df8b7dae92892633607101b1230cec198a"
+      "sha256": "8c3847a577297e8a822ab8d06e08fe4d724e2d3d8d73e1a5b19d5f85ba58f8ee"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
@@ -217,7 +217,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "df3e66009ad55c4fb2f9d3ff835627b419c3831132d5f304f17343a2d3363c4f"
+      "sha256": "45ea27b22d22d1a5bad9a4558e455c509e136c0157d681e7f9508e27e6e168fe"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -244,7 +244,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "12cbf2f63b63f6d5c9fddec8e87b431be1063607c13c312ae6a0b3ed629a1154",
+  "testInventorySha256": "4f2e52d01803c3c13e8451b880f65ef1b8e44ad6e2e34c2f194af2c8b5934ae2",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -270,7 +270,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-63690"
+      "/Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-22836"
     ],
     "exitStatus": 1,
     "signal": null
@@ -282,7 +282,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "ce6be81c9611602c98ebacd53edd59deb94af22911bc65389eba3483254da6bd"
+      "sha256": "849c046d1763befa9de1ebb0e6900c50485ed959ea1ad552bbe6189293b7dafe"
     },
     {
       "path": "demos/_kit/harness.mjs",

@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:4b51af2ea1a5bb7a8e824736b81c58023a60aa009af3d07740e2f093d523d551"
+    "sha256": "sha256:8b671c01b95a1ab890421f9b941e3be3c9679ef65fbceb4f21f79ff787045545"
   },
   "manifestVersion": 1,
   "operations": [
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:89fd341837a7be31c697f90b5fd7d7d7b1c782a00c1d34f12d13c87a40c45589"
+    "sha256": "sha256:022e5e68de9c3ffa31fbf795ccc2cc77da13ebd1bf5285cac50e2e98aa0d3a70"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -112,7 +112,7 @@
     },
     "liveEnvelope": {
       "path": "schemas/live.envelope.schema.json",
-      "sha256": "sha256:a546e9e0b4dca74d49ece39f94db5eeea6de004f03af1762286dc091476d5ca0"
+      "sha256": "sha256:c1b4f0d3c779096a55321c5bc876de27af40e018de328076a4a22161d996e4c7"
     },
     "liveResumeInput": {
       "path": "schemas/live.resume.input.schema.json",
@@ -124,11 +124,11 @@
     },
     "liveSubscribeInput": {
       "path": "schemas/live.subscribe.input.schema.json",
-      "sha256": "sha256:5f5d972bc25dacaa50b7e535418837fbabb917c1c9e3457671c3227dffcd2e3d"
+      "sha256": "sha256:bb5530078589804552ffa6eb31d06ea3d1bc0e1e0e38b7109144aa9b4fdf9d6f"
     },
     "liveSubscribeOutput": {
       "path": "schemas/live.subscribe.output.schema.json",
-      "sha256": "sha256:fe40a2949931719f37d5c293dfa05d33d960010dd8fcb2c216ec9f84e6739be0"
+      "sha256": "sha256:4fc1ea64117c610695b26347ec2c49fafc8ac5edbbec4abf7cfababbaa34f9a4"
     },
     "liveUnsubscribeInput": {
       "path": "schemas/live.unsubscribe.input.schema.json",

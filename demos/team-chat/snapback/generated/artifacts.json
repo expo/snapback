@@ -1,0 +1,130 @@
+{
+  "appId": "team-chat",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/acceptInvite.args.schema.json",
+    "operations/createRoom.args.schema.json",
+    "operations/firstInboxPage.args.schema.json",
+    "operations/inviteMember.args.schema.json",
+    "operations/leaveRoom.args.schema.json",
+    "operations/listMyRooms.args.schema.json",
+    "operations/markRoomRead.args.schema.json",
+    "operations/nextInboxPage.args.schema.json",
+    "operations/roomDetails.args.schema.json",
+    "operations/roomMessages.args.schema.json",
+    "operations/sendMessage.args.schema.json",
+    "operations/unreadDeliveries.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/acceptInvite.mutation.ts",
+    "contract/acceptInvite.mutation.contract-meta.ts",
+    "contract/createRoom.mutation.ts",
+    "contract/createRoom.mutation.contract-meta.ts",
+    "contract/firstInboxPage.query.ts",
+    "contract/firstInboxPage.query.contract-meta.ts",
+    "contract/inviteMember.mutation.ts",
+    "contract/inviteMember.mutation.contract-meta.ts",
+    "contract/leaveRoom.mutation.ts",
+    "contract/leaveRoom.mutation.contract-meta.ts",
+    "contract/listMyRooms.query.ts",
+    "contract/listMyRooms.query.contract-meta.ts",
+    "contract/markRoomRead.mutation.ts",
+    "contract/markRoomRead.mutation.contract-meta.ts",
+    "contract/nextInboxPage.query.ts",
+    "contract/nextInboxPage.query.contract-meta.ts",
+    "contract/roomDetails.query.ts",
+    "contract/roomDetails.query.contract-meta.ts",
+    "contract/roomMessages.query.ts",
+    "contract/roomMessages.query.contract-meta.ts",
+    "contract/sendMessage.mutation.ts",
+    "contract/sendMessage.mutation.contract-meta.ts",
+    "contract/unreadDeliveries.query.ts",
+    "contract/unreadDeliveries.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:fa5f79109a8425ff",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "team-chat:acceptInvite",
+      "kind": "Mutation",
+      "name": "acceptInvite"
+    },
+    {
+      "id": "team-chat:createRoom",
+      "kind": "Mutation",
+      "name": "createRoom"
+    },
+    {
+      "id": "team-chat:firstInboxPage",
+      "kind": "LiveQuery",
+      "name": "firstInboxPage"
+    },
+    {
+      "id": "team-chat:inviteMember",
+      "kind": "Mutation",
+      "name": "inviteMember"
+    },
+    {
+      "id": "team-chat:leaveRoom",
+      "kind": "Mutation",
+      "name": "leaveRoom"
+    },
+    {
+      "id": "team-chat:listMyRooms",
+      "kind": "LiveQuery",
+      "name": "listMyRooms"
+    },
+    {
+      "id": "team-chat:markRoomRead",
+      "kind": "Mutation",
+      "name": "markRoomRead"
+    },
+    {
+      "id": "team-chat:nextInboxPage",
+      "kind": "LiveQuery",
+      "name": "nextInboxPage"
+    },
+    {
+      "id": "team-chat:roomDetails",
+      "kind": "LiveQuery",
+      "name": "roomDetails"
+    },
+    {
+      "id": "team-chat:roomMessages",
+      "kind": "LiveQuery",
+      "name": "roomMessages"
+    },
+    {
+      "id": "team-chat:sendMessage",
+      "kind": "Mutation",
+      "name": "sendMessage"
+    },
+    {
+      "id": "team-chat:unreadDeliveries",
+      "kind": "LiveQuery",
+      "name": "unreadDeliveries"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "3f738b2b561db4bcfef8a8fee49b2c2bab8a72122eecedb8834d9bbbdd199dce",
+  "schemaHash": "sha256:90aebbc8bf8129af",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "rooms",
+    "roomMembers",
+    "roomParticipants",
+    "messages",
+    "deliveries"
+  ]
+}

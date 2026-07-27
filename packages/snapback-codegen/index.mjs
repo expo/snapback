@@ -1105,7 +1105,10 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       if (handlerSource && isProtectedQueryDefinition(def)) {
-        for (const problem of scanProtectedHandlerSource(handlerSource)) {
+        for (const problem of scanProtectedHandlerReachableSource(
+          handlerSource,
+          def.js.exportName,
+        )) {
           err(problem.code, 'auth', `${name}: ${problem.message}`, {
             function: name,
             inputKind: problem.inputKind,
@@ -1556,8 +1559,17 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const appId = inferAppId(backendRoot);
-  const demoMetadata = readDemoAppMetadata(backendRoot, appId, diagnostics);
+  const demoMetadata = readDemoAppMetadata(backendRoot, diagnostics);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  // A nearest-ancestor demo manifest is the stable app-identity authority.
+  // Layouts such as <demo>/backends/snapback must not become app "backends"
+  // merely because codegen was moved one directory deeper. Bare external
+  // backends retain the legacy immediate-parent fallback.
+  //
+  // @ref LLP 0004#first-slice-api-decisions — appId feeds stable function ids.
+  const appId = demoMetadata.appId ?? inferAppId(backendRoot);
   const decoratedFunctionDefinitions = decorateFunctions(appId, functions);
   const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
   for (const fn of decoratedFunctionDefinitions) {
@@ -4253,7 +4265,7 @@ function scanStaticallyInvalidJsQueryResults(source, exportName) {
   return problems;
 }
 
-function scanProtectedHandlerSource(source) {
+function legacyProtectedHandlerSourceScan(source) {
   const searchable = maskCommentsAndStrings(source);
   const checks = [
     [
@@ -4279,6 +4291,505 @@ function scanProtectedHandlerSource(source) {
       };
     })
     .filter(Boolean);
+}
+
+// Attribute denied mutable inputs to one exported handler's conservative
+// local call graph. Handler files cannot import modules, so the graph's
+// relevant edges are declarations, local aliases, object methods, callbacks,
+// `this` siblings, and nested closures. Every ambiguous edge on a known local
+// helper object follows all possible methods; it never guesses one.
+function scanProtectedHandlerReachableSource(source, exportName) {
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+      locations: true,
+    });
+  } catch {
+    return legacyProtectedHandlerSourceScan(source);
+  }
+
+  const functionKinds = new Set([
+    'FunctionDeclaration',
+    'FunctionExpression',
+    'ArrowFunctionExpression',
+  ]);
+  const directTargets = new Map();
+  const aliasTargets = new Map();
+  const objectTargets = new Map();
+  const functionOwners = new WeakMap();
+  const exportedFunctions = [];
+  const addSetValue = (map, key, value) => {
+    if (!key) return;
+    if (!map.has(key)) map.set(key, new Set());
+    map.get(key).add(value);
+  };
+  const propertyName = (property) => {
+    if (!property?.computed && property?.key?.type === 'Identifier') return property.key.name;
+    if (property?.key?.type === 'Literal' && typeof property.key.value === 'string') {
+      return property.key.value;
+    }
+    return null;
+  };
+  const expressionKey = (expression) => {
+    if (expression?.type === 'Identifier') return expression.name;
+    if (expression?.type !== 'MemberExpression') return null;
+    const base = expressionKey(expression.object);
+    if (base === null) return null;
+    const member = expression.computed
+      ? (expression.property?.type === 'Literal' && typeof expression.property.value === 'string'
+        ? expression.property.value
+        : null)
+      : (expression.property?.type === 'Identifier' ? expression.property.name : null);
+    return member === null ? null : `${base}.${member}`;
+  };
+  const registerBinding = (key, value) => {
+    if (!key || !value) return;
+    if (functionKinds.has(value.type)) {
+      addSetValue(directTargets, key, value);
+      return;
+    }
+    const target = expressionKey(value);
+    if (target !== null) addSetValue(aliasTargets, key, target);
+  };
+  const registerObject = (object, key = null) => {
+    if (object?.type !== 'ObjectExpression') return;
+    const owner = new Map();
+    for (const property of object.properties ?? []) {
+      if (property?.type !== 'Property') continue;
+      const member = propertyName(property);
+      if (member === null) continue;
+      const ownerEntry = { functions: new Set(), keys: new Set() };
+      if (functionKinds.has(property.value?.type)) {
+        ownerEntry.functions.add(property.value);
+        if (key !== null) {
+          addSetValue(directTargets, `${key}.${member}`, property.value);
+          addSetValue(objectTargets, key, property.value);
+        }
+      } else {
+        const target = expressionKey(property.value);
+        if (target !== null) {
+          ownerEntry.keys.add(target);
+          if (key !== null) addSetValue(aliasTargets, `${key}.${member}`, target);
+        }
+      }
+      owner.set(member, ownerEntry);
+    }
+    for (const entry of owner.values()) {
+      for (const fn of entry.functions) {
+        if (!functionOwners.has(fn)) functionOwners.set(fn, new Set());
+        functionOwners.get(fn).add(owner);
+      }
+    }
+  };
+  const indexFunctions = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'FunctionDeclaration' && node.id?.type === 'Identifier') {
+      addSetValue(directTargets, node.id.name, node);
+      if (node.id.name === exportName) exportedFunctions.push(node);
+    } else if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier') {
+      registerBinding(node.id.name, node.init);
+      registerObject(node.init, node.id.name);
+      if (node.id.name === exportName && functionKinds.has(node.init?.type)) {
+        exportedFunctions.push(node.init);
+      }
+    } else if (node.type === 'VariableDeclarator' && node.id?.type === 'ObjectPattern') {
+      const sourceKey = expressionKey(node.init);
+      if (sourceKey !== null) {
+        for (const property of node.id.properties ?? []) {
+          if (property?.type !== 'Property') continue;
+          const member = propertyName(property);
+          const local = property.value?.type === 'Identifier' ? property.value.name : null;
+          if (member !== null && local !== null) {
+            addSetValue(aliasTargets, local, `${sourceKey}.${member}`);
+          }
+        }
+      }
+    } else if (
+      node.type === 'Property'
+      && propertyName(node) === exportName
+      && functionKinds.has(node.value?.type)
+    ) {
+      exportedFunctions.push(node.value);
+    } else if (node.type === 'AssignmentExpression') {
+      const key = expressionKey(node.left);
+      if (key !== null) {
+        registerBinding(key, node.right);
+        registerObject(node.right, key);
+      }
+    }
+    if (node.type === 'ObjectExpression') registerObject(node);
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const child of value) indexFunctions(child);
+      } else if (value && typeof value === 'object') {
+        indexFunctions(value);
+      }
+    }
+  };
+  indexFunctions(program);
+  if (exportedFunctions.length === 0) return legacyProtectedHandlerSourceScan(source);
+
+  const targetsForKey = (key, seen = new Set()) => {
+    if (key === null || seen.has(key)) return new Set();
+    seen.add(key);
+    const targets = new Set(directTargets.get(key) ?? []);
+    for (const alias of aliasTargets.get(key) ?? []) {
+      for (const target of targetsForKey(alias, seen)) targets.add(target);
+    }
+    const dot = key.indexOf('.');
+    if (dot > 0) {
+      const base = key.slice(0, dot);
+      const suffix = key.slice(dot);
+      for (const alias of aliasTargets.get(base) ?? []) {
+        for (const target of targetsForKey(`${alias}${suffix}`, seen)) targets.add(target);
+      }
+    }
+    return targets;
+  };
+  const objectFunctionsForKey = (key, seen = new Set()) => {
+    if (key === null || seen.has(key)) return new Set();
+    seen.add(key);
+    const targets = new Set(objectTargets.get(key) ?? []);
+    for (const alias of aliasTargets.get(key) ?? []) {
+      for (const target of objectFunctionsForKey(alias, seen)) targets.add(target);
+    }
+    return targets;
+  };
+  const pending = [];
+  const functionRoles = new WeakMap();
+  const enqueueFunction = (fn, {
+    contextIndexes = [],
+    runtimeIndexes = [],
+    capturedContextNames = [],
+    capturedRuntimeNames = [],
+    capturedRuntimeMethods = [],
+    assumeFirstContext = true,
+  } = {}) => {
+    if (!functionKinds.has(fn?.type)) return;
+    let state = functionRoles.get(fn);
+    if (!state) {
+      state = {
+        contextIndexes: new Set(),
+        runtimeIndexes: new Set(),
+        capturedContextNames: new Set(),
+        capturedRuntimeNames: new Set(),
+        capturedRuntimeMethods: new Map(),
+        version: 0,
+        analyzedVersion: -1,
+        queued: false,
+      };
+      functionRoles.set(fn, state);
+    }
+    const addIndexes = (target, indexes) => {
+      for (const index of indexes) {
+        if (!Number.isSafeInteger(index) || index < 0 || target.has(index)) continue;
+        target.add(index);
+        state.version += 1;
+      }
+    };
+    if (assumeFirstContext && (fn.params?.length ?? 0) > 0) {
+      addIndexes(state.contextIndexes, [0]);
+    }
+    addIndexes(state.contextIndexes, contextIndexes);
+    addIndexes(state.runtimeIndexes, runtimeIndexes);
+    const addNames = (target, names) => {
+      for (const name of names) {
+        if (typeof name !== 'string' || target.has(name)) continue;
+        target.add(name);
+        state.version += 1;
+      }
+    };
+    addNames(state.capturedContextNames, capturedContextNames);
+    addNames(state.capturedRuntimeNames, capturedRuntimeNames);
+    for (const [name, method] of capturedRuntimeMethods) {
+      if (
+        typeof name !== 'string'
+        || (method !== 'now' && method !== 'id')
+        || state.capturedRuntimeMethods.get(name) === method
+      ) continue;
+      state.capturedRuntimeMethods.set(name, method);
+      state.version += 1;
+    }
+    if (!state.queued && state.analyzedVersion !== state.version) {
+      state.queued = true;
+      pending.push(fn);
+    }
+  };
+  for (const fn of new Set(exportedFunctions)) enqueueFunction(fn);
+  const issues = [];
+  const issueKinds = new Set();
+  const addIssue = (code, inputKind, node) => {
+    if (issueKinds.has(code)) return;
+    issueKinds.add(code);
+    issues.push({
+      code,
+      inputKind,
+      message: `protected result depends on denied mutable input ${inputKind}`,
+      line: node.loc?.start.line ?? 1,
+      column: (node.loc?.start.column ?? 0) + 1,
+    });
+  };
+
+  while (pending.length > 0) {
+    const fn = pending.shift();
+    const roleState = functionRoles.get(fn);
+    roleState.queued = false;
+    if (roleState.analyzedVersion === roleState.version) continue;
+    roleState.analyzedVersion = roleState.version;
+    const contextNames = new Set(['ctx', ...roleState.capturedContextNames]);
+    const runtimeNames = new Set(roleState.capturedRuntimeNames);
+    const runtimeMethods = new Map(roleState.capturedRuntimeMethods);
+    const bindParameterRole = (pattern, role) => {
+      if (pattern?.type === 'AssignmentPattern') {
+        bindParameterRole(pattern.left, role);
+        return;
+      }
+      if (pattern?.type === 'RestElement') {
+        bindParameterRole(pattern.argument, role);
+        return;
+      }
+      if (pattern?.type === 'Identifier') {
+        if (role === 'context') contextNames.add(pattern.name);
+        else if (role === 'runtime') runtimeNames.add(pattern.name);
+        return;
+      }
+      if (pattern?.type !== 'ObjectPattern') return;
+      for (const property of pattern.properties ?? []) {
+        if (property?.type !== 'Property') continue;
+        const member = propertyName(property);
+        const value = property.value?.type === 'AssignmentPattern'
+          ? property.value.left
+          : property.value;
+        if (role === 'context' && member === 'runtime') {
+          bindParameterRole(value, 'runtime');
+        } else if (
+          role === 'runtime'
+          && (member === 'now' || member === 'id')
+          && value?.type === 'Identifier'
+        ) {
+          runtimeMethods.set(value.name, member);
+        }
+      }
+    };
+    for (const index of roleState.contextIndexes) {
+      bindParameterRole(fn.params?.[index], 'context');
+    }
+    for (const index of roleState.runtimeIndexes) {
+      bindParameterRole(fn.params?.[index], 'runtime');
+    }
+
+    let aliasesChanged = true;
+    while (aliasesChanged) {
+      aliasesChanged = false;
+      const collectAliases = (node, root) => {
+        if (!node || typeof node !== 'object') return;
+        if (node !== root && functionKinds.has(node.type)) return;
+        if (node.type === 'VariableDeclarator') {
+          if (node.id?.type === 'Identifier' && node.init?.type === 'Identifier') {
+            if (contextNames.has(node.init.name) && !contextNames.has(node.id.name)) {
+              contextNames.add(node.id.name);
+              aliasesChanged = true;
+            }
+            if (runtimeNames.has(node.init.name) && !runtimeNames.has(node.id.name)) {
+              runtimeNames.add(node.id.name);
+              aliasesChanged = true;
+            }
+            const method = runtimeMethods.get(node.init.name);
+            if (method && runtimeMethods.get(node.id.name) !== method) {
+              runtimeMethods.set(node.id.name, method);
+              aliasesChanged = true;
+            }
+          } else if (node.id?.type === 'Identifier' && node.init?.type === 'MemberExpression') {
+            const base = node.init.object;
+            const member = node.init.computed
+              ? (node.init.property?.type === 'Literal' ? node.init.property.value : null)
+              : node.init.property?.name;
+            if (
+              member === 'runtime'
+              && base?.type === 'Identifier'
+              && contextNames.has(base.name)
+              && !runtimeNames.has(node.id.name)
+            ) {
+              runtimeNames.add(node.id.name);
+              aliasesChanged = true;
+            } else if (
+              (member === 'now' || member === 'id')
+              && base?.type === 'Identifier'
+              && runtimeNames.has(base.name)
+              && runtimeMethods.get(node.id.name) !== member
+            ) {
+              runtimeMethods.set(node.id.name, member);
+              aliasesChanged = true;
+            }
+          } else if (node.id?.type === 'ObjectPattern') {
+            const source = node.init;
+            const sourceIsContext =
+              source?.type === 'Identifier' && contextNames.has(source.name);
+            const sourceIsRuntime = (
+              source?.type === 'Identifier' && runtimeNames.has(source.name)
+            ) || (
+              source?.type === 'MemberExpression'
+              && !source.computed
+              && source.property?.name === 'runtime'
+              && source.object?.type === 'Identifier'
+              && contextNames.has(source.object.name)
+            );
+            for (const property of node.id.properties ?? []) {
+              if (property?.type !== 'Property' || property.value?.type !== 'Identifier') continue;
+              const member = propertyName(property);
+              if (
+                sourceIsContext
+                && member === 'runtime'
+                && !runtimeNames.has(property.value.name)
+              ) {
+                runtimeNames.add(property.value.name);
+                aliasesChanged = true;
+              } else if (
+                sourceIsRuntime
+                && (member === 'now' || member === 'id')
+                && runtimeMethods.get(property.value.name) !== member
+              ) {
+                runtimeMethods.set(property.value.name, member);
+                aliasesChanged = true;
+              }
+            }
+          }
+        }
+        for (const value of Object.values(node)) {
+          if (Array.isArray(value)) {
+            for (const child of value) collectAliases(child, root);
+          } else if (value && typeof value === 'object') {
+            collectAliases(value, root);
+          }
+        }
+      };
+      collectAliases(fn, fn);
+    }
+
+    const isRuntimeInputCall = (node, method) => {
+      if (node?.type !== 'CallExpression') return false;
+      const callee = node.callee;
+      if (callee?.type === 'Identifier' && runtimeMethods.get(callee.name) === method) {
+        return true;
+      }
+      if (
+        callee?.type !== 'MemberExpression'
+        || callee.computed
+        || callee.property?.type !== 'Identifier'
+        || callee.property.name !== method
+      ) return false;
+      const runtime = callee.object;
+      return (
+        runtime?.type === 'Identifier'
+        && runtimeNames.has(runtime.name)
+      ) || (
+        runtime?.type === 'MemberExpression'
+        && !runtime.computed
+        && runtime.property?.type === 'Identifier'
+        && runtime.property.name === 'runtime'
+        && runtime.object?.type === 'Identifier'
+        && contextNames.has(runtime.object.name)
+      );
+    };
+    const argumentRole = (expression) => {
+      const value = expression?.type === 'ChainExpression'
+        ? expression.expression
+        : expression;
+      if (value?.type === 'Identifier') {
+        if (runtimeNames.has(value.name)) return 'runtime';
+        if (contextNames.has(value.name)) return 'context';
+        return null;
+      }
+      if (value?.type !== 'MemberExpression') return null;
+      const member = value.computed
+        ? (value.property?.type === 'Literal' ? value.property.value : null)
+        : value.property?.name;
+      if (
+        member === 'runtime'
+        && value.object?.type === 'Identifier'
+        && contextNames.has(value.object.name)
+      ) return 'runtime';
+      return null;
+    };
+    const enqueueCallTarget = (target, args) => {
+      const contextIndexes = [];
+      const runtimeIndexes = [];
+      for (const [index, argument] of (args ?? []).entries()) {
+        const role = argumentRole(argument);
+        if (role === 'context') contextIndexes.push(index);
+        else if (role === 'runtime') runtimeIndexes.push(index);
+      }
+      enqueueFunction(target, { contextIndexes, runtimeIndexes });
+    };
+    const inspectReachableBody = (node, root) => {
+      if (!node || typeof node !== 'object') return;
+      if (node !== root && functionKinds.has(node.type)) {
+        // A nested closure may consume the protected handler's context,
+        // runtime, or destructured runtime methods without receiving them as
+        // call arguments. Carry the lexical role environment into its own
+        // work-list analysis so renamed context captures cannot hide mutable
+        // visibility inputs.
+        enqueueFunction(node, {
+          capturedContextNames: contextNames,
+          capturedRuntimeNames: runtimeNames,
+          capturedRuntimeMethods: runtimeMethods,
+        });
+        return;
+      }
+      if (node.type === 'CallExpression') {
+        if (isRuntimeInputCall(node, 'now')) {
+          addIssue('SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY', 'RuntimeNow', node);
+        } else if (isRuntimeInputCall(node, 'id')) {
+          addIssue('SNAPBACK_AUTH_MUTABLE_INPUT_DENIED', 'RuntimeId', node);
+        }
+        const calleeKey = expressionKey(node.callee);
+        const callTargets = new Set(targetsForKey(calleeKey));
+        if (functionKinds.has(node.callee?.type)) {
+          callTargets.add(node.callee);
+        } else if (node.callee?.type === 'MemberExpression') {
+          if (node.callee.object?.type === 'ThisExpression') {
+            const member = node.callee.computed
+              ? (node.callee.property?.type === 'Literal' ? node.callee.property.value : null)
+              : node.callee.property?.name;
+            for (const owner of functionOwners.get(fn) ?? []) {
+              const entries = member === null
+                ? [...owner.values()]
+                : [owner.get(member)].filter(Boolean);
+              for (const entry of entries) {
+                for (const target of entry.functions) callTargets.add(target);
+                for (const key of entry.keys) {
+                  for (const target of targetsForKey(key)) callTargets.add(target);
+                }
+              }
+            }
+          } else if (calleeKey === null || targetsForKey(calleeKey).size === 0) {
+            const base = expressionKey(node.callee.object);
+            for (const target of objectFunctionsForKey(base)) callTargets.add(target);
+          }
+        }
+        for (const target of callTargets) enqueueCallTarget(target, node.arguments);
+      }
+      if (node.type === 'Identifier') {
+        for (const target of targetsForKey(node.name)) enqueueFunction(target);
+      } else if (node.type === 'MemberExpression') {
+        for (const target of targetsForKey(expressionKey(node))) enqueueFunction(target);
+      }
+      for (const value of Object.values(node)) {
+        if (Array.isArray(value)) {
+          for (const child of value) inspectReachableBody(child, root);
+        } else if (value && typeof value === 'object') {
+          inspectReachableBody(value, root);
+        }
+      }
+    };
+    inspectReachableBody(fn, fn);
+  }
+  return issues;
 }
 
 function maskCommentsAndStrings(source) {
@@ -4972,14 +5483,30 @@ function inferAppId(backendDir) {
   return resolve(backendDir).split(/[\\/]/).slice(-2, -1)[0] || 'local-app';
 }
 
-function readDemoAppMetadata(backendDir, appId, diagnostics) {
-  const demoManifestPath = resolve(backendDir, '..', 'demo.snapback.json');
-  if (!existsSync(demoManifestPath)) return { source: null, identity: null };
+function nearestDemoManifest(backendDir) {
+  let directory = dirname(resolve(backendDir));
+  while (true) {
+    const candidate = join(directory, 'demo.snapback.json');
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
+  }
+}
+
+// The manifest id participates in stable function ids and unescaped schema
+// URI path segments. Keep it a portable, case-stable slug rather than asking
+// every downstream consumer to invent its own escaping or normalization rule.
+const PORTABLE_DEMO_APP_ID = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
+
+function readDemoAppMetadata(backendDir, diagnostics) {
+  const demoManifestPath = nearestDemoManifest(backendDir);
+  if (demoManifestPath === null) return { source: null, identity: null, appId: null };
   let source;
   let sourceBytes;
   try {
     sourceBytes = resolveFileReadCapability(demoManifestPath, {
-      allowedRoots: [dirname(backendDir)],
+      allowedRoots: [dirname(demoManifestPath)],
       allowSymlink: false,
       codePrefix: 'DEMO_MANIFEST',
     }).read();
@@ -4992,7 +5519,7 @@ function readDemoAppMetadata(backendDir, appId, diagnostics) {
       message: `demo manifest ${demoManifestPath} could not be read: ${cause.message}`,
       path: demoManifestPath,
     });
-    return { source: null, identity: null };
+    return { source: null, identity: null, appId: null };
   }
   let manifest;
   try {
@@ -5005,17 +5532,40 @@ function readDemoAppMetadata(backendDir, appId, diagnostics) {
       message: `demo manifest ${demoManifestPath} is not valid JSON: ${cause.message}`,
       path: demoManifestPath,
     });
-    return { source: sourceBytes, identity: null };
+    return { source: sourceBytes, identity: null, appId: null };
   }
-  const app = manifest.app && typeof manifest.app === 'object' ? manifest.app : {};
+  let appId = null;
+  if (
+    !manifest
+    || typeof manifest !== 'object'
+    || Array.isArray(manifest)
+    || !Object.hasOwn(manifest, 'id')
+    || typeof manifest.id !== 'string'
+    || !PORTABLE_DEMO_APP_ID.test(manifest.id)
+  ) {
+    diagnostics.push({
+      code: 'DEMO_MANIFEST_APP_ID_INVALID',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `demo manifest ${demoManifestPath} must declare id as a 1-64 character lowercase ASCII slug that begins and ends with a letter or digit and otherwise contains only letters, digits, or hyphens`,
+      path: demoManifestPath,
+    });
+  } else {
+    appId = manifest.id;
+  }
+  const app = manifest?.app && typeof manifest.app === 'object' ? manifest.app : {};
   const identity = cleanObject({
-    name: readString(app.name) ?? readString(manifest.title),
-    description: readString(app.description) ?? readString(manifest.description),
-    iconUrl: readString(app.iconUrl) ?? readString(app.icon_url) ?? readString(manifest.iconUrl) ?? readString(manifest.icon_url),
-    wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest.wordmarkUrl) ?? readString(manifest.wordmark_url),
+    name: readString(app.name) ?? readString(manifest?.title),
+    description: readString(app.description) ?? readString(manifest?.description),
+    iconUrl: readString(app.iconUrl) ?? readString(app.icon_url) ?? readString(manifest?.iconUrl) ?? readString(manifest?.icon_url),
+    wordmarkUrl: readString(app.wordmarkUrl) ?? readString(app.wordmark_url) ?? readString(manifest?.wordmarkUrl) ?? readString(manifest?.wordmark_url),
   });
   if (identity.name === appId) delete identity.name;
-  return { source: sourceBytes, identity: Object.keys(identity).length === 0 ? null : identity };
+  return {
+    source: sourceBytes,
+    identity: Object.keys(identity).length === 0 ? null : identity,
+    appId,
+  };
 }
 
 function readString(value) {

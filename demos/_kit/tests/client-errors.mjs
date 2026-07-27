@@ -481,6 +481,93 @@ try {
     return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
   });
 
+  await suite.check('explicit external bearers latch finite terminal loss until real replacement', async () => {
+    const results = [];
+    for (const authorityDisposition of ['carrier', 'durableDelete']) {
+      const originalBearer = `external_${authorityDisposition}`;
+      const successor = authorityDisposition === 'carrier'
+        ? `successor_${authorityDisposition}`
+        : null;
+      const db = new SnapbackClient('http://stub', {
+        authClientProtocol: 1,
+        bearerToken: originalBearer,
+      });
+      db.authSession = async () => ({
+        activeMode: 'sessions',
+        availability: { onlineRequestResponse: { available: true } },
+      });
+      const blankContexts = [];
+      const unregister = db.registerAuthMaterialization({
+        capture: () => null,
+        blank: (context) => blankContexts.push(context),
+      });
+      let transportCalls = 0;
+      let terminal = true;
+      globalThis.fetch = async () => {
+        transportCalls += 1;
+        if (!terminal) {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({
+          diagnostic: {
+            code: 'SNAPBACK_AUTH_SESSION_REVOKED',
+            message: 'external bearer is terminal',
+            details: { authorityDisposition },
+          },
+        }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        });
+      };
+
+      const first = await assertThrows(
+        () => db.query('privateRows'),
+        'SNAPBACK_AUTH_SESSION_REVOKED',
+        'the external terminal diagnostic must surface',
+      );
+      assertEqual(first.authorityDisposition, authorityDisposition);
+      assertEqual(blankContexts.length, 1, 'terminal loss cuts visible materializations once');
+      assertEqual(blankContexts[0].authorityDisposition, authorityDisposition);
+      assertEqual(
+        blankContexts[0].disposition,
+        authorityDisposition === 'durableDelete' ? 'delete' : 'quarantine',
+      );
+      assertEqual(db.bearerToken, originalBearer, 'caller-controlled bearer bytes stay installed');
+
+      const callsAtTerminal = transportCalls;
+      await assertThrows(
+        () => db.query('privateRows'),
+        'SNAPBACK_AUTH_SESSION_REVOKED',
+        'the terminal generation refuses later request admission locally',
+      );
+      assertEqual(transportCalls, callsAtTerminal, 'latched requests never reach fetch');
+
+      await db.replaceBearerToken(originalBearer);
+      await assertThrows(
+        () => db.query('privateRows'),
+        'SNAPBACK_AUTH_SESSION_REVOKED',
+        'same-token replacement is a no-op and cannot clear terminal state',
+      );
+      assertEqual(transportCalls, callsAtTerminal);
+
+      terminal = false;
+      await db.replaceBearerToken(successor);
+      const recovered = await db.query('privateRows');
+      assertEqual(recovered.ok, true, 'a real successor/null custody transition reopens admission');
+      assertEqual(transportCalls, callsAtTerminal + 1);
+      results.push({
+        authorityDisposition,
+        replacement: successor === null ? 'null' : 'successor',
+        terminalCuts: blankContexts.length,
+      });
+      unregister();
+    }
+    return results;
+  });
+
   await suite.check('finite agent revocation waits for durable deletion before rejecting', async () => {
     const storage = createMemoryAgentAuthorityCustodyStorage();
     const initialCredential = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
@@ -1893,6 +1980,174 @@ try {
     );
     handle.dispose();
     return { attempts: resumeInputs.length };
+  });
+
+  await suite.check('pause releases exact durable demand while a shared stream remains live', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_pause_shared');
+    const db = new SnapbackClient('http://stub');
+    const subscribes = [];
+    const unsubscribes = [];
+    db.subscribeLive = async (_name, options) => {
+      const subscriptionId = `sub_pause_${subscribes.length + 1}`;
+      subscribes.push({ subscriptionId, supersedes: options.supersedes ?? null });
+      return {
+        subscription_id: subscriptionId,
+        snapshot: { version: subscribes.length, rows: [] },
+      };
+    };
+    db.unsubscribeLive = async (_name, options) => {
+      unsubscribes.push(options.subscriptionId);
+      return { removed: true };
+    };
+
+    const alpha = await db.liveQuery('listTodos', {
+      connectionId: 'conn_pause_shared',
+      transport: 'stream',
+    });
+    const beta = await db.liveQuery('listTodos', {
+      connectionId: 'conn_pause_shared',
+      transport: 'stream',
+    });
+    assertEqual(db.__liveStreamManagers.size, 1, 'both handles share one stream manager');
+
+    const alphaBeforePause = alpha.subscriptionId;
+    await alpha.pause();
+    assertEqual(
+      JSON.stringify(unsubscribes),
+      JSON.stringify([alphaBeforePause]),
+      'pause explicitly unsubscribes its exact durable demand',
+    );
+    assertEqual(db.__liveStreamManagers.size, 1, 'the peer keeps shared transport demand alive');
+
+    await alpha.resume();
+    assertEqual(
+      subscribes.at(-1).supersedes,
+      alphaBeforePause,
+      'resume enters through a fresh subscribe that supersedes the released id',
+    );
+    beta.dispose();
+    alpha.dispose();
+    return { subscribes, unsubscribes };
+  });
+
+  await suite.check('fresh supersession requires one exact predecessor-disposal witness', async () => {
+    const db = new SnapbackClient('http://stub');
+    const subscribeInputs = [];
+    const unsubscribed = [];
+    let witnessMode = 'initial';
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/connection/open') {
+        return new Response(JSON.stringify({
+          connectionId: 'conn_supersession_witness',
+          connectionToken: 'sct_supersession_witness',
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (path === '/live/listTodos/subscribe') {
+        const body = JSON.parse(init.body);
+        const subscriptionId = `sub_witness_${subscribeInputs.length + 1}`;
+        subscribeInputs.push({
+          subscriptionId,
+          supersedes: body.supersedes ?? null,
+          witnessMode,
+        });
+        const responseBody = {
+          subscription_id: subscriptionId,
+          snapshot: { version: subscribeInputs.length, rows: [] },
+          ...(witnessMode === 'unknown'
+            ? { supersessionRefusal: 'SNAPBACK_LIVE_SUPERSESSION_SOMETHING_ELSE' }
+            : {}),
+          ...(witnessMode === 'absence'
+            ? {
+                supersessionRefusal:
+                  'SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN',
+              }
+            : {}),
+          ...(witnessMode === 'retired'
+            ? { superseded: body.supersedes }
+            : {}),
+        };
+        return new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (path === '/live/listTodos/unsubscribe') {
+        const body = JSON.parse(init.body);
+        unsubscribed.push(body.subscription_id);
+        return new Response(JSON.stringify({ removed: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error(`unexpected supersession-witness request: ${path}`);
+    };
+
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'conn_supersession_witness',
+      transport: 'poll',
+    });
+    assertEqual(handle.subscriptionId, 'sub_witness_1');
+    await handle.pause();
+
+    witnessMode = 'missing';
+    const missing = await assertThrows(
+      () => handle.resume(),
+      'SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID',
+      'a successful snapshot without a disposal witness is protocol corruption',
+    );
+    await waitFor(
+      () => unsubscribed.includes('sub_witness_2'),
+      'unproven missing-witness successor cleanup',
+    );
+    assertEqual(handle.subscriptionId, 'sub_witness_1', 'the predecessor remains retained');
+
+    witnessMode = 'unknown';
+    await assertThrows(
+      () => handle.resume(),
+      'SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID',
+      'an unknown refusal is not a predecessor-disposal witness',
+    );
+    await waitFor(
+      () => unsubscribed.includes('sub_witness_3'),
+      'unproven unknown-refusal successor cleanup',
+    );
+    assertEqual(handle.subscriptionId, 'sub_witness_1', 'unknown refusal cannot replace the predecessor');
+
+    witnessMode = 'absence';
+    await handle.resume();
+    assertEqual(
+      handle.subscriptionId,
+      'sub_witness_4',
+      'the exact already-absent refusal is a valid processed witness',
+    );
+
+    await handle.pause();
+    witnessMode = 'retired';
+    await handle.resume();
+    assertEqual(
+      handle.subscriptionId,
+      'sub_witness_5',
+      'the exact superseded echo is a valid retirement witness',
+    );
+    assertEqual(
+      JSON.stringify(subscribeInputs.map(({ supersedes }) => supersedes)),
+      JSON.stringify([
+        null,
+        'sub_witness_1',
+        'sub_witness_1',
+        'sub_witness_1',
+        'sub_witness_4',
+      ]),
+      'failed witness attempts never advance the retained predecessor',
+    );
+    handle.dispose();
+    return {
+      code: missing.code,
+      subscribes: subscribeInputs.length,
+      cleaned: unsubscribed.length,
+    };
   });
 
   await suite.check('socket/session subscribe refusals retry only after generation-scoped readiness', async () => {

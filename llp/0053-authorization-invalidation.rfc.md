@@ -5,7 +5,11 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-23 (LLP 0086 CC-3.1 acceptance evidence and target
+**Revised:** 2026-07-26 (JavaScript protected-input attribution follows each
+exported handler's conservative locally reachable call graph, including
+aliases, object methods, callbacks, and nested closures, without poisoning a
+protected query for mutable input reachable only from an unrelated sibling
+export); 2026-07-23 (LLP 0086 CC-3.1 acceptance evidence and target
 coverage: added the dated §Acceptance evidence and target coverage note under
 §Status linking the local-target implementation and acceptance receipts —
 `src/auth/{invalidation,lease}.rs`, `src/storage/{auth_invalidation,authorized_lease,authorization}.rs`,
@@ -434,6 +438,13 @@ same machine-enforced profile on **dev, test, demo, and prod**:
    `SNAPBACK_AUTH_MUTABLE_INPUT_DENIED` with a typed `inputKind`. A newly added
    expression kind is denied for protected queries until this profile classifies
    it.
+   For JavaScript handler bundles, “wherever they occur” means the protected
+   export's conservative locally reachable call graph, including direct helper
+   calls, aliases and destructuring, local object methods and dynamic selection
+   on a known helper object, callbacks, `this` sibling calls, IIFEs, and nested
+   closures. An input reachable only from an unrelated sibling export is not an
+   input to the protected query. Ambiguous edges within a known reachable helper
+   object remain fail-closed by following every possible local target.
 3. **`ctx.auth` is a sealed mode-specific value, not ambient application
    state.** The shared invocation gate creates a fresh, null-prototype,
    data-property-only, recursively frozen record on every invocation. Sessions

@@ -11,11 +11,14 @@
 //! pins its dispatch to the same schemas via
 //! `demos/_kit/tests/live-wire-schema.mjs`.
 //!
-//! Casing is preserved from the pre-typed wire, which is mixed by lane:
-//! durable-lane envelopes use snake_case fields (`subscription_id`), the
-//! socket control lane and receipts use camelCase (`requestId`,
-//! `receivedAtMs`). Unifying casing would be a breaking wire change for no
-//! information gain; the schemas document what is actually sent.
+//! Casing is preserved from the defining serde type. Most durable-lane
+//! envelopes use snake_case fields (`subscription_id`) while socket control
+//! frames and receipts use camelCase (`requestId`, `receivedAtMs`). The named
+//! exception is the `authorization_invalidation` subtree: its imported
+//! obligation, resolution, scope, namespace, and snapshot DTOs are camelCase
+//! even though the outer durable envelope is snake_case. Unifying casing would
+//! be a breaking wire change for no information gain; generated schemas, not a
+//! lane-level mnemonic, are authoritative.
 //!
 //! @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
 //!   the live envelope kinds, socket family, grants, and receipts become
@@ -33,8 +36,10 @@ use crate::ephemeral::{DeleteRequest, EphemeralMessage, PublishRequest, Subscrib
 /// unwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]
 /// bytes on the HTTP polling drain).
 ///
-/// `live_replace` is the wire default (whole-result refresh); `live_delta` is
-/// the DK-3 op-log fast path for the analyzable unordered subset;
+/// `live_replace` is the wire default (whole-result refresh); every row's
+/// system `_id` member is its durable identity and occupies the same string
+/// space as [`LiveDeltaWireOp::id`]. `live_delta` is the DK-3 op-log fast path
+/// for the analyzable unordered subset;
 /// `resync_required` tells the client its subscription (or, connection-wide,
 /// its whole outbox) can no longer be trusted and it must re-snapshot.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

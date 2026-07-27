@@ -97,6 +97,170 @@ export const protectedJs = defineJsLiveQuery({
 
 {
   const functions = `
+import { defineJsLiveQuery, defineJsMutation } from '${defineUrl}';
+export const protectedJs = defineJsLiveQuery({
+  source: 'handler.js',
+  exportName: 'protectedJs',
+  reads: ['todos'],
+});
+export const writeWithClock = defineJsMutation({
+  source: 'handler.js',
+  exportName: 'writeWithClock',
+  writes: ['todos'],
+});
+`;
+  const handler = `globalThis.__snapbackHandlers = {
+    async protectedJs(ctx) { return await ctx.db.query('todos').collect(); },
+    async writeWithClock(ctx) { return await ctx.runtime.now(); },
+  };\n`;
+  const dir = backend({ schema, functions, handler });
+  const result = await generate(dir);
+  assert.equal(
+    result.ok,
+    true,
+    `a sibling mutation's clock must not poison the protected query: ${JSON.stringify(result.diagnostics)}`,
+  );
+}
+
+{
+  const functions = `
+import { defineJsLiveQuery } from '${defineUrl}';
+export const protectedJs = defineJsLiveQuery({
+  source: 'handler.js',
+  exportName: 'protectedJs',
+  reads: ['todos'],
+});
+`;
+  const handler = `
+async function clockedValue(context) { return await context.runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clockedValue(ctx) }]; },
+};\n`;
+  const dir = backend({ schema, functions, handler });
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY'
+    && diagnostic.function === 'protectedJs'
+  )), JSON.stringify(result.diagnostics));
+}
+
+for (const handler of [
+  `
+const helpers = {
+  async clock(context) { return await context.runtime.now(); },
+};
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await helpers.clock(ctx) }]; },
+};`,
+  `
+const helpers = {
+  async clock(context) { return await context.runtime.now(); },
+};
+const clockAlias = helpers.clock;
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clockAlias(ctx) }]; },
+};`,
+  `
+const helpers = {
+  async clock(context) { return await context.runtime.now(); },
+};
+const selected = 'clock';
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await helpers[selected](ctx) }]; },
+};`,
+  `
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await this.clock(ctx) }]; },
+  async clock(context) { return await context.runtime.now(); },
+};`,
+  `
+async function clock(context) { return await context.runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) {
+    const values = await Promise.all([ctx].map(clock));
+    return [{ value: values[0] }];
+  },
+};`,
+]) {
+  const functions = `
+import { defineJsLiveQuery } from '${defineUrl}';
+export const protectedJs = defineJsLiveQuery({
+  source: 'handler.js',
+  exportName: 'protectedJs',
+  reads: ['todos'],
+});
+`;
+  const dir = backend({ schema, functions, handler });
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY'
+    && diagnostic.function === 'protectedJs'
+  )), JSON.stringify(result.diagnostics));
+}
+
+for (const [label, handler] of [
+  [
+    'root context parameter destructures runtime',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs({ runtime }) { return [{ value: await runtime.now() }]; },
+};`,
+  ],
+  [
+    'root context parameter destructures the runtime method',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs({ runtime: { now } }) { return [{ value: await now() }]; },
+};`,
+  ],
+  [
+    'context reaches a helper second parameter',
+    `
+async function clock(_label, context) { return await context.runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clock('protected', ctx) }]; },
+};`,
+  ],
+  [
+    'runtime reaches a helper directly',
+    `
+async function clock(runtime) { return await runtime.now(); }
+globalThis.__snapbackHandlers = {
+  async protectedJs(ctx) { return [{ value: await clock(ctx.runtime) }]; },
+};`,
+  ],
+  [
+    'renamed context is captured by a nested closure',
+    `
+globalThis.__snapbackHandlers = {
+  async protectedJs(context) {
+    const hidden = async () => context.runtime.now();
+    return [{ value: await hidden() }];
+  },
+};`,
+  ],
+]) {
+  const functions = `
+import { defineJsLiveQuery } from '${defineUrl}';
+export const protectedJs = defineJsLiveQuery({
+  source: 'handler.js',
+  exportName: 'protectedJs',
+  reads: ['todos'],
+});
+`;
+  const dir = backend({ schema, functions, handler });
+  const result = await generate(dir);
+  assert.equal(result.ok, false, `${label}: ${JSON.stringify(result.diagnostics)}`);
+  assert(result.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY'
+    && diagnostic.function === 'protectedJs'
+  )), `${label}: ${JSON.stringify(result.diagnostics)}`);
+}
+
+{
+  const functions = `
 import { defineLiveQuery } from '${defineUrl}';
 export const badScope = defineLiveQuery({ table: 'todos', authScopeField: 'missing' });
 `;

@@ -36,6 +36,397 @@ public struct Decoded<Value> {
     public var hadUnknownFields: Bool
 }
 
+/// The camelCase snapshot nested inside the otherwise snake_case
+/// `authorization_invalidation` durable envelope.
+public struct AuthorizationInvalidationSnapshot: Equatable, Sendable {
+    public var subscriptionId: String
+    public var function: String
+    public var version: UInt64
+    public var rows: [JSONValue]
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationSnapshot? {
+        let required: Set<String> = ["subscriptionId", "function", "version", "rows"]
+        guard let members = json.objectValue,
+              Set(members.keys) == required,
+              let subscriptionId = members["subscriptionId"]?.stringValue,
+              !subscriptionId.isEmpty,
+              let function = members["function"]?.stringValue,
+              !function.isEmpty,
+              let version = members["version"]?.uint64Value,
+              let rows = members["rows"]?.arrayValue
+        else { return nil }
+        return AuthorizationInvalidationSnapshot(
+            subscriptionId: subscriptionId,
+            function: function,
+            version: version,
+            rows: rows
+        )
+    }
+}
+
+public struct AuthorizationVersion: Equatable, Sendable {
+    public var incarnation: String
+    public var epoch: UInt64
+
+    static func from(_ json: JSONValue) -> AuthorizationVersion? {
+        guard let members = json.objectValue,
+              Set(members.keys) == Set(["incarnation", "epoch"]),
+              let incarnation = members["incarnation"]?.stringValue,
+              !incarnation.isEmpty,
+              let epoch = members["epoch"]?.uint64Value
+        else { return nil }
+        return AuthorizationVersion(incarnation: incarnation, epoch: epoch)
+    }
+
+}
+
+/// The authenticated connection expectation returned by `POST /connection/open`.
+/// Invalidation frames are accepted only inside this issuer/generation and
+/// authorization/data stream.
+public struct AuthorizationInvalidationConnection: Equatable, Sendable {
+    public var protocolVersion: UInt64
+    public var issuerId: JSONValue
+    public var connectionGeneration: UInt64
+    public var authorization: AuthorizationVersion
+    public var versionStream: String
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationConnection? {
+        let required: Set<String> = [
+            "protocolVersion", "issuerId", "connectionGeneration",
+            "authorization", "versionStream",
+        ]
+        let optional: Set<String> = ["issuerRetirement"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let protocolVersion = members["protocolVersion"]?.uint64Value,
+              protocolVersion == 1,
+              let issuerId = members["issuerId"],
+              validIssuerId(issuerId),
+              let connectionGeneration = members["connectionGeneration"]?.uint64Value,
+              connectionGeneration > 0,
+              let authorizationValue = members["authorization"],
+              let authorization = AuthorizationVersion.from(authorizationValue),
+              let versionStream = members["versionStream"]?.stringValue,
+              !versionStream.isEmpty
+        else { return nil }
+        if let retirement = members["issuerRetirement"],
+           retirement != .null,
+           !validIssuerRetirement(retirement) {
+            return nil
+        }
+        return AuthorizationInvalidationConnection(
+            protocolVersion: protocolVersion,
+            issuerId: issuerId,
+            connectionGeneration: connectionGeneration,
+            authorization: authorization,
+            versionStream: versionStream
+        )
+    }
+}
+
+/// The post-commit ticket paired atomically with an authorization snapshot.
+/// A client may acknowledge only after the matching snapshot has been applied.
+public struct AuthorizationInvalidationResolution: Equatable, Sendable {
+    public enum Kind: String, Sendable {
+        case snapshot
+        case terminalDelete
+    }
+
+    public var protocolVersion: UInt64
+    public var kind: Kind
+    public var scopeId: JSONValue
+    public var revision: UInt64
+    public var witness: JSONValue
+    public var maxDisposition: String
+    public var ackToken: String
+    public var ownerContinuityId: String?
+    public var raw: JSONValue
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationResolution? {
+        let required: Set<String> = [
+            "protocolVersion", "kind", "scopeId", "revision", "witness",
+            "maxDisposition", "ackToken",
+        ]
+        let optional: Set<String> = ["ownerContinuityId"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let protocolVersion = members["protocolVersion"]?.uint64Value,
+              protocolVersion == 1,
+              let kindName = members["kind"]?.stringValue,
+              let kind = Kind(rawValue: kindName),
+              let scopeId = members["scopeId"],
+              validInvalidationScope(scopeId),
+              let revision = members["revision"]?.uint64Value,
+              revision > 0,
+              let witness = members["witness"],
+              validCompositeWitness(witness),
+              let maxDisposition = members["maxDisposition"]?.stringValue,
+              ["retain", "quarantine", "delete"].contains(maxDisposition),
+              let ackToken = members["ackToken"]?.stringValue,
+              !ackToken.isEmpty
+        else { return nil }
+        let ownerContinuityId = members["ownerContinuityId"]?.stringValue
+        if scopeId["kind"]?.stringValue == "subscription",
+           ownerContinuityId == nil {
+            return nil
+        }
+        if let owner = members["ownerContinuityId"],
+           owner != .null && ownerContinuityId == nil {
+            return nil
+        }
+        return AuthorizationInvalidationResolution(
+            protocolVersion: protocolVersion,
+            kind: kind,
+            scopeId: scopeId,
+            revision: revision,
+            witness: witness,
+            maxDisposition: maxDisposition,
+            ackToken: ackToken,
+            ownerContinuityId: ownerContinuityId,
+            raw: json
+        )
+    }
+}
+
+/// The level-triggered obligation paired with an invalidation resolution.
+/// This type is deliberately closed: these members participate in custody
+/// and equality, so silently ignoring an unknown member would be unsafe.
+public struct AuthorizationInvalidationObligation: Equatable, Sendable {
+    public var protocolVersion: UInt64
+    public var scopeId: JSONValue
+    public var revision: UInt64
+    public var maxDisposition: String
+    public var witness: JSONValue
+    public var retryEpisodeId: String?
+    public var ownerContinuityId: String?
+    public var raw: JSONValue
+
+    public var subscriptionId: String? {
+        scopeId["subscriptionId"]?.stringValue
+    }
+
+    public var namespace: JSONValue? {
+        scopeId["namespace"]
+    }
+
+    public var issuerId: JSONValue? {
+        scopeId["issuerId"]
+    }
+
+    public var connectionGeneration: UInt64? {
+        scopeId["connectionGeneration"]?.uint64Value
+    }
+
+    public var authorization: AuthorizationVersion? {
+        witness["authorization"].flatMap(AuthorizationVersion.from)
+    }
+
+    public var versionStream: String? {
+        guard let data = witness["data"], data != .null else { return nil }
+        return data["versionStream"]?.stringValue
+    }
+
+    public var minimumCommitVersion: UInt64? {
+        guard let data = witness["data"], data != .null else { return nil }
+        return data["minCommitVersion"]?.uint64Value
+    }
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationObligation? {
+        let required: Set<String> = [
+            "protocolVersion", "scopeId", "revision", "maxDisposition",
+            "witness", "retryEpisodeId",
+        ]
+        let optional: Set<String> = ["ownerContinuityId"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let protocolVersion = members["protocolVersion"]?.uint64Value,
+              protocolVersion == 1,
+              let scopeId = members["scopeId"],
+              validInvalidationScope(scopeId),
+              let revision = members["revision"]?.uint64Value,
+              revision > 0,
+              let maxDisposition = members["maxDisposition"]?.stringValue,
+              ["retain", "quarantine", "delete"].contains(maxDisposition),
+              let witness = members["witness"],
+              validCompositeWitness(witness)
+        else { return nil }
+        let retryEpisodeId = members["retryEpisodeId"]?.stringValue
+        if let retry = members["retryEpisodeId"],
+           retry != .null && retryEpisodeId == nil {
+            return nil
+        }
+        let ownerContinuityId = members["ownerContinuityId"]?.stringValue
+        if scopeId["kind"]?.stringValue == "subscription",
+           ownerContinuityId == nil {
+            return nil
+        }
+        if let owner = members["ownerContinuityId"],
+           owner != .null && ownerContinuityId == nil {
+            return nil
+        }
+        return AuthorizationInvalidationObligation(
+            protocolVersion: protocolVersion,
+            scopeId: scopeId,
+            revision: revision,
+            maxDisposition: maxDisposition,
+            witness: witness,
+            retryEpisodeId: retryEpisodeId,
+            ownerContinuityId: ownerContinuityId,
+            raw: json
+        )
+    }
+
+    func isSatisfied(by resolution: AuthorizationInvalidationResolution) -> Bool {
+        guard protocolVersion == resolution.protocolVersion,
+              scopeId == resolution.scopeId,
+              revision == resolution.revision,
+              maxDisposition == resolution.maxDisposition,
+              ownerContinuityId == resolution.ownerContinuityId,
+              witness["authorization"] == resolution.witness["authorization"]
+        else { return false }
+        guard let obligationData = witness["data"], obligationData != .null else {
+            return true
+        }
+        guard let resolutionData = resolution.witness["data"],
+              resolutionData != .null,
+              obligationData["versionStream"] == resolutionData["versionStream"],
+              let obligationFloor = obligationData["minCommitVersion"]?.uint64Value,
+              let resolutionFloor = resolutionData["minCommitVersion"]?.uint64Value
+        else { return false }
+        return resolutionFloor >= obligationFloor
+    }
+}
+
+public struct AuthorizationInvalidationProjection: Equatable, Sendable {
+    public var obligation: AuthorizationInvalidationObligation
+    public var resolution: AuthorizationInvalidationResolution?
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationProjection? {
+        let required: Set<String> = ["obligation"]
+        let optional: Set<String> = ["resolution"]
+        guard let members = json.objectValue,
+              required.isSubset(of: Set(members.keys)),
+              Set(members.keys).isSubset(of: required.union(optional)),
+              let obligationValue = members["obligation"],
+              let obligation = AuthorizationInvalidationObligation.from(obligationValue)
+        else { return nil }
+        let resolutionValue = members["resolution"].flatMap { $0 == .null ? nil : $0 }
+        let resolution = resolutionValue.flatMap(AuthorizationInvalidationResolution.from)
+        if resolutionValue != nil && resolution == nil { return nil }
+        return AuthorizationInvalidationProjection(
+            obligation: obligation,
+            resolution: resolution
+        )
+    }
+}
+
+/// Closed response from
+/// `POST /live/authorization-invalidation/acknowledge`.
+public enum AuthorizationInvalidationAckOutcome: String, Sendable {
+    case discharged
+    case duplicate
+    case stale
+
+    static func from(_ json: JSONValue) -> AuthorizationInvalidationAckOutcome? {
+        guard let members = json.objectValue,
+              Set(members.keys) == Set(["outcome"]),
+              let raw = members["outcome"]?.stringValue
+        else { return nil }
+        return AuthorizationInvalidationAckOutcome(rawValue: raw)
+    }
+}
+
+private func validCompositeWitness(_ witness: JSONValue) -> Bool {
+    guard let members = witness.objectValue,
+          Set(members.keys) == Set(["authorization", "data"]),
+          let authorization = members["authorization"]?.objectValue,
+          Set(authorization.keys) == Set(["incarnation", "epoch"]),
+          authorization["incarnation"]?.stringValue?.isEmpty == false,
+          authorization["epoch"]?.uint64Value != nil
+    else { return false }
+    guard let data = members["data"] else { return false }
+    if data == .null { return true }
+    guard let dataMembers = data.objectValue,
+          Set(dataMembers.keys) == Set(["versionStream", "minCommitVersion"]),
+          dataMembers["versionStream"]?.stringValue?.isEmpty == false,
+          dataMembers["minCommitVersion"]?.uint64Value != nil
+    else { return false }
+    return true
+}
+
+private func validInvalidationScope(_ scope: JSONValue) -> Bool {
+    guard let members = scope.objectValue,
+          let kind = members["kind"]?.stringValue
+    else { return false }
+    switch kind {
+    case "subscription":
+        let keys: Set<String> = [
+            "kind", "issuerId", "namespace", "scopeSequence",
+            "connectionGeneration", "subscriptionId",
+        ]
+        return Set(members.keys) == keys
+            && validIssuerId(members["issuerId"])
+            && validQueryNamespace(members["namespace"])
+            && (members["scopeSequence"]?.uint64Value ?? 0) > 0
+            && (members["connectionGeneration"]?.uint64Value ?? 0) > 0
+            && members["subscriptionId"]?.stringValue?.isEmpty == false
+    case "connection":
+        let keys: Set<String> = ["kind", "issuerId", "connectionGeneration"]
+        return Set(members.keys) == keys
+            && validIssuerId(members["issuerId"])
+            && (members["connectionGeneration"]?.uint64Value ?? 0) > 0
+    case "clientQuery":
+        return Set(members.keys) == Set(["kind", "namespace"])
+            && validQueryNamespace(members["namespace"])
+    default:
+        return false
+    }
+}
+
+private func validIssuerId(_ value: JSONValue?) -> Bool {
+    guard let members = value?.objectValue,
+          Set(members.keys) == Set([
+              "authorizationIncarnation", "bootSequence", "bootNonce",
+          ])
+    else { return false }
+    return members["authorizationIncarnation"]?.stringValue?.isEmpty == false
+        && (members["bootSequence"]?.uint64Value ?? 0) > 0
+        && members["bootNonce"]?.stringValue?.isEmpty == false
+}
+
+private func validIssuerRetirement(_ value: JSONValue) -> Bool {
+    guard let members = value.objectValue,
+          Set(members.keys) == Set([
+              "currentIssuer", "retireThroughBootSequence",
+              "authorizationExpectation", "mac",
+          ]),
+          let currentIssuer = members["currentIssuer"]?.objectValue,
+          Set(currentIssuer.keys) == Set(["issuerId", "keyId", "mac"]),
+          validIssuerId(currentIssuer["issuerId"]),
+          currentIssuer["keyId"]?.stringValue?.isEmpty == false,
+          currentIssuer["mac"]?.stringValue?.isEmpty == false,
+          (members["retireThroughBootSequence"]?.uint64Value ?? 0) > 0,
+          let authorization = members["authorizationExpectation"],
+          AuthorizationVersion.from(authorization) != nil,
+          members["mac"]?.stringValue?.isEmpty == false
+    else { return false }
+    return true
+}
+
+private func validQueryNamespace(_ value: JSONValue?) -> Bool {
+    guard let members = value?.objectValue,
+          Set(members.keys) == Set([
+              "clientStoreId", "queryKey", "queryInstanceId",
+          ])
+    else { return false }
+    return members["clientStoreId"]?.stringValue?.isEmpty == false
+        && members["queryKey"]?.stringValue?.isEmpty == false
+        && (members["queryInstanceId"]?.uint64Value ?? 0) > 0
+}
+
 /// The durable-lane fan-out envelope (`live.envelope.schema.json`).
 public enum LiveEnvelope: Equatable, Sendable {
     case liveReplace(subscriptionId: String, function: String, version: UInt64, rows: [JSONValue], resume: JSONValue?)
@@ -44,7 +435,11 @@ public enum LiveEnvelope: Equatable, Sendable {
     /// `reason` is deliberately an open string (LLP 0095 T-RESYNC): recovery
     /// is identical for every reason, known or not.
     case resyncRequired(subscriptionId: String?, reason: String, clearRetained: Bool, scope: String?, epoch: UInt64?)
-    case authorizationInvalidation(obligation: JSONValue, snapshot: JSONValue?, resolution: JSONValue?)
+    case authorizationInvalidation(
+        obligation: AuthorizationInvalidationObligation,
+        snapshot: AuthorizationInvalidationSnapshot?,
+        resolution: AuthorizationInvalidationResolution?
+    )
 
     public static let knownKinds: Set<String> = [
         "live_replace", "live_delta", "current_as_of", "resync_required",
@@ -111,8 +506,25 @@ public enum LiveEnvelope: Equatable, Sendable {
                 hadUnknownFields: extraFields
             )
         case "authorization_invalidation":
-            guard let obligation = members["obligation"] else { return nil }
-            return Decoded(value: .authorizationInvalidation(obligation: obligation, snapshot: nonNull("snapshot"), resolution: nonNull("resolution")), hadUnknownFields: extraFields)
+            guard let rawObligation = members["obligation"],
+                  let obligation = AuthorizationInvalidationObligation.from(rawObligation)
+            else { return nil }
+            let snapshotValue = nonNull("snapshot")
+            let resolutionValue = nonNull("resolution")
+            let snapshot = snapshotValue.flatMap(AuthorizationInvalidationSnapshot.from)
+            let resolution = resolutionValue.flatMap(AuthorizationInvalidationResolution.from)
+            // These nested types are closed and action-bearing. A present but
+            // undecodable value is not an ignorable unknown-field extension.
+            if snapshotValue != nil && snapshot == nil { return nil }
+            if resolutionValue != nil && resolution == nil { return nil }
+            return Decoded(
+                value: .authorizationInvalidation(
+                    obligation: obligation,
+                    snapshot: snapshot,
+                    resolution: resolution
+                ),
+                hadUnknownFields: extraFields
+            )
         default:
             return nil
         }
@@ -250,14 +662,21 @@ public enum ServerFrame {
 public struct ConnectionGrant: Sendable {
     public var connectionId: String
     public var connectionToken: String
-    public var authorizationInvalidation: JSONValue?
+    public var authorizationInvalidation: AuthorizationInvalidationConnection?
 
     public static func from(_ json: JSONValue) -> ConnectionGrant? {
         guard let id = json["connectionId"]?.stringValue,
-              let token = json["connectionToken"]?.stringValue
+              !id.isEmpty,
+              let token = json["connectionToken"]?.stringValue,
+              !token.isEmpty
         else { return nil }
-        var invalidation = json["authorizationInvalidation"]
-        if invalidation == .null { invalidation = nil }
+        let invalidationValue = json["authorizationInvalidation"].flatMap {
+            $0 == .null ? nil : $0
+        }
+        let invalidation = invalidationValue.flatMap(
+            AuthorizationInvalidationConnection.from
+        )
+        if invalidationValue != nil && invalidation == nil { return nil }
         return ConnectionGrant(connectionId: id, connectionToken: token, authorizationInvalidation: invalidation)
     }
 }
@@ -285,19 +704,51 @@ public struct LiveSubscribeOutput: Sendable {
     public var receipt: JSONValue?
     public var resume: JSONValue?
     public var resumeRefusal: String?
+    public var superseded: String?
+    public var supersessionRefusal: String?
+    public var authorizationScope: JSONValue?
+    public var authorizationInvalidation: AuthorizationInvalidationProjection?
 
     public static func from(_ json: JSONValue) -> LiveSubscribeOutput? {
-        guard let subscriptionId = json["subscription_id"]?.stringValue else { return nil }
+        guard let subscriptionId = json["subscription_id"]?.stringValue,
+              !subscriptionId.isEmpty
+        else { return nil }
         func nonNull(_ key: String) -> JSONValue? {
             guard let value = json[key], value != .null else { return nil }
             return value
         }
+        let snapshotValue = nonNull("snapshot")
+        let snapshot = snapshotValue.flatMap(QuerySnapshot.from)
+        if snapshotValue != nil && snapshot == nil { return nil }
+        let authorizationScope = nonNull("authorizationScope")
+        if let authorizationScope, !validInvalidationScope(authorizationScope) {
+            return nil
+        }
+        let invalidationValue = nonNull("authorizationInvalidation")
+        let invalidation = invalidationValue.flatMap(
+            AuthorizationInvalidationProjection.from
+        )
+        if invalidationValue != nil && invalidation == nil { return nil }
+        let resumeRefusalValue = nonNull("resumeRefusal")
+        let supersededValue = nonNull("superseded")
+        let supersessionRefusalValue = nonNull("supersessionRefusal")
+        guard resumeRefusalValue == nil
+                || resumeRefusalValue?.stringValue != nil,
+              supersededValue == nil || supersededValue?.stringValue != nil,
+              supersessionRefusalValue == nil
+                || supersessionRefusalValue?.stringValue != nil,
+              !(supersededValue != nil && supersessionRefusalValue != nil)
+        else { return nil }
         return LiveSubscribeOutput(
             subscriptionId: subscriptionId,
-            snapshot: nonNull("snapshot").flatMap(QuerySnapshot.from),
+            snapshot: snapshot,
             receipt: nonNull("receipt"),
             resume: nonNull("resume"),
-            resumeRefusal: nonNull("resumeRefusal")?.stringValue
+            resumeRefusal: resumeRefusalValue?.stringValue,
+            superseded: supersededValue?.stringValue,
+            supersessionRefusal: supersessionRefusalValue?.stringValue,
+            authorizationScope: authorizationScope,
+            authorizationInvalidation: invalidation
         )
     }
 }

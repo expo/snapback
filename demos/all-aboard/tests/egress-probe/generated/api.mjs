@@ -2,18 +2,18 @@
 export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "egressProbe": {
-    "appId": "tests",
+    "appId": "all-aboard",
     "artifactKind": "functionReference",
-    "id": "tests:egressProbe",
+    "id": "all-aboard:egressProbe",
     "kind": "Action",
     "name": "egressProbe",
     "schemaVersion": "snapback.v0"
   },
   "ephemeral": {},
   "queryProbe": {
-    "appId": "tests",
+    "appId": "all-aboard",
     "artifactKind": "functionReference",
-    "id": "tests:queryProbe",
+    "id": "all-aboard:queryProbe",
     "kind": "Query",
     "name": "queryProbe",
     "schemaVersion": "snapback.v0"

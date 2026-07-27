@@ -411,7 +411,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.envelope.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "A durable-lane fan-out envelope: what a live-query subscriber receives,\nunwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]\nbytes on the HTTP polling drain).\n\n`live_replace` is the wire default (whole-result refresh); `live_delta` is\nthe DK-3 op-log fast path for the analyzable unordered subset;\n`resync_required` tells the client its subscription (or, connection-wide,\nits whole outbox) can no longer be trusted and it must re-snapshot.",
+  "description": "A durable-lane fan-out envelope: what a live-query subscriber receives,\nunwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]\nbytes on the HTTP polling drain).\n\n`live_replace` is the wire default (whole-result refresh); every row's\nsystem `_id` member is its durable identity and occupies the same string\nspace as [`LiveDeltaWireOp::id`]. `live_delta` is the DK-3 op-log fast path\nfor the analyzable unordered subset;\n`resync_required` tells the client its subscription (or, connection-wide,\nits whole outbox) can no longer be trusted and it must re-snapshot.",
   "oneOf": [
     {
       "description": "Whole-result refresh for one subscription.",

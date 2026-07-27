@@ -48,10 +48,19 @@ additional exports are required.
 ```
 
 `baseUrl` is the running server. `adminToken` is only for explicit
-development/operations methods. In sessions mode, pass an
-`AuthCoordinator`; do not also pass `bearerToken`, because that would
-bypass coordinator custody. `clientStoreId` binds authorization and retained
-query namespaces to one durable client store.
+development/operations methods. Browser-owned sessions use an
+`AuthCoordinator`; do not also pass `bearerToken`, because that would bypass
+coordinator custody. `clientStoreId` binds authorization and retained query
+namespaces to one durable client store.
+
+When a trusted server-side identity broker returns a genuine Snapback session,
+construct the explicit protocol-client arm with
+`createExternalSessionClient(baseUrl, { bearerToken })`. It repeats the exact
+`auth/rr` and `auth/live` offers, including connection-open invalidation
+negotiation. This is ordinary bearer custody: it does not refresh or logout
+through an `AuthCoordinator`, and it must not be substituted for the dedicated
+sender-constrained hosted browser constructor. See
+[native authentication](../auth/native-apps.md).
 
 `senderConstrained` is an internal composition option for the dedicated
 `@snapback/client/hosted-browser` entrypoint. Local applications should not set
@@ -145,10 +154,28 @@ format 5 deletion-only. Drain and upgrade every process or browser context
 sharing one physical client-store key together; upgrading only the Agent
 custody directory does not make a mixed-version client-store writer safe.
 
-Start app boot with `health()`, then
-`ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions
-only missing/mismatched artifacts and seeds only empty tables. Never reset as a
-mount side effect.
+Start app boot with `health()`. For a `dev`-mode app, follow it with
+`ensureApp({ schema, functions, seed, routes })`. Ensure is idempotent: it
+provisions only missing/mismatched artifacts and seeds only empty tables.
+
+For sessions artifacts, configure `adminToken` and select the privileged
+request explicitly:
+
+```js fragment reason="generated manifests and seed are app inputs"
+await client.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+The client sends that variant through its admin transport. Missing credentials
+are an authorization error; matching hashes do not bypass the gate. A fresh
+mode transition requires the server restart named by its staged-mode response.
+The explicit variant currently refuses `routes`; ensure routes separately only
+on the legacy `dev` path. Never reset as a mount side effect.
 
 ## Call ordinary functions
 
@@ -177,6 +204,14 @@ Use `transport: 'stream'` for managed WebSocket push; the manager multiplexes
 all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
+
+The managed stream sends application ping frames every five seconds and forces
+reconnect only after its 15-second freshness budget is missed. A quiet socket
+is not stale merely because no data rows changed. Mobile hosts map observable
+lifecycle to `await handle.pause()` and `await handle.resume()`: pause releases
+demand and quiesces transport; resume obtains a fresh subscription snapshot.
+Do this once in the provider/framework binding, not in every view. See
+[framework bindings](./framework-bindings.md).
 
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
@@ -248,8 +283,15 @@ captured predecessor; a peer-installed successor is preserved and makes the
 call stale instead of being reported as logout success. Non-transient custody
 diagnostics remain exact.
 
-`setBearerToken` and `clearAuthSession` support the uncoordinated legacy/dev
-surface. Do not use them to bypass an `AuthCoordinator`.
+`setBearerToken` deliberately refuses a synchronous bearer change: it cannot
+hide predecessor rows, release durable demand, and close old grants before
+returning. An external-bearer client instead uses
+`await replaceBearerToken(nextBearer)`. That async custody transition pauses
+and unsubscribes every protected live handle, blanks predecessor rows, closes
+old transports and grants, installs the successor, then fresh-subscribes the
+handles. Passing `null` clears custody and leaves them blank/paused. Prefer
+`createExternalSessionClient` for construction so the exact auth offers cannot
+be forgotten. Neither method bypasses an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
@@ -268,7 +310,7 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
@@ -276,7 +318,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal

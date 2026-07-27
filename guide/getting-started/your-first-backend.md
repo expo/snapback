@@ -4,13 +4,13 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-26
+reviewed-commit: HEAD
 ---
 
 # Your first backend
@@ -202,8 +202,30 @@ the endpoints:
   await db.seed(JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8')));
 ```
 
-(`db.ensureApp({ schema, functions, seed })` is the idempotent form —
-provisions only what's missing, seeds only empty tables.)
+For a `dev`-mode app,
+`db.ensureApp({ schema, functions, seed })` is the idempotent form: it
+provisions only what's missing and seeds only empty tables.
+
+Sessions-mode provisioning is deliberately explicit and admin-authorized:
+
+```js fragment reason="generated manifests and seed come from the app build"
+const db = new SnapbackClient(baseUrl, { adminToken });
+await db.ensureApp({
+  intent: 'provision',
+  requestedMode: 'sessions',
+  schema,
+  functions,
+  seed,
+});
+```
+
+The untagged legacy body is refused once sessions mode is active. Explicit
+provisioning always carries the client's configured admin token and remains
+non-production-profile gated, even when artifact hashes already match. A fresh
+`dev → sessions` provision stages the sessions deployment and closes app data
+until the required process restart consumes it; same-mode sessions provisioning
+is idempotent without weakening the gate. Explicit mode provisioning does not
+yet accept a routes manifest.
 
 Then call it. Function references are the generated `api.<name>` objects
 from `generated/api.mjs`, and mutations return structured results:

@@ -6,6 +6,10 @@ import { classifyPartitimeCostModule } from '../../shared/vite-cost-attribution.
 test('Partitime production cost modules use one stable four-layer partition', () => {
   const cases = new Map([
     ['/checkout/node_modules/@exact/contract/src/runtime/index.ts', 'framework-runtime'],
+    ['/checkout/demos/partiful-matrix/surfaces/contract/node_modules/@exact/contract/src/runtime/instance.ts', 'framework-runtime'],
+    ['C:\\checkout\\demos\\partiful-matrix\\surfaces\\react\\node_modules\\react\\index.js', 'framework-runtime'],
+    ['/checkout/demos/partiful-matrix/surfaces/react/node_modules/@supabase/supabase-js/dist/index.js', 'provider-runtime'],
+    ['/checkout/demos/partiful-matrix/surfaces/contract/node_modules/convex/dist/esm/browser/index.js', 'provider-runtime'],
     ['/checkout/packages/snapback-client/index.mjs', 'provider-runtime'],
     ['/checkout/demos/partiful-matrix/surfaces/react/src/provider.ts', 'provider-runtime'],
     ['/checkout/demos/partiful-matrix/surfaces/contract/data/provider.generated.ts', 'generated-app-data'],

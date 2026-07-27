@@ -5,10 +5,18 @@
 **Systems:** Auth, Wire Protocol, Client SDK, Native Clients, Realtime, Live Queries, HTTP surface
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial draft; §7 hosted floor decided —
+**Revised:** 2026-07-26 (external session-bearer adoption and the trusted
+local identity-broker seam are pinned separately from browser/native sender
+constraint). 2026-07-25 (initial draft; §7 hosted floor decided —
 LLP 0093 OQ5 ratified as recommended; §8.1 decided as defect and fixed —
 the invalidation-ack routes no longer demand the `auth/replay` offer, and
-§2.2's interop instruction is retired)
+§2.2's interop instruction is retired); 2026-07-26 (Partitime clean-room
+recipe completion: offer scope, namespace, casing/outcomes/refusals,
+connection-bound authority, and client-vs-readiness status split);
+2026-07-26 (equal-data-version snapshot application, terminal-delete
+delete-before-ACK, and exact duplicate resolution identity); 2026-07-26
+(Swift adversarial review: exact held scope/expectation, pending high-water,
+resolution floor/shape validation, terminal no-reuse, and supersession witness)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
 LLP 0094, LLP 0095
@@ -161,13 +169,20 @@ all**, so no profile is negotiable there.
   trio `/`, `/health`, `/auth/session` (`auth_diagnostic_app_route`,
   `src/server.rs:7744`) and `/app/ensure`
   (`session_online_protocol_refusal`, `src/server.rs:7843-7889`).
-- **Refusal:** `SNAPBACK_AUTH_POLICY_UNAVAILABLE` with
-  `{capability: "onlineRequestResponse", minimumAuthClientProtocol: 1}`
-  (`src/server.rs:7876-7888`). An unknown integer is treated as no valid
-  offer and refuses — there is no silent degradation on this plane
-  (contrast the open-time body member, §2.2).
-- **Credential:** the session bearer, resolved per request under LLP
-  0057's matrix; profile offers are never credentials.
+  This includes `/connection/open`: Public there means no credential is
+  required to mint an anonymous grant, not that sessions-mode protocol
+  offers are skipped.
+- **Refusal:** server readiness failure is
+  `SNAPBACK_AUTH_POLICY_UNAVAILABLE` (HTTP 503). A missing/inexact client
+  offer is `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` (HTTP 400) with
+  `{capability: "onlineRequestResponse", minimumAuthClientProtocol: 1}`;
+  its message names `x-snapback-auth-client-protocol: 1` for HTTP and
+  `snapback.auth-client.1` for WebSocket repair. An unknown integer is no
+  valid offer and is a non-retryable 400, never silent degradation.
+- **Credential:** finite AppData routes resolve the session bearer per
+  request under LLP 0057's matrix. `/connection/open` resolves it once into
+  a connection authority; later `ConnectionAuth` routes use only the grant
+  (LLP 0094 §0A.7). Profile offers are never credentials.
 - **Conformance obligations:** send the offer on every in-scope request;
   surface an axis refusal as a structured capability diagnostic (LLP
   0064's compatibility-refusal discipline), never a blind retry; run the
@@ -195,16 +210,22 @@ all**, so no profile is negotiable there.
      wire-version offer and this profile offer are the two open-time
      body offers, and B1 gives them one matrix (known binds / unknown
      refuses / absent = legacy).
-  2. **Subscribe-time (per subscription):**
+  2. **Live-lifecycle time (per operation):**
      `x-snapback-auth-invalidation-protocol: 1` on
-     `POST /live/{name}/subscribe` whenever the target is auth-scoped —
-     a live function not proven authority-independent, or a permissioned
-     ephemeral collection (`session_live_protocol_refusal`,
-     `src/server.rs:7910-7969`).
+     every `POST /live/{name}/subscribe` and
+     `POST /live/{name}/unsubscribe` in sessions mode. Authority
+     independence is a compiled server fact not projected to protocol
+     clients, so clients cannot safely branch on it; always offering is the
+     conformant rule. The server may omit the requirement only for a target
+     it proves authority-independent (`session_live_protocol_refusal`,
+     `src/server.rs`).
 - **Refusals:** server not ready →
-  `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`; missing/inexact client offer
+  `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` (HTTP 503);
+  missing/inexact client offer
   → `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`
-  (`src/server.rs:7944-7968`). The acknowledge routes refuse
+  (HTTP 400; `src/server.rs`). A missing namespace is
+  `SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` (HTTP 400). The
+  acknowledge routes refuse
   `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` ("connection did not
   negotiate authInvalidationProtocol: 1") when the open-time half was
   not bound (`acknowledge_authorization_invalidation`,
@@ -214,24 +235,106 @@ all**, so no profile is negotiable there.
   `POST /live/authorization-invalidation/acknowledge` and
   `POST /live/authorization-invalidation/manual-retry`
   (registered `src/server.rs:7049-7059`; ConnectionAuth + the negotiated
-  connection). Both are **local-arm only** (LLP 0094 §0A.1).
+  connection). Both are **local-arm only** (LLP 0094 §0A.1). Their closed
+  request bodies are camelCase:
+  acknowledge `{connectionId, ackToken}`; manual retry
+  `{connectionId, subscriptionId, manualRetryId}`.
+
+**`authorizationNamespace` (required client state).** Every sessions-mode
+auth-scoped live subscribe carries this camelCase object in the top-level
+subscribe input. Its exact tuple is retained for reconnect:
+
+| Member | Validation and lifetime |
+| --- | --- |
+| `clientStoreId` | Opaque canonical id: 1–256 bytes, first character ASCII alphanumeric, remainder ASCII alphanumeric or `._:-`. It identifies the client store that owns the query bytes and is stable across restarts and every tab/worker sharing that store. |
+| `queryKey` | Nonempty, at most 8192 bytes. It is the store's canonical function-plus-arguments retained-key. The server treats the bytes as an opaque equality component; canonicalization is owned by the client store, and clients sharing a store must agree. |
+| `queryInstanceId` | Integer 1…9,007,199,254,740,991. Allocate from one store-wide durable monotone, never-reused allocator when retained state initializes; live-only state uses a never-reused process allocator. Recreating terminally retired state allocates a new id. |
+
+The exact tuple names one client materialization fence, not authority.
+Different live subscription scopes can coexist over the tuple and must be
+tracked independently by full obligation scope; a client never acknowledges
+one subscription's obligation on another's behalf. Reusing an instance id
+for different state is non-conformant even if the server accepts the scalar
+shape. Absence refuses
+`SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` (HTTP 400).
+Reconnect repeats the exact active tuple, but the client retains its
+predecessor until the subscribe response carries either the exact
+`superseded` witness or a typed `supersessionRefusal`; HTTP success or a
+replacement snapshot alone is not disposal evidence. A terminally deleted
+tuple is never used for reconnect, foreground/background restoration, or
+another live callback. Recreating that canonical query allocates a fresh
+never-reused `queryInstanceId` and performs a fresh subscribe.
+
 - **Conformance obligations** (protocol semantics owned by LLP 0053,
   referenced): apply a superseding snapshot atomically before
   acknowledging (acknowledge-after-apply; a sent-but-unapplied snapshot
-  never discharges); honor quarantine semantics (hide from render and
-  block reads until a satisfying superseding snapshot); drive exhausted
-  bounded retries through manual-retry; treat the
+  never discharges). The invalidation transition is separate from the
+  ordinary live-frame strict-greater version guard: a first-seen exact
+  resolution may apply a snapshot at the **same** data version when its
+  witness covers the obligation and its authorization expectation is
+  current. Bind by complete held `scopeId` plus the authenticated issuer,
+  connection generation, namespace, authorization pair, and version
+  stream — matching `subscriptionId` alone is never sufficient. Persist an
+  accepted obligation's exact scope/revision/witness high-water before
+  quarantine; quarantine cannot lower it, so an older resolved ticket
+  remains stale while a newer obligation is unresolved.
+
+  A `snapshot` resolution requires a present snapshot whose version covers
+  the resolution data floor and the obligation floor. A `terminalDelete`
+  resolution requires no snapshot; wire omission and JSON `null` are the
+  two absent forms. Any kind/shape or floor mismatch is diagnosed and
+  never applied or acknowledged. A valid terminal delete destroys the
+  exact materialization and installs its terminal fence before
+  acknowledging; ordinary live/current/resync frames, reconnect,
+  background reuse, and retained callbacks cannot resurrect it.
+  Exact redelivery reuses the original token without repeating snapshot
+  application or deletion; a conflicting ticket/token identity is never
+  acknowledged. Honor quarantine semantics (hide from render and block
+  reads until a satisfying superseding snapshot); drive exhausted bounded
+  retries through manual-retry; treat the
   `authorization_invalidation` `LiveEnvelope` kind as known-with-
   required-action (the closure matrix rows for its DTOs are LLP 0094
   §0C — `AuthorizationInvalidationSnapshot` and the ack input/output are
   closed both ways); take LLP 0095's T-AUTH-TERM on `auth_error`/close
   4401 with the `authorityDisposition` distinction.
+- **Acknowledge outcomes:** both `"discharged"` and `"duplicate"` mean the
+  exact obligation is discharged; neither should re-apply or escalate.
+  `"stale"` means this token no longer names the current obligation: do not
+  mark a newer obligation discharged, and let the next level-triggered
+  delivery drive apply-then-acknowledge.
+- **Acknowledge refusal actions:**
+
+  | Status/code | Client action |
+  | --- | --- |
+  | 409 `SNAPBACK_LIVE_STAGE_CONFLICT` | Keep rows quarantined. Bounded-jitter retry of the same acknowledgement is safe, or let the next redelivery re-drive it; do not spend manual-retry budget. |
+  | 409 `SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE` / `SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE` | The token/resolution lost its race. Do not retry it blindly or mark discharge; accept the current redelivery and re-evaluate/apply its resolution. |
+  | 409 `SNAPBACK_AUTH_INVALIDATION_PENDING` / `SNAPBACK_AUTH_GRANT_PENDING` / `SNAPBACK_AUTH_GRANT_SCOPE_STALE` | Keep quarantine and wait for the level-triggered current obligation/connection state, then re-drive. These are not manual-retry exhaustion. |
+  | 409 `SNAPBACK_AUTH_RESNAPSHOT_REQUIRED` | The retained subscription/scope cannot satisfy the ack; fresh subscribe/resnapshot, preserving the namespace lifecycle rules. |
+  | 400 `SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT` | Client ordering bug: apply/commit the satisfying disposition or snapshot before acknowledging; unchanged retry is forbidden. |
+  | 400 `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` | Open a correctly negotiated connection; unchanged retry cannot succeed. |
+  | 403 `SNAPBACK_LIVE_RESUME_OWNERSHIP` | Wrong connection/live owner; do not retry under that grant. Re-open/re-establish under the intended identity. |
+  | 503 `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | Server readiness fault: retain quarantine and use bounded readiness backoff; never infer discharge. |
+
+  `/manual-retry` is reserved for an exhausted automatic episode:
+  `SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED`/`_NOT_PENDING` (409) mean do not
+  open one; successful outcomes are `"attached"` (idempotently joined an
+  existing episode), `"resolved"`, `"denied"` (terminal permission
+  result), and `"exhausted"` (still unresolved). None implicitly
+  acknowledges a snapshot; the resulting level-triggered resolution still
+  follows apply-before-ack.
 - **Fixture classes added:**
   `auth.live.invalidation_snapshot_apply_then_ack`,
-  `auth.live.ack_requires_negotiated_connection`,
-  `auth.live.quarantine_blocks_reads_until_superseding_snapshot`,
-  `auth.live.terminal_auth_disposition` (extends the seeded
-  T-AUTH-TERM coverage).
+  `auth.live.invalidation_authorization_snapshot_same_data_version`,
+  `auth.live.invalidation_terminal_delete_apply_then_ack`,
+  `auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse`,
+  `auth.live.invalidation_newer_pending_rejects_older_resolution`,
+  `auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged`,
+  `auth.live.invalidation_invalid_resolution_never_acknowledged`,
+  `auth.live.invalidation_without_snapshot_quarantines`, and
+  `auth.live.foreign_obligation_never_acknowledged` are seeded in the
+  format-v2 corpus. `auth.live.ack_requires_negotiated_connection` and
+  `auth.live.terminal_auth_disposition` remain in the P-3 profile-fixture
+  follow-up.
 - **Descriptor independence (ratified 2026-07-25):** the acknowledge
   routes require **only** this profile's offers — they never demand the
   `auth/replay` (`x-snapback-authority-descriptor-protocol`) offer. The
@@ -254,8 +357,11 @@ all**, so no profile is negotiable there.
   standalone-acknowledgement route (`queued_replay_requested`,
   `src/server.rs:8084-8095`; gate at
   `prepare_registered_route_authority`, `src/server.rs:8117-8130`).
-- **Refusal:** `SNAPBACK_AUTH_POLICY_UNAVAILABLE` with
-  `{capability: "queuedReplay"}` (`src/server.rs:8122-8128`).
+- **Refusal:** unavailable authority-descriptor readiness is
+  `SNAPBACK_AUTH_POLICY_UNAVAILABLE` (HTTP 503) with
+  `{capability: "queuedReplay"}`. Once ready, a missing/inexact client
+  offer is `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` (HTTP 400) with
+  `minimumAuthorityDescriptorProtocol: 1`; unchanged retry is forbidden.
 - **Routes owned by the claim:** `POST /client-mutations/acknowledge`
   (registered `src/server.rs:6977`; local-arm only, LLP 0094 §0A.1),
   plus the replay members on ordinary mutation bodies.
@@ -281,8 +387,10 @@ all**, so no profile is negotiable there.
   `x-snapback-auth-invalidation-protocol: 1` together on
   `POST /query/{name}/authorized-lease` (registered
   `src/server.rs:6973`; enforced in `invoke_authorized_lease_query`,
-  `src/server.rs:16197-16215` — readiness plus both exact offers, else
-  `SNAPBACK_AUTH_POLICY_UNAVAILABLE`). **Per-request gated.** The
+  `src/server.rs` — readiness failure is
+  `SNAPBACK_AUTH_POLICY_UNAVAILABLE` (HTTP 503), while a missing/inexact
+  offer pair is `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` (HTTP 400)).
+  **Per-request gated.** The
   dual-offer requirement is the declared composition of §1.2, mirrored
   in the handshake's `RetainedReadAvailability` minima
   (`src/auth/handshake.rs:251-268`).
@@ -360,14 +468,21 @@ deployment (LLP 0060's posture), not the Cloudflare arm.
 
 | Gate time | What is offered | Profiles |
 | --- | --- | --- |
-| `POST /connection/open` body (open-time; LLP 0094 §0B's carrier) | `wireVersion` (0094), `authInvalidationProtocol` | `auth/live` (connection half) |
+| `POST /connection/open` (open-time) | body: `wireVersion` (0094), `authInvalidationProtocol`; header: `x-snapback-auth-client-protocol: 1`; optional bearer establishes sessions authority | `auth/rr`, `auth/live` (connection half) |
 | kit stream upgrade (subprotocol list) | the four axis tokens + bearer token + sender proof | all, as upgrade-time restatement |
 | per request (HTTP headers) | the four axis headers; `DPoP` | `auth/rr`, `auth/replay`, `auth/lease`, `auth/sender` |
-| per subscribe | invalidation header on auth-scoped targets | `auth/live` (subscription half) |
+| every sessions live subscribe/unsubscribe | invalidation header (authority independence is not client-observable) | `auth/live` (lifecycle half) |
 
 Legacy connections (offerless open, LLP 0094 §0B.3) are ineligible for
 session-mode auth-scoped live work — the same absent-offer-forecloses
 rule LLP 0093 D1 cites as the model for wire-version legacy degradation.
+
+Credential timing is intentionally unlike offer repetition. A sessions
+bearer is resolved when `/connection/open` establishes the connection
+authority. Later `ConnectionAuth` routes use the grant as their credential
+and ignore `Authorization`; changing a bearer on those requests does not
+change the served identity. Logout/login or any principal switch must release
+demand and open a fresh connection grant before re-establishing live state.
 
 ## 3. Discovery and the dev-mode posture
 
@@ -489,6 +604,29 @@ native clients** to protected surfaces — this is a real, named adoption
 gap for the P-2 Swift client on sender-constrained deployments, recorded
 here rather than papered over. Native clients against non-sender-bound
 sessions deployments are unaffected (bearer custody per LLP 0057/0064).
+
+### 5.1 External session-bearer adoption (non-sender-bound)
+
+A protocol client may receive a genuine Snapback session bearer from a trusted
+server-side identity broker rather than driving `/auth/request-code` and
+`/auth/exchange` itself. The carrier's origin does not change the profile
+contract: the client repeats `auth/rr` on every protected request and, when it
+subscribes, the complete `auth/live` open/subscribe/unsubscribe/invalidation
+acknowledgement sequence. Connection-scoped routes use the bound grant and
+ignore the bearer; an identity replacement therefore opens a fresh grant and
+fresh subscriptions.
+
+The first-party JS constructor for this posture is
+`createExternalSessionClient`, and the Swift client accepts the same posture as
+`Configuration.sessionBearer`. Both are **ordinary bearer custody**, not
+`AuthCoordinator` ownership and not `auth/sender`; they cannot access a
+sender-constrained deployment.
+
+On the current local target, a sanctioned broker may use
+`auth.mintSession` only in dev/test/demo with AdminWrite plus the process-bound
+impersonation capability (LLP 0024/0057). Those authorities stay server-side.
+This resolves the native/demo session-entry seam without making a production
+mail or hosted-auth claim; LLP 0045 still owns production challenge delivery.
 
 ## 6. Integration index: provider auth lifecycle routes
 
