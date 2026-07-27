@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-27T02:14:54.518Z",
+  "generatedAt": "2026-07-27T04:28:17.223Z",
   "revisions": {
-    "snapback": "fdfbc9a211f650b3c378378bcf072196af4818d7",
+    "snapback": "56c8dd6fa3e6783fd7213c8223bb14c1bf17fad4",
     "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
   },
   "oq9": {
@@ -841,13 +841,13 @@
     "sha256": "a62885a87fe71168c27b0c1a567bc5ea31267a094f715b35d9cad23913440081"
   },
   "visualApproval": {
-    "status": "red",
+    "status": "pass",
     "captureComplete": true,
-    "approvalStatus": "pending-human-review",
+    "approvalStatus": "approved",
     "artifactCount": 156,
     "requiredArtifactCount": 156,
     "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-    "sha256": "f83c50a233459bb4f490c5b5e39f4ee3892a9fd5b503f6cb51b122f4afc4a0c5"
+    "sha256": "4efe2304be2ac1e52dc45ff88ce6e89b64f0755258d9733ca1139259cf8e7f9e"
   },
   "inputs": {
     "generator": {
@@ -1561,8 +1561,8 @@
     },
     {
       "claimId": "STEP4.UI.VISUAL",
-      "status": "red",
-      "reason": "visual-approval-red",
+      "status": "pass",
+      "reason": null,
       "automated": [
         {
           "browserId": "chrome-macos-latest",
@@ -1586,13 +1586,13 @@
         }
       ],
       "visualApproval": {
-        "status": "red",
+        "status": "pass",
         "captureComplete": true,
-        "approvalStatus": "pending-human-review",
+        "approvalStatus": "approved",
         "artifactCount": 156,
         "requiredArtifactCount": 156,
         "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
-        "sha256": "f83c50a233459bb4f490c5b5e39f4ee3892a9fd5b503f6cb51b122f4afc4a0c5"
+        "sha256": "4efe2304be2ac1e52dc45ff88ce6e89b64f0755258d9733ca1139259cf8e7f9e"
       }
     }
   ],
