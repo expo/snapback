@@ -16380,7 +16380,10 @@ async fn invoke_authorized_lease_query(
         )
         .into());
     }
-    let offers = AuthClientProtocolOffers::from_headers(&headers);
+    // @ref LLP 0096#2-per-profile-contract — the lease POST is an ordinary
+    // HTTP route: offers ride only the named decimal headers, and a forged
+    // `Sec-WebSocket-Protocol` header must not become a second grammar.
+    let offers = AuthClientProtocolOffers::from_http_headers(&headers);
     if offers.authorized_lease != Some(u64::from(AUTHORIZED_LEASE_PROTOCOL_VERSION))
         || offers.auth_invalidation != Some(AUTH_PROTOCOL_V1)
     {
@@ -25601,6 +25604,27 @@ globalThis.__snapbackHandlers = {
         assert_eq!(missing_offer.status(), StatusCode::BAD_REQUEST);
         assert_eq!(
             response_json(missing_offer).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+
+        // The lease POST is an ordinary HTTP route: a forged
+        // `Sec-WebSocket-Protocol` header is not an offer carrier there, so a
+        // lease offer riding only the subprotocol grammar refuses exactly like
+        // an absent offer (issues/20260725-0093-p3-lease-offer-parser-carrier.md).
+        let subprotocol_only = {
+            let mut request = request(None, false);
+            request.headers_mut().insert(
+                "sec-websocket-protocol",
+                axum::http::HeaderValue::from_static(
+                    "snapback.authorized-lease.1, snapback.auth-invalidation.1",
+                ),
+            );
+            request
+        };
+        let subprotocol_only = ready.clone().oneshot(subprotocol_only).await.unwrap();
+        assert_eq!(subprotocol_only.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(subprotocol_only).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         );
 
