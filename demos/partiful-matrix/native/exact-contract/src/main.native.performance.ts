@@ -3,4 +3,5 @@
 // runtime archive separately installs its authenticated shared-runtime HBC
 // before this artifact, as required by Exact LLP 0127#runtime-bundle-strategy;
 // bundling runtime-entry here would install the same global graph twice.
+import './partitime/native-performance-witness.js';
 import './main.native.js';

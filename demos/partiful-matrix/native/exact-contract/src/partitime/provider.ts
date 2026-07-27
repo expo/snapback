@@ -69,12 +69,20 @@ export class GatewayContractProvider implements ContractDataProvider {
   readonly #backend: Backend;
   readonly #origin: string;
   readonly #userId: string;
+  readonly #onFirstAuthoritativeData?: (rowCount: number) => void;
+  #reportedFirstAuthoritativeData = false;
   readonly #timers = new Set<ReturnType<typeof setTimeout>>();
 
-  constructor(backend: Backend, origin: string, userId: string) {
+  constructor(
+    backend: Backend,
+    origin: string,
+    userId: string,
+    onFirstAuthoritativeData?: (rowCount: number) => void,
+  ) {
     this.#backend = backend;
     this.#origin = origin.replace(/\/$/, '');
     this.#userId = userId;
+    this.#onFirstAuthoritativeData = onFirstAuthoritativeData;
   }
 
   async #call<T>(
@@ -123,6 +131,15 @@ export class GatewayContractProvider implements ContractDataProvider {
           empty: Array.isArray(value) && value.length === 0,
           connection: 'polling',
         });
+        if (
+          queryName === 'listEvents'
+          && !this.#reportedFirstAuthoritativeData
+        ) {
+          this.#reportedFirstAuthoritativeData = true;
+          this.#onFirstAuthoritativeData?.(
+            Array.isArray(value) ? value.length : 1,
+          );
+        }
       } catch (error) {
         observer({
           status: 'error',

@@ -17,10 +17,21 @@ import { fileURLToPath } from 'node:url';
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const links = JSON.parse(readFileSync(join(appDir, 'exact.links.json'), 'utf8'));
+const selectedExactRoot = process.env.EXACT_ROOT
+  ? resolve(process.env.EXACT_ROOT)
+  : null;
 
 let failures = 0;
 for (const [name, relativeTarget] of Object.entries(links)) {
-  const target = resolve(appDir, relativeTarget);
+  const normalizedTarget = relativeTarget.replaceAll('\\', '/');
+  const exactMarker = '/exact/';
+  const exactMarkerAt = normalizedTarget.lastIndexOf(exactMarker);
+  const target = selectedExactRoot && exactMarkerAt >= 0
+    ? resolve(
+        selectedExactRoot,
+        normalizedTarget.slice(exactMarkerAt + exactMarker.length),
+      )
+    : resolve(appDir, relativeTarget);
   if (!existsSync(join(target, 'package.json'))) {
     console.error(
       `[link-exact] ${name}: no package at ${target} — has the Exact checkout moved? ` +

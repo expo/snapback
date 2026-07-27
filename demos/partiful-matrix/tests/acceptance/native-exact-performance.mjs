@@ -73,6 +73,9 @@ const generatedHydrationDescriptor = resolve(
   appRoot,
   'public/__exact/hydration-build-descriptors.json',
 );
+const hydrationDescriptorBytesAtStart = existsSync(generatedHydrationDescriptor)
+  ? readFileSync(generatedHydrationDescriptor)
+  : null;
 const stagedHbcPath = resolve(
   exactRoot,
   `ios/ExactApp/ExactApp/Resources/bytecode/${bytecodeName}.hbc`,
@@ -147,13 +150,11 @@ try {
   assert(existsSync(nativeBundleConfig), `missing native production bundle config ${nativeBundleConfig}`);
   assert(existsSync(hermesCompiler), `missing Exact Hermes compiler ${hermesCompiler}`);
   assert(!existsSync(stagedHbcPath), `refusing to overwrite staged source artifact ${stagedHbcPath}`);
-  assert(
-    !existsSync(generatedHydrationDescriptor),
-    `refusing to overwrite generated source artifact ${generatedHydrationDescriptor}`,
-  );
-  cleanups.push(function removeGeneratedHydrationDescriptor() {
-    rmSync(generatedHydrationDescriptor, { force: true });
-  });
+  if (hydrationDescriptorBytesAtStart === null) {
+    cleanups.push(function removeGeneratedHydrationDescriptor() {
+      rmSync(generatedHydrationDescriptor, { force: true });
+    });
+  }
   assert(Number.isFinite(buildTimeoutMs) && buildTimeoutMs > 0, '--build-timeout-ms must be positive');
   assert(Number.isFinite(launchTimeoutMs) && launchTimeoutMs > 0, '--launch-timeout-ms must be positive');
 
@@ -165,13 +166,18 @@ try {
     assert.equal(report.repository.sourceDirty, false, 'claim sampling requires clean Snapback and Exact sources');
   }
 
-  ensureSiblingExactLink();
+  ensureExactPackageLinks();
   if (!existsSync(resolve(appRoot, 'node_modules/@exact/runtime/package.json'))) {
     const install = await run('bun', ['install', '--frozen-lockfile'], {
       cwd: appRoot,
+      env: {
+        ...process.env,
+        EXACT_ROOT: exactRoot,
+      },
       timeoutMs: 300_000,
     });
     assert.equal(install.status, 0, `Exact app dependency install failed: ${install.stderrTail.join('\n')}`);
+    ensureExactPackageLinks();
   }
 
   const snapback = await startSnapback();
@@ -238,7 +244,7 @@ try {
   const runtimeBuildStampText = runtimeBuildStampBytes.toString('utf8');
   assert.match(
     runtimeBuildStampText,
-    /^features=--features host-http-server,capsec-simulator-performance-observer$/m,
+    /^features=--no-default-features --features standard,host-http-server,capsec-simulator-performance-observer$/m,
     'linked Exact runtime archive was not built with the simulator performance observer',
   );
   report.observer.build = {
@@ -430,29 +436,28 @@ function workingTreeIdentity(root) {
   };
 }
 
-function ensureSiblingExactLink() {
-  const sibling = resolve(repoRoot, '../exact');
-  if (resolve(sibling) === exactRoot) return;
-  if (existsSync(sibling)) {
-    const resolved = resolveRealPath(sibling);
-    assert.equal(
-      resolved,
-      resolveRealPath(exactRoot),
-      `Snapback sibling Exact path points at ${resolved}, not ${exactRoot}`,
+function ensureExactPackageLinks() {
+  const links = JSON.parse(
+    readFileSync(resolve(appRoot, 'exact.links.json'), 'utf8'),
+  );
+  for (const [name, configuredTarget] of Object.entries(links)) {
+    const marker = '/exact/';
+    const normalized = configuredTarget.replaceAll('\\', '/');
+    const markerAt = normalized.lastIndexOf(marker);
+    assert(
+      markerAt >= 0,
+      `Exact link ${name} does not identify an Exact-root-relative package`,
     );
-    return;
+    const target = resolve(exactRoot, normalized.slice(markerAt + marker.length));
+    assert(
+      existsSync(resolve(target, 'package.json')),
+      `Exact link ${name} has no package under selected Exact root: ${target}`,
+    );
+    const linkPath = resolve(appRoot, 'node_modules', name);
+    mkdirSync(dirname(linkPath), { recursive: true });
+    rmSync(linkPath, { recursive: true, force: true });
+    symlinkSync(target, linkPath, 'dir');
   }
-  symlinkSync(exactRoot, sibling, 'dir');
-  cleanups.push(function removeTaskLocalExactLink() {
-    if (lstatSync(sibling).isSymbolicLink() && resolveRealPath(sibling) === resolveRealPath(exactRoot)) {
-      rmSync(sibling, { force: true });
-    }
-  });
-}
-
-function resolveRealPath(path) {
-  const result = spawnSync('realpath', [path], { encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.trim() : resolve(path);
 }
 
 async function startSnapback() {
@@ -571,7 +576,19 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
     0,
     `Exact production Rollup build failed: ${build.stderrTail.join('\n')}`,
   );
-  rmSync(generatedHydrationDescriptor, { force: true });
+  if (hydrationDescriptorBytesAtStart === null) {
+    rmSync(generatedHydrationDescriptor, { force: true });
+  } else {
+    assert(
+      existsSync(generatedHydrationDescriptor),
+      'Exact production build removed the committed hydration descriptor',
+    );
+    assert.deepEqual(
+      readFileSync(generatedHydrationDescriptor),
+      hydrationDescriptorBytesAtStart,
+      'Exact production build changed the committed hydration descriptor',
+    );
+  }
 
   const sourcePath = resolve(outputRoot, 'partitime-native.js');
   const sourceMapPath = `${sourcePath}.map`;
@@ -730,7 +747,9 @@ async function collectLaunch({ bundleId, witness, startupAssetWeightBytes }) {
       line.includes('Embedded bytecode eval failed')
       || line.includes('Embedded runtime context eval failed')
     ) {
-      launchError = new Error(line);
+      launchError = new Error(
+        `${line}\npreceding carrier logs:\n${recent.slice(-80).join('\n')}`,
+      );
     }
     if (line.includes('Startup mark: failed:')) {
       genericLaunchFailure = {
