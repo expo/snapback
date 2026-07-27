@@ -5,7 +5,20 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-23 (LLP 0086 CC-2b: dated candidate-assessment note added under §Capability classes — can Cloudflare Dynamic Workflows carry this RFC's hosted profile; verdict blocked-on, with the blocking facts named — plus the alarms-are-lossy cross-reference to LLP 0028's same-day amendment; assessment only, no adoption language). 2026-07-20 (initial proposal for LLP 0063's hosted application platform)
+**Revised:** 2026-07-26 (author-side review application: v1 now separates
+immutable jobs from append-only attempts, makes operator replay create a
+successor job, pins cancellation/ambiguity and atomic terminal publication,
+defines claim supersession, queue/deploy admission and artifact custody,
+durable authorization inputs, tombstone/counter/fairness/jitter rules, and an
+external restore/control fence. SQLite and Postgres are independent tuples; the
+first implementation is single-process SQLite over generated host-plan
+actions. The RFC remains Draft and still requires independent review and
+executable evidence). 2026-07-23 (LLP 0086 CC-2b: dated candidate-assessment
+note added under §Capability classes — can Cloudflare Dynamic Workflows carry
+this RFC's hosted profile; verdict blocked-on, with the blocking facts named —
+plus the alarms-are-lossy cross-reference to LLP 0028's same-day amendment;
+assessment only, no adoption language). 2026-07-20 (initial proposal for LLP
+0063's hosted application platform)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0018, LLP 0028, LLP 0036, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0063, LLP 0069, LLP 0083, LLP 0086, LLP 0087
 
 ## Summary
@@ -25,21 +38,24 @@ notification delivery, payment commands and webhook reconciliation under LLP
 0069, and application integrations can share the same machinery without each
 inventing a claim table and retry loop.
 
-The first target profile is `durable-work-single-process-v1`: one trusted
-application deployment, one logical database authority, one or more worker
-tasks inside a single Snapback process, durable SQLite or single-process
-Postgres storage, and no horizontal-worker or untrusted-code claim. A hosted
-target may implement the same contract with a managed queue, but it must pass
-the same conformance suite and report its different leases, retention, and
-delivery limits.
+The first target profile is
+`durable-work-single-process-sqlite-v1`: one trusted application execution
+domain, one logical SQLite database authority, and one or more worker tasks
+inside a single Snapback process, with no horizontal-worker or untrusted-code
+claim. `durable-work-single-process-postgres-v1` is an independent tuple over
+the same semantic corpus; one tuple does not borrow the other's evidence. A
+hosted target may implement the same contract with a managed queue, but it must
+pass the same conformance suite and report its different leases, retention,
+and delivery limits.
 
 ## Semantics
 
 ### Job identity and enqueue
 
-Every job has:
+Every immutable job intent has:
 
-- immutable app, database, target-profile, deployment, and stream identities;
+- immutable app, database, target-profile, producer-deployment, logical
+  queue/execution-domain, stream, and restore-epoch identities;
 - an opaque `jobId` allocated from Snapback's trusted id source;
 - a generated action reference and immutable artifact digest;
 - canonical, validator-checked argument bytes and their digest;
@@ -49,12 +65,26 @@ Every job has:
 - creator principal and authority/audit facts; and
 - a monotonic state version.
 
+Attempts are separate append-only records. Each names job, attempt number,
+claim/fence, worker deployment, admitted artifact, trusted timing, outcome,
+redacted diagnostics, and predecessor attempt. The current job projection
+points at at most one live attempt. Producer deployment is provenance; the
+logical execution domain is the stable claim scope across compatible releases;
+worker deployment is claim provenance; target/stream/restore epoch fences
+replacement. A successor deployment may claim only when the external
+queue-admission epoch admits both its artifact and the job's producer ABI.
+
 A mutation calls `ctx.jobs.enqueue(reference, args, options)`. Validation and
 insertion occur in the same database transaction as the mutation's ordinary
 writes. If that transaction rolls back, no job exists. The same scoped
 idempotency key and identical canonical bytes return the existing job; reuse
 with different action, args, or policy fails as
 `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`.
+
+The first profile admits generated host-plan actions only: a closed,
+artifact-owned action plan with generated validators, read/write/secret grants,
+and the LLP 0009/0047 execution envelope. Broad execution of arbitrary trusted
+application actions is a later capability.
 
 Actions may enqueue follow-up work only through an explicit mutation, preserving
 LLP 0004's rule that actions and database commits are not one transaction.
@@ -69,18 +99,53 @@ The durable states are:
 
 with these explicit alternatives:
 
-- `claimed → pending` after a retryable failure or expired lease;
+- `claimed → pending` after a recorded retryable failure;
 - `claimed → dead` after a terminal failure, exhausted attempts, invalid
   artifact, or missed hard deadline;
+- `claimed → ambiguous` when an external effect may have committed but its
+  exact outcome cannot yet be established;
 - `pending → cancelled` when cancellation wins before claim;
-- `claimed → cancelRequested` when cooperative cancellation is requested; and
-- `dead → pending` only through an authenticated, reasoned operator replay that
-  creates a new attempt generation without erasing history.
+- `claimed` remains claimed with a monotonic `cancelRequestedAt` fact when
+  cooperative cancellation is requested; and
+- `dead|ambiguous|cancelled → successor job` only through an authenticated,
+  reasoned operator or domain reconciliation operation.
 
-State transitions compare the current version and claim fence in one storage
-transaction. Terminal state is immutable except for retention deletion after
-the audit window. A stale worker may append a late diagnostic but cannot change
-state or publish an outcome after its fence is superseded.
+`succeeded`, `dead`, `ambiguous`, and `cancelled` are terminal for that job.
+Replay never reopens them. It transactionally creates a fresh job id and
+idempotency domain, records a typed predecessor/reason, copies or explicitly
+migrates canonical args and policy, and rechecks current artifact and
+authorization admission. The predecessor remains immutable.
+
+Every transition compares job state/version, restore epoch, current attempt,
+claim id, and fence in one storage transaction. Pending cancellation may win
+before claim. Claimed cancellation is only a request: a verified completed
+effect may still publish success, an unknown external result publishes
+`ambiguous`, and a deadline prevents new work/publication but does not relabel
+an in-flight unknown as cancelled. A stale worker may append a bounded redacted
+late diagnostic but cannot change state or publish an outcome after its fence
+is superseded.
+
+The normative transition projection records, for every event, current state,
+guard identities, next state, attempt/fence changes, capacity-counter and
+per-key-slot changes, domain-effect permission, and audit fact. Generated
+golden vectors cover every legal row and reject every unlisted transition.
+
+### Atomic result publication
+
+A generated terminal-result mutation is the only ordinary completion path. In
+one application-data transaction it:
+
+1. verifies app/database/target/stream/restore epoch, job state/version,
+   current attempt, claim id, fence, worker artifact, and queue-admission epoch;
+2. applies the domain result under a stable `(jobId, effectName)` idempotency
+   record;
+3. appends the attempt/outcome receipt;
+4. transitions to success, retry-pending, dead, ambiguous, or cancelled; and
+5. releases or transfers every capacity counter and per-key slot.
+
+An action needing several application mutations uses one named idempotency
+record per effect plus an explicit checkpoint protocol. The queue never implies
+atomicity across transactions or external systems.
 
 ### Claims and fencing
 
@@ -94,10 +159,14 @@ and stable tie-breaker, then records:
 - the pinned action artifact digest.
 
 Lease renewal is conditional on state version, claim id, and fence. An expired
-lease makes the job eligible for another claim but does not terminate the first
-process or external request. Therefore every result mutation and host-mediated
-effect receives the fence and rejects stale publication. External systems that
-cannot consume a fence must consume the stable job/command idempotency key.
+lease does not pass through an observable unclaimed state. A successor claim
+atomically verifies expiry, appends the expired attempt outcome, allocates the
+next attempt number and strictly greater fence, transfers the per-key slot, and
+records the new lease. It does not terminate the first process or external
+request. Therefore every claim, renewal, result mutation, host-mediated effect,
+slot, and admin operation carries the restore epoch and fence and rejects stale
+publication. External systems that cannot consume a fence must consume the
+stable job/command idempotency key.
 
 The initial lease is 30 seconds, renewable to the action's enforced wall-clock
 limit. Target profiles publish the actual values and maximum. A worker must stop
@@ -126,21 +195,44 @@ deterministic jitter derived from job id and attempt. Policies declare maximum
 attempts, maximum elapsed time, and backoff bounds; unlimited retry is invalid.
 
 An ambiguous external effect retries only through the integration's lookup or
-stable-idempotency path. Generic queue machinery cannot turn ambiguity into
-success or failure.
+stable-idempotency path. If that bounded path cannot classify the result, the
+job terminates `ambiguous` and a domain-owned reconciliation operation may
+create a successor. Generic queue machinery cannot turn ambiguity into success
+or failure.
+
+The v1 jitter profile computes
+`u64be(SHA256("snapback-job-jitter-v1" || 0x00 || canonicalJobId ||
+u32be(attemptNumber))[0..8])`, maps it modulo
+`(jitterCeilingMilliseconds + 1)`, and adds that unsigned integer to the
+saturated exponential base delay. Attempt numbering starts at one; all
+arithmetic uses checked unsigned 64-bit milliseconds and caps before addition.
+Trusted time schedules the result. Cross-language vectors pin framing,
+rounding, saturation, and maximum attempts.
 
 ### Artifact and deploy compatibility
 
 Each job pins the generated action ABI and artifact digest admitted at enqueue.
-A deployment manifest declares which earlier digests it can execute. Activation
-fails if pending jobs reference an unsupported digest unless a reviewed
-migration, drain, cancellation, or compatible worker deployment resolves them.
+That digest roots a signed/content-addressed manifest over action code and
+dependency closure, generated ABI and validator, authorization mode and
+dependencies, read/write sets, secret grants, runtime/target profile, and
+compatibility/migration policy. Activation proves the exact bytes remain in
+immutable custody. Revoked, missing, or known-vulnerable artifacts quarantine
+their jobs; a row naming a digest is not permission to execute it forever.
 
-Rolling deploys may run old and new workers concurrently only when claim fences
-and action compatibility are shared. Rollback must retain a compatible worker
-for jobs enqueued by the newer version or fail closed before routing new work.
-Arguments are immutable; migration creates a successor job linked to the old
-one and terminally disposes the predecessor with an audit reason.
+A restore-resistant queue-admission authority outside the application backup
+set stores a monotonic epoch and the exact producer/worker artifact sets
+admitted for each logical execution domain. Producers present that epoch on
+every enqueue; workers present it on every claim and result. Deployment
+activation changes producer and worker sets atomically with routing under LLP
+0072's control fence. Old/new overlap is an explicit compatibility
+intersection. Rollback preflight fences new-generation enqueue before proving
+that the predecessor workers can consume every still-admitted job.
+
+A point-in-time scan of pending jobs is evidence, not synchronization.
+Activation fails if the admission-set change, routing change, and queue pause
+cannot be serialized. Arguments are immutable; migration creates a successor
+job linked to the terminally disposed predecessor with an audit reason and
+fresh artifact/authorization admission.
 
 ## Queue declarations and limits
 
@@ -165,8 +257,20 @@ a structured capacity diagnostic; it never commits the application write while
 silently dropping its job. Reserved system queues may have separate capacity so
 one application integration cannot starve authorization or recovery work.
 
-The scheduler provides bounded fairness across queues of equal class. Priority
-is bounded and cannot create an unbounded starvation claim. Target reports
+Every enqueue, claim, retry, terminal transition, cancellation, successor
+creation, purge, restore, and migration updates the authoritative rows,
+counters, and per-key slots in one transaction. A read-only verifier derives
+expected counts and live slot owners from job/attempt rows. Mismatch pauses the
+affected queue and requires a fenced repair receipt; admission never treats
+eventually reconciled counters as authoritative.
+
+V1 scheduling is weighted deficit round-robin across queue classes, then
+`effectivePriority = min(maxPriority, declaredPriority +
+floor(eligibleAge / agingInterval))`, then `availableAt`, then canonical job-id
+bytes. Weights, `agingInterval`, and priority range are generated target facts.
+After at most the sum of positive class weights plus the declared maximum
+concurrent claims, an eligible non-saturated class receives a claim opportunity;
+per-key saturation and an empty queue are explicit exclusions. Target reports
 include queue capacity, byte capacity, concurrency, rate limits, lease bounds,
 oldest age, ready depth, claimed depth, dead depth, and saturation counts.
 
@@ -207,10 +311,26 @@ The default is fail-closed `revalidatePrincipal`. `system` requires an explicit
 source declaration and conformance tests. No mode turns serialized client auth
 tokens into queue payloads.
 
-All queue and job ids are scoped to app, database, target, deployment, and
-stream. Inspection, cancel, replay, drain, and purge operations use the admin
-lane. Public status projects only jobs an application policy allows the caller
-to observe.
+`revalidatePrincipal` retains only credential-free authority subject,
+tenant/resource identities, named generated policy, policy schema/version, and
+complete invalidation dependencies. Every attempt evaluates the current
+authority instance and current resource facts; enqueue-time authorization is
+provenance, not execution permission. A `capturedGrant` additionally binds
+issuer, audience, exact operation/resources, issue/not-before/expiry, grant
+generation, revocation identity, and attempt-time revocation check. Expiry or
+revocation during an unknown external effect produces domain ambiguity, not a
+guessed cancellation or failure.
+
+All queue and job ids are scoped to app, database, target, logical execution
+domain, stream, and restore epoch; producer and worker deployments remain
+separate provenance/admission facts. Inspection, cancel, replay, drain, and
+purge operations use the admin lane. Public status projects only jobs an
+application policy allows the caller to observe.
+
+Progress is non-authoritative, size/rate bounded, redacted, and fenced to the
+current attempt. Late diagnostics use a separate bounded retention class and
+cannot contain result values, unrestricted exceptions, secret-bearing fields,
+or evidence that an external effect succeeded.
 
 ## Inspection, audit, and recovery
 
@@ -222,16 +342,23 @@ Bulk operations provide a dry-run count/hash and require that preflight on the
 same state version before apply.
 
 Backups include jobs, claims, attempts, counters, audit records, and artifact
-compatibility metadata. Restore starts all queues paused. The operator verifies
-target/profile identity, compatible artifacts, clock sanity, and external
-integration posture before activation. Claims from the source deployment are
-expired through a new restore epoch; their fencing tokens are never reused.
+compatibility metadata. The authoritative queue-pause bit, queue-admission
+epoch, and restore epoch live in LLP 0072's external control authority and are
+excluded from the application backup. Restore advances that authority first,
+starts every queue paused, and prevents restored application code from
+unpausing itself. The operator verifies target/profile identity, compatible
+artifacts, clock sanity, and external integration posture before a separate
+control-plane activation. Claims from the source deployment are superseded
+under the new restore epoch; their fencing tokens are never reused.
 
 Retention deletes canonical args and result bodies only after the declared
 terminal window, leaving the minimal idempotency tombstone and audit digest for
-the integration's required replay horizon. A subsystem may require longer
-retention; generic purge cannot violate it without an explicit destructive
-recovery override.
+at least 30 days and never less than the declared producer, client, provider,
+webhook, or external replay horizon. The tombstone retains scoped key, complete
+canonical digest, action/queue identity, terminal disposition, and successor
+link. A subsystem may require longer or permanent minimal retention; generic
+purge cannot violate it without an explicit destructive recovery override that
+also disables reuse of the retired idempotency domain.
 
 ## Relationship to cron and existing outboxes
 
@@ -256,9 +383,10 @@ generic claim/lease/retry machinery.
 - `HostedManaged`: an external queue mapped to this contract with retained
   provider-specific limits and delivery facts.
 
-`durable-work-single-process-v1` requires `SingleProcess` or better. A local
-in-memory queue is never durable evidence. Multi-worker and hosted-managed
-claims are independent and cannot be inferred from the single-process proof.
+Each `durable-work-single-process-{sqlite,postgres}-v1` tuple requires
+`SingleProcess` or better on that storage adapter. A local in-memory queue is
+never durable evidence. SQLite, Postgres, multi-worker, and hosted-managed
+claims are independent and cannot be inferred from another tuple's proof.
 
 ### Hosted profile candidate: Dynamic Workflows — candidate assessment (2026-07-23)
 
@@ -290,7 +418,7 @@ The blocking facts:
    to carry, and this RFC's own boundary rule bars capability claims
    while it is Draft. The §Acceptance conformance corpus exists only as
    prose: no executable suite, and no
-   `durable-work-single-process-v1` receipt to serve as the reference
+   `durable-work-single-process-sqlite-v1` receipt to serve as the reference
    evidence a hosted mapping must match.
 2. **No conformance-suite run on the substrate.** The hosted-profile rule
    in the §Summary — same conformance suite, different substrate, with
@@ -363,8 +491,9 @@ The implementation must retain executable evidence that:
   stable event/idempotency ids;
 - backup, destroy/replace, restore-paused, compatibility preflight, and explicit
   activation preserve a pinned job/result corpus; and
-- SQLite and single-process Postgres run the same state-machine and fault corpus
-  before both may claim the profile.
+- SQLite passes the complete state-machine and fault corpus before
+  `durable-work-single-process-sqlite-v1` may be claimed; Postgres must pass the
+  same corpus independently before its own tuple may be claimed.
 
 The retained receipt names the target profile, app/database/deployment/stream
 identities, repository and artifact digests, queue declarations, effective
@@ -382,12 +511,14 @@ While this RFC is Draft, no capability report may claim durable background work
 from an ad hoc loop or cron sweep. LLP 0063 Step 6 requires maintainer acceptance
 and an executable target-specific witness before jobs or webhooks count.
 
-## Open questions
+## Decisions still requiring ratification
 
-1. Should the first implementation execute only host-plan actions, or all
-   trusted actions that already satisfy the execution-limit profile?
-2. What terminal idempotency-tombstone window is the minimum safe default?
-3. Should queue pause live in application storage or the deployment control
-   plane so it remains effective while the app artifact is invalid?
-4. Does the first Postgres profile remain single-process, or is multi-worker
-   admission worth designing before implementation?
+The 2026-07-26 author-side review application proposes generated host-plan
+actions only for the first implementation; a 30-day generic tombstone floor
+that extends to every longer domain replay horizon; queue pause, restore epoch,
+and deployment admission in the external control authority; `ambiguous` as a
+terminal queue disposition plus domain-owned reconciliation; and independent
+single-process SQLite and Postgres tuples, with SQLite first. These choices are
+not accepted merely because they are written here. Independent storage/fault
+review and maintainer ratification remain prerequisites before implementation
+can satisfy LLP 0063.

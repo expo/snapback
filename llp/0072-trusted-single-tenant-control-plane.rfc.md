@@ -5,7 +5,17 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (first concrete adapter driver: the packaged Fly Machines driver
+**Revised:** 2026-07-26 (author-side review application: the first Fly profile
+now proposes one provider-enforced external control head over immutable Tigris
+records and Fly Machine lease/version-guarded metadata, pins activation
+linearization and crash recovery, derives normalized claims from retained raw
+evidence, requires maintenance-mode multi-component backups, translates restore
+authority, separates pre-release from post-release rollback, closes artifact,
+TLS, admission-key, operator-grant, and audit custody, and makes the deployment
+state machine executable. The profile must prove the provider guards live or
+remain unsupported; the RFC remains Draft and still requires independent
+systems/security review and executable evidence). 2026-07-26 (first concrete
+adapter driver: the packaged Fly Machines driver
 for `single-instance-container-vm.v1` now implements the closed observation
 protocol (`doctor`/`inspect`) and the bounded provider-event `logs` query
 against the live Machines API, with keychain credential-handle resolution,
@@ -77,7 +87,7 @@ set gains the `generationRepublish` row — the maintenance-window predecessor
 republish defined by LLP 0081 §6, distinct from a data rewind because nothing
 outside the migration fence observed the successor). 2026-07-20 (initial
 proposal for LLP 0063's hosted minimum profile)
-**Related:** LLP 0002, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0041, LLP 0046, LLP 0047, LLP 0057, LLP 0060, LLP 0062, LLP 0063, LLP 0070, LLP 0071, LLP 0074, LLP 0075, LLP 0077
+**Related:** LLP 0002, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0041, LLP 0046, LLP 0047, LLP 0057, LLP 0060, LLP 0062, LLP 0063, LLP 0070, LLP 0071, LLP 0074, LLP 0075, LLP 0077, LLP 0081, LLP 0098
 
 **Standalone-backup and control-audit checkpoint (2026-07-22):**
 Rust-owned artifacts now cover exact standalone backup plans and bounded
@@ -188,6 +198,88 @@ A target identity is resolved and displayed before every mutating operation.
 Aliases are convenience only. Destructive operations require exact ids and a
 fresh provider-side identity read, not a cached alias or broad selector.
 
+## External control authority and fencing
+
+One canonical per-deployment authority outside the application backup set
+serializes every deploy, rollback, backup, restore, admission refresh, queue
+pause, audit checkpoint, and traffic/effect transition. Its closed state binds:
+
+- deployment and restore incarnation;
+- current operation lease id, monotonically increasing fence, actor, purpose,
+  and expiry;
+- active/staged release and prepared-artifact digests;
+- activation generation and provider-routing/Machine-version observation;
+- serving, write, worker, queue, webhook, notification, and payment-effect
+  pause state;
+- database, stream, schema, auth, queue-admission, privacy/retention, audit,
+  and hosted-admission key/floor generations; and
+- last completed operation and receipt digest.
+
+Every mutating adapter call, runtime boot, hosted-admission refresh, worker
+claim, and completion carries the current incarnation and fence. Stale actors
+cannot stage, route, restore, publish effects, refresh authority, or advance the
+head. Application code and its secrets have no credential capable of reading
+or mutating this authority.
+
+### Fly/Tigris v1 authority
+
+For the first Fly profile, each canonical control-state version is an immutable
+object in the separately permissioned Tigris control prefix, keyed by its
+SHA-256 digest. The sole authoritative head digest is stored in the exact Fly
+Machine configuration metadata. A mutation must:
+
+1. acquire the provider's exclusive Machine lease;
+2. read and exact-match Machine id, app/org/region, `instance_id`, current
+   metadata head, and lease version;
+3. read and verify the immutable predecessor object twice;
+4. conditionally create the successor object, read it back, and verify bytes;
+5. update the full Machine configuration/metadata under the lease and
+   `current_version` guard, combining the new head with any image/routing
+   change that belongs to the same linearization; and
+6. reread the Machine and successor bytes, then release the lease only after
+   the retained receipt is durable.
+
+The provider's Machine lease/current-version update is the serialization
+primitive; Tigris is immutable record custody, not a lock. Fly's official
+[Machines API](https://fly.io/docs/machines/api/machines-resource/) documents
+exclusive Machine leases, `instance_id`, and `current_version`; the profile
+must retain live contention, expiry, stale-version, metadata-bypass, and token-
+scope evidence for the exact API behavior. If metadata mutation is not covered
+by the lease, another credential can bypass it, or the provider cannot preserve
+the head through replacement, this profile fails and a separate single-writer
+control service requires its own RFC/cost claim.
+
+The application Machine boots only from the head digest embedded in its current
+provider version and reopens the referenced state before database/listener
+access. A successful full-config update that installs a new image and matching
+head is the activation linearization point for the bounded-downtime v1 shape.
+The boot health nonce binds challenge, deployment/restore incarnation, release,
+Machine `instance_id`, activation generation, database/stream, and fence.
+
+Crash recovery is deterministic:
+
+| Last durable fact | Recovery |
+| --- | --- |
+| successor object only | leave it unreachable; retry from the unchanged head |
+| provider update accepted, response lost | reread Machine version/head and continue only if exact successor matches |
+| new head visible, Machine not healthy | keep traffic/effects fenced; retry the same operation or execute the reviewed pre-release rollback |
+| health passed, completion receipt absent | verify served nonce and exact head, then append the idempotent completion |
+| lease expired at any earlier point | a new operator supersedes the fence; stale completions and refreshes fail |
+
+Local plans and journals are caches/evidence. They never outrank this head.
+
+### Operator grants
+
+A mutating operation consumes a short-lived signed grant over exact target,
+environment, deployment, plan digest, allowed effect, maximum spend/data-loss
+window, actor/issuer/audience, issue/expiry, grant generation, and one-use
+nonce. The external authority consumes the nonce in the same head transition
+that acquires the operation fence. Read-only inspection uses a narrower grant
+with explicit data classes and limits. Provider root credentials remain in the
+OS credential store and are not available to application code or ordinary
+agents; the receipt records the scoped provider-token fingerprint and effective
+grant, never secret bytes.
+
 ## Release artifact
 
 `snapback deploy build` produces an immutable release manifest containing:
@@ -211,6 +303,17 @@ digests.
 
 Secrets, admin tokens, local database bytes, ignored build credentials, and
 source maps containing forbidden source classes are excluded and scanned.
+
+The prepared-release digest roots one immutable artifact graph: base manifest,
+OCI image by registry digest, runtime/server/app/web/migration/worker objects,
+dependency lock, generated ABI and admission epochs, SBOM/provenance, and every
+signature. The signature covers
+`SHA256("snapback-prepared-release-graph-v1" || 0x00 || canonicalGraph)`,
+names key generation/algorithm/issuer, and is checked against current revocation
+state at both plan and activation. Registry tags are informational only.
+Artifact retention outlives every admitted job, rollback window, and restore
+manifest that names the graph. Revocation quarantines activation even when an
+older signature remains mathematically valid.
 
 ### Implemented target-neutral slice
 
@@ -273,8 +376,10 @@ also retains a blocking `control-plane.remote-evidence` GAP.
 
 This closes the target-neutral orchestration contract, not the hosted profile.
 The normal release builder still returns only `activationEligible: false`, and
-no concrete provider has executed upload, TLS/auth health, logging, inspection,
-rollback, backup, or restore evidence. Those remain required.
+the Fly adapter has executed only bounded observation and provider-event log
+queries. No concrete provider has executed the complete upload, TLS/auth
+health, structured-log custody, admin inspection, activation/rollback,
+multi-component backup, or restore evidence. Those remain required.
 
 The activation authority is no longer injectable as a verifier boolean. A
 Rust-schema-owned `snapback.adapter-qualification.v1` manifest must bind the
@@ -307,6 +412,34 @@ the referenced remote evidence. The verifier additionally requires
 release; codegen cannot emit that target today. This makes the remaining
 hosted-capability and remote-drill work an explicit prerequisite instead of a
 field an adapter or caller can assert ad hoc.
+
+### Remote evidence contract
+
+`remoteProviderAttestation` is a content-addressed reference to package-owned
+closed raw evidence, never an adapter boolean. Each item binds target/provider/
+account/resource, endpoint and method or served-path observer, canonical
+request/response bytes or bounded digests, TLS peer and certificate facts,
+provider request/server time, credential-handle fingerprint, resource revision,
+fresh challenge where applicable, collector artifact, and capture time.
+Qualification derives normalized claims from reopened evidence under a
+versioned adapter reducer.
+
+Admissible evidence classes are:
+
+- TLS-authenticated provider API response with account/resource revision and
+  request id;
+- independent served-path probe with DNS answers, SNI, certificate chain,
+  challenge nonce, and response digest;
+- object-store create/read-back with object version/etag, encryption metadata,
+  and full byte digest; or
+- explicitly weaker operator observation, which cannot satisfy a production
+  claim by itself.
+
+Two identical reads establish stability only; they do not establish provenance
+or semantic support. The per-claim reducer identifies the raw fields and
+evidence-class conjunction that proves it. Unknown fields, cached observations,
+missing freshness, wrong credential/account, and an adapter-supplied normalized
+value without derivation fail closed.
 
 The target-neutral runtime consumer and provider-neutral producer contract now
 exist. A concrete adapter calls `prepareHostedAdmissionBoot`, which requires a
@@ -348,8 +481,10 @@ degrade an otherwise active target. Inspection returns bounded digest facts
 for health, dependency, migration, backup, queue, connection, resource,
 generation, capability, and control-operation state. Production calls require
 remote provider attestations. These implementations close normalized protocol
-and deterministic-fixture gaps only: no remote log sink, restore drill, or
-provider inspection has yet been witnessed.
+and deterministic-fixture gaps only. The Fly driver has witnessed a bounded
+provider-event log query and closed observation response; it has not witnessed
+the RFC's structured application/control log sink, `inspectAdmin` fact set,
+restore drill, or complete lifecycle.
 
 Standalone backup creation now has its own content-addressed plan rather than
 borrowing deploy authority. It binds the exact target observation, active
@@ -367,8 +502,11 @@ Mandatory mutation intake succeeds before the first adapter lifecycle call;
 privileged reads append at practical aggregation. Unsafe fields, broken chains,
 concurrent append locks, and unavailable capacity fail closed. This detects
 accidental loss or modification but does not claim independent tamper
-resistance; a concrete adapter still owes a remote/external sink and its
-retention evidence for the complete profile.
+resistance. The complete profile anchors each terminal control-operation
+receipt and every LLP 0071 sealed audit/deletion-manifest root in the external
+control-head sequence and a separately permissioned remote object prefix.
+Sequence gaps or forks fail verification. Same-operator replacement remains a
+nonclaim unless a separately administered checkpoint is proved.
 
 Control-store reads open the target descriptor or retained artifact with
 `O_NOFOLLOW`, validate the descriptor rather than a pre-open pathname, reject
@@ -381,13 +519,35 @@ authority.
 
 ## Deployment state machine
 
-The durable control-plane states are:
+Serving state and control-operation state are separate.
 
-`registered → provisioning → inactive → staging → ready → active`
+`TargetServingState` is `registered | inactive | ready | active | degraded |
+failed | retired`. `ControlOperation` is one of `provision | stage | activate |
+rollback | backup | restore | inspect-maintenance`, with
+`planned | fenced | running | verifying | succeeded | failed | ambiguous`.
+`restoring`, `draining`, and "backup in progress" are operation/effect-pause
+facts, not overloaded serving-health labels.
 
-with `degraded`, `draining`, `failed`, `restoring`, and `retired` as explicit
-states. Transitions compare operation and activation generations and append an
-operator audit fact.
+The normative transition floor is:
+
+| Serving / operation | Event and guard | Next / posture |
+| --- | --- | --- |
+| registered / provision planned | external fence acquired | inactive / traffic and effects off |
+| inactive / stage running | prepared graph and provider bytes verified | ready / traffic and effects off |
+| ready / activate verifying | one guarded Machine config+head update | active candidate / writes and external effects still fenced |
+| active candidate | served nonce and complete probes pass | active / release admitted, fences opened |
+| active candidate | pre-release probe fails | prior compatible head restored under same fence / effects never opened |
+| active | post-release health fails | degraded / traffic posture explicit; no automatic rollback |
+| any non-retired | backup fence acquired | serving policy-declared, writes/effects paused for v1 |
+| inactive / restore fenced | fresh restore/data/stream authority allocated | inactive / all effects paused until separate activation |
+| any | lease expires or result is unknown | prior serving state plus ambiguous operation; new fence required |
+| any non-retired | retire exact target | retired / no traffic, effects, refresh, or ordinary restore |
+
+Every transition exact-matches provider observation and external control head,
+advances only the named generations, appends mandatory audit before effects and
+a terminal/ambiguous result after, and defines which operations remain legal.
+A retired target can be used only as a named backup source; it cannot be
+reactivated.
 
 An activation follows a retained plan:
 
@@ -404,12 +564,21 @@ An activation follows a retained plan:
 8. switch one activation generation to the ready release;
 9. verify public TLS, origin, authentication, health nonce, data sentinel,
    realtime, logs, and inspection through the served path; and
-10. retain the result or automatically invoke the declared rollback path.
+10. retain the result; automatically invoke the declared rollback path only
+    while public writes/workers/external effects remain fenced.
 
 Every step is idempotent under `operationId` and records its input/output digest.
 A retry resumes or proves completion; it does not begin an unrelated deploy.
 Concurrent deploy/rollback/restore operations are fenced by a deployment lease
 and activation generation.
+
+After the release fence opens to public writes, workers, or external effects, a
+health failure becomes `degraded`. Rollback then requires a fresh external
+fence plus compatibility/effect audit and must select `codeOnly`,
+`forwardFix`, or `restoreRequired`; the controller cannot infer that returning
+to the predecessor is safe. Prepared releases declare producer/worker artifact,
+schema, and external-effect compatibility through the latest generation their
+predecessor may consume.
 
 The base profile may have bounded downtime and says so in its receipt. A target
 without inactive staging can implement stop/migrate/start only if the plan,
@@ -453,11 +622,28 @@ hostname, validity, automatic-renewal mechanism, HTTP-to-HTTPS behavior, minimum
 TLS policy, and backend origin exposure. Health checks use the public origin and
 SNI, not only an internal loopback port.
 
+The complete drill exercises renewal or a provider-supported safe renewal
+simulation; proves certificate/key persistence across process restart and
+Machine version replacement; tests expired, not-yet-valid, wrong-host, stale
+cache, and DNS-rebinding observations; and verifies that direct backend/private
+addresses cannot bypass the admitted hosted-auth topology. A currently valid
+certificate or provider label alone does not prove renewal. The recorded Let's
+Encrypt rate-limit degradation remains a blocking cert-persistence/renewal GAP
+until this corpus passes.
+
 The application accepts browser credentials only under LLP 0060's origin,
 cookie/token, XSS, and hosted-auth contract. The deploy receipt records the
 exact authentication mode and public origin. Preview and production origins
 have distinct issuer/audience, cookie scope, secrets, database, and stream
 identities; a preview release cannot share production session authority.
+
+Hosted-admission MAC keys and external replay floors are scoped to target,
+deployment, restore incarnation, and key/floor generation in the external
+authority. Rotation is a control-head CAS with either one declared verification
+overlap or a single cutover; refresh compares envelope and authority generation
+and cannot revive a revoked key. Restore/replacement advances both generations
+before runtime open. Golden/live vectors cover concurrent refresh, old operator,
+lost response, disaster recovery, and restored-envelope rejection.
 
 ## Backup and restore
 
@@ -476,8 +662,26 @@ A backup is an immutable manifest over:
 Provider/application secrets and control-plane credentials are excluded. The
 manifest records required secret names and generations, never values.
 
-Backup succeeds only after read-back verification. Encryption keys live outside
-the protected deployment; the profile declares who can decrypt and restore.
+The first profile makes no online multi-component snapshot claim. Backup takes
+a bounded maintenance window under the external fence:
+
+1. pause new writes, queue claims, notifications, webhooks, payment commands,
+   document compaction, and other effect publishers;
+2. drain or classify every in-flight operation and commit a database frontier
+   containing exact object generations plus pending external operations;
+3. create the SQLite snapshot and copy every referenced object version;
+4. read back, decrypt in the isolated verifier, hash, and reconcile all
+   components; and
+5. retain the immutable manifest and control-head transition before reopening
+   effects.
+
+The Step 6 fixture's preregistered maximum backup maintenance window is 15
+minutes. Observed downtime and any higher application-specific ceiling remain
+receipt facts. Backup succeeds only after authenticated read-back and a
+periodic isolated verification restore using the exact manifest/key generation,
+logical database integrity, component reconciliation, generated read-only
+acceptance, and secret/private-data scans. Encryption keys live outside the
+protected deployment; the profile declares who can decrypt and restore.
 Retention and deletion are policy-controlled and audited.
 
 Restore is always explicit and initially isolated:
@@ -485,16 +689,27 @@ Restore is always explicit and initially isolated:
 1. resolve exact source backup and destination identities;
 2. refuse production or a nonempty destination unless the operation names the
    permitted replacement and presents its fresh sentinel/hash;
-3. fence deploys, traffic, cron, jobs, notifications, webhooks, and payment
-   workers;
-4. restore into an inactive destination with a new activation and restore epoch;
-5. verify every component hash, schema/artifact compatibility, referential
+3. under the external control CAS allocate a fresh restore incarnation,
+   database incarnation, stream incarnation, activation generation, replay
+   floor, queue admission, privacy/key, audit-segment, and cursor/cache epochs;
+4. fence deploys, traffic, cron, jobs, notifications, webhooks, payment workers,
+   session/admission refresh, search, and caches;
+5. restore into the inactive destination and translate source identities:
+   invalidate sessions and hosted-admission envelopes; reconcile sender replay
+   floors; restamp or scope row versions; quarantine source claims/jobs and
+   payment/webhook/notification effects; apply external deletion/hold/key
+   manifests; and link source-backup lineage without reusing source authority;
+6. verify every component hash, schema/artifact compatibility, referential
    checks, stream identity, and application sentinel;
-6. run generated application acceptance in read-only/external-effects-disabled
+7. run generated application acceptance in read-only/external-effects-disabled
    mode;
-7. require an explicit activation that reattests secrets, origins, provider
+8. require an explicit activation that reattests secrets, origins, provider
    environments, and worker posture; and
-8. retain the previous destination until policy permits deletion.
+9. retain the previous destination until policy permits deletion.
+
+The runtime refuses restored bytes before the external authority and translation
+receipt exact-match. Old subscriptions, cursors, caches, claims, operator
+confirmations, and admission envelopes fail under the successor epochs.
 
 The Step 6 drill uses an isolated non-production deployment, writes a unique
 sentinel plus application fixture hashes, backs up, destroys/replaces the exact
@@ -513,6 +728,11 @@ default logs.
 Targets publish retention, indexing, delivery latency, drop/backpressure, and
 export capabilities. A log sink failure is visible in health; security-critical
 control operations follow LLP 0071's mandatory-audit posture.
+Each generated log partition carries monotonic source sequence plus delivered,
+dropped, duplicate, and delayed counters from an independent health query.
+Application logs may truthfully be bounded-loss; mandatory audit never relies
+on them. A sink outage degrades the target without asserting that all ordinary
+traffic must block indefinitely.
 
 Authenticated inspection includes:
 
@@ -693,6 +913,9 @@ The chosen hosted adapter must retain executable evidence that:
   and every artifact digest;
 - target aliases, stale descriptors, cross-account credentials, wrong origin,
   preview/production identity, and concurrent operations fail closed;
+- two operator machines contending on the same predecessor produce one
+  provider-guarded control-head successor; stale lease, version, fence, grant
+  nonce, metadata, raw-evidence, and completion attempts fail closed;
 - public TLS, authentication, application health nonce, live query/mutation,
   logs, and admin inspection pass against the activated release;
 - a compatible next release migrates and activates, then code-only rollback
@@ -700,6 +923,10 @@ The chosen hosted adapter must retain executable evidence that:
   writes;
 - an incompatible/irreversible release is refused or truthfully selects
   `forwardFix`/`restoreRequired` before activation;
+- crashes before/after each immutable-object write, Machine lease/version
+  compare, full-config/head update, health challenge, audit anchor, and lease
+  release recover according to the normative table without split traffic/head
+  authority;
 - backup read-back verifies all component hashes and excludes secret values;
 - the isolated backup → destroy/replace → restore-paused → verify → activate
   drill recovers the exact fixture/sentinel, document/payment/job/audit facts
@@ -727,19 +954,29 @@ horizontal scaling, autoscaling, zero downtime, global failover, full disaster
 recovery objectives, billing, or a universal infrastructure-as-code language.
 It does not make all schema migrations reversible.
 
-While this RFC is Draft and the selected first adapter has not been witnessed,
-`trusted-single-tenant-app-complete.v1` remains unsupported. Documentation,
-local dev, or an API-only deploy is not Step 6 evidence.
+While this RFC is Draft and the selected Fly adapter has witnessed only its
+observation/log-query slice, `trusted-single-tenant-app-complete.v1` remains
+unsupported. Documentation, local dev, partial admission, or an API-only deploy
+is not Step 6 evidence.
 
-## Open questions
+## Decisions still requiring ratification
 
-1. *(Narrowed 2026-07-25 — shape chosen, adapter still unbuilt.)* Is
-   Cloudflare or a single-instance container/VM the first complete hosted
-   adapter? The container/VM shape is selected (LLP 0075 amendment v0.6) and
-   first instantiated on Fly.io as the recorded drill target; whether that
-   provisioning grows into this RFC's complete adapter remains open.
-2. Which artifact-signing and external backup stores are mandatory for the base
-   profile rather than reported opt-ups?
-3. What measured downtime ceiling should the first profile declare?
-4. Which control-plane credential store and agent grant format should be the
-   paved local operator experience?
+The 2026-07-26 author-side review application proposes Fly
+`single-instance-container-vm.v1` plus Tigris as the first complete adapter;
+Fly Machine lease/current-version guarded metadata as the control-head
+linearization over immutable Tigris records; mandatory Ed25519 artifact-graph
+signing with the private key in macOS Keychain and public key generation in the
+external authority; Tigris as the separately permissioned artifact, backup,
+control-record, and audit-root store; and
+`snapback-control-grant-v1` as the signed one-use agent grant. The Step 6
+fixture ceilings proposed for preregistration are five minutes of
+activation/code-rollback downtime, fifteen minutes of backup maintenance, and
+thirty minutes to restore verification-ready; no broader availability/RTO claim
+follows.
+
+These choices are not accepted merely because they are written here. Live proof
+must show that Fly metadata mutation is actually covered by the Machine lease
+and version guard and that no automation credential can bypass it; failure
+requires a new single-writer authority design. Independent systems/security
+review and maintainer ratification remain prerequisites before implementation
+can satisfy LLP 0063.

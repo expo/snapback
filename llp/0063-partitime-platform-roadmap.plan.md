@@ -1,5 +1,11 @@
 # LLP 0063: Partitime platform roadmap
 
+**Type:** Plan
+**Status:** Draft
+**Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-19
+
 **Revised (Step 4 gateway bundle boundary diagnosed):** 2026-07-26 (fresh published-Exact 0.1.6 gateway builds reproduce the three remaining Contract bundle failures at about 235.6 KB minified / 69.8 KB gzip against about 213.5 KB / 67.2 KB frozen limits. A disposable Terser experiment established that ordinary multi-pass compression barely changes minified bytes; broad property mangling can report about 208.3 KB / 65.5 KB, but the production Chrome gate then passes only static feed visibility and fails both live boot identity and routed RSVP behavior, 1/3. That candidate is rejected and no receipt is retained: it makes byte counters green by breaking the shipped program. The remaining gateway delta is therefore assigned to the Exact compact statement-plan/runtime boundary, not an app-local property-mangling workaround. Thresholds, method, workload, and the red STEP4.BUDGETS verdict are unchanged.)
 
 **Revised (Step 4 cost-attribution classifier repair):** 2026-07-26 (the four-layer diagnostic ledger now classifies surface-local package-manager dependencies before the broader surface-path rule. Exact/React runtime modules under `surfaces/*/node_modules` remain framework runtime, while Supabase/Convex dependencies remain provider runtime; regression vectors cover POSIX and Windows paths. The defect changed diagnostic bucket labels only: executable bundle bytes, frozen thresholds, workload, calibration/holdout custody, and every claim verdict are untouched.)
@@ -12,6 +18,22 @@
 
 **Revised (STEP5.DECLARATION_REDUCTION promoted):** 2026-07-25 (the Workstream 6 authoring-economy claim is promoted to `passing` under the claim manifest's change control: the witness `demos/partiful-matrix/tests/acceptance/step5-declaration-reduction.mjs` (ported from the codex declaration-reduction lane, commit 154bb16c, and extended) proves the frozen source-volume row — 136 measured lines against the frozen 152-line threshold, margin 16, frozen method and thresholdId untouched — with the receipt at `acceptance/results/step5-declaration-reduction.json` and the manifest lock/distribution bundles regenerated together. The receipt's zero-regression argument for the cumulative gates is byte-identity: the measured cell is unchanged since 2026-07-20 and matches the Step 0-attested inventory exactly, with no-Exact-core, the authorization negatives, and the package-test inventory rerun locally (the rerun caught and fixed a real inventory drift: `maintained-projections.test.mjs` had landed unregistered, 82→83). The generated-helper demonstrations ride the receipt: the LLP 0065 family under its owning-authority suites plus an owned-unique-lookup generated against the real Partitime schema (`myRsvp` over the `by_event_user` unique index); the LLP 0080 family in production shape in the competitive-checkpoint fixture and the Rust corpus/coupled suites. Recorded narrowing (review C7 materialized): Partitime's shared-visibility reads fit neither LLP 0065's v1 owner-only floor nor an in-cell relational join within the 16-line threshold headroom, so no generated helper is adopted inside the measured cell; whether competitive-checkpoint is admitted as "the admitted Step 5 fixture" for LLP 0080's demonstrates-both-helpers acceptance clause is an author decision this amendment deliberately does not make, and that clause of LLP 0080's acceptance remains open. Also flagged, thresholds untouched: WS6's prose describes the baseline as "about 168 handwritten lines" while floor(x*0.80)=152 implies a 190-line freeze source. The Step 5 exit aggregate remains honestly partial — STEP4.PRODUCTION_WEB, STEP4.BUDGETS, and STEP5.PACKAGED_LOOP stay failing in their own lanes.)
 **Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-24 (LLP 0065/0080/0081 are now **Accepted** after dual-family LLP 0005 loops — Fable and Codex both READY on the final texts, artifacts in `llp/reviews/` — with same-landing amendments to LLP 0004/0007/0072. Acceptance satisfies the "accepted semantics" half of the Step 5 entry conjunction and authorizes implementation; the executable witnesses (`RELATIONAL_MIGRATION_COUPLED_SUITE_V1`, LLP 0065's conformance suite) do not yet exist, step 0 remains the conjunctive prerequisite, no Step 5 claim is promoted, and owner-visible LLP 0080 work carries the explicit accepted-LLP-0065 subgate.); 2026-07-20 (Draft LLP 0065/0080/0081 proposed the three Workstream 6 semantic authorities — none yet accepted, authorizing no implementation and promoting no Step 5 claim.)
+
+**Revised (Step 6 author-side protocol reconciliation):** 2026-07-26 (all six
+Draft prerequisite RFCs now have explicit GPT/Codex author-side critical
+artifacts under `llp/reviews/`; those artifacts identify themselves as
+non-independent. LLP 0073 had already applied its search findings. LLP
+0068–0072 now apply the remaining findings as proposed v1 choices: canonical
+document operations/adapters and lease-bounded compaction; Stripe test-mode
+order-centric payments with exact money/link/ambiguity rules; immutable
+job/attempt state with external admission and restore fencing; staged safety
+identity, atomic admission, linear moderation, and segmented audit/privacy;
+and a Fly/Tigris control head with provider-guarded linearization, retained raw
+evidence, maintenance backup, and restore identity translation. Every document
+remains Draft. This authoring session cannot supply the independent
+cross-family systems/security/payments/privacy review those proposals require;
+the maintainer has not ratified the choices; no executable semantic witness is
+created; STEP6.CHAT, STEP6.DOCUMENTS, and STEP6.COMMERCE remain pending.)
 
 **Revised (Step 6 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLPs
 0068–0073 now propose the missing convergence, payment, durable-work,
@@ -33,11 +55,6 @@ separately-provisioned clean-machine/multi-platform evidence, and the other
 Step 5 semantic prerequisites remain open, so no Step 5 claim is promoted by
 this note.)
 
-**Type:** Plan
-**Status:** Draft
-**Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
-**Author:** Charlie Cheever / Codex
-**Date:** 2026-07-19
 **Revised (final immutable-revision-set proof infrastructure):** 2026-07-26
 (the final claim now has a fail-closed collector and aggregate validator ready
 to bind one explicit Snapback commit/tree, one explicit Exact commit/tree, the
