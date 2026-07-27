@@ -175,6 +175,18 @@ const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 // flush on pagehide / visibility-hidden.
 const RQS_PERSIST_DEBOUNCE_MS = 1_000;
 const RQS_PERSIST_MAX_DELAY_MS = 10_000;
+// LLP 0094 §0B: the exact wire-version token this kit speaks. Offered at
+// `/connection/open` (B2) and already offered as the stream subprotocol; the
+// open response echoes it back on explicitly bound lineages.
+// @ref LLP 0094#0b5-staged-bootstrap — B2: the kit offers at open, carrying
+//   the §0B.6 legacy-server detection fallback below.
+const WIRE_VERSION_TOKEN = 'snapback.v1';
+// §0B.6 per-endpoint legacy-server verdicts, cached for the process lifetime:
+// baseUrl -> 'legacy'. A verdict is recorded only when the pinned differential
+// (decode-class rejection that disappears when the offer member alone is
+// removed) proves a pre-B1 server; later opens against that endpoint go
+// offerless without re-probing.
+const wireVersionEndpointVerdicts = new Map();
 
 // The live wire kinds this kit dispatches on, pinned to the committed
 // Rust-generated schemas (LLP 0051 D4 / ENG-23891):
@@ -1215,6 +1227,15 @@ export class SnapbackClient {
     // when present, rqsEligible subscriptions persist {rows, meta, token}
     // and relaunches render-first + resume. Absent = today's behavior.
     rqsStore = null,
+    // LLP 0094 §0B.6 strict mode: refuse a suspected pre-B1 legacy server
+    // instead of downgrading to an offerless (legacy) open. Conformance
+    // claims made against a strict configuration are claims about v1-bound
+    // connections only.
+    strictWireVersion = false,
+    // Optional sink for the §0B.6 structured downgrade diagnostic. Default:
+    // the diagnostic is recorded on `wireVersionDiagnostics` and emitted via
+    // console.warn — a downgrade is never silent.
+    onWireVersionDiagnostic = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1255,6 +1276,16 @@ export class SnapbackClient {
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
     this.rqsStore = rqsStore;
+    if (typeof strictWireVersion !== 'boolean') {
+      throw new TypeError('strictWireVersion must be boolean');
+    }
+    if (onWireVersionDiagnostic !== null && typeof onWireVersionDiagnostic !== 'function') {
+      throw new TypeError('onWireVersionDiagnostic must be a function');
+    }
+    this.strictWireVersion = strictWireVersion;
+    this.onWireVersionDiagnostic = onWireVersionDiagnostic;
+    // §0B.6: the structured wire-version diagnostics this client surfaced.
+    this.wireVersionDiagnostics = [];
     this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
       authClient: authClientProtocol,
@@ -2745,6 +2776,25 @@ export class SnapbackClient {
     return grant;
   }
 
+  /// Surface a §0B.6 wire-version diagnostic — never silently: recorded on
+  /// the client, then delivered to the configured sink or console.warn.
+  #surfaceWireVersionDiagnostic(diagnostic) {
+    this.wireVersionDiagnostics.push(diagnostic);
+    if (this.onWireVersionDiagnostic) {
+      try {
+        this.onWireVersionDiagnostic(diagnostic);
+      } catch {
+        // A throwing sink must not turn the surviving open into a failure.
+      }
+      return;
+    }
+    try {
+      console.warn(`${diagnostic.code}: ${diagnostic.message}`, diagnostic.details);
+    } catch {
+      // Environments without a console still keep wireVersionDiagnostics.
+    }
+  }
+
   #openGrant(
     connectionLabel,
     suggestedConnectionId,
@@ -2753,14 +2803,68 @@ export class SnapbackClient {
     externalBearerTransitionPermit = null,
   ) {
     let grant;
-    grant = this.#req('POST', '/connection/open', {
+    const openBody = (withWireVersion) => ({
       connectionId: suggestedConnectionId,
       ...(previousToken ? { previousToken } : {}),
       ...(this.authProtocols.authInvalidation != null
         ? { authInvalidationProtocol: this.authProtocols.authInvalidation }
         : {}),
-    }, undefined, {
-      externalBearerTransitionPermit,
+      // @ref LLP 0094#0b3-the-wireversion-open-time-offer — B2: the kit
+      // offers the exact token; the response echo witnesses the binding.
+      ...(withWireVersion ? { wireVersion: WIRE_VERSION_TOKEN } : {}),
+    });
+    const openRequest = (withWireVersion) => this.#req(
+      'POST',
+      '/connection/open',
+      openBody(withWireVersion),
+      undefined,
+      { externalBearerTransitionPermit },
+    );
+    const offering = wireVersionEndpointVerdicts.get(this.baseUrl) !== 'legacy';
+    grant = openRequest(offering).catch((error) => {
+      // §0B.6 legacy-server detection. The trigger is exact, not heuristic:
+      // only the decode-class rejection a closed pre-B1 open DTO produces
+      // (SNAPBACK_REQUEST_JSON_INVALID) may start the differential re-try;
+      // SNAPBACK_WIRE_VERSION_UNSUPPORTED is a version-aware refusal and
+      // MUST NOT, nor may any unrelated open-time 400.
+      const rejectionCode = error?.diagnostic?.code ?? error?.code;
+      if (!offering || rejectionCode !== 'SNAPBACK_REQUEST_JSON_INVALID') throw error;
+      if (this.strictWireVersion) {
+        const diagnostic = {
+          code: 'SNAPBACK_CLIENT_WIRE_VERSION_STRICT',
+          message: `the server at ${this.baseUrl} rejected the wireVersion offer as a `
+            + 'body-decode failure (pre-B1 legacy server suspected) and this client is '
+            + 'configured strict',
+          details: {
+            endpoint: this.baseUrl,
+            offered: WIRE_VERSION_TOKEN,
+            cause: error?.diagnostic ?? { code: rejectionCode },
+          },
+        };
+        this.#surfaceWireVersionDiagnostic(diagnostic);
+        const refusal = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+        refusal.code = diagnostic.code;
+        refusal.diagnostic = diagnostic;
+        refusal.cause = error;
+        throw refusal;
+      }
+      // The differential: re-open with the offer member alone removed,
+      // exactly once per endpoint. Success proves the pre-B1 closed-DTO
+      // shape; the verdict is cached for the process lifetime and the
+      // downgrade is surfaced as a structured diagnostic. A failed re-try
+      // proves nothing about versions and propagates without a verdict.
+      return openRequest(false).then((granted) => {
+        wireVersionEndpointVerdicts.set(this.baseUrl, 'legacy');
+        this.#surfaceWireVersionDiagnostic({
+          code: 'SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED',
+          message: `the server at ${this.baseUrl} does not admit the wireVersion offer `
+            + '(pre-B1 legacy server); this client opened a legacy (implicitly v1) '
+            + 'connection and will stay offerless toward this endpoint for the process '
+            + 'lifetime',
+          details: { endpoint: this.baseUrl, offered: WIRE_VERSION_TOKEN },
+        });
+        return granted;
+      });
     }).then(
       (granted) => {
         const authorizationInvalidation = granted.authorizationInvalidation == null
@@ -2770,6 +2874,9 @@ export class SnapbackClient {
           id: granted.connectionId,
           token: granted.connectionToken,
           authorizationInvalidation,
+          // The §0B.3 bound-version witness: the token on explicitly bound
+          // lineages, null on legacy lineages and pre-B1 servers (§0B.6).
+          wireVersion: typeof granted.wireVersion === 'string' ? granted.wireVersion : null,
         }, granted?.[AUTHORITY_CAPTURE] ?? null);
       },
       (error) => {

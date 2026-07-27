@@ -63,6 +63,7 @@ const inventories = [
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
+      'wire-version.test.mjs',
     ],
   },
   {
@@ -233,7 +234,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // migration-boundary quarantine regression.
 // 86 -> 87 (LLP 0072 Fly adapter landing): @snapback/cli gains the
 // maintained Fly Machines VM driver suite.
-assert.equal(total, 87, 'reviewed package/admin test count changed');
+// 87 -> 88 (LLP 0094 B2): @snapback/client gains the wire-version
+// negotiation suite (open-time offer, echo witness, §0B.6 fallback).
+assert.equal(total, 88, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
