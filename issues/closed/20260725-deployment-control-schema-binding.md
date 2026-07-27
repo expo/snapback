@@ -1,6 +1,6 @@
 # No gate binds `deployment-control.mjs` closed-key lists to the exported schemas
 
-**Status:** Open
+**Status:** Resolved (2026-07-27)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -58,3 +58,21 @@ Add a check that walks the pairs (JS constant name, schema file) and asserts the
 key sets match, run from the CLI package test or `scripts/verify-local-proof`.
 Roughly the diff harness above, promoted into a gate with the pair table
 declared explicitly so a new artifact type must register itself.
+
+## Resolution
+
+`deployment-control.mjs` now exports a test-only registry binding all 37
+schema-governed closed-key sets to an exact generated schema object (top-level
+or named `$defs` entry). The package test asserts for every pair that the schema
+is closed and that the two property sets are identical.
+
+The gate also inventories every `*_KEYS` declaration in the implementation.
+Adding another key set fails until it is either registered against a schema or
+explicitly classified as a non-schema input/adapter-environment set. While
+installing the gate, the two derived remote-drill wire objects were made
+explicit: credentials and cost each now have a full schema-bound key set,
+separate from the smaller caller-input key set.
+
+Verification:
+
+- `node packages/snapback-cli/package.test.mjs` (Node 24.18.0)

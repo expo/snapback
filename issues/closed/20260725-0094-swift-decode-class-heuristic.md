@@ -1,6 +1,6 @@
 # Swift client: decode-class detection is over-broad against LLP 0094 §0B.6's pin
 
-**Status:** Open
+**Status:** Resolved (2026-07-27)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -28,3 +28,21 @@ Fix: key the detection on `diagnostic.code == "SNAPBACK_REQUEST_JSON_INVALID"`
 cache and the structured downgrade diagnostic, and add a regression
 against the fixture corpus once P-1 ships a negative fixture for a
 non-decode open-time 400.
+
+## Resolution
+
+The Swift client now enters the legacy differential only for the exact LLP
+0094 signal: HTTP 400 with
+`SNAPBACK_REQUEST_JSON_INVALID`. The offerless reopen, endpoint-local verdict,
+strict-mode refusal, and structured downgrade diagnostic are unchanged.
+
+Client behavior regressions prove the positive differential and three
+must-not-downgrade cases:
+
+- unrelated HTTP 400 (`SNAPBACK_CONNECTION_ID_INVALID`);
+- version-aware refusal (`SNAPBACK_WIRE_VERSION_UNSUPPORTED`); and
+- the decode diagnostic at HTTP 422 rather than the pinned HTTP 400.
+
+Verification:
+
+- `swift test --package-path clients/swift/SnapbackClient` (36 tests)

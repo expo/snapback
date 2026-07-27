@@ -204,9 +204,16 @@ const REMOTE_DRILL_STORAGE_KEYS = [
 ];
 const REMOTE_DRILL_LOG_KEYS = ['sinkRef', 'retentionClass', 'redactionProfile'];
 const REMOTE_DRILL_CREDENTIAL_INPUT_KEYS = ['admissionKeyRef', 'replayFloorStoreRef'];
+const REMOTE_DRILL_CREDENTIAL_KEYS = [
+  'controlCredentialRef', 'controlStateStoreRef',
+  'admissionKeyRef', 'replayFloorStoreRef',
+];
 const REMOTE_DRILL_COST_INPUT_KEYS = [
   'currency', 'estimatedMonthlyMinorUnits', 'maximumMonthlyMinorUnits',
   'estimateBasisSha256',
+];
+const REMOTE_DRILL_COST_KEYS = [
+  ...REMOTE_DRILL_COST_INPUT_KEYS, 'includedComponents',
 ];
 const REMOTE_DRILL_PLAN_KEYS = [
   'schemaVersion', 'reason', 'targetId', 'targetProfileId', 'productionClass',
@@ -235,6 +242,53 @@ const COMPATIBILITY_ENVELOPE_KEYS = [
   'writeSchemaGeneration', 'minimumRetainedClientGeneration',
   'minimumJobGeneration', 'minimumConfigGeneration', 'migrationSha256',
   'migrationTransactional', 'irreversibleBoundary', 'rollbackMode',
+];
+// @ref LLP 0037#decision-ratified-2026-07-02 — Rust-owned schemas are the shared-artifact
+// authority; this explicit registry lets the package test bind every
+// hand-maintained JS closed-key validator to its generated property set.
+const CLOSED_KEY_SCHEMA_BINDINGS = [
+  { name: 'TARGET_KEYS', keys: TARGET_KEYS, schemaFile: 'target.descriptor.schema.json' },
+  { name: 'ADAPTER_KEYS', keys: ADAPTER_KEYS, schemaFile: 'target.descriptor.schema.json', definition: 'VmAdapterDescriptor' },
+  { name: 'OBSERVATION_KEYS', keys: OBSERVATION_KEYS, schemaFile: 'vm-adapter.response.schema.json', definition: 'TargetObservation' },
+  { name: 'PLAN_KEYS', keys: PLAN_KEYS, schemaFile: 'deploy.plan.schema.json' },
+  { name: 'LIFECYCLE_RESPONSE_KEYS', keys: LIFECYCLE_RESPONSE_KEYS, schemaFile: 'vm-adapter.lifecycle-response.schema.json' },
+  { name: 'LEASE_KEYS', keys: LEASE_KEYS, schemaFile: 'vm-adapter.lifecycle-response.schema.json', definition: 'DeploymentLease' },
+  { name: 'EVIDENCE_KEYS', keys: EVIDENCE_KEYS, schemaFile: 'vm-adapter.lifecycle-response.schema.json', definition: 'AdapterEvidenceRef' },
+  { name: 'BACKUP_KEYS', keys: BACKUP_KEYS, schemaFile: 'backup.manifest.schema.json' },
+  { name: 'BACKUP_COMPONENT_KEYS', keys: BACKUP_COMPONENT_KEYS, schemaFile: 'backup.manifest.schema.json', definition: 'BackupComponent' },
+  { name: 'BACKUP_PLAN_KEYS', keys: BACKUP_PLAN_KEYS, schemaFile: 'backup.plan.schema.json' },
+  { name: 'AUDIT_EVENT_KEYS', keys: AUDIT_EVENT_KEYS, schemaFile: 'control.audit-event.schema.json' },
+  { name: 'RESTORE_RESULT_KEYS', keys: RESTORE_RESULT_KEYS, schemaFile: 'maintenance.receipt.schema.json', definition: 'RestoreResult' },
+  { name: 'ROLLBACK_PLAN_KEYS', keys: ROLLBACK_PLAN_KEYS, schemaFile: 'rollback.plan.schema.json' },
+  { name: 'RESTORE_PLAN_KEYS', keys: RESTORE_PLAN_KEYS, schemaFile: 'restore.plan.schema.json' },
+  { name: 'RESTORE_ACTIVATION_PLAN_KEYS', keys: RESTORE_ACTIVATION_PLAN_KEYS, schemaFile: 'restore.activation-plan.schema.json' },
+  { name: 'MAINTENANCE_RECEIPT_KEYS', keys: MAINTENANCE_RECEIPT_KEYS, schemaFile: 'maintenance.receipt.schema.json' },
+  { name: 'QUERY_RESPONSE_KEYS', keys: QUERY_RESPONSE_KEYS, schemaFile: 'vm-adapter.query-response.schema.json' },
+  { name: 'LOG_PAGE_KEYS', keys: LOG_PAGE_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'ControlLogPage' },
+  { name: 'LOG_ENTRY_KEYS', keys: LOG_ENTRY_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'ControlLogEntry' },
+  { name: 'LOG_FIELD_KEYS', keys: LOG_FIELD_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'RedactedLogField' },
+  { name: 'INSPECTION_KEYS', keys: INSPECTION_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'AuthenticatedInspection' },
+  { name: 'INSPECTION_FACT_KEYS', keys: INSPECTION_FACT_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'InspectionFact' },
+  { name: 'OPERATION_SUMMARY_KEYS', keys: OPERATION_SUMMARY_KEYS, schemaFile: 'vm-adapter.query-response.schema.json', definition: 'ControlOperationSummary' },
+  { name: 'QUALIFICATION_KEYS', keys: QUALIFICATION_KEYS, schemaFile: 'adapter.qualification.schema.json' },
+  { name: 'HOSTED_AUTH_DRILL_KEYS', keys: HOSTED_AUTH_DRILL_KEYS, schemaFile: 'hosted-auth.drill-receipt.schema.json' },
+  { name: 'HOSTED_ADMISSION_KEYS', keys: HOSTED_ADMISSION_KEYS, schemaFile: 'auth.hosted-admission.schema.json' },
+  { name: 'AUTHENTICATION_THROTTLE_CONFIG_KEYS', keys: AUTHENTICATION_THROTTLE_CONFIG_KEYS, schemaFile: 'auth.hosted-admission.schema.json', definition: 'SharedAuthenticationThrottleConfig' },
+  { name: 'AUTHENTICATION_BUCKET_POLICY_KEYS', keys: AUTHENTICATION_BUCKET_POLICY_KEYS, schemaFile: 'auth.hosted-admission.schema.json', definition: 'AuthenticationBucketPolicy' },
+  { name: 'HOSTED_AUTH_CAPABILITY_KEYS', keys: HOSTED_AUTH_CAPABILITY_KEYS, schemaFile: 'auth.hosted-capabilities.schema.json' },
+  { name: 'HOSTED_AUTH_HEALTH_KEYS', keys: HOSTED_AUTH_HEALTH_KEYS, schemaFile: 'hosted-auth.drill-receipt.schema.json', definition: 'HostedAuthLiveHealth' },
+  { name: 'PREPARED_RELEASE_KEYS', keys: PREPARED_RELEASE_KEYS, schemaFile: 'prepared-release.manifest.schema.json' },
+  { name: 'REMOTE_DRILL_STORAGE_KEYS', keys: REMOTE_DRILL_STORAGE_KEYS, schemaFile: 'remote-drill.plan.schema.json', definition: 'RemoteDrillStorage' },
+  { name: 'REMOTE_DRILL_LOG_KEYS', keys: REMOTE_DRILL_LOG_KEYS, schemaFile: 'remote-drill.plan.schema.json', definition: 'RemoteDrillLogs' },
+  { name: 'REMOTE_DRILL_CREDENTIAL_KEYS', keys: REMOTE_DRILL_CREDENTIAL_KEYS, schemaFile: 'remote-drill.plan.schema.json', definition: 'RemoteDrillCredentials' },
+  { name: 'REMOTE_DRILL_COST_KEYS', keys: REMOTE_DRILL_COST_KEYS, schemaFile: 'remote-drill.plan.schema.json', definition: 'RemoteDrillCostBoundary' },
+  { name: 'REMOTE_DRILL_PLAN_KEYS', keys: REMOTE_DRILL_PLAN_KEYS, schemaFile: 'remote-drill.plan.schema.json' },
+  { name: 'COMPATIBILITY_ENVELOPE_KEYS', keys: COMPATIBILITY_ENVELOPE_KEYS, schemaFile: 'prepared-release.manifest.schema.json', definition: 'ReleaseCompatibilityEnvelope' },
+];
+const NON_SCHEMA_KEY_SETS = [
+  'ADAPTER_ENV_KEYS',
+  'REMOTE_DRILL_COST_INPUT_KEYS',
+  'REMOTE_DRILL_CREDENTIAL_INPUT_KEYS',
 ];
 const EXPECTED_PLAN_STEPS = [
   'verifyIdentity', 'acquireLease', 'uploadImmutableRelease',
@@ -914,13 +968,13 @@ export function verifyRemoteDrillPlan(planId, options = {}) {
   assertClosed(plan.logs, REMOTE_DRILL_LOG_KEYS, 'remote drill log selection', code);
   assertClosed(
     plan.credentials,
-    ['controlCredentialRef', 'controlStateStoreRef', 'admissionKeyRef', 'replayFloorStoreRef'],
+    REMOTE_DRILL_CREDENTIAL_KEYS,
     'remote drill credential handles',
     code,
   );
   assertClosed(
     plan.cost,
-    [...REMOTE_DRILL_COST_INPUT_KEYS, 'includedComponents'],
+    REMOTE_DRILL_COST_KEYS,
     'remote drill cost boundary',
     code,
   );
@@ -3598,6 +3652,8 @@ export function applyDeployPlan(planId, options = {}) {
 export const __deploymentTest = {
   canonicalJson,
   sha256,
+  closedKeySchemaBindings: CLOSED_KEY_SCHEMA_BINDINGS,
+  nonSchemaKeySets: NON_SCHEMA_KEY_SETS,
   createBackupPlanHarness(options = {}) {
     return createBackupPlanCore({ ...options, requireRemoteEvidence: false });
   },

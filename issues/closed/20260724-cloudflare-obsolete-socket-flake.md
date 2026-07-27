@@ -1,6 +1,6 @@
 # Flaky obsolete-socket assertion in the Cloudflare security-hardening gate
 
-**Status:** Open
+**Status:** Resolved (2026-07-27; duplicate diagnosis verified)
 **Impact:** 3
 **Urgency:** 4
 **Ease:** 4
@@ -48,3 +48,25 @@ frame-timeout window in the test.
   assertion retries.
 - Repeated standalone and full-inventory (`node
   cloudflare/test/local-suite.mjs`) runs are stable under load.
+
+## Resolution
+
+This ticket described the same failure later isolated and fixed in
+[`20260724-security-hardening-obsolete-socket-flake.md`](./20260724-security-hardening-obsolete-socket-flake.md).
+Instrumentation proved that the coordinator already had zero subscriptions and
+zero accepted sockets before the final mutation. The observed frame was
+legitimate pre-displacement warm-poll traffic left in the client's queue, not a
+post-displacement delivery.
+
+Commit `04b8828e` made the witness deterministic: after the current socket
+displaces and closes the replacement, the test drains every already-queued
+frame to a 200 ms quiet boundary, verifies the durable subscription registry is
+empty, commits the final mutation, and then asserts that no new frame arrives.
+That targets the witness defect without retrying the assertion or weakening the
+coordinator's session-ownership checks.
+
+The resolution was re-verified from current `origin/main` on 2026-07-27 with
+Node 24.18.0: 20 consecutive standalone
+`cloudflare/test/acceptance.security-hardening.mjs` runs passed. The complete
+Cloudflare inventory is also part of the integration verification for this
+landing.

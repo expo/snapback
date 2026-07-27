@@ -40,6 +40,44 @@ import { __deploymentTest } from './deployment-control.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 try {
+  const deploymentControlSource = readFileSync(
+    new URL('./deployment-control.mjs', import.meta.url),
+    'utf8',
+  );
+  const declaredKeySets = [...deploymentControlSource.matchAll(/const ([A-Z0-9_]+_KEYS) = \[/g)]
+    .map((match) => match[1])
+    .sort();
+  const registeredKeySets = [
+    ...__deploymentTest.closedKeySchemaBindings.map(({ name }) => name),
+    ...__deploymentTest.nonSchemaKeySets,
+  ].sort();
+  assert.deepEqual(
+    registeredKeySets,
+    declaredKeySets,
+    'every deployment-control closed-key set must bind to a generated schema or be explicitly classified as non-schema',
+  );
+  for (const binding of __deploymentTest.closedKeySchemaBindings) {
+    const schema = JSON.parse(readFileSync(
+      new URL(`../../schemas/${binding.schemaFile}`, import.meta.url),
+      'utf8',
+    ));
+    const schemaObject = binding.definition ? schema.$defs?.[binding.definition] : schema;
+    assert.ok(
+      schemaObject,
+      `${binding.name} references missing ${binding.schemaFile}#/$defs/${binding.definition}`,
+    );
+    assert.equal(
+      schemaObject.additionalProperties,
+      false,
+      `${binding.name} must bind to a closed schema object`,
+    );
+    assert.deepEqual(
+      [...binding.keys].sort(),
+      Object.keys(schemaObject.properties ?? {}).sort(),
+      `${binding.name} drifted from ${binding.schemaFile}${binding.definition ? `#/$defs/${binding.definition}` : ''}`,
+    );
+  }
+
   assert.deepEqual(__test.runtimePackages, {
     'darwin-arm64': '@snapback/runtime-darwin-arm64',
     'linux-x64': '@snapback/runtime-linux-x64',

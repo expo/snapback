@@ -127,9 +127,10 @@ public actor SnapbackClient {
             )
             return grant
         } catch let ClientError.refusal(error, status) {
-            let decodeClass = status == 400 || status == 422
-            let unsupported = error.code == "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
-            guard decodeClass, !unsupported, legacyServerVerdict == nil, body["wireVersion"] != nil else {
+            let decodeClass =
+                status == 400
+                && error.code == "SNAPBACK_REQUEST_JSON_INVALID"
+            guard decodeClass, legacyServerVerdict == nil, body["wireVersion"] != nil else {
                 throw ClientError.refusal(error, httpStatus: status)
             }
             if configuration.strictWireVersion {

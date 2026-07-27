@@ -625,6 +625,69 @@ final class ClientBehaviorTests: XCTestCase {
         )
     }
 
+    func testWireVersionLegacyFallbackRequiresExactDecodeClassSignal() async throws {
+        ResponseQueueStubProtocol.configure([
+            .init(
+                status: 400,
+                body:
+                    #"{"diagnostic":{"code":"SNAPBACK_REQUEST_JSON_INVALID","severity":"error","subsystem":"request","message":"request JSON did not match the closed input","details":{}}}"#
+            ),
+            .init(status: 200, body: custodyGrant),
+        ])
+        let subject = responseQueueClient()
+        _ = try await subject.openConnection()
+        XCTAssertEqual(ResponseQueueStubProtocol.requestCount, 2)
+        let diagnostics = await subject.diagnostics
+        XCTAssertTrue(
+            diagnostics.contains {
+                $0.contains("SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE")
+            }
+        )
+    }
+
+    func testWireVersionLegacyFallbackDoesNotRetryUnrelatedOpenRefusals() async {
+        let nonDecodeRefusals = [
+            (
+                status: 400,
+                code: "SNAPBACK_CONNECTION_ID_INVALID"
+            ),
+            (
+                status: 400,
+                code: "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+            ),
+            (
+                status: 422,
+                code: "SNAPBACK_REQUEST_JSON_INVALID"
+            ),
+        ]
+        for refusal in nonDecodeRefusals {
+            ResponseQueueStubProtocol.configure([
+                .init(
+                    status: refusal.status,
+                    body:
+                        """
+                        {"diagnostic":{"code":"\(refusal.code)","severity":"error","subsystem":"connection","message":"must surface without downgrade","details":{}}}
+                        """
+                ),
+                .init(status: 200, body: custodyGrant),
+            ])
+            do {
+                _ = try await responseQueueClient().openConnection()
+                XCTFail("\(refusal.code) unexpectedly triggered fallback")
+            } catch let SnapbackClient.ClientError.refusal(error, status) {
+                XCTAssertEqual(error.code, refusal.code)
+                XCTAssertEqual(status, refusal.status)
+            } catch {
+                XCTFail("unexpected error for \(refusal.code): \(error)")
+            }
+            XCTAssertEqual(
+                ResponseQueueStubProtocol.requestCount,
+                1,
+                "\(refusal.code) triggered an offerless retry"
+            )
+        }
+    }
+
     func testSessionsGrantRequiresNegotiatedInvalidationExpectation() async {
         ResponseQueueStubProtocol.configure([
             .init(
