@@ -38,6 +38,22 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (final immutable-revision-set proof infrastructure):** 2026-07-26
+(the final claim now has a fail-closed collector and aggregate validator ready
+to bind one explicit Snapback commit/tree, one explicit Exact commit/tree, the
+frozen comparison protocol and semantic target-profile matrix, every
+mandatory prerequisite artifact, the eight-package Snapback publication
+receipt, and the eighteen Exact 0.1.6 registry artifacts actually installed
+by Partitime's Contract lock. It emits one content-addressed receipt per
+`web-only`, `online-native`, and `full-north-star` profile and an aggregate
+whose terminal result is hard-bound to `full-north-star`; the aggregate claim
+is removed only from its own prerequisite evaluation, so it cannot satisfy
+itself. Collection requires clean checkouts exactly at both admitted
+revisions, unsafe artifact paths and byte drift fail closed, and a red receipt
+requires the explicit non-promoting `--allow-red` mode. This is infrastructure
+only: the retained receipt has not yet been generated or wired into the
+manifest, and STEP4.BUDGETS, STEP6.CHAT, STEP6.DOCUMENTS,
+STEP6.COMMERCE, and FINAL.IMMUTABLE_REVISION_SET remain failing or pending.)
 **Revised (FINAL.EXACT_AGENT_OPERABILITY promoted):** 2026-07-26 (the
 Exact-owned mandatory final claim is promoted to `passing` under the shared
 manifest's Exact-claim change control. Exact LLP 0373 already records Phase 5
