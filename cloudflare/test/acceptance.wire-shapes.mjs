@@ -134,7 +134,9 @@ async function main() {
     checkErrorLane('socketless kit subscribe is a closed 409 ErrorResponse', socketless, 409, 'SNAPBACK_CONNECTION_SOCKET_REQUIRED');
 
     const upgrade = await proof.raw(`/live/${connectionId}/stream`, {
-      headers: { upgrade: 'websocket', ...tokenHeader },
+      // LLP 0094 §0B.4/B3: kit stream upgrades must offer a known
+      // wire-version token.
+      headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', ...tokenHeader },
     });
     const kitWs = upgrade.webSocket;
     kitWs.accept();

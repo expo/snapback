@@ -136,6 +136,9 @@ async function main() {
       const response = await client.raw(`/live/${grant.connectionId}/stream`, {
         headers: {
           upgrade: 'websocket',
+          // LLP 0094 §0B.4/B3: kit stream upgrades must offer a known
+          // wire-version token.
+          'sec-websocket-protocol': 'snapback.v1',
           'x-snapback-connection-token': grant.connectionToken,
         },
       });
