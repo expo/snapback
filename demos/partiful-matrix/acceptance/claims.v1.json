@@ -873,7 +873,7 @@
       "command": "EXACT_ROOT=../exact node demos/partiful-matrix/tests/acceptance/step4-budgets.mjs --require-pass",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
-        "sha256": "453e011bc7bb1afe3fb3ca578ec1568663caaf1e6225c71bca1f6732fd66f06d"
+        "sha256": "a33db58509db987c44e7dd773e6f62290f2b3fb6e2f59a38013a6369c987020b"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-8--performance-and-packaging-budgets",
