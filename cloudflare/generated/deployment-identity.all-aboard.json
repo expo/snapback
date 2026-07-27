@@ -2,8 +2,8 @@
   "format": 2,
   "app": "all-aboard",
   "schemaHash": "sha256:8b047a881c68c3b46afb287cd93f5c3166133ffb6d2a0975996fb9d5a1355018",
-  "bundleHash": "sha256:6d183dbbd80358d622746fc7000e0fd824f056c9792e39c44d3b04f21868deef",
-  "inputsHash": "sha256:dedf89daa091ae9433f73d766a0bb37866ca48bc5e25678c27ac36cb44f08318",
+  "bundleHash": "sha256:254aa503e79f89cf9b00b09ba4363bf3ce9f04615b42d3d6009d1ab9349206b2",
+  "inputsHash": "sha256:10f54530d3f18f7d7379872e96925e8b62b868ca66b218943589fcd85d748de1",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
@@ -16,6 +16,7 @@
     "cloudflare/src/platform-errors.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
+    "cloudflare/src/wire-diagnostic.js",
     "demos/all-aboard/snapback/generated/functions.manifest.json",
     "demos/all-aboard/snapback/generated/schema.manifest.json",
     "demos/all-aboard/snapback/seed.json",

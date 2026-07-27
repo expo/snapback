@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:f60f5634b0c561b7a9fc7dd994734b3c64e5046308ce49c3093648a4408ffdd9"
+    "sha256": "sha256:5d139a36aa2aa1eca81551ae36963c0bedce77497fb5bc8d709df6229c1505fe"
   },
   "manifestVersion": 1,
   "operations": [
@@ -35,7 +35,7 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:d15a2265c2cfcebc4e861a73779b7b7bfe23166ca4bf9d7b74f149ea97a2d09e"
+        "sha256": "sha256:bbc90342317b4396b2d05cbc96d4e3251c5abfe7bab4ed88d40195152a228b50"
       }
     },
     {
@@ -61,7 +61,7 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:d15a2265c2cfcebc4e861a73779b7b7bfe23166ca4bf9d7b74f149ea97a2d09e"
+        "sha256": "sha256:bbc90342317b4396b2d05cbc96d4e3251c5abfe7bab4ed88d40195152a228b50"
       }
     },
     {
@@ -87,13 +87,13 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:d15a2265c2cfcebc4e861a73779b7b7bfe23166ca4bf9d7b74f149ea97a2d09e"
+        "sha256": "sha256:bbc90342317b4396b2d05cbc96d4e3251c5abfe7bab4ed88d40195152a228b50"
       }
     }
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:ae6c4dea8577644a5fec44814aaee8e3752308455c43b252c2e82a09dd63f8aa"
+    "sha256": "sha256:4d1dec48574d06f6d136426d01cfd72f4ff107d75c83d1c88459fa784a7c4aaf"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -144,7 +144,7 @@
     },
     "mutationOutput": {
       "path": "schemas/mutation.output.schema.json",
-      "sha256": "sha256:d15a2265c2cfcebc4e861a73779b7b7bfe23166ca4bf9d7b74f149ea97a2d09e"
+      "sha256": "sha256:bbc90342317b4396b2d05cbc96d4e3251c5abfe7bab4ed88d40195152a228b50"
     },
     "queryInput": {
       "path": "schemas/query.input.schema.json",
