@@ -1,0 +1,60 @@
+# Portable indexed full-text search v1
+
+**Status:** Open  
+**Impact:** 5  
+**Urgency:** 4  
+**Ease:** 1  
+**Confidence:** 5  
+**Severity:** P1  
+**Systems:** Search, Storage, Schema, Code generation, Auth, Live Queries, Testing  
+**Author:** Codex, directed by Charlie Cheever  
+**Date:** 2026-07-27  
+**Related:** LLP 0004, LLP 0007, LLP 0051, LLP 0053, LLP 0063, LLP 0073, LLP 0074
+
+Snapback has no indexed text-search authoring or runtime primitive. Signal Desk
+scans incidents in a JS handler, while comparator-native implementations use a
+search index. Draft LLP 0073 defines a portable term/position authority,
+structured AST, ranking/cursors, authorization, rebuild, and target
+capabilities; no implementation may substitute raw SQLite FTS syntax for that
+contract.
+
+## Design gate
+
+Run `llp-super-refine` on LLP 0073 with fresh Fable 5 and Codex
+gpt-5.6-sol reviewers. Resolve its scorer, synchronous-vs-bounded-async,
+cursor/generation ceilings, and sensitive-field questions. Implementation
+follows the converged revision and records target-specific nonclaims.
+
+## Desired resolution
+
+- Add a declared search index over a table or closed generated projection,
+  with weighted text fields, exact filters, stored display fields, visibility,
+  analyzer/version, size/work limits, and update mode.
+- Generate the portable analyzer/parser/matcher/scorer artifacts, operation
+  refs, result types, capability facts, and inspection data.
+- Implement local SQLite term/position/source storage, transactional update and
+  delete, structured term/phrase/prefix/exclusion/filter queries, deterministic
+  ranking, bounded overfetch, authorization-safe release, highlights, and
+  MACed snapshot cursors.
+- Implement rebuild/catch-up/activation, tombstones, corruption quarantine,
+  backup/restore posture, and stable restart diagnostics.
+- A native FTS accelerator may only return a proven no-false-negative candidate
+  superset; disabling it must leave match truth unchanged.
+- Keep PostgreSQL/hosted support as explicit GAPs until the same portable corpus
+  passes there.
+
+## Acceptance
+
+- Unicode/analyzer, parser, query, phrase/prefix, malformed input, injection,
+  ranking, cursor, pagination, update/delete, rebuild, corruption, and
+  backup/restore vectors pass.
+- Permission/membership/moderation changes leak no title, snippet, score,
+  count, timing classification, or existence fact, including across cursors.
+- Searchable-at-commit behavior and synchronous failure rollback are proven for
+  the bounded Signal Desk fixture.
+- Signal Desk uses the generated indexed search ref and deletes its scan/filter
+  handler; no client casts or backend query strings remain.
+- Capability/guide/admin evidence names exact analyzer, generation, limits,
+  storage class, accelerator identity, and every nonclaim.
+- LLP status/evidence notes, Rust-owned schemas, `@ref`s, and corpus audit land
+  with implementation.

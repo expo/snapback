@@ -14,6 +14,16 @@
 **Related:** Draft LLP 0072, LLP 0098, LLP 0081 (OQ7 → container-VM migration-executor profile), `packages/snapback-cli/adapters/fly-machines-vm-driver.mjs`, `demos/competitive-checkpoint/acceptance/results/control-plane-remote.v0.json`
 **Marker:** 0072-lane, hosted-drill
 
+**Backend-bakeoff program update (2026-07-27):** this existing ticket owns
+comparison item 15; no duplicate hosted-path ticket was filed. Closing it now
+also requires one ordinary product receipt proving the complete author journey:
+one stable public URL and immutable deployment/release/database identity;
+structured build and runtime logs; authenticated inspection; migration
+preflight/apply; backup plus executed restore verification; code rollback;
+cost/capacity visibility; and exact recovery diagnostics. The receipt must be
+produced through the public CLI from an installable package, not by composing
+private drill scripts, and must list every unsupported scale/SLA/profile claim.
+
 The first concrete adapter driver landed 2026-07-26 (observation +
 provider-event logs with the first `remoteEvidence: true` control-plane
 response, live fail-closed negatives, platform interruption/resume). This
@@ -66,3 +76,22 @@ bucketed by what each item needs. The LLP 0081 migration-executor profile
 
 The driver resolves `keychain://snapback-fly-drill/drill` via the macOS
 keychain (operator-staged). Receipts and the registry never carry the value.
+
+## Bakeoff acceptance additions
+
+- `snapback deploy` (or the ratified equivalent) takes a generated app from a
+  clean source tree to the registered Fly/Tigris target without hand-editing
+  target state.
+- Upload, provision, stage, activate, inspect, logs, backup, restore,
+  restore-activate, rollback, and destroy/withdraw are resumable through the
+  existing lifecycle train and bind remote read-back evidence.
+- The Linux/Hermes runtime, app artifacts, web artifacts, migrations, adapter
+  qualification, hosted admission, TLS state, audit roots, and cost facts are
+  one immutable prepared-release graph.
+- TLS/certificate custody survives machine replacement without consuming a new
+  production issuance budget.
+- A fresh operator can follow the deployment guide from public package
+  installation to the green receipt without repository-private knowledge.
+- This ticket does not close, and no supported hosted claim is made, until the
+  remote receipt above passes and LLP 0072's required ratification/review gate
+  is satisfied.
