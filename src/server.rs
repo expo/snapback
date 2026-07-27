@@ -5769,6 +5769,15 @@ pub struct MutationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
     pub receipt: Receipt,
+    /// Server-derived attribution (LLP 0055). Admitted explicitly so the
+    /// served bytes and the closed generated schema agree: the route used to
+    /// flatten this member through `FunctionResponse<T>` while the committed
+    /// `mutation.output.schema.json` did not admit it.
+    ///
+    /// @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4: the schema-side convergence; the schema
+    ///   is generated from the envelope actually served.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
 }
 
 #[derive(Serialize)]
@@ -5879,7 +5888,11 @@ impl AuthorizedLeaseQueryResponse {
 }
 
 impl MutationResponse {
-    fn from_output(output: MutationOutput, receipt: Receipt) -> Self {
+    fn from_output(
+        output: MutationOutput,
+        receipt: Receipt,
+        attribution: Option<FunctionAttribution>,
+    ) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
         // compile error here instead of silent drift in the public envelope.
         let MutationOutput {
@@ -5894,6 +5907,7 @@ impl MutationResponse {
             result,
             ctx_ledger,
             receipt,
+            attribution,
         }
     }
 }
@@ -16507,7 +16521,7 @@ async fn invoke_mutation(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<FunctionResponse<MutationResponse>>, ApiError> {
+) -> Result<Json<MutationResponse>, ApiError> {
     let attribution = authority.function_attribution();
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
@@ -16558,8 +16572,13 @@ async fn invoke_mutation(
     .map_err(ApiError::from)
     .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
-        Ok(output) => Ok(Json(FunctionResponse::new(
-            MutationResponse::from_output(output, receipt),
+        // The mutation envelope carries its attribution member directly
+        // (never through the FunctionResponse flatten) so the served bytes
+        // stay inside the closed generated mutation.output schema.
+        // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
+        Ok(output) => Ok(Json(MutationResponse::from_output(
+            output,
+            receipt,
             attribution,
         ))),
         Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),

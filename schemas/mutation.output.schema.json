@@ -40,6 +40,32 @@
       },
       "type": "object"
     },
+    "FunctionAttribution": {
+      "description": "Server-derived, bearer-free attribution for one app-data function\nresponse. Wrappers may copy this value, but cannot synthesize attribution\nauthority when the invocation gate did not produce it.\n\n@ref LLP 0055#audit — every resolved service-principal function response\ncarries the same actor/effective/grant attribution and v1 has no agent\ndry-run surface.",
+      "properties": {
+        "actorUserId": {
+          "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "effectiveUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grantId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "actorUserId",
+        "grantId",
+        "dryRun"
+      ],
+      "type": "object"
+    },
     "MutationReceiptOutcome": {
       "enum": [
         "confirmed",
@@ -233,6 +259,17 @@
   "additionalProperties": false,
   "description": "Successful `POST /mutation/{name}` response. The mutation output and its\nterminal receipt are one closed, typed envelope; rejected mutations keep\nusing [`ErrorResponse`] with the same receipt attached by the error path.\n\n@ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed — direct\n  mutation results are part of the generated client-visible wire.",
   "properties": {
+    "attribution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionAttribution"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Server-derived attribution (LLP 0055). Admitted explicitly so the\nserved bytes and the closed generated schema agree: the route used to\nflatten this member through `FunctionResponse<T>` while the committed\n`mutation.output.schema.json` did not admit it.\n\n@ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4: the schema-side convergence; the schema\n  is generated from the envelope actually served."
+    },
     "changed_count": {
       "format": "uint",
       "minimum": 0,

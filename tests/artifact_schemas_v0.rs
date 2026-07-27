@@ -2768,11 +2768,21 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             correlation: json!({ "actionInvocationId": "act_1" }),
             received_at_ms: 1,
         },
+        attribution: None,
     };
     let mutation_response = serde_json::to_value(mutation_response).unwrap();
     assert_validates("mutation.output.schema.json", &mutation_response);
     assert!(mutation_response.get("previousToken").is_none());
     assert!(mutation_response.get("connectionToken").is_none());
+    // The served sessions-mode envelope carries attribution directly; the
+    // closed schema admits exactly that member (LLP 0094 §0C.6 item 4).
+    let mut attributed_response = mutation_response.clone();
+    attributed_response["attribution"] = json!({
+        "actorUserId": "user_1",
+        "grantId": "grant_1",
+        "dryRun": false,
+    });
+    assert_validates("mutation.output.schema.json", &attributed_response);
     let mut missing_receipt = mutation_response.clone();
     missing_receipt.as_object_mut().unwrap().remove("receipt");
     assert_rejects("mutation.output.schema.json", &missing_receipt);
