@@ -75,8 +75,9 @@
     },
     {
       "id": "complete-product-ui",
-      "status": "red",
-      "blocker": "headless product kernel only"
+      "status": "implemented-local-partial",
+      "witness": "tests/acceptance/react-browser.mjs",
+      "nonclaim": "the local React surface covers the admitted room, membership, messaging, and unread kernel; Contract, hosted deployment, and every still-red product pressure remain absent"
     }
   ]
 }

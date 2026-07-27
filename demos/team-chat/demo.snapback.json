@@ -36,6 +36,15 @@
       "buildTargets": [],
       "runner": "node demos/team-chat/tests/acceptance/headless.mjs",
       "toolchain": "node>=24, cargo"
+    },
+    "reactLocalProduct": {
+      "requirement": "required-local-nonclaim",
+      "buildTargets": [
+        "bun run --cwd demos/team-chat/surfaces/react typecheck",
+        "bun run --cwd demos/team-chat/surfaces/react build"
+      ],
+      "runner": "node demos/team-chat/tests/acceptance/react-browser.mjs",
+      "toolchain": "bun>=1.3, Chrome, node>=24, cargo"
     }
   },
   "acceptanceChecks": {
@@ -46,6 +55,13 @@
       "unread state is recipient-owned, live, and clearable by room",
       "opaque keyset cursors page a recipient inbox without overlap",
       "self-leave revokes protected room reads and purges that room from the former member's inbox"
+    ],
+    "reactLocalProduct": [
+      "three independent authority windows boot through the official React adapter",
+      "room creation and invitation acceptance work through product forms",
+      "messages and recipient-owned unread state update live",
+      "self-leave revokes the room and re-invitation restores access without retained inbox rows",
+      "unrelated authority remains empty"
     ]
   },
   "capabilityGaps": [
@@ -55,7 +71,8 @@
     "moderation and audit under LLP 0071",
     "hosted auth and trusted-single-tenant operations under LLP 0072",
     "channel-history-scoped continuation cursors",
-    "complete React and Contract product UI"
+    "Contract product UI and a claim-eligible hosted React deployment",
+    "a complete product UI for every still-red pressure"
   ],
   "notClaiming": [
     "STEP6.CHAT completion",

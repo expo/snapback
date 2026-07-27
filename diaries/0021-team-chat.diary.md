@@ -55,3 +55,42 @@ membership invalidation and cursor authority are platform contracts rather
 than app conventions. The cost is the narrowness of those contracts: once the
 product needs host-initiated removal or room-scoped history cursors, there is
 no honest escape hatch yet.
+
+## 2026-07-26 — local React product surface
+
+The second slice puts the admitted kernel behind a small React product surface.
+Three independent browser windows act as the owner, invited member, and
+unrelated outsider. The acceptance path creates a room, accepts an invitation,
+exchanges messages, clears unread state, leaves, re-invites, and proves that
+old inbox rows do not reappear after rejoining.
+
+### What felt good
+
+- The official React external-store adapter made live queries compose like
+  ordinary hooks. Room membership, messages, and unread state updated without
+  app-authored polling or cache reconciliation.
+- Generated API references kept the forms aligned with the admitted function
+  arguments. The browser witness could concentrate on authority transitions
+  instead of reconstructing request names and shapes.
+- Revocation was visible at the product boundary: self-leave closed the room
+  view, and re-invitation restored access with an empty recipient inbox.
+
+### What remains awkward or missing
+
+- A standalone Vite package cannot install Snapback's source packages through
+  their `workspace:*` development dependencies. This repository-local surface
+  therefore imports both official packages from their workspace source paths.
+  Published-package consumer installation still needs a separate hosted-app
+  witness.
+- The persona switcher is useful local acceptance scaffolding, not sessions
+  authentication. A hosted surface must replace it with the auth work governed
+  by LLP 0072.
+- The React surface does not make the product complete. Contract, search,
+  attachments, notifications, moderation/audit, host removal, room-history
+  pagination, and hosted operations remain red in the pressure profile.
+
+Relative to React plus Convex, the view code is similarly compact once the
+generated API and provider exist. Snapback's advantage is that leave-time
+revocation and recipient cursor authority are tested platform behavior; the
+tradeoff is that the local package boundary is still less polished than a
+normal registry-installed frontend dependency.
