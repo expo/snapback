@@ -20230,7 +20230,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
-        // @ref LLP 0094#0e-refusal-code-registry-negotiation — the wire-version
+        // @ref LLP 0094#0e--refusal-code-registry-negotiation — the wire-version
         // negotiation refusals are HTTP 400 in the standard error envelope.
         | "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
         | "SNAPBACK_WIRE_VERSION_MISMATCH"

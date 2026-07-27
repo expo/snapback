@@ -43,7 +43,12 @@ emitters now satisfy the committed schemas, the in-band kit-socket reply
 grammar is kit dialect, the local `attribution` flatten is admitted into
 the regenerated `mutation.output.schema.json`, and the executable
 emitter audit landed as `cloudflare/test/acceptance.wire-shapes.mjs`;
-the tolerate-the-divergence caveat is retired for the converged items)
+the tolerate-the-divergence caveat is retired for the converged items);
+2026-07-27 (§0B stages B1–B3
+implemented on both arms with the kit offer, under
+`issues/20260725-0093-p0-wire-version-negotiation.md`: §0B.5 stage record,
+§0B.7 blast-radius re-run with a corrected in-crate-population finding,
+§0C.5 alignment implemented; B4 stays staged)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093
@@ -306,7 +311,12 @@ connection-authenticated request/response DTO; finite routes and
 `/ephemeral/collections/ensure` ride route stability instead). This spec
 adds no envelope changes; it makes the negotiation enforceable.
 
-### 0B.2 What exists today (both arms, audited)
+### 0B.2 What existed before B1 (both arms, audited)
+
+**Superseded 2026-07-27 by the B1–B3 landing (§0B.5).** The bullets below
+are kept as the audited **pre-B1** state: it is exactly what §0B.6's
+legacy-server detection still detects in deployed pre-B1 servers (the
+shared Cloudflare deployment until its post-B1 redeploy).
 
 - **Local socket lane:** `stream_live` calls
   `.protocols([LIVE_STREAM_SUBPROTOCOL])` (`src/server.rs`, constant at
@@ -466,9 +476,39 @@ stages, each a named gate:
   own suites all pass while offering. B4 is a breaking change for legacy
   clients and requires its own dated amendment here when enabled.
 
-None of B1–B4 is implemented at this draft's landing; the server changes
-are ticketed (`issues/20260725-0093-p0-wire-version-negotiation.md`).
-This spec is the contract they are built to.
+**Stage record (2026-07-27, under
+`issues/20260725-0093-p0-wire-version-negotiation.md`):** B1, B2, and B3
+are **implemented**, in one landing so the offering kit and the
+field-admitting servers never cross a repo state where one exists without
+the other:
+
+- **B1** on both arms — local `OpenConnectionRequest.wire_version` +
+  registry lineage binding (`src/server.rs`), hosted `kitOpenConnection`
+  reading the member and persisting the binding in a
+  `_snapback_connections.wire_version` column (`coordinator.js`); the
+  `ConnectionGrant.wireVersion` echo on both; the §0B.4 present-offer
+  socket refusals (shared predicate: `src/wire_version.rs`,
+  `classifySocketWireVersionOffer` in `coordinator.js`); and the §0C.5
+  alignment. Re-open immutability is enforced in the registry/DO re-open
+  branch.
+- **B2** — the kit offers `wireVersion: "snapback.v1"` at open
+  (`packages/snapback-client/index.mjs`), with the §0B.6 fallback, a
+  process-lifetime per-endpoint verdict cache, the structured
+  `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` diagnostic, and an optional
+  `strictWireVersion` mode. Gate reading, recorded: B1 exists on every
+  in-repo arm in the same tree; toward the not-yet-redeployed shared
+  Cloudflare deployment the offer is non-breaking by the §0B.6 hosted
+  caveat itself — a pre-B1 hosted open decoder ignores the member and
+  answers bytes identical to an offerless open — so the kit offer lands
+  with B1 and the shared-deployment redeploy remains the operational
+  step that turns the echo on there.
+- **B3** — the absent-class socket refusal is **on** (both arms), after
+  re-running the §0B.7 enumeration at enablement (record appended
+  there). The hosted `/live/stream` proof socket keeps its exemption,
+  pinned by fixture (`cloudflare/test/acceptance.wire-version.mjs`).
+
+**B4 remains staged** and unimplemented; its gate and dated-amendment
+requirement above are unchanged.
 
 ### 0B.6 Client-side legacy-server detection
 
@@ -492,6 +532,14 @@ downgrade); conformance claims made against a strict configuration are
 claims about v1-bound connections only. (The P-2 Swift client currently
 triggers on any 400/422 except `UNSUPPORTED` — over-broad against this
 pin; ticketed, `issues/20260725-0094-swift-decode-class-heuristic.md`.)
+The JS kit implements this pin as of B2 (2026-07-27):
+`SNAPBACK_REQUEST_JSON_INVALID` alone triggers the differential, the
+verdict cache is per endpoint for the process lifetime, the downgrade
+surfaces as `SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` (client-minted,
+`SNAPBACK_CLIENT_*` namespace — deliberately not in the §0E server
+registry), and `strictWireVersion: true` refuses with
+`SNAPBACK_CLIENT_WIRE_VERSION_STRICT`; a failed differential re-try
+records no verdict.
 
 Hosted caveat, stated plainly: a pre-B1 **hosted** server produces **no
 distinguishing bytes at all** for a `wireVersion`-carrying open — the
@@ -541,6 +589,34 @@ inherit B2 when the kit and test fixtures add the offer (the Swift
 client offers already); the B4 audit re-runs this enumeration — it is a
 repo-wide search for `/connection/open` constructors, not a fixed list —
 and must find zero offerless callers before absent may refuse.
+
+**B3-enablement re-run (2026-07-27, this worktree).** The enumeration was
+re-run before turning on the absent-class socket refusal, with one
+**correction to the record above**: the claim that the Rust in-crate
+socket tests were compliant was **wrong** — ten offerless kit-stream
+upgrade constructions existed (`src/server.rs`: the protected-room,
+pressure-eviction, and terminal-socket tests; `tests/admin_v0.rs` ×4
+including the header-transport probe; `tests/concurrency_v0.rs` ×1;
+`tests/route_policy_v1.rs` ×1), and the hosted suites held eleven more
+(`cloudflare/test/acceptance.security-hardening.mjs` ×8,
+`acceptance.protocol-hardening.mjs` ×1, `acceptance.rqs.mjs` ×1, plus the
+kit-socket probe the wire-version suite itself adds). All were brought
+compliant (offering `snapback.v1`) in the B3 landing. The rest of the
+population re-verified as recorded: the kit (socket offer unchanged, open
+offer added at B2), the Swift client, `regression-reconnect-nuke.mjs`,
+and `demos/competitive-checkpoint/.../hosted-sender-matrix.mjs` offer;
+the offerless `/live/stream` consumers (`harness.mjs`,
+`acceptance.remote*.mjs`, `measure.remote.mjs`,
+`acceptance.security-hardening.mjs` proof-socket probes) ride the §0B.4
+proof-socket exemption; browser demo suites reach the wire through the
+kit, and their raw `new WebSocket` uses are Chrome DevTools (CDP)
+sockets, not Snapback sockets. Auth-refusal probes that expect
+401/403/429 pre-upgrade stay valid: credential gates run before the
+version classification on both arms. The **B4 population** is unchanged
+in kind — offerless `/connection/open` constructors remain in Rust
+in-crate tests, hosted-suite direct opens (including the deliberate
+legacy fixtures in `acceptance.wire-version.mjs`), and the bundle-mint
+lane — so the B4 gate stays far from met, as intended.
 
 ## 0C — Per-family DTO closure matrix
 
@@ -636,10 +712,13 @@ inside otherwise-open decoders, not a closure.
 
 ### 0C.5 `authInvalidationProtocol`: decided, not inherited
 
-Today an **unknown** `authInvalidationProtocol` value silently degrades
-to a legacy connection (`src/server.rs:4727-4728` — exact-match-v1 else
+Before B1 an **unknown** `authInvalidationProtocol` value silently
+degraded to a legacy connection (`src/server.rs` — exact-match-v1 else
 `None`), the opposite of §0B.3's unknown-refuses rule for the adjacent
-field. Decision: **aligned to refuse**. From stage B1, both offer fields
+field. Decision: **aligned to refuse** — implemented 2026-07-27 with B1
+on both arms (`open_connection`, `src/server.rs`; `kitOpenConnection`,
+`coordinator.js`, which reads the member for exactly this refusal while
+still implementing no invalidation surface). From stage B1, both offer fields
 on `/connection/open` follow one matrix — known binds, unknown refuses
 (`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED`), absent degrades to
 legacy. Rationale: a client offering invalidation-protocol v2 must not
@@ -958,6 +1037,17 @@ with: offer-matrix acceptance fixtures on both arms (known/unknown/absent
 in the landing commit. The §0C.6 convergence lands under its own ticket
 with hosted response-schema assertions in the Cloudflare acceptance
 suite for each ledger item.
+
+Landed with the B1–B3 stage record (2026-07-27): `cargo test --lib
+wire_version` (the pure predicates plus the registry/HTTP/socket offer
+matrices in `server::tests`); `cargo test --test artifact_schemas_v0
+--test admin_v0 --test route_policy_v1 --test concurrency_v0`;
+`node cloudflare/test/local-suite.mjs` (now 23 suites, including
+`acceptance.wire-version.mjs`, 23/23 checks); the `@snapback/client`
+package suite including `wire-version.test.mjs`;
+`node demos/_kit/tests/live-wire-schema.mjs`; schema regen via
+`snapback-schemagen` + the todo-v2 remote-service codegen; and
+`./ref-check --verbose`.
 
 ## Decisions log (review loop)
 
