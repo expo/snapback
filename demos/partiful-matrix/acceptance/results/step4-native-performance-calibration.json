@@ -1,0 +1,355 @@
+{
+  "schemaVersion": "partitime.step4-native-performance.v1",
+  "claimId": "STEP4.BUDGETS.NATIVE_PERFORMANCE",
+  "methodId": "partitime.native-launch-stage.v2",
+  "thresholdSetId": "partitime-ws8-native-performance-thresholds-v2",
+  "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+  "cohort": "calibration",
+  "quick": false,
+  "claimEligible": true,
+  "recordedAt": "2026-07-27T09:33:44.606Z",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+    "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+  },
+  "sampling": {
+    "warmups": 2,
+    "samples": 7,
+    "outlierPolicy": "retain every valid sample; invalidate only a receipt-recorded instrument failure"
+  },
+  "invalidation": {
+    "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
+    "sha256": "be355bcbbf0a4aa6753124f8bd81a50dee97588e44969c087cfde0a3dc99143c"
+  },
+  "observerAmendment": {
+    "path": "demos/partiful-matrix/acceptance/native-performance-observer-amendment.2026-07-23.json",
+    "sha256": "a393a93dd96cd18fb17b947a02079dc9b5a568ee6dc924f46f5fb7f6c4b20f7a"
+  },
+  "platform": "ios",
+  "hostIdentity": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+      "available": true
+    }
+  },
+  "sourceReceipts": {
+    "react": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-01.json",
+        "sha256": "776011c711d6623d167663b1a28be16fcb5458d958d4ae9f3b4b163f8c910374",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-02.json",
+        "sha256": "d072f45df4283af1ec1d9baa4e69c79fde22ec76587f89567ba94bf73836ad6e",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-03.json",
+        "sha256": "696125fc810f43abdbe9b04026068f21ca13cff962111a70fd697b5da09d5842",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-04.json",
+        "sha256": "8ed3b9324096b272f376b27fca2a29fd7dd87fe48917fd069f6e63c423903d16",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-05.json",
+        "sha256": "e19c0e8ab251772555bb833afde373cac0ce7f10d33d8c5931f9aa0566c3c422",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-06.json",
+        "sha256": "eb79eee0f5647cc679a9aa0a67860bf837f8c63bf94efd8e41ddf8571ce9086d",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-07.json",
+        "sha256": "2fe6a8cd46a2fb3e4d7cc35e8948618821d6408e5561f0dac121382cf6b790bb",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-08.json",
+        "sha256": "2c3df599012b68ffe23221a5d232ecdc7890257e3220987340a66e50dd565326",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/react-09.json",
+        "sha256": "d381ffe912661fa47e7e2ce8c0b3107531b66130ee903ee04bc98b4a17bfe8e0",
+        "repositoryClean": true
+      }
+    ],
+    "exact": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-01.json",
+        "sha256": "af3150069a36943e2d2a93e0acc702a9f9fd258ada8f0067307bd872a775be2c",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-02.json",
+        "sha256": "257b072acb46a518dca8c1896dc2374bdffb56806c053e508c4ba03ce7ace01e",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-03.json",
+        "sha256": "e62abd7aebaba1a0d63ae224bcd3ba5589330e9d49e20af90b64a767c7198022",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-04.json",
+        "sha256": "dd8d5cf5dfea7f9ef6e3b0e3f4ea9e3e23d4d5f6ca052673a12085d7c646df9f",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-05.json",
+        "sha256": "da970dbad536260cd5549b48ab468d62a625cfc28d69d3282f47ed2ff5e44927",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-06.json",
+        "sha256": "4ab8dbac74a1cb70899f3a219399355b79b6fd5c98fa843b848384d22bab9d47",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-07.json",
+        "sha256": "b783fbd3709bd7ecc8f4bd02f02661cbe38f5051664889161c367743bf0683a3",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-08.json",
+        "sha256": "858f7c389c490d818f01e5a717ede050466fe5c79f3e080539777b4cae011dd6",
+        "repositoryClean": true
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration-raw/exact-09.json",
+        "sha256": "76dbf05e9f9cccfc918ce5e12b7d58ee3e81a221c5e01e25871a4367e2e50e32",
+        "repositoryClean": true
+      }
+    ]
+  },
+  "cells": {
+    "react-expo:ios:snapback": {
+      "samples": [
+        {
+          "hermesEvaluationMs": 26.830416679382324,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 927,
+          "firstAuthoritativeDataMs": 989
+        },
+        {
+          "hermesEvaluationMs": 26.09941667318344,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 901,
+          "firstAuthoritativeDataMs": 954
+        },
+        {
+          "hermesEvaluationMs": 27.22850000858307,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 1033,
+          "firstAuthoritativeDataMs": 1135
+        },
+        {
+          "hermesEvaluationMs": 28.161374986171722,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 919,
+          "firstAuthoritativeDataMs": 1017
+        },
+        {
+          "hermesEvaluationMs": 28.728083312511444,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 873,
+          "firstAuthoritativeDataMs": 922
+        },
+        {
+          "hermesEvaluationMs": 24.896916687488556,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 862,
+          "firstAuthoritativeDataMs": 906
+        },
+        {
+          "hermesEvaluationMs": 25.632791697978973,
+          "startupAssetWeightBytes": 2272547,
+          "coldLaunchMs": 883,
+          "firstAuthoritativeDataMs": 940
+        }
+      ],
+      "aggregate": {
+        "hermesEvaluationMs": {
+          "samples": [
+            26.830416679382324,
+            26.09941667318344,
+            27.22850000858307,
+            28.161374986171722,
+            28.728083312511444,
+            24.896916687488556,
+            25.632791697978973
+          ],
+          "median": 26.830416679382324,
+          "p95": 28.728083312511444
+        },
+        "startupAssetWeightBytes": {
+          "samples": [
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547,
+            2272547
+          ],
+          "median": 2272547,
+          "p95": 2272547
+        },
+        "coldLaunchMs": {
+          "samples": [
+            927,
+            901,
+            1033,
+            919,
+            873,
+            862,
+            883
+          ],
+          "median": 901,
+          "p95": 1033
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            989,
+            954,
+            1135,
+            1017,
+            922,
+            906,
+            940
+          ],
+          "median": 954,
+          "p95": 1135
+        }
+      }
+    },
+    "exact-contract:ios:snapback": {
+      "samples": [
+        {
+          "hermesEvaluationMs": 110,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1711,
+          "firstAuthoritativeDataMs": 1635
+        },
+        {
+          "hermesEvaluationMs": 119,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 2005,
+          "firstAuthoritativeDataMs": 1944
+        },
+        {
+          "hermesEvaluationMs": 102,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1621,
+          "firstAuthoritativeDataMs": 1555
+        },
+        {
+          "hermesEvaluationMs": 82,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1350,
+          "firstAuthoritativeDataMs": 1280
+        },
+        {
+          "hermesEvaluationMs": 97,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1521,
+          "firstAuthoritativeDataMs": 1454
+        },
+        {
+          "hermesEvaluationMs": 94,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1407,
+          "firstAuthoritativeDataMs": 1338
+        },
+        {
+          "hermesEvaluationMs": 104,
+          "startupAssetWeightBytes": 2344005,
+          "coldLaunchMs": 1868,
+          "firstAuthoritativeDataMs": 1804
+        }
+      ],
+      "aggregate": {
+        "hermesEvaluationMs": {
+          "samples": [
+            110,
+            119,
+            102,
+            82,
+            97,
+            94,
+            104
+          ],
+          "median": 102,
+          "p95": 119
+        },
+        "startupAssetWeightBytes": {
+          "samples": [
+            2344005,
+            2344005,
+            2344005,
+            2344005,
+            2344005,
+            2344005,
+            2344005
+          ],
+          "median": 2344005,
+          "p95": 2344005
+        },
+        "coldLaunchMs": {
+          "samples": [
+            1711,
+            2005,
+            1621,
+            1350,
+            1521,
+            1407,
+            1868
+          ],
+          "median": 1621,
+          "p95": 2005
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            1635,
+            1944,
+            1555,
+            1280,
+            1454,
+            1338,
+            1804
+          ],
+          "median": 1555,
+          "p95": 1944
+        }
+      }
+    }
+  },
+  "thresholds": {
+    "hermesEvaluationMs": 31,
+    "startupAssetWeightBytes": 2499801,
+    "coldLaunchMs": 1136,
+    "firstAuthoritativeDataMs": 1248
+  },
+  "holdoutValidation": null,
+  "ok": true,
+  "outcome": "pass"
+}

@@ -1,0 +1,294 @@
+{
+  "schemaVersion": "partitime.native-exact-performance-receipt.v2",
+  "profileId": "exact-contract/ios",
+  "claimId": "STEP4.BUDGETS.NATIVE_PERFORMANCE",
+  "claimEligible": true,
+  "quick": false,
+  "recordedAt": "2026-07-27T09:25:48.237Z",
+  "ok": true,
+  "outcome": "pass",
+  "repository": {
+    "sourceDirty": false
+  },
+  "source": {
+    "snapback": {
+      "revision": "b68b26c2c2626ba28ce966c99fa40f646b3901b7",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exact": {
+      "revision": "073985f9f0232a9a44d277ec3ca4ac1437981703",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exactAfterBuild": {
+      "revision": "073985f9f0232a9a44d277ec3ca4ac1437981703",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "snapbackAfterBuild": {
+      "revision": "b68b26c2c2626ba28ce966c99fa40f646b3901b7",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exactAfterRun": {
+      "revision": "073985f9f0232a9a44d277ec3ca4ac1437981703",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "snapbackAfterRun": {
+      "revision": "b68b26c2c2626ba28ce966c99fa40f646b3901b7",
+      "dirty": false,
+      "dirtyPaths": [],
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "environment": {
+    "hardware": "arm64",
+    "model": "Mac17,6",
+    "os": "26.5.2",
+    "osBuild": "25F84",
+    "xcode": [
+      "Xcode 26.6",
+      "Build version 17F113"
+    ],
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "simulator": {
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "name": "iPhone 17 Pro",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3",
+      "available": true
+    }
+  },
+  "lane": {
+    "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+    "buildConfiguration": "Release",
+    "simulatorBuild": true,
+    "artifactMode": "hermes-hbc",
+    "agentLoadedBeforeFirstFrame": false,
+    "debugOverlayEnabled": false,
+    "firstFrameObserver": "native-host",
+    "authoritativeDataObserver": "structured-product-marker"
+  },
+  "observer": {
+    "amendment": {
+      "path": "demos/partiful-matrix/acceptance/native-performance-observer-amendment.2026-07-23.json",
+      "sha256": "a393a93dd96cd18fb17b947a02079dc9b5a568ee6dc924f46f5fb7f6c4b20f7a",
+      "status": "ratified"
+    },
+    "id": "capsec-simulator-performance-observer-v1",
+    "claimUseAuthorized": true,
+    "build": {
+      "exactEnvironment": "EXACT_PARTITIME_NATIVE_PERFORMANCE_OBSERVER=1",
+      "swiftCompileCondition": "EXACT_PARTITIME_NATIVE_PERFORMANCE_OBSERVER",
+      "cargoFeature": "capsec-simulator-performance-observer",
+      "archiveStampPath": "ios/GeneratedLibs/libexact_runtime-sim.a.build-stamp",
+      "archiveStampSha256": "af84a13a36f090fe01e7de5fe9e4819546d83b27626a8f7d44c056be9dc6ad80",
+      "featureBound": true
+    },
+    "runtime": {
+      "id": "capsec-simulator-performance-observer-v1",
+      "markers": {
+        "ibexAuthenticatedSubstitution": true,
+        "ibexLoopbackFetchSubstituted": true,
+        "ibexPostureVerified": true,
+        "exactObserverEnabled": true,
+        "exactObserverRuntimeCreated": true,
+        "exactCarrierDispatchInstalled": true
+      },
+      "diagnosticRuntimeObserved": false,
+      "agentObservedBeforeFirstFrame": false
+    }
+  },
+  "build": {
+    "performed": true,
+    "configuration": "Release",
+    "simulatorBuild": true,
+    "startedAtMs": 1785144395198,
+    "completedAtMs": 1785144403660,
+    "status": 0,
+    "timedOut": false,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutTail": [],
+    "stderrTail": []
+  },
+  "productionBundle": {
+    "kind": "vite-production-rollup-single-entry-iife",
+    "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-production-bundle-VyiKW0/partitime-native.js",
+    "sizeBytes": 3435118,
+    "sha256": "4ae20f32a619aa9de3b5cb23622e3dc7ee5c1307e5a984937f67c3a395f1f18e",
+    "sourceMap": {
+      "sizeBytes": 6660911,
+      "sha256": "c501e506e5612011e0dea2306f988b4baf842e6f3f89414727578324db7d2ce9",
+      "moduleCount": 366,
+      "staticRouteSources": [
+        "../../../../../../Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/native/exact-contract/src/app/routes/index.contract"
+      ]
+    },
+    "dynamicImportCount": 0,
+    "opaqueDynamicImportFallbackCount": 5,
+    "routeDynamicImportFallback": false,
+    "forbiddenDevelopmentMarkers": [],
+    "viteBuild": {
+      "status": 0,
+      "stdoutSha256": "0b5c4a9277a94edf831be5a08dedb582178efc5f0185873f7ab1415326f0c89b",
+      "stderrSha256": "1e2f6f4280742224107e9788f0547b04193ecfa8fe9b91ee382689b8f67ca93f"
+    }
+  },
+  "hbcCompile": {
+    "status": 0,
+    "timedOut": false,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutTail": [],
+    "stderrTail": []
+  },
+  "startupArtifact": {
+    "source": {
+      "kind": "vite-production-rollup-single-entry-iife",
+      "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-production-bundle-VyiKW0/partitime-native.js",
+      "sizeBytes": 3435118,
+      "sha256": "4ae20f32a619aa9de3b5cb23622e3dc7ee5c1307e5a984937f67c3a395f1f18e",
+      "sourceMap": {
+        "sizeBytes": 6660911,
+        "sha256": "c501e506e5612011e0dea2306f988b4baf842e6f3f89414727578324db7d2ce9",
+        "moduleCount": 366,
+        "staticRouteSources": [
+          "../../../../../../Users/ccheever/projects/snapback-llp0063-phase4-visual-remediation-codex/demos/partiful-matrix/native/exact-contract/src/app/routes/index.contract"
+        ]
+      },
+      "dynamicImportCount": 0,
+      "opaqueDynamicImportFallbackCount": 5,
+      "routeDynamicImportFallback": false,
+      "forbiddenDevelopmentMarkers": [],
+      "viteBuild": {
+        "status": 0,
+        "stdoutSha256": "0b5c4a9277a94edf831be5a08dedb582178efc5f0185873f7ab1415326f0c89b",
+        "stderrSha256": "1e2f6f4280742224107e9788f0547b04193ecfa8fe9b91ee382689b8f67ca93f"
+      }
+    },
+    "hbc": {
+      "sizeBytes": 2344005,
+      "sha256": "2c5e5b667e87b1c77886b772207c3345f1066629f584188841151e72b2d3ce55",
+      "hermesBytecodeVersion": 99,
+      "hermesCompilerVersion": "LLVM (http://llvm.org/):\n  LLVH version 8.0.0svn\n  Optimized build\n\nHermes JavaScript compiler.\n  Hermes release version: 1.0.0\n  HBC bytecode version: 99"
+    },
+    "diagnostics": {
+      "moduleCount": 366,
+      "sourceBytesRootIndependent": 3435118,
+      "hbcStatus": "ready",
+      "hbcBytes": 2344005,
+      "hermesBytecodeVersion": 99
+    }
+  },
+  "releaseArtifact": {
+    "path": "../../../../var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/partitime-native-exact-performance-derived/Build/Products/Release-iphonesimulator/ExactApp.app",
+    "kind": "directory",
+    "files": 20,
+    "sizeBytes": 110813832,
+    "sha256": "7a9106950bd313b5d7038f5a3afc1fe8afc8cebb5ab264cbdeda11b5085579e5"
+  },
+  "performance": {
+    "sample": {
+      "definitionVersion": "partitime.native-launch-stage.v2",
+      "lane": {
+        "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+        "buildConfiguration": "Release",
+        "simulatorBuild": true,
+        "artifactMode": "hermes-hbc",
+        "agentLoadedBeforeFirstFrame": false,
+        "debugOverlayEnabled": false,
+        "firstFrameObserver": "native-host",
+        "authoritativeDataObserver": "structured-product-marker"
+      },
+      "hermesEvaluationMs": 110,
+      "startupAssetWeightBytes": 2344005,
+      "coldLaunchMs": 1711,
+      "firstAuthoritativeDataMs": 1635,
+      "launchRequest": {
+        "requestedAtMs": 1785144405984,
+        "commandCompletedAtMs": 1785144406641,
+        "status": 0,
+        "pid": 97544
+      },
+      "events": {
+        "bytecodeEvalBeginAtMs": 1785144407473,
+        "bytecodeEvalEndAtMs": 1785144407583,
+        "firstAppFrameAtMs": 1785144407695,
+        "firstAuthoritativeAtMs": 1785144407619,
+        "productMarkerReceivedAtMs": 1785144407619
+      },
+      "startupAssets": [
+        {
+          "path": "bytecode/partitime-ws8.hbc",
+          "sizeBytes": 2344005,
+          "sha256": "2c5e5b667e87b1c77886b772207c3345f1066629f584188841151e72b2d3ce55"
+        }
+      ],
+      "productMarker": {
+        "schemaVersion": "partitime.native-product-marker.v1",
+        "profileId": "exact-contract/ios",
+        "capabilityClass": "Online",
+        "launchId": "exact-ios-1785144407474",
+        "event": "first-authoritative-data",
+        "details": {
+          "backend": "snapback",
+          "rowCount": 3
+        },
+        "atMs": 1785144407614
+      },
+      "candidateObserver": {
+        "id": "capsec-simulator-performance-observer-v1",
+        "targetAdvertisementSubstituted": true,
+        "rootLoopbackFetchSubstituted": true,
+        "ordinaryAbiPreserved": true,
+        "runtimeMarkers": {
+          "ibexAuthenticatedSubstitution": true,
+          "ibexLoopbackFetchSubstituted": true,
+          "ibexPostureVerified": true,
+          "exactObserverEnabled": true,
+          "exactObserverRuntimeCreated": true,
+          "exactCarrierDispatchInstalled": true
+        },
+        "diagnosticRuntimeObserved": false,
+        "agentObservedBeforeFirstFrame": false
+      }
+    }
+  },
+  "cleanupErrors": [],
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      },
+      "convex": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    }
+  }
+}
