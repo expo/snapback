@@ -496,7 +496,7 @@
       "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs --write",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json",
-        "sha256": "07109ed180a41f93fed1a29550edbcd44bf004b02d1ad2900145c614fe07d0f0"
+        "sha256": "e51bd38b955df904d3f2e28fccaa35f77ce1bc24f469c8b35a8901c4a097d854"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-1--dynamic-keyed-live-query-scopes",
