@@ -1,0 +1,4260 @@
+{
+  "schemaVersion": "partitime.step4-memory-v2.v1",
+  "claimId": "STEP4.MEMORY_V2",
+  "cohort": "holdout",
+  "claimEligible": true,
+  "quick": false,
+  "recordedAt": "2026-07-27T06:30:31.682Z",
+  "methodId": "partitime-ws8-memory-v2",
+  "workloadVersion": "partitime.web-memory-fit.v2",
+  "thresholdFormulaSetId": "partitime-ws8-memory-threshold-formulas-v2",
+  "thresholdSetId": "partitime-ws8-memory-thresholds-v2-sha256-37bf4c66f853daba",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+    "sha256": "8986ab6e3d16c1d5071adafa1e3f2480a2afc4ac3acd8e849256f0ff6ea849e9"
+  },
+  "sampling": {
+    "seed": 381202608,
+    "counts": [
+      1,
+      8,
+      32,
+      64
+    ],
+    "warmupsPerCount": 2,
+    "samplesPerCount": 7,
+    "totalWarmups": 2,
+    "totalSamples": 7,
+    "outlierPolicy": "retain every valid observation; invalidate only a receipt-recorded collector, browser, backend-health, or cleanup failure"
+  },
+  "repository": {
+    "snapbackRevision": "7899450707dfebba3f221277deb17566fcbd2020",
+    "exactRevision": "0956cd05101e6edd4010f2882b62ffc1d7d01e03",
+    "calibrationRevision": "7899450707dfebba3f221277deb17566fcbd2020"
+  },
+  "environment": {
+    "node": "v24.3.0",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "Google Chrome 150.0.7871.186",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "cleanupErrors": [],
+  "cells": {
+    "react:snapback": {
+      "cell": "react:snapback",
+      "total": {
+        "samples": [
+          1532928,
+          1532928,
+          1525072,
+          1524656,
+          1525072,
+          1525072,
+          1525072
+        ],
+        "p95": 1532928
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              32,
+              8,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              8,
+              64,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1330180,
+            "usedSizeBytes": 1408988,
+            "recoveredSizeBytes": 1427544,
+            "recoveryDeltaBytes": 97364,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1330168,
+            "usedSizeBytes": 1562364,
+            "recoveredSizeBytes": 1502152,
+            "recoveryDeltaBytes": 171984,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1317440,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173560,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1317292,
+            "usedSizeBytes": 1632324,
+            "recoveredSizeBytes": 1512352,
+            "recoveryDeltaBytes": 195060,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1331780,
+            "usedSizeBytes": 1562296,
+            "recoveredSizeBytes": 1502164,
+            "recoveryDeltaBytes": 170384,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1338660,
+            "usedSizeBytes": 1647552,
+            "recoveredSizeBytes": 1518080,
+            "recoveryDeltaBytes": 179420,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1331780,
+            "usedSizeBytes": 1504236,
+            "recoveredSizeBytes": 1491724,
+            "recoveryDeltaBytes": 159944,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1330180,
+            "usedSizeBytes": 1408836,
+            "recoveredSizeBytes": 1427528,
+            "recoveryDeltaBytes": 97348,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1331780,
+            "usedSizeBytes": 1408768,
+            "recoveredSizeBytes": 1427540,
+            "recoveryDeltaBytes": 95760,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1317560,
+            "usedSizeBytes": 1632812,
+            "recoveredSizeBytes": 1512332,
+            "recoveryDeltaBytes": 194772,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1329988,
+            "usedSizeBytes": 1561948,
+            "recoveredSizeBytes": 1501716,
+            "recoveryDeltaBytes": 171728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1329988,
+            "usedSizeBytes": 1503888,
+            "recoveredSizeBytes": 1491276,
+            "recoveryDeltaBytes": 161288,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1328720,
+            "usedSizeBytes": 1641916,
+            "recoveredSizeBytes": 1513044,
+            "recoveryDeltaBytes": 184324,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1330508,
+            "usedSizeBytes": 1504468,
+            "recoveredSizeBytes": 1491724,
+            "recoveryDeltaBytes": 161216,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1553100,
+            "recoveredSizeBytes": 1501920,
+            "recoveryDeltaBytes": 184468,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1328828,
+            "usedSizeBytes": 1642036,
+            "recoveredSizeBytes": 1513044,
+            "recoveryDeltaBytes": 184216,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1330180,
+            "usedSizeBytes": 1408836,
+            "recoveredSizeBytes": 1427540,
+            "recoveryDeltaBytes": 97360,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1317456,
+            "usedSizeBytes": 1491260,
+            "recoveredSizeBytes": 1491004,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1330180,
+            "usedSizeBytes": 1562364,
+            "recoveredSizeBytes": 1502164,
+            "recoveryDeltaBytes": 171984,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1491256,
+            "recoveredSizeBytes": 1491000,
+            "recoveryDeltaBytes": 173548,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1317292,
+            "usedSizeBytes": 1632336,
+            "recoveredSizeBytes": 1511952,
+            "recoveryDeltaBytes": 194660,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1329988,
+            "usedSizeBytes": 1408548,
+            "recoveredSizeBytes": 1427188,
+            "recoveryDeltaBytes": 97200,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1328720,
+            "usedSizeBytes": 1562296,
+            "recoveredSizeBytes": 1502164,
+            "recoveryDeltaBytes": 173444,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1330180,
+            "usedSizeBytes": 1504304,
+            "recoveredSizeBytes": 1491724,
+            "recoveryDeltaBytes": 161544,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1387760,
+            "recoveredSizeBytes": 1424728,
+            "recoveryDeltaBytes": 107276,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1317452,
+            "usedSizeBytes": 1632720,
+            "recoveredSizeBytes": 1515628,
+            "recoveryDeltaBytes": 198176,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1328840,
+            "usedSizeBytes": 1562416,
+            "recoveredSizeBytes": 1502152,
+            "recoveryDeltaBytes": 173312,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1438315.8529519888,
+          "slopeBytesPerLogicalSubscription": 3300.4083229174325,
+          "slopeStandardErrorBytes": 227.71676453199095,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3688.806135404958,
+          "residualSumSquares": 22921562068.279438
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:supabase": {
+      "cell": "react:supabase",
+      "total": {
+        "samples": [
+          1277000,
+          1276976,
+          1277384,
+          1280596,
+          1277384,
+          1277384,
+          1277348
+        ],
+        "p95": 1280596
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              1,
+              32,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              32,
+              1,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              32,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              1,
+              32,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108004,
+            "recoveredSizeBytes": 1129668,
+            "recoveryDeltaBytes": 95720,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352792,
+            "recoveredSizeBytes": 1228736,
+            "recoveryDeltaBytes": 194628,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1272128,
+            "recoveredSizeBytes": 1212800,
+            "recoveryDeltaBytes": 178852,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352780,
+            "recoveredSizeBytes": 1228772,
+            "recoveryDeltaBytes": 194664,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352460,
+            "recoveredSizeBytes": 1228420,
+            "recoveryDeltaBytes": 194472,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108004,
+            "recoveredSizeBytes": 1129668,
+            "recoveryDeltaBytes": 95720,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1272140,
+            "recoveredSizeBytes": 1212800,
+            "recoveryDeltaBytes": 178852,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352780,
+            "recoveredSizeBytes": 1228772,
+            "recoveryDeltaBytes": 194664,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352396,
+            "recoveredSizeBytes": 1228356,
+            "recoveryDeltaBytes": 194408,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352792,
+            "recoveredSizeBytes": 1228736,
+            "recoveryDeltaBytes": 194628,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1272524,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108260,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352768,
+            "recoveredSizeBytes": 1228772,
+            "recoveryDeltaBytes": 194664,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212872,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1147226.5015807662,
+          "slopeBytesPerLogicalSubscription": 3402.348239100065,
+          "slopeStandardErrorBytes": 241.90393201584155,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3814.9439398170603,
+          "residualSumSquares": 25866642266.67895
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:convex": {
+      "cell": "react:convex",
+      "total": {
+        "samples": [
+          1280976,
+          1277444,
+          1277444,
+          1277444,
+          1277480,
+          1277432,
+          1277444
+        ],
+        "p95": 1280976
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              32,
+              8,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              32,
+              8,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              1,
+              32,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352776,
+            "recoveredSizeBytes": 1228760,
+            "recoveryDeltaBytes": 194652,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108244,
+            "recoveredSizeBytes": 1129988,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1352788,
+            "recoveredSizeBytes": 1228736,
+            "recoveryDeltaBytes": 194640,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352788,
+            "recoveredSizeBytes": 1228736,
+            "recoveryDeltaBytes": 194628,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1125784,
+            "recoveryDeltaBytes": 91676,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95904,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272508,
+            "recoveredSizeBytes": 1208668,
+            "recoveryDeltaBytes": 174560,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352776,
+            "recoveredSizeBytes": 1226144,
+            "recoveryDeltaBytes": 192036,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95904,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1272136,
+            "recoveredSizeBytes": 1212800,
+            "recoveryDeltaBytes": 178852,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 1034096,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169084,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108000,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95732,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352468,
+            "recoveredSizeBytes": 1228384,
+            "recoveryDeltaBytes": 194436,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1352392,
+            "recoveredSizeBytes": 1225760,
+            "recoveryDeltaBytes": 191812,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1033936,
+            "usedSizeBytes": 1108000,
+            "recoveredSizeBytes": 1129680,
+            "recoveryDeltaBytes": 95744,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202752,
+            "recoveryDeltaBytes": 168804,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1147180.854643041,
+          "slopeBytesPerLogicalSubscription": 3403.5157414895953,
+          "slopeStandardErrorBytes": 241.6820362093003,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3815.73297272483,
+          "residualSumSquares": 25819209660.528255
+        },
+        "cleanupOk": true
+      }
+    },
+    "react:sqlite": {
+      "cell": "react:sqlite",
+      "total": {
+        "samples": [
+          1277380,
+          1276996,
+          1277368,
+          1277380,
+          1277368,
+          1277004,
+          1277368
+        ],
+        "p95": 1277380
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 1033992,
+            "usedSizeBytes": 1352392,
+            "recoveredSizeBytes": 1228288,
+            "recoveryDeltaBytes": 194296,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 1033992,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202696,
+            "recoveryDeltaBytes": 168704,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1108000,
+            "recoveredSizeBytes": 1129668,
+            "recoveryDeltaBytes": 95720,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1233192,
+            "recoveredSizeBytes": 1205864,
+            "recoveryDeltaBytes": 231648,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 974204,
+            "usedSizeBytes": 1173536,
+            "recoveredSizeBytes": 1195760,
+            "recoveryDeltaBytes": 221556,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1272520,
+            "recoveredSizeBytes": 1213216,
+            "recoveryDeltaBytes": 179108,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1352776,
+            "recoveredSizeBytes": 1228704,
+            "recoveryDeltaBytes": 194552,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129920,
+            "recoveryDeltaBytes": 95768,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202764,
+            "recoveryDeltaBytes": 168816,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1073004,
+            "recoveredSizeBytes": 1125540,
+            "recoveryDeltaBytes": 151324,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 974204,
+            "usedSizeBytes": 1233204,
+            "recoveredSizeBytes": 1205876,
+            "recoveryDeltaBytes": 231672,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1313524,
+            "recoveredSizeBytes": 1221496,
+            "recoveryDeltaBytes": 247280,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1313204,
+            "recoveredSizeBytes": 1221112,
+            "recoveryDeltaBytes": 246992,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 1033992,
+            "usedSizeBytes": 1212484,
+            "recoveredSizeBytes": 1202696,
+            "recoveryDeltaBytes": 168704,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1073004,
+            "recoveredSizeBytes": 1125552,
+            "recoveryDeltaBytes": 151336,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1232884,
+            "recoveredSizeBytes": 1205492,
+            "recoveryDeltaBytes": 231372,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 1033948,
+            "usedSizeBytes": 1272136,
+            "recoveredSizeBytes": 1212800,
+            "recoveryDeltaBytes": 178852,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1352840,
+            "recoveredSizeBytes": 1228836,
+            "recoveryDeltaBytes": 194728,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 974120,
+            "usedSizeBytes": 1173216,
+            "recoveredSizeBytes": 1195376,
+            "recoveryDeltaBytes": 221256,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1313460,
+            "recoveredSizeBytes": 1221432,
+            "recoveryDeltaBytes": 247216,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1212868,
+            "recoveredSizeBytes": 1203180,
+            "recoveryDeltaBytes": 169072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1233204,
+            "recoveredSizeBytes": 1205876,
+            "recoveryDeltaBytes": 231660,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 1034108,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1130000,
+            "recoveryDeltaBytes": 95892,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1173536,
+            "recoveredSizeBytes": 1195760,
+            "recoveryDeltaBytes": 221544,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 974216,
+            "usedSizeBytes": 1313512,
+            "recoveredSizeBytes": 1221496,
+            "recoveryDeltaBytes": 247280,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 1033992,
+            "usedSizeBytes": 1272136,
+            "recoveredSizeBytes": 1212732,
+            "recoveryDeltaBytes": 178740,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 1034152,
+            "usedSizeBytes": 1108256,
+            "recoveredSizeBytes": 1129932,
+            "recoveryDeltaBytes": 95780,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 1133657.396367914,
+          "slopeBytesPerLogicalSubscription": 3232.948165576062,
+          "slopeStandardErrorBytes": 265.99788321158,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 3686.6389431436305,
+          "residualSumSquares": 31275953785.28516
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:snapback": {
+      "cell": "contract:snapback",
+      "total": {
+        "samples": [
+          2047616,
+          2047616,
+          2045936,
+          2045996,
+          2045920,
+          2045996,
+          2045996
+        ],
+        "p95": 2047616
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              32,
+              8,
+              1,
+              64
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              32,
+              64,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              8,
+              1,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              32,
+              64,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 857940,
+            "recoveredSizeBytes": 852312,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 898660,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 898660,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 898660,
+            "recoveredSizeBytes": 883384,
+            "recoveryDeltaBytes": 31072,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 885304,
+            "recoveredSizeBytes": 876212,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 852312,
+            "usedSizeBytes": 857940,
+            "recoveredSizeBytes": 852312,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 915648,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 852332,
+            "usedSizeBytes": 885292,
+            "recoveredSizeBytes": 876200,
+            "recoveryDeltaBytes": 23868,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 898724,
+            "recoveredSizeBytes": 883448,
+            "recoveryDeltaBytes": 31104,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 852344,
+            "usedSizeBytes": 857972,
+            "recoveredSizeBytes": 852344,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 868727.8753032865,
+          "slopeBytesPerLogicalSubscription": 787.6020292625542,
+          "slopeStandardErrorBytes": 65.8564621678416,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 899.9279965523439,
+          "residualSumSquares": 1917127490.1871448
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:supabase": {
+      "cell": "contract:supabase",
+      "total": {
+        "samples": [
+          1743824,
+          1743824,
+          1743824,
+          1743800,
+          1743728,
+          1743748,
+          1743832
+        ],
+        "p95": 1743832
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              1,
+              64,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              32,
+              8,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              64,
+              8,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              32,
+              1,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              8,
+              32,
+              1,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              8,
+              64,
+              1,
+              32
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567371.0359532387,
+          "slopeBytesPerLogicalSubscription": 840.1782221895446,
+          "slopeStandardErrorBytes": 80.07282125227692,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.7518674282107,
+          "residualSumSquares": 2834160641.7010555
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:convex": {
+      "cell": "contract:convex",
+      "total": {
+        "samples": [
+          1744312,
+          1744300,
+          1744312,
+          1744300,
+          1744204,
+          1744216,
+          1744312
+        ],
+        "p95": 1744312
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              8,
+              32,
+              64,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              64,
+              32,
+              1,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              8,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              64,
+              8,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              1,
+              64,
+              8,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              64,
+              1,
+              8,
+              32
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567370.1771928535,
+          "slopeBytesPerLogicalSubscription": 840.1673994559222,
+          "slopeStandardErrorBytes": 80.06763897628922,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.7322057113827,
+          "residualSumSquares": 2833793802.4382906
+        },
+        "cleanupOk": true
+      }
+    },
+    "contract:sqlite": {
+      "cell": "contract:sqlite",
+      "total": {
+        "samples": [
+          1743816,
+          1743816,
+          1743720,
+          1743816,
+          1743816,
+          1743816,
+          1743816
+        ],
+        "p95": 1743816
+      },
+      "marginal": {
+        "runOrders": [
+          {
+            "kind": "warmup",
+            "round": 1,
+            "counts": [
+              8,
+              64,
+              32,
+              1
+            ]
+          },
+          {
+            "kind": "warmup",
+            "round": 2,
+            "counts": [
+              8,
+              64,
+              1,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 1,
+            "counts": [
+              8,
+              1,
+              32,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 2,
+            "counts": [
+              64,
+              32,
+              8,
+              1
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 3,
+            "counts": [
+              1,
+              64,
+              32,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 4,
+            "counts": [
+              1,
+              8,
+              64,
+              32
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 5,
+            "counts": [
+              32,
+              1,
+              8,
+              64
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 6,
+            "counts": [
+              32,
+              1,
+              64,
+              8
+            ]
+          },
+          {
+            "kind": "sample",
+            "round": 7,
+            "counts": [
+              32,
+              1,
+              8,
+              64
+            ]
+          }
+        ],
+        "observations": [
+          {
+            "round": 1,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 1,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 2,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616896,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 3,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 4,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 599972,
+            "recoveredSizeBytes": 578532,
+            "recoveryDeltaBytes": 30120,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586584,
+            "recoveredSizeBytes": 577368,
+            "recoveryDeltaBytes": 28956,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 5,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 6,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 32,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 600004,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 1,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 554164,
+            "recoveredSizeBytes": 548412,
+            "recoveryDeltaBytes": 0,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 8,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 586616,
+            "recoveredSizeBytes": 577400,
+            "recoveryDeltaBytes": 28988,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          },
+          {
+            "round": 7,
+            "count": 64,
+            "baselineBytes": 548412,
+            "usedSizeBytes": 616928,
+            "recoveredSizeBytes": 578564,
+            "recoveryDeltaBytes": 30152,
+            "recoveredHeapRole": "diagnostic-high-water-cache-evidence-only",
+            "cleanupSnapshot": {
+              "active": 0,
+              "ready": 0
+            },
+            "cleanupPass": true
+          }
+        ],
+        "fit": {
+          "estimator": "ordinary-least-squares-with-intercept",
+          "observationCount": 28,
+          "degreesOfFreedom": 26,
+          "interceptBytes": 567369.3184324681,
+          "slopeBytesPerLogicalSubscription": 840.1565767223,
+          "slopeStandardErrorBytes": 80.06245527521736,
+          "oneSidedT95": 1.705618,
+          "upper95BytesPerLogicalSubscription": 976.7125415639057,
+          "residualSumSquares": 2833426886.0499144
+        },
+        "cleanupOk": true
+      }
+    }
+  },
+  "thresholds": null,
+  "holdoutValidation": {
+    "calibration": {
+      "revision": "7899450707dfebba3f221277deb17566fcbd2020",
+      "path": "demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json",
+      "sha256": "faf153e1a636bd56a6d9e3a44d110fd1f0f9fe547dbd44b842da2e03b0e5baab",
+      "thresholdSetId": "partitime-ws8-memory-thresholds-v2-sha256-37bf4c66f853daba"
+    },
+    "rows": [
+      {
+        "cell": "contract:snapback",
+        "metricName": "warmHeapTotalBytesP95",
+        "actual": 2047616,
+        "threshold": 1686220,
+        "pass": false
+      },
+      {
+        "cell": "contract:snapback",
+        "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+        "actual": 899.9279965523439,
+        "threshold": 4146,
+        "pass": true
+      },
+      {
+        "cell": "contract:supabase",
+        "metricName": "warmHeapTotalBytesP95",
+        "actual": 1743832,
+        "threshold": 1409078,
+        "pass": false
+      },
+      {
+        "cell": "contract:supabase",
+        "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+        "actual": 976.7518674282107,
+        "threshold": 4198,
+        "pass": true
+      },
+      {
+        "cell": "contract:convex",
+        "metricName": "warmHeapTotalBytesP95",
+        "actual": 1744312,
+        "threshold": 1409073,
+        "pass": false
+      },
+      {
+        "cell": "contract:convex",
+        "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+        "actual": 976.7322057113827,
+        "threshold": 4196,
+        "pass": true
+      },
+      {
+        "cell": "contract:sqlite",
+        "metricName": "warmHeapTotalBytesP95",
+        "actual": 1743816,
+        "threshold": 1405126,
+        "pass": false
+      },
+      {
+        "cell": "contract:sqlite",
+        "metricName": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+        "actual": 976.7125415639057,
+        "threshold": 4191,
+        "pass": true
+      }
+    ],
+    "ok": false
+  },
+  "ok": false
+}
