@@ -851,6 +851,7 @@ authorization-invalidation expectation:
       return response({
         connectionId: 'granted-auth',
         connectionToken: 'sct_auth',
+        wireVersion: 'snapback.v1',
         authorizationInvalidation: {
           protocolVersion: 1,
           issuerId,
