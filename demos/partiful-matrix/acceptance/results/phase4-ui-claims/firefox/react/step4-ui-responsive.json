@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "306f5878898a317f9df8a5b6fb65183d72bc7f00",
+    "snapback": "a868d40164d05db251cec51edce82c81f5da56d5",
     "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -197,7 +197,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "8defe3bb643fcded1c5f3e27efdec6f04c17d32b36ce6158758656f4702c3e62"
+      "sha256": "294f6243992dc42d7996555f8f7f4a50c95dbf4ca0b72e99ed0a8f2495dc92f7"
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
@@ -244,7 +244,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "8083399274a651c1294f6140c254608e37c110e5f7eb01a4fa6ce5a99397c6c1",
+  "testInventorySha256": "cd803a863079dc94cd614b6f3c8a51a4621d27cff87743adaaab2b70caf812f5",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -320,7 +320,7 @@
               }
             ],
             "count": 3,
-            "identity": "5879ec7b-3cf4-4e67-ab86-f691e5ec6baa",
+            "identity": "01b873fb-3b54-449e-9341-7a56371e8fb5",
             "path": "/",
             "xs": [
               18
@@ -352,7 +352,7 @@
               }
             ],
             "count": 3,
-            "identity": "5879ec7b-3cf4-4e67-ab86-f691e5ec6baa",
+            "identity": "01b873fb-3b54-449e-9341-7a56371e8fb5",
             "path": "/",
             "xs": [
               35,
@@ -385,7 +385,7 @@
               }
             ],
             "count": 3,
-            "identity": "5879ec7b-3cf4-4e67-ab86-f691e5ec6baa",
+            "identity": "01b873fb-3b54-449e-9341-7a56371e8fb5",
             "path": "/",
             "xs": [
               57,

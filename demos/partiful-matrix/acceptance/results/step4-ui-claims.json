@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-claims/v1",
-  "generatedAt": "2026-07-26T23:55:53.943Z",
+  "generatedAt": "2026-07-27T00:15:59.540Z",
   "revisions": {
-    "snapback": "306f5878898a317f9df8a5b6fb65183d72bc7f00",
+    "snapback": "a868d40164d05db251cec51edce82c81f5da56d5",
     "exact": "4290bacbe2d42ee848b849439654c89665c65c9f"
   },
   "browser": "chrome",
@@ -43,14 +43,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-responsive.json",
-          "receiptSha256": "437b4bcfdc1d1fb0f39ab486ce3ec3a9dcf3211d1af376dce1e5a04d7aae4692"
+          "receiptSha256": "b892ac2ce0cb0f2b6eea5e9795ed0e175ecf9a9520ba23440f0b5919ae1f36f1"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-responsive.json",
-          "receiptSha256": "14c2e13123c60c49d9ff296bcc090ba34397737866cb8325d9fa34ebab7f7526"
+          "receiptSha256": "d1a20ae43dc445f0c5f1aa02f4965d58aaea3b1146e7230937d1dc18f9f725af"
         }
       ]
     },
@@ -63,14 +63,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-keyboard.json",
-          "receiptSha256": "9f9c0471747b38857936c820bfeb191d12a20bb0b2f004deb54f036fa2955a35"
+          "receiptSha256": "45b5b70d668baaba8d64a4dcfa5201d861b3dc1c81fe3ecd826ec35cd4506f6f"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-keyboard.json",
-          "receiptSha256": "f14eb4722a5c69ba70e04c79c80bdac0211462b65d77a3b737abf65b1dbebb87"
+          "receiptSha256": "4d0d3d3d49a01346117e25e811f2169436c5ff54b2779a8f95dde10e514cb310"
         }
       ]
     },
@@ -83,14 +83,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-focus.json",
-          "receiptSha256": "cd86979587c6a64230f2e6402ef4f08214ef926e920d1e59ec25072763de63fb"
+          "receiptSha256": "56039a0489308f1524740fb39b08bfbbab7d2087e83144d62fef2ef7ea5ed735"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-focus.json",
-          "receiptSha256": "407bc79d0912e49650bf3f6b2653414f262121f9bd442c93c3fec52274632494"
+          "receiptSha256": "5e3f8da9ef7de1611635b8ca3e34446e29df39ad7650d55637ff34f22b01a5ba"
         }
       ]
     },
@@ -103,14 +103,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-reduced-motion.json",
-          "receiptSha256": "78cb5eaca035e542b844f172c5dfe467d4eea90905d31357f82827c0eb21e505"
+          "receiptSha256": "6a33d29cf4ef7bd3e3297fc8e673ff5bd196c95a895b64616ba0cc662917af02"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-reduced-motion.json",
-          "receiptSha256": "c59163dc44e4b499b4521e1965e846387c92043388f4686f16badc6e6d00d6e4"
+          "receiptSha256": "4405f959cef76ad3325100e14a6d0b8929539c67617bd28e51879c5df17d8432"
         }
       ]
     },
@@ -123,14 +123,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-a11y.json",
-          "receiptSha256": "4f1f079fe9451bb6526a51110b4a9a7adbcb58fda7ef1a5beafc65335f31b8c3"
+          "receiptSha256": "120425a203d423543e0c55c6372a389b314ebf4d7612c05f1d00092192c362f2"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-a11y.json",
-          "receiptSha256": "c01956f6b04ad8cf99c811261af748d79b64ae4c61c875b8f51f72a050c6faef"
+          "receiptSha256": "01fa08be4b4aa6d4be6167b70f278455a4f34c30a1e233bba56a910602588388"
         }
       ],
       "delta": {
@@ -175,14 +175,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-visual.json",
-          "receiptSha256": "a0b9de3bbf593b5eb5a8896a0dfa63e990af5199e07734f376a4b297049dd25c"
+          "receiptSha256": "bb02c8b18c686d3b5e24bcebb6edd3aa5baf44a3970802f166079af1054888e8"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-visual.json",
-          "receiptSha256": "c2b773a1e0be36dc4accf9503d503fd41c7a2162dd5e7075f2dcdd487608d821"
+          "receiptSha256": "170481c98f35f071a8d910cd7a08735c933e48df5c2db500dddf3dae9ff1e569"
         }
       ],
       "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
