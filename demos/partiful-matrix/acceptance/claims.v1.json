@@ -392,7 +392,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/no-exact-core.mjs --out demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "7cfd91b73801280f809d4f3636652ce7af80e41395da0c7099c361d7e1c257bf"
+        "sha256": "93289b9cbd9f31bdd927647c184e1faf37379e174f120f102f62f303520ecdb1"
       },
       "skip": "forbidden",
       "owner": "LLP 0021#the-adapter-is-product-not-sample-code",
@@ -410,7 +410,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/shared-manifest-contract.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "3ff9331d43244a395bbc99b0e1f2812a86c3494baf35f52a55bd75fa984e8bbb"
+        "sha256": "c85e73948ea290ead9a818b645c55da6ab0f3d5969aa694abfe81892a4f70ee3"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence; Exact counterpart §5.1",
@@ -461,7 +461,7 @@
       "command": "node demos/partiful-matrix/tests/acceptance/finalize-step0.mjs --out demos/partiful-matrix/acceptance/results/step0-complete.json && node demos/partiful-matrix/tests/acceptance/cross-repo-step0.mjs --exact-root ../exact --out demos/partiful-matrix/acceptance/results/step0-cross-repo-validation.json && node demos/partiful-matrix/tests/acceptance/validate-step0.mjs --require-passing",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "a47c76d182deeb865ee213e6006275580bc3739753bf8008c0e469f3dd777076"
+        "sha256": "9afcf0c71982a46a2d6a42418641514f4301f72e95c76f9847a7311ab27da3a3"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#sequence",
@@ -797,11 +797,14 @@
         "contract:snapback"
       ],
       "witnessClass": "agent-operability",
-      "command": null,
-      "artifact": null,
+      "command": "node demos/partiful-matrix/tests/acceptance/final-exact-agent-operability.mjs --exact-root ../exact --exact-revision 27b6ce7cb4855d511222bcd01625d42899631141 --out demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json",
+        "sha256": "a0b69dbbbb29841bb0b8ee5ddd9f6fe90722a89d42f8de2572b0c4a625b43972"
+      },
       "skip": "forbidden",
       "owner": "Exact counterpart phase 5",
-      "status": "pending",
+      "status": "passing",
       "supersededBy": null
     },
     {

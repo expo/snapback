@@ -86,7 +86,7 @@
     },
     {
       "path": "packages/snapback-client/package.test.mjs",
-      "sha256": "de6642910b26b66b654e4e3dbcc4b76b33f364d7c5a6781277e9280a3250fd1c"
+      "sha256": "49f6eee3c5d73028b2cd71c46aa170d39ffa4597a58f699b6e0adfa506f99a4a"
     },
     {
       "path": "packages/snapback-codegen/identifier-validation.test.mjs",

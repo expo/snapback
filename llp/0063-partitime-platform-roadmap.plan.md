@@ -38,6 +38,26 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (FINAL.EXACT_AGENT_OPERABILITY promoted):** 2026-07-26 (the
+Exact-owned mandatory final claim is promoted to `passing` under the shared
+manifest's Exact-claim change control. Exact LLP 0373 already records Phase 5
+complete on the Exact side; the new Snapback integration witness runs the
+failed-RSVP operation suite and the registered agent-operation parity check
+against clean Exact `27b6ce7cb4855d511222bcd01625d42899631141`. The retained
+receipt binds five read-only operations — `exact_contract_bindings`,
+`exact_contract_mutation_outcomes`, `exact_contract_source_map`,
+`exact_contract_verify_claims`, and the one shared `exact_causal_trace`
+surface — plus the owning action, mutation descriptor, typed receipt/error
+outcome, affected query cell, current render branch, source span, structural
+fix-it anchor, and registry-owned HTTP/MCP/typed-client parity. Receipt:
+`demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json`.
+This changes only later-claim evidence metadata, which the frozen semantic
+projection excludes. The current-source rerun of the independently passing
+`STEP0.NO_EXACT_CORE` package witness also refreshes that receipt and the
+self-reference-safe Step-0 aggregate/mirrors mechanically; no Step-0
+semantics, workload, method, threshold, or status changes. Exact
+Phase-4/graduation parity, STEP4.BUDGETS, all three Step-6 verticals, and
+FINAL.IMMUTABLE_REVISION_SET remain red or pending.)
 **Revised (Step 4 collector preflight is non-measuring):** 2026-07-26 (the web-v3 and native-v3 collectors now expose `--validate-only` authority preflights matching the memory-v2 collector. Each verifies the ratified amendment/invalidation identities and frozen method/lane/threshold-set selection, emits a typed validator result, and exits before checking runtime binaries, reading native sample inputs, starting providers/browsers, or writing a receipt. Regression tests prove the requested output path remains absent. This is operational readiness only: it creates no sample, threshold, receipt, or claim evidence.)
 **Revised (Step 4 Exact production-program checkpoint):** 2026-07-26 (Exact
 revision `62a7338c8…`, published to Exact `origin/main`, lands the ratified,

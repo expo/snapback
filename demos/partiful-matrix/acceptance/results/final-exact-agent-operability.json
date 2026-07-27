@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "partitime.exact-agent-operability.v1",
+  "claimId": "FINAL.EXACT_AGENT_OPERABILITY",
+  "ok": true,
+  "authority": {
+    "snapback": "LLP 0063#product-choice-at-the-start-of-the-program",
+    "exact": "Exact LLP 0373#p1-agent-native-inspection-and-repair"
+  },
+  "revisions": {
+    "snapback": "22d26799c015f6c765b46d3eb8e1f907dd870069",
+    "exact": "27b6ce7cb4855d511222bcd01625d42899631141"
+  },
+  "evidence": {
+    "operations": [
+      "exact_contract_bindings",
+      "exact_contract_mutation_outcomes",
+      "exact_contract_source_map",
+      "exact_contract_verify_claims",
+      "exact_causal_trace"
+    ],
+    "failedRsvp": "The Exact contract-inspection suite identifies the owning action, mutation descriptor, typed receipt/error outcome, affected query cell, current render branch, source span, and structural fix-it anchor without browser logs or private runtime objects.",
+    "parity": "The registered Exact agent-registry check requires one matching HTTP route, MCP tool, and typed-client method for every operation and verifies the registry-owned schemas.",
+    "executions": [
+      {
+        "command": "bun test packages/exact-devtools/src/agent/contract-inspection.test.ts packages/exact-devtools/src/agent/causal-trace.test.ts --timeout 30000",
+        "outputSha256": "6656a380ba28eab4edd2a1509f1d43327ff6f1a521f42cb1ac4a68f0029f9f84",
+        "outputBytes": 3973
+      },
+      {
+        "command": "bun scripts/check-agent-registry.mjs",
+        "outputSha256": "2acef57c3dd6a626736ad9d7096c4598000eb68a3c508652f650761e3600bbae",
+        "outputBytes": 1012
+      }
+    ],
+    "exactInputs": [
+      {
+        "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
+        "sha256": "60b38a6b88e71d42e4d4db3822471502b47c314f695e339162b956e4922dc162"
+      },
+      {
+        "path": "exact-verify.json",
+        "sha256": "e97a27dc5fba0e73f5ccd985c6ae4493db82a38362f2bfd3e915a659d0e0ce0a"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/contract-inspection.test.ts",
+        "sha256": "6bb8a0ab8ce2e66c11a6bc000c9a7d546d049083a6b80be4e617c0a6f28abeac"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/contract-inspection.ts",
+        "sha256": "c7433b98dd2f322643062c21e0fdc909f645818bd4f19c47406ed01496afd664"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/causal-trace.test.ts",
+        "sha256": "c372ac0216c3d25fc384216ace21d80f85392f84fe6ffa639f94f0a61b6aeabe"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/causal-trace.ts",
+        "sha256": "1bbf5fad24ab1016685bcca713077fe66e2b4b0d0afdc484c672e3aa91442122"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/operations/registry.ts",
+        "sha256": "ab7d52341e4f0c24699b903c700daaac381fa3e28435a4db8fb4021ebbba9e99"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/server.ts",
+        "sha256": "eba63fd87b28c0375f697e536c61bc41367a46f0623fd1c89730f5f6a2457f44"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/mcp-server.ts",
+        "sha256": "94bcacd1ed9f34be23c467fd4a1236db715c33c2d7eb5a7f2c278e27e2e57e5d"
+      },
+      {
+        "path": "packages/exact-devtools/src/agent/client.ts",
+        "sha256": "ef7995f9949277092b3723e1388e2dfa1e855b29bb15e375a3e975077c49db35"
+      },
+      {
+        "path": "scripts/check-agent-registry.mjs",
+        "sha256": "e38d5963408975c17c74c52af9e5008b8b986aa973e7a973ab550eff90917845"
+      }
+    ],
+    "snapbackInstrument": {
+      "path": "demos/partiful-matrix/tests/acceptance/final-exact-agent-operability.mjs",
+      "sha256": "e6bc6a0643a0ac39e0d6fbee03df59c69f5f1a026b3cd119a061415caa251fc3"
+    }
+  },
+  "nonclaims": [
+    "Exact Phase-4 product-UI exit and the graduation-parity scorecard remain separate and open.",
+    "STEP4.BUDGETS is not satisfied by this receipt.",
+    "STEP6.CHAT, STEP6.DOCUMENTS, and STEP6.COMMERCE are not satisfied by this receipt.",
+    "FINAL.IMMUTABLE_REVISION_SET remains pending until the complete cumulative matrix passes on one pinned two-repository revision set."
+  ],
+  "generatedAt": "2026-07-27T02:25:12.451Z"
+}
