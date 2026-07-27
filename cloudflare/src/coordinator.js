@@ -35,6 +35,7 @@ import { HostContext, physicalIndexName, physicalTableName, validateWriteValues 
 import { nextNominalAfter } from './cron-utils.js';
 import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
 import { compileSubscriptionSelection, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
+import { wireDiagnostic } from './wire-diagnostic.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
   classifyHandlerPlatformFailure,
@@ -101,6 +102,17 @@ const APP_SCHEMA_TABLES = new Map(schema.tables.map((table) => [table.name, tabl
 const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
 const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
+
+// The LLP 0094 §0A.1 kit app-data routes as served by this coordinator.
+// Every non-2xx JSON failure on these paths rides the closed ErrorResponse
+// (error.response.schema.json) — the §0C.6 governance decision; the LLP 0040
+// proof routes (/query, /mutation, /live/stream) and the /_snapback/* system
+// and testing lanes are outside that rule and keep their pinned shapes.
+const KIT_ENVELOPE_ROUTE =
+  /^\/(?:query|mutation|action)\/[A-Za-z0-9_-]+$|^\/live\/[A-Za-z0-9_.-]+\/(?:subscribe|unsubscribe|stream)$|^\/outbox\/[A-Za-z0-9_.-]+$|^\/connection\/open$|^\/app\/(?:ensure|bundle)$/;
+
+// parseJsonObjectRequest option bundle for kit routes (§0C.6 item 7).
+const KIT_PARSE = { errorDialect: 'kit' };
 const MAX_HOST_RESPONSE_BYTES = 1_000_000;
 // The closed v1 target-capability registry (LLP 0058; nine ids). Only ids
 // this registry knows participate in admission: an unknown string is a
@@ -1167,8 +1179,10 @@ export class Coordinator {
   /// TODO(rqs-register-cloudflare): land with the LLP 0077-class credential
   /// story for this arm (LLP 0092 §0D.3).
   appBundle(payload) {
-    const failure = (status, code, message) =>
-      json(status, { ok: false, diagnostic: { code, severity: 'error', subsystem: 'realtime', message } });
+    // Closed ErrorResponse on this kit route (LLP 0094 §0C.6 governance):
+    // no top-level ok marker; the SNAPBACK_BUNDLE_* family classifies as
+    // "realtime" in wire-diagnostic.js, preserving the served subsystem.
+    const failure = (status, code, message) => kitError(status, code, message);
     const mode = payload.mode === undefined ? 'read' : payload.mode;
     if (mode !== 'read' && mode !== 'register') {
       return failure(400, 'SNAPBACK_BUNDLE_MODE_INVALID', 'mode must be "read" or "register"');
@@ -1282,16 +1296,18 @@ export class Coordinator {
       return await this.route(request);
     } catch (error) {
       // A thrown coded refusal (e.g. capability admission at function
-      // resolution) surfaces as a typed diagnostic, never a bare 500.
+      // resolution) surfaces as a typed diagnostic, never a bare 500. Kit
+      // routes emit the closed ErrorResponse (LLP 0094 §0C.6 governance);
+      // proof/system lanes keep the top-level ok marker.
       if (error && typeof error.snapbackCode === 'string') {
-        return json(error.snapbackCode === 'SNAPBACK_CAPABILITY_UNSUPPORTED' ? 503 : 400, {
+        const status = error.snapbackCode === 'SNAPBACK_CAPABILITY_UNSUPPORTED' ? 503 : 400;
+        const message = String(error.message || 'coded refusal');
+        if (KIT_ENVELOPE_ROUTE.test(path)) {
+          return kitError(status, error.snapbackCode, message, error.snapbackDetails ?? null);
+        }
+        return json(status, {
           ok: false,
-          diagnostic: {
-            code: error.snapbackCode,
-            severity: 'error',
-            subsystem: 'runtime',
-            message: String(error.message || 'coded refusal'),
-          },
+          diagnostic: wireDiagnostic(error.snapbackCode, message),
         });
       }
       const failure = classifyPlatformError(error, { maxRowBytes: MAX_ROW_BYTES });
@@ -1323,6 +1339,11 @@ export class Coordinator {
       path !== '/_snapback/test/socket-limit-upgrade' &&
       path !== '/_snapback/api/config/status'
     ) {
+      // Kit routes carry the closed ErrorResponse; the proof/system lanes
+      // keep the pinned {ok:false, code, message, details} refusal shape.
+      if (KIT_ENVELOPE_ROUTE.test(path)) {
+        return kitError(409, startupRefusal.code, startupRefusal.message, startupRefusal.details ?? null);
+      }
       return json(409, startupRefusal);
     }
     if (path === '/_snapback/api/config/status') {
@@ -1690,7 +1711,7 @@ export class Coordinator {
     // like the other app-data JSON routes). Read mode only on this arm —
     // see appBundle for the register-mode deferral.
     if (path === '/app/bundle') {
-      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.appBundle(payload)));
+      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.appBundle(payload)), KIT_PARSE);
     }
     if (path === '/query') {
       return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleQuery(payload)));
@@ -1711,11 +1732,11 @@ export class Coordinator {
     {
       const kitQuery = path.match(/^\/query\/([A-Za-z0-9_-]+)$/);
       if (kitQuery) {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)), KIT_PARSE);
       }
       const kitMutation = path.match(/^\/mutation\/([A-Za-z0-9_-]+)$/);
       if (kitMutation) {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)), KIT_PARSE);
       }
       // The generated client.action transport (LLP 0049 Phase 2). NOT wrapped
       // in runExclusive: executeAction stages under the mutex, runs the
@@ -1726,14 +1747,20 @@ export class Coordinator {
       if (kitAction) {
         return this.withJsonObject(request, async (payload) => {
           const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
-          return json(outcome.diagnostic?.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, outcome);
-        });
+          // The kind-mismatch refusal is a non-2xx kit-route failure and rides
+          // the closed ErrorResponse; ordinary action outcomes (including
+          // failed ones) keep their 200 outcome envelope.
+          if (outcome.diagnostic?.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH') {
+            return kitError(400, outcome.diagnostic.code, outcome.diagnostic.message, outcome.diagnostic.details ?? null);
+          }
+          return json(200, outcome);
+        }, KIT_PARSE);
       }
       if (path === '/connection/open') {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitOpenConnection(payload)));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitOpenConnection(payload)), KIT_PARSE);
       }
       if (path === '/app/ensure') {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitEnsureApp(payload)));
+        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitEnsureApp(payload)), KIT_PARSE);
       }
       const kitSubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/subscribe$/);
       if (kitSubscribe) {
@@ -1741,7 +1768,7 @@ export class Coordinator {
           const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
           if (denied) return denied;
           return this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload));
-        });
+        }, KIT_PARSE);
       }
       const kitUnsubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/unsubscribe$/);
       if (kitUnsubscribe) {
@@ -1749,7 +1776,7 @@ export class Coordinator {
           const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
           if (denied) return denied;
           return this.runExclusive(() => this.kitUnsubscribe(payload));
-        });
+        }, KIT_PARSE);
       }
       const kitStream = path.match(/^\/live\/([A-Za-z0-9_.-]+)\/stream$/);
       if (kitStream) {
@@ -4396,14 +4423,43 @@ export class Coordinator {
     return json(200, { version: result.observedVersion ?? this.currentVersion(), rows: result.value });
   }
 
-  // POST /mutation/:name — the kit's MutationOutput shape
-  // { version, changed_count, result }.
+  // POST /mutation/:name — the committed MutationResponse envelope
+  // { version, changed_count, result, receipt }.
+  // @ref LLP 0094#0C.6 — item 1: the hosted arm emits the required terminal
+  //   mutation receipt (mutation.output.schema.json), mirroring the local
+  //   record_mutation_commit facts (src/local.rs). Every field is honest on
+  //   this arm: the id is minted per invocation (hosted has no
+  //   client-mutation replay ledger, so clientMutationId is never echoed),
+  //   affectedTables comes from the DECLARED write set (null when none is
+  //   declared — explicitly unknown, never a silently-empty list), and
+  //   correlation echoes the caller's opaque value verbatim.
   async kitMutation(name, payload) {
+    const receivedAtMs = Date.now();
     const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {});
     if (!result.ok) return kitFailure(result);
     const commit = this.commit(result.host);
     await this.fanOut(commit);
-    return json(200, { version: commit.version, changed_count: commit.changes.length, result: result.value });
+    const fn = this.functionByName(name);
+    const declaredTables =
+      fn && Array.isArray(fn.tables) && fn.tables.length > 0 ? [...fn.tables] : null;
+    const receipt = {
+      kind: 'mutation',
+      mutationId: `mut_${crypto.randomUUID().replaceAll('-', '')}`,
+      mutation: name,
+      outcome: 'confirmed',
+      rollbackReason: null,
+      affectedTables: declaredTables,
+      snapshotVersion: commit.version,
+      transport: 'http',
+      correlation: payload && payload.correlation !== undefined ? payload.correlation : null,
+      receivedAtMs,
+    };
+    return json(200, {
+      version: commit.version,
+      changed_count: commit.changes.length,
+      result: result.value,
+      receipt,
+    });
   }
 
   // POST /live/:name/subscribe — snapshot-with-subscribe under the invocation
@@ -4518,15 +4574,26 @@ export class Coordinator {
         'a current authenticated WebSocket session is required before unsubscribing'
       );
     }
+    // @ref LLP 0094#0C.6 — item 2: the committed LiveUnsubscribeOutput shape
+    //   (subscription_id + disposed). Unlike the local arm, an unknown or
+    //   foreign id is not an error here (the session-scoped delete is the
+    //   ownership cut): it answers disposed:false honestly.
+    const subscriptionId = String(payload.subscription_id || '');
+    const existing = [...this.sql.exec(
+      'SELECT 1 AS present FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
+      subscriptionId,
+      connectionId,
+      socketSessionId
+    )];
     this.sql.exec(
       'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
-      String(payload.subscription_id || ''),
+      subscriptionId,
       connectionId,
       socketSessionId
     );
     // Last-unsubscribe cancels the warm-poll alarm (LLP 0049 Phase 3).
     await this.reconcileCronActivation();
-    return json(200, { removed: true });
+    return json(200, { subscription_id: subscriptionId, disposed: existing.length > 0 });
   }
 
   // GET /live/:connectionId/stream — the kit's managed shared socket. The
@@ -4763,22 +4830,39 @@ export class Coordinator {
   }
 
   async subscribe(ws, connectionId, parsed, socketSessionId = null) {
+    // @ref LLP 0094#0A.1 — §0C.6 item 6: every in-band reply on a KIT socket
+    //   is kind-tagged kit dialect (matching current_as_of/pong); errors
+    //   carry the fully-filled committed Diagnostic. Proof sockets keep the
+    //   LLP 0040 pinned type-tagged frames byte-for-byte.
+    const isKit = this.socketProtocolFor(ws) === 'kit';
+    const sendKitError = (code, message, details = null) =>
+      ws.send(JSON.stringify({ kind: 'error', diagnostic: wireDiagnostic(code, message, details) }));
     const fn = this.functionByName(parsed.name);
     if (!fn) {
-      ws.send(JSON.stringify({ type: 'error', code: 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', name: parsed.name }));
+      if (isKit) {
+        sendKitError('SNAPBACK_LIVE_NOT_A_LIVE_QUERY', `${parsed.name} is not a live query`, { function: parsed.name });
+      } else {
+        ws.send(JSON.stringify({ type: 'error', code: 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', name: parsed.name }));
+      }
       return;
     }
     // @ref LLP 0040#whole-codebase-review-hardening-2026-07-12-eng-24341eng-24369--eng-24387eng-24388 —
     // every invocation boundary reports the same stable diagnostic for a
     // known function whose declared kind is incompatible with the route.
     if (fn.kind !== 'LiveQuery') {
-      ws.send(JSON.stringify({
-        type: 'error',
-        code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
-        message: `${parsed.name} is declared ${fn.kind}, not live query`,
-        details: { function: parsed.name, declaredKind: fn.kind, requestedMode: 'live-query' },
-        name: parsed.name,
-      }));
+      const message = `${parsed.name} is declared ${fn.kind}, not live query`;
+      const details = { function: parsed.name, declaredKind: fn.kind, requestedMode: 'live-query' };
+      if (isKit) {
+        sendKitError('SNAPBACK_FUNCTION_KIND_MISMATCH', message, details);
+      } else {
+        ws.send(JSON.stringify({
+          type: 'error',
+          code: 'SNAPBACK_FUNCTION_KIND_MISMATCH',
+          message,
+          details,
+          name: parsed.name,
+        }));
+      }
       return;
     }
     const argsJson = canonicalJson(parsed.args || {});
@@ -4790,12 +4874,16 @@ export class Coordinator {
       socketSessionId,
     });
     if (!admission.ok) {
-      ws.send(JSON.stringify({
-        type: 'error',
-        code: admission.code,
-        message: admission.message,
-        ...(admission.details ? { details: admission.details } : {}),
-      }));
+      if (isKit) {
+        sendKitError(admission.code, admission.message, admission.details ?? null);
+      } else {
+        ws.send(JSON.stringify({
+          type: 'error',
+          code: admission.code,
+          message: admission.message,
+          ...(admission.details ? { details: admission.details } : {}),
+        }));
+      }
       return;
     }
     // Authoritative initial snapshot BEFORE any delta (LLP 0040 §Acceptance):
@@ -4803,7 +4891,11 @@ export class Coordinator {
     // send the snapshot tagged with that version.
     const result = await this.invokeHandler(parsed.name, 'query', parsed.args);
     if (!result.ok) {
-      ws.send(JSON.stringify({ type: 'error', code: result.code, message: result.message }));
+      if (isKit) {
+        sendKitError(result.code, result.message, result.details ?? null);
+      } else {
+        ws.send(JSON.stringify({ type: 'error', code: result.code, message: result.message }));
+      }
       return;
     }
     if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
@@ -4826,15 +4918,18 @@ export class Coordinator {
       socketSessionId,
     });
     if (!persisted.ok) {
-      ws.send(JSON.stringify({
-        type: 'error',
-        code: persisted.code,
-        message: persisted.message,
-        ...(persisted.details ? { details: persisted.details } : {}),
-      }));
+      if (isKit) {
+        sendKitError(persisted.code, persisted.message, persisted.details ?? null);
+      } else {
+        ws.send(JSON.stringify({
+          type: 'error',
+          code: persisted.code,
+          message: persisted.message,
+          ...(persisted.details ? { details: persisted.details } : {}),
+        }));
+      }
       return;
     }
-    const isKit = this.socketProtocolFor(ws) === 'kit';
     if (decision.currentAsOf) {
       // Rung 1: the caller's held rows are current as of `version` — advance
       // the token without re-sending rows (LLP 0091 §0B.2). Only ever sent
@@ -4860,16 +4955,32 @@ export class Coordinator {
       return;
     }
     ws.send(
-      JSON.stringify({
-        type: 'snapshot',
-        subscriptionId: persisted.subscriptionId,
-        function: parsed.name,
-        version,
-        rows: result.value,
-        connectionKey: connectionId,
-        ...(decision.resume ? { resume: decision.resume } : {}),
-        ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
-      })
+      JSON.stringify(
+        isKit
+          ? {
+              // Kit-dialect snapshot reply: kind-tagged with the same
+              // snake_case members as the kit live_replace/current_as_of
+              // frames; no proof-only connectionKey (the kit socket already
+              // knows its connection identity).
+              kind: 'snapshot',
+              subscription_id: persisted.subscriptionId,
+              function: parsed.name,
+              version,
+              rows: result.value,
+              ...(decision.resume ? { resume: decision.resume } : {}),
+              ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
+            }
+          : {
+              type: 'snapshot',
+              subscriptionId: persisted.subscriptionId,
+              function: parsed.name,
+              version,
+              rows: result.value,
+              connectionKey: connectionId,
+              ...(decision.resume ? { resume: decision.resume } : {}),
+              ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
+            }
+      )
     );
   }
 
@@ -5573,14 +5684,17 @@ function failure(result) {
 // Kit-protocol errors carry the local server's ApiError envelope — a non-2xx
 // status with a structured `diagnostic` — which demos/_kit/client.mjs turns
 // into its coded Error (and keys grant refresh on).
+// @ref LLP 0094#0C.6 — item 3: the inner Diagnostic is fully filled
+//   (code/severity/subsystem/message/details), matching the closed
+//   error.response.schema.json.
 function kitError(status, code, message, details = null) {
-  return json(status, { diagnostic: { code, message, ...(details ? { details } : {}) } });
+  return json(status, { diagnostic: wireDiagnostic(code, message, details) });
 }
 
 function kitFailure(result) {
-  const body = { diagnostic: { code: result.code, message: result.message } };
-  if (result.details) body.diagnostic.details = result.details;
-  return json(clientFailureCode(result.code) ? 400 : 500, body);
+  return json(clientFailureCode(result.code) ? 400 : 500, {
+    diagnostic: wireDiagnostic(result.code, result.message, result.details ?? null),
+  });
 }
 
 function clientFailureCode(code) {
@@ -5601,17 +5715,23 @@ function clientFailureCode(code) {
 
 function requestDiagnostic(status, code, message, details = null) {
   const diagnostic = { code, message, ...(details ? { details } : {}) };
-  // Keep both the proof protocol's top-level code and the kit protocol's
-  // diagnostic envelope so every JSON endpoint has one stable 4xx shape.
+  // Keep both the proof protocol's top-level code and the pinned diagnostic
+  // member so every proof/system JSON endpoint keeps one stable 4xx shape.
+  // Kit routes never take this branch: their parse refusals ride the closed
+  // ErrorResponse via kitError (LLP 0094 §0C.6 item 7).
   return json(status, { ok: false, code, message, diagnostic });
 }
 
-async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
+async function parseJsonObjectRequest(request, { allowEmpty = false, errorDialect = 'proof' } = {}) {
+  // @ref LLP 0094#0C.6 — item 7: kit-route parse refusals emit the closed
+  //   ErrorResponse; the LLP 0040 proof/system lanes keep their pinned
+  //   {ok, code, message, diagnostic} shape.
+  const refuse = errorDialect === 'kit' ? kitError : requestDiagnostic;
   const contentLength = Number(request.headers.get('content-length'));
   if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
     return {
       ok: false,
-      response: requestDiagnostic(
+      response: refuse(
         413,
         'SNAPBACK_REQUEST_TOO_LARGE',
         `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
@@ -5625,7 +5745,7 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
     if (allowEmpty && request.body === null) return { ok: true, value: {} };
     return {
       ok: false,
-      response: requestDiagnostic(
+      response: refuse(
         415,
         'SNAPBACK_CONTENT_TYPE_UNSUPPORTED',
         'JSON endpoints require Content-Type: application/json'
@@ -5647,7 +5767,7 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
           await reader.cancel('SNAPBACK_REQUEST_TOO_LARGE');
           return {
             ok: false,
-            response: requestDiagnostic(
+            response: refuse(
               413,
               'SNAPBACK_REQUEST_TOO_LARGE',
               `JSON request body exceeds the ${MAX_REQUEST_BYTES}-byte limit`,
@@ -5664,7 +5784,7 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
       } catch (_) {}
       return {
         ok: false,
-        response: requestDiagnostic(400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'),
+        response: refuse(400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'),
       };
     }
   }
@@ -5672,7 +5792,7 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
     if (allowEmpty) return { ok: true, value: {} };
     return {
       ok: false,
-      response: requestDiagnostic(400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'),
+      response: refuse(400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'),
     };
   }
 
@@ -5682,13 +5802,13 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
   } catch (_) {
     return {
       ok: false,
-      response: requestDiagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+      response: refuse(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
     };
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {
       ok: false,
-      response: requestDiagnostic(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
+      response: refuse(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
     };
   }
   return { ok: true, value };

@@ -212,6 +212,9 @@ try {
     };
   };
 
+  // Proof/system lanes keep the pinned {ok, code, message, diagnostic}
+  // refusal; kit routes serve the closed ErrorResponse with the fully-filled
+  // committed Diagnostic (LLP 0094 §0C.6 item 7 convergence).
   const diagnostic = (status, diagnosticCode, message, details = null) => ({
     status,
     body: {
@@ -225,67 +228,79 @@ try {
       },
     },
   });
+  const kitDiagnostic = (status, diagnosticCode, message, details = null) => ({
+    status,
+    body: {
+      diagnostic: {
+        code: diagnosticCode,
+        severity: 'error',
+        subsystem: 'server',
+        message,
+        details: details ?? {},
+      },
+    },
+  });
   const bodyFailures = [
     {
       name: 'missing content type',
       request: { body: new Uint8Array([0x7b, 0x7d]), contentType: null },
-      expected: diagnostic(415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'),
+      refusal: [415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'],
     },
     {
       name: 'wrong content type',
       request: { body: '{}', contentType: 'text/plain' },
-      expected: diagnostic(415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'),
+      refusal: [415, 'SNAPBACK_CONTENT_TYPE_UNSUPPORTED', 'JSON endpoints require Content-Type: application/json'],
     },
     {
       name: 'empty required body',
       request: { body: '' },
-      expected: diagnostic(400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'),
+      refusal: [400, 'SNAPBACK_JSON_BODY_REQUIRED', 'a JSON object request body is required'],
     },
     {
       name: 'malformed JSON',
       request: { body: '{"value": nope}' },
-      expected: diagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+      refusal: [400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'],
     },
     {
       name: 'truncated JSON',
       request: { body: '{"truncated":' },
-      expected: diagnostic(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
+      refusal: [400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'],
     },
     {
       name: 'wrong JSON shape',
       request: { body: '[]' },
-      expected: diagnostic(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
+      refusal: [400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'],
     },
     {
       name: 'invalid UTF-8',
       request: { body: new Uint8Array([0x7b, 0x22, 0x78, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d]) },
-      expected: diagnostic(400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'),
+      refusal: [400, 'SNAPBACK_UTF8_INVALID', 'request body is not valid UTF-8'],
     },
     {
       name: 'oversized body',
       transport: 'expect-continue',
       request: { body: JSON.stringify({ padding: 'x'.repeat(4_100_000) }) },
-      expected: diagnostic(
+      refusal: [
         413,
         'SNAPBACK_REQUEST_TOO_LARGE',
         'JSON request body exceeds the 4000000-byte limit',
         { limitBytes: 4_000_000 },
-      ),
+      ],
     },
   ];
   const bodyRoutes = [
-    { name: 'proof query', path: '/query' },
-    { name: 'proof mutation', path: '/mutation' },
-    { name: 'kit query', path: '/query/listNotes' },
-    { name: 'kit mutation', path: '/mutation/addNote' },
-    { name: 'kit action', path: '/action/probeSlowFetch' },
-    { name: 'connection grant', path: '/connection/open' },
-    { name: 'app ensure', path: '/app/ensure' },
-    { name: 'kit live subscribe', path: '/live/listNotes/subscribe' },
-    { name: 'kit live unsubscribe', path: '/live/listNotes/unsubscribe' },
-    { name: 'handler host call', path: '/_snapback/host-call', headers: { 'x-snapback-host-token': 'invalid' } },
-    { name: 'testing action', path: '/_snapback/test/action' },
-    { name: 'operator cron run', path: '/_snapback/api/cron/run', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } },
+    { name: 'proof query', path: '/query', dialect: 'proof' },
+    { name: 'proof mutation', path: '/mutation', dialect: 'proof' },
+    { name: 'kit query', path: '/query/listNotes', dialect: 'kit' },
+    { name: 'kit mutation', path: '/mutation/addNote', dialect: 'kit' },
+    { name: 'kit action', path: '/action/probeSlowFetch', dialect: 'kit' },
+    { name: 'connection grant', path: '/connection/open', dialect: 'kit' },
+    { name: 'app ensure', path: '/app/ensure', dialect: 'kit' },
+    { name: 'kit live subscribe', path: '/live/listNotes/subscribe', dialect: 'kit' },
+    { name: 'kit live unsubscribe', path: '/live/listNotes/unsubscribe', dialect: 'kit' },
+    { name: 'handler host call', path: '/_snapback/host-call', dialect: 'proof', headers: { 'x-snapback-host-token': 'invalid' } },
+    { name: 'testing action', path: '/_snapback/test/action', dialect: 'proof' },
+    { name: 'operator cron run', path: '/_snapback/api/cron/run', dialect: 'proof', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } },
   ];
   for (const route of bodyRoutes) {
     const before = await sideEffectFingerprint();
@@ -295,9 +310,12 @@ try {
         ...failure.request,
         headers: { ...(route.headers || {}), ...(failure.request.headers || {}) },
       });
+      const expected = route.dialect === 'kit'
+        ? kitDiagnostic(...failure.refusal)
+        : diagnostic(...failure.refusal);
       assert.deepEqual(
         actual,
-        failure.expected,
+        expected,
         `${route.name} (${route.path}) did not preserve the exact ${failure.name} diagnostic`,
       );
     }
@@ -317,7 +335,7 @@ try {
       ...emptyBodyFailure.request,
       headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
     }),
-    emptyBodyFailure.expected,
+    diagnostic(...emptyBodyFailure.refusal),
     '/_snapback/api/cron/run must require the same JSON object body as every operator write',
   );
   assert.deepEqual(await sideEffectFingerprint(), beforeEmptyCron, 'empty /_snapback/api/cron/run must not touch the scheduler ledger');

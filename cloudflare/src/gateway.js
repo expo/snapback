@@ -15,6 +15,7 @@
 // (LLP 0049 Phase 0 deploy-time app selector — the 'snapback-app' alias).
 import { Coordinator } from './coordinator.js';
 import { classifyPlatformError, platformFailureResponse } from './platform-errors.js';
+import { wireDiagnostic } from './wire-diagnostic.js';
 import { appMeta, capabilityManifest, functions, routesManifest } from 'snapback-app';
 // Channel A on the Cloudflare arm (LLP 0090 rollout step 4 / LLP 0092 §0E):
 // the gateway owns the HTML response, so it owns the serving seam. The route
@@ -145,8 +146,13 @@ async function gatewayFetch(request, env) {
     }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
+        // @ref LLP 0094#0C.6 — item 8: gateway refusals carry the full
+        //   committed Diagnostic (closed ErrorResponse envelope).
         return json(405, {
-          diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires POST` },
+          diagnostic: wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires POST`, {
+            path,
+            expectedMethod: 'POST',
+          }),
         });
       }
       return forward(stub, `http://coordinator${path}`, request);
@@ -161,13 +167,18 @@ async function gatewayFetch(request, env) {
     // 404: /_snapback/* never falls through to the SPA asset lane, so a
     // proxy's "forward the root, refuse /_snapback/*" rule stays exhaustive.
     if (path === '/_snapback' || path.startsWith('/_snapback/')) {
-      return json(404, { error: 'not found', path });
+      return json(404, {
+        diagnostic: wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
+      });
     }
     if (KIT_ROUTE.test(path)) {
       const expectedMethod = path.startsWith('/outbox/') ? 'GET' : 'POST';
       if (request.method !== expectedMethod) {
         return json(405, {
-          diagnostic: { code: 'SNAPBACK_METHOD_NOT_ALLOWED', message: `${path} requires ${expectedMethod}` },
+          diagnostic: wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires ${expectedMethod}`, {
+            path,
+            expectedMethod,
+          }),
         });
       }
       // Kit routes carry auth headers (x-snapback-connection-token), so the
@@ -180,7 +191,11 @@ async function gatewayFetch(request, env) {
     }
     if (path === '/live/stream' || KIT_STREAM_ROUTE.test(path)) {
       if (request.headers.get('upgrade') !== 'websocket') {
-        return json(426, { error: 'expected websocket upgrade' });
+        // Same code the coordinator's acceptKitSocket mints for its own
+        // pre-upgrade refusal, so the two lanes are indistinguishable.
+        return json(426, {
+          diagnostic: wireDiagnostic('SNAPBACK_UPGRADE_REQUIRED', 'expected websocket upgrade', { path }),
+        });
       }
       return stub.fetch(`http://coordinator${path}${url.search}`, request);
     }
@@ -233,7 +248,9 @@ async function gatewayFetch(request, env) {
       }
       return env.ASSETS.fetch(request);
     }
-    return json(404, { error: 'not found', path });
+    return json(404, {
+      diagnostic: wireDiagnostic('SNAPBACK_ROUTE_UNKNOWN', 'not found', { path }),
+    });
 }
 
 // Assemble the transformed Channel A document, or null to degrade to the
