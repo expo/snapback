@@ -150,10 +150,12 @@ try {
       assert.deepEqual(JSON.parse(init.body), {
         connectionId: 'connection-label',
         authInvalidationProtocol: 1,
+        wireVersion: 'snapback.v1',
       });
       return response({
         connectionId: 'granted-auth',
         connectionToken: 'sct_auth',
+        wireVersion: 'snapback.v1',
         authorizationInvalidation: {
           protocolVersion: 1,
           issuerId,
