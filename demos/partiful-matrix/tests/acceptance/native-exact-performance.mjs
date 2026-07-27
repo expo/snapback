@@ -600,14 +600,26 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
   const staticRouteSources = sourceModules.filter((moduleId) =>
     moduleId.endsWith('/src/app/routes/index.contract'));
   const dynamicImportCount = source.match(/\bimport\s*\(/g)?.length ?? 0;
+  const opaqueDynamicImportFallbackCount =
+    source.match(/Dynamic import is unavailable in Exact release HBC/g)?.length ?? 0;
+  const routeDynamicImportFallback = source.includes(
+    'Dynamic import is unavailable in Exact release HBC: ./routes/index.contract',
+  );
   const forbiddenDevelopmentMarkers = [
     '__exactDevModules',
-    'import.meta.hot',
     '@exact/devtools/agent',
     'agent-bootstrap',
     'agent/server',
-    'Dynamic import is unavailable in Exact release HBC',
   ].filter((marker) => source.includes(marker));
+  const executableImportMetaHot = source.split('\n').some((line) => {
+    const trimmed = line.trimStart();
+    return !trimmed.startsWith('*')
+      && !trimmed.startsWith('//')
+      && line.includes('import.meta.hot');
+  });
+  if (executableImportMetaHot) {
+    forbiddenDevelopmentMarkers.push('import.meta.hot');
+  }
   report.productionBundle = {
     kind: 'vite-production-rollup-single-entry-iife',
     path: relative(repoRoot, sourcePath),
@@ -620,6 +632,8 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
       staticRouteSources,
     },
     dynamicImportCount,
+    opaqueDynamicImportFallbackCount,
+    routeDynamicImportFallback,
     forbiddenDevelopmentMarkers,
     viteBuild: {
       status: build.status,
@@ -636,6 +650,11 @@ async function buildProductionArtifact(gatewayOrigin, witnessOrigin) {
     dynamicImportCount,
     0,
     'Exact production Rollup graph retains dynamic imports and cannot form the ratified single-HBC carrier',
+  );
+  assert.equal(
+    routeDynamicImportFallback,
+    false,
+    'Exact production Rollup graph replaced the generated Contract route with a runtime rejection',
   );
   assert.deepEqual(
     staticRouteSources.map((moduleId) => moduleId.slice(moduleId.lastIndexOf('/src/'))),

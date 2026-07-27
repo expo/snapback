@@ -9,6 +9,7 @@ import {
 import { createReactCompilerBabelTransformPlugin } from '@exact/devtools/react-compiler-babel';
 import {
   createHermesBundleConfig,
+  createHermesDynamicImportFallbackBabelPlugin,
   createHermesEs5BabelPlugin,
 } from '@exact/devtools/hermes-bundle-config';
 import { exactPlatformVariantBuildPlugin } from './node_modules/@exact/devtools/src/platform-variant-build-plugin.ts';
@@ -55,5 +56,13 @@ export default defineConfig(createHermesBundleConfig({
   // The fallback transform is only for graphs whose imports are intentionally
   // opaque at build time; applying it here converted the generated Contract
   // route loader into an unconditional runtime rejection.
-  rolldownPlugins: [createHermesEs5BabelPlugin()],
+  rolldownPlugins: [
+    createHermesEs5BabelPlugin({
+      plugins: [
+        createHermesDynamicImportFallbackBabelPlugin({
+          preserveLiteralImports: true,
+        }),
+      ],
+    }),
+  ],
 }));
