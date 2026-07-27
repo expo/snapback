@@ -44,4 +44,5 @@ pub mod stream_attempt;
 pub mod value_expr;
 pub(crate) mod warm_vm;
 pub mod wire_fixtures;
+pub mod wire_version;
 pub mod workerd_exec;

@@ -2746,6 +2746,14 @@ struct ConnectionGrantRecord {
     hosted_sender: Option<HostedSenderGrantBinding>,
     authorization_invalidation:
         Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
+    /// The lineage's explicit wire-version binding: `Some(token)` when the
+    /// first open carried a known offer, `None` for a legacy (offerless-open)
+    /// lineage. Fixed at first open; no re-open changes it.
+    ///
+    /// @ref LLP 0094#0b3-the-wireversion-open-time-offer — binding is once,
+    ///   at open, and immutable for the grant lineage; legacy is implicitly
+    ///   v1 for the equality rules but never upgraded in place.
+    wire_version: Option<String>,
 }
 
 /// The sender half of a `BoundGrantAuthorityV2` session grant: the custody
@@ -3131,6 +3139,10 @@ struct ConnectionOpenAttempt<'a> {
     now_ms: u64,
     monotonic_now: Instant,
     auth_invalidation_protocol: Option<u32>,
+    /// A validated *known* wire-version offer (the handler refuses unknown
+    /// tokens before the registry runs, preserving §0B.3's
+    /// classification-before-equality precedence). `None` = offerless.
+    wire_version_offer: Option<String>,
     admission: Option<&'a AdmissionLease>,
 }
 
@@ -3152,12 +3164,20 @@ impl<'a> ConnectionOpenAttempt<'a> {
             now_ms,
             monotonic_now,
             auth_invalidation_protocol,
+            wire_version_offer: None,
             admission: None,
         }
     }
 
     fn with_admission(mut self, admission: &'a AdmissionLease) -> Self {
         self.admission = Some(admission);
+        self
+    }
+
+    /// Attach a validated known wire-version offer (LLP 0094 §0B.3). Callers
+    /// that never offer (in-crate embeddings, the bundle mint) stay legacy.
+    fn with_wire_version(mut self, wire_version_offer: Option<String>) -> Self {
+        self.wire_version_offer = wire_version_offer;
         self
     }
 }
@@ -4059,6 +4079,18 @@ pub struct ConnectionGrant {
     )]
     pub authorization_invalidation:
         Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
+    /// Bound-wire-version witness (LLP 0094 §0B.3): present on every open and
+    /// re-open response of an explicitly bound lineage, never on a legacy
+    /// (offerless-open) lineage. Echo present ⇔ explicitly bound.
+    ///
+    /// @ref LLP 0094#0b3-the-wireversion-open-time-offer — the additive echo
+    ///   is the hosted arm's only runtime version witness (§0B.6).
+    #[serde(
+        rename = "wireVersion",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub wire_version: Option<String>,
 }
 
 impl std::fmt::Debug for ConnectionGrant {
@@ -4073,6 +4105,7 @@ impl std::fmt::Debug for ConnectionGrant {
                 "authorization_invalidation",
                 &self.authorization_invalidation,
             )
+            .field("wire_version", &self.wire_version)
             .finish()
     }
 }
@@ -4092,10 +4125,21 @@ pub struct OpenConnectionRequest {
     /// server response and from all receipt/capsule schemas.
     #[serde(default, alias = "previous_token")]
     pub previous_token: Option<String>,
-    /// Exact must-understand offer. Missing or any value other than v1 opens a
-    /// legacy connection that cannot admit session-mode auth-scoped live work.
+    /// Exact must-understand offer. Missing opens a legacy connection that
+    /// cannot admit session-mode auth-scoped live work; a present unknown
+    /// value refuses (`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED`).
+    ///
+    /// @ref LLP 0094#0c5-authinvalidationprotocol-decided-not-inherited — from
+    ///   B1 both open-time offer fields follow one matrix: known binds,
+    ///   unknown refuses, absent degrades to legacy.
     #[serde(default, alias = "auth_invalidation_protocol")]
     pub auth_invalidation_protocol: Option<u32>,
+    /// Exact wire-version offer (LLP 0094 §0B.3): a known token binds the
+    /// connection lineage, an unknown token refuses
+    /// (`SNAPBACK_WIRE_VERSION_UNSUPPORTED`), absent opens a legacy lineage
+    /// implicitly bound to v1 for the socket-equality rule.
+    #[serde(default, alias = "wire_version")]
+    pub wire_version: Option<String>,
 }
 
 impl std::fmt::Debug for OpenConnectionRequest {
@@ -4111,6 +4155,7 @@ impl std::fmt::Debug for OpenConnectionRequest {
                 "auth_invalidation_protocol",
                 &self.auth_invalidation_protocol,
             )
+            .field("wire_version", &self.wire_version)
             .finish()
     }
 }
@@ -4639,6 +4684,7 @@ impl ConnectionRegistry {
             now_ms,
             monotonic_now,
             auth_invalidation_protocol,
+            wire_version_offer,
             admission,
         } = attempt;
         let PreparedConnectionOpenAuthority {
@@ -4692,6 +4738,34 @@ impl ConnectionRegistry {
                         "the previous connection token is bound to different authority",
                     ));
                 }
+                // Re-open matrix (LLP 0094 §0B.3): the binding fixed at first
+                // open is immutable for the lineage. The offer reaching here
+                // is already classified known, so a present offer that does
+                // not equal the lineage's bound version — explicit, or the
+                // implicit v1 of a legacy lineage — is exactly a mismatch
+                // (never an unknown-token refusal, which the handler owns).
+                //
+                // @ref LLP 0094#0b3-the-wireversion-open-time-offer — a
+                //   changed offer under `previousToken` refuses and leaves
+                //   the existing connection, socket, and subscriptions
+                //   undisturbed; a confirming offer on a legacy lineage never
+                //   upgrades it.
+                let lineage_wire_version = grants
+                    .grants
+                    .get(id)
+                    .and_then(|existing| existing.wire_version.clone());
+                if let Some(offer) = wire_version_offer.as_deref() {
+                    let bound_version = lineage_wire_version
+                        .as_deref()
+                        .unwrap_or(crate::wire_version::WIRE_VERSION_V1);
+                    if offer != bound_version {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_WIRE_VERSION_MISMATCH",
+                            "realtime",
+                            "the wire-version offer does not equal this connection lineage's bound version; open a fresh connection to change versions",
+                        ));
+                    }
+                }
                 let existing = grants
                     .grants
                     .get_mut(id)
@@ -4708,6 +4782,9 @@ impl ConnectionRegistry {
                         connection_id: id.clone(),
                         connection_token,
                         authorization_invalidation,
+                        // Echo ⇔ explicit binding: a legacy lineage's
+                        // confirming re-open offer produces no echo.
+                        wire_version: lineage_wire_version,
                     },
                     grant_id,
                     newly_minted: false,
@@ -4776,6 +4853,7 @@ impl ConnectionRegistry {
                     used: false,
                     socket_teardown: None,
                     authorization_invalidation: authorization_invalidation.clone(),
+                    wire_version: wire_version_offer.clone(),
                 },
             );
             Ok(OpenedConnectionGrant {
@@ -4783,6 +4861,7 @@ impl ConnectionRegistry {
                     connection_id,
                     connection_token,
                     authorization_invalidation,
+                    wire_version: wire_version_offer.clone(),
                 },
                 grant_id,
                 newly_minted: true,
@@ -5484,8 +5563,9 @@ const SENDER_PROOF_SUBPROTOCOL_PREFIX: &str = "snapback.sender-proof.";
 /// The negotiated live-stream subprotocol. The kit always offers this
 /// alongside the token subprotocol so the server has a legal echo (a browser
 /// fails the connection when it offered subprotocols and the server selected
-/// none).
-const LIVE_STREAM_SUBPROTOCOL: &str = "snapback.v1";
+/// none). Byte-identical to the wire-version token (LLP 0094 §0B.1): the
+/// socket offer IS the wire-version offer.
+const LIVE_STREAM_SUBPROTOCOL: &str = crate::wire_version::WIRE_VERSION_V1;
 const MAX_LIVE_SOCKET_FRAME_BYTES: usize = 64 * 1_024;
 const MAX_CONNECTION_GRANTS: usize = 16_384;
 const CONNECTION_GRANT_IDLE_TTL_MS: u64 = CONNECTION_IDLE_TTL_MS;
@@ -5651,15 +5731,45 @@ async fn open_connection(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
     let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
-    let (suggested, previous_token, auth_invalidation_protocol) = body
+    let (suggested, previous_token, auth_invalidation_protocol, wire_version) = body
         .map(|body| {
             (
                 body.connection_id,
                 body.previous_token,
                 body.auth_invalidation_protocol,
+                body.wire_version,
             )
         })
         .unwrap_or_default();
+    // @ref LLP 0094#0c5-authinvalidationprotocol-decided-not-inherited — an
+    // unknown offer refuses instead of silently degrading to legacy; absent
+    // keeps degrading (both open-time offer fields follow one matrix).
+    if auth_invalidation_protocol.is_some_and(|offered| {
+        offered != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+    }) {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
+            "auth",
+            "this server understands authInvalidationProtocol 1 only; omit the field to open a legacy connection",
+        )));
+    }
+    // @ref LLP 0094#0b3-the-wireversion-open-time-offer — known binds, unknown
+    // refuses (a v2 client must never be interpreted under v1), absent opens
+    // a legacy connection implicitly bound to v1.
+    let wire_version = match crate::wire_version::classify_open_offer(
+        wire_version.as_deref(),
+        crate::wire_version::SUPPORTED_WIRE_VERSIONS,
+    ) {
+        crate::wire_version::OpenWireVersionOffer::Absent => None,
+        crate::wire_version::OpenWireVersionOffer::Known(token) => Some(token.to_owned()),
+        crate::wire_version::OpenWireVersionOffer::Unknown => {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+                "realtime",
+                "the offered wireVersion is not supported by this server; supported versions: snapback.v1",
+            )));
+        }
+    };
     let allow_suggested = runtime.server.profile.allows_provisioning();
     let use_key = prepared.authenticated_use_key();
     let opened = {
@@ -5674,6 +5784,7 @@ async fn open_connection(
                 monotonic_now,
                 auth_invalidation_protocol,
             )
+            .with_wire_version(wire_version)
             .with_admission(&admission),
         )?
     };
@@ -17162,6 +17273,48 @@ async fn unsubscribe_live(
     Ok(Json(output))
 }
 
+/// Classify the kit-stream upgrade's `Sec-WebSocket-Protocol` offer set and
+/// map the refusing classes to their LLP 0094 §0E codes. `None` means the
+/// offer contains the bound version and the upgrade may proceed.
+fn wire_version_socket_refusal(headers: &HeaderMap) -> Option<ApiError> {
+    let entries = headers
+        .get_all(header::SEC_WEBSOCKET_PROTOCOL)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim);
+    match crate::wire_version::classify_socket_offer(
+        entries,
+        crate::wire_version::WIRE_VERSION_V1,
+        crate::wire_version::SUPPORTED_WIRE_VERSIONS,
+    ) {
+        crate::wire_version::SocketWireVersionOffer::Bound => None,
+        crate::wire_version::SocketWireVersionOffer::KnownMismatch => {
+            Some(ApiError::from(SnapbackError::error(
+                "SNAPBACK_WIRE_VERSION_MISMATCH",
+                "realtime",
+                "the socket wire-version offer does not equal this connection's bound version",
+            )))
+        }
+        crate::wire_version::SocketWireVersionOffer::Unknown => {
+            Some(ApiError::from(SnapbackError::error(
+                "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+                "realtime",
+                "the socket offer contains no wire-version token this server supports; supported versions: snapback.v1",
+            )))
+        }
+        // B3 (LLP 0094 §0B.5): the offerless-upgrade bridge is closed; a
+        // conformant client offers `snapback.v1` on the stream upgrade.
+        crate::wire_version::SocketWireVersionOffer::Absent => {
+            Some(ApiError::from(SnapbackError::error(
+                "SNAPBACK_WIRE_VERSION_REQUIRED",
+                "realtime",
+                "kit stream upgrades must offer the snapback.v1 wire-version subprotocol",
+            )))
+        }
+    }
+}
+
 async fn stream_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -17169,6 +17322,7 @@ async fn stream_live(
     sender_binding: Option<Extension<HostedSenderGrantBinding>>,
     sender_nonce: Option<Extension<SenderNonceResponse>>,
     Path(connection_id): Path<String>,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
     // In-band successor delivery applies exactly to sender-proof-gated
@@ -17212,6 +17366,19 @@ async fn stream_live(
             .into_response();
         }
         crate::bundle::AttachOutcome::Attached | crate::bundle::AttachOutcome::NotPending => {}
+    }
+    // Wire-version classification (LLP 0094 §0B.4), after the credential
+    // gates so protocol semantics are never disclosed to unauthenticated
+    // callers, before the upgrade so every refusal is a pre-upgrade HTTP
+    // response in the handshake.rs must-understand style. The bound version
+    // is v1 for every lineage: an explicit binding can only be a supported
+    // token (one exists) and a legacy lineage is implicitly v1.
+    //
+    // @ref LLP 0094#0b4-socket-offer-requirement-and-the-equality-rule —
+    //   classification precedes equality; the absent-class refusal is the
+    //   B3 bridge closure (the blast-radius record §0B.7 gates it).
+    if let Some(refusal) = wire_version_socket_refusal(&headers) {
+        return refusal.into_response();
     }
     // Select the negotiated subprotocol when offered (a browser fails the
     // connection if it offered subprotocols and the server echoed none).
@@ -20063,6 +20230,12 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
+        // @ref LLP 0094#0e-refusal-code-registry-negotiation — the wire-version
+        // negotiation refusals are HTTP 400 in the standard error envelope.
+        | "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+        | "SNAPBACK_WIRE_VERSION_MISMATCH"
+        | "SNAPBACK_WIRE_VERSION_REQUIRED"
+        | "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
         | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"
@@ -21567,6 +21740,12 @@ globalThis.__snapbackHandlers = {
         let mut ws_request = format!("ws://{address}/live/{connection_id}/stream")
             .into_client_request()
             .expect("protected-room WebSocket request");
+        ws_request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            super::LIVE_STREAM_SUBPROTOCOL
+                .parse()
+                .expect("wire-version subprotocol offer"),
+        );
         ws_request.headers_mut().insert(
             "x-snapback-connection-token",
             connection_token.parse().expect("connection token header"),
@@ -32557,6 +32736,7 @@ globalThis.__snapbackHandlers = {
             connection_id: "conn_debug".to_owned(),
             connection_token: SENTINEL.to_owned(),
             authorization_invalidation: None,
+            wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
         };
         let grant_debug = format!("{grant:?}");
         assert!(!grant_debug.contains(SENTINEL), "{grant_debug}");
@@ -32566,6 +32746,7 @@ globalThis.__snapbackHandlers = {
             connection_id: Some("conn_debug".to_owned()),
             previous_token: Some(SENTINEL.to_owned()),
             auth_invalidation_protocol: None,
+            wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
         };
         let open_debug = format!("{open:?}");
         assert!(!open_debug.contains(SENTINEL), "{open_debug}");
@@ -39246,6 +39427,341 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    /// LLP 0094 §0B.3: the registry half of the offer matrix — a known offer
+    /// binds the lineage and every open/re-open response of that lineage
+    /// echoes the bound version; a legacy lineage never echoes, and a
+    /// confirming v1 re-open offer does not upgrade it; a changed offer under
+    /// `previousToken` refuses `SNAPBACK_WIRE_VERSION_MISMATCH` and leaves
+    /// the grant undisturbed.
+    #[test]
+    fn wire_version_binding_echo_and_reopen_immutability() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory wire-version registry state"),
+        );
+        let registry = state.connections.clone();
+        fn anonymous_attempt<'a>(
+            suggested: &str,
+            previous: Option<&'a str>,
+        ) -> ConnectionOpenAttempt<'a> {
+            let (incarnation, publication) =
+                FencedPublication::anonymous_for_unmanaged_dev_connection();
+            ConnectionOpenAttempt::new(
+                Some(suggested.to_owned()),
+                previous,
+                true,
+                PreparedConnectionOpenAuthority {
+                    resolved: ResolvedAppAuthority::Anonymous,
+                    managed_authority: false,
+                    hosted_sender: None,
+                    bound: BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation: incarnation,
+                        publication,
+                    },
+                },
+                super::now_millis(),
+                Instant::now(),
+                None,
+            )
+        }
+        let v1 = crate::wire_version::WIRE_VERSION_V1;
+
+        // Known offer binds and the fresh-open response echoes it.
+        let bound = registry
+            .open_prepared(
+                anonymous_attempt("wire_bound", None).with_wire_version(Some(v1.to_owned())),
+            )
+            .expect("open explicitly bound lineage");
+        assert_eq!(bound.grant.wire_version.as_deref(), Some(v1));
+
+        // Offerless re-open of an explicit lineage: admitted, echo emitted.
+        let reopened = registry
+            .open_prepared(anonymous_attempt(
+                "wire_bound",
+                Some(&bound.grant.connection_token),
+            ))
+            .expect("offerless re-open keeps the explicit binding");
+        assert!(!reopened.newly_minted);
+        assert_eq!(reopened.grant.wire_version.as_deref(), Some(v1));
+
+        // Equal-offer re-open: admitted, echo emitted.
+        let confirmed = registry
+            .open_prepared(
+                anonymous_attempt("wire_bound", Some(&bound.grant.connection_token))
+                    .with_wire_version(Some(v1.to_owned())),
+            )
+            .expect("equal-offer re-open is admitted");
+        assert_eq!(confirmed.grant.wire_version.as_deref(), Some(v1));
+
+        // Changed offer under previousToken: MISMATCH, grant undisturbed.
+        // (The handler refuses *unknown* candidates before the registry runs;
+        // the registry equality arm is what a hypothetical second supported
+        // token would reach, so it is exercised directly here.)
+        let changed = registry
+            .open_prepared(
+                anonymous_attempt("wire_bound", Some(&bound.grant.connection_token))
+                    .with_wire_version(Some("snapback.v2".to_owned())),
+            )
+            .expect_err("a changed offer must not rebind the lineage");
+        assert_eq!(changed.diagnostic.code, "SNAPBACK_WIRE_VERSION_MISMATCH");
+        assert!(
+            registry
+                .verify(
+                    &bound.grant.connection_id,
+                    Some(&bound.grant.connection_token)
+                )
+                .is_ok(),
+            "a refused re-open must leave the existing grant undisturbed"
+        );
+
+        // Legacy lineage: no echo at open, no echo on offerless re-open, and
+        // a confirming v1 offer stays legacy (confirmation is not upgrade).
+        let legacy = registry
+            .open_prepared(anonymous_attempt("wire_legacy", None))
+            .expect("open legacy lineage");
+        assert_eq!(legacy.grant.wire_version, None);
+        let legacy_reopen = registry
+            .open_prepared(anonymous_attempt(
+                "wire_legacy",
+                Some(&legacy.grant.connection_token),
+            ))
+            .expect("offerless legacy re-open stays admitted (B4 exemption)");
+        assert_eq!(legacy_reopen.grant.wire_version, None);
+        let legacy_confirmed = registry
+            .open_prepared(
+                anonymous_attempt("wire_legacy", Some(&legacy.grant.connection_token))
+                    .with_wire_version(Some(v1.to_owned())),
+            )
+            .expect("a confirming v1 offer on a legacy lineage is admitted");
+        assert_eq!(
+            legacy_confirmed.grant.wire_version, None,
+            "confirmation is not upgrade: the legacy lineage never echoes"
+        );
+
+        // A known-but-different offer against the implicit v1 binding is a
+        // mismatch (the legacy row of the re-open matrix).
+        let legacy_changed = registry
+            .open_prepared(
+                anonymous_attempt("wire_legacy", Some(&legacy.grant.connection_token))
+                    .with_wire_version(Some("snapback.v2".to_owned())),
+            )
+            .expect_err("legacy lineages are implicitly v1 for the equality rules");
+        assert_eq!(
+            legacy_changed.diagnostic.code,
+            "SNAPBACK_WIRE_VERSION_MISMATCH"
+        );
+    }
+
+    /// LLP 0094 §0B.3 / §0C.5: the HTTP half of the open offer matrix — the
+    /// classification (known/unknown/absent) runs in the handler with
+    /// precedence over the registry equality check, and both open-time offer
+    /// fields follow one matrix (unknown refuses, absent degrades).
+    #[tokio::test]
+    async fn connection_open_http_wire_version_offer_matrix() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory wire-version HTTP state"),
+        );
+        let router = app(state);
+        let open = |body: Value| {
+            Request::builder()
+                .method("POST")
+                .uri("/connection/open")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::to_vec(&body).expect("serialize open body"),
+                ))
+                .expect("wire-version open request")
+        };
+
+        // Known offer: binds and echoes.
+        let bound = router
+            .clone()
+            .oneshot(open(json!({
+                "connectionId": "wire_http",
+                "wireVersion": "snapback.v1",
+            })))
+            .await
+            .expect("known-offer open");
+        assert_eq!(bound.status(), StatusCode::OK);
+        let bound = response_json(bound).await;
+        assert_eq!(bound["wireVersion"], "snapback.v1");
+        let previous_token = bound["connectionToken"]
+            .as_str()
+            .expect("bound grant token")
+            .to_owned();
+
+        // The snake_case alias is the DTO convention.
+        let aliased = router
+            .clone()
+            .oneshot(open(json!({
+                "connectionId": "wire_http_alias",
+                "wire_version": "snapback.v1",
+            })))
+            .await
+            .expect("aliased-offer open");
+        assert_eq!(aliased.status(), StatusCode::OK);
+        assert_eq!(response_json(aliased).await["wireVersion"], "snapback.v1");
+
+        // Unknown offer: refused, never silently degraded.
+        let unknown = router
+            .clone()
+            .oneshot(open(json!({ "wireVersion": "snapback.v2" })))
+            .await
+            .expect("unknown-offer open");
+        assert_eq!(unknown.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(unknown).await["diagnostic"]["code"],
+            "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+        );
+
+        // Classification precedes equality: an unknown candidate on a
+        // previousToken re-open refuses UNSUPPORTED, never MISMATCH.
+        let unknown_reopen = router
+            .clone()
+            .oneshot(open(json!({
+                "connectionId": "wire_http",
+                "previousToken": previous_token,
+                "wireVersion": "snapback.v1.0",
+            })))
+            .await
+            .expect("unknown-candidate re-open");
+        assert_eq!(unknown_reopen.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(unknown_reopen).await["diagnostic"]["code"],
+            "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+        );
+
+        // Absent: a legacy open with no echo member.
+        let legacy = router
+            .clone()
+            .oneshot(open(json!({ "connectionId": "wire_http_legacy" })))
+            .await
+            .expect("absent-offer open");
+        assert_eq!(legacy.status(), StatusCode::OK);
+        let legacy = response_json(legacy).await;
+        assert!(
+            legacy.get("wireVersion").is_none(),
+            "legacy grants must not echo: {legacy}"
+        );
+
+        // §0C.5 alignment: an unknown authInvalidationProtocol refuses.
+        let invalidation = router
+            .clone()
+            .oneshot(open(json!({ "authInvalidationProtocol": 2 })))
+            .await
+            .expect("unknown invalidation-protocol open");
+        assert_eq!(invalidation.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(invalidation).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
+        );
+    }
+
+    /// LLP 0094 §0B.4: the kit-stream upgrade refuses per the classification
+    /// matrix pre-upgrade — unknown candidates refuse UNSUPPORTED, absent
+    /// offers refuse REQUIRED (B3), and the bound version present wins over
+    /// duplicates and extra candidates.
+    #[tokio::test]
+    async fn stream_upgrade_enforces_the_wire_version_offer_matrix() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory wire-version socket state"),
+        );
+        let registry = state.connections.clone();
+        let grant = registry
+            .open(Some("wire_socket".to_owned()), None, true)
+            .expect("wire-version socket grant");
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind wire-version socket server");
+        let address = listener.local_addr().expect("wire-version socket address");
+        let server = tokio::spawn(async move {
+            super::app(state)
+                .bind(listener)
+                .expect("bind wire-version socket app")
+                .serve()
+                .await
+                .expect("serve wire-version socket app");
+        });
+
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let request = |protocols: Option<&str>| {
+            let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
+                .into_client_request()
+                .expect("wire-version websocket request");
+            request.headers_mut().insert(
+                "x-snapback-connection-token",
+                grant
+                    .connection_token
+                    .parse()
+                    .expect("connection token header"),
+            );
+            if let Some(protocols) = protocols {
+                request.headers_mut().insert(
+                    header::SEC_WEBSOCKET_PROTOCOL,
+                    protocols.parse().expect("subprotocol offer"),
+                );
+            }
+            request
+        };
+        let refusal = |error: tokio_tungstenite::tungstenite::Error| {
+            let tokio_tungstenite::tungstenite::Error::Http(response) = error else {
+                panic!("expected a pre-upgrade HTTP refusal, got {error:?}");
+            };
+            let status = response.status().as_u16();
+            let code = response
+                .body()
+                .as_ref()
+                .and_then(|body| serde_json::from_slice::<Value>(body).ok())
+                .and_then(|body| body["diagnostic"]["code"].as_str().map(str::to_owned))
+                .unwrap_or_default();
+            (status, code)
+        };
+
+        // Absent offer set (B3): refused REQUIRED.
+        let absent = tokio_tungstenite::connect_async(request(None))
+            .await
+            .expect_err("offerless upgrades are refused from B3");
+        assert_eq!(
+            refusal(absent),
+            (400, "SNAPBACK_WIRE_VERSION_REQUIRED".to_owned())
+        );
+
+        // A bearer carrier alone is not a version offer (§0B.4 step 1).
+        let bearer_only = tokio_tungstenite::connect_async(request(Some(
+            "snapback.connection-token.sct_rides_alone",
+        )))
+        .await
+        .expect_err("the bearer carrier is excluded before classification");
+        assert_eq!(
+            refusal(bearer_only),
+            (400, "SNAPBACK_WIRE_VERSION_REQUIRED".to_owned())
+        );
+
+        // Unknown candidates refuse UNSUPPORTED (classification precedes
+        // equality — never MISMATCH).
+        let unknown =
+            tokio_tungstenite::connect_async(request(Some("snapback.v2, snapback.v1.0")))
+                .await
+                .expect_err("unknown candidates are refused");
+        assert_eq!(
+            refusal(unknown),
+            (400, "SNAPBACK_WIRE_VERSION_UNSUPPORTED".to_owned())
+        );
+
+        // The bound version present wins, whatever rides along; duplicates
+        // are harmless; the server selects and echoes the bound version.
+        let (socket, response) = tokio_tungstenite::connect_async(request(Some(
+            "snapback.v2, snapback.v1, snapback.v1, snapback.auth-client.1",
+        )))
+        .await
+        .expect("bound-version-present offer set is admitted");
+        assert_eq!(
+            response.headers().get(header::SEC_WEBSOCKET_PROTOCOL),
+            Some(&HeaderValue::from_static(super::LIVE_STREAM_SUBPROTOCOL)),
+        );
+        drop(socket);
+        server.abort();
+    }
+
     #[tokio::test]
     async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
         let state = crate::admin::AppState::detached(
@@ -39274,6 +39790,12 @@ globalThis.__snapbackHandlers = {
         let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
             .into_client_request()
             .expect("websocket request");
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            super::LIVE_STREAM_SUBPROTOCOL
+                .parse()
+                .expect("wire-version subprotocol offer"),
+        );
         request.headers_mut().insert(
             "x-snapback-connection-token",
             grant
@@ -39372,6 +39894,12 @@ globalThis.__snapbackHandlers = {
         let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
             .into_client_request()
             .expect("websocket request");
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            super::LIVE_STREAM_SUBPROTOCOL
+                .parse()
+                .expect("wire-version subprotocol offer"),
+        );
         request.headers_mut().insert(
             "x-snapback-connection-token",
             grant

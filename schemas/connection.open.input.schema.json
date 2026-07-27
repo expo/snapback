@@ -6,7 +6,7 @@
   "properties": {
     "authInvalidationProtocol": {
       "default": null,
-      "description": "Exact must-understand offer. Missing or any value other than v1 opens a\nlegacy connection that cannot admit session-mode auth-scoped live work.",
+      "description": "Exact must-understand offer. Missing opens a legacy connection that\ncannot admit session-mode auth-scoped live work; a present unknown\nvalue refuses (`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED`).\n\n@ref LLP 0094#0c5-authinvalidationprotocol-decided-not-inherited — from\n  B1 both open-time offer fields follow one matrix: known binds,\n  unknown refuses, absent degrades to legacy.",
       "format": "uint32",
       "minimum": 0,
       "type": [
@@ -24,6 +24,14 @@
     "previousToken": {
       "default": null,
       "description": "A prior grant's bearer. This field is deliberately absent from every\nserver response and from all receipt/capsule schemas.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "wireVersion": {
+      "default": null,
+      "description": "Exact wire-version offer (LLP 0094 §0B.3): a known token binds the\nconnection lineage, an unknown token refuses\n(`SNAPBACK_WIRE_VERSION_UNSUPPORTED`), absent opens a legacy lineage\nimplicitly bound to v1 for the socket-equality rule.",
       "type": [
         "string",
         "null"

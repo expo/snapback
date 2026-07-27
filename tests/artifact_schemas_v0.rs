@@ -2733,6 +2733,19 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             connection_id: "conn_1".to_owned(),
             connection_token: "tok_1".to_owned(),
             authorization_invalidation: None,
+            wire_version: None,
+        })
+        .unwrap(),
+    );
+    // The LLP 0094 §0B.3 bound-version echo is additive: a grant carrying it
+    // still validates, and its absence (a legacy lineage) stays valid above.
+    assert_validates(
+        "connection.grant.schema.json",
+        &serde_json::to_value(ConnectionGrant {
+            connection_id: "conn_1".to_owned(),
+            connection_token: "tok_1".to_owned(),
+            authorization_invalidation: None,
+            wire_version: Some("snapback.v1".to_owned()),
         })
         .unwrap(),
     );
@@ -2740,6 +2753,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         connection_id: Some("conn_1".to_owned()),
         previous_token: Some("sct_prior_bearer".to_owned()),
         auth_invalidation_protocol: None,
+        wire_version: Some("snapback.v1".to_owned()),
     })
     .unwrap();
     assert_validates("connection.open.input.schema.json", &open_request);
@@ -2750,6 +2764,10 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     assert_rejects(
         "connection.open.input.schema.json",
         &json!({ "previousToken": 7 }),
+    );
+    assert_rejects(
+        "connection.open.input.schema.json",
+        &json!({ "wireVersion": 1 }),
     );
 
     let mutation_response = MutationResponse {

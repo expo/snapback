@@ -645,6 +645,10 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
         .into_client_request()
         .expect("ws request");
     ws_request.headers_mut().insert(
+        "sec-websocket-protocol",
+        "snapback.v1".parse().expect("wire-version offer"),
+    );
+    ws_request.headers_mut().insert(
         "x-snapback-connection-token",
         ws_grant.connection_token.parse().expect("token header"),
     );

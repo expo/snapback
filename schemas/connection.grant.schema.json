@@ -156,6 +156,13 @@
     },
     "connectionToken": {
       "type": "string"
+    },
+    "wireVersion": {
+      "description": "Bound-wire-version witness (LLP 0094 §0B.3): present on every open and\nre-open response of an explicitly bound lineage, never on a legacy\n(offerless-open) lineage. Echo present ⇔ explicitly bound.\n\n@ref LLP 0094#0b3-the-wireversion-open-time-offer — the additive echo\n  is the hosted arm's only runtime version witness (§0B.6).",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

@@ -2265,6 +2265,10 @@ async fn sessions_runtime_rejects_body_auth_for_every_websocket_operation() {
         .into_client_request()
         .expect("sessions socket upgrade request");
     request.headers_mut().insert(
+        "sec-websocket-protocol",
+        "snapback.v1".parse().expect("wire-version offer"),
+    );
+    request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().expect("socket token header"),
     );
