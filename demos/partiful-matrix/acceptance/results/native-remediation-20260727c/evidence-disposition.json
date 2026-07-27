@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "partitime.native-performance-evidence-disposition.v1",
+  "evidenceId": "partitime-native-remediation-20260727c",
+  "recordedAt": "2026-07-27T13:31:39Z",
+  "phase": "holdout",
+  "valid": false,
+  "claimEligible": false,
+  "outcome": "invalidated-diagnostic",
+  "reason": {
+    "code": "PARTITIME_NATIVE_UNCONTROLLED_HOST_LOAD",
+    "message": "The cohort was authored on the primary M5 while unrelated workload was present, contrary to the checkpoint instruction not to author performance receipts while that host was under unrelated load. The receipt schema did not retain a host-load ledger, so the cohort cannot prove controlled claim-grade custody.",
+    "additionalCode": "PARTITIME_NATIVE_NON_MAINLINE_CONSUMER_PINS",
+    "additionalMessage": "The Exact carrier pinned Exact db6f16defb418b69f8b65327d110fbe0bb8d69de and Ibex 31c0d79874cb49a582577ab8511bad0a9056d70b, neither of which is in its repository's origin/main lineage. The reviewed implementations later landed through Exact ffd91d562e6c22a163941b1c4561ee7609ad4e77 and Ibex 6d825e7f6b482cd69109cd142f9c53ff9a22a64b."
+  },
+  "source": {
+    "snapbackRevision": "e51b21f84f3150f715a13c64005751c7a365b056",
+    "exactRevision": "db6f16defb418b69f8b65327d110fbe0bb8d69de",
+    "ibexRevision": "31c0d79874cb49a582577ab8511bad0a9056d70b",
+    "hostModel": "Mac17,6",
+    "hostLoadLedger": null
+  },
+  "preservedArtifacts": {
+    "inputs": {
+      "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-inputs.json",
+      "sha256": "38dd2fdb91f8ded3ff949890862436213e8902bed001388b63bfe47c28c84fe3"
+    },
+    "aggregate": {
+      "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout.json",
+      "sha256": "ab59deb14f25828d7423fe5a28ec6682fd66f16f5702565d5b7070c68f405d33"
+    },
+    "rawReceipts": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-01.json",
+        "sha256": "06da14ac913de90c582c336c994e1ef5528a99fc63690f300b06007dba112589"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-02.json",
+        "sha256": "63a004e5831fe3c498908fcb1e449be9f46398a337cf32666966d4c48e2c25db"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-03.json",
+        "sha256": "8dbab995bde9b0dd639278f4f90ecd2052be7ee4f847a4bf2ce6fa4d70572b75"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-04.json",
+        "sha256": "92fe9e90ac738a6e1ce967cb32246f44ab99893ea2a1d6fb08cd765f1fe4b33c"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-05.json",
+        "sha256": "2ad36d902540e26c42c69a362f334c74c66717574ede6a13439a5b4a776a623e"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-06.json",
+        "sha256": "3c040d0a46af2b5d6fd8b4586455806a7b8d2e181f27add8b72c7729ada15752"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-07.json",
+        "sha256": "82a28fc0c84b6a64d2df111f2b833623d9cd9ec44f01535a5e5aeec4aaa11ea6"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-08.json",
+        "sha256": "f41b1c1a84f6afe6f2a7ffad6d2a208a3350ca4f85ad72a558e9827fd4a99d95"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/exact-09.json",
+        "sha256": "d7001c52cc72ed9dc131cd9e38a8a1ab2ebfe669c3aa4e716260836d02b163aa"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-01.json",
+        "sha256": "112eb0955e0a102cfe02b0724f851b423152b129cd573d79269230b68a54a8cb"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-02.json",
+        "sha256": "9a24740a1a3046cc24331251ec7b7ebc2365bebabd4a248a732ef19529d1d64e"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-03.json",
+        "sha256": "122818d7eb1b7e7f07d1d1a45e197d237f526aef479514028b64aeefbcf0c1ba"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-04.json",
+        "sha256": "9c94b746931dc8dee6615b3dede9840f23761b0e63246cae0603456a530e6947"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-05.json",
+        "sha256": "c0d35ddcf5f68e255d9c25e5a2fed53061a3c30142421cab5bfe9eed0b9acccc"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-06.json",
+        "sha256": "48df971e75f9621b90b8f7332775d1a91602ed57bc873d75f243004eb8111e4d"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-07.json",
+        "sha256": "fcda3a6ca8da8c8205414caf519c6e3d9f4d5c33e5938cfa0cf8b2fe91161ae3"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-08.json",
+        "sha256": "da16ebf454358178af54bbe1170220e234296536633d78ef22382baeace506b5"
+      },
+      {
+        "path": "demos/partiful-matrix/acceptance/results/native-remediation-20260727c/step4-native-performance-holdout-raw/react-09.json",
+        "sha256": "8f9dc6f90e248f07c9b4dd7e93ab0a491e1660c3416bc745a073ad4f4c71ed4f"
+      }
+    ]
+  },
+  "disposition": {
+    "preserveOriginalBytes": true,
+    "excludeFromCalibration": true,
+    "excludeFromHoldoutAggregation": true,
+    "excludeFromClaimPromotion": true,
+    "thresholdsChanged": false,
+    "methodChanged": false,
+    "diagnosticObservationOnly": "The retained aggregate reports Exact p95 values of 7 ms Hermes evaluation, 786166 startup bytes, 781 ms cold launch, and 831 ms first authoritative data. Those observations carry no performance claim.",
+    "replacementRequired": "Collect a fresh two-warmup plus seven-sample calibration, commit it, and then collect an independent two-warmup plus seven-sample holdout on a controlled host from revisions in the landed Snapback, Exact, and Ibex main lineages."
+  }
+}

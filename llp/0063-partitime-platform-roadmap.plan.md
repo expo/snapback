@@ -6,28 +6,26 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
 
-**Revised (Step 4 native-performance remediation pass):** 2026-07-27 (the
-valid accelerated red holdout remained short by 97 ms cold-launch and 27 ms
-first-authoritative p95, with every sample retained. Trace-only markers
-localized the remaining deterministic cost to rebuilding the already checked
-17 MB CapSec registry record during each freshly installed Exact carrier
-launch. Ibex `31c0d798…` now shares build-generated canonical bytes between
-the CLI and native producers, authenticates reusable immutable bytes by full
-SHA-256, and falls back to byte-identical durable materialization on any
-doubt; Exact `db6f16def…` pins it without removing an authenticator.
+**Revised (Step 4 native-performance evidence invalidation):** 2026-07-27
+(the `native-remediation-20260727c` cohort is retained byte-for-byte but is
+invalid for claim use. It was authored on the primary M5 while unrelated
+workload was present, contrary to the checkpoint instruction not to author
+performance receipts under unrelated host load, and the receipts contain no
+host-load ledger capable of proving controlled custody. It also consumed
+Exact `db6f16def…` and Ibex `31c0d798…`, neither from `origin/main` lineage.
+The separate digest-closed `evidence-disposition.json` marks every raw receipt,
+the inputs, and aggregate `valid=false` and `claimEligible=false` without
+rewriting them or changing the sampling method, threshold set, or prior red
+evidence.
 
-The fresh claim-eligible holdout at clean Snapback `e51b21f8…` and Exact
-`db6f16def…` consumed committed calibration
-`ffc41b770320af2abe09068e08a7263d569c2ff5` under the unchanged two-warmup,
-seven-sample, alternating-order policy. All 18 receipts are valid. Exact p95
-results pass all four frozen thresholds: 7 ≤ 31 ms Hermes evaluation; 786,166
-≤ 2,499,801 startup bytes; 781 ≤ 1,136 ms cold launch; and 831 ≤ 1,248 ms
-first authoritative data. Checkpoint `e179ead9…` preserves the manifest,
-aggregate, and raw receipts under
-`acceptance/results/native-remediation-20260727c/`. Earlier red/invalid
-artifacts remain immutable. This closes only the native-performance subgate;
-it does not offset another Step-4 row, authorize publication, or promote the
-Step-4 aggregate.)
+The retained diagnostic values are 7 ms Hermes evaluation, 786,166 startup
+bytes, 781 ms cold launch, and 831 ms first authoritative data at p95. They
+make no performance claim and close no subgate. The reviewed registry-byte
+reuse and isolated native production entry later landed on Ibex main through
+`6d825e7f…` and Exact main through `ffd91d562…`. A fresh controlled calibration
+on landed lineages must be committed before an independent controlled holdout
+can replace the red authoritative evidence. `STEP4.BUDGETS.NATIVE_PERFORMANCE`
+and Step 4 remain red.)
 
 **Revised (Phase 4/5 union reconciliation):** 2026-07-26 (the active Phase 4
 evidence branch merged fresh Snapback `origin/main` at merge commit

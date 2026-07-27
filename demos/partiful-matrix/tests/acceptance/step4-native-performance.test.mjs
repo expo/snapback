@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -10,6 +11,7 @@ import { validateNativePerformanceCollectionResult } from './native-performance-
 
 const here = dirname(fileURLToPath(import.meta.url));
 const collector = resolve(here, 'step4-native-performance.mjs');
+const repoRoot = resolve(here, '../../../..');
 
 const releaseLane = {
   laneId: 'partitime.native-ios-release-simulator-hbc-agent-off.v1',
@@ -94,6 +96,33 @@ test('native performance validator checks authority without inputs or a receipt'
     });
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('invalidated native evidence remains digest-closed and claim-ineligible', () => {
+  const dispositionPath = resolve(
+    repoRoot,
+    'demos/partiful-matrix/acceptance/results/native-remediation-20260727c/evidence-disposition.json',
+  );
+  const disposition = JSON.parse(readFileSync(dispositionPath, 'utf8'));
+  assert.equal(disposition.valid, false);
+  assert.equal(disposition.claimEligible, false);
+  assert.equal(disposition.outcome, 'invalidated-diagnostic');
+  assert.equal(disposition.disposition.preserveOriginalBytes, true);
+  assert.equal(disposition.disposition.excludeFromClaimPromotion, true);
+  const artifacts = [
+    disposition.preservedArtifacts.inputs,
+    disposition.preservedArtifacts.aggregate,
+    ...disposition.preservedArtifacts.rawReceipts,
+  ];
+  assert.equal(artifacts.length, 20);
+  for (const artifact of artifacts) {
+    const bytes = readFileSync(resolve(repoRoot, artifact.path));
+    assert.equal(
+      createHash('sha256').update(bytes).digest('hex'),
+      artifact.sha256,
+      `${artifact.path} drifted after invalidation`,
+    );
   }
 });
 
