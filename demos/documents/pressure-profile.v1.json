@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "snapback.documents-pressure-profile.v1",
+  "profileId": "documents/reducer-experiment-v0",
+  "roadmapClaim": "STEP6.DOCUMENTS",
+  "targetProfile": "local-node-pure-reducer",
+  "claimEligible": false,
+  "status": "red",
+  "governing": [
+    "LLP 0063#next-application-pressure-tests",
+    "LLP 0068#acceptance"
+  ],
+  "pressures": [
+    {
+      "id": "canonical-operation-wire",
+      "status": "implemented-experimental-partial",
+      "witness": "tests/acceptance/reducer.mjs",
+      "nonclaim": "in-memory closed JS objects are covered; a duplicate-key-aware byte parser and cross-language golden bytes are not"
+    },
+    {
+      "id": "structured-block-reduction",
+      "status": "implemented-experimental-partial",
+      "witness": "tests/acceptance/reducer.mjs",
+      "covered": "block insert/delete/move/attribute, text insert/delete, operation-scoped atom ids, delete wins, and deterministic move-cycle breaking"
+    },
+    {
+      "id": "delivery-order-convergence",
+      "status": "implemented-experimental",
+      "witness": "tests/acceptance/reducer.mjs",
+      "covered": "forward, reverse, interleaved, duplicated, and reconstructed delivery of the retained corpus"
+    },
+    {
+      "id": "dependency-buffering",
+      "status": "implemented-experimental",
+      "witness": "tests/acceptance/reducer.mjs"
+    },
+    {
+      "id": "marks-and-editor-adapters",
+      "status": "red",
+      "blocker": "mark affinity, endpoint repair, grapheme UI behavior, undo, and a Notion/Docs-style editor are absent"
+    },
+    {
+      "id": "server-operation-admission",
+      "status": "red",
+      "blocker": "no generated document declaration, durable operation table, uniqueness settlement, or ordinary live invalidation exists"
+    },
+    {
+      "id": "offline-operation",
+      "status": "red",
+      "blocker": "no retained snapshot/frontier/outbox, authority-bound replay, resynchronization, or quarantine exists"
+    },
+    {
+      "id": "authorization-and-granular-sharing",
+      "status": "red",
+      "blocker": "no executable document-wide owner/editor/commenter/viewer admission witness exists"
+    },
+    {
+      "id": "history-comments-and-presence",
+      "status": "red",
+      "blocker": "revision history, comments, orphan anchors, and LLP 0013 document-room presence are absent"
+    },
+    {
+      "id": "compaction-backup-and-restore",
+      "status": "red",
+      "blocker": "stable-frontier compaction, anchor skeletons, fencing, backup, and restore verification are absent"
+    },
+    {
+      "id": "large-document-budgets",
+      "status": "red",
+      "blocker": "2 MiB/10,000-block windowing and preregistered memory, latency, storage-amplification, and fan-out instruments are absent"
+    },
+    {
+      "id": "cross-platform-corpus",
+      "status": "red",
+      "blocker": "server, web, Exact Native iOS, and Exact Native Android reducer tuples do not yet share this corpus"
+    },
+    {
+      "id": "protocol-admission",
+      "status": "red",
+      "blocker": "LLP 0068 remains Draft pending independent review and maintainer ratification"
+    }
+  ]
+}

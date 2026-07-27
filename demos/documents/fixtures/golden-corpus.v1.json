@@ -1,0 +1,462 @@
+{
+  "schemaVersion": "snapback.documents-exploratory-corpus.v1",
+  "governingDraft": "LLP 0068",
+  "claimEligible": false,
+  "identity": {
+    "appId": "documents-experiment",
+    "databaseId": "local-fixture",
+    "documentId": "doc-golden",
+    "streamIncarnation": "stream-1",
+    "targetProfile": "local-dev-sqlite-ibex"
+  },
+  "scenarios": [
+    {
+      "id": "concurrent-block-and-text-inserts",
+      "expected": {
+        "blockIds": ["block-a", "block-b"],
+        "texts": ["Hi!Yo ", "Notes"],
+        "pending": 0,
+        "snapshotHash": "cac5873b6cab0c982c628be4c0e1631f1c991095e12d4d459e46f1c693d7bc98",
+        "frontierHash": "a1cd2014d998a8ae02aed97882c9a7c9072f657708e1e09398d3bf1cd97dcbf8"
+      },
+      "operations": [
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["alpha", 1],
+          "dependencies": {},
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-a",
+            "leftBlockId": null,
+            "blockType": "paragraph",
+            "attributes": { "tone": "plain" }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["alpha", 2],
+          "dependencies": { "alpha": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-a",
+            "leftAtomId": null,
+            "scalars": ["H", "i"]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["beta", 1],
+          "dependencies": { "alpha": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-a",
+            "leftAtomId": null,
+            "scalars": ["Y", "o", " "]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["beta", 2],
+          "dependencies": { "alpha": 2, "beta": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-a",
+            "leftAtomId": [["alpha", 2], 1],
+            "scalars": ["!"]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["gamma", 1],
+          "dependencies": { "alpha": 1 },
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-b",
+            "leftBlockId": "block-a",
+            "blockType": "heading",
+            "attributes": { "level": 2 }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["gamma", 2],
+          "dependencies": { "alpha": 1, "gamma": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-b",
+            "leftAtomId": null,
+            "scalars": ["N", "o", "t", "e", "s"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "delete-wins-and-move-cycle",
+      "expected": {
+        "blockIds": ["block-b", "block-a"],
+        "texts": ["B", "A"],
+        "pending": 0,
+        "snapshotHash": "a647e7e5b9763cb3f9f4f8b0d3cff007c8b3d3e13a8b6acae31c0a3e1c76fdf4",
+        "frontierHash": "f2ed9349ea580a20a128f9cfdd77e768829cdcc3ef4daac1f03073447bf8e853"
+      },
+      "operations": [
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["seed", 1],
+          "dependencies": {},
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-a",
+            "leftBlockId": null,
+            "blockType": "paragraph",
+            "attributes": {}
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["seed", 2],
+          "dependencies": { "seed": 1 },
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-b",
+            "leftBlockId": "block-a",
+            "blockType": "paragraph",
+            "attributes": {}
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["seed", 3],
+          "dependencies": { "seed": 2 },
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-c",
+            "leftBlockId": "block-b",
+            "blockType": "paragraph",
+            "attributes": {}
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["seed", 4],
+          "dependencies": { "seed": 3 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-a",
+            "leftAtomId": null,
+            "scalars": ["A"]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["seed", 5],
+          "dependencies": { "seed": 4 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-b",
+            "leftAtomId": null,
+            "scalars": ["B"]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["move-a", 1],
+          "dependencies": { "seed": 5 },
+          "payload": {
+            "kind": "block.move",
+            "blockId": "block-a",
+            "leftBlockId": "block-b"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["move-b", 1],
+          "dependencies": { "seed": 5 },
+          "payload": {
+            "kind": "block.move",
+            "blockId": "block-b",
+            "leftBlockId": "block-a"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["remove", 1],
+          "dependencies": { "seed": 5 },
+          "payload": {
+            "kind": "block.delete",
+            "blockId": "block-c"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["move-c", 1],
+          "dependencies": { "seed": 5 },
+          "payload": {
+            "kind": "block.move",
+            "blockId": "block-c",
+            "leftBlockId": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "text-tombstone-remains-an-insertion-anchor",
+      "expected": {
+        "blockIds": ["block-text"],
+        "texts": ["ACx"],
+        "pending": 0,
+        "snapshotHash": "96f71003ba0bb7cd6863dca85988d86f3955b5df22a694f36252200531088626",
+        "frontierHash": "dbea85699f9c030d9fcca577a3b3ef50fd1e90642fc63ca9e2ac3583d3d8abd8"
+      },
+      "operations": [
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["tomb", 1],
+          "dependencies": {},
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-text",
+            "leftBlockId": null,
+            "blockType": "paragraph",
+            "attributes": {}
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["tomb", 2],
+          "dependencies": { "tomb": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-text",
+            "leftAtomId": null,
+            "scalars": ["A", "B", "C"]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["eraser", 1],
+          "dependencies": { "tomb": 2 },
+          "payload": {
+            "kind": "text.delete",
+            "blockId": "block-text",
+            "atomIds": [[["tomb", 2], 1]]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["writer", 1],
+          "dependencies": { "tomb": 2 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-text",
+            "leftAtomId": [["tomb", 2], 1],
+            "scalars": ["x"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "missing-dependency-is-buffered",
+      "expected": {
+        "blockIds": ["block-base"],
+        "texts": [""],
+        "pending": 1,
+        "snapshotHash": "e5f28c98e87bba3606d4ad924cf2a1356b6e7dcc7c2caf19a562031e673862f7",
+        "frontierHash": "0e26afc4a5e2285f4906dbcbfea1aed80382d106a512e8ac3ec36503bc815f9a"
+      },
+      "operations": [
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["base", 1],
+          "dependencies": {},
+          "payload": {
+            "kind": "block.insert",
+            "blockId": "block-base",
+            "leftBlockId": null,
+            "blockType": "paragraph",
+            "attributes": {}
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "identity": {
+            "appId": "documents-experiment",
+            "databaseId": "local-fixture",
+            "documentId": "doc-golden",
+            "streamIncarnation": "stream-1",
+            "targetProfile": "local-dev-sqlite-ibex"
+          },
+          "authorizationWitness": "fixture-editor",
+          "operationId": ["offline", 2],
+          "dependencies": { "base": 1, "offline": 1 },
+          "payload": {
+            "kind": "text.insert",
+            "blockId": "block-base",
+            "leftAtomId": null,
+            "scalars": ["?"]
+          }
+        }
+      ]
+    }
+  ]
+}

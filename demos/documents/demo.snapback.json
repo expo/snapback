@@ -1,0 +1,46 @@
+{
+  "id": "documents",
+  "title": "Documents — LLP 0063 exploratory convergence kernel",
+  "description": "A claim-ineligible pure-JavaScript candidate reducer for the Draft LLP 0068 structured-document operation model.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-node-pure-reducer",
+  "systems": ["Documents", "Collaboration", "Offline", "Testing"],
+  "requiredCapabilities": {
+    "node": "24.x",
+    "canonicalDocumentReducerCandidate": true
+  },
+  "surfaces": {
+    "headlessReducerExperiment": {
+      "requirement": "required-local-nonclaim",
+      "buildTargets": [],
+      "runner": "node demos/documents/tests/acceptance/reducer.mjs",
+      "toolchain": "node>=24"
+    }
+  },
+  "acceptanceChecks": {
+    "headlessReducerExperiment": [
+      "the retained operation corpus converges under forward, reverse, interleaved, and duplicate delivery",
+      "operation reconstruction after a simulated restart reproduces snapshot and frontier hashes",
+      "operation-id payload substitution, identity injection, invalid counters, and unsupported marks fail closed",
+      "delete wins and cyclic block moves materialize deterministically",
+      "missing dependencies remain buffered and invisible"
+    ]
+  },
+  "capabilityGaps": [
+    "accepted collaborative-document-v1 protocol",
+    "document editor product surface",
+    "server admission and settlement",
+    "offline retained operation outbox",
+    "authorization and sharing",
+    "history, comments, presence, compaction, backup, and restore",
+    "large-document windows and resource budgets",
+    "cross-platform reducers"
+  ],
+  "notClaiming": [
+    "STEP6.DOCUMENTS completion",
+    "collaborative-document-v1 support",
+    "a Snapback server or generated client implementation",
+    "a Notion/Docs-style reference product",
+    "cross-platform convergence"
+  ]
+}
