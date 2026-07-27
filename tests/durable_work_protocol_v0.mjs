@@ -64,6 +64,9 @@ function jitterV1(vector) {
   const base = BigInt(baseDelayMs);
   const low = (base * 3n) / 4n;
   const high = (base * 5n) / 4n;
+  if (low > MAX_PORTABLE_INTEGER || high > MAX_PORTABLE_INTEGER) {
+    refuse('SNAPBACK_JOB_JITTER_OVERFLOW');
+  }
   const uncappedDelay = low + (first64 % (high - low + 1n));
   const delay = uncappedDelay > BigInt(maxDelayMs)
     ? BigInt(maxDelayMs)
@@ -217,6 +220,15 @@ test('snapback-job-jitter-v1 rejects malformed and overflowing inputs', () => {
       baseDelayMs: 1000,
       maxDelayMs: 5000,
       serverNowMs: Number.MAX_SAFE_INTEGER,
+    }),
+    { code: 'SNAPBACK_JOB_JITTER_OVERFLOW' },
+  );
+  assert.throws(
+    () => jitterV1({
+      ...base,
+      baseDelayMs: Number.MAX_SAFE_INTEGER,
+      maxDelayMs: Number.MAX_SAFE_INTEGER,
+      serverNowMs: 0,
     }),
     { code: 'SNAPBACK_JOB_JITTER_OVERFLOW' },
   );

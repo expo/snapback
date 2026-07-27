@@ -177,6 +177,9 @@ fn jitter_v1(vector: &JitterVector) -> Result<JitterResult, &'static str> {
         .checked_mul(5)
         .ok_or("SNAPBACK_JOB_JITTER_OVERFLOW")?
         / 4;
+    if low > MAX_PORTABLE_INTEGER || high > MAX_PORTABLE_INTEGER {
+        return Err("SNAPBACK_JOB_JITTER_OVERFLOW");
+    }
     let span = high
         .checked_sub(low)
         .and_then(|range| range.checked_add(1))
@@ -357,6 +360,10 @@ fn snapback_job_jitter_v1_rejects_malformed_and_overflowing_inputs() {
     vector.server_now_ms = MAX_PORTABLE_INTEGER;
     vector.base_delay_ms = 1_000;
     vector.max_delay_ms = 5_000;
+    assert_eq!(jitter_v1(&vector), Err("SNAPBACK_JOB_JITTER_OVERFLOW"));
+    vector.server_now_ms = 0;
+    vector.base_delay_ms = MAX_PORTABLE_INTEGER;
+    vector.max_delay_ms = MAX_PORTABLE_INTEGER;
     assert_eq!(jitter_v1(&vector), Err("SNAPBACK_JOB_JITTER_OVERFLOW"));
 }
 
