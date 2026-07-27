@@ -25,6 +25,9 @@ if (!outputRoot) {
 // plugin, then emits the single IIFE + source map admitted by the native
 // performance collector.
 export default defineConfig(createHermesBundleConfig({
+  // This measured artifact is Contract-only and agent-off. Mixed or
+  // inspectable native graphs intentionally retain the full runtime entry.
+  contractProductionRuntime: true,
   plugins: [
     exactPlatformVariantBuildPlugin({ platform: 'native' }),
     exactAssetPlugin({ includeSourcePath: true }),
