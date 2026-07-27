@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "AuthContext": {
+      "properties": {
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "principal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "permissions"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.subscribe.input.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "auth": {
+      "$ref": "#/$defs/AuthContext"
+    },
+    "collection": {
+      "type": "string"
+    },
+    "connection_id": {
+      "type": "string"
+    },
+    "scope": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "collection",
+    "scope",
+    "connection_id",
+    "auth"
+  ],
+  "title": "SubscribeRequest",
+  "type": "object"
+}

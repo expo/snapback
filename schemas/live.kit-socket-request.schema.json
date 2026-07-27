@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "KitSocketResumeEnvelope": {
+      "description": "The `resume` member as transport-validated on the hosted kit socket: an\nopen object whose `token` is a 1–1024 byte string (the LLP 0091 §0A.1\n`sbrt1.` cap); other members (`meta`, …) pass through untouched.",
+      "properties": {
+        "token": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "type": "object"
+    },
+    "KitSocketResumeFromToken": {
+      "additionalProperties": false,
+      "description": "The kit-socket subscribe frame's `resumeFromToken` wrapper **as served by\nthe hosted validator**: exactly the members `resume` and\n`membershipWitness`, with `membershipWitness` accepted at any shape\n(`isValidResumeFromToken`, `coordinator.js`). Distinct from the typed\n[`ResumeFromToken`] the local HTTP subscribe input decodes — the hosted\ntransport check is deliberately weaker, and this schema records the served\ncontract, not an aspiration.",
+      "properties": {
+        "membershipWitness": true,
+        "resume": {
+          "$ref": "#/$defs/KitSocketResumeEnvelope"
+        }
+      },
+      "required": [
+        "resume"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/live.kit-socket-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The hosted kit-socket **in-band request grammar** (LLP 0094 §0A.1 WS-kinds\nrow, §0F item 2): the `type`-tagged frames `validateLiveSocketFrame`\n(`cloudflare/src/coordinator.js`) accepts on an authenticated kit stream —\n`subscribe` / `unsubscribe` / `ping`. This Rust type is the schema\nauthority for that JS validator (LLP 0051 §D4 — a hand-mirrored JS family\ngets a Rust serde authority); the Rust server itself does not decode this\nfamily (durable lifecycle is HTTP-only on the local arm), and\n`cloudflare/test/wire-schema-gate.mjs` proves the served validator's\nverdicts against the committed schema over a shared corpus.\n\nThe closure mirrors the validator exactly: closed frames\n(`deny_unknown_fields`), a closed `resumeFromToken` wrapper, but an\n**open** `resume` object of which only `token` is transport-validated, and\na shape-unvalidated `membershipWitness` (accepted for wire compatibility;\nrung 2 deferred on this arm). The in-band **reply** grammar is\ndeliberately not schematized: it is mixed-dialect as served and enters the\ngates only at its §0C.6 item-6 convergence to kit dialect\n(`issues/20260725-0094-hosted-response-shape-divergences.md` item 5).\n\n@ref LLP 0094#0a1-app-data-routes-root — the WS-kinds row: request grammar\n  inside wire v1, reply grammar conformance-unclaimable until convergence.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "In-band durable subscribe. `args` must be a JSON object; `supersedes`\nwhen present is a non-empty prior subscription id; `resumeFromToken`\nrides the subscribe frame (LLP 0091 §0B.4 — token resume is not a new\noperation).",
+      "properties": {
+        "args": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "resumeFromToken": {
+          "$ref": "#/$defs/KitSocketResumeFromToken",
+          "description": "Optional-by-absence (explicit `null` rejects, as above)."
+        },
+        "supersedes": {
+          "description": "Optional-by-absence: the served validator rejects an explicit\n`null`, so the schema keeps the member non-nullable.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "subscribe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "subscriptionId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "unsubscribe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "subscriptionId"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "description": "Optional-by-absence (explicit `null` rejects, as above).",
+          "type": "string"
+        },
+        "type": {
+          "const": "ping",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "KitSocketRequestFrame"
+}

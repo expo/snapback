@@ -30,7 +30,9 @@ use serde_json::{Map, Value};
 
 use crate::auth::invalidation::{ResolutionTicket, ResyncObligation};
 use crate::diagnostic::Diagnostic;
-use crate::ephemeral::{DeleteRequest, EphemeralMessage, PublishRequest, SubscribeRequest};
+use crate::ephemeral::{
+    DeleteRequest, EphemeralMessage, PublishRequest, RealtimeEnvelope, SubscribeRequest,
+};
 
 /// A durable-lane fan-out envelope: what a live-query subscriber receives,
 /// unwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]
@@ -367,6 +369,107 @@ pub enum LiveSocketClientMessage {
         request_id: Option<String>,
     },
 }
+
+/// The hosted kit-socket **in-band request grammar** (LLP 0094 §0A.1 WS-kinds
+/// row, §0F item 2): the `type`-tagged frames `validateLiveSocketFrame`
+/// (`cloudflare/src/coordinator.js`) accepts on an authenticated kit stream —
+/// `subscribe` / `unsubscribe` / `ping`. This Rust type is the schema
+/// authority for that JS validator (LLP 0051 §D4 — a hand-mirrored JS family
+/// gets a Rust serde authority); the Rust server itself does not decode this
+/// family (durable lifecycle is HTTP-only on the local arm), and
+/// `cloudflare/test/wire-schema-gate.mjs` proves the served validator's
+/// verdicts against the committed schema over a shared corpus.
+///
+/// The closure mirrors the validator exactly: closed frames
+/// (`deny_unknown_fields`), a closed `resumeFromToken` wrapper, but an
+/// **open** `resume` object of which only `token` is transport-validated, and
+/// a shape-unvalidated `membershipWitness` (accepted for wire compatibility;
+/// rung 2 deferred on this arm). The in-band **reply** grammar is
+/// deliberately not schematized: it is mixed-dialect as served and enters the
+/// gates only at its §0C.6 item-6 convergence to kit dialect
+/// (`issues/20260725-0094-hosted-response-shape-divergences.md` item 5).
+///
+/// @ref LLP 0094#0a1-app-data-routes-root — the WS-kinds row: request grammar
+///   inside wire v1, reply grammar conformance-unclaimable until convergence.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum KitSocketRequestFrame {
+    /// In-band durable subscribe. `args` must be a JSON object; `supersedes`
+    /// when present is a non-empty prior subscription id; `resumeFromToken`
+    /// rides the subscribe frame (LLP 0091 §0B.4 — token resume is not a new
+    /// operation).
+    Subscribe {
+        #[schemars(length(min = 1))]
+        name: String,
+        args: Map<String, Value>,
+        /// Optional-by-absence: the served validator rejects an explicit
+        /// `null`, so the schema keeps the member non-nullable.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(with = "String", length(min = 1))]
+        supersedes: Option<String>,
+        /// Optional-by-absence (explicit `null` rejects, as above).
+        #[serde(
+            default,
+            rename = "resumeFromToken",
+            skip_serializing_if = "Option::is_none"
+        )]
+        #[schemars(with = "KitSocketResumeFromToken")]
+        resume_from_token: Option<KitSocketResumeFromToken>,
+    },
+    Unsubscribe {
+        #[serde(rename = "subscriptionId")]
+        #[schemars(length(min = 1))]
+        subscription_id: String,
+    },
+    Ping {
+        /// Optional-by-absence (explicit `null` rejects, as above).
+        #[serde(default, rename = "requestId", skip_serializing_if = "Option::is_none")]
+        #[schemars(with = "String")]
+        request_id: Option<String>,
+    },
+}
+
+/// The kit-socket subscribe frame's `resumeFromToken` wrapper **as served by
+/// the hosted validator**: exactly the members `resume` and
+/// `membershipWitness`, with `membershipWitness` accepted at any shape
+/// (`isValidResumeFromToken`, `coordinator.js`). Distinct from the typed
+/// [`ResumeFromToken`] the local HTTP subscribe input decodes — the hosted
+/// transport check is deliberately weaker, and this schema records the served
+/// contract, not an aspiration.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KitSocketResumeFromToken {
+    pub resume: KitSocketResumeEnvelope,
+    #[serde(
+        default,
+        rename = "membershipWitness",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub membership_witness: Option<Value>,
+}
+
+/// The `resume` member as transport-validated on the hosted kit socket: an
+/// open object whose `token` is a 1–1024 byte string (the LLP 0091 §0A.1
+/// `sbrt1.` cap); other members (`meta`, …) pass through untouched.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct KitSocketResumeEnvelope {
+    #[schemars(length(min = 1, max = 1024))]
+    pub token: String,
+}
+
+/// The `GET /outbox/{connection_id}` drain response body (LLP 0094 §0A.5): a
+/// **bare JSON array** of [`RealtimeEnvelope`] — not NDJSON, no object
+/// wrapper, possibly empty. The local `drain_outbox` (`src/server.rs`) serves
+/// this type directly; the hosted arm's declared-empty drain (`[]`,
+/// `coordinator.js` kit outbox arm) is governed by the same schema. An
+/// admitted-but-unknown/reaped connection answers in-band with the
+/// synthesized single-element `resync_required { reason:
+/// "unknown_or_reaped", clear_retained: true }` batch rather than an HTTP
+/// error; there is no client acknowledgement step (the LLP 0059 ownership
+/// cut rides the response handoff).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(transparent)]
+pub struct OutboxDrainOutput(pub Vec<RealtimeEnvelope>);
 
 fn nullable_storage_version_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
     generator.subschema_for::<Option<u64>>()

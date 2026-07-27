@@ -1329,7 +1329,7 @@ impl AuthorizationBlastRadiusStats {
 ///
 /// @ref LLP 0017#function-runner-and-code-runner — the first code runner is a
 /// generated-function runner that surfaces read/write sets and diagnostics.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct FunctionRunResult {
     pub ok: bool,
     pub function: String,

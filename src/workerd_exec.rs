@@ -23,7 +23,7 @@ use crate::runtime::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::env;
 use std::fs::File;
 #[cfg(unix)]
@@ -95,6 +95,46 @@ thread_local! {
     static WALL_CLOCK_OVERRIDE_MS: Cell<Option<u64>> = const { Cell::new(None) };
     static INVOKE_AUTH_TEST_MODE: Cell<Option<InvokeAuthTestMode>> = const { Cell::new(None) };
     static HOST_CALL_TEST_MODE: Cell<Option<HostCallTestMode>> = const { Cell::new(None) };
+    static WIRE_CAPTURE: RefCell<Option<CapturedHandlerWire>> = const { RefCell::new(None) };
+}
+
+/// Raw JSON bodies observed on the private handler-boundary transport during
+/// one captured invocation — the test seam that lets the schema drift gates
+/// validate REAL workerd-produced bytes (the JS side of the LLP 0060 D6
+/// marker envelopes) against the committed `handler.*` schemas instead of
+/// hand-built fixtures (LLP 0094 §0F item 1).
+#[doc(hidden)]
+#[derive(Clone, Debug, Default)]
+pub struct CapturedHandlerWire {
+    /// The coordinator→handler invocation request body (Rust-serialized from
+    /// `handler_wire::HandlerInvokeRequest`, captured post-serialization).
+    pub invoke_request: Option<String>,
+    /// The handler→coordinator response envelope body (workerd-produced).
+    pub invoke_response: Option<String>,
+    /// Every handler→host call body (workerd-produced), in arrival order.
+    pub host_call_bodies: Vec<String>,
+}
+
+/// Run `f` with handler-wire capture armed on this thread and return what the
+/// enclosed invocation(s) put on the private transport. Thread-local like the
+/// other test seams: handler execution is synchronous on the calling thread.
+#[doc(hidden)]
+pub fn with_handler_wire_capture<T>(f: impl FnOnce() -> T) -> (T, CapturedHandlerWire) {
+    let previous =
+        WIRE_CAPTURE.with(|slot| slot.replace(Some(CapturedHandlerWire::default())));
+    let result = f();
+    let captured = WIRE_CAPTURE
+        .with(|slot| slot.replace(previous))
+        .unwrap_or_default();
+    (result, captured)
+}
+
+fn capture_wire(record: impl FnOnce(&mut CapturedHandlerWire)) {
+    WIRE_CAPTURE.with(|slot| {
+        if let Some(capture) = slot.borrow_mut().as_mut() {
+            record(capture);
+        }
+    });
 }
 
 /// Adversarial test seam for the local workerd `/invoke` capability.
@@ -615,17 +655,42 @@ pub(crate) fn run_handler_workerd(
     .unwrap_or(u64::MAX)
     .saturating_sub(250)
     .max(1);
-    let mut invoke_body = json!({
-        "export": module.export,
-        "argsJson": serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
-        "authJson": serde_json::to_string(&invocation.input().auth).unwrap_or_else(|_| "{}".into()),
-        "mode": invocation.mode_str(),
-        "runJson": Value::Null,
-        "secretsJson": Value::Null,
-        "epoch": invocation.epoch().to_string(),
-        "settlementTimeoutMs": remaining_timeout_ms,
+    // Serialize the invocation request from the schema authority type, so the
+    // served local bytes and the committed `handler.invoke.input` schema are
+    // one definition (the token/hostHeaders members are hosted-arm-only; this
+    // transport carries the host-call capability via the generated workerd
+    // config instead).
+    // @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
+    //   the private marker envelopes ride the same generated-schema mechanism.
+    let mut invoke_body = serde_json::to_string(&crate::handler_wire::HandlerInvokeRequest {
+        export: module.export.clone(),
+        args_json: serde_json::to_string(&invocation.input().args)
+            .unwrap_or_else(|_| "{}".into()),
+        auth_json: serde_json::to_string(&invocation.input().auth)
+            .unwrap_or_else(|_| "{}".into()),
+        mode: crate::handler_wire::HandlerInvocationMode::from_mode_str(invocation.mode_str())
+            .ok_or_else(|| {
+                runner_error(
+                    "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+                    "the invocation mode is outside the closed handler-invoke wire set",
+                    json!({ "mode": invocation.mode_str() }),
+                )
+            })?,
+        run_json: None,
+        secrets_json: None,
+        epoch: invocation.epoch().to_string(),
+        token: None,
+        settlement_timeout_ms: remaining_timeout_ms,
+        host_headers: None,
     })
-    .to_string();
+    .map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+            "could not serialize the handler invocation request",
+            json!({ "error": error.to_string() }),
+        )
+    })?;
+    capture_wire(|capture| capture.invoke_request = Some(invoke_body.clone()));
     let invoke_url = format!("http://{worker_addr}/invoke");
     let request_timeout = Duration::from_millis(timeout_ms + 2_000);
     let (done_tx, done_rx) = mpsc::channel::<Result<String, String>>();
@@ -753,6 +818,7 @@ pub(crate) fn run_handler_workerd(
     };
     let _ = invoke_thread.join();
     drop(child);
+    capture_wire(|capture| capture.invoke_response = Some(body.clone()));
 
     let response: InvokeResponse = serde_json::from_str(&body).map_err(|error| {
         runner_error(
@@ -1058,6 +1124,11 @@ fn serve_host_call_connection(stream: TcpStream, ctx: &mut IbexHostContext<'_>, 
             return;
         }
     };
+    capture_wire(|capture| {
+        capture
+            .host_call_bodies
+            .push(String::from_utf8_lossy(&body).into_owned());
+    });
     let response = host_call_response(ctx, &body);
     write_json_response(reader.into_inner(), 200, response);
 }

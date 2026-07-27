@@ -245,7 +245,7 @@ pub struct TableScan {
     pub offset: usize,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ChangeOp {
     Insert,
     Update,
@@ -677,7 +677,7 @@ pub struct MutationPlanExecution {
     pub snapshot_version: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapturedReadDependency {
     pub kind: CapturedReadKind,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -704,7 +704,7 @@ pub struct CapturedReadDependency {
     pub boundary: Option<Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum CapturedReadKind {
     Row,
@@ -714,7 +714,7 @@ pub enum CapturedReadKind {
     Permission,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapturedWriteDependency {
     pub table: String,
     pub id: String,

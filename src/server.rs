@@ -18462,9 +18462,14 @@ fn live_socket_request_id(message: &LiveSocketClientMessage) -> Option<String> {
 /// Session-mode socket requests deliberately omit every client-asserted
 /// identity field. The connection grant supplies authority after this closed
 /// shape has decoded; dev mode continues to decode the legacy DTO unchanged.
-#[derive(Deserialize)]
+///
+/// Committed as `live.socket-client.sessions.schema.json` (LLP 0094 §0F item
+/// 4 — the schema absence was an oversight, not an LLP 0043 exemption; the
+/// sessions surface owns the semantics, the schema commitment closes the
+/// §0C.1 gap row).
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum SessionLiveSocketClientMessage {
+pub enum SessionLiveSocketClientMessage {
     EphemeralSubscribe {
         #[serde(default, rename = "requestId", alias = "request_id")]
         request_id: Option<String>,
@@ -18491,17 +18496,17 @@ enum SessionLiveSocketClientMessage {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionSubscribeRequest {
+pub struct SessionSubscribeRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionPublishRequest {
+pub struct SessionPublishRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
@@ -18509,9 +18514,9 @@ struct SessionPublishRequest {
     ttl_ms: Option<u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SessionDeleteRequest {
+pub struct SessionDeleteRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
@@ -19392,7 +19397,13 @@ async fn drain_outbox(
         publication_authority.extend(permit);
         drained.push(envelope);
     }
-    let mut response = Json(drained).into_response();
+    // The drain response is the typed bare-array family (LLP 0094 §0A.5),
+    // committed as `live.outbox-drain.output.schema.json` — serving through
+    // the authority type keeps the served bytes and the drift-gated schema
+    // one definition.
+    // @ref LLP 0094#0a5-the-drain-response-shape-lane-p — bare
+    //   `[RealtimeEnvelope]`, in-band unknown_or_reaped batch, no client ack.
+    let mut response = Json(crate::live_wire::OutboxDrainOutput(drained)).into_response();
     retain_realtime_handoff_in(
         &mut response,
         publication_authority,

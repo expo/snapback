@@ -1,0 +1,246 @@
+{
+  "$defs": {
+    "CapturedReadDependency": {
+      "properties": {
+        "boundary": true,
+        "field": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/CapturedReadKind"
+        },
+        "limit": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "order": true,
+        "predicate": true,
+        "result_count": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rows": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": true,
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CapturedReadKind": {
+      "enum": [
+        "row",
+        "missingRow",
+        "query",
+        "auth",
+        "permission"
+      ],
+      "type": "string"
+    },
+    "CapturedWriteDependency": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/ChangeOp"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "id",
+        "op"
+      ],
+      "type": "object"
+    },
+    "ChangeOp": {
+      "enum": [
+        "Insert",
+        "Update",
+        "Delete"
+      ],
+      "type": "string"
+    },
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "type": "string"
+    },
+    "FunctionKind": {
+      "enum": [
+        "Query",
+        "Mutation",
+        "LiveQuery",
+        "Action"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/action.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The result of running a generated function from the admin function runner.\n\nCarries the function's declared read-set and write-set beside the outcome so\na \"declared namespace does not match what the handler touches\" mismatch is\nvisible — the Valet \"counts stuck at zero\" failure class.\n\n@ref LLP 0017#function-runner-and-code-runner — the first code runner is a\ngenerated-function runner that surfaces read/write sets and diagnostics.",
+  "properties": {
+    "adminBypass": {
+      "description": "Envelope-level audit fact for session-mode operator invocation. The\nhandler input remains anonymous; this records that access came through\nthe explicit administrative bypass rather than an app principal.",
+      "type": "boolean"
+    },
+    "captured_reads": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CapturedReadDependency"
+      },
+      "type": "array"
+    },
+    "captured_writes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CapturedWriteDependency"
+      },
+      "type": "array"
+    },
+    "changed_count": {
+      "format": "uint",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "diagnostic": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Diagnostic"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "elapsed_ms": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "function": {
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "reads": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "result": true,
+    "rows": {
+      "items": true,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "version": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "writes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "ok",
+    "function",
+    "reads",
+    "writes",
+    "elapsed_ms"
+  ],
+  "title": "FunctionRunResult",
+  "type": "object"
+}

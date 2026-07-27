@@ -1,0 +1,62 @@
+{
+  "$defs": {
+    "RoomId": {
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "routing_key": {
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "collection",
+        "scope",
+        "routing_key"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.publish.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "entry_version": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "expires_at_ms": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "key": {
+      "type": "string"
+    },
+    "room": {
+      "$ref": "#/$defs/RoomId"
+    },
+    "scope_epoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "room",
+    "key",
+    "scope_epoch",
+    "entry_version",
+    "expires_at_ms"
+  ],
+  "title": "PublishOutcome",
+  "type": "object"
+}

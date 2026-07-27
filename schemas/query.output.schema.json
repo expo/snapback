@@ -1,0 +1,29 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/query.output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "cursor": {
+      "description": "Relational continuation cursor (LLP 0080 §2): present exactly when a\n`root-window-v1` page consumed its full `take` of authorized roots.\nOpaque and versioned; presenting it back as the `cursor` argument\nresumes from the last consumed root. Absent for every non-relational\nquery and for terminal pages.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rows": {
+      "items": true,
+      "type": "array"
+    },
+    "version": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "rows"
+  ],
+  "title": "QueryOutput",
+  "type": "object"
+}

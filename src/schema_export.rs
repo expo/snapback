@@ -38,21 +38,27 @@ use crate::deploy::{
     RestoreActivationPlan, RestorePlan, RollbackPlan, TargetDescriptor,
 };
 use crate::diagnostic::Diagnostic;
-use crate::ephemeral::RealtimeEnvelope;
+use crate::ephemeral::{
+    DeleteRequest, EphemeralMessage, PublishOutcome, PublishRequest, RealtimeEnvelope,
+    SubscribeRequest,
+};
+use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{
-    LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, ResumeWire,
+    KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame,
+    OutboxDrainOutput, Receipt, ResumeWire,
 };
 use crate::local::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
-    EnsureAppRequest, EnsureAppResponse, InspectState, LiveResumeInput, LiveResumeOutput,
-    LiveSubscribeInput, LiveSubscribeOutput, LiveUnsubscribeInput, LiveUnsubscribeOutput,
-    PublicInspect,
+    EnsureAppRequest, EnsureAppResponse, FunctionRunResult, InspectState, LiveResumeInput,
+    LiveResumeOutput, LiveSubscribeInput, LiveSubscribeOutput, LiveUnsubscribeInput,
+    LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    MutationAcknowledgementResponse, MutationRequest, QueryOutput, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest,
 };
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
@@ -60,7 +66,7 @@ use crate::migration::{
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
-    MutationResponse, OpenConnectionRequest,
+    MutationResponse, OpenConnectionRequest, SessionLiveSocketClientMessage,
 };
 use crate::service_profile::{
     RemoteAuthCapabilityManifest, RemoteDataCapabilityManifest, RemoteServiceProfile,
@@ -485,6 +491,75 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "client-mutation.ack.output.schema.json",
             schemars::schema_for!(MutationAcknowledgementResponse),
+        ),
+        // The LLP 0060 D6 private marker envelopes (LLP 0094 §0F item 1 /
+        // LLP 0051 §D4): the coordinator→handler invocation request, the
+        // handler→coordinator response envelope, and the handler→host call
+        // body. Private but not hand-mirror-exempt; semantics stay owned by
+        // LLP 0060, these are the served-shape authorities.
+        finish(
+            "handler.invoke.input.schema.json",
+            schemars::schema_for!(HandlerInvokeRequest),
+        ),
+        finish(
+            "handler.invoke.output.schema.json",
+            schemars::schema_for!(HandlerInvokeResponse),
+        ),
+        finish(
+            "handler.host-call.input.schema.json",
+            schemars::schema_for!(HandlerHostCallRequest),
+        ),
+        // The hosted kit-socket in-band REQUEST grammar (LLP 0094 §0A.1
+        // WS-kinds row / §0F item 2). The in-band REPLY grammar is
+        // deliberately absent until its §0C.6 item-6 kit-dialect convergence.
+        finish(
+            "live.kit-socket-request.schema.json",
+            schemars::schema_for!(KitSocketRequestFrame),
+        ),
+        // The bare-array drain response (LLP 0094 §0A.5).
+        finish(
+            "live.outbox-drain.output.schema.json",
+            schemars::schema_for!(OutboxDrainOutput),
+        ),
+        // Former §0C gap rows (LLP 0094 §0F item 4): families that were
+        // serde-typed but not independently schema-committed.
+        finish(
+            "query.output.schema.json",
+            schemars::schema_for!(QueryOutput),
+        ),
+        finish(
+            "action.output.schema.json",
+            schemars::schema_for!(FunctionRunResult),
+        ),
+        finish(
+            "live.socket-client.sessions.schema.json",
+            schemars::schema_for!(SessionLiveSocketClientMessage),
+        ),
+        finish(
+            "ephemeral.publish.input.schema.json",
+            schemars::schema_for!(PublishRequest),
+        ),
+        finish(
+            "ephemeral.subscribe.input.schema.json",
+            schemars::schema_for!(SubscribeRequest),
+        ),
+        finish(
+            "ephemeral.delete.input.schema.json",
+            schemars::schema_for!(DeleteRequest),
+        ),
+        finish(
+            "ephemeral.publish.output.schema.json",
+            schemars::schema_for!(PublishOutcome),
+        ),
+        finish(
+            "ephemeral.subscribe.output.schema.json",
+            schemars::schema_for!(EphemeralMessage),
+        ),
+        // `/ephemeral/delete` answers the removed entry's final message, or
+        // JSON `null` when nothing was present to delete.
+        finish(
+            "ephemeral.delete.output.schema.json",
+            schemars::schema_for!(Option<EphemeralMessage>),
         ),
     ]
 }
