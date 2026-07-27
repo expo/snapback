@@ -20,6 +20,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-security-hardening',
   'acceptance-storage-layout',
   'acceptance-wire-shapes',
+  'acceptance-wire-version',
   'config-set',
   'cron-utils',
   'deploy-script',
@@ -111,9 +112,15 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare storage-layout acceptance: index reconciliation'],
   },
   {
+<<<<<<< HEAD
     id: 'acceptance-wire-shapes',
     file: 'cloudflare/test/acceptance.wire-shapes.mjs',
     evidence: ['cloudflare wire-shape acceptance: 32/32 checks passed'],
+=======
+    id: 'acceptance-wire-version',
+    file: 'cloudflare/test/acceptance.wire-version.mjs',
+    evidence: ['cloudflare wire-version acceptance: 23/23 checks passed'],
+>>>>>>> a1390b09 (feat(wire): hosted-arm wire-version negotiation (LLP 0094 B1+B3))
   },
   {
     id: 'config-set',
@@ -178,7 +185,11 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.secrets.mjs', 'gate'],
   ['acceptance.security-hardening.mjs', 'gate'],
   ['acceptance.storage-layout.mjs', 'gate'],
+<<<<<<< HEAD
   ['acceptance.wire-shapes.mjs', 'gate'],
+=======
+  ['acceptance.wire-version.mjs', 'gate'],
+>>>>>>> a1390b09 (feat(wire): hosted-arm wire-version negotiation (LLP 0094 B1+B3))
   ['billing-windows.mjs', 'remote-credentialed'],
   ['config-set.mjs', 'gate'],
   ['cron-utils.mjs', 'gate'],

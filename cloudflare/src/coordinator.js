@@ -154,6 +154,54 @@ const DEFAULT_CONNECTION_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CONNECTION_OPEN_RATE_PER_MINUTE = 120;
 const MAX_CONNECTION_ID_BYTES = 128;
 const CONNECTION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+// Wire-version negotiation (LLP 0094 §0B). The token is byte-identical to
+// the kit-stream subprotocol; classification is exact-token (LLP 0064).
+// @ref LLP 0094#0b3-the-wireversion-open-time-offer — hosted B1: the open
+//   decoder must READ the offer (its open decoder is otherwise open, the
+//   §0C.3 silent-feature-off hazard) and echo the bound version, the hosted
+//   arm's only runtime version witness.
+const WIRE_VERSION_V1 = 'snapback.v1';
+const SUPPORTED_WIRE_VERSIONS = Object.freeze([WIRE_VERSION_V1]);
+const WIRE_VERSION_CANDIDATE_PREFIX = 'snapback.v';
+const WIRE_VERSION_BEARER_CARRIER_PREFIX = 'snapback.connection-token.';
+
+// The `/connection/open` offer member, classified per the §0B.3 matrix.
+// The member is declared to be a wire version, so any present value that is
+// not exactly a supported token — wrong string, wrong type, or conflicting
+// camelCase/snake_case duplicates — is unknown, never silently ignored.
+function classifyOpenWireVersionOffer(payload) {
+  const camel = payload.wireVersion;
+  const snake = payload.wire_version;
+  if (camel === undefined && snake === undefined) return { kind: 'absent' };
+  if (camel !== undefined && snake !== undefined && camel !== snake) {
+    return { kind: 'unknown' };
+  }
+  const offered = camel !== undefined ? camel : snake;
+  if (typeof offered === 'string' && SUPPORTED_WIRE_VERSIONS.includes(offered)) {
+    return { kind: 'known', token: offered };
+  }
+  return { kind: 'unknown' };
+}
+
+// The kit-stream subprotocol offer set, reduced to the first matching row of
+// the §0B.4 precedence table ("bound version present wins"; classification
+// precedes equality, so an offer set with no known candidate can never be a
+// mismatch). The bearer carrier is excluded before candidate matching;
+// unrelated subprotocols are ignored; duplicates are harmless.
+function classifySocketWireVersionOffer(entries, bound) {
+  let seenCandidate = false;
+  let seenKnown = false;
+  for (const entry of entries) {
+    if (entry.startsWith(WIRE_VERSION_BEARER_CARRIER_PREFIX)) continue;
+    if (!entry.startsWith(WIRE_VERSION_CANDIDATE_PREFIX)) continue;
+    seenCandidate = true;
+    if (entry === bound) return 'bound';
+    if (SUPPORTED_WIRE_VERSIONS.includes(entry)) seenKnown = true;
+  }
+  if (seenKnown) return 'known-mismatch';
+  if (seenCandidate) return 'unknown';
+  return 'absent';
+}
 const UTF8_ENCODER = new TextEncoder();
 const MAX_LIVE_SOCKET_FRAME_BYTES = 64 * 1024;
 const MAX_CRON_DIAGNOSTIC_BYTES = 1024;
@@ -373,6 +421,10 @@ export class Coordinator {
        )`
     );
     this.ensureColumn('_snapback_connections', 'socket_session_id', 'TEXT');
+    // The lineage's explicit wire-version binding (LLP 0094 §0B.3): the bound
+    // token when the first open carried a known offer, NULL for a legacy
+    // (offerless-open) lineage. Fixed at first open; no re-open changes it.
+    this.ensureColumn('_snapback_connections', 'wire_version', 'TEXT');
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS _snapback_connection_admission (
          id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -3860,7 +3912,7 @@ export class Coordinator {
 
   readConnectionGrant(connectionId) {
     const records = [...this.sql.exec(
-      'SELECT token, opened_at_ms, socket_session_id FROM _snapback_connections WHERE connection_id = ?',
+      'SELECT token, opened_at_ms, socket_session_id, wire_version FROM _snapback_connections WHERE connection_id = ?',
       connectionId
     )];
     if (records.length === 0) return null;
@@ -3868,6 +3920,9 @@ export class Coordinator {
       token: String(records[0].token),
       openedAtMs: Number(records[0].opened_at_ms),
       socketSessionId: records[0].socket_session_id == null ? null : String(records[0].socket_session_id),
+      // Explicit binding witness; null = legacy lineage (implicitly v1 for
+      // the §0B.4 socket-equality rule, never echoed).
+      wireVersion: records[0].wire_version == null ? null : String(records[0].wire_version),
     };
   }
 
@@ -4260,13 +4315,58 @@ export class Coordinator {
         `connection ids must use only ASCII letters, digits, underscores, or hyphens and fit in ${MAX_CONNECTION_ID_BYTES} UTF-8 bytes`
       );
     }
+    // §0C.5 alignment (LLP 0094): unknown authInvalidationProtocol values
+    // refuse instead of silently degrading; absent keeps degrading to legacy.
+    // (This arm implements no invalidation surface, so a known offer of 1 is
+    // read but yields no authorizationInvalidation member, exactly as today.)
+    const invalidationOffer = payload.authInvalidationProtocol !== undefined
+      ? payload.authInvalidationProtocol
+      : payload.auth_invalidation_protocol;
+    if (invalidationOffer !== undefined && invalidationOffer !== null && invalidationOffer !== 1) {
+      return kitError(
+        400,
+        'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',
+        'this server understands authInvalidationProtocol 1 only; omit the field to open a legacy connection'
+      );
+    }
+    // Offer matrix (LLP 0094 §0B.3): known binds and is echoed, unknown
+    // refuses (classification precedence: an unknown candidate on a re-open
+    // refuses here, never MISMATCH), absent opens a legacy lineage.
+    const wireOffer = classifyOpenWireVersionOffer(payload);
+    if (wireOffer.kind === 'unknown') {
+      return kitError(
+        400,
+        'SNAPBACK_WIRE_VERSION_UNSUPPORTED',
+        `the offered wireVersion is not supported by this server; supported versions: ${SUPPORTED_WIRE_VERSIONS.join(', ')}`
+      );
+    }
     const reaped = this.reapExpiredConnections();
     if (reaped > 0) await this.reconcileCronActivation();
     const previousToken = typeof payload.previousToken === 'string' ? payload.previousToken : null;
-    const requestedToken = requested === null ? null : this.readConnectionToken(requested);
+    const requestedGrant = requested === null ? null : this.readConnectionGrant(requested);
+    const requestedToken = requestedGrant && requestedGrant.token;
     if (requestedToken && previousToken === requestedToken) {
+      // Re-open matrix (LLP 0094 §0B.3): binding is immutable for the
+      // lineage. A known offer unequal to the bound version — explicit, or
+      // the implicit v1 of a legacy lineage — refuses and leaves the
+      // existing connection, socket, and subscriptions undisturbed; a
+      // confirming v1 offer on a legacy lineage never upgrades it.
+      const lineageWireVersion = requestedGrant.wireVersion;
+      if (wireOffer.kind === 'known' && wireOffer.token !== (lineageWireVersion ?? WIRE_VERSION_V1)) {
+        return kitError(
+          400,
+          'SNAPBACK_WIRE_VERSION_MISMATCH',
+          "the wire-version offer does not equal this connection lineage's bound version; open a fresh connection to change versions"
+        );
+      }
       this.sql.exec('UPDATE _snapback_connections SET opened_at_ms = ? WHERE connection_id = ?', Date.now(), requested);
-      return json(200, { connectionId: requested, connectionToken: requestedToken });
+      return json(200, {
+        connectionId: requested,
+        connectionToken: requestedToken,
+        // Echo ⇔ explicitly bound lineage (§0B.3): emitted on every re-open
+        // of an explicit lineage, never on a legacy one.
+        ...(lineageWireVersion ? { wireVersion: lineageWireVersion } : {}),
+      });
     }
     if (this.connectionCount() >= this.connectionGrantLimit()) {
       return kitError(
@@ -4286,14 +4386,21 @@ export class Coordinator {
     const stored = this.readConnectionToken(suggested);
     const connectionId = stored ? `conn_${crypto.randomUUID()}` : suggested;
     const token = crypto.randomUUID();
+    const boundWireVersion = wireOffer.kind === 'known' ? wireOffer.token : null;
     this.sql.exec(
-      `INSERT INTO _snapback_connections (connection_id, token, opened_at_ms) VALUES (?, ?, ?)
-       ON CONFLICT(connection_id) DO UPDATE SET token = excluded.token, opened_at_ms = excluded.opened_at_ms`,
+      `INSERT INTO _snapback_connections (connection_id, token, opened_at_ms, wire_version) VALUES (?, ?, ?, ?)
+       ON CONFLICT(connection_id) DO UPDATE SET token = excluded.token, opened_at_ms = excluded.opened_at_ms,
+         wire_version = excluded.wire_version`,
       connectionId,
       token,
-      Date.now()
+      Date.now(),
+      boundWireVersion
     );
-    return json(200, { connectionId, connectionToken: token });
+    return json(200, {
+      connectionId,
+      connectionToken: token,
+      ...(boundWireVersion ? { wireVersion: boundWireVersion } : {}),
+    });
   }
 
   // POST /app/ensure (LLP 0034 §5 semantics, Cloudflare projection): app code
@@ -4600,9 +4707,10 @@ export class Coordinator {
   // token gate runs BEFORE the upgrade. Browser WebSockets cannot set
   // headers, so their token rides only the
   // `snapback.connection-token.<token>` subprotocol; non-browser clients may
-  // use the explicit header. Query credentials are refused. The socket echoes
-  // `snapback.v1` — a browser fails the connection when it offered
-  // subprotocols and the server echoed none.
+  // use the explicit header. Query credentials are refused. The upgrade must
+  // offer the connection's bound wire version (LLP 0094 §0B.4) and the socket
+  // echoes it — a browser fails the connection when it offered subprotocols
+  // and the server echoed none.
   async acceptKitSocket(request, connectionId, url) {
     // @ref LLP 0031#connection-capability-grants — browser bearer transport
     // is the subprotocol; URL credentials are outside the grant contract.
@@ -4627,6 +4735,38 @@ export class Coordinator {
       (tokenProtocol ? tokenProtocol.slice('snapback.connection-token.'.length) : null);
     const denied = this.verifyConnection(connectionId, presented);
     if (denied) return denied;
+    // Wire-version classification (LLP 0094 §0B.4), after the credential
+    // gate so protocol semantics are never disclosed to unauthenticated
+    // callers, before the upgrade so every refusal is a pre-upgrade HTTP
+    // response. The bound version is the lineage's explicit binding or the
+    // implicit v1 of a legacy lineage.
+    // @ref LLP 0094#0b4-socket-offer-requirement-and-the-equality-rule —
+    //   classification precedes equality; the absent-class refusal is the B3
+    //   bridge closure. The `/live/stream` proof socket is exempt and its
+    //   handler (acceptLiveSocket) is deliberately untouched.
+    const boundWireVersion = this.readConnectionGrant(connectionId)?.wireVersion ?? WIRE_VERSION_V1;
+    const wireOffer = classifySocketWireVersionOffer(protocols, boundWireVersion);
+    if (wireOffer === 'known-mismatch') {
+      return kitError(
+        400,
+        'SNAPBACK_WIRE_VERSION_MISMATCH',
+        "the socket wire-version offer does not equal this connection's bound version"
+      );
+    }
+    if (wireOffer === 'unknown') {
+      return kitError(
+        400,
+        'SNAPBACK_WIRE_VERSION_UNSUPPORTED',
+        `the socket offer contains no wire-version token this server supports; supported versions: ${SUPPORTED_WIRE_VERSIONS.join(', ')}`
+      );
+    }
+    if (wireOffer === 'absent') {
+      return kitError(
+        400,
+        'SNAPBACK_WIRE_VERSION_REQUIRED',
+        `kit stream upgrades must offer the ${WIRE_VERSION_V1} wire-version subprotocol`
+      );
+    }
     const connectionSocketLimit = this.socketsPerConnectionLimit();
     const priorConnectionSockets = this.ctx.getWebSockets(connectionId).filter((socket) => {
       try {
@@ -4694,7 +4834,10 @@ export class Coordinator {
     this.ctx.acceptWebSocket(server, [connectionId]);
     server.serializeAttachment({ connectionId, protocol: 'kit', socketSessionId });
     await this.reconcileCronActivation();
-    const headers = protocols.includes('snapback.v1') ? { 'sec-websocket-protocol': 'snapback.v1' } : undefined;
+    // The offer set reaching here contains the bound version (§0B.4 row 1):
+    // select and echo it. Since B3 an offerless upgrade never reaches this
+    // line, so the echo is unconditional.
+    const headers = { 'sec-websocket-protocol': boundWireVersion };
     return new Response(null, { status: 101, webSocket: client, headers });
   }
 

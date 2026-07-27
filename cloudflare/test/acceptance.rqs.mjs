@@ -346,7 +346,7 @@ try {
     body: JSON.stringify({ connectionId: 'rqs-kit' }),
   })).json();
   const kitUpgrade = await proof.raw(`/live/${opened.connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': opened.connectionToken },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': opened.connectionToken },
   });
   const kitWs = kitUpgrade.webSocket;
   kitWs.accept();

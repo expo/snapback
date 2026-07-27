@@ -480,6 +480,7 @@ try {
   const kitUpgrade = await kindProof.raw(`/live/${opened.body.connectionId}/stream`, {
     headers: {
       upgrade: 'websocket',
+      'sec-websocket-protocol': 'snapback.v1',
       'x-snapback-connection-token': opened.body.connectionToken,
     },
   });

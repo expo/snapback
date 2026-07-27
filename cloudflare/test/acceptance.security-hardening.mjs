@@ -246,7 +246,7 @@ try {
   }
 
   const headerSocket = acceptSocket(await testing.raw(`/live/${connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': token },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': token },
   }));
   const replacement = acceptSocket(await testing.raw(`/live/${connectionId}/stream`, {
     headers: {
@@ -278,7 +278,7 @@ try {
   // Replacement-first closes current ownership and removes subscriptions;
   // the obsolete socket never resumes receiving frames.
   const current = acceptSocket(await testing.raw(`/live/${connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': token },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': token },
   }));
   current.ws.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -460,7 +460,7 @@ try {
   for (const label of ['concurrent-a', 'concurrent-b']) {
     const grant = await jsonFetch(base, '/connection/open', { connectionId: label });
     const response = await concurrentSubscriptions.raw(`/live/${grant.body.connectionId}/stream`, {
-      headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+      headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': grant.body.connectionToken },
     });
     response.webSocket.accept();
     opened.push({ grant: grant.body, socket: response.webSocket });
@@ -516,7 +516,7 @@ try {
   for (let index = 0; index < 5; index += 1) {
     const previous = current;
     const response = await boundedSockets.raw(`/live/${grant.body.connectionId}/stream`, {
-      headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+      headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': grant.body.connectionToken },
     });
     assert.equal(response.status, 101);
     response.webSocket.accept();
@@ -532,21 +532,21 @@ try {
 
   const secondGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global' });
   const secondSocket = await boundedSockets.raw(`/live/${secondGrant.body.connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': secondGrant.body.connectionToken },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': secondGrant.body.connectionToken },
   });
   assert.equal(secondSocket.status, 101);
   secondSocket.webSocket.accept();
   sockets.push(secondSocket.webSocket);
   const thirdGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global-third' });
   const thirdSocket = await boundedSockets.raw(`/live/${thirdGrant.body.connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': thirdGrant.body.connectionToken },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': thirdGrant.body.connectionToken },
   });
   assert.equal(thirdSocket.status, 101);
   thirdSocket.webSocket.accept();
   sockets.push(thirdSocket.webSocket);
   const fourthGrant = await jsonFetch(base, '/connection/open', { connectionId: 'socket-global-refused' });
   const globallyRefused = await boundedSockets.raw(`/live/${fourthGrant.body.connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': fourthGrant.body.connectionToken },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': fourthGrant.body.connectionToken },
   });
   assert.equal(globallyRefused.status, 429);
   assert.equal((await globallyRefused.json()).diagnostic?.code, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
@@ -572,7 +572,7 @@ try {
   const base = await strictSocketCap.url();
   const grant = await jsonFetch(base, '/connection/open', { connectionId: 'strict-reconnect' });
   const open = async () => strictSocketCap.raw(`/live/${grant.body.connectionId}/stream`, {
-    headers: { upgrade: 'websocket', 'x-snapback-connection-token': grant.body.connectionToken },
+    headers: { upgrade: 'websocket', 'sec-websocket-protocol': 'snapback.v1', 'x-snapback-connection-token': grant.body.connectionToken },
   });
   const waitForSocketCount = async (expected) => {
     const deadline = Date.now() + 2_000;

@@ -2,8 +2,8 @@
   "format": 2,
   "app": "notes",
   "schemaHash": "sha256:91826ac15cda8cfcfdc362f1a3654ef6ef679d2499967298f7745d7c7b425125",
-  "bundleHash": "sha256:add440cc94a28085ec4b5ffac765efd89f5cf9f8e46fd7177148a450a192c755",
-  "inputsHash": "sha256:668d3343e790e437e5a7735c433e37df58311950e5801e0cfb5285bf0852ca08",
+  "bundleHash": "sha256:16ac285ee5a7ca26ad09b4dd428fe681f6a9c33ab22b007622c67c28d7d6d8d9",
+  "inputsHash": "sha256:ed39b814609924cb12f020ae77c908ea3f4ab0bed4c3a24852f7becd83805120",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
@@ -16,7 +16,6 @@
     "cloudflare/src/platform-errors.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
-    "cloudflare/src/wire-diagnostic.js",
     "normalized:cloudflare/wrangler.handler.jsonc",
     "normalized:cloudflare/wrangler.jsonc",
     "normalized:packages/snapback-harness/compat.json",
