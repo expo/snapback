@@ -103,7 +103,7 @@ export function platformFailureResponse(path, failure) {
     return new Response(JSON.stringify(failure), { status: 200, headers });
   }
   const status = failure.code === 'SNAPBACK_VALUE_TOO_LARGE' ? 413 : 503;
-  // @ref LLP 0094#0C.6 — item 9: the kit-route branch fills the committed
+  // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 9: the kit-route branch fills the committed
   //   Diagnostic completely; details is never dropped when undefined.
   const diagnostic = wireDiagnostic(failure.code, failure.message, failure.details ?? null);
   return new Response(JSON.stringify({ diagnostic }), { status, headers });

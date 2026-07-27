@@ -4425,7 +4425,7 @@ export class Coordinator {
 
   // POST /mutation/:name — the committed MutationResponse envelope
   // { version, changed_count, result, receipt }.
-  // @ref LLP 0094#0C.6 — item 1: the hosted arm emits the required terminal
+  // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 1: the hosted arm emits the required terminal
   //   mutation receipt (mutation.output.schema.json), mirroring the local
   //   record_mutation_commit facts (src/local.rs). Every field is honest on
   //   this arm: the id is minted per invocation (hosted has no
@@ -4574,7 +4574,7 @@ export class Coordinator {
         'a current authenticated WebSocket session is required before unsubscribing'
       );
     }
-    // @ref LLP 0094#0C.6 — item 2: the committed LiveUnsubscribeOutput shape
+    // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 2: the committed LiveUnsubscribeOutput shape
     //   (subscription_id + disposed). Unlike the local arm, an unknown or
     //   foreign id is not an error here (the session-scoped delete is the
     //   ownership cut): it answers disposed:false honestly.
@@ -4830,7 +4830,7 @@ export class Coordinator {
   }
 
   async subscribe(ws, connectionId, parsed, socketSessionId = null) {
-    // @ref LLP 0094#0A.1 — §0C.6 item 6: every in-band reply on a KIT socket
+    // @ref LLP 0094#0a1-app-data-routes-root — §0C.6 item 6: every in-band reply on a KIT socket
     //   is kind-tagged kit dialect (matching current_as_of/pong); errors
     //   carry the fully-filled committed Diagnostic. Proof sockets keep the
     //   LLP 0040 pinned type-tagged frames byte-for-byte.
@@ -5684,7 +5684,7 @@ function failure(result) {
 // Kit-protocol errors carry the local server's ApiError envelope — a non-2xx
 // status with a structured `diagnostic` — which demos/_kit/client.mjs turns
 // into its coded Error (and keys grant refresh on).
-// @ref LLP 0094#0C.6 — item 3: the inner Diagnostic is fully filled
+// @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 3: the inner Diagnostic is fully filled
 //   (code/severity/subsystem/message/details), matching the closed
 //   error.response.schema.json.
 function kitError(status, code, message, details = null) {
@@ -5723,7 +5723,7 @@ function requestDiagnostic(status, code, message, details = null) {
 }
 
 async function parseJsonObjectRequest(request, { allowEmpty = false, errorDialect = 'proof' } = {}) {
-  // @ref LLP 0094#0C.6 — item 7: kit-route parse refusals emit the closed
+  // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 7: kit-route parse refusals emit the closed
   //   ErrorResponse; the LLP 0040 proof/system lanes keep their pinned
   //   {ok, code, message, diagnostic} shape.
   const refuse = errorDialect === 'kit' ? kitError : requestDiagnostic;

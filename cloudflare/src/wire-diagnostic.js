@@ -14,7 +14,7 @@
 // failures). Classification is by stable code family so a shared code never
 // reports different subsystems across the two arms.
 //
-// @ref LLP 0094#0C.6 — served divergences are defects, not contract; the
+// @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — served divergences are defects, not contract; the
 //   decided direction is to converge the emitters to the committed schemas.
 
 const SUBSYSTEM_RULES = [

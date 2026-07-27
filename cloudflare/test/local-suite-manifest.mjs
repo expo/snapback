@@ -19,6 +19,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-secrets',
   'acceptance-security-hardening',
   'acceptance-storage-layout',
+  'acceptance-wire-shapes',
   'config-set',
   'cron-utils',
   'deploy-script',
@@ -110,6 +111,11 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare storage-layout acceptance: index reconciliation'],
   },
   {
+    id: 'acceptance-wire-shapes',
+    file: 'cloudflare/test/acceptance.wire-shapes.mjs',
+    evidence: ['cloudflare wire-shape acceptance: 32/32 checks passed'],
+  },
+  {
     id: 'config-set',
     file: 'cloudflare/test/config-set.mjs',
     evidence: ['cloudflare config-set tests: locked Wrangler, bounded stdin apply, and deadline-bound attestation passed'],
@@ -172,6 +178,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.secrets.mjs', 'gate'],
   ['acceptance.security-hardening.mjs', 'gate'],
   ['acceptance.storage-layout.mjs', 'gate'],
+  ['acceptance.wire-shapes.mjs', 'gate'],
   ['billing-windows.mjs', 'remote-credentialed'],
   ['config-set.mjs', 'gate'],
   ['cron-utils.mjs', 'gate'],

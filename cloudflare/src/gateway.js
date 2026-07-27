@@ -146,7 +146,7 @@ async function gatewayFetch(request, env) {
     }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
-        // @ref LLP 0094#0C.6 — item 8: gateway refusals carry the full
+        // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 8: gateway refusals carry the full
         //   committed Diagnostic (closed ErrorResponse envelope).
         return json(405, {
           diagnostic: wireDiagnostic('SNAPBACK_METHOD_NOT_ALLOWED', `${path} requires POST`, {
