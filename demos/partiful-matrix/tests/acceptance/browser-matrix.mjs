@@ -1043,10 +1043,14 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
         ? phase4VisualSpec.viewports.filter(({ id }) => !selectedVisualViewport || id === selectedVisualViewport)
         : [phase4VisualSpec.viewports.at(-1)];
     for (const theme of themes) for (const viewport of viewports) {
-      const visualPage = captureVisualDir ? await cdp.newPage() : page;
-      try {
-        if (!isIosSafari) await visualPage.setViewport(viewport.width, viewport.height);
-        for (const state of phase4VisualSpec.states) {
+      for (const state of phase4VisualSpec.states) {
+        // A capture cell is an independent fixture. Keeping one browser target
+        // across all 13 states allowed a slow route provider from an earlier
+        // state to strand a later state on its loading shell. Use a fresh
+        // target per retained image so one cell cannot contaminate another.
+        const visualPage = captureVisualDir ? await cdp.newPage() : page;
+        try {
+          if (!isIosSafari) await visualPage.setViewport(viewport.width, viewport.height);
           try {
             await prepareVisualState({ page: visualPage, cell, baseUrl, state: state.id, theme: theme.id });
           } catch (error) {
@@ -1073,9 +1077,9 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
             artifact = { path: relative(repoRoot, artifactPath), sha256: createHash('sha256').update(image).digest('hex'), bytes: image.byteLength, approval: 'pending-human-review' };
           }
           states.push({ state: state.id, theme: theme.id, viewport: viewport.id, specVersion: phase4VisualSpec.specVersion, structural, relations, artifact });
+        } finally {
+          if (visualPage !== page) await visualPage.close();
         }
-      } finally {
-        if (visualPage !== page) await visualPage.close();
       }
     }
     return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: captureVisualDir ? `${states.length}-cell isolated capture shard with pending human approvals` : '13-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
