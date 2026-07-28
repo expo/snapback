@@ -28,11 +28,16 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
+  createBoundedAsyncTaskPool,
+  createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
+  digestBoundedBrowserFilesystem,
+  measureGitCheckoutIdentity,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
-  resolveInstalledBrowserExecutable,
+  resolveInstalledBrowserDistribution,
   runAsync,
   usage,
   validateColdInstallBrowserEvidence,
@@ -46,7 +51,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BROWSER_PACKAGE_VERSION = '1.62.0';
 const BROWSER_MAX_SURFACE_BYTES = 16 * 1024 * 1024;
 const BROWSER_MAX_TOTAL_BYTES = 128 * 1024 * 1024;
+const BROWSER_MAX_SURFACES = 20_000;
+const BROWSER_MAX_ASYNC_TASKS = 10_000;
+const BROWSER_MAX_CONCURRENCY = 8;
 const BROWSER_MAX_STORAGE_ENTRIES = 10_000;
+const BROWSER_MAX_VALUE_DEPTH = 10;
+const BROWSER_MAX_VALUE_NODES = 20_000;
+const BROWSER_MAX_VALUE_PROPERTIES = 20_000;
+const BROWSER_MAX_FILES = 50_000;
+const BROWSER_MAX_FILE_BYTES = 512 * 1024 * 1024;
+const BROWSER_MAX_FILES_TOTAL_BYTES = 1024 * 1024 * 1024;
 
 function fail(message) {
   console.error(`snapback-package-cold-install: ${message}`);
@@ -99,32 +113,6 @@ function sha256(path) {
 
 function digest(path, algorithm, encoding) {
   return createHash(algorithm).update(readFileSync(path)).digest(encoding);
-}
-
-function browserPackageTreeSha256(packageRoots) {
-  const hash = createHash('sha256');
-  const visit = (directory, logicalRoot, relative = '') => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })
-      .sort((left, right) => left.name.localeCompare(right.name))) {
-      if (entry.name === '.local-browsers') continue;
-      const relativePath = relative === '' ? entry.name : `${relative}/${entry.name}`;
-      const absolutePath = join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(absolutePath, logicalRoot, relativePath);
-        continue;
-      }
-      if (!entry.isFile()) {
-        fail(`real-browser package tree contains an unsupported entry: ${logicalRoot}/${relativePath}`);
-      }
-      const bytes = readFileSync(absolutePath);
-      hash.update(`${logicalRoot}/${relativePath}\0${bytes.byteLength}\0`);
-      hash.update(bytes);
-    }
-  };
-  for (const [logicalRoot, directory] of packageRoots) {
-    visit(directory, logicalRoot);
-  }
-  return hash.digest('hex');
 }
 
 async function startStagedRegistry(ledgerDirectory, ledger) {
@@ -259,6 +247,10 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
 
 async function inspectBrowserStorage(page) {
   return page.evaluate(async ({
+    maxDepth,
+    maxNodes,
+    maxProperties,
+    maxSurfaces,
     maxSurfaceBytes,
     maxTotalBytes,
     maxEntries,
@@ -267,6 +259,11 @@ async function inspectBrowserStorage(page) {
     const surfaces = [];
     let totalBytes = 0;
     let storageEntries = 0;
+    const assertSurfaceSlot = () => {
+      if (surfaces.length >= maxSurfaces) {
+        throw new Error('browser storage surface count exceeded its scan bound');
+      }
+    };
     const admitBytes = (byteLength) => {
       if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > maxSurfaceBytes) {
         throw new Error('browser storage surface exceeded its scan bound');
@@ -284,11 +281,13 @@ async function inspectBrowserStorage(page) {
       return btoa(binary);
     };
     const addText = (kind, text) => {
+      assertSurfaceSlot();
       const byteLength = encoder.encode(text).byteLength;
       admitBytes(byteLength);
       surfaces.push({ kind, text });
     };
     const addBinary = (kind, bytes) => {
+      assertSurfaceSlot();
       admitBytes(bytes.byteLength);
       surfaces.push({ kind, base64: encodeBase64(bytes) });
     };
@@ -298,7 +297,20 @@ async function inspectBrowserStorage(page) {
         throw new Error('browser storage entry count exceeded its scan bound');
       }
     };
-    const normalizeReadableValue = async (value, seen, binaryParts) => {
+    const normalizeReadableValue = async (value, state, depth = 0) => {
+      state.nodes += 1;
+      if (state.nodes > maxNodes) {
+        throw new Error('browser storage value exceeded its node bound');
+      }
+      if (depth > maxDepth) {
+        throw new Error('browser storage value exceeded its depth bound');
+      }
+      const chargeProperty = () => {
+        state.properties += 1;
+        if (state.properties > maxProperties) {
+          throw new Error('browser storage value exceeded its property bound');
+        }
+      };
       if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return value;
       if (typeof value === 'undefined') return { $type: 'undefined' };
       if (typeof value === 'bigint') return { $type: 'bigint', value: value.toString() };
@@ -313,20 +325,32 @@ async function inspectBrowserStorage(page) {
         if (bytes.byteLength > maxSurfaceBytes) {
           throw new Error('IndexedDB binary value exceeded its scan bound');
         }
-        binaryParts.push(encodeBase64(bytes));
-        return { $type: 'bytes', byteLength: bytes.byteLength, part: binaryParts.length - 1 };
+        state.binaryBytes += bytes.byteLength;
+        if (state.binaryBytes > maxSurfaceBytes) {
+          throw new Error('IndexedDB record binary values exceeded their scan bound');
+        }
+        state.binaryParts.push(bytes);
+        return {
+          $type: value.constructor?.name ?? 'bytes',
+          byteLength: bytes.byteLength,
+          part: state.binaryParts.length - 1,
+        };
       }
       if (value instanceof Blob) {
         if (value.size > maxSurfaceBytes) {
           throw new Error('IndexedDB Blob exceeded its scan bound');
         }
         const bytes = new Uint8Array(await value.arrayBuffer());
-        binaryParts.push(encodeBase64(bytes));
+        state.binaryBytes += bytes.byteLength;
+        if (state.binaryBytes > maxSurfaceBytes) {
+          throw new Error('IndexedDB record Blob values exceeded their scan bound');
+        }
+        state.binaryParts.push(bytes);
         return {
           $type: 'blob',
           byteLength: bytes.byteLength,
           contentType: value.type,
-          part: binaryParts.length - 1,
+          part: state.binaryParts.length - 1,
         };
       }
       if (typeof CryptoKey !== 'undefined' && value instanceof CryptoKey) {
@@ -347,24 +371,29 @@ async function inspectBrowserStorage(page) {
         return metadata;
       }
       if (typeof value !== 'object') return { $type: typeof value, value: String(value) };
-      if (seen.has(value)) return { $ref: seen.get(value) };
-      const identity = seen.size;
-      seen.set(value, identity);
+      if (state.seen.has(value)) return { $ref: state.seen.get(value) };
+      const identity = state.seen.size;
+      state.seen.set(value, identity);
       if (Array.isArray(value)) {
+        if (value.length > maxProperties - state.properties) {
+          throw new Error('browser storage array exceeded its property bound');
+        }
         return {
           $id: identity,
           $type: 'array',
-          values: await Promise.all(
-            value.map((entry) => normalizeReadableValue(entry, seen, binaryParts)),
-          ),
+          values: await Promise.all(value.map((entry) => {
+            chargeProperty();
+            return normalizeReadableValue(entry, state, depth + 1);
+          })),
         };
       }
       if (value instanceof Map) {
         const entries = [];
         for (const [key, entry] of value.entries()) {
+          chargeProperty();
           entries.push([
-            await normalizeReadableValue(key, seen, binaryParts),
-            await normalizeReadableValue(entry, seen, binaryParts),
+            await normalizeReadableValue(key, state, depth + 1),
+            await normalizeReadableValue(entry, state, depth + 1),
           ]);
         }
         return { $id: identity, $type: 'map', entries };
@@ -372,16 +401,23 @@ async function inspectBrowserStorage(page) {
       if (value instanceof Set) {
         const values = [];
         for (const entry of value.values()) {
-          values.push(await normalizeReadableValue(entry, seen, binaryParts));
+          chargeProperty();
+          values.push(await normalizeReadableValue(entry, state, depth + 1));
         }
         return { $id: identity, $type: 'set', values };
       }
       const properties = {};
       for (const key of Reflect.ownKeys(value)) {
+        chargeProperty();
         const renderedKey = typeof key === 'symbol' ? `symbol:${key.description ?? ''}` : key;
         try {
-          properties[renderedKey] = await normalizeReadableValue(value[key], seen, binaryParts);
+          properties[renderedKey] = await normalizeReadableValue(
+            Reflect.get(value, key),
+            state,
+            depth + 1,
+          );
         } catch (error) {
+          if (error?.message?.includes('bound')) throw error;
           properties[renderedKey] = { $type: 'unreadable', reason: error?.name ?? 'error' };
         }
       }
@@ -391,14 +427,90 @@ async function inspectBrowserStorage(page) {
         properties,
       };
     };
+    const renderRecord = async (record) => {
+      const state = {
+        binaryBytes: 0,
+        binaryParts: [],
+        nodes: 0,
+        properties: 0,
+        seen: new Map(),
+      };
+      const normalized = await normalizeReadableValue(record, state);
+      const text = JSON.stringify(normalized);
+      const textBytes = encoder.encode(text);
+      const byteLength = textBytes.byteLength + state.binaryBytes + state.binaryParts.length;
+      if (byteLength > maxSurfaceBytes) {
+        throw new Error('IndexedDB record exceeded its combined scan bound');
+      }
+      const combined = new Uint8Array(byteLength);
+      combined.set(textBytes, 0);
+      let offset = textBytes.byteLength;
+      for (const bytes of state.binaryParts) {
+        combined[offset] = 0;
+        offset += 1;
+        combined.set(bytes, offset);
+        offset += bytes.byteLength;
+      }
+      return combined;
+    };
+    const estimateKeyBytes = (value, depth = 0) => {
+      if (depth > maxDepth) throw new Error('IndexedDB key exceeded its depth bound');
+      if (typeof value === 'string') return encoder.encode(value).byteLength;
+      if (typeof value === 'number' || value instanceof Date) return 16;
+      if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength;
+      if (Array.isArray(value)) {
+        if (value.length > maxProperties) {
+          throw new Error('IndexedDB key exceeded its property bound');
+        }
+        return value.reduce((sum, entry) => sum + estimateKeyBytes(entry, depth + 1), 0);
+      }
+      throw new Error('IndexedDB returned an unsupported key type');
+    };
+    const readStream = async (stream, label) => {
+      if (stream === null) return new Uint8Array(0);
+      const reader = stream.getReader();
+      const chunks = [];
+      let byteLength = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!(value instanceof Uint8Array)) {
+            throw new Error(`${label} yielded a non-binary chunk`);
+          }
+          byteLength += value.byteLength;
+          if (byteLength > maxSurfaceBytes) {
+            await reader.cancel('browser evidence byte bound exceeded');
+            throw new Error(`${label} exceeded its scan bound`);
+          }
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      const output = new Uint8Array(byteLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        output.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return output;
+    };
 
     let cacheEntriesObserved = 0;
     if ('caches' in globalThis) {
       const cacheNames = await caches.keys();
+      if (cacheNames.length > maxEntries - storageEntries) {
+        throw new Error('Cache Storage cache count exceeded its scan bound');
+      }
       addText('cache-metadata', JSON.stringify({ cacheNames }));
       for (const cacheName of cacheNames) {
+        countEntry();
         const cache = await caches.open(cacheName);
         const requests = await cache.keys();
+        if (requests.length > maxEntries - storageEntries) {
+          throw new Error('Cache Storage request count exceeded its scan bound');
+        }
         for (const request of requests) {
           countEntry();
           cacheEntriesObserved += 1;
@@ -417,7 +529,14 @@ async function inspectBrowserStorage(page) {
               headers: [...response.headers.entries()],
             },
           }));
-          addBinary('cache-body', new Uint8Array(await response.clone().arrayBuffer()));
+          const declaredLength = response.headers.get('content-length');
+          if (
+            declaredLength !== null
+            && (!/^\d+$/u.test(declaredLength) || Number(declaredLength) > maxSurfaceBytes)
+          ) {
+            throw new Error('Cache Storage body declared an out-of-bounds length');
+          }
+          addBinary('cache-body', await readStream(response.clone().body, 'Cache Storage body'));
         }
       }
     } else {
@@ -427,9 +546,13 @@ async function inspectBrowserStorage(page) {
     let indexedDbRecordsObserved = 0;
     if ('indexedDB' in globalThis && typeof indexedDB.databases === 'function') {
       const databases = await indexedDB.databases();
+      if (databases.length > maxEntries - storageEntries) {
+        throw new Error('IndexedDB database count exceeded its scan bound');
+      }
       addText('indexeddb-metadata', JSON.stringify({ databases }));
       for (const descriptor of databases) {
         if (typeof descriptor.name !== 'string') continue;
+        countEntry();
         const database = await new Promise((resolveOpen, rejectOpen) => {
           const request = indexedDB.open(descriptor.name);
           request.onerror = () => rejectOpen(request.error ?? new Error('IndexedDB open failed'));
@@ -440,9 +563,14 @@ async function inspectBrowserStorage(page) {
           };
         });
         try {
+          if (database.objectStoreNames.length > maxEntries - storageEntries) {
+            throw new Error('IndexedDB object-store count exceeded its scan bound');
+          }
           for (const storeName of database.objectStoreNames) {
-            const { records, metadata } = await new Promise((resolveRecords, rejectRecords) => {
-              const output = [];
+            countEntry();
+            const { keys, metadata } = await new Promise((resolveRecords, rejectRecords) => {
+              const outputKeys = [];
+              let keyBytes = 0;
               const transaction = database.transaction(storeName, 'readonly');
               const store = transaction.objectStore(storeName);
               const storeMetadata = {
@@ -459,7 +587,7 @@ async function inspectBrowserStorage(page) {
                 }),
                 keyPath: store.keyPath,
               };
-              const cursorRequest = store.openCursor();
+              const cursorRequest = store.openKeyCursor();
               cursorRequest.onerror = () => rejectRecords(
                 cursorRequest.error ?? new Error('IndexedDB cursor failed'),
               );
@@ -473,11 +601,21 @@ async function inspectBrowserStorage(page) {
                   transaction.abort();
                   return;
                 }
-                output.push({ key: cursor.key, primaryKey: cursor.primaryKey, value: cursor.value });
+                try {
+                  keyBytes += estimateKeyBytes(cursor.primaryKey);
+                  if (keyBytes > maxTotalBytes - totalBytes) {
+                    throw new Error('IndexedDB keys exceeded the remaining scan bound');
+                  }
+                } catch (error) {
+                  rejectRecords(error);
+                  transaction.abort();
+                  return;
+                }
+                outputKeys.push({ key: cursor.key, primaryKey: cursor.primaryKey });
                 cursor.continue();
               };
               transaction.oncomplete = () => resolveRecords({
-                records: output,
+                keys: outputKeys,
                 metadata: storeMetadata,
               });
               transaction.onerror = () => rejectRecords(
@@ -492,29 +630,26 @@ async function inspectBrowserStorage(page) {
               version: database.version,
               storeName,
               ...metadata,
-              recordCount: records.length,
+              recordCount: keys.length,
             }));
-            for (const record of records) {
+            for (const key of keys) {
+              const value = await new Promise((resolveValue, rejectValue) => {
+                const transaction = database.transaction(storeName, 'readonly');
+                const request = transaction.objectStore(storeName).get(key.primaryKey);
+                request.onerror = () => rejectValue(
+                  request.error ?? new Error('IndexedDB get failed'),
+                );
+                request.onsuccess = () => resolveValue(request.result);
+                transaction.onabort = () => rejectValue(
+                  transaction.error ?? new Error('IndexedDB get aborted'),
+                );
+              });
               indexedDbRecordsObserved += 1;
-              const binaryParts = [];
-              const normalized = await normalizeReadableValue(record, new Map(), binaryParts);
-              const text = JSON.stringify(normalized);
-              const textBytes = encoder.encode(text);
-              const parts = [textBytes, ...binaryParts.map((part) => {
-                const binary = atob(part);
-                return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-              })];
-              const byteLength = parts.reduce((sum, part) => sum + part.byteLength, 0);
-              if (byteLength > maxSurfaceBytes) {
-                throw new Error('IndexedDB record exceeded its combined scan bound');
-              }
-              const combined = new Uint8Array(byteLength + Math.max(0, parts.length - 1));
-              let offset = 0;
-              for (const part of parts) {
-                combined.set(part, offset);
-                offset += part.byteLength + 1;
-              }
-              addBinary('indexeddb-record', combined);
+              addBinary('indexeddb-record', await renderRecord({
+                key: key.key,
+                primaryKey: key.primaryKey,
+                value,
+              }));
             }
           }
         } finally {
@@ -532,6 +667,10 @@ async function inspectBrowserStorage(page) {
       },
     };
   }, {
+    maxDepth: BROWSER_MAX_VALUE_DEPTH,
+    maxNodes: BROWSER_MAX_VALUE_NODES,
+    maxProperties: BROWSER_MAX_VALUE_PROPERTIES,
+    maxSurfaces: BROWSER_MAX_SURFACES,
     maxSurfaceBytes: BROWSER_MAX_SURFACE_BYTES,
     maxTotalBytes: BROWSER_MAX_TOTAL_BYTES,
     maxEntries: BROWSER_MAX_STORAGE_ENTRIES,
@@ -539,19 +678,58 @@ async function inspectBrowserStorage(page) {
 }
 
 async function inspectWorker(worker) {
-  return worker.evaluate(() => ({
-    location: globalThis.location?.href ?? null,
-    globalStrings: Object.getOwnPropertyNames(globalThis).flatMap((name) => {
+  const handle = await worker.evaluateHandle(() => {
+    const snapshot = {
+      location: globalThis.location?.href ?? null,
+      globals: {},
+    };
+    for (const key of Reflect.ownKeys(globalThis)) {
+      const renderedKey = typeof key === 'symbol' ? `symbol:${key.description ?? ''}` : key;
       try {
-        return typeof globalThis[name] === 'string' ? [`${name}=${globalThis[name]}`] : [];
-      } catch {
-        return [];
+        const value = Reflect.get(globalThis, key);
+        const prototype = (
+          value !== null && (typeof value === 'object' || typeof value === 'function')
+        ) ? Object.getPrototypeOf(value) : null;
+        const dataLike = (
+          value === null
+          || !['object', 'function'].includes(typeof value)
+          || Array.isArray(value)
+          || value instanceof Map
+          || value instanceof Set
+          || value instanceof ArrayBuffer
+          || ArrayBuffer.isView(value)
+          || value instanceof Blob
+          || value instanceof Date
+          || value instanceof RegExp
+          || value instanceof URL
+          || prototype === Object.prototype
+          || prototype === null
+        );
+        snapshot.globals[renderedKey] = dataLike
+          ? value
+          : { $hostType: value.constructor?.name ?? typeof value };
+      } catch (error) {
+        snapshot.globals[renderedKey] = {
+          $unreadable: error?.name ?? 'error',
+          message: error?.message ?? '',
+        };
       }
-    }),
-  }));
+    }
+    return snapshot;
+  });
+  try {
+    return await handle.evaluate(boundedSerializeBrowserValue, {
+      maxBytes: BROWSER_MAX_SURFACE_BYTES,
+      maxDepth: BROWSER_MAX_VALUE_DEPTH,
+      maxNodes: BROWSER_MAX_VALUE_NODES,
+      maxProperties: BROWSER_MAX_VALUE_PROPERTIES,
+    });
+  } finally {
+    await handle.dispose();
+  }
 }
 
-async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
+async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
   const playwrightBrowsersPath = '0';
   const playwrightCli = join(scaffoldRoot, 'node_modules', 'playwright', 'cli.js');
   const browserInstallArgs = [
@@ -587,7 +765,8 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
   ) {
     fail('real-browser proof did not materialize its headless browser inside the fresh package install');
   }
-  const browserExecutablePath = resolveInstalledBrowserExecutable(localBrowserRoot);
+  const installedBrowser = resolveInstalledBrowserDistribution(localBrowserRoot);
+  const browserExecutablePath = installedBrowser?.executablePath ?? null;
   if (
     browserExecutablePath === null
     || !existsSync(browserExecutablePath)
@@ -595,11 +774,34 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
   ) {
     fail('real-browser proof could not resolve its installed browser executable');
   }
-  const browserExecutableBytes = readFileSync(browserExecutablePath);
-  const browserPackageTreeDigest = browserPackageTreeSha256([
-    ['playwright', dirname(requireFromScaffold.resolve('playwright/package.json'))],
-    ['playwright-core', dirname(requireFromScaffold.resolve('playwright-core/package.json'))],
-  ]);
+  let browserSupportIdentity;
+  let browserDistributionIdentity;
+  try {
+    browserSupportIdentity = await digestBoundedBrowserFilesystem({
+      domain: 'snapback-browser-support-files-v1',
+      roots: [
+        ['playwright', dirname(requireFromScaffold.resolve('playwright/package.json'))],
+        ['playwright-core', dirname(requireFromScaffold.resolve('playwright-core/package.json'))],
+      ],
+      exclude: (logicalRoot, relativePath) => (
+        logicalRoot === 'playwright-core'
+        && (relativePath === '.local-browsers' || relativePath.startsWith('.local-browsers/'))
+      ),
+      maxEntries: BROWSER_MAX_FILES,
+      maxTotalBytes: BROWSER_MAX_FILES_TOTAL_BYTES,
+      maxFileBytes: BROWSER_MAX_FILE_BYTES,
+    });
+    browserDistributionIdentity = await digestBoundedBrowserFilesystem({
+      domain: 'snapback-browser-distribution-v1',
+      roots: [['chromium-headless-shell', installedBrowser.distributionRoot]],
+      executablePath: browserExecutablePath,
+      maxEntries: BROWSER_MAX_FILES,
+      maxTotalBytes: BROWSER_MAX_FILES_TOTAL_BYTES,
+      maxFileBytes: BROWSER_MAX_FILE_BYTES,
+    });
+  } catch (error) {
+    fail(`real-browser filesystem identity refused: ${error.message}`);
+  }
 
   const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
   const child = spawn('npm', ['run', 'dev'], {
@@ -687,20 +889,45 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
     // this fresh external package project; repository or ambient browsers do
     // not satisfy the packed-loop gate.
     const browserCaptureStartedAtMs = Date.now();
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+      executablePath: browserExecutablePath,
+      headless: true,
+    });
     const context = await browser.newContext();
     const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Network.enable', {
+      maxPostDataSize: BROWSER_MAX_SURFACE_BYTES,
+      maxResourceBufferSize: BROWSER_MAX_SURFACE_BYTES,
+      maxTotalBufferSize: BROWSER_MAX_TOTAL_BYTES,
+    });
     const surfaceCollector = createBoundedBrowserSurfaceCollector({
       maxSurfaceBytes: BROWSER_MAX_SURFACE_BYTES,
       maxTotalBytes: BROWSER_MAX_TOTAL_BYTES,
+      maxSurfaces: BROWSER_MAX_SURFACES,
     });
-    const responseCaptures = [];
+    const evidenceTasks = createBoundedAsyncTaskPool({
+      maxTasks: BROWSER_MAX_ASYNC_TASKS,
+      maxConcurrency: BROWSER_MAX_CONCURRENCY,
+    });
+    const asyncEvidence = [];
     const consoleErrors = [];
     const pageErrors = [];
     const observedWorkers = new Map();
+    const networkResponses = new Map();
     let captureFailure = null;
+    let networkResourcesObserved = 0;
     let responseBodiesObserved = 0;
     let responseBodiesScanned = 0;
+    let requestBodiesObserved = 0;
+    let requestBodiesScanned = 0;
+    let consoleMessagesObserved = 0;
+    let consoleArgumentsObserved = 0;
+    let consoleArgumentsScanned = 0;
+    let webSocketHandshakesObserved = 0;
+    let webSocketHandshakesScanned = 0;
+    let webSocketFramesObserved = 0;
+    let webSocketFramesScanned = 0;
     let liveFrames = 0;
     const captureSurface = (kind, value) => {
       if (captureFailure) return;
@@ -710,14 +937,33 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
         captureFailure = error;
       }
     };
+    const scheduleEvidence = (task) => {
+      const promise = evidenceTasks.add(task).catch((error) => {
+        captureFailure ??= error;
+        return false;
+      });
+      asyncEvidence.push(promise);
+      return promise;
+    };
+    const assertNetworkResourceSlot = () => {
+      networkResourcesObserved += 1;
+      if (networkResourcesObserved > BROWSER_MAX_ASYNC_TASKS) {
+        throw new RangeError(
+          `browser network resources exceeded the ${BROWSER_MAX_ASYNC_TASKS}-resource bound`,
+        );
+      }
+    };
     const observeWorker = (worker, kind) => {
       if (observedWorkers.has(worker)) return;
-      const inspection = inspectWorker(worker)
-        .then((state) => {
-          captureSurface(kind, JSON.stringify(state));
+      const inspection = scheduleEvidence(async () => {
+        const state = await inspectWorker(worker);
+        captureSurface(kind, state);
+        return true;
+      })
+        .then((result) => {
+          if (result !== true) return false;
           return true;
-        })
-        .catch((error) => {
+        }).catch((error) => {
           captureFailure ??= new Error(`could not inspect ${kind}: ${error.message}`);
           return false;
         });
@@ -725,77 +971,269 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
     };
     page.on('worker', (worker) => observeWorker(worker, 'worker-state'));
     context.on('serviceworker', (worker) => observeWorker(worker, 'service-worker-state'));
-    context.on('request', (request) => {
-      captureSurface('request', JSON.stringify({
-        url: request.url(),
-        method: request.method(),
-        headers: request.headers(),
-        postData: request.postData(),
+    cdp.on('Network.requestWillBeSent', (event) => {
+      try {
+        assertNetworkResourceSlot();
+        const request = event.request;
+        captureSurface('request', JSON.stringify({
+          documentURL: event.documentURL,
+          frameId: event.frameId,
+          hasPostData: request.hasPostData === true,
+          headers: request.headers,
+          initiator: event.initiator,
+          method: request.method,
+          mixedContentType: request.mixedContentType,
+          redirectHasExtraInfo: event.redirectHasExtraInfo,
+          requestId: event.requestId,
+          resourceType: event.type,
+          url: request.url,
+        }));
+        if (request.hasPostData === true) {
+          requestBodiesObserved += 1;
+          const contentLength = Object.entries(request.headers ?? {}).find(
+            ([name]) => name.toLowerCase() === 'content-length',
+          )?.[1];
+          if (
+            contentLength !== undefined
+            && (!/^\d+$/u.test(String(contentLength))
+              || Number(contentLength) > BROWSER_MAX_SURFACE_BYTES)
+          ) {
+            throw new RangeError('browser request declared an out-of-bounds body');
+          }
+          scheduleEvidence(async () => {
+            let bytes;
+            if (Array.isArray(request.postDataEntries) && request.postDataEntries.length > 0) {
+              const accumulator = createBoundedByteAccumulator({
+                label: 'browser request body',
+                maxBytes: BROWSER_MAX_SURFACE_BYTES,
+                maxChunks: BROWSER_MAX_SURFACES,
+              });
+              for (const { bytes: encoded } of request.postDataEntries) {
+                if (typeof encoded !== 'string') {
+                  throw new Error('browser request body entry omitted binary bytes');
+                }
+                accumulator.add(Buffer.from(encoded, 'base64'));
+              }
+              bytes = accumulator.finish();
+            } else if (typeof request.postData === 'string') {
+              bytes = Buffer.from(request.postData);
+            } else {
+              const result = await cdp.send('Network.getRequestPostData', {
+                requestId: event.requestId,
+              });
+              bytes = Buffer.from(result.postData);
+            }
+            captureSurface('request-body', bytes);
+            requestBodiesScanned += 1;
+            return true;
+          });
+        }
+      } catch (error) {
+        captureFailure ??= error;
+      }
+    });
+    cdp.on('Network.requestWillBeSentExtraInfo', (event) => {
+      captureSurface('request-headers', JSON.stringify({
+        associatedCookies: event.associatedCookies,
+        clientSecurityState: event.clientSecurityState,
+        connectTiming: event.connectTiming,
+        headers: event.headers,
+        requestId: event.requestId,
+        siteHasCookieInOtherPartition: event.siteHasCookieInOtherPartition,
       }));
     });
-    context.on('response', (response) => {
+    cdp.on('Network.responseReceived', (event) => {
       responseBodiesObserved += 1;
-      responseCaptures.push(
-        (async () => {
-          captureSurface('response-metadata', JSON.stringify({
-            url: response.url(),
-            status: response.status(),
-            headers: response.headers(),
-          }));
-          let body;
-          try {
-            body = await response.body();
-          } catch (error) {
-            const status = response.status();
-            const method = response.request().method();
-            if (
-              method === 'HEAD'
-              || status === 101
-              || status === 204
-              || status === 205
-              || status === 304
-              || (status >= 300 && status < 400)
-            ) {
-              body = Buffer.alloc(0);
-            } else {
-              throw new Error(
-                `could not capture browser-readable response bytes ${response.url()}: ${error.message}`,
-              );
-            }
+      networkResponses.set(event.requestId, {
+        dataEvents: 0,
+        decodedDataLength: 0,
+        status: event.response.status,
+        url: event.response.url,
+      });
+      captureSurface('response-metadata', JSON.stringify({
+        frameId: event.frameId,
+        hasExtraInfo: event.hasExtraInfo,
+        requestId: event.requestId,
+        resourceType: event.type,
+        response: event.response,
+      }));
+    });
+    cdp.on('Network.responseReceivedExtraInfo', (event) => {
+      captureSurface('response-headers', JSON.stringify({
+        blockedCookies: event.blockedCookies,
+        cookiePartitionKey: event.cookiePartitionKey,
+        cookiePartitionKeyOpaque: event.cookiePartitionKeyOpaque,
+        exemptedCookies: event.exemptedCookies,
+        headers: event.headers,
+        headersText: event.headersText,
+        requestId: event.requestId,
+        resourceIPAddressSpace: event.resourceIPAddressSpace,
+        statusCode: event.statusCode,
+      }));
+    });
+    cdp.on('Network.dataReceived', (event) => {
+      const response = networkResponses.get(event.requestId);
+      if (!response || captureFailure) return;
+      try {
+        response.dataEvents += 1;
+        if (response.dataEvents > BROWSER_MAX_SURFACES) {
+          throw new RangeError(`browser response chunk count exceeded its bound: ${response.url}`);
+        }
+        if (!Number.isSafeInteger(event.dataLength) || event.dataLength < 0) {
+          throw new RangeError(`browser response reported an unsafe chunk size: ${response.url}`);
+        }
+        response.decodedDataLength += event.dataLength;
+        if (
+          !Number.isSafeInteger(response.decodedDataLength)
+          || response.decodedDataLength > BROWSER_MAX_SURFACE_BYTES
+        ) {
+          throw new RangeError(
+            `browser response exceeded its decoded scan bound while loading: ${response.url}`,
+          );
+        }
+      } catch (error) {
+        captureFailure ??= error;
+      }
+    });
+    cdp.on('Network.loadingFinished', (event) => {
+      const response = networkResponses.get(event.requestId);
+      if (!response) return;
+      scheduleEvidence(async () => {
+        if (
+          !Number.isFinite(event.encodedDataLength)
+          || event.encodedDataLength < 0
+          || event.encodedDataLength > BROWSER_MAX_SURFACE_BYTES
+          || response.decodedDataLength > BROWSER_MAX_SURFACE_BYTES
+        ) {
+          throw new RangeError(
+            `browser response exceeded its encoded scan bound: ${response.url}`,
+          );
+        }
+        let result;
+        try {
+          result = await cdp.send('Network.getResponseBody', { requestId: event.requestId });
+        } catch (error) {
+          const status = response.status;
+          if (
+            status === 101
+            || status === 204
+            || status === 205
+            || status === 304
+            || (status >= 300 && status < 400)
+          ) {
+            result = { body: '', base64Encoded: false };
+          } else {
+            throw new Error(
+              `could not capture browser-readable response bytes ${response.url}: ${error.message}`,
+            );
           }
-          captureSurface('response-body', body);
-          responseBodiesScanned += 1;
-        })().catch((error) => {
-          captureFailure ??= error;
-          return false;
-        }),
+        }
+        const body = result.base64Encoded
+          ? Buffer.from(result.body, 'base64')
+          : Buffer.from(result.body);
+        if (body.byteLength > BROWSER_MAX_SURFACE_BYTES) {
+          throw new RangeError(`browser response exceeded its decoded scan bound: ${response.url}`);
+        }
+        captureSurface('response-body', body);
+        responseBodiesScanned += 1;
+        networkResponses.delete(event.requestId);
+        return true;
+      });
+    });
+    cdp.on('Network.loadingFailed', (event) => {
+      if (!networkResponses.has(event.requestId)) return;
+      captureFailure ??= new Error(
+        `browser response failed before complete capture: ${event.errorText}`,
       );
     });
     page.on('console', (message) => {
+      consoleMessagesObserved += 1;
       if (message.type() === 'error') {
         consoleErrors.push(message.text());
-        captureSurface('console', message.text());
+      }
+      captureSurface('console', JSON.stringify({
+        location: message.location(),
+        text: message.text(),
+        type: message.type(),
+      }));
+      const argumentsList = message.args();
+      consoleArgumentsObserved += argumentsList.length;
+      for (const argument of argumentsList) {
+        scheduleEvidence(async () => {
+          const rendered = await argument.evaluate(boundedSerializeBrowserValue, {
+            maxBytes: BROWSER_MAX_SURFACE_BYTES,
+            maxDepth: BROWSER_MAX_VALUE_DEPTH,
+            maxNodes: BROWSER_MAX_VALUE_NODES,
+            maxProperties: BROWSER_MAX_VALUE_PROPERTIES,
+          });
+          captureSurface('console-arg', rendered);
+          consoleArgumentsScanned += 1;
+          return true;
+        });
       }
     });
     page.on('pageerror', (error) => {
       pageErrors.push(error.message);
-      captureSurface('page-error', error.message);
+      captureSurface('page-error', JSON.stringify({
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      }));
     });
-    page.on('websocket', (socket) => {
-      captureSurface('websocket-url', socket.url());
-      socket.on('framereceived', ({ payload }) => {
+    cdp.on('Network.webSocketCreated', (event) => {
+      captureSurface('websocket-url', JSON.stringify(event));
+    });
+    cdp.on('Network.webSocketWillSendHandshakeRequest', (event) => {
+      try {
+        webSocketHandshakesObserved += 1;
+        if (webSocketHandshakesObserved > BROWSER_MAX_ASYNC_TASKS) {
+          throw new RangeError('browser WebSocket handshake count exceeded its bound');
+        }
+        captureSurface('websocket-handshake-request', JSON.stringify(event));
+      } catch (error) {
+        captureFailure ??= error;
+      }
+    });
+    cdp.on('Network.webSocketHandshakeResponseReceived', (event) => {
+      captureSurface('websocket-handshake-response', JSON.stringify(event));
+      webSocketHandshakesScanned += 1;
+    });
+    cdp.on('Network.webSocketFrameReceived', (event) => {
+      try {
+        webSocketFramesObserved += 1;
+        if (webSocketFramesObserved > BROWSER_MAX_ASYNC_TASKS) {
+          throw new RangeError('browser WebSocket frame count exceeded its bound');
+        }
         liveFrames += 1;
+        const payload = event.response.opcode === 2
+          ? Buffer.from(event.response.payloadData, 'base64')
+          : event.response.payloadData;
         captureSurface(
           'websocket-frame-received',
-          typeof payload === 'string' ? payload : Buffer.from(payload),
+          payload,
         );
-      });
-      socket.on('framesent', ({ payload }) => {
+        webSocketFramesScanned += 1;
+      } catch (error) {
+        captureFailure ??= error;
+      }
+    });
+    cdp.on('Network.webSocketFrameSent', (event) => {
+      try {
+        webSocketFramesObserved += 1;
+        if (webSocketFramesObserved > BROWSER_MAX_ASYNC_TASKS) {
+          throw new RangeError('browser WebSocket frame count exceeded its bound');
+        }
+        const payload = event.response.opcode === 2
+          ? Buffer.from(event.response.payloadData, 'base64')
+          : event.response.payloadData;
         captureSurface(
           'websocket-frame-sent',
-          typeof payload === 'string' ? payload : Buffer.from(payload),
+          payload,
         );
-      });
+        webSocketFramesScanned += 1;
+      } catch (error) {
+        captureFailure ??= error;
+      }
     });
 
     let browserJourney;
@@ -855,12 +1293,6 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
         userAgent: navigator.userAgent,
       }));
       captureSurface('page-state', JSON.stringify(browserState));
-      let settledResponseCount = -1;
-      while (settledResponseCount !== responseCaptures.length) {
-        settledResponseCount = responseCaptures.length;
-        await Promise.all(responseCaptures.slice());
-        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
-      }
       for (const worker of page.workers()) observeWorker(worker, 'worker-state');
       for (const worker of context.serviceWorkers()) {
         observeWorker(worker, 'service-worker-state');
@@ -868,6 +1300,18 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
       const workerResults = await Promise.all(
         [...observedWorkers.values()].map(({ inspection }) => inspection),
       );
+      let settledTaskCount = -1;
+      while (settledTaskCount !== asyncEvidence.length) {
+        settledTaskCount = asyncEvidence.length;
+        await evidenceTasks.settle();
+        await Promise.all(asyncEvidence.slice());
+        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+      }
+      if (networkResponses.size !== 0) {
+        throw new Error(
+          `browser response capture remained incomplete for ${networkResponses.size} resources`,
+        );
+      }
       const storageInspection = await inspectBrowserStorage(page);
       for (const surface of storageInspection.surfaces) {
         captureSurface(
@@ -917,14 +1361,24 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
       const workers = [...observedWorkers.values()];
       const browserCapture = {
         schemaVersion: 'snapback.package-browser-capture.v1',
-        sourceRevision,
+        sourceRevision: sourceIdentity.revision,
+        sourceDirty: sourceIdentity.dirty,
         startedAtMs: browserCaptureStartedAtMs,
         completedAtMs: Date.now(),
         maxSurfaceBytes: sanitizedCapture.maxSurfaceBytes,
         maxTotalBytes: sanitizedCapture.maxTotalBytes,
+        maxSurfaces: sanitizedCapture.maxSurfaces,
         totalBytesScanned: sanitizedCapture.totalBytesScanned,
         surfaceManifest: sanitizedCapture.surfaceManifest,
         coverage: {
+          asyncTasksObserved: evidenceTasks.stats().admitted,
+          asyncTasksPeakConcurrency: evidenceTasks.stats().peakActive,
+          consoleArgumentsObserved,
+          consoleArgumentsScanned,
+          consoleMessagesObserved,
+          networkResourcesObserved,
+          requestBodiesObserved,
+          requestBodiesScanned,
           responseBodiesObserved,
           responseBodiesScanned,
           workersObserved: workers.filter(({ kind }) => kind === 'worker-state').length,
@@ -942,13 +1396,22 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
           cacheEntriesScanned: storageInspection.coverage.cacheEntriesObserved,
           indexedDbRecordsObserved: storageInspection.coverage.indexedDbRecordsObserved,
           indexedDbRecordsScanned: storageInspection.coverage.indexedDbRecordsObserved,
+          webSocketFramesObserved,
+          webSocketFramesScanned,
+          webSocketHandshakesObserved,
+          webSocketHandshakesScanned,
           scanTruncated: false,
         },
         browser: {
           packageVersion: playwrightManifest.version,
-          packageTreeSha256: browserPackageTreeDigest,
-          executableSha256: createHash('sha256').update(browserExecutableBytes).digest('hex'),
-          executableBytes: browserExecutableBytes.byteLength,
+          packageTreeSha256: browserSupportIdentity.sha256,
+          packageTreeEntries: browserSupportIdentity.entryCount,
+          packageTreeBytes: browserSupportIdentity.totalBytes,
+          distributionSha256: browserDistributionIdentity.sha256,
+          distributionEntries: browserDistributionIdentity.entryCount,
+          distributionBytes: browserDistributionIdentity.totalBytes,
+          executableSha256: browserDistributionIdentity.executableSha256,
+          executableBytes: browserDistributionIdentity.executableBytes,
         },
         forbiddenMarkerKindsChecked,
         captureSanitized: true,
@@ -1018,6 +1481,15 @@ if (installSource === 'staged') {
   } catch (error) {
     fail(error.message);
   }
+}
+const checkoutIdentity = measureGitCheckoutIdentity(root);
+if (checkoutIdentity.revision !== ledger.revision) {
+  fail(
+    `measured checkout HEAD ${checkoutIdentity.revision} does not match ledger revision ${ledger.revision}`,
+  );
+}
+if (checkoutIdentity.dirty) {
+  fail('cold-install qualification refuses a dirty measured checkout');
 }
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
@@ -1449,7 +1921,7 @@ await build({
   });
   const managedStarter = await proveOneCommandReactStarter(
     reactScaffoldRoot,
-    ledger.revision,
+    checkoutIdentity,
   );
   run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
@@ -1507,8 +1979,8 @@ await build({
     claimTreatment: 'checkpoint',
     claimSatisfied: false,
     platformClaimSatisfied: installSource === 'public' && cleanMachine,
-    sourceRevision: ledger.revision,
-    sourceDirty: ledger.sourceDirty,
+    sourceRevision: checkoutIdentity.revision,
+    sourceDirty: checkoutIdentity.dirty,
     publicationMode: ledger.mode,
     publicationLedgerSchema: ledger.schemaVersion,
     publicationTag: ledger.tag,

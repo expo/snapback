@@ -1,6 +1,13 @@
-import { spawn } from 'node:child_process';
-import { lstatSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import {
+  constants as fsConstants,
+  lstatSync,
+  readdirSync,
+  realpathSync,
+} from 'node:fs';
+import { open as openFile } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import {
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
@@ -38,6 +45,369 @@ export function resolveInstalledBrowserExecutable(localBrowserRoot) {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+export function resolveInstalledBrowserDistribution(localBrowserRoot) {
+  const installationStat = lstatSync(localBrowserRoot);
+  if (!installationStat.isDirectory() || installationStat.isSymbolicLink()) return null;
+  const executablePath = resolveInstalledBrowserExecutable(localBrowserRoot);
+  if (executablePath === null) return null;
+  const relativeExecutable = relative(resolve(localBrowserRoot), resolve(executablePath));
+  if (
+    relativeExecutable === ''
+    || relativeExecutable === '..'
+    || relativeExecutable.startsWith(`..${sep}`)
+  ) {
+    return null;
+  }
+  const [distributionName] = relativeExecutable.split(sep);
+  if (!distributionName?.startsWith('chromium_headless_shell-')) return null;
+  const distributionRoot = join(localBrowserRoot, distributionName);
+  const distributionStat = lstatSync(distributionRoot);
+  if (!distributionStat.isDirectory() || distributionStat.isSymbolicLink()) return null;
+  const realDistributionRoot = realpathSync(distributionRoot);
+  const realExecutablePath = realpathSync(executablePath);
+  if (
+    realExecutablePath !== realDistributionRoot
+    && !realExecutablePath.startsWith(`${realDistributionRoot}${sep}`)
+  ) {
+    return null;
+  }
+  return Object.freeze({ distributionRoot, executablePath });
+}
+
+function updateFramed(hash, value) {
+  const bytes = Buffer.from(String(value));
+  hash.update(`${bytes.byteLength}:`);
+  hash.update(bytes);
+}
+
+async function streamFileSha256(path, expectedStat) {
+  const hash = createHash('sha256');
+  let observedBytes = 0;
+  let file;
+  try {
+    file = await openFile(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const openedStat = await file.stat();
+    if (
+      !openedStat.isFile()
+      || openedStat.size !== expectedStat.size
+      || openedStat.dev !== expectedStat.dev
+      || openedStat.ino !== expectedStat.ino
+      || (openedStat.mode & 0o7777) !== (expectedStat.mode & 0o7777)
+    ) {
+      throw new Error('browser evidence file identity changed before hashing');
+    }
+    for await (const chunk of file.createReadStream({
+      autoClose: false,
+      highWaterMark: 1024 * 1024,
+    })) {
+      observedBytes += chunk.byteLength;
+      if (observedBytes > expectedStat.size) {
+        throw new Error('browser evidence file grew while it was being hashed');
+      }
+      hash.update(chunk);
+    }
+    if (observedBytes !== expectedStat.size) {
+      throw new Error('browser evidence file changed size while it was being hashed');
+    }
+  } finally {
+    await file?.close();
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * Hashes browser-owned support files without materializing a file or tree.
+ *
+ * @ref LLP 0041#acceptance — the repository-free browser proof binds the
+ * exact installed driver and selected Chromium distribution, and refuses
+ * unsupported filesystem entries instead of silently omitting them.
+ */
+export async function digestBoundedBrowserFilesystem({
+  domain,
+  roots,
+  executablePath = null,
+  exclude = () => false,
+  maxEntries,
+  maxTotalBytes,
+  maxFileBytes,
+}) {
+  if (
+    typeof domain !== 'string'
+    || domain.length === 0
+    || !Array.isArray(roots)
+    || roots.length === 0
+    || !Number.isSafeInteger(maxEntries)
+    || maxEntries < 1
+    || !Number.isSafeInteger(maxTotalBytes)
+    || maxTotalBytes < 1
+    || !Number.isSafeInteger(maxFileBytes)
+    || maxFileBytes < 1
+    || maxFileBytes > maxTotalBytes
+  ) {
+    throw new TypeError('browser filesystem digest requires closed positive limits');
+  }
+  const normalizedRoots = roots.map(([logicalRoot, path]) => {
+    if (
+      typeof logicalRoot !== 'string'
+      || logicalRoot.length === 0
+      || typeof path !== 'string'
+      || path.length === 0
+    ) {
+      throw new TypeError('browser filesystem roots must be named paths');
+    }
+    const rootPath = resolve(path);
+    const rootStat = lstatSync(rootPath);
+    if (!rootStat.isDirectory()) {
+      throw new TypeError(`browser filesystem root is not a directory: ${logicalRoot}`);
+    }
+    if (rootStat.isSymbolicLink()) {
+      throw new TypeError(`browser filesystem root is a symlink: ${logicalRoot}`);
+    }
+    return { logicalRoot, rootPath, realRoot: realpathSync(rootPath) };
+  });
+  let executableLogicalPath = null;
+  if (executablePath !== null) {
+    const absoluteExecutable = resolve(executablePath);
+    const owner = normalizedRoots.find(({ realRoot }) => {
+      const realExecutable = realpathSync(absoluteExecutable);
+      return realExecutable !== realRoot && realExecutable.startsWith(`${realRoot}${sep}`);
+    });
+    if (!owner || !lstatSync(absoluteExecutable).isFile()) {
+      throw new TypeError('browser executable is not a contained regular file');
+    }
+    const executableRelative = relative(owner.rootPath, absoluteExecutable);
+    if (
+      executableRelative === ''
+      || executableRelative === '..'
+      || executableRelative.startsWith(`..${sep}`)
+    ) {
+      throw new TypeError('browser executable escaped its selected distribution');
+    }
+    executableLogicalPath =
+      `${owner.logicalRoot}/${executableRelative.split(sep).join('/')}`;
+  }
+
+  const entries = [];
+  const visit = (root, directory, relativeDirectory = '') => {
+    const children = readdirSync(directory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const child of children) {
+      const relativePath = relativeDirectory === ''
+        ? child.name
+        : `${relativeDirectory}/${child.name}`;
+      if (exclude(root.logicalRoot, relativePath)) continue;
+      const absolutePath = join(directory, child.name);
+      const stat = lstatSync(absolutePath);
+      if (stat.isSymbolicLink()) {
+        throw new TypeError(
+          `browser filesystem contains a symlink: ${root.logicalRoot}/${relativePath}`,
+        );
+      }
+      if (stat.isDirectory()) {
+        entries.push({
+          logicalPath: `${root.logicalRoot}/${relativePath}`,
+          path: absolutePath,
+          stat,
+          type: 'directory',
+        });
+        visit(root, absolutePath, relativePath);
+      } else if (stat.isFile()) {
+        entries.push({
+          logicalPath: `${root.logicalRoot}/${relativePath}`,
+          path: absolutePath,
+          stat,
+          type: 'file',
+        });
+      } else {
+        throw new TypeError(
+          `browser filesystem contains an unsupported entry: ${root.logicalRoot}/${relativePath}`,
+        );
+      }
+      if (entries.length > maxEntries) {
+        throw new RangeError(`browser filesystem exceeded the ${maxEntries}-entry bound`);
+      }
+    }
+  };
+  for (const root of normalizedRoots) visit(root, root.rootPath);
+
+  let totalBytes = 0;
+  for (const entry of entries) {
+    if (entry.type !== 'file') continue;
+    if (!Number.isSafeInteger(entry.stat.size) || entry.stat.size < 0) {
+      throw new RangeError(`browser file has an unsafe size: ${entry.logicalPath}`);
+    }
+    if (entry.stat.size > maxFileBytes) {
+      throw new RangeError(`browser file exceeded the ${maxFileBytes}-byte bound`);
+    }
+    totalBytes += entry.stat.size;
+    if (totalBytes > maxTotalBytes) {
+      throw new RangeError(`browser filesystem exceeded the ${maxTotalBytes}-byte bound`);
+    }
+  }
+
+  const hash = createHash('sha256');
+  hash.update(`${domain}\0`);
+  let fileCount = 0;
+  let directoryCount = 0;
+  let executableSha256 = null;
+  let executableBytes = null;
+  for (const entry of entries) {
+    const mode = entry.stat.mode & 0o7777;
+    updateFramed(hash, entry.logicalPath);
+    updateFramed(hash, entry.type);
+    updateFramed(hash, mode.toString(8).padStart(4, '0'));
+    updateFramed(hash, entry.stat.size);
+    if (entry.type === 'file') {
+      fileCount += 1;
+      const contentSha256 = await streamFileSha256(entry.path, entry.stat);
+      updateFramed(hash, contentSha256);
+      if (entry.logicalPath === executableLogicalPath) {
+        executableSha256 = contentSha256;
+        executableBytes = entry.stat.size;
+      }
+    } else {
+      directoryCount += 1;
+      updateFramed(hash, '-');
+    }
+  }
+  if (executablePath !== null && executableSha256 === null) {
+    throw new TypeError('browser executable was not included in its distribution digest');
+  }
+  return Object.freeze({
+    sha256: hash.digest('hex'),
+    entryCount: entries.length,
+    fileCount,
+    directoryCount,
+    totalBytes,
+    executableSha256,
+    executableBytes,
+  });
+}
+
+export function measureGitCheckoutIdentity(checkoutRoot) {
+  if (typeof checkoutRoot !== 'string' || checkoutRoot.length === 0) {
+    throw new TypeError('checkout root must be a non-empty path');
+  }
+  const git = (args) => {
+    const result = spawnSync('git', args, {
+      cwd: checkoutRoot,
+      encoding: 'utf8',
+      timeout: 30_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    if (result.status !== 0) {
+      throw new Error(`could not measure checkout identity: ${result.stderr || result.stdout}`);
+    }
+    return result.stdout;
+  };
+  const revision = git(['rev-parse', '--verify', 'HEAD']).trim();
+  if (!/^[0-9a-f]{40}$/u.test(revision)) {
+    throw new Error('checkout HEAD is not a full Git revision');
+  }
+  const status = git([
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=all',
+    '--ignore-submodules=none',
+  ]);
+  return Object.freeze({ revision, dirty: status.length > 0 });
+}
+
+export function createBoundedAsyncTaskPool({ maxTasks, maxConcurrency }) {
+  if (
+    !Number.isSafeInteger(maxTasks)
+    || maxTasks < 1
+    || !Number.isSafeInteger(maxConcurrency)
+    || maxConcurrency < 1
+    || maxConcurrency > maxTasks
+  ) {
+    throw new TypeError('async task pool requires positive task and concurrency bounds');
+  }
+  const pending = [];
+  let admitted = 0;
+  let active = 0;
+  let peakActive = 0;
+  let failure = null;
+  const pump = () => {
+    while (failure === null && active < maxConcurrency && pending.length > 0) {
+      const task = pending.shift();
+      active += 1;
+      peakActive = Math.max(peakActive, active);
+      Promise.resolve()
+        .then(task.run)
+        .then(task.resolve, (error) => {
+          failure ??= error;
+          task.reject(error);
+          for (const queued of pending.splice(0)) queued.reject(failure);
+        })
+        .finally(() => {
+          active -= 1;
+          pump();
+        });
+    }
+  };
+  return Object.freeze({
+    add(run) {
+      if (typeof run !== 'function') throw new TypeError('async pool tasks must be functions');
+      if (failure !== null) return Promise.reject(failure);
+      admitted += 1;
+      if (admitted > maxTasks) {
+        failure = new RangeError(`async task pool exceeded the ${maxTasks}-task bound`);
+        return Promise.reject(failure);
+      }
+      const promise = new Promise((resolveTask, rejectTask) => {
+        pending.push({ run, resolve: resolveTask, reject: rejectTask });
+      });
+      pump();
+      return promise;
+    },
+    async settle() {
+      while (active > 0 || pending.length > 0) {
+        await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+      }
+      if (failure !== null) throw failure;
+      return Object.freeze({ admitted, peakActive });
+    },
+    stats() {
+      return Object.freeze({ admitted, active, pending: pending.length, peakActive });
+    },
+  });
+}
+
+export function createBoundedByteAccumulator({ label, maxBytes, maxChunks }) {
+  if (
+    typeof label !== 'string'
+    || label.length === 0
+    || !Number.isSafeInteger(maxBytes)
+    || maxBytes < 1
+    || !Number.isSafeInteger(maxChunks)
+    || maxChunks < 1
+  ) {
+    throw new TypeError('byte accumulator requires a label and positive limits');
+  }
+  const chunks = [];
+  let totalBytes = 0;
+  return Object.freeze({
+    add(value) {
+      if (chunks.length >= maxChunks) {
+        throw new RangeError(`${label} exceeded the ${maxChunks}-chunk bound`);
+      }
+      const bytes = Buffer.from(browserSurfaceBytes(value));
+      if (bytes.byteLength > maxBytes - totalBytes) {
+        throw new RangeError(`${label} exceeded the ${maxBytes}-byte bound`);
+      }
+      chunks.push(bytes);
+      totalBytes += bytes.byteLength;
+    },
+    finish() {
+      return Buffer.concat(chunks, totalBytes);
+    },
+    size() {
+      return Object.freeze({ chunks: chunks.length, totalBytes });
+    },
+  });
+}
+
 export function browserAssetsContainSecretCanary(builtAssets, canary) {
   if (typeof builtAssets !== 'string') {
     throw new TypeError('built browser assets must be text');
@@ -55,6 +425,205 @@ function browserSurfaceBytes(value) {
     return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
   }
   throw new TypeError('browser-visible surfaces must contain strings or bytes');
+}
+
+/**
+ * This function is intentionally self-contained: Playwright serializes its
+ * source into page, worker, service-worker, and console-argument realms.
+ */
+export async function boundedSerializeBrowserValue(value, limits) {
+  const {
+    maxBytes,
+    maxDepth,
+    maxNodes,
+    maxProperties,
+  } = limits ?? {};
+  if (
+    !Number.isSafeInteger(maxBytes)
+    || maxBytes < 1
+    || !Number.isSafeInteger(maxDepth)
+    || maxDepth < 1
+    || !Number.isSafeInteger(maxNodes)
+    || maxNodes < 1
+    || !Number.isSafeInteger(maxProperties)
+    || maxProperties < 1
+  ) {
+    throw new TypeError('browser value serializer requires positive closed limits');
+  }
+  const encoder = new TextEncoder();
+  const seen = new Map();
+  let chargedBytes = 0;
+  let nodes = 0;
+  let properties = 0;
+  const chargeText = (text) => {
+    chargedBytes += encoder.encode(text).byteLength;
+    if (chargedBytes > maxBytes) {
+      throw new RangeError('browser value exceeded its byte bound');
+    }
+    return text;
+  };
+  const chargeNode = (depth) => {
+    nodes += 1;
+    if (nodes > maxNodes) throw new RangeError('browser value exceeded its node bound');
+    if (depth > maxDepth) throw new RangeError('browser value exceeded its depth bound');
+  };
+  const chargeProperty = () => {
+    properties += 1;
+    if (properties > maxProperties) {
+      throw new RangeError('browser value exceeded its property bound');
+    }
+  };
+  const base64 = (bytes) => {
+    let output = '';
+    for (let offset = 0; offset < bytes.byteLength; offset += 0x8000) {
+      output += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    return btoa(output);
+  };
+  const normalize = async (current, depth) => {
+    chargeNode(depth);
+    if (current === null) return null;
+    if (typeof current === 'string') return chargeText(current);
+    if (typeof current === 'number' || typeof current === 'boolean') return current;
+    if (typeof current === 'undefined') return { $type: 'undefined' };
+    if (typeof current === 'bigint') {
+      return { $type: 'bigint', value: chargeText(current.toString()) };
+    }
+    if (typeof current === 'symbol') {
+      return { $type: 'symbol', value: chargeText(current.description ?? '') };
+    }
+    if (current instanceof Date) {
+      return { $type: 'date', value: chargeText(current.toISOString()) };
+    }
+    if (current instanceof RegExp) {
+      return {
+        $type: 'regexp',
+        source: chargeText(current.source),
+        flags: chargeText(current.flags),
+      };
+    }
+    if (typeof URL !== 'undefined' && current instanceof URL) {
+      return { $type: 'url', value: chargeText(current.href) };
+    }
+    if (
+      current instanceof ArrayBuffer
+      || (typeof SharedArrayBuffer !== 'undefined' && current instanceof SharedArrayBuffer)
+      || ArrayBuffer.isView(current)
+    ) {
+      const bytes = current instanceof ArrayBuffer
+        || (typeof SharedArrayBuffer !== 'undefined' && current instanceof SharedArrayBuffer)
+        ? new Uint8Array(current)
+        : new Uint8Array(current.buffer, current.byteOffset, current.byteLength);
+      if (bytes.byteLength > maxBytes - chargedBytes) {
+        throw new RangeError('browser binary value exceeded its byte bound');
+      }
+      chargedBytes += bytes.byteLength;
+      return {
+        $type: current.constructor?.name ?? 'bytes',
+        byteLength: bytes.byteLength,
+        base64: base64(bytes),
+      };
+    }
+    if (typeof Blob !== 'undefined' && current instanceof Blob) {
+      if (current.size > maxBytes - chargedBytes) {
+        throw new RangeError('browser Blob exceeded its byte bound');
+      }
+      const bytes = new Uint8Array(await current.arrayBuffer());
+      chargedBytes += bytes.byteLength;
+      return {
+        $type: current.constructor?.name ?? 'blob',
+        byteLength: bytes.byteLength,
+        contentType: chargeText(current.type),
+        base64: base64(bytes),
+      };
+    }
+    if (typeof current !== 'object' && typeof current !== 'function') {
+      return { $type: typeof current, value: chargeText(String(current)) };
+    }
+    if (seen.has(current)) return { $ref: seen.get(current) };
+    const identity = seen.size;
+    seen.set(current, identity);
+    if (Array.isArray(current)) {
+      const values = [];
+      for (const entry of current) {
+        chargeProperty();
+        values.push(await normalize(entry, depth + 1));
+      }
+      return { $id: identity, $type: 'array', values };
+    }
+    if (current instanceof Map) {
+      const entries = [];
+      for (const [key, entry] of current.entries()) {
+        chargeProperty();
+        entries.push([
+          await normalize(key, depth + 1),
+          await normalize(entry, depth + 1),
+        ]);
+      }
+      return { $id: identity, $type: 'map', entries };
+    }
+    if (current instanceof Set) {
+      const values = [];
+      for (const entry of current.values()) {
+        chargeProperty();
+        values.push(await normalize(entry, depth + 1));
+      }
+      return { $id: identity, $type: 'set', values };
+    }
+    if (typeof CryptoKey !== 'undefined' && current instanceof CryptoKey) {
+      const output = {
+        $id: identity,
+        $type: 'crypto-key',
+        algorithm: await normalize(current.algorithm, depth + 1),
+        extractable: current.extractable,
+        keyType: current.type,
+        usages: await normalize(current.usages, depth + 1),
+      };
+      if (current.extractable) {
+        try {
+          output.exportedJwk = await normalize(
+            await crypto.subtle.exportKey('jwk', current),
+            depth + 1,
+          );
+        } catch (error) {
+          output.exportRefused = error?.name ?? 'error';
+        }
+      }
+      return output;
+    }
+    const output = {
+      $id: identity,
+      $type: chargeText(current.constructor?.name ?? typeof current),
+      properties: {},
+    };
+    for (const key of Reflect.ownKeys(current)) {
+      chargeProperty();
+      const renderedKey = typeof key === 'symbol'
+        ? `symbol:${key.description ?? ''}`
+        : key;
+      chargeText(renderedKey);
+      try {
+        output.properties[renderedKey] = await normalize(
+          Reflect.get(current, key),
+          depth + 1,
+        );
+      } catch (error) {
+        if (error instanceof RangeError) throw error;
+        output.properties[renderedKey] = {
+          $type: 'unreadable',
+          name: chargeText(error?.name ?? 'error'),
+          message: chargeText(error?.message ?? ''),
+        };
+      }
+    }
+    return output;
+  };
+  const normalized = await normalize(value, 0);
+  const rendered = JSON.stringify({ normalized, nodes, properties });
+  if (encoder.encode(rendered).byteLength > maxBytes) {
+    throw new RangeError('browser value serialization exceeded its byte bound');
+  }
+  return rendered;
 }
 
 export function browserForbiddenMarkerVariants({ kind, value } = {}) {
@@ -132,12 +701,15 @@ export function findBrowserVisibleLeaks({ surfaces, forbiddenMarkers }) {
 export function createBoundedBrowserSurfaceCollector({
   maxSurfaceBytes,
   maxTotalBytes,
+  maxSurfaces = 10_000,
 }) {
   if (
     !Number.isSafeInteger(maxSurfaceBytes)
     || maxSurfaceBytes < 1
     || !Number.isSafeInteger(maxTotalBytes)
     || maxTotalBytes < maxSurfaceBytes
+    || !Number.isSafeInteger(maxSurfaces)
+    || maxSurfaces < 1
   ) {
     throw new TypeError('browser scan budgets must be positive safe integers');
   }
@@ -149,6 +721,9 @@ export function createBoundedBrowserSurfaceCollector({
       if (typeof kind !== 'string' || kind.length === 0) {
         throw new TypeError('browser surface kind must be non-empty');
       }
+      if (manifest.length >= maxSurfaces) {
+        throw new RangeError(`browser surfaces exceeded the ${maxSurfaces}-surface bound`);
+      }
       const bytes = Buffer.from(browserSurfaceBytes(value));
       if (bytes.byteLength > maxSurfaceBytes) {
         throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
@@ -157,7 +732,17 @@ export function createBoundedBrowserSurfaceCollector({
         throw new RangeError(`browser surfaces exceeded the ${maxTotalBytes}-byte aggregate scan bound`);
       }
       surfaces.push(bytes);
-      manifest.push(Object.freeze({ kind, bytesScanned: bytes.byteLength }));
+      const contentHash = createHash('sha256');
+      contentHash.update('snapback-browser-surface-v1\0');
+      updateFramed(contentHash, manifest.length);
+      updateFramed(contentHash, kind);
+      updateFramed(contentHash, bytes.byteLength);
+      contentHash.update(bytes);
+      manifest.push(Object.freeze({
+        kind,
+        bytesScanned: bytes.byteLength,
+        contentSha256: contentHash.digest('hex'),
+      }));
       totalBytesScanned += bytes.byteLength;
     },
     findLeaks(forbiddenMarkers) {
@@ -167,6 +752,7 @@ export function createBoundedBrowserSurfaceCollector({
       return Object.freeze({
         maxSurfaceBytes,
         maxTotalBytes,
+        maxSurfaces,
         totalBytesScanned,
         surfaceManifest: Object.freeze([...manifest]),
       });
@@ -524,6 +1110,8 @@ export function validateFinalLatestReceipts({ ledger, records }) {
       machine: receipt.machine,
       latestRootResolution: resolution,
       browserCaptureSha256: receipt.browserJourney.captureSha256,
+      browserDistributionSha256:
+        receipt.browserJourney.capture.browser.distributionSha256,
       browserExecutableSha256: receipt.browserJourney.capture.browser.executableSha256,
       browserPackageTreeSha256: receipt.browserJourney.capture.browser.packageTreeSha256,
     });
@@ -625,6 +1213,8 @@ export function aggregatePublicPackageProofs({
       machine: receipt.machine,
       checks: receipt.checks,
       browserCaptureSha256: receipt.browserJourney.captureSha256,
+      browserDistributionSha256:
+        receipt.browserJourney.capture.browser.distributionSha256,
       browserExecutableSha256: receipt.browserJourney.capture.browser.executableSha256,
       browserPackageTreeSha256: receipt.browserJourney.capture.browser.packageTreeSha256,
     });
