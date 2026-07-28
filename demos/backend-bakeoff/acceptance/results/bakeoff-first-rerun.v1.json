@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "snapback.backend-bakeoff-run.v1",
+  "runId": "signal-desk-first-rerun-20260727",
+  "sourceRevision": "1d57f9dd31d2bc62fe9cbe5b2d1c330eb41159dc",
+  "status": "feedback-required",
+  "arms": {
+    "contract": {
+      "status": "passed"
+    },
+    "convex": {
+      "status": "passed",
+      "checks": [
+        "seed",
+        "transaction",
+        "native-live",
+        "indexed-search",
+        "derived-brief"
+      ]
+    },
+    "supabase": {
+      "status": "passed-after-idempotent-migration",
+      "checks": [
+        "transaction",
+        "native-realtime",
+        "indexed-search",
+        "derived-brief"
+      ]
+    },
+    "snapback": {
+      "status": "infrastructure-error",
+      "completedChecks": 0,
+      "diagnostic": {
+        "code": "SNAPBACK_COMPARATOR_SETUP_FAILED",
+        "causeCode": "SNAPBACK_REQUEST_JSON_INVALID",
+        "cause": "the selected native runtime predated the generated registerGroupEligible route field"
+      },
+      "targetIdentityAvailable": false,
+      "binaryIdentityAvailable": false
+    },
+    "typescript": {
+      "status": "passed"
+    },
+    "viteProductionBuild": {
+      "status": "passed",
+      "modules": 193
+    },
+    "browser": {
+      "status": "unclaimed",
+      "reason": "the in-app browser controller was unavailable before a browser session could be created"
+    }
+  },
+  "feedback": {
+    "fableReview": "../reviews/first-rerun-fable-5.md",
+    "verdict": "NOT READY",
+    "mandatoryClasses": [
+      "write-activity-scope-containment",
+      "inline-handler-computed-constructor-admission",
+      "react-cleanup-without-admin-disconnect",
+      "runtime-artifact-identity-diagnostic-and-current-binary"
+    ]
+  },
+  "nonclaims": [
+    "a completed Snapback comparator pass",
+    "browser rendering or interaction",
+    "a revised final backend ranking",
+    "hosted-target parity"
+  ]
+}
