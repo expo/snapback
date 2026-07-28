@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { lstatSync, readdirSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import {
   validateColdInstallBrowserEvidence,
   validateCandidateLedger,
@@ -7,6 +9,34 @@ import {
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 export { validateColdInstallBrowserEvidence };
+
+const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([
+  'chrome-headless-shell',
+  'chrome-headless-shell.exe',
+  'headless_shell',
+]);
+
+export function resolveInstalledBrowserExecutable(localBrowserRoot) {
+  if (typeof localBrowserRoot !== 'string' || localBrowserRoot.length === 0) {
+    throw new TypeError('browser installation root must be a non-empty path');
+  }
+  const candidates = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const absolutePath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolutePath);
+      } else if (
+        entry.isFile()
+        && PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES.has(basename(absolutePath))
+      ) {
+        candidates.push(absolutePath);
+      }
+    }
+  };
+  visit(localBrowserRoot);
+  return candidates.length === 1 ? candidates[0] : null;
+}
 
 export function browserAssetsContainSecretCanary(builtAssets, canary) {
   if (typeof builtAssets !== 'string') {

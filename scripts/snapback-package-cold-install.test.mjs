@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -14,6 +14,7 @@ import {
   findBrowserVisibleLeaks,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
+  resolveInstalledBrowserExecutable,
   runAsync,
   validateFinalLatestReceipts,
   validateLatestRootResolution,
@@ -30,6 +31,32 @@ import {
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
+
+test('resolveInstalledBrowserExecutable binds the only installed headless shell', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-browser-executable-'));
+  try {
+    const browserDirectory = join(
+      temporary,
+      'chromium_headless_shell-1234',
+      'chrome-headless-shell-linux64',
+    );
+    mkdirSync(browserDirectory, { recursive: true });
+    const executable = join(browserDirectory, 'chrome-headless-shell');
+    writeFileSync(executable, 'browser');
+    assert.equal(resolveInstalledBrowserExecutable(temporary), executable);
+
+    const duplicateDirectory = join(
+      temporary,
+      'chromium_headless_shell-5678',
+      'chrome-linux',
+    );
+    mkdirSync(duplicateDirectory, { recursive: true });
+    writeFileSync(join(duplicateDirectory, 'headless_shell'), 'browser');
+    assert.equal(resolveInstalledBrowserExecutable(temporary), null);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
 
 function browserJourneyFixture(overrides = {}) {
   const {

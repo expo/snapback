@@ -32,6 +32,7 @@ import {
   createBoundedBrowserSurfaceCollector,
   parseArguments,
   PUBLIC_NPM_REGISTRY,
+  resolveInstalledBrowserExecutable,
   runAsync,
   usage,
   validateColdInstallBrowserEvidence,
@@ -586,8 +587,12 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceRevision) {
   ) {
     fail('real-browser proof did not materialize its headless browser inside the fresh package install');
   }
-  const browserExecutablePath = chromium.executablePath();
-  if (!existsSync(browserExecutablePath) || !lstatSync(browserExecutablePath).isFile()) {
+  const browserExecutablePath = resolveInstalledBrowserExecutable(localBrowserRoot);
+  if (
+    browserExecutablePath === null
+    || !existsSync(browserExecutablePath)
+    || !lstatSync(browserExecutablePath).isFile()
+  ) {
     fail('real-browser proof could not resolve its installed browser executable');
   }
   const browserExecutableBytes = readFileSync(browserExecutablePath);
