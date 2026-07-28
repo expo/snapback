@@ -1784,6 +1784,69 @@ pub struct HostedJourneyProviderV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneySourceV1 {
+    pub package_tarball_sha256: Option<String>,
+    pub repository: String,
+    pub revision: String,
+    pub dirty: bool,
+    pub target_triple: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyIdentitiesV1 {
+    pub target_id: Option<String>,
+    pub release_id: Option<String>,
+    pub deployment_id: Option<String>,
+    pub database_id: Option<String>,
+    pub stream_id: Option<String>,
+    pub restore_id: Option<String>,
+    pub ephemeral_authority_instance: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum HostedJourneyExitClass {
+    Passed,
+    Failed,
+    Refused,
+    Interrupted,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyCommandV1 {
+    pub operation: String,
+    pub exit_class: HostedJourneyExitClass,
+    pub exit_code: Option<i32>,
+    pub diagnostic_code: Option<String>,
+    pub receipt_sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyEvidenceRefV1 {
+    pub artifact_kind: String,
+    pub identity: String,
+    pub sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedJourneyEvidenceV1 {
+    pub logs: Option<HostedJourneyEvidenceRefV1>,
+    pub migration: Option<HostedJourneyEvidenceRefV1>,
+    pub backup: Option<HostedJourneyEvidenceRefV1>,
+    pub restore: Option<HostedJourneyEvidenceRefV1>,
+    pub rollback: Option<HostedJourneyEvidenceRefV1>,
+    pub tls: Option<HostedJourneyEvidenceRefV1>,
+    pub cost: Option<HostedJourneyEvidenceRefV1>,
+    pub relation_activity: Option<HostedJourneyEvidenceRefV1>,
+    pub ephemeral_corpus: Option<HostedJourneyEvidenceRefV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostedJourneyComparatorV1 {
     pub receipt_sha256: String,
     pub status: HostedJourneyStatus,
@@ -1905,11 +1968,113 @@ pub struct HostedProductJourneyV1 {
     pub schema_version: HostedProductJourneyVersion,
     pub status: HostedJourneyStatus,
     pub observed_at: String,
+    pub source: HostedJourneySourceV1,
+    pub identities: HostedJourneyIdentitiesV1,
+    pub commands: Vec<HostedJourneyCommandV1>,
+    pub evidence: HostedJourneyEvidenceV1,
     pub comparator: HostedJourneyComparatorV1,
     pub provider: HostedJourneyProviderV1,
     pub rows: HostedJourneyRowsV1,
     pub cleanup: HostedJourneyCleanupV1,
     pub claim_boundary: HostedJourneyClaimBoundaryV1,
+}
+
+impl HostedProductJourneyV1 {
+    /// Enforce the success boundary independently of JSON shape. Failed
+    /// receipts may retain partial evidence, while passed receipts must bind
+    /// every identity and evidence family required by LLP 0105.
+    ///
+    /// @ref LLP 0105#4-public-cli-product-journey — a passing receipt binds the
+    /// package, source, remote identities, command outcomes, and lifecycle
+    /// evidence instead of relying on an unstructured narrative.
+    pub fn validate_claim_boundary(&self) -> Result<(), Vec<&'static str>> {
+        if self.status == HostedJourneyStatus::Failed {
+            return Ok(());
+        }
+
+        let mut missing = Vec::new();
+        if self.source.package_tarball_sha256.is_none() {
+            missing.push("source.packageTarballSha256");
+        }
+        if self.source.target_triple.is_none() {
+            missing.push("source.targetTriple");
+        }
+        for (name, value) in [
+            ("identities.targetId", &self.identities.target_id),
+            ("identities.releaseId", &self.identities.release_id),
+            ("identities.deploymentId", &self.identities.deployment_id),
+            ("identities.databaseId", &self.identities.database_id),
+            ("identities.streamId", &self.identities.stream_id),
+            ("identities.restoreId", &self.identities.restore_id),
+            (
+                "identities.ephemeralAuthorityInstance",
+                &self.identities.ephemeral_authority_instance,
+            ),
+        ] {
+            if value.is_none() {
+                missing.push(name);
+            }
+        }
+        if self.commands.is_empty()
+            || self
+                .commands
+                .iter()
+                .any(|command| command.exit_class != HostedJourneyExitClass::Passed)
+        {
+            missing.push("commands.passed");
+        }
+        for (name, value) in [
+            ("evidence.logs", &self.evidence.logs),
+            ("evidence.migration", &self.evidence.migration),
+            ("evidence.backup", &self.evidence.backup),
+            ("evidence.restore", &self.evidence.restore),
+            ("evidence.rollback", &self.evidence.rollback),
+            ("evidence.tls", &self.evidence.tls),
+            ("evidence.cost", &self.evidence.cost),
+            (
+                "evidence.relationActivity",
+                &self.evidence.relation_activity,
+            ),
+            ("evidence.ephemeralCorpus", &self.evidence.ephemeral_corpus),
+        ] {
+            if value.is_none() {
+                missing.push(name);
+            }
+        }
+        if self.comparator.status != HostedJourneyStatus::Passed
+            || !self.comparator.hosted_parity_claimed
+        {
+            missing.push("comparator.hostedParityClaimed");
+        }
+        if [
+            self.rows.single_production_route.status,
+            self.rows.application_consistent_backup.status,
+            self.rows.isolated_restore.status,
+            self.rows.public_served_path.status,
+            self.rows.packed_lifecycle.status,
+        ]
+        .contains(&HostedJourneyStatus::Failed)
+        {
+            missing.push("rows.passed");
+        }
+        if !self.cleanup.temporary_machine.absent_from_live_roster
+            || !self.cleanup.temporary_volume.absent_from_live_inventory
+            || !self.cleanup.temporary_backup_object.absent
+        {
+            missing.push("cleanup.proved");
+        }
+        if !self.claim_boundary.hosted_product_journey_passed
+            || !self.claim_boundary.hosted_ephemeral_capability_advertised
+        {
+            missing.push("claimBoundary.passed");
+        }
+
+        if missing.is_empty() {
+            Ok(())
+        } else {
+            Err(missing)
+        }
+    }
 }
 
 #[cfg(test)]

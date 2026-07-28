@@ -88,6 +88,41 @@
       ],
       "type": "object"
     },
+    "HostedJourneyCommandV1": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnosticCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exitClass": {
+          "$ref": "#/$defs/HostedJourneyExitClass"
+        },
+        "exitCode": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "operation": {
+          "type": "string"
+        },
+        "receiptSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "operation",
+        "exitClass"
+      ],
+      "type": "object"
+    },
     "HostedJourneyComparatorV1": {
       "additionalProperties": false,
       "properties": {
@@ -181,6 +216,179 @@
         "providerState",
         "absentFromLiveInventory"
       ],
+      "type": "object"
+    },
+    "HostedJourneyEvidenceRefV1": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactKind": {
+          "type": "string"
+        },
+        "identity": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactKind",
+        "identity",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "HostedJourneyEvidenceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "backup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ephemeralCorpus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "migration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "relationActivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rollback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tls": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostedJourneyEvidenceRefV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "HostedJourneyExitClass": {
+      "enum": [
+        "passed",
+        "failed",
+        "refused",
+        "interrupted"
+      ],
+      "type": "string"
+    },
+    "HostedJourneyIdentitiesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "databaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deploymentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ephemeralAuthorityInstance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "restoreId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "streamId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
     "HostedJourneyIsolatedRestoreV1": {
@@ -364,6 +572,38 @@
       ],
       "type": "object"
     },
+    "HostedJourneySourceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "dirty": {
+          "type": "boolean"
+        },
+        "packageTarballSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repository": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "targetTriple": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "repository",
+        "revision",
+        "dirty"
+      ],
+      "type": "object"
+    },
     "HostedJourneyStatus": {
       "enum": [
         "passed",
@@ -389,8 +629,20 @@
     "cleanup": {
       "$ref": "#/$defs/HostedJourneyCleanupV1"
     },
+    "commands": {
+      "items": {
+        "$ref": "#/$defs/HostedJourneyCommandV1"
+      },
+      "type": "array"
+    },
     "comparator": {
       "$ref": "#/$defs/HostedJourneyComparatorV1"
+    },
+    "evidence": {
+      "$ref": "#/$defs/HostedJourneyEvidenceV1"
+    },
+    "identities": {
+      "$ref": "#/$defs/HostedJourneyIdentitiesV1"
     },
     "observedAt": {
       "type": "string"
@@ -404,6 +656,9 @@
     "schemaVersion": {
       "$ref": "#/$defs/HostedProductJourneyVersion"
     },
+    "source": {
+      "$ref": "#/$defs/HostedJourneySourceV1"
+    },
     "status": {
       "$ref": "#/$defs/HostedJourneyStatus"
     }
@@ -412,6 +667,10 @@
     "schemaVersion",
     "status",
     "observedAt",
+    "source",
+    "identities",
+    "commands",
+    "evidence",
     "comparator",
     "provider",
     "rows",

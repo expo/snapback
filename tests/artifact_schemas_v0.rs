@@ -3502,10 +3502,23 @@ fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
     assert_validates("hosted-product-journey-v1.schema.json", &value);
     let parsed: HostedProductJourneyV1 =
         serde_json::from_value(value.clone()).expect("journey receipt Rust carrier");
+    parsed
+        .validate_claim_boundary()
+        .expect("failed receipts may retain partial remote evidence");
     assert_eq!(
         serde_json::to_value(parsed).expect("serialize journey receipt"),
         value
     );
+    let mut unsupported_success = value.clone();
+    unsupported_success["status"] = json!("passed");
+    let unsupported_success: HostedProductJourneyV1 =
+        serde_json::from_value(unsupported_success).expect("success-shaped receipt");
+    let missing = unsupported_success
+        .validate_claim_boundary()
+        .expect_err("shape alone must not create a hosted capability claim");
+    assert!(missing.contains(&"source.packageTarballSha256"));
+    assert!(missing.contains(&"evidence.ephemeralCorpus"));
+    assert!(missing.contains(&"claimBoundary.passed"));
     let mut unknown = value;
     unknown["unexpected"] = json!(true);
     assert_rejects("hosted-product-journey-v1.schema.json", &unknown);

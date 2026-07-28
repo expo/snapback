@@ -2,6 +2,38 @@
   "schemaVersion": "snapback.hosted-product-journey.v1",
   "status": "failed",
   "observedAt": "2026-07-28T04:36:00Z",
+  "source": {
+    "packageTarballSha256": null,
+    "repository": "unbound",
+    "revision": "unbound",
+    "dirty": true,
+    "targetTriple": null
+  },
+  "identities": {
+    "targetId": null,
+    "releaseId": null,
+    "deploymentId": null,
+    "databaseId": null,
+    "streamId": null,
+    "restoreId": null,
+    "ephemeralAuthorityInstance": null
+  },
+  "commands": [],
+  "evidence": {
+    "logs": null,
+    "migration": null,
+    "backup": {
+      "artifactKind": "applicationConsistentBackup",
+      "identity": "backups/drill-20260728T043355Z.sqlite3",
+      "sha256": "sha256:6a09d8869284ca3442b9c5fbfac69cbe31ad9bc09379d08717786d85d82cfb8e"
+    },
+    "restore": null,
+    "rollback": null,
+    "tls": null,
+    "cost": null,
+    "relationActivity": null,
+    "ephemeralCorpus": null
+  },
   "comparator": {
     "receiptSha256": "sha256:033cd19470fd8b0e9bcd4a0b07e901530d13e5a4bab45a84c663f052ac20167e",
     "status": "passed",
