@@ -26,7 +26,6 @@ use snapback::auth::hosted_edge::{
     configuration_digest,
 };
 
-
 fn argument(name: &str) -> Option<String> {
     let mut args = std::env::args();
     while let Some(arg) = args.next() {

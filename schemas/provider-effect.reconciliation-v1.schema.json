@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "ProviderEffectTerminalOutcome": {
+      "enum": [
+        "notApplied",
+        "applied",
+        "commitUncertain"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/provider-effect.reconciliation-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "freshControlHeadSha256": {
+      "type": "string"
+    },
+    "freshProviderObservationSha256": {
+      "type": "string"
+    },
+    "reconciliationId": {
+      "type": "string"
+    },
+    "recordedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "resolvedOutcome": {
+      "$ref": "#/$defs/ProviderEffectTerminalOutcome"
+    },
+    "retainedResultSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "semanticEffectId": {
+      "type": "string"
+    },
+    "uncertainTerminalSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "reconciliationId",
+    "semanticEffectId",
+    "uncertainTerminalSha256",
+    "freshProviderObservationSha256",
+    "freshControlHeadSha256",
+    "resolvedOutcome",
+    "recordedAtMs"
+  ],
+  "title": "ProviderEffectReconciliationV1",
+  "type": "object"
+}

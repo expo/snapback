@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "ProviderEffectIntentVersion": {
+      "enum": [
+        "snapback.provider-effect-intent.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/provider-effect.intent-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "desiredProviderStateSha256": {
+      "type": "string"
+    },
+    "effectKind": {
+      "type": "string"
+    },
+    "logicalResourceName": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planSha256": {
+      "type": "string"
+    },
+    "predecessorHeadSha256": {
+      "type": "string"
+    },
+    "requestSha256": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/ProviderEffectIntentVersion"
+    },
+    "semanticEffectId": {
+      "type": "string"
+    },
+    "targetBindingSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "operation",
+    "requestSha256",
+    "semanticEffectId",
+    "targetBindingSha256",
+    "planSha256",
+    "effectKind",
+    "logicalResourceName",
+    "desiredProviderStateSha256",
+    "predecessorHeadSha256"
+  ],
+  "title": "ProviderEffectIntentV1",
+  "type": "object"
+}

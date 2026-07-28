@@ -584,6 +584,17 @@ half unchanged.
 - Which mutation dry-run facts can be safely returned in hosted environments
   without leaking sensitive row data through predicted writes?
 
+## Dated amendment: versioned seed operations (2026-07-27)
+
+LLP 0103 adds four local NonProd operations:
+`app.seed.ensure.v1`, `app.seed.preview.v1`,
+`app.seed.reset-install.v1`, and `app.seed.clear.v1`. All four require
+AdminWrite before body-specific inspection. Their closed request lives only
+under `HostOpsRequest.input`; understood failures use this Spec's HTTP-200
+`hostOpsResult` envelope and carry the same diagnostic as the corresponding
+direct route. Successful `data` is the Rust-owned LLP 0103 result without a
+host-specific reinterpretation.
+
 ## Status
 
 Draft. This Spec is the first operating-surface pin for agents. It deliberately

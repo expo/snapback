@@ -1,0 +1,38 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.artifact.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "seedDigest": {
+      "type": "string"
+    },
+    "seedVersion": {
+      "type": "string"
+    },
+    "tables": {
+      "additionalProperties": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "appId",
+    "seedVersion",
+    "seedDigest",
+    "tables"
+  ],
+  "title": "SeedArtifactV1",
+  "type": "object"
+}

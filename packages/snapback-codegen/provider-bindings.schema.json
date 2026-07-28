@@ -44,7 +44,7 @@
     "bindings": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["queries", "mutations", "ephemeral"],
+      "required": ["queries", "mutations", "actions", "ephemeral"],
       "properties": {
         "queries": {
           "type": "array",
@@ -53,6 +53,10 @@
         "mutations": {
           "type": "array",
           "items": { "$ref": "#/$defs/mutationBinding" }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionBinding" }
         },
         "ephemeral": {
           "type": "array",
@@ -75,12 +79,31 @@
     "mutationBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "argumentsType", "effects", "optimistic"],
+      "required": ["name", "argumentsType", "resultType", "effects", "optimistic"],
       "properties": {
         "name": { "$ref": "#/$defs/nonEmptyString" },
         "argumentsType": { "$ref": "#/$defs/nonEmptyString" },
+        "resultType": { "$ref": "#/$defs/nonEmptyString" },
         "effects": { "$ref": "#/$defs/effects" },
         "optimistic": { "$ref": "#/$defs/optimistic" }
+      }
+    },
+    "actionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argumentsType", "resultType", "effects"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "argumentsType": { "$ref": "#/$defs/nonEmptyString" },
+        "resultType": { "$ref": "#/$defs/nonEmptyString" },
+        "effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["writes"],
+          "properties": {
+            "writes": { "$ref": "#/$defs/stringSet" }
+          }
+        }
       }
     },
     "ephemeralBinding": {

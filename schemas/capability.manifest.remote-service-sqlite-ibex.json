@@ -20,6 +20,12 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
   ],
+  "capabilityMaturity": {
+    "inline_handler_v1": "experimental",
+    "result_contract_v1": "experimental",
+    "versioned_seed_install_v1": "experimental",
+    "versioned_seed_reset_v1": "experimental"
+  },
   "cron": true,
   "ephemeralHostedAdapter": false,
   "ephemeralLocalRoomAuthority": true,
@@ -106,7 +112,7 @@
     },
     {
       "name": "maximum_result_size",
-      "status": "Advisory"
+      "status": "Enforced"
     },
     {
       "name": "maximum_subscription_count",
@@ -156,11 +162,15 @@
     "cron_action_run_mutation",
     "host_plan_runtime",
     "ibex_ctx_db_host_bridge",
+    "inline_handler_v1",
     "live_subscriptions",
     "mutation_read_set_validation",
     "permission_epoch_resync",
     "relational_query_v1",
-    "migration_keyset_scan_v1"
+    "migration_keyset_scan_v1",
+    "result_contract_v1",
+    "versioned_seed_install_v1",
+    "versioned_seed_reset_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

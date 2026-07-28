@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 import {
   AgentAuthorityFence,
   SnapbackClient,
+  admitSnapbackId,
   bindSnapbackAppLifecycle,
   createExternalSessionClient,
   createMemoryAgentAuthorityCustodyStorage,
+  newSeedOperationIdV1,
 } from './index.mjs';
 import {
   SnapbackClient as OnlineSnapbackClient,
@@ -24,11 +26,29 @@ for (const target of exportedTargets) {
 }
 
 assert.equal(typeof SnapbackClient, 'function');
+assert.equal(admitSnapbackId('todos', 'todo_01'), 'todo_01');
+assert.equal(
+  admitSnapbackId('todos', '01983c8d-9f87-7ec1-bc02-7e81290debc0'),
+  '01983c8d-9f87-7ec1-bc02-7e81290debc0',
+);
+assert.throws(
+  () => admitSnapbackId('../todos', 'todo_01'),
+  /SNAPBACK_CLIENT_ID_TABLE_INVALID/u,
+);
+assert.throws(
+  () => admitSnapbackId('todos', 'bad id'),
+  /SNAPBACK_CLIENT_ID_INVALID/u,
+);
+assert.throws(
+  () => admitSnapbackId('todos', 'a'.repeat(257)),
+  /SNAPBACK_CLIENT_ID_INVALID/u,
+);
 assert.equal(OnlineSnapbackClient, SnapbackClient);
 assert.equal(typeof AgentAuthorityFence, 'function');
 assert.equal(typeof createMemoryAgentAuthorityCustodyStorage, 'function');
 assert.equal(typeof createExternalSessionClient, 'function');
 assert.equal(bindOnlineSnapbackAppLifecycle, bindSnapbackAppLifecycle);
+assert.match(newSeedOperationIdV1(1_722_000_000_000), /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
 const client = new SnapbackClient('http://127.0.0.1:9');
 assert.equal(client.baseUrl, 'http://127.0.0.1:9');
 assert.throws(
@@ -56,6 +76,7 @@ assert.deepEqual(externalClient.authProtocols, {
   authInvalidation: 1,
   authorityDescriptor: 1,
   authorizedLease: null,
+  ephemeralAuthority: null,
 });
 assert.throws(
   () => createExternalSessionClient('http://127.0.0.1:9', { bearerToken: '' }),
@@ -446,6 +467,75 @@ assert.equal(appStateListeners.size, 0);
       }),
       /intent must be 'provision'/,
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    requests.push({ url, init });
+    if (url.endsWith('/inspect')) {
+      return new Response(JSON.stringify({
+        capabilityManifest: {
+          supportedCapabilities: ['versioned_seed_install_v1'],
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ state: 'installed', receipt: { outcome: 'installed' } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  try {
+    const seedClient = new SnapbackClient('http://snapback.test', { adminToken: 'seed-admin' });
+    const artifact = {
+      formatVersion: 'snapback.seed.v1',
+      appId: 'demo',
+      seedVersion: 'v1',
+      seedDigest: `sha256:${'a'.repeat(64)}`,
+      tables: {},
+    };
+    const operationId = '01983c8d-9f87-7ec1-bc02-7e81290debc0';
+    await seedClient.ensureVersionedSeed(artifact, { operationId });
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].url, 'http://snapback.test/_snapback/api/app/seed/ensure-v1');
+    assert.equal(new Headers(requests[1].init.headers).get('x-snapback-admin-token'), 'seed-admin');
+    assert.deepEqual(JSON.parse(requests[1].init.body), {
+      formatVersion: 'snapback.seed.install-request.v1',
+      operationId,
+      artifact,
+      requestedMode: 'dev',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    requests.push({ url, init });
+    return new Response(JSON.stringify({
+      capabilityManifest: { supportedCapabilities: [] },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const seedClient = new SnapbackClient('http://snapback.test', { adminToken: 'seed-admin' });
+    await assert.rejects(
+      seedClient.ensureVersionedSeed({
+        formatVersion: 'snapback.seed.v1',
+        appId: 'demo',
+        seedVersion: 'v1',
+        seedDigest: `sha256:${'a'.repeat(64)}`,
+        tables: {},
+      }),
+      (error) => error?.code === 'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+    );
+    assert.equal(requests.length, 1, 'capability refusal performs no legacy seed/reset request');
   } finally {
     globalThis.fetch = originalFetch;
   }

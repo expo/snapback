@@ -5,8 +5,10 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-23 (LLP 0086 CC-8 rows 1/7/11: schema lockdown recorded as a named safety feature; Triplit compatibility-classified schema-push comparison; Cambria lens-migration prior-art note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
-**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057, LLP 0082, LLP 0084, LLP 0085, LLP 0086
+**Revised:** 2026-07-27 (LLP 0101 amendment: Rust owns the effective result
+contract and hashes projected through manifests, schemas, providers, Contract,
+and generated references); 2026-07-23 (LLP 0086 CC-8 rows 1/7/11: schema lockdown recorded as a named safety feature; Triplit compatibility-classified schema-push comparison; Cambria lens-migration prior-art note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057, LLP 0082, LLP 0084, LLP 0085, LLP 0086, LLP 0101
 
 ## Summary
 
@@ -196,6 +198,21 @@ as prior art for schema evolution across deployed clients — a pointer, not
 an adoption; it complements rather than replaces this document's
 single-source-plus-drift-gate shape.
 
+## Dated alignment: effective result-contract custody (2026-07-27)
+
+LLP 0101 extends the Rust-owned function-manifest authority with handler form,
+implementation/argument/result hashes, and the closed recursive effective
+result contract, including `LegacyQueryRowsV0`. Table-named document contracts
+are expanded against the installed schema before hashing; downstream tools
+must not hash or validate the unexpanded author shorthand.
+
+Generated JSON Schema, TypeScript references, provider introspection, Contract
+bindings, operation summaries, and capability inspection are projections of
+that authority. Each projection carries the effective result hash. A consumer
+that cannot represent a contract emits a closed missing witness or refuses; it
+must not infer, drop, or widen fields. Executable source and source locations
+remain outside public projections.
+
 ## Status
 
 Accepted. Ratified 2026-07-02 by Charlie (decision drafted and applied by
@@ -237,3 +254,11 @@ exhaustive gate is the Rust round-trip). **P2 handoff:**
 `schemas/capability.manifest.schema.json` (from `manifest::CapabilityManifest`)
 is committed so P2 can delete the JS capability-manifest literal and consume the
 schema half.
+
+**Versioned-seed alignment (2026-07-27).** LLP 0103's artifact, identity,
+expected-stream, matched-observation, ensure-result, install/reset/preview
+request, preview-result, and receipt carriers are Rust-owned serde/schemars
+types. `snapback-schemagen` emits their committed schemas, and the ordinary
+artifact-schema drift and representative-value gates cover them. Codegen owns
+only canonical construction of `seed.artifact.json`; it cannot redefine a
+server request or receipt.

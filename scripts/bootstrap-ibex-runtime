@@ -273,19 +273,21 @@ if [ "$RUN_CHECK" != "0" ]; then
     # LC_RPATH baked in by build.rs. Artifacts were verified above, so a failure
     # here is a Snapback/vendored-runtime compile/link or runtime-load problem,
     # not a missing artifact.
-    log "validating Snapback native runtime: cargo build + launch smoke"
-    (cd "$ROOT" && cargo build -q --bin snapback) || fail "SNAPBACK_IBEX_CARGO_BUILD_FAILED: cargo build failed after the Ibex/Hermes artifacts were prepared; the artifact locations look complete, so this is a Snapback or vendored-runtime compile/link error (see the cargo output above), not a bootstrap-artifact problem"
-
-    snapback_bin="$ROOT/target/debug/snapback"
-    if [ "$TARGET_OS" = "darwin" ] && [ -x "$snapback_bin" ]; then
-        if env -u DYLD_FRAMEWORK_PATH -u DYLD_LIBRARY_PATH \
-               -u DYLD_FALLBACK_FRAMEWORK_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
-               "$snapback_bin" --help >/dev/null 2>&1; then
-            log "launch smoke passed: hermesvm.framework loads from a baked-in LC_RPATH (no DYLD_* needed)"
-        else
-            fail "SNAPBACK_IBEX_RUNTIME_LOAD_FAILED: the built snapback binary cannot load hermesvm.framework at launch without DYLD_* set (macOS SIP strips DYLD_* for protected process trees). The binary needs an LC_RPATH pointing at the Hermes framework directory, which build.rs emits; run scripts/ibex-doctor, then rebuild. Inspect with: otool -l '$snapback_bin' | grep -A2 LC_RPATH"
-        fi
+    log "validating Snapback native runtime: exact cargo link + launch smoke"
+    probe_status=0
+    probe_json="$(node "$ROOT/scripts/runtime-link-smoke.mjs" \
+        --json --target-dir "$ROOT/target" --keep-target)" || probe_status=$?
+    if ! printf '%s' "$probe_json" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+        fail "SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED: exact-link helper exited $probe_status without a structured report; run node $ROOT/scripts/runtime-link-smoke.mjs for the underlying failure"
     fi
+    recovery_record="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["recovery"], separators=(",",":")))')"
+    log "runtime recovery record: $recovery_record"
+    if [ "$probe_status" -ne 0 ]; then
+        probe_code="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["diagnostic"]["code"])')"
+        probe_message="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["diagnostic"]["message"])')"
+        fail "$probe_code: $probe_message"
+    fi
+    log "exact link + launch smoke passed with dynamic-loader overrides scrubbed"
 fi
 
 log "Ibex runtime bootstrap complete"

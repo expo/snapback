@@ -1,0 +1,121 @@
+{
+  "tables": {
+    "incidents": [
+      {
+        "_id": "incident_api",
+        "title": "Checkout API latency",
+        "summary": "p95 latency rose after the catalog deploy; checkout remains available.",
+        "severity": "SEV-2",
+        "status": "investigating",
+        "commanderId": "user_ada",
+        "createdAt": 1785157200000,
+        "updatedAt": 1785159000000
+      },
+      {
+        "_id": "incident_email",
+        "title": "Receipt email backlog",
+        "summary": "Transactional receipts are delayed in the west region.",
+        "severity": "SEV-3",
+        "status": "monitoring",
+        "commanderId": "user_grace",
+        "createdAt": 1785146400000,
+        "updatedAt": 1785155400000
+      }
+    ],
+    "tasks": [
+      {
+        "_id": "task_trace",
+        "incidentId": "incident_api",
+        "body": "Compare traces before and after deploy",
+        "completed": true,
+        "assigneeId": "user_ada",
+        "position": 1,
+        "createdAt": 1785157260000
+      },
+      {
+        "_id": "task_cache",
+        "incidentId": "incident_api",
+        "body": "Verify catalog cache hit rate",
+        "completed": false,
+        "assigneeId": "user_lin",
+        "position": 2,
+        "createdAt": 1785157320000
+      },
+      {
+        "_id": "task_queue",
+        "incidentId": "incident_email",
+        "body": "Drain delayed receipt queue",
+        "completed": true,
+        "assigneeId": "user_grace",
+        "position": 1,
+        "createdAt": 1785146460000
+      }
+    ],
+    "comments": [
+      {
+        "_id": "comment_api_1",
+        "incidentId": "incident_api",
+        "authorId": "user_lin",
+        "body": "Database time is flat; catalog calls account for most of the regression.",
+        "createdAt": 1785157800000
+      },
+      {
+        "_id": "comment_email_1",
+        "incidentId": "incident_email",
+        "authorId": "user_grace",
+        "body": "Backlog is shrinking and no messages have failed permanently.",
+        "createdAt": 1785151800000
+      }
+    ],
+    "activity": [
+      {
+        "_id": "activity_api_1",
+      "incidentId": "incident_api",
+      "actorId": "user_ada",
+      "sourceTable": "incidents",
+      "sourceId": "incident_api",
+      "operation": "insert",
+      "effectiveSubject": "user_ada",
+      "actualActor": "user_ada",
+      "actorKind": "human",
+      "mutationDigest": "seed.v1",
+        "kind": "incident.created",
+        "detail": "SEV-2 incident opened",
+        "createdAt": 1785157200000,
+        "sortKey": 1785157200000
+      },
+      {
+        "_id": "activity_api_2",
+      "incidentId": "incident_api",
+      "actorId": "user_ada",
+      "sourceTable": "tasks",
+      "sourceId": "task_trace",
+      "operation": "patch",
+      "effectiveSubject": "user_ada",
+      "actualActor": "user_ada",
+      "actorKind": "human",
+      "mutationDigest": "seed.v1",
+        "kind": "task.completed",
+        "detail": "Compare traces before and after deploy",
+        "createdAt": 1785159000000,
+        "sortKey": 1785159000000
+      },
+      {
+        "_id": "activity_email_1",
+      "incidentId": "incident_email",
+      "actorId": "user_grace",
+      "sourceTable": "incidents",
+      "sourceId": "incident_email",
+      "operation": "patch",
+      "effectiveSubject": "user_grace",
+      "actualActor": "user_grace",
+      "actorKind": "human",
+      "mutationDigest": "seed.v1",
+        "kind": "incident.status",
+        "detail": "investigating → monitoring",
+        "createdAt": 1785155400000,
+        "sortKey": 1785155400000
+      }
+    ]
+  }
+}

@@ -43,6 +43,7 @@ import {
   attestProcessGroupExit,
   signalProcessTree,
 } from '../../scripts/lib/process-tree.mjs';
+import { runRuntimeLinkProbe } from '../../scripts/runtime-link-smoke.mjs';
 
 import {
   readCheckoutBinaryIdentity,
@@ -50,6 +51,7 @@ import {
   verifyApiProvenance,
   verifyBinaryProvenance,
 } from './provenance.mjs';
+import { createRuntimeRecoveryRecord } from '../../packages/snapback-cli/runtime-recovery.mjs';
 
 // A clean CI runner can spend nearly a minute compiling before the child
 // publishes readiness. Keep that cold start bounded, with enough margin that
@@ -173,6 +175,13 @@ async function startServerWithDeps({
         adminToken: env.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN ?? null,
         reused: true,
         launch: { rung: 'reused', command: null },
+        runtimeRecovery: createRuntimeRecoveryRecord({
+          selectionRung: 'reused',
+          buildable: null,
+          runnable: true,
+          reuseAllowed: true,
+          reuseReason: verdict.detail,
+        }),
         stop: async () => {},
       });
     }
@@ -239,6 +248,12 @@ async function startServerWithDeps({
   for (let index = 0; index < plans.length; index += 1) {
     const plan = plans[index];
     try {
+      await proveCargoFallback(plan, {
+        cwd,
+        childEnv,
+        deps,
+        startupTimeoutMs,
+      });
       return await launchServerAttempt(plan, attemptContext);
     } catch (error) {
       if (plan.fallback && index < plans.length - 1) {
@@ -246,12 +261,81 @@ async function startServerWithDeps({
           `PREBUILT SNAPBACK REJECTED (${plan.command}): ${error.message}\n` +
             'Falling back to the source-tree `cargo run` rung (LLP 0030 command-resolver ladder).',
         );
+        plans[index + 1].reuseSkipReason =
+          `automatic ${plan.rung} reuse failed: ${error.message}`;
         continue;
       }
+      const fallbackBinary = join(
+        cwd,
+        'target',
+        'debug',
+        process.platform === 'win32' ? 'snapback.exe' : 'snapback',
+      );
+      if (!error.runtimeRecovery) {
+        error.runtimeRecovery = createRuntimeRecoveryRecord({
+          selectedBinary: existsSync(fallbackBinary) ? fallbackBinary : null,
+          selectionRung: plan.rung,
+          expected: expectedIdentity,
+          buildable: plan.rung === 'cargo' ? false : null,
+          runnable: null,
+          reuseAllowed: false,
+          reuseReason: error.message,
+          diagnostic: { code: 'SNAPBACK_SERVER_LAUNCH_FAILED' },
+          producerInputs: {
+            cwd,
+            command: plan.command ?? 'cargo',
+            rung: plan.rung,
+          },
+          repairCommand: `${join(cwd, 'scripts/bootstrap-ibex-runtime')}`,
+          overrideCommand: existsSync(fallbackBinary)
+            ? `SNAPBACK_SERVER_BINARY=${JSON.stringify(fallbackBinary)}`
+            : null,
+        });
+      }
+      console.error(`RUNTIME RECOVERY: ${JSON.stringify(error.runtimeRecovery)}`);
       throw error;
     }
   }
   throw new Error('snapback server launch resolved no runnable command (LLP 0030 ladder)');
+}
+
+async function proveCargoFallback(plan, {
+  cwd,
+  childEnv,
+  deps,
+  startupTimeoutMs,
+}) {
+  if (plan.rung !== 'cargo') return;
+  // Fixture launchers do not compile Cargo. A test can still inject the probe
+  // explicitly to exercise this boundary without a native build.
+  const probe = deps.runtimeLinkProbe
+    ?? (deps.launchSpec ? null : runRuntimeLinkProbe);
+  if (probe === null) return;
+  const configuredTarget = childEnv.CARGO_TARGET_DIR;
+  const targetDirectory = configuredTarget
+    ? resolve(cwd, configuredTarget)
+    : join(cwd, 'target');
+  const result = await probe({
+    root: cwd,
+    environment: childEnv,
+    timeoutMs: startupTimeoutMs,
+    targetDirectory,
+    keepTarget: true,
+  });
+  if (!result?.ok) {
+    const diagnostic = result?.diagnostic ?? {
+      code: 'SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED',
+      severity: 'error',
+      subsystem: 'runtime-link',
+      message: 'the exact runtime-link probe returned no usable result',
+    };
+    const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+    error.code = diagnostic.code;
+    error.diagnostic = diagnostic;
+    error.runtimeRecovery = result?.recovery ?? null;
+    throw error;
+  }
+  plan.runtimeLinkRecovery = result.recovery;
 }
 
 // @ref LLP 0030#server-process-ownership — the command-resolver ladder governs
@@ -462,6 +546,28 @@ async function launchServerAttempt(plan, {
             watch: watchState,
             identity,
             launch: { rung: plan.rung, command: launch.command },
+            runtimeRecovery: createRuntimeRecoveryRecord({
+              selectedBinary: plan.rung === 'cargo'
+                ? join(cwd, 'target', 'debug', process.platform === 'win32' ? 'snapback.exe' : 'snapback')
+                : plan.command,
+              selectionRung: plan.rung,
+              expected: expectedIdentity,
+              actualStamp: identity.binary,
+              buildable: plan.rung === 'cargo' ? true : null,
+              runnable: true,
+              reuseAllowed: true,
+              reuseReason: plan.reuseSkipReason
+                ?? `selected ${plan.rung} binary launched with identity verdict ${identity.verdict}`,
+              diagnostic: plan.runtimeLinkRecovery?.diagnostic ?? null,
+              producerInputs: plan.runtimeLinkRecovery?.producerInputs ?? {
+                cwd,
+                command: launch.command,
+                rung: plan.rung,
+              },
+              overrideCommand: plan.rung === 'configured'
+                ? `SNAPBACK_SERVER_BINARY=${JSON.stringify(plan.command)}`
+                : null,
+            }),
             stop: () => {
               if (!stopPromise) {
                 stopPromise = ownership.stop().then(() => {
@@ -508,6 +614,7 @@ function serverHandle({
   watch = null,
   identity = null,
   launch = null,
+  runtimeRecovery = null,
 }) {
   const credentials = Object.freeze({ adminToken });
   return {
@@ -553,6 +660,11 @@ function serverHandle({
     // Which LLP 0030 resolver-ladder rung produced this server:
     // { rung: 'configured' | 'prebuilt' | 'cargo' | 'reused', command }.
     launch,
+    // One shared recovery record across source doctor/bootstrap, packaged
+    // doctor/dev, and demo harnesses. It keeps selection and binary stamp
+    // facts together so callers never have to reconstruct a safe override
+    // from prose.
+    runtimeRecovery,
     stop,
   };
 }

@@ -14,6 +14,7 @@ import { resolve } from 'node:path';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig, type PluginOption } from 'vite';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const snapbackTarget = process.env.SNAPBACK_ALL_ABOARD_API ?? 'http://127.0.0.1:4420';
 
@@ -42,7 +43,14 @@ const sourceProvenanceProbe: PluginOption = {
 
 export default defineConfig({
   root: __dirname,
-  plugins: [react(), sourceProvenanceProbe],
+  plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(__dirname, '../../snapback/generated')],
+    }),
+    react(),
+    sourceProvenanceProbe,
+  ],
   define: {
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
   },

@@ -70,6 +70,7 @@ fn schema() -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: None,
                 principal: "userId".to_owned(),

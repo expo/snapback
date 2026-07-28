@@ -176,6 +176,31 @@
             "Id"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Framework-owned relation-incarnation stamp. It is stored as a string,\nbut unlike an application string it is never writable by application\narguments. The paired required foreign-key field is the complete\nrelationship declaration.\n\n@ref LLP 0104#protected-relation-incarnation-and-stamping — central\n  writers overwrite the stamp from the active parent registry.",
+          "properties": {
+            "RelationIncarnation": {
+              "properties": {
+                "foreignKeyField": {
+                  "type": "string"
+                },
+                "parentTable": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "foreignKeyField",
+                "parentTable"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RelationIncarnation"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -818,6 +843,35 @@
             "InsertEach"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Host-owned assertion inserted only by `write-with-activity.v1`.\nExactly one matching changed source row must already exist in the\nprovisional transaction; missing/no-op/wrong-source execution refuses\nbefore the activity insert and settlement.",
+          "properties": {
+            "AssertSourceChanged": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "operation": {
+                  "$ref": "#/$defs/WriteWithActivitySourceOperation"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "operation"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssertSourceChanged"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -890,6 +944,278 @@
         }
       ]
     },
+    "SearchCursorLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ttlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ttlMs",
+        "maxBytes"
+      ],
+      "type": "object"
+    },
+    "SearchFieldClassV1": {
+      "enum": [
+        "public",
+        "private",
+        "sensitive",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "SearchIndexManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "cursorLimits": {
+          "$ref": "#/$defs/SearchCursorLimitsV1",
+          "default": {
+            "maxBytes": 2048,
+            "ttlMs": 120000
+          }
+        },
+        "equalityFilters": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fieldClassifications": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchFieldClassV1"
+          },
+          "description": "Closed classification carrier for every participating field that is\nnot already classified by `text_fields`.",
+          "type": "object"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "highlightFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maintenanceLimits": {
+          "$ref": "#/$defs/SearchMaintenanceLimitsV1",
+          "default": {
+            "searchBytes": 262144,
+            "searchMaintenanceEffects": 1024,
+            "searchPositions": 8192,
+            "searchPostingOps": 4096
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "queryLimits": {
+          "$ref": "#/$defs/SearchQueryLimitsV1",
+          "default": {
+            "maxCandidateWork": 10000,
+            "maxPrefixTerms": 256,
+            "minPrefixScalars": 2
+          }
+        },
+        "semanticVersion": {
+          "type": "string"
+        },
+        "sourceLimits": {
+          "$ref": "#/$defs/SearchSourceLimitsV1",
+          "default": {
+            "maxIndexedBytes": 32768,
+            "maxPostingOperations": 4096,
+            "maxTokens": 2048
+          }
+        },
+        "storedFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "textFields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchTextFieldV1"
+          },
+          "type": "object"
+        },
+        "tieBreak": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/SearchVisibilityV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "name",
+        "semanticVersion",
+        "analyzer",
+        "analyzerTablesDigest",
+        "textFields",
+        "fieldClassifications",
+        "visibility",
+        "tieBreak"
+      ],
+      "type": "object"
+    },
+    "SearchMaintenanceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "searchBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchMaintenanceEffects": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPositions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPostingOps": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "searchMaintenanceEffects",
+        "searchPostingOps",
+        "searchPositions",
+        "searchBytes"
+      ],
+      "type": "object"
+    },
+    "SearchQueryLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxCandidateWork": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPrefixTerms": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minPrefixScalars": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxCandidateWork",
+        "maxPrefixTerms",
+        "minPrefixScalars"
+      ],
+      "type": "object"
+    },
+    "SearchSourceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxIndexedBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPostingOperations": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTokens": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxIndexedBytes",
+        "maxTokens",
+        "maxPostingOperations"
+      ],
+      "type": "object"
+    },
+    "SearchTextFieldV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/SearchFieldClassV1",
+          "default": "public"
+        },
+        "weight": {
+          "format": "uint32",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weight"
+      ],
+      "type": "object"
+    },
+    "SearchVisibilityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "TableManifest": {
       "additionalProperties": false,
       "properties": {
@@ -935,6 +1261,13 @@
             "null"
           ]
         },
+        "searchIndexes": {
+          "description": "Portable full-text indexes over this ordinary table. Search metadata is\ntable-local because source field/visibility validation and synchronous\nmaintenance are schema obligations, not function-handler conventions.\n\n@ref LLP 0073#search-declarations — one versioned declaration owns the\ncomplete portable index semantics and work bounds.",
+          "items": {
+            "$ref": "#/$defs/SearchIndexManifestV1"
+          },
+          "type": "array"
+        },
         "syncable": {
           "default": false,
           "type": "boolean"
@@ -958,6 +1291,8 @@
         {
           "enum": [
             "AuthUserId",
+            "AuthActorUserId",
+            "AuthGrantId",
             "RuntimeId",
             "RuntimeNow"
           ],
@@ -989,6 +1324,16 @@
         {
           "const": "AuthActorKind",
           "description": "Actor kind for delegated authority; null for direct and autonomous use.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActivityActorKind",
+          "description": "Total activity-provenance projection: `human` for sessions and `agent`\nfor delegated service authority. Unsupported authority classes leave\nit absent and the write-with-activity profile refuses.",
+          "type": "string"
+        },
+        {
+          "const": "ClientMutationDigest",
+          "description": "Digest of the server-constructed canonical client-mutation identity.",
           "type": "string"
         },
         {
@@ -1205,6 +1550,14 @@
           "type": "object"
         }
       ]
+    },
+    "WriteWithActivitySourceOperation": {
+      "enum": [
+        "insert",
+        "patch",
+        "delete"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/data-tier.case.schema.json",

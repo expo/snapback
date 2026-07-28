@@ -11,13 +11,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
-const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
+const generatedRoot = join(backendDir, 'generated');
+const gen = (f) => readGeneratedJson(generatedRoot, f);
+const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
 
 const server = await startServer({ port: 4400, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'todo', artifactsPath: join(repoRoot, 'demos', 'todo', 'snapback', 'generated', 'artifacts.json') } });

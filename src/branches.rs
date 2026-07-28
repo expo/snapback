@@ -204,10 +204,7 @@ pub fn create_branch(
 }
 
 /// Look up a branch by id.
-pub fn get_branch(
-    conn: &Connection,
-    branch_id: &BranchId,
-) -> SnapbackResult<Option<BranchRecord>> {
+pub fn get_branch(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<Option<BranchRecord>> {
     ensure_branch_registry(conn)?;
     let raw = conn
         .query_row(
@@ -272,7 +269,10 @@ pub fn child_current_version(
 pub fn allocate_child_version(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<u64> {
     ensure_branch_registry(conn)?;
     let current = child_current_version(conn, branch_id)?.ok_or_else(|| {
-        invalid(format!("no child version stream for branch {:?}", branch_id.0))
+        invalid(format!(
+            "no child version stream for branch {:?}",
+            branch_id.0
+        ))
     })?;
     // Reuse the canonical portable-max guard so a branch stream can never
     // advance past the durable ordering domain either.
@@ -307,14 +307,19 @@ pub fn set_child_replay_floor(
 ) -> SnapbackResult<()> {
     ensure_branch_registry(conn)?;
     let current = child_current_version(conn, branch_id)?.ok_or_else(|| {
-        invalid(format!("no child version stream for branch {:?}", branch_id.0))
+        invalid(format!(
+            "no child version stream for branch {:?}",
+            branch_id.0
+        ))
     })?;
     let existing = child_replay_floor(conn, branch_id)?.unwrap_or(0);
     if floor < existing {
         return Err(invalid("branch replay floor cannot move backward"));
     }
     if floor > current {
-        return Err(invalid("branch replay floor cannot exceed the current version"));
+        return Err(invalid(
+            "branch replay floor cannot exceed the current version",
+        ));
     }
     conn.execute(
         "UPDATE _snapback_branch_versions SET replay_floor = ?2 WHERE branch_id = ?1",
@@ -1068,15 +1073,18 @@ mod tests {
     }
 
     fn ids(n: &str) -> (BranchId, ChildStreamId) {
-        (BranchId(format!("branch-{n}")), ChildStreamId(format!("cs-{n}")))
+        (
+            BranchId(format!("branch-{n}")),
+            ChildStreamId(format!("cs-{n}")),
+        )
     }
 
     #[test]
     fn create_then_get_round_trips() {
         let c = conn();
         let (bid, cs) = ids("a");
-        let created = create_branch(&c, &bid, &cs, "canonical", 42, 1_000, Some(60_000))
-            .expect("create");
+        let created =
+            create_branch(&c, &bid, &cs, "canonical", 42, 1_000, Some(60_000)).expect("create");
         assert_eq!(created.base_version, 42);
         assert_eq!(created.state, BranchState::Active);
 
@@ -1090,7 +1098,11 @@ mod tests {
     #[test]
     fn get_missing_is_none() {
         let c = conn();
-        assert!(get_branch(&c, &BranchId("nope".into())).expect("get").is_none());
+        assert!(
+            get_branch(&c, &BranchId("nope".into()))
+                .expect("get")
+                .is_none()
+        );
     }
 
     #[test]
@@ -1098,7 +1110,15 @@ mod tests {
         let c = conn();
         let (bid, cs) = ids("dup");
         create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("first");
-        let again = create_branch(&c, &bid, &ChildStreamId("cs-other".into()), "canonical", 1, 2, None);
+        let again = create_branch(
+            &c,
+            &bid,
+            &ChildStreamId("cs-other".into()),
+            "canonical",
+            1,
+            2,
+            None,
+        );
         assert!(again.is_err(), "reusing a branch id must fail closed");
     }
 
@@ -1107,7 +1127,15 @@ mod tests {
         let c = conn();
         let (bid, cs) = ids("x");
         create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("first");
-        let again = create_branch(&c, &BranchId("branch-y".into()), &cs, "canonical", 1, 2, None);
+        let again = create_branch(
+            &c,
+            &BranchId("branch-y".into()),
+            &cs,
+            "canonical",
+            1,
+            2,
+            None,
+        );
         assert!(again.is_err(), "reusing a child stream id must fail closed");
     }
 
@@ -1167,7 +1195,10 @@ mod tests {
         let c = conn();
         ensure_branch_registry(&c).expect("ensure");
         assert!(allocate_child_version(&c, &BranchId("ghost".into())).is_err());
-        assert_eq!(child_current_version(&c, &BranchId("ghost".into())).expect("cur"), None);
+        assert_eq!(
+            child_current_version(&c, &BranchId("ghost".into())).expect("cur"),
+            None
+        );
     }
 
     #[test]
@@ -1204,8 +1235,11 @@ mod tests {
             params![version as i64],
         )
         .expect("seed version");
-        c.execute("INSERT INTO widgets (id, name) VALUES (1, 'alpha'), (2, 'beta')", [])
-            .expect("seed rows");
+        c.execute(
+            "INSERT INTO widgets (id, name) VALUES (1, 'alpha'), (2, 'beta')",
+            [],
+        )
+        .expect("seed rows");
         c
     }
 
@@ -1246,11 +1280,18 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM widgets", [], |r| r.get(0))
             .expect("base count");
         assert_eq!(source_count, 3, "source has its own write, not the base's");
-        assert_eq!(base_count, 3, "base has the 2 snapshot rows + its own write");
+        assert_eq!(
+            base_count, 3,
+            "base has the 2 snapshot rows + its own write"
+        );
         // The base never saw the source's post-snapshot 'gamma'.
         let has_gamma: i64 = base
             .conn
-            .query_row("SELECT COUNT(*) FROM widgets WHERE name = 'gamma'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM widgets WHERE name = 'gamma'",
+                [],
+                |r| r.get(0),
+            )
             .expect("gamma");
         assert_eq!(has_gamma, 0);
     }
@@ -1396,7 +1437,10 @@ mod tests {
             ledger.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
             vec![1, 2, 3]
         );
-        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(3));
+        assert_eq!(
+            child_current_version(&base.conn, &bid).expect("cur"),
+            Some(3)
+        );
     }
 
     #[test]
@@ -1484,7 +1528,10 @@ mod tests {
         assert_eq!(effects[1].class, EffectClass::Notification);
         assert_eq!(effects[1].payload, None);
         // The whole branch log is one gap-free ordered stream.
-        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(3));
+        assert_eq!(
+            child_current_version(&base.conn, &bid).expect("cur"),
+            Some(3)
+        );
     }
 
     #[test]
@@ -1508,7 +1555,10 @@ mod tests {
         assert!(err.is_err(), "EndToEnd capture must fail closed in v1");
         // Nothing was recorded and no version was consumed.
         assert!(captured_effects(&base.conn).expect("effects").is_empty());
-        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(0));
+        assert_eq!(
+            child_current_version(&base.conn, &bid).expect("cur"),
+            Some(0)
+        );
     }
 
     // ---- P2 + P3: promotion ------------------------------------------------
@@ -1532,9 +1582,11 @@ mod tests {
     }
 
     fn canonical_version(c: &Connection) -> u64 {
-        c.query_row("SELECT version FROM _snapback_version WHERE id = 1", [], |r| {
-            r.get::<_, i64>(0)
-        })
+        c.query_row(
+            "SELECT version FROM _snapback_version WHERE id = 1",
+            [],
+            |r| r.get::<_, i64>(0),
+        )
         .map(|v| v.max(0) as u64)
         .expect("version")
     }
@@ -1578,13 +1630,19 @@ mod tests {
         assert_eq!(result.committed.len(), 2);
         assert!(result.provisional.is_empty());
         assert!(result.effect_intents.is_empty());
-        assert!(result
-            .receipts
-            .iter()
-            .all(|r| r.outcome == BranchReceiptOutcome::Confirmed));
+        assert!(
+            result
+                .receipts
+                .iter()
+                .all(|r| r.outcome == BranchReceiptOutcome::Confirmed)
+        );
         // Canonical now reflects the promoted writes.
         assert_eq!(widget_names(&canonical), vec!["ALPHA", "beta", "gamma"]);
-        assert!(pending_promotions(&canonical, &bid).expect("pending").is_empty());
+        assert!(
+            pending_promotions(&canonical, &bid)
+                .expect("pending")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1622,13 +1680,26 @@ mod tests {
         .expect("promote");
 
         assert_eq!(result.canonical_version, 3);
-        assert_eq!(result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![1]);
-        assert_eq!(result.provisional.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![3]);
+        assert_eq!(
+            result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
+            vec![1]
+        );
+        assert_eq!(
+            result
+                .provisional
+                .iter()
+                .map(|(v, _)| *v)
+                .collect::<Vec<_>>(),
+            vec![3]
+        );
         assert_eq!(result.effect_intents.len(), 1);
 
         // Receipts: w1 Confirmed, effect Provisional, w2 Provisional.
-        let by_v: std::collections::BTreeMap<u64, BranchReceiptOutcome> =
-            result.receipts.iter().map(|r| (r.child_version, r.outcome)).collect();
+        let by_v: std::collections::BTreeMap<u64, BranchReceiptOutcome> = result
+            .receipts
+            .iter()
+            .map(|r| (r.child_version, r.outcome))
+            .collect();
         assert_eq!(by_v[&1], BranchReceiptOutcome::Confirmed);
         assert_eq!(by_v[&2], BranchReceiptOutcome::Provisional);
         assert_eq!(by_v[&3], BranchReceiptOutcome::Provisional);
@@ -1639,13 +1710,20 @@ mod tests {
         assert!(pending.iter().all(|(_, _, status)| status == "pending"));
 
         // Reconcile the effect → resolves its pending row; never rolls back.
-        let n = reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("reconcile");
+        let n =
+            reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("reconcile");
         assert_eq!(n, 1);
         let after = pending_promotions(&canonical, &bid).expect("pending after");
-        let effect_status = after.iter().find(|(v, kind, _)| *v == 2 && kind == "effect").expect("effect row");
+        let effect_status = after
+            .iter()
+            .find(|(v, kind, _)| *v == 2 && kind == "effect")
+            .expect("effect row");
         assert_eq!(effect_status.2, "succeeded");
         // Idempotent: reconciling again resolves nothing.
-        assert_eq!(reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("again"), 0);
+        assert_eq!(
+            reconcile_effect(&canonical, &bid, 2, EffectSettlement::Succeeded).expect("again"),
+            0
+        );
     }
 
     #[test]
@@ -1666,7 +1744,10 @@ mod tests {
             AuthorityDecision::Revalidated,
             apply_widget,
         );
-        assert!(err.is_err(), "v1 must refuse promotion when canonical advanced");
+        assert!(
+            err.is_err(),
+            "v1 must refuse promotion when canonical advanced"
+        );
         assert_eq!(canonical_version(&canonical), 6, "canonical untouched");
     }
 
@@ -1686,7 +1767,11 @@ mod tests {
             apply_widget,
         );
         assert!(err.is_err(), "denied/preserved authority must fail closed");
-        assert_eq!(canonical_version(&canonical), 1, "no version bump on refusal");
+        assert_eq!(
+            canonical_version(&canonical),
+            1,
+            "no version bump on refusal"
+        );
     }
 
     #[test]
@@ -1753,9 +1838,16 @@ mod tests {
             apply_widget,
         )
         .expect("promote");
-        assert_eq!(result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(), vec![1]);
         assert_eq!(
-            result.provisional.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
+            result.committed.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
+            vec![1]
+        );
+        assert_eq!(
+            result
+                .provisional
+                .iter()
+                .map(|(v, _)| *v)
+                .collect::<Vec<_>>(),
             vec![3, 4],
             "every write after the first effect is transitively provisional"
         );
@@ -1785,12 +1877,20 @@ mod tests {
         .expect("effect");
         record_overlay_write(&mut base.conn, &bid, &upsert("9", "provisional"), 2).expect("w");
 
-        promote(&mut canonical, &base.conn, &bid, 1, AuthorityDecision::Revalidated, apply_widget)
-            .expect("promote");
+        promote(
+            &mut canonical,
+            &base.conn,
+            &bid,
+            1,
+            AuthorityDecision::Revalidated,
+            apply_widget,
+        )
+        .expect("promote");
         // The provisional write is present in canonical post-promotion.
         assert_eq!(
             canonical
-                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r.get::<_, String>(0))
+                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r
+                    .get::<_, String>(0))
                 .expect("row"),
             "provisional"
         );
@@ -1798,11 +1898,16 @@ mod tests {
         reconcile_effect(&canonical, &bid, 1, EffectSettlement::Rejected).expect("reconcile");
         assert!(
             canonical
-                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r.get::<_, String>(0))
+                .query_row("SELECT name FROM widgets WHERE id=9", [], |r| r
+                    .get::<_, String>(0))
                 .is_ok(),
             "canonical write survives a rejected settlement (never rolled back after initiation)"
         );
         let pending = pending_promotions(&canonical, &bid).expect("pending");
-        assert!(pending.iter().any(|(v, kind, status)| *v == 1 && kind == "effect" && status == "rejected"));
+        assert!(
+            pending
+                .iter()
+                .any(|(v, kind, status)| *v == 1 && kind == "effect" && status == "rejected")
+        );
     }
 }

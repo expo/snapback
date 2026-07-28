@@ -916,6 +916,7 @@ mod tests {
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: Some(event_members()),
         };
         table.membership = Some(event_members());
@@ -930,6 +931,7 @@ mod tests {
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
         schema.tables = vec![table, events.clone()];
@@ -1038,6 +1040,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some(declaration.to_owned()),
                 principal: "userId".to_owned(),

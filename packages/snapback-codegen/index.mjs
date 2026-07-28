@@ -19,6 +19,8 @@ import { fork, spawn } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
+  readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -58,6 +60,40 @@ import {
   validateProviderIntrospection,
   validateSnapbackIntrospectionSource,
 } from './provider-introspection.mjs';
+import {
+  codegenCacheGraphRoot,
+  codegenProjectRoot,
+  createArtifactFileRecords,
+  createReviewManifest,
+  publishGeneratedGraph,
+} from './review-surface.mjs';
+import {
+  canonicalSeedArtifactJson,
+  parseSeedSourceV1,
+} from './seed-artifact.mjs';
+import {
+  extractInlineHandlers,
+  renderInlineHandlerModule,
+} from './inline-handlers.mjs';
+import {
+  argsContractHash,
+  canonicalJson as canonicalResultJson,
+  effectiveResultContract,
+  resultContractHash,
+  resultContractType,
+} from './result-contracts.mjs';
+import {
+  createCodegenSummary,
+  formatCodegenSummary,
+} from './codegen-summary.mjs';
+export { formatCodegenSummary };
+
+const SEARCH_FIELD_CLASSIFICATIONS = new Set([
+  'public',
+  'private',
+  'sensitive',
+  'forbidden',
+]);
 
 const HEADER = generatedByHeader();
 
@@ -97,12 +133,15 @@ const TARGET_CAPABILITY_IDS = new Set([
   'bounded_response_stream_v1',
   'cron',
   'cron_action_run_mutation',
+  'full_text_search_v1',
   'host_plan_runtime',
   'ibex_ctx_db_host_bridge',
+  'inline_handler_v1',
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
   'relational_query_v1',
+  'result_contract_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
@@ -114,11 +153,9 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
-  // Empty since 2026-07-26: `relational_query_v1` left this set as LLP
-  // 0080/0081's Implemented act (coupled suite green, admitted Step 5
-  // fixture witnesses complete), mirroring src/manifest.rs's non-stable
-  // table. Generated bundles stop acknowledging promoted ids; surviving
-  // pre-promotion acknowledgments are a no-op at admission.
+  'full_text_search_v1',
+  'inline_handler_v1',
+  'result_contract_v1',
 ]);
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
@@ -526,6 +563,26 @@ export async function generateInProcess(backendDir, options = {}) {
   const functionsPath = join(backendRoot, 'functions.mjs');
   const seedPath = join(backendRoot, 'seed.json');
   const handlerSourceCache = new Map();
+  let functionsSource;
+  try {
+    const capability = resolveFileReadCapability(functionsPath, {
+      allowedRoots: [backendRoot],
+      codePrefix: 'FUNCTION_SOURCE',
+    });
+    functionsSource = decodeUtf8Source(capability.read(), functionsPath, 'FUNCTION_SOURCE');
+  } catch (error) {
+    err(error.codegenCode ?? 'FUNCTION_SOURCE_MISSING', 'function', error.message, {
+      path: functionsPath,
+    });
+    return { ok: false, diagnostics };
+  }
+  const inlineExtraction = extractInlineHandlers(functionsSource, {
+    path: 'functions.mjs',
+  });
+  diagnostics.push(...inlineExtraction.diagnostics);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
 
   // @ref LLP 0010#generated-artifacts — the AST resolver defines the complete
   // hashed graph; evaluation happens only from those bundled bytes, never by
@@ -534,7 +591,14 @@ export async function generateInProcess(backendDir, options = {}) {
   // actual boundary is a capability-empty evaluator process plus a VM context
   // with string/Wasm code generation and nondeterministic globals disabled.
   const schemaBuild = await buildDefinitionBundle(schemaPath, backendRoot, diagnostics, 'schema', 'schema');
-  const functionsBuild = await buildDefinitionBundle(functionsPath, backendRoot, diagnostics, 'function', 'functions');
+  const functionsBuild = await buildDefinitionBundle(
+    functionsPath,
+    backendRoot,
+    diagnostics,
+    'function',
+    'functions',
+    inlineExtraction.transformedSource,
+  );
   // The optional route→query manifest declaration (LLP 0092 §0C.1): compiled
   // under the same hashed-graph + isolated-evaluation discipline when
   // `snapback/routes.mjs` exists.
@@ -613,6 +677,19 @@ export async function generateInProcess(backendDir, options = {}) {
           targetTable: idTable,
         });
       }
+      const relation = val.fieldType?.RelationIncarnation;
+      if (relation) {
+        const foreign = table.fields[relation.foreignKeyField];
+        const foreignTarget = foreign ? idFieldTypeTable(foreign.fieldType) : null;
+        if (val.optional || !foreign || foreign.optional || foreignTarget !== relation.parentTable) {
+          err('SNAPBACK_RELATION_SCHEMA_INVALID', 'schema', `${name}.${fieldName} must be required and pair with a required Id<${relation.parentTable}> field ${relation.foreignKeyField}`, {
+            table: name,
+            field: fieldName,
+            foreignKeyField: relation.foreignKeyField,
+            parentTable: relation.parentTable,
+          });
+        }
+      }
       fields.push({ name: fieldName, field_type: val.fieldType, optional: val.optional });
     }
 
@@ -637,6 +714,97 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       indexes.push({ name: index.name, fields: index.fields, ...(index.unique ? { unique: true } : {}) });
+    }
+
+    const searchIndexes = [];
+    for (const search of table.searchIndexes ?? []) {
+      if (!IDENT.test(search.name) || search.name.startsWith('_snapback') || isAuthReservedIdentifier(search.name)) {
+        err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `invalid search index identifier ${name}.${search.name}`, { table: name, index: search.name });
+      }
+      if (seenIndexes.has(search.name)) {
+        err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `duplicate index/search index name ${name}.${search.name}`, { table: name, index: search.name });
+      }
+      seenIndexes.add(search.name);
+      for (const [field, declaration] of Object.entries(search.textFields ?? {})) {
+        const source = table.fields[field];
+        if (!source) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} references unknown text field ${field}`, { table: name, index: search.name, field });
+        } else if (source.fieldType !== 'String') {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} text field ${field} must use v.string()`, { table: name, index: search.name, field });
+        }
+        if (!Number.isSafeInteger(declaration.weight) || declaration.weight < 1 || declaration.weight > 64) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} text field ${field} weight must be 1..64`, { table: name, index: search.name, field });
+        }
+        if (declaration.classification === 'sensitive' || declaration.classification === 'forbidden') {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} cannot index ${declaration.classification} field ${field}`, { table: name, index: search.name, field });
+        }
+        if (search.visibility.kind === 'public-read' && declaration.classification !== 'public') {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `public search index ${name}.${search.name} admits only public text fields`, { table: name, index: search.name, field });
+        }
+      }
+      const participatingNonText = new Set([
+        ...(search.equalityFilters ?? []),
+        ...(search.storedFields ?? []),
+        ...(search.visibility.kind === 'owner' ? [search.visibility.field] : []),
+      ]);
+      for (const field of Object.keys(search.textFields ?? {})) participatingNonText.delete(field);
+      const declaredClassifications = search.fieldClassifications ?? {};
+      const requiredClassificationFields = [...participatingNonText].sort();
+      const declaredClassificationFields = Object.keys(declaredClassifications).sort();
+      if (
+        JSON.stringify(requiredClassificationFields)
+        !== JSON.stringify(declaredClassificationFields)
+      ) {
+        err(
+          'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+          'search',
+          `search index ${name}.${search.name} must classify exactly its participating non-text fields`,
+          {
+            table: name,
+            index: search.name,
+            requiredFields: requiredClassificationFields,
+            declaredFields: declaredClassificationFields,
+          },
+        );
+      }
+      for (const [field, classification] of Object.entries(declaredClassifications)) {
+        if (!SEARCH_FIELD_CLASSIFICATIONS.has(classification)) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} field ${field} has unknown classification`, { table: name, index: search.name, field });
+        } else if (classification === 'sensitive' || classification === 'forbidden') {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} cannot participate with ${classification} field ${field}`, { table: name, index: search.name, field });
+        } else if (search.visibility.kind === 'public-read' && classification !== 'public') {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `public search index ${name}.${search.name} admits only public participating fields`, { table: name, index: search.name, field });
+        }
+      }
+      for (const field of [
+        ...(search.equalityFilters ?? []),
+        ...(search.storedFields ?? []),
+        ...(search.highlightFields ?? []),
+      ]) {
+        if (!table.fields[field]) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} references unknown field ${field}`, { table: name, index: search.name, field });
+        }
+      }
+      for (const field of search.highlightFields ?? []) {
+        if (!Object.hasOwn(search.textFields ?? {}, field)) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} highlight field ${field} must be a declared text field`, { table: name, index: search.name, field });
+        }
+      }
+      for (const field of search.equalityFilters ?? []) {
+        const type = table.fields[field]?.fieldType;
+        const portable = ['String', 'Principal', 'Integer', 'Boolean'].includes(type)
+          || idFieldTypeTable(type) !== null;
+        if (!portable) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} equality filter ${field} has a non-portable type`, { table: name, index: search.name, field });
+        }
+      }
+      if (search.visibility.kind === 'owner') {
+        const owner = table.fields[search.visibility.field];
+        if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
+          err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `owner search index ${name}.${search.name} requires a non-optional string/principal owner field`, { table: name, index: search.name, field: search.visibility.field });
+        }
+      }
+      searchIndexes.push(search);
     }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
@@ -856,11 +1024,19 @@ export async function generateInProcess(backendDir, options = {}) {
       name,
       fields,
       indexes,
+      ...(searchIndexes.length > 0 ? { searchIndexes } : {}),
       syncable: table.syncable,
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
     };
+  }
+
+  if (
+    Object.values(tables).some((table) => (table.searchIndexes?.length ?? 0) > 0)
+    && !schemaRequiredCapabilities.includes('full_text_search_v1')
+  ) {
+    schemaRequiredCapabilities.push('full_text_search_v1');
   }
 
   // SQLite index names are database-global and the physical spelling joins
@@ -946,9 +1122,59 @@ export async function generateInProcess(backendDir, options = {}) {
   const functions = [];
   const contractQueries = dict();
   const contractMutations = dict();
+  const contractActions = dict();
   const cronDefs = [];
   const configDefs = [];
   const projectionDefs = [];
+
+  // @ref LLP 0101#final-author-reconciliation-after-round-3 — codegen
+  // evaluates only an opaque marker in the definition sandbox, then binds
+  // that marker back to the direct AST expression extracted from the same
+  // functions.mjs bytes. Handler source never crosses the definition
+  // evaluator and an indirect or forged marker fails closed.
+  const resolveJsHandler = (def, name) => {
+    if (def.js?.inlineHandler !== undefined) {
+      const extracted = inlineExtraction.handlers.get(name);
+      const marker = def.js.inlineHandler?.__snapbackInlineHandlerMarker;
+      if (!extracted || marker !== extracted.token) {
+        err(
+          'SNAPBACK_INLINE_HANDLER_MARKER_INVALID',
+          'function',
+          `${name}: inline handler marker does not match its direct source expression`,
+          { function: name },
+        );
+        return null;
+      }
+      const source = renderInlineHandlerModule(name, extracted.expressionSource);
+      for (const issue of scanUnsupportedHandlerSource(source, 'functions.mjs')) {
+        err(issue.code, 'bundle', `${name}: ${issue.message}`, {
+          function: name,
+          source: 'functions.mjs',
+          token: issue.token,
+          sourceSpan: {
+            file: 'functions.mjs',
+            line: extracted.sourceSpan.line + issue.line - 1,
+            column: issue.line === 1
+              ? extracted.sourceSpan.column + issue.column - 1
+              : issue.column,
+          },
+        });
+      }
+      return {
+        source,
+        exportName: name,
+        handlerForm: 'inline',
+        inlineAst: extracted.ast,
+        sourceSpan: extracted.sourceSpan,
+      };
+    }
+    return {
+      source: loadHandlerSource(def.js?.source, name) ?? '',
+      exportName: def.js?.exportName,
+      handlerForm: 'module',
+      sourceSpan: null,
+    };
+  };
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
@@ -1062,7 +1288,62 @@ export async function generateInProcess(backendDir, options = {}) {
       if ('Record' in expr) for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where);
     };
 
-    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
+    if (def.__kind === 'Query' && def.searchPlan) {
+      const plan = def.searchPlan;
+      const table = tables[plan.table];
+      if (!table) {
+        err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: search query references unknown table ${plan.table}`, { function: name, table: plan.table });
+      } else if (!(table.searchIndexes ?? []).some((candidate) => candidate.name === plan.index)) {
+        err('SNAPBACK_SEARCH_INDEX_UNAVAILABLE', 'search', `${name}: search query references unknown search index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+      }
+      functions.push({
+        name,
+        kind: 'Query',
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { SearchQuery: plan } },
+        declaredReads: [plan.table],
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
+        syncabilityClass: 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: [plan.table],
+        result: {
+          kind: 'list',
+          row: validatorRowDescriptor(def.resultContract?.validator) ?? { shape: 'unknown' },
+        },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
+      const plan = def.boundedChildrenPlan;
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { BoundedChildrenQuery: plan } },
+        declaredReads: [plan.parentTable, plan.childTable],
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: plan.parentVisibility === 'publicRead' ? [] : ['userId'],
+        syncabilityClass: 'syncable-live',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: [plan.parentTable, plan.childTable],
+        result: { kind: 'list', row: boundedChildrenRowDescriptor(plan, tables) },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
       const readTables = def.js.reads ?? [];
       for (const table of readTables) {
         if (!tables[table]) {
@@ -1079,20 +1360,22 @@ export async function generateInProcess(backendDir, options = {}) {
           });
         }
       }
-      const handlerSource = loadHandlerSource(def.js.source, name);
+      const resolvedHandler = resolveJsHandler(def, name);
+      const handlerSource = resolvedHandler?.source ?? '';
+      const handlerExportName = resolvedHandler?.exportName ?? name;
       if (handlerSource) {
         for (const problem of scanStaticallyInvalidJsQueryResults(
           handlerSource,
-          def.js.exportName,
+          handlerExportName,
         )) {
           err(
             'FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS',
             'function',
-            `${name}: JavaScript query handler ${def.js.exportName} returns an object literal, but query handlers must return a rows array. Wrap a point read as [row] (or return [] when absent).`,
+            `${name}: JavaScript query handler ${handlerExportName} returns an object literal, but query handlers must return a rows array. Wrap a point read as [row] (or return [] when absent).`,
             {
               function: name,
-              handler: def.js.exportName,
-              source: def.js.source,
+              handler: handlerExportName,
+              source: resolvedHandler?.handlerForm === 'inline' ? 'functions.mjs' : def.js.source,
               line: problem.line,
               column: problem.column,
               sourceSpan: {
@@ -1107,7 +1390,7 @@ export async function generateInProcess(backendDir, options = {}) {
       if (handlerSource && isProtectedQueryDefinition(def)) {
         for (const problem of scanProtectedHandlerReachableSource(
           handlerSource,
-          def.js.exportName,
+          handlerExportName,
         )) {
           err(problem.code, 'auth', `${name}: ${problem.message}`, {
             function: name,
@@ -1121,7 +1404,10 @@ export async function generateInProcess(backendDir, options = {}) {
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
-        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        runtime: { IbexModule: { source: handlerSource, export: handlerExportName } },
+        handlerForm: resolvedHandler?.handlerForm ?? 'module',
+        inlineAst: resolvedHandler?.inlineAst,
+        sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
         declaredWrites: [],
         authScopeField: def.js.authScopeField ?? null,
@@ -1344,12 +1630,20 @@ export async function generateInProcess(backendDir, options = {}) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown table ${table}`, { function: name, table });
         }
       }
-      const handlerSource = loadHandlerSource(def.js.source, name);
+      const resolvedHandler = resolveJsHandler(def, name);
       functions.push({
         name,
         kind: 'Mutation',
         ...authoredFunctionManifestFields(def, writes, tables),
-        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        runtime: {
+          IbexModule: {
+            source: resolvedHandler?.source ?? '',
+            export: resolvedHandler?.exportName ?? name,
+          },
+        },
+        handlerForm: resolvedHandler?.handlerForm ?? 'module',
+        inlineAst: resolvedHandler?.inlineAst,
+        sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
         declaredWrites: writes,
         syncabilityClass: 'mutation',
@@ -1383,12 +1677,16 @@ export async function generateInProcess(backendDir, options = {}) {
       const checkValuesMap = (t, values, where) => {
         for (const [field, expr] of Object.entries(values)) {
           if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: ${where} sets unknown field ${t}.${field}`, { function: name, table: t, field });
+          const declared = tables[t]?.fields.find((candidate) => candidate.name === field);
+          if (declared?.field_type?.RelationIncarnation) {
+            err('SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED', 'function', `${name}: ${where} cannot author protected relation stamp ${t}.${field}`, { function: name, table: t, field });
+          }
           checkExpr(expr, `${where} ${field}`);
         }
       };
       const checkRequiredFields = (t, values, where) => {
         for (const f of tables[t].fields) {
-          if (!f.optional && !(f.name in values)) {
+          if (!f.optional && !f.field_type?.RelationIncarnation && !(f.name in values)) {
             err('FUNCTION_MISSING_REQUIRED_FIELD', 'function', `${name}: ${where} into ${t} omits required field ${f.name}`, { function: name, table: t, field: f.name });
           }
         }
@@ -1419,6 +1717,8 @@ export async function generateInProcess(backendDir, options = {}) {
           checkExpr(body.cond, 'guard condition');
         } else if (kind === 'Let') {
           checkExpr(body.expr, 'let expression');
+        } else if (kind === 'AssertSourceChanged') {
+          checkExpr(body.id, 'source id');
         } else if (kind === 'DeleteWhere') {
           writes.add(t);
           for (const filter of body.filter) {
@@ -1444,7 +1744,19 @@ export async function generateInProcess(backendDir, options = {}) {
         name,
         kind: 'Mutation',
         ...authoredFunctionManifestFields(def, writes, tables),
-        runtime: { HostPlan: { Mutation: serializedPlan } },
+        runtime: {
+          HostPlan: def.writeWithActivityPlan
+            ? {
+              WriteWithActivity: {
+                ...def.writeWithActivityPlan,
+                scopeId: serializeExpr(def.writeWithActivityPlan.scopeId),
+                sourceId: serializeExpr(def.writeWithActivityPlan.sourceId),
+                sourceOperation: def.writeWithActivityPlan.sourceOperation,
+                mutation: serializedPlan,
+              },
+            }
+            : { Mutation: serializedPlan },
+        },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
         syncabilityClass: 'mutation',
@@ -1473,17 +1785,32 @@ export async function generateInProcess(backendDir, options = {}) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
         }
       }
-      const handlerSource = loadHandlerSource(def.js.source, name);
+      const resolvedHandler = resolveJsHandler(def, name);
       functions.push({
         name,
         kind: 'Action',
         ...authoredFunctionManifestFields(def, writes, tables),
         uses: def.uses ?? [],
-        runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
+        runtime: {
+          IbexModule: {
+            source: resolvedHandler?.source ?? '',
+            export: resolvedHandler?.exportName ?? name,
+          },
+        },
+        handlerForm: resolvedHandler?.handlerForm ?? 'module',
+        inlineAst: resolvedHandler?.inlineAst,
+        sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: [],
         declaredWrites: writes,
         syncabilityClass: 'action',
       });
+      contractActions[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        writes,
+        serverRunnable: true,
+      };
     } else if (def.__kind === 'Action') {
       const writes = def.writes ?? [];
       for (const table of writes) {
@@ -1501,6 +1828,60 @@ export async function generateInProcess(backendDir, options = {}) {
         declaredWrites: writes,
         syncabilityClass: 'action',
       });
+      contractActions[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        writes,
+        serverRunnable: true,
+      };
+    }
+  }
+
+  for (const name of inlineExtraction.handlers.keys()) {
+    if (!functions.some((fn) => fn.name === name && fn.handlerForm === 'inline')) {
+      err(
+        'SNAPBACK_INLINE_HANDLER_NOT_BOUND',
+        'function',
+        `${name}: direct inline handler was not bound to an emitted function`,
+        { function: name },
+      );
+    }
+  }
+
+  // Rust validates these schema-expanded contracts. Deriving them once here
+  // keeps the runtime, generated TypeScript, provider introspection, and
+  // implementation identity on exactly the same contract bytes.
+  for (const fn of functions) {
+    const def = functionsModule[fn.name];
+    try {
+      fn.argsContractHash = argsContractHash(def?.args ?? {});
+      fn.resultContract = effectiveResultContract({
+        def,
+        functionKind: fn.kind,
+        runtime: fn.runtime,
+        tables,
+      });
+      fn.resultContractHash = resultContractHash(fn.resultContract);
+      if (contractQueries[fn.name]) {
+        contractQueries[fn.name].result = providerResultDescriptor(fn.resultContract);
+      }
+      if (fn.resultContract.kind === 'unknown') {
+        infoDiagnostics.push({
+          code: 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED',
+          severity: 'info',
+          subsystem: 'function',
+          message: `${fn.name}: no precise result contract was declared; runtime enforcement is limited to the general result budget`,
+          details: { function: fn.name },
+        });
+      }
+    } catch (error) {
+      err(
+        'SNAPBACK_RESULT_CONTRACT_INVALID',
+        'function',
+        `${fn.name}: ${error.message}`,
+        { function: fn.name },
+      );
     }
   }
 
@@ -1560,6 +1941,7 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
   const demoMetadata = readDemoAppMetadata(backendRoot, diagnostics);
+  const codegenPolicy = readCodegenPolicy(backendRoot, diagnostics);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -1570,7 +1952,43 @@ export async function generateInProcess(backendDir, options = {}) {
   //
   // @ref LLP 0004#first-slice-api-decisions — appId feeds stable function ids.
   const appId = demoMetadata.appId ?? inferAppId(backendRoot);
+  let seedArtifact = null;
+  let seedRowCount = null;
+  if (seedSource !== null) {
+    try {
+      const parsedSeed = parseSeedSourceV1(seedSource, appId);
+      if (parsedSeed.versioned) {
+        seedArtifact = parsedSeed.artifact;
+        seedRowCount = parsedSeed.seedRowCount;
+        validateSeedVersionEvidence(
+          backendRoot,
+          targetConfig.outputDirectory,
+          seedArtifact,
+        );
+      }
+    } catch (error) {
+      err(
+        error.code ?? 'SNAPBACK_SEED_DECLARATION_INVALID',
+        'seed',
+        error.message,
+        error.details ?? {},
+      );
+    }
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const decoratedFunctionDefinitions = decorateFunctions(appId, functions);
+  for (const fn of decoratedFunctionDefinitions) {
+    const binding = contractQueries[fn.name]
+      ?? contractMutations[fn.name]
+      ?? contractActions[fn.name];
+    if (!binding) continue;
+    binding.implementationHash = fn.implementationHash;
+    binding.argsHash = fn.argsContractHash;
+    binding.resultHash = fn.resultContractHash;
+    binding.resultContract = fn.resultContract;
+  }
   const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
   for (const fn of decoratedFunctionDefinitions) {
     for (const capability of fn.requiredCapabilities) requiredTargetCapabilities.add(capability);
@@ -1632,6 +2050,7 @@ export async function generateInProcess(backendDir, options = {}) {
       : ['routes-graph', ...routesGraphInputs, 'routes-isolated-evaluation', stableJson(routesModule)]),
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
+    ...(codegenPolicy.source === null ? [] : [codegenPolicy.source]),
     contractCapabilitiesSource,
     canonicalCapability.source,
     ...(remoteServiceInputs?.identityInputs ?? []),
@@ -1780,6 +2199,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const introspectionSource = {
     queries: contractQueries,
     mutations: contractMutations,
+    actions: contractActions,
     ephemeral: legacyContractManifest.ephemeral,
   };
   diagnostics.push(...validateSnapbackIntrospectionSource(introspectionSource));
@@ -1893,6 +2313,7 @@ export async function generateInProcess(backendDir, options = {}) {
         default: './provider-bindings.json',
       },
       ...(routesManifest ? { './routes': './routes.manifest.json' } : {}),
+      ...(seedArtifact ? { './seed': './seed.artifact.json' } : {}),
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -1905,7 +2326,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
   const operationArtifactFiles = operationSchemas.map((schema) => `operations/${schema.file}`);
   const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
-  const artifactIndex = {
+  const legacyArtifactIndex = {
     artifactKind: 'artifactIndex',
     schemaVersion: SCHEMA_VERSION,
     appId,
@@ -1913,7 +2334,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1921,8 +2342,20 @@ export async function generateInProcess(backendDir, options = {}) {
     // Names and requirement flags only — the index mirrors declarations,
     // never values (LLP 0036).
     config: configEntries.map((entry) => ({ name: entry.name, required: entry.required, pool: entry.pool })),
+    ...(seedArtifact
+      ? {
+          seed: {
+            version: seedArtifact.seedVersion,
+            digest: seedArtifact.seedDigest,
+            rows: seedRowCount,
+          },
+        }
+      : {}),
   };
   const tmpOutDir = join(backendRoot, `.generated.tmp-${process.pid}-${Date.now()}`);
+  let artifactIndex;
+  let summary;
+  let verifiedGraph;
   try {
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
@@ -1939,12 +2372,48 @@ export async function generateInProcess(backendDir, options = {}) {
       remoteServicePublication,
       contractModules,
       packageJson,
-      artifactIndex,
+      seedArtifact,
+      artifactIndex: null,
     });
-    replaceDirectory(tmpOutDir, outDir);
+    const files = createArtifactFileRecords(tmpOutDir, legacyArtifactIndex.artifacts, {
+      committedProjectionPaths: codegenPolicy.committedProjections,
+      targetProfile,
+    });
+    summary = createCodegenSummary({
+      appId,
+      inputsHash,
+      tables,
+      functions: functionManifest.functions,
+      ephemeralCollections,
+      fileRecords: files,
+      diagnostics,
+      sourceSpans: exportedDefinitionSourceSpans(graphEntrySource(functionsGraph, functionsPath)),
+      schemaFieldSpans: authoredPropertySourceSpans(graphEntrySource(schemaGraph, schemaPath), 'schema.mjs'),
+      outputDirectory: targetConfig.outputDirectory,
+      seedArtifact,
+      seedRowCount,
+    });
+    artifactIndex = createReviewManifest({
+      legacyIndex: legacyArtifactIndex,
+      backendRoot,
+      outputDirectory: targetConfig.outputDirectory,
+      files,
+      summary,
+    });
+    verifiedGraph = publishGeneratedGraph({
+      temporaryGraphRoot: tmpOutDir,
+      cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
+      materializedRoot: outDir,
+      reviewManifest: artifactIndex,
+    });
   } catch (error) {
     rmSync(tmpOutDir, { recursive: true, force: true });
-    err('CODEGEN_WRITE_FAILED', 'codegen', `failed to write generated artifacts transactionally: ${error.message}`, { path: outDir, error: error.message });
+    err(
+      error.code ?? 'CODEGEN_WRITE_FAILED',
+      'codegen',
+      `failed to write generated artifacts transactionally: ${error.message}`,
+      { path: outDir, error: error.message, ...(error.details ?? {}) },
+    );
     return { ok: false, diagnostics };
   }
 
@@ -1959,6 +2428,9 @@ export async function generateInProcess(backendDir, options = {}) {
     providerIntrospection,
     providerBindingMetadata,
     contractManifest,
+    artifactIndex,
+    summary,
+    cacheGraphRoot: verifiedGraph.graphRoot,
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
@@ -2257,6 +2729,10 @@ export function serializeExpr(expr) {
   if (expr.kind === 'AuthKind') return 'AuthKind';
   if (expr.kind === 'AuthActorKind') return 'AuthActorKind';
   if (expr.kind === 'AuthIsDelegated') return 'AuthIsDelegated';
+  if (expr.kind === 'AuthActorUserId') return 'AuthActorUserId';
+  if (expr.kind === 'AuthActivityActorKind') return 'AuthActivityActorKind';
+  if (expr.kind === 'AuthGrantId') return 'AuthGrantId';
+  if (expr.kind === 'ClientMutationDigest') return 'ClientMutationDigest';
   if (expr.kind === 'RuntimeId') return 'RuntimeId';
   if (expr.kind === 'RuntimeNow') return 'RuntimeNow';
   if (expr.kind === 'Args') return 'Args';
@@ -2382,6 +2858,15 @@ export function serializeMutationPlan(plan, functionName, err) {
       const values = dict();
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { InsertEach: { table: body.table, source: serializeExpr(body.source), item_as: body.item_as, values } };
+    }
+    if (kind === 'AssertSourceChanged') {
+      return {
+        AssertSourceChanged: {
+          table: body.table,
+          id: serializeExpr(body.id),
+          operation: body.operation,
+        },
+      };
     }
     return { Delete: { table: body.table, id: serializeExpr(body.id) } };
   });
@@ -2633,7 +3118,7 @@ function mutationReadTables(plan) {
   for (const step of plan.steps) {
     const kind = Object.keys(step)[0];
     const body = step[kind];
-    if (kind === 'Patch' || kind === 'Delete' || kind === 'Get' || kind === 'DeleteWhere') {
+    if (kind === 'Patch' || kind === 'Delete' || kind === 'Get' || kind === 'DeleteWhere' || kind === 'AssertSourceChanged') {
       reads.add(body.table);
     }
   }
@@ -2678,7 +3163,9 @@ function validateAuthoringValidator(val, where, report, seen = new Set()) {
     ['object', new Set(['Json'])],
   ]);
   const idTable = idFieldTypeTable(val.fieldType);
-  if (!primitives.get(val.primitive)?.has(val.fieldType) && !(val.primitive === 'string' && idTable !== null)) {
+  const relationIncarnation = val.fieldType?.RelationIncarnation;
+  if (!primitives.get(val.primitive)?.has(val.fieldType)
+      && !(val.primitive === 'string' && (idTable !== null || relationIncarnation))) {
     report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`);
     return false;
   }
@@ -2992,6 +3479,43 @@ function jsQueryRowDescriptor(def, name, err) {
   };
 }
 
+function providerResultDescriptor(contract) {
+  const value = (entry) => {
+    if (!entry) return { shape: 'unknown' };
+    if (entry.kind === 'null') return { shape: 'literal', value: null };
+    if (entry.kind === 'boolean') return { shape: 'primitive', name: 'boolean' };
+    if (entry.kind === 'integer' || entry.kind === 'finiteReal') {
+      return { shape: 'primitive', name: 'number' };
+    }
+    if (entry.kind === 'string' || entry.kind === 'principal' || entry.kind === 'id') {
+      return { shape: 'primitive', name: 'string' };
+    }
+    if (entry.kind === 'literal') {
+      return { shape: 'literal', value: entry.value };
+    }
+    if (entry.kind === 'array') {
+      return { shape: 'array', items: value(entry.element) };
+    }
+    if (entry.kind === 'union') {
+      return { shape: 'union', variants: entry.variants.map(value) };
+    }
+    if (entry.kind === 'object') {
+      const fields = dict();
+      for (const field of entry.fields ?? []) {
+        const descriptor = value(field.value);
+        if (!field.required) descriptor.optional = true;
+        fields[field.name] = descriptor;
+      }
+      return { shape: 'object', fields };
+    }
+    return { shape: 'unknown' };
+  };
+  if (contract?.kind === 'documents') return { kind: 'list', row: value(contract.document) };
+  if (contract?.kind === 'records') return { kind: 'list', row: value(contract.record) };
+  if (contract?.kind === 'legacyQueryRowsV0') return { kind: 'list', row: value(contract.row) };
+  return { kind: 'list', row: { shape: 'unknown' } };
+}
+
 function rowDescriptor(table) {
   const fields = dict();
   Object.assign(fields, {
@@ -3001,7 +3525,9 @@ function rowDescriptor(table) {
     _updatedAt: { shape: 'primitive', name: 'number' },
   });
   for (const f of table.fields) {
-    const prim = f.field_type === 'Principal' || idFieldTypeTable(f.field_type) !== null
+    const prim = f.field_type === 'Principal'
+      || idFieldTypeTable(f.field_type) !== null
+      || (f.field_type && typeof f.field_type === 'object' && f.field_type.RelationIncarnation)
       ? 'string'
       : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[f.field_type];
     const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
@@ -3041,6 +3567,26 @@ function relationalRowDescriptor(plan, tables) {
     }
   }
   return { shape: 'object', fields };
+}
+
+function boundedChildrenRowDescriptor(plan, tables) {
+  const projected = (tableName, projection) => {
+    const source = rowDescriptor(tables[tableName]);
+    const fields = dict();
+    for (const leaf of projection) {
+      fields[leaf.name] = source.fields[leaf.field] ?? { shape: 'unknown' };
+    }
+    return { shape: 'object', fields };
+  };
+  return {
+    shape: 'object',
+    fields: {
+      kind: { shape: 'primitive', name: 'string' },
+      parent: { ...projected(plan.parentTable, plan.parentProjection), optional: true },
+      children: { shape: 'array', items: projected(plan.childTable, plan.childProjection) },
+      continuation: { shape: 'primitive', name: 'string', optional: true },
+    },
+  };
 }
 
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
@@ -3415,12 +3961,43 @@ function decorateFunctions(appId, functions) {
     } catch (error) {
       throw new Error(`${fn.name}: ${error.message}`, { cause: error });
     }
+    const implementationIdentity = {
+      format: 'snapback.function-implementation.v1',
+      app: appId,
+      operation: fn.name,
+      kind: fn.kind,
+      handler: fn.inlineAst !== undefined
+        ? { form: 'inline', canonicalAst: fn.inlineAst }
+        : fn.runtime?.IbexModule
+          ? {
+              form: 'module',
+              sourceHash: `sha256:${sha256(fn.runtime.IbexModule.source ?? '')}`,
+              export: fn.runtime.IbexModule.export,
+            }
+          : { form: 'plan', plan: fn.runtime?.HostPlan ?? null },
+      argsContractHash: fn.argsContractHash,
+      resultContractHash: fn.resultContractHash,
+      reads,
+      writes,
+      authRequirement: fn.authRequirement ?? 'optional-user',
+      authorizationDependence: fn.authorizationDependence ?? [],
+      uses: fn.uses ?? [],
+      standardPattern: fn.standardPattern ?? null,
+    };
     return {
       id: functionId(appId, fn.name),
       name: fn.name,
       exportedName: fn.name,
       kind: fn.kind,
-      sourceSpan: null,
+      sourceSpan: fn.sourceSpan ?? null,
+      handlerForm: fn.handlerForm
+        ?? (fn.runtime?.IbexModule ? 'module' : 'plan'),
+      implementationHash: `sha256:${sha256(
+        `snapback:function-implementation:v1\n${canonicalResultJson(implementationIdentity)}`,
+      )}`,
+      argsContractHash: fn.argsContractHash,
+      resultContract: fn.resultContract,
+      resultContractHash: fn.resultContractHash,
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
@@ -3452,6 +4029,15 @@ function readSummary(fn) {
       mode: 'relational',
       primaryTable: relationalPlan.root,
       tables: [relationalPlan.root, relationalPlan.joined],
+      authScopeField: null,
+    };
+  }
+  const searchPlan = fn.runtime?.HostPlan?.SearchQuery;
+  if (searchPlan) {
+    return {
+      mode: 'singleTable',
+      primaryTable: searchPlan.table,
+      tables: [searchPlan.table],
       authScopeField: null,
     };
   }
@@ -3490,15 +4076,24 @@ function writeSummary(fn) {
 
 function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
+  const contractCapabilities = [
+    'result_contract_v1',
+    ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
+  ];
+  if (fn.runtime?.HostPlan?.SearchQuery) {
+    return [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
+  }
   // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
   //   execute the relational plan refuses at generation with a
   //   machine-readable capability gap, never at runtime.
   if (fn.runtime?.HostPlan?.RelationalQuery) {
     const relational = [runtimeCapability, 'relational_query_v1'];
-    return fn.kind === 'LiveQuery' ? ['live_subscriptions', ...relational] : relational;
+    return fn.kind === 'LiveQuery'
+      ? ['live_subscriptions', ...relational, ...contractCapabilities]
+      : [...relational, ...contractCapabilities];
   }
-  if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
-  if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
+  if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability, ...contractCapabilities];
+  if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation', ...contractCapabilities];
   if (fn.kind === 'Action') {
     const required = [runtimeCapability, 'cron_action_run_mutation'];
     // @ref LLP 0076#target-contract — a streamed action must be refused at
@@ -3509,9 +4104,9 @@ function requiredCapabilities(fn) {
     if (moduleUsesFetchStream(fn.runtime?.IbexModule?.source ?? '')) {
       required.push('bounded_response_stream_v1');
     }
-    return required;
+    return [...required, ...contractCapabilities];
   }
-  return [runtimeCapability];
+  return [runtimeCapability, ...contractCapabilities];
 }
 
 // @ref LLP 0076#target-contract — AST-derived rather than textual: a
@@ -4939,6 +5534,9 @@ function renderApiModule(appId, functions, ephemeralCollections) {
       id: fn.id,
       name: fn.name,
       kind: fn.kind,
+      implementationHash: fn.implementationHash,
+      argsContractHash: fn.argsContractHash,
+      resultContractHash: fn.resultContractHash,
     };
   }
   const ephemeralRefs = dict();
@@ -4955,12 +5553,18 @@ function renderApiModule(appId, functions, ephemeralCollections) {
       defaultTtlMs: collection.defaultTtlMs,
       maxTtlMs: collection.maxTtlMs,
       maxValueBytes: collection.maxValueBytes,
+      publishRate: {
+        sustainedHz: collection.sustainedHz,
+        burst: collection.burst,
+      },
       deliveryMode: 'latest',
     };
   }
   refs.ephemeral = ephemeralRefs;
   return `${HEADER}\n` +
+    `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
+    `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = Object.freeze(${stableJson(refs)});\n` +
     `export default api;\n`;
 }
@@ -4978,6 +5582,20 @@ function renderApiTypes(
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
+    'export type SearchMatchAtomV1 =',
+    '  | { Term: { value: string; field?: string } }',
+    '  | { Phrase: { values: readonly string[]; field?: string } }',
+    '  | { Prefix: { value: string; field?: string } };',
+    'export type SearchClauseV1 = SearchMatchAtomV1',
+    '  | { Any: readonly SearchMatchAtomV1[] }',
+    '  | { Not: SearchMatchAtomV1 }',
+    "  | { Filter: { field: string; op: 'eq'; value: string | number | boolean } };",
+    'export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }',
+    'export interface SearchRequestV1 { query: SearchQueryAstV1; limit?: number; after?: string }',
+    'export interface SearchMatchRangeV1 { start: number; end: number }',
+    'export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }',
+    'export interface SearchItemV1 { rowId: string; score: number; fields: Readonly<Record<string, unknown>>; highlights: readonly SearchHighlightV1[] }',
+    'export interface SearchPageV1 { items: readonly SearchItemV1[]; cursor: string | null; hasMore: boolean }',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -4986,9 +5604,17 @@ function renderApiTypes(
     '  id: string;',
     '  name: Name;',
     '  kind: Kind;',
+    '  implementationHash: string;',
+    '  argsContractHash: string;',
+    '  resultContractHash: string;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
+    'export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;',
+    'export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;',
+    "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
+    "export type MutationInvocation<Ref extends FunctionReference<string, 'Mutation', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
+    "export type ActionInvocation<Ref extends FunctionReference<string, 'Action', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
     'export interface EphemeralCollectionReference<Name extends string, Scope, Value> {',
     "  artifactKind: 'ephemeralCollectionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -5001,6 +5627,7 @@ function renderApiTypes(
     '  defaultTtlMs: number;',
     '  maxTtlMs: number;',
     '  maxValueBytes: number;',
+    '  publishRate: { readonly sustainedHz: number; readonly burst: number };',
     "  deliveryMode: 'latest';",
     '  readonly __scope?: Scope;',
     '  readonly __value?: Value;',
@@ -5108,9 +5735,15 @@ function renderApiTypes(
   );
   for (const fn of functions) {
     const def = functionsModule[fn.name];
-    const result = providerBindingMetadata?.bindings?.queries
-      ?.find(({ name }) => name === fn.name)?.resultType ?? 'unknown';
-    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForGeneratedArgs(def?.args ?? {})}, ${result}>;`);
+    const search = fn.runtime?.HostPlan?.SearchQuery;
+    const result = search
+      ? 'SearchPageV1'
+      : resultContractType(
+        fn.resultContract ?? { kind: 'unknown' },
+        (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
+      );
+    const args = search ? 'SearchRequestV1' : typeForGeneratedArgs(def?.args ?? {});
+    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('}');
@@ -5564,6 +6197,58 @@ function readDemoAppMetadata(backendDir, diagnostics) {
   };
 }
 
+function readCodegenPolicy(backendRoot, diagnostics) {
+  const path = join(backendRoot, 'codegen.policy.json');
+  if (!existsSync(path)) return { source: null, committedProjections: [] };
+  let source;
+  let policy;
+  try {
+    source = resolveFileReadCapability(path, {
+      allowedRoots: [backendRoot],
+      allowSymlink: false,
+      codePrefix: 'CODEGEN_POLICY',
+    }).read();
+    policy = JSON.parse(decodeUtf8Source(source, path, 'CODEGEN_POLICY'));
+  } catch (cause) {
+    diagnostics.push({
+      code: 'CODEGEN_POLICY_INVALID',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `codegen policy ${path} could not be read as JSON: ${cause.message}`,
+      path,
+    });
+    return { source: source ?? null, committedProjections: [] };
+  }
+  const expectedKeys = ['committedProjections', 'schemaVersion'];
+  const committed = policy?.committedProjections;
+  if (
+    !policy
+    || typeof policy !== 'object'
+    || Array.isArray(policy)
+    || policy.schemaVersion !== 'snapback.codegen-policy.v1'
+    || JSON.stringify(Object.keys(policy).sort()) !== JSON.stringify(expectedKeys)
+    || !Array.isArray(committed)
+    || new Set(committed).size !== committed.length
+    || committed.some((entry) => (
+      typeof entry !== 'string'
+      || entry.length === 0
+      || entry.includes('\\')
+      || entry.startsWith('/')
+      || entry.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')
+    ))
+  ) {
+    diagnostics.push({
+      code: 'CODEGEN_POLICY_INVALID',
+      severity: 'error',
+      subsystem: 'codegen',
+      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections`,
+      path,
+    });
+    return { source, committedProjections: [] };
+  }
+  return { source, committedProjections: [...committed].sort(compareCodeUnits) };
+}
+
 function readString(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
@@ -5594,6 +6279,115 @@ function stableJson(value) {
     return v;
   };
   return JSON.stringify(sort(value), null, 2);
+}
+
+// Summary links are an author aid, not generated identity. They point to the
+// authored export declaration while the hash continues to bind the complete
+// source graph independently.
+function graphEntrySource(graph, path) {
+  try {
+    return graph.get(realpathSync(path))?.source ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function exportedDefinitionSourceSpans(source) {
+  let tree;
+  try {
+    if (typeof source !== 'string') return {};
+    tree = parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module', locations: true });
+  } catch {
+    return {};
+  }
+  const spans = {};
+  for (const statement of tree.body) {
+    if (statement.type !== 'ExportNamedDeclaration') continue;
+    if (statement.declaration?.type === 'VariableDeclaration') {
+      for (const declaration of statement.declaration.declarations) {
+        if (declaration.id?.type === 'Identifier') {
+          spans[declaration.id.name] = {
+            path: 'functions.mjs',
+            line: declaration.id.loc.start.line,
+            column: declaration.id.loc.start.column + 1,
+          };
+        }
+      }
+    } else if (statement.declaration?.id?.name) {
+      spans[statement.declaration.id.name] = {
+        path: 'functions.mjs',
+        line: statement.declaration.id.loc.start.line,
+        column: statement.declaration.id.loc.start.column + 1,
+      };
+    }
+    for (const specifier of statement.specifiers ?? []) {
+      const exported = specifier.exported?.name ?? specifier.exported?.value;
+      if (typeof exported === 'string') {
+        spans[exported] = {
+          path: 'functions.mjs',
+          line: specifier.exported.loc.start.line,
+          column: specifier.exported.loc.start.column + 1,
+        };
+      }
+    }
+  }
+  return spans;
+}
+
+function authoredPropertySourceSpans(source, label) {
+  let tree;
+  try {
+    if (typeof source !== 'string') return {};
+    tree = parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module', locations: true });
+  } catch {
+    return {};
+  }
+  const spans = {};
+  const propertyName = (property) => (
+    property?.computed
+      ? null
+      : (property?.key?.name ?? (typeof property?.key?.value === 'string' ? property.key.value : null))
+  );
+  const findCall = (node, name) => {
+    if (!node || typeof node !== 'object') return null;
+    if (node.type === 'CallExpression' && node.callee?.type === 'Identifier' && node.callee.name === name) return node;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'loc' || key === 'start' || key === 'end') continue;
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          const found = findCall(entry, name);
+          if (found) return found;
+        }
+      } else {
+        const found = findCall(value, name);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const schemaCall = findCall(tree, 'defineSchema');
+  const tables = schemaCall?.arguments?.[0];
+  if (tables?.type !== 'ObjectExpression') return spans;
+  for (const tableProperty of tables.properties) {
+    if (tableProperty.type !== 'Property') continue;
+    const tableName = propertyName(tableProperty);
+    const tableCall = findCall(tableProperty.value, 'defineTable');
+    const fields = tableCall?.arguments?.[0];
+    if (!tableName || fields?.type !== 'ObjectExpression') continue;
+    for (const fieldProperty of fields.properties) {
+      if (fieldProperty.type !== 'Property') continue;
+      const fieldName = propertyName(fieldProperty);
+      if (!fieldName) continue;
+      const span = {
+        path: label,
+        line: fieldProperty.key.loc.start.line,
+        column: fieldProperty.key.loc.start.column + 1,
+      };
+      spans[`${tableName}.${fieldName}`] = span;
+      if (!spans[fieldName]) spans[fieldName] = span;
+    }
+  }
+  return spans;
 }
 
 function sha256(text) {
@@ -5754,7 +6548,14 @@ try {
 }
 `;
 
-async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsystem, kind) {
+async function buildDefinitionBundle(
+  entryPath,
+  backendDir,
+  diagnostics,
+  subsystem,
+  kind,
+  entrySourceOverride = null,
+) {
   const graph = new Map();
   const resultKey = `__snapback_definition_${kind}_${sha256(entryPath).slice(0, 16)}`;
   const facadeNamespace = `snapback-definition-${kind}`;
@@ -5902,7 +6703,9 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
               return { errors: [problem('CODEGEN_COMMONJS_MODULE_UNHASHABLE', `${moduleIdentityLabel(loaded.path, backendDir)} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`, { path: loaded.path })] };
             }
             return {
-              contents: loaded.source,
+              contents: resolve(loaded.path) === resolve(entryPath) && entrySourceOverride !== null
+                ? entrySourceOverride
+                : loaded.source,
               loader: definitionLoader(loaded.path),
               resolveDir: dirname(loaded.path),
             };
@@ -6321,6 +7124,58 @@ function validateContractModuleFilenames(modules, err) {
 
 }
 
+// Version labels are durable identities. A materialized or cached graph is
+// prior evidence even when its source checkout has moved on; reusing the
+// label for different canonical bytes fails before the next graph is written.
+// @ref LLP 0103#16-final-author-reconciliation-after-round-3 — version reuse is
+// a deterministic codegen refusal, not a runtime best effort.
+function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
+  const evidence = new Set([
+    join(backendRoot, outputDirectory, 'seed.artifact.json'),
+  ]);
+  const cacheRoot = join(
+    codegenProjectRoot(backendRoot),
+    '.snapback',
+    'codegen-cache',
+  );
+  if (existsSync(cacheRoot)) {
+    for (const entry of readdirSync(cacheRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        evidence.add(join(cacheRoot, entry.name, 'seed.artifact.json'));
+      }
+    }
+  }
+  for (const path of evidence) {
+    if (!existsSync(path)) continue;
+    let prior;
+    try {
+      prior = JSON.parse(readFileSync(path, 'utf8'));
+    } catch {
+      const error = new Error(`prior seed identity evidence is invalid at ${path}`);
+      error.code = 'SNAPBACK_SEED_EVIDENCE_INVALID';
+      error.details = { path };
+      throw error;
+    }
+    if (
+      prior?.appId === candidate.appId
+      && prior?.seedVersion === candidate.seedVersion
+      && prior?.seedDigest !== candidate.seedDigest
+    ) {
+      const error = new Error(
+        `seedVersion ${JSON.stringify(candidate.seedVersion)} was already used for different seed bytes`,
+      );
+      error.code = 'SNAPBACK_SEED_VERSION_REUSED';
+      error.details = {
+        appId: candidate.appId,
+        seedVersion: candidate.seedVersion,
+        priorDigest: prior.seedDigest ?? null,
+        candidateDigest: candidate.seedDigest,
+      };
+      throw error;
+    }
+  }
+}
+
 function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
@@ -6336,6 +7191,7 @@ function writeGeneratedOutput(outDir, {
   remoteServicePublication,
   contractModules,
   packageJson,
+  seedArtifact,
   artifactIndex,
 }) {
   const contractOutDir = join(outDir, 'contract');
@@ -6355,6 +7211,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  if (seedArtifact) {
+    writeFileSync(join(outDir, 'seed.artifact.json'), canonicalSeedArtifactJson(seedArtifact));
+  }
   for (const schema of operationSchemas) {
     writeFileSync(join(operationsOutDir, schema.file), stableJson(schema.value) + '\n');
   }
@@ -6365,7 +7224,9 @@ function writeGeneratedOutput(outDir, {
     writeFileSync(join(contractOutDir, module.file), module.source);
   }
   writeFileSync(join(outDir, 'package.json'), generatedPackageJson(packageJson) + '\n');
-  writeFileSync(join(outDir, 'artifacts.json'), stableJson(artifactIndex) + '\n');
+  if (artifactIndex) {
+    writeFileSync(join(outDir, 'artifacts.json'), stableJson(artifactIndex) + '\n');
+  }
 }
 
 // Package export condition order is semantic: catch-all `default` must follow
@@ -6550,6 +7411,8 @@ function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
 // own `node demos/_kit/codegen.mjs <backendDir>` invocation here.
 export async function runCodegenCli(argv = process.argv) {
   const args = argv.slice(2);
+  const json = args.includes('--json');
+  if (json) args.splice(args.indexOf('--json'), 1);
   const targetFlag = args.indexOf('--target-profile');
   let targetProfile = TARGET_PROFILE_LOCAL;
   if (targetFlag !== -1) {
@@ -6558,14 +7421,14 @@ export async function runCodegenCli(argv = process.argv) {
   }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
   const result = await generate(backendDir, { targetProfile });
-  for (const d of result.diagnostics) {
-    console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
-  }
+  for (const d of result.diagnostics) console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
   if (result.ok) {
-    console.log(`codegen ok: ${result.outDir}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else console.log(`${formatCodegenSummary(result.summary)}\ncodegen ok: ${result.outDir}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
   } else {
+    if (json) console.log(JSON.stringify(result, null, 2));
     console.error('codegen failed: no artifacts written (no silent stale output).');
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 

@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "CleanupPlanVersion": {
+      "enum": [
+        "snapback.vm-adapter-cleanup-plan.v1"
+      ],
+      "type": "string"
+    },
+    "CleanupResourceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "continuingCostMicrosPerHour": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disposition": {
+          "type": "string"
+        },
+        "logicalName": {
+          "type": "string"
+        },
+        "ownershipSentinel": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "resourceKind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "logicalName",
+        "providerId",
+        "resourceKind",
+        "ownershipSentinel",
+        "disposition",
+        "continuingCostMicrosPerHour"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.cleanup-plan-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cleanupPlanId": {
+      "type": "string"
+    },
+    "cleanupReserveMicros": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "confirmationSha256": {
+      "type": "string"
+    },
+    "inventorySha256": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "ownershipSentinel": {
+      "type": "string"
+    },
+    "resources": {
+      "items": {
+        "$ref": "#/$defs/CleanupResourceV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/CleanupPlanVersion"
+    },
+    "targetOrPlannedBindingSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "cleanupPlanId",
+    "journeyId",
+    "targetOrPlannedBindingSha256",
+    "ownershipSentinel",
+    "resources",
+    "cleanupReserveMicros",
+    "inventorySha256",
+    "confirmationSha256"
+  ],
+  "title": "CleanupPlanV1",
+  "type": "object"
+}

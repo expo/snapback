@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { AgentAuthorityFence, SnapbackClient } from '@snapback/client';
+import { resolveGeneratedArtifact } from '@snapback/codegen/review-surface';
 
 // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
 // local phase 1 discovers the app surface from inert generated JSON and never
@@ -38,7 +39,7 @@ export async function loadAppArtifacts(directory) {
   const root = resolve(directory);
   const [index, manifest] = await Promise.all([
     jsonFile(resolve(root, 'artifacts.json'), 'SNAPBACK_APP_CLI_ARTIFACT_INDEX_INVALID'),
-    jsonFile(resolve(root, 'functions.manifest.json'), 'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID'),
+    jsonFile(resolveGeneratedArtifact(root, 'functions.manifest.json'), 'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID'),
   ]);
   if (
     index?.artifactKind !== 'artifactIndex'

@@ -7,22 +7,35 @@
     "README.md",
     "agent-authority-brand.mjs",
     "agent-authority.mjs",
+    "canonical-client-value.d.mts",
+    "canonical-client-value.mjs",
     "external-store.d.mts",
+    "index.d.mts",
     "external-store.mjs",
     "hosted-browser.mjs",
     "index.mjs",
     "online.mjs",
+    "react-binding.mjs",
     "rqs.mjs",
     "rqs-preload.mjs",
     "rqs-store.mjs",
     "rqs-store-file.mjs",
-    "sender-proof.mjs"
+    "sender-proof.mjs",
+    "search.d.mts",
+    "search.mjs"
   ],
   "exports": {
-    ".": "./index.mjs",
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs"
+    },
     "./agent-authority": "./agent-authority.mjs",
     "./hosted-browser": "./hosted-browser.mjs",
     "./online": "./online.mjs",
+    "./canonical-client-value": {
+      "types": "./canonical-client-value.d.mts",
+      "import": "./canonical-client-value.mjs"
+    },
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
@@ -31,15 +44,19 @@
     "./rqs-preload": "./rqs-preload.mjs",
     "./rqs-store": "./rqs-store.mjs",
     "./rqs-store-file": "./rqs-store-file.mjs",
+    "./search": {
+      "types": "./search.d.mts",
+      "import": "./search.mjs"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/contract": "workspace:*"
+    "@snapback/contract": "0.1.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node bundle.test.mjs && node wire-version.test.mjs"
+    "test": "node package.test.mjs && node search.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node bundle.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts"
   }
 }

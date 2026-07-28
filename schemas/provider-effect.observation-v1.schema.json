@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "ProviderEffectObservationVersion": {
+      "enum": [
+        "snapback.provider-effect-observation.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/provider-effect.observation-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "observedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "providerRequestSha256": {
+      "type": "string"
+    },
+    "providerRevision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "providerUri": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/ProviderEffectObservationVersion"
+    },
+    "semanticEffectId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "semanticEffectId",
+    "providerRequestSha256",
+    "providerUri",
+    "observedAtMs"
+  ],
+  "title": "ProviderEffectObservationV1",
+  "type": "object"
+}

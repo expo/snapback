@@ -12,25 +12,24 @@
 //!   ceiling.
 
 use super::{
-    KeysetAfter, LocalDatabase, MIGRATION_SCAN_MAX_BATCH_BYTES,
-    MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch, MigrationKeysetScanCheckpointV1,
-    MigrationKeysetScanRequestV1, MigrationScanCeilingsV1, MigrationScanValidatorStateV1,
-    MigrationScanValidatorV1, QueryPlan, create_index, create_or_update_table,
-    current_version_on, eval_expr, next_storage_version,
-    now_millis, quote_ident, save_retention_floor_on, schema_table,
-    set_version, sqlite_type, timestamp_to_sql_millis, version_to_sql_integer,
+    KeysetAfter, LocalDatabase, MIGRATION_SCAN_MAX_BATCH_BYTES, MIGRATION_SCAN_MAX_BATCH_ROWS,
+    MigrationKeysetScanBatch, MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1,
+    MigrationScanCeilingsV1, MigrationScanValidatorStateV1, MigrationScanValidatorV1, QueryPlan,
+    create_index, create_or_update_table, current_version_on, eval_expr, next_storage_version,
+    now_millis, quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
+    timestamp_to_sql_millis, version_to_sql_integer,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{HandlerInput, SchemaManifest, TableManifest};
-use rusqlite::types::Value as SqlValue;
-use serde_json::Map;
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
     validate_approval_shape, validate_plan_artifact,
 };
+use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -43,8 +42,7 @@ pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
 #[cfg(test)]
 pub use crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE;
 #[cfg(test)]
-pub const SCHEMA_RESYNC_OP: &str =
-    crate::storage::SchemaTransitionKind::SchemaResync.as_op();
+pub const SCHEMA_RESYNC_OP: &str = crate::storage::SchemaTransitionKind::SchemaResync.as_op();
 
 // ---------------------------------------------------------------------------
 // The closed state machine
@@ -396,9 +394,8 @@ pub(crate) fn migration_fence_on(conn: &Connection) -> SnapbackResult<Option<Mig
         .optional()?;
     stored
         .map(|raw| {
-            serde_json::from_str(&raw).map_err(|_| {
-                journal_corrupt("persisted migration fence does not parse".to_owned())
-            })
+            serde_json::from_str(&raw)
+                .map_err(|_| journal_corrupt("persisted migration fence does not parse".to_owned()))
         })
         .transpose()
 }
@@ -691,9 +688,10 @@ fn stored_rollback_receipt_on(
         )
         .optional()?;
     Ok(match stored.flatten() {
-        Some(raw) => Some(serde_json::from_str(&raw).map_err(|_| {
-            journal_corrupt("stored rollback receipt is corrupt".to_owned())
-        })?),
+        Some(raw) => Some(
+            serde_json::from_str(&raw)
+                .map_err(|_| journal_corrupt("stored rollback receipt is corrupt".to_owned()))?,
+        ),
         None => None,
     })
 }
@@ -1048,10 +1046,7 @@ impl LocalDatabase {
             }
             // §6: retained server-resident work must prove its declared
             // posture under the barrier, before the fence admits the plan.
-            crate::storage::prove_retained_work_posture(
-                &tx,
-                artifact.body.retained_work_posture,
-            )?;
+            crate::storage::prove_retained_work_posture(&tx, artifact.body.retained_work_posture)?;
             let lease_epoch = current_lease_epoch(&tx)? + 1;
             upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
             let fence = MigrationFenceV1 {
@@ -1505,9 +1500,7 @@ impl LocalDatabase {
             .steps
             .iter()
             .filter_map(|record| match &record.step {
-                MigrationStep::RetireField { table, field } => {
-                    Some((table.clone(), field.clone()))
-                }
+                MigrationStep::RetireField { table, field } => Some((table.clone(), field.clone())),
                 _ => None,
             })
             .collect();
@@ -1633,19 +1626,20 @@ impl LocalDatabase {
         if let Some(receipt) = stored_rollback_receipt_on(&self.conn, &approval.operation_id)? {
             return Ok(receipt);
         }
-        let rollback_timestamp_ms = artifact
-            .body
-            .constants
-            .rollback_timestamp_ms
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
-                    "storage",
-                    "the plan declares no rollbackTimestampMs; the approval never acknowledged \
+        let rollback_timestamp_ms =
+            artifact
+                .body
+                .constants
+                .rollback_timestamp_ms
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
+                        "storage",
+                        "the plan declares no rollbackTimestampMs; the approval never acknowledged \
                      a fast-rollback boundary — rollback requires a separately approved reverse \
                      plan or restore",
-                )
-            })?;
+                    )
+                })?;
         match latest_state_on(&self.conn, &approval.operation_id)? {
             Some(MigrationExecState::PublishedHeld) => {}
             other => {
@@ -1882,14 +1876,12 @@ impl LocalDatabase {
                 "storage",
                 format!("no journaled operation {operation_id}"),
             )),
-            Some(MigrationExecState::PublishedHeld) => {
-                Err(SnapbackError::error(
-                    "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
-                    "storage",
-                    "cancellation is pre-publication only; from published-held the exits are \
+            Some(MigrationExecState::PublishedHeld) => Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE",
+                "storage",
+                "cancellation is pre-publication only; from published-held the exits are \
                      the journaled release or the audited rollback",
-                ))
-            }
+            )),
             Some(state) if state.is_terminal() => Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
                 "storage",
@@ -1926,35 +1918,34 @@ impl LocalDatabase {
         let operation_id = approval.operation_id.clone();
         let plan_id = artifact.plan_id.clone();
         let constants = &artifact.body.constants;
-        let journal_step =
-            |tx: &Transaction<'_>,
-             batch: u64,
-             cursor: Option<&MigrationKeysetScanCheckpointV1>,
-             after_id: Option<&str>,
-             verification: Option<&Value>|
-             -> SnapbackResult<()> {
-                let at = now_millis();
-                let journal = JournalHandle {
-                    tx,
-                    operation_id: operation_id.clone(),
-                    plan_id: plan_id.clone(),
-                    lease_epoch,
-                    input_version,
-                };
-                let state = MigrationExecState::Executing {
-                    step: step_id.to_owned(),
-                    batch,
-                };
-                journal.append(JournalAppend {
-                    step_id: Some(step_id),
-                    cursor,
-                    backfill_after_id: after_id,
-                    verification,
-                    at_ms: at,
-                    barrier_elapsed_ms: Some(at.saturating_sub(barrier_started_ms)),
-                    ..JournalAppend::of(&state)
-                })
+        let journal_step = |tx: &Transaction<'_>,
+                            batch: u64,
+                            cursor: Option<&MigrationKeysetScanCheckpointV1>,
+                            after_id: Option<&str>,
+                            verification: Option<&Value>|
+         -> SnapbackResult<()> {
+            let at = now_millis();
+            let journal = JournalHandle {
+                tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch,
+                input_version,
             };
+            let state = MigrationExecState::Executing {
+                step: step_id.to_owned(),
+                batch,
+            };
+            journal.append(JournalAppend {
+                step_id: Some(step_id),
+                cursor,
+                backfill_after_id: after_id,
+                verification,
+                at_ms: at,
+                barrier_elapsed_ms: Some(at.saturating_sub(barrier_started_ms)),
+                ..JournalAppend::of(&state)
+            })
+        };
 
         match step {
             // Structural steps: the physical DDL lands at publication (the
@@ -2341,13 +2332,11 @@ fn cleanup_sweep(
             // successor generations go.
             CleanupTerminal::RolledBack => {
                 !name.contains("__retired_g")
-                    && name
-                        .rsplit_once("__g")
-                        .is_some_and(|(base, generation)| {
-                            !base.is_empty()
-                                && !generation.is_empty()
-                                && generation.chars().all(|c| c.is_ascii_digit())
-                        })
+                    && name.rsplit_once("__g").is_some_and(|(base, generation)| {
+                        !base.is_empty()
+                            && !generation.is_empty()
+                            && generation.chars().all(|c| c.is_ascii_digit())
+                    })
             }
         };
         if garbage {
@@ -2626,16 +2615,20 @@ impl LocalDatabase {
                 last_id = Some(id.clone());
                 let mut bindings = BTreeMap::new();
                 bindings.insert("row".to_owned(), row.clone());
-                let value = eval_expr(expr, &input, &bindings, constants.publication_timestamp_ms, None)?;
+                let value = eval_expr(
+                    expr,
+                    &input,
+                    &bindings,
+                    constants.publication_timestamp_ms,
+                    None,
+                )?;
                 let existing = row.get(field).cloned().unwrap_or(Value::Null);
                 if existing == value {
                     continue;
                 }
                 let field_manifest = table.field(field);
-                let sql_value = super::json_to_sql_value(
-                    &value,
-                    field_manifest.map(|f| &f.field_type),
-                )?;
+                let sql_value =
+                    super::json_to_sql_value(&value, field_manifest.map(|f| &f.field_type))?;
                 tx.execute(
                     &format!(
                         "UPDATE {} SET {} = ?1, _version = ?2, _updatedAt = ?3 WHERE _id = ?4",
@@ -3079,16 +3072,12 @@ fn run_data_proof(
         };
         let mut expected_logical =
             crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
-        let mut expected_system = crate::rqs::ContentDigestStream::new(
-            crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
-            &header,
-        );
+        let mut expected_system =
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
         let mut actual_logical =
             crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
-        let mut actual_system = crate::rqs::ContentDigestStream::new(
-            crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
-            &header,
-        );
+        let mut actual_system =
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
         let input = HandlerInput {
             args: Value::Object(constants.values.clone().into_iter().collect()),
             ..HandlerInput::default()
@@ -3132,7 +3121,8 @@ fn run_data_proof(
                 // Expected: map pristine source rows through the closed plan.
                 let mut after: Option<String> = None;
                 'expected: loop {
-                    let page = read_id_page(tx, predecessor_schema, source_table, after.as_deref())?;
+                    let page =
+                        read_id_page(tx, predecessor_schema, source_table, after.as_deref())?;
                     for row in &page {
                         if sample_bound.is_some_and(|bound| rows_proven >= bound) {
                             break 'expected;
@@ -3238,10 +3228,8 @@ fn run_data_proof(
                         let predecessor_value = Value::Object(predecessor_row);
                         let mut bindings = BTreeMap::new();
                         bindings.insert("row".to_owned(), predecessor_value.clone());
-                        let mut expected_row = predecessor_value
-                            .as_object()
-                            .cloned()
-                            .unwrap_or_default();
+                        let mut expected_row =
+                            predecessor_value.as_object().cloned().unwrap_or_default();
                         let mut content_changed = false;
                         for (dest, expr) in writes {
                             let value = eval_expr(
@@ -3440,7 +3428,12 @@ fn insert_staged_row(
         "_createdAt".to_owned(),
         "_updatedAt".to_owned(),
     ];
-    let mut placeholders = vec!["?1".to_owned(), "?2".to_owned(), "?3".to_owned(), "?4".to_owned()];
+    let mut placeholders = vec![
+        "?1".to_owned(),
+        "?2".to_owned(),
+        "?3".to_owned(),
+        "?4".to_owned(),
+    ];
     let mut values: Vec<SqlValue> = vec![
         SqlValue::Text(id.to_owned()),
         SqlValue::Integer(version_to_sql_integer(version)?),
@@ -3451,7 +3444,10 @@ fn insert_staged_row(
         let manifest = staged.field(name);
         columns.push(name.clone());
         placeholders.push(format!("?{}", values.len() + 1));
-        values.push(super::json_to_sql_value(value, manifest.map(|f| &f.field_type))?);
+        values.push(super::json_to_sql_value(
+            value,
+            manifest.map(|f| &f.field_type),
+        )?);
     }
     let column_sql = columns
         .iter()
@@ -3671,7 +3667,9 @@ fn enforce_publication_timestamp_floor(
         // in-place write; its floor is the SOURCE table's maximum, since
         // those are the rows whose successor forms carry the new stamp.
         let table = match &record.step {
-            MigrationStep::AddField { backfill: Some(_), .. }
+            MigrationStep::AddField {
+                backfill: Some(_), ..
+            }
             | MigrationStep::BackfillField { .. }
             | MigrationStep::CopyField { .. } => record.step.anchor_table().to_owned(),
             MigrationStep::CopyTable { source_table, .. } => source_table.clone(),
@@ -3701,10 +3699,7 @@ fn enforce_publication_timestamp_floor(
     Ok(())
 }
 
-fn active_other_operation(
-    conn: &Connection,
-    operation_id: &str,
-) -> SnapbackResult<Option<String>> {
+fn active_other_operation(conn: &Connection, operation_id: &str) -> SnapbackResult<Option<String>> {
     if !super::sqlite_table_exists(conn, "_snapback_migration_ops")? {
         return Ok(None);
     }
@@ -3920,10 +3915,10 @@ mod tests {
         FieldManifest, FieldType, HandlerInput, SchemaManifest, SeedData, TableManifest, ValueExpr,
     };
     use crate::migration::{
-        MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, MigrationApprovalV1,
-        MigrationAudienceV1, MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
-        MigrationExpectedOutput, MigrationIntent, MigrationPlanArtifactV1, MigrationPlanBody,
-        MigrationProof, MigrationProofMethod, CompatibilityPosture, RetainedWorkPosture,
+        CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+        MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement, MigrationCeilings,
+        MigrationConstants, MigrationExpectedOutput, MigrationIntent, MigrationPlanArtifactV1,
+        MigrationPlanBody, MigrationProof, MigrationProofMethod, RetainedWorkPosture,
         derive_plan_steps, new_operation_id,
     };
     use serde_json::json;
@@ -3944,6 +3939,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }
     }
@@ -4101,21 +4097,35 @@ mod tests {
     fn migrate_apply_end_to_end_publishes_and_releases() {
         let mut db = seeded_db();
         let head_before = db.current_version().expect("head");
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let approval = approval_for(&plan, now_millis());
         let receipt = apply_fixture(&mut db, &plan, &approval).expect("apply");
 
         assert_eq!(receipt.state.kind(), "released");
         assert_eq!(receipt.error_code, None);
         let publication = receipt.publication_version.expect("publication version");
-        assert_eq!(publication, head_before + 1, "exactly one successor version");
+        assert_eq!(
+            publication,
+            head_before + 1,
+            "exactly one successor version"
+        );
         assert_eq!(db.current_version().expect("head"), publication);
         assert!(db.migration_fence().expect("fence read").is_none());
 
         // Successor schema is authoritative and the rows carry the §4
         // identity rules: changed rows get the publication version and the
         // plan's explicit publication timestamp.
-        assert!(db.schema().table("items").expect("items").field("note").is_some());
+        assert!(
+            db.schema()
+                .table("items")
+                .expect("items")
+                .field("note")
+                .is_some()
+        );
         let rows = db
             .query(
                 &QueryPlan {
@@ -4207,10 +4217,7 @@ mod tests {
         let mutation = crate::manifest::MutationPlan {
             steps: vec![crate::manifest::MutationStep::Insert {
                 table: "items".to_owned(),
-                values: BTreeMap::from([(
-                    "title".to_owned(),
-                    ValueExpr::Literal(json!("three")),
-                )]),
+                values: BTreeMap::from([("title".to_owned(), ValueExpr::Literal(json!("three")))]),
                 bind_id_as: None,
             }],
             return_value: None,
@@ -4345,25 +4352,40 @@ mod tests {
         let plan = fixture_plan(&predecessor_schema(), &successor_schema(), tight);
         let approval = approval_for(&plan, now_millis());
         let error = apply_fixture(&mut db, &plan, &approval).expect_err("ceiling");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PRECONDITION_FAILED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
         // The refused admission left no fence behind.
         assert!(db.migration_fence().expect("fence").is_none());
 
         // publicationTimestamp behind an existing _updatedAt refuses.
         let mut db = seeded_db();
         db.conn
-            .execute("UPDATE items SET _updatedAt = ?1", params![
-                timestamp_to_sql_millis(PUBLICATION_TS + 5).unwrap()
-            ])
+            .execute(
+                "UPDATE items SET _updatedAt = ?1",
+                params![timestamp_to_sql_millis(PUBLICATION_TS + 5).unwrap()],
+            )
             .expect("bump updatedAt");
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let approval = approval_for(&plan, now_millis());
         let error = apply_fixture(&mut db, &plan, &approval).expect_err("timestamp floor");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PRECONDITION_FAILED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
 
         // Audience mismatch.
         let mut db = seeded_db();
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let mut approval = approval_for(&plan, now_millis());
         approval.audience.database_id = "db-other".to_owned();
         let error = apply_fixture(&mut db, &plan, &approval).expect_err("audience");
@@ -4371,19 +4393,33 @@ mod tests {
 
         // Approval binding a different plan digest.
         let mut db = seeded_db();
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let mut approval = approval_for(&plan, now_millis());
         approval.plan_digest = "0".repeat(64);
         let error = apply_fixture(&mut db, &plan, &approval).expect_err("binding");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_APPROVAL_REQUIRED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
+        );
 
         // Expired approval refuses fresh admission.
         let mut db = seeded_db();
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let mut approval = approval_for(&plan, 1_000);
         approval.expires_at_ms = 2_000;
         let error = apply_fixture(&mut db, &plan, &approval).expect_err("expired");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_APPROVAL_REQUIRED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
+        );
 
         // Predecessor schema drift is stale.
         let mut db = LocalDatabase::memory().expect("memory db");
@@ -4394,7 +4430,11 @@ mod tests {
             optional: true,
         });
         db.apply_schema(drifted).expect("apply drifted");
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let approval = approval_for(&plan, now_millis());
         let (_, resolved) = audience();
         let successor = successor_schema();
@@ -4426,7 +4466,13 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_BARRIER_FAILED");
         assert!(db.migration_fence().expect("fence").is_none());
         assert_eq!(db.current_version().expect("head"), head_before);
-        assert!(db.schema().table("items").expect("items").field("note").is_none());
+        assert!(
+            db.schema()
+                .table("items")
+                .expect("items")
+                .field("note")
+                .is_none()
+        );
         let state = latest_state_for_test(&db, &approval.operation_id)
             .expect("state")
             .expect("journaled");
@@ -4447,7 +4493,11 @@ mod tests {
     #[test]
     fn cancellation_and_exclusivity() {
         let mut db = seeded_db();
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let approval = approval_for(&plan, now_millis());
         // Manufacture an admitted non-terminal operation with a cancel
         // request already recorded, then resume: the executor honors the
@@ -4503,8 +4553,11 @@ mod tests {
             tx.commit().expect("commit");
         }
         // Exclusivity: a different operation refuses while this one is open.
-        let other_plan =
-            fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let other_plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let other = approval_for(&other_plan, now_millis());
         let error = apply_fixture(&mut db, &other_plan, &other).expect_err("exclusive");
         assert_eq!(
@@ -4529,7 +4582,11 @@ mod tests {
     #[test]
     fn published_held_resume_releases() {
         let mut db = seeded_db();
-        let plan = fixture_plan(&predecessor_schema(), &successor_schema(), default_ceilings());
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
         let approval = approval_for(&plan, now_millis());
 
         // Run the real executor up to publication by replaying the
@@ -4910,8 +4967,7 @@ mod tests {
         let approval = approval_for(&plan, now_millis());
         staged_apply(&mut db, &plan, &approval).expect("apply");
         assert!(
-            !crate::storage::sqlite_table_exists(&db.conn, "items__retired_g1")
-                .expect("inventory"),
+            !crate::storage::sqlite_table_exists(&db.conn, "items__retired_g1").expect("inventory"),
             "the parked predecessor drops once the rollback window closes"
         );
         let entries = journal_entries_on(&db.conn, &approval.operation_id).expect("journal");

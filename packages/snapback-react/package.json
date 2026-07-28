@@ -15,16 +15,14 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@snapback/client": "workspace:*"
-  },
   "peerDependencies": {
+    "@snapback/client": ">=0.1.0 <0.2.0",
     "react": ">=18.0.0 <20.0.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs"
+    "test": "node package.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts"
   }
 }

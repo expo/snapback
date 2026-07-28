@@ -62,7 +62,10 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
                 .iter()
                 .map(|step| {
                     let frame = &step["frame"];
-                    assert!(frame.is_object(), "{name}: every step carries a frame object");
+                    assert!(
+                        frame.is_object(),
+                        "{name}: every step carries a frame object"
+                    );
                     frame
                 })
                 .collect()
@@ -266,10 +269,7 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
             Value::from("acknowledge_obligation"),
         ]
     );
-    assert_eq!(
-        sequence["steps"][1]["expect"]["ackToken"],
-        "ack_fixture_1"
-    );
+    assert_eq!(sequence["steps"][1]["expect"]["ackToken"], "ack_fixture_1");
 
     let same_version = fixtures
         .iter()
@@ -295,8 +295,7 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
         2
     );
     assert_eq!(
-        same_version["steps"][0]["frame"],
-        same_version["steps"][1]["frame"],
+        same_version["steps"][0]["frame"], same_version["steps"][1]["frame"],
         "duplicate re-ACK must repeat the exact frame identity"
     );
     assert_eq!(
@@ -306,9 +305,7 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
 
     let terminal = fixtures
         .iter()
-        .find(|fixture| {
-            fixture["name"] == "auth.live.invalidation_terminal_delete_apply_then_ack"
-        })
+        .find(|fixture| fixture["name"] == "auth.live.invalidation_terminal_delete_apply_then_ack")
         .expect("terminal-delete auth/live sequence");
     let terminal_frame = &terminal["steps"][0]["frame"];
     assert_eq!(terminal_frame["resolution"]["kind"], "terminalDelete");
@@ -334,8 +331,7 @@ fn auth_live_fixtures_pin_apply_delete_before_ack_and_exact_redelivery() {
         })
     );
     assert_eq!(
-        terminal["steps"][0]["frame"],
-        terminal["steps"][1]["frame"],
+        terminal["steps"][0]["frame"], terminal["steps"][1]["frame"],
         "terminal duplicate re-ACK must repeat the exact frame identity"
     );
     assert_eq!(
@@ -416,10 +412,7 @@ fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
             fixture["name"] == "auth.live.invalidation_terminal_delete_blocks_ordinary_live_reuse"
         })
         .expect("terminal no-resurrection fixture");
-    assert_eq!(
-        no_resurrection["steps"][1]["frame"]["kind"],
-        "live_replace"
-    );
+    assert_eq!(no_resurrection["steps"][1]["frame"]["kind"], "live_replace");
     assert_eq!(
         no_resurrection["steps"][1]["expect"]["actions"],
         serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
@@ -435,18 +428,12 @@ fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
             fixture["name"] == "auth.live.invalidation_newer_pending_rejects_older_resolution"
         })
         .expect("pending high-water fixture");
-    assert_eq!(
-        high_water["steps"][0]["frame"]["obligation"]["revision"],
-        2
-    );
+    assert_eq!(high_water["steps"][0]["frame"]["obligation"]["revision"], 2);
     assert_eq!(
         high_water["steps"][0]["frame"]["obligation"]["witness"]["data"]["minCommitVersion"],
         44
     );
-    assert_eq!(
-        high_water["steps"][1]["frame"]["obligation"]["revision"],
-        1
-    );
+    assert_eq!(high_water["steps"][1]["frame"]["obligation"]["revision"], 1);
     assert_eq!(
         high_water["steps"][1]["expect"]["actions"],
         serde_json::json!(["surface_protocol_diagnostic", "ignore_frame"])
@@ -455,8 +442,7 @@ fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
     let mismatched = fixtures
         .iter()
         .find(|fixture| {
-            fixture["name"]
-                == "auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged"
+            fixture["name"] == "auth.live.invalidation_owned_id_mismatched_scope_never_acknowledged"
         })
         .expect("owned-id mismatched-scope fixture");
     assert_eq!(
@@ -480,7 +466,9 @@ fn auth_live_adversarial_fixtures_pin_scope_high_water_and_no_resurrection() {
         .expect("invalid resolution fixture");
     let below_floor = &invalid["steps"][0]["frame"];
     assert!(
-        below_floor["snapshot"]["version"].as_u64().expect("snapshot version")
+        below_floor["snapshot"]["version"]
+            .as_u64()
+            .expect("snapshot version")
             < below_floor["resolution"]["witness"]["data"]["minCommitVersion"]
                 .as_u64()
                 .expect("resolution floor")

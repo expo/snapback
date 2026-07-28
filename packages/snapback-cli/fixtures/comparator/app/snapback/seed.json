@@ -1,0 +1,10 @@
+{
+  "tables": {
+    "liveRows": [],
+    "primaryRows": [],
+    "activityRows": [],
+    "rejectionRows": [
+      { "_id": "fixture_rejection_seed", "value": "before" }
+    ]
+  }
+}

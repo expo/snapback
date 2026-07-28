@@ -2,6 +2,7 @@ import { exactContractWeb } from '@exact/devtools/contract-web';
 import * as exactContractRuntime from '@exact/contract/runtime';
 import { resolve } from 'node:path';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 export default ({ mode, command }: { mode: string; command: 'serve' | 'build' }) => {
   const memoryEntry = process.env.PARTITIME_MEMORY_ENTRY === '1';
@@ -17,6 +18,10 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
     root: __dirname,
     base,
     plugins: [
+      snapbackDev({
+        server: { mode: 'off' },
+        generatedRoots: [resolve(__dirname, '../../snapback/generated')],
+      }),
       exactContractWeb({
         data: 'snapback',
         // The surface owns index.html, so production needs the Contract

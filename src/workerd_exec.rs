@@ -120,8 +120,7 @@ pub struct CapturedHandlerWire {
 /// other test seams: handler execution is synchronous on the calling thread.
 #[doc(hidden)]
 pub fn with_handler_wire_capture<T>(f: impl FnOnce() -> T) -> (T, CapturedHandlerWire) {
-    let previous =
-        WIRE_CAPTURE.with(|slot| slot.replace(Some(CapturedHandlerWire::default())));
+    let previous = WIRE_CAPTURE.with(|slot| slot.replace(Some(CapturedHandlerWire::default())));
     let result = f();
     let captured = WIRE_CAPTURE
         .with(|slot| slot.replace(previous))
@@ -664,10 +663,8 @@ pub(crate) fn run_handler_workerd(
     //   the private marker envelopes ride the same generated-schema mechanism.
     let mut invoke_body = serde_json::to_string(&crate::handler_wire::HandlerInvokeRequest {
         export: module.export.clone(),
-        args_json: serde_json::to_string(&invocation.input().args)
-            .unwrap_or_else(|_| "{}".into()),
-        auth_json: serde_json::to_string(&invocation.input().auth)
-            .unwrap_or_else(|_| "{}".into()),
+        args_json: serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
+        auth_json: serde_json::to_string(&invocation.input().auth).unwrap_or_else(|_| "{}".into()),
         mode: crate::handler_wire::HandlerInvocationMode::from_mode_str(invocation.mode_str())
             .ok_or_else(|| {
                 runner_error(

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import {
   assert,
   assertEqual,
@@ -19,12 +20,13 @@ import {
   runAcceptance,
 } from '../../../_kit/harness.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
-const generated = (name) => JSON.parse(readFileSync(join(backendDir, 'generated', name), 'utf8'));
+const generatedRoot = join(backendDir, 'generated');
+const generated = (name) => readGeneratedJson(generatedRoot, name);
+const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
 const ADA = 'user_checkpoint_ada';
 const GRACE = 'user_checkpoint_grace';
 

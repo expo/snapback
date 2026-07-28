@@ -381,9 +381,10 @@ pub fn function_route_arg_types(
             continue;
         };
         let inferred = match &field.field_type {
-            FieldType::String | FieldType::Principal | FieldType::Id { .. } => {
-                Some(RouteParamType::String)
-            }
+            FieldType::String
+            | FieldType::Principal
+            | FieldType::Id { .. }
+            | FieldType::RelationIncarnation { .. } => Some(RouteParamType::String),
             FieldType::Integer => Some(RouteParamType::Integer),
             FieldType::Real => Some(RouteParamType::Number),
             FieldType::Boolean => Some(RouteParamType::Boolean),

@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25; 2026-07-25 (live-owner identity rule on
+**Revised:** 2026-07-27 (LLP 0101 amendment: result-contract conformance spans
+query/live publication and mutation/action completion without adding a new
+client lifecycle state); 2026-07-25; 2026-07-25 (live-owner identity rule on
 T-UNSUB/T-RECONNECT and the §2.1 fixture judgment rules, from the P-2
 Swift clean-room defect ledger); 2026-07-26 (JS kit T-DB-P conformance);
 2026-07-26 (format-v2 explicit populations, committed-kind transitions,
@@ -14,7 +16,7 @@ auth-invalidation state machine, and reconnect witnesses); 2026-07-26
 and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
 terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
-**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093
+**Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0101
 
 ## Summary
 
@@ -501,6 +503,26 @@ distinguish reap from expiry at the refusal.
   client-synthesized recovery sentinel as `durable_bytes`, while preserving
   the diagnostic and acknowledged-batch remainder; the focused regression is
   wired into `scripts/verify-local-proof`.
+
+### LLP 0101 result-contract conformance
+
+Result-contract validation adds no client state and does not retarget resume or
+replay identity. Conformance evidence covers these existing envelope families:
+
+- an invalid query or live-query row array yields the registered structured
+  refusal and is never installed, cached, or delivered as a snapshot/update;
+- an invalid mutation result rolls back writes, creates no successful
+  settlement, and advances no durable version;
+- an invalid action result is refused before response publication, without
+  claiming rollback of external effects; and
+- a valid retained mutation result replays under LLP 0043's existing identity
+  and 65,536-byte settlement ceiling using its frozen effective validator.
+
+Generated-reference exactness is tested separately from wire lifecycle:
+headless and first-party React calls infer their argument/result payload from
+the reference and expose no caller result-generic override. Legacy untyped
+references remain `unknown`. The v1 fixture corpus does not gain an
+expected-operation tuple or compatibility-policy transition.
 
 ## 6. Deferred work
 

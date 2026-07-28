@@ -61,7 +61,7 @@ function normalizeStandardPattern(spec, kind) {
   return { standardPattern: { helper: value.helper, profile: value.profile } };
 }
 const JS_QUERY_SPEC_FIELDS = new Set([
-  'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
+  'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable',
   'authorizationDependence',
 ]);
@@ -74,6 +74,20 @@ const TARGET_CAPABILITIES = new Set([
   'live_subscriptions',
   'mutation_read_set_validation',
   'permission_epoch_resync',
+  'full_text_search_v1',
+]);
+const SEARCH_INDEX_SPEC_FIELDS = new Set([
+  'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
+  'highlightFields', 'visibility', 'sourceLimits', 'queryLimits',
+  'cursorLimits', 'maintenanceLimits',
+]);
+const SEARCH_TEXT_FIELD_SPEC_FIELDS = new Set(['weight', 'classification']);
+const SEARCH_FIELD_CLASSIFICATIONS = new Set(['public', 'private', 'sensitive', 'forbidden']);
+const SEARCH_SOURCE_LIMIT_FIELDS = new Set(['maxIndexedBytes', 'maxTokens', 'maxPostingOperations']);
+const SEARCH_QUERY_LIMIT_FIELDS = new Set(['maxCandidateWork', 'maxPrefixTerms', 'minPrefixScalars']);
+const SEARCH_CURSOR_LIMIT_FIELDS = new Set(['ttlMs', 'maxBytes']);
+const SEARCH_MAINTENANCE_LIMIT_FIELDS = new Set([
+  'searchMaintenanceEffects', 'searchPostingOps', 'searchPositions', 'searchBytes',
 ]);
 const MEMBERSHIP_FIELDS = new Set([
   'id', 'principal', 'resource', 'role', 'roles', 'pendingRoles',
@@ -149,12 +163,20 @@ function assertKnownSpecFields(spec, kind, allowed) {
 
 /** @ref LLP 0004#portability-rules — the validator vocabulary must map cleanly to
  *  SQLite, Postgres, generated types, and the wire format. */
-function validator(fieldType, primitive) {
-  return { __validator: true, fieldType, primitive, optional: false };
+function validator(fieldType, primitive, extra = {}) {
+  return { __validator: true, fieldType, primitive, optional: false, ...extra };
 }
 
 export const v = {
-  string: () => validator('String', 'string'),
+  string: (options = {}) => {
+    assertKnownSpecFields(options, 'v.string() options', new Set(['maxBytes']));
+    if (options.maxBytes !== undefined) {
+      assert(Number.isSafeInteger(options.maxBytes) && options.maxBytes > 0, 'v.string() maxBytes must be a positive safe integer');
+    }
+    return validator('String', 'string', {
+      ...(options.maxBytes !== undefined ? { resultOptions: { maxBytes: options.maxBytes } } : {}),
+    });
+  },
   // @ref LLP 0056#declaring-a-membership-table — principal and application
   // ids stay strings on the wire while preserving their nominal identity in
   // the manifest for authorization-axis validation.
@@ -163,11 +185,68 @@ export const v = {
     assert(typeof table === 'string' && table.length > 0, 'v.id() expects a table name');
     return validator({ Id: { table } }, 'string');
   },
+  /** Framework-owned child stamp; application inserts/patches never author it.
+   * @ref LLP 0104#protected-relation-incarnation-and-stamping */
+  relationIncarnationOf: ({ foreignKeyField, parentTable } = {}) => {
+    assert(
+      typeof foreignKeyField === 'string' && foreignKeyField.length > 0
+        && typeof parentTable === 'string' && parentTable.length > 0,
+      'v.relationIncarnationOf() expects { foreignKeyField, parentTable }',
+    );
+    return validator({
+      RelationIncarnation: { foreignKeyField, parentTable },
+    }, 'string', { protectedWrite: true });
+  },
   boolean: () => validator('Boolean', 'boolean'),
-  integer: () => validator('Integer', 'number'),
-  real: () => validator('Real', 'number'),
-  number: () => validator('Real', 'number'),
-  json: () => validator('Json', 'unknown'),
+  integer: (options = {}) => {
+    assertKnownSpecFields(options, 'v.integer() options', new Set(['min', 'max']));
+    if (options.min !== undefined) assert(Number.isSafeInteger(options.min), 'v.integer() min must be a safe integer');
+    if (options.max !== undefined) assert(Number.isSafeInteger(options.max), 'v.integer() max must be a safe integer');
+    assert(options.min === undefined || options.max === undefined || options.min <= options.max, 'v.integer() min must not exceed max');
+    return validator('Integer', 'number', {
+      ...((options.min !== undefined || options.max !== undefined) ? { resultOptions: { ...options } } : {}),
+    });
+  },
+  real: (options = {}) => {
+    assertKnownSpecFields(options, 'v.real() options', new Set(['min', 'max']));
+    return validator('Real', 'number', {
+      ...((options.min !== undefined || options.max !== undefined) ? { resultOptions: { ...options } } : {}),
+    });
+  },
+  number: (options = {}) => {
+    assertKnownSpecFields(options, 'v.number() options', new Set(['min', 'max']));
+    return validator('Real', 'number', {
+      ...((options.min !== undefined || options.max !== undefined) ? { resultOptions: { ...options } } : {}),
+    });
+  },
+  finiteReal: (options = {}) => {
+    assertKnownSpecFields(options, 'v.finiteReal() options', new Set(['min', 'max']));
+    return validator('Real', 'number', {
+      resultOptions: { ...options },
+      resultOnly: true,
+    });
+  },
+  json: (options = {}) => {
+    assertKnownSpecFields(options, 'v.json() options', new Set(['maxDepth', 'maxBytes']));
+    return validator('Json', 'unknown', {
+      ...((options.maxDepth !== undefined || options.maxBytes !== undefined)
+        ? { resultOptions: { ...options } }
+        : {}),
+    });
+  },
+  null: () => validator('Json', 'null', { resultKind: 'null', resultOnly: true }),
+  literal: (value) => {
+    assert(
+      value === null || typeof value === 'string' || typeof value === 'boolean'
+        || (typeof value === 'number' && Number.isFinite(value)),
+      'v.literal() expects a finite JSON scalar',
+    );
+    return validator('Json', typeof value, {
+      resultKind: 'literal',
+      literal: value,
+      resultOnly: true,
+    });
+  },
   object: (fields) => {
     assert(fields && typeof fields === 'object' && !Array.isArray(fields), 'v.object() expects a fields object');
     for (const [name, val] of Object.entries(fields)) {
@@ -179,7 +258,51 @@ export const v = {
     assert(inner && inner.__validator, 'v.optional() expects a validator');
     return { ...inner, optional: true };
   },
+  array: (inner, options = {}) => {
+    assert(inner && inner.__validator, 'v.array() expects a validator');
+    assertKnownSpecFields(options, 'v.array() options', new Set(['maxItems']));
+    if (options.maxItems !== undefined) {
+      assert(Number.isSafeInteger(options.maxItems) && options.maxItems >= 0, 'v.array() maxItems must be a non-negative safe integer');
+    }
+    return validator('Json', 'array', {
+      resultKind: 'array',
+      element: inner,
+      resultOptions: { ...options },
+      resultOnly: true,
+    });
+  },
+  union: (variants) => {
+    assert(Array.isArray(variants) && variants.length >= 2 && variants.length <= 8, 'v.union() expects 2–8 validators');
+    for (const variant of variants) assert(variant && variant.__validator, 'v.union() entries must be validators');
+    return validator('Json', 'union', {
+      resultKind: 'union',
+      variants: REFLECT_APPLY(ARRAY_SLICE, variants, []),
+      resultOnly: true,
+    });
+  },
 };
+
+export const results = Object.freeze({
+  documents(table) {
+    assert(typeof table === 'string' && table.length > 0, 'results.documents() expects a table name');
+    return Object.freeze({ __resultContract: true, kind: 'documents', table });
+  },
+  records(recordValidator) {
+    assert(
+      recordValidator?.__validator === true && recordValidator.primitive === 'object',
+      'results.records() expects v.object(...)',
+    );
+    return Object.freeze({ __resultContract: true, kind: 'records', validator: recordValidator });
+  },
+  document(table) {
+    assert(typeof table === 'string' && table.length > 0, 'results.document() expects a table name');
+    return Object.freeze({ __resultContract: true, kind: 'document', table });
+  },
+  value(valueValidator) {
+    assert(valueValidator?.__validator === true, 'results.value() expects a validator');
+    return Object.freeze({ __resultContract: true, kind: 'value', validator: valueValidator });
+  },
+});
 
 // The only two resource references admitted by the membership predicate IR.
 // An app-scoped declaration uses the host-owned singleton rather than an app
@@ -328,6 +451,7 @@ class TableBuilder {
     this.__table = true;
     this.fields = fields;
     this.indexes = [];
+    this.searchIndexes = [];
     this.syncable = false;
   }
 
@@ -339,6 +463,140 @@ class TableBuilder {
     const unique = options.unique ?? false;
     assert(typeof unique === 'boolean', `index ${name} unique must be boolean`);
     this.indexes.push({ name, fields: REFLECT_APPLY(ARRAY_SLICE, fields, []), unique });
+    return this;
+  }
+
+  /**
+   * Declare the portable, synchronously maintained full-text-search-v1
+   * profile. The generated manifest binds every semantic constant; authors
+   * choose only source fields, weights, release visibility, and lower limits.
+   *
+   * @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search
+   * declarations compile to SearchIndexManifestV1, never backend query text.
+   */
+  searchIndex(name, spec) {
+    assert(typeof name === 'string' && name.length > 0, 'searchIndex() requires a name');
+    assertKnownSpecFields(spec, `search index ${name}`, SEARCH_INDEX_SPEC_FIELDS);
+    assert(typeof spec.semanticVersion === 'string' && spec.semanticVersion.length > 0, `search index ${name} semanticVersion is required`);
+    assert(spec.textFields && typeof spec.textFields === 'object' && !Array.isArray(spec.textFields), `search index ${name} textFields must be an object`);
+    const textFields = {};
+    for (const [field, declaration] of Object.entries(spec.textFields)) {
+      assertKnownSpecFields(declaration, `search index ${name} text field ${field}`, SEARCH_TEXT_FIELD_SPEC_FIELDS);
+      assert(Number.isSafeInteger(declaration.weight) && declaration.weight >= 1 && declaration.weight <= 64, `search index ${name} text field ${field} weight must be 1..64`);
+      assert(declaration.classification !== undefined, `search index ${name} text field ${field} classification is required`);
+      const classification = declaration.classification;
+      assert(SEARCH_FIELD_CLASSIFICATIONS.has(classification), `search index ${name} text field ${field} has unknown classification`);
+      textFields[field] = { weight: declaration.weight, classification };
+    }
+    assert(Object.keys(textFields).length >= 1 && Object.keys(textFields).length <= 16, `search index ${name} requires 1..16 text fields`);
+    const stringSet = (value, label) => {
+      const fields = value ?? [];
+      assert(Array.isArray(fields), `search index ${name} ${label} must be an array`);
+      assert(fields.every((field) => typeof field === 'string' && field.length > 0), `search index ${name} ${label} must contain field names`);
+      assert(new Set(fields).size === fields.length, `search index ${name} ${label} must not contain duplicates`);
+      return [...fields].sort();
+    };
+    const visibility = spec.visibility ?? { kind: 'public-read' };
+    assert(visibility && typeof visibility === 'object' && !Array.isArray(visibility), `search index ${name} visibility is required`);
+    assert(
+      (visibility.kind === 'public-read' && Object.keys(visibility).length === 1)
+        || (visibility.kind === 'owner' && typeof visibility.field === 'string' && Object.keys(visibility).length === 2),
+      `search index ${name} visibility must be { kind: 'public-read' } or { kind: 'owner', field }`,
+    );
+    const equalityFilters = stringSet(spec.equalityFilters, 'equalityFilters');
+    const storedFields = stringSet(spec.storedFields, 'storedFields');
+    const highlightFields = stringSet(spec.highlightFields, 'highlightFields');
+    const fieldClassifications = spec.fieldClassifications ?? {};
+    assert(
+      fieldClassifications
+        && typeof fieldClassifications === 'object'
+        && !Array.isArray(fieldClassifications),
+      `search index ${name} fieldClassifications must be an object`,
+    );
+    for (const [field, classification] of Object.entries(fieldClassifications)) {
+      assert(
+        SEARCH_FIELD_CLASSIFICATIONS.has(classification),
+        `search index ${name} field ${field} has unknown classification`,
+      );
+    }
+    assert(
+      highlightFields.every((field) => Object.hasOwn(textFields, field)),
+      `search index ${name} highlightFields must be declared text fields`,
+    );
+    const lowerLimits = (value, label, defaults, maxima, allowed) => {
+      const authored = value ?? {};
+      assertKnownSpecFields(authored, `search index ${name} ${label}`, allowed);
+      const resolved = { ...defaults, ...authored };
+      for (const [field, maximum] of Object.entries(maxima)) {
+        assert(
+          Number.isSafeInteger(resolved[field])
+            && resolved[field] >= 1
+            && resolved[field] <= maximum,
+          `search index ${name} ${label}.${field} must be an integer in 1..${maximum}`,
+        );
+      }
+      return resolved;
+    };
+    const sourceLimits = lowerLimits(
+      spec.sourceLimits,
+      'sourceLimits',
+      { maxIndexedBytes: 32 * 1024, maxTokens: 2_048, maxPostingOperations: 4_096 },
+      { maxIndexedBytes: 32 * 1024, maxTokens: 2_048, maxPostingOperations: 4_096 },
+      SEARCH_SOURCE_LIMIT_FIELDS,
+    );
+    const queryLimits = lowerLimits(
+      spec.queryLimits,
+      'queryLimits',
+      { maxCandidateWork: 10_000, maxPrefixTerms: 256, minPrefixScalars: 2 },
+      { maxCandidateWork: 10_000, maxPrefixTerms: 256, minPrefixScalars: 64 },
+      SEARCH_QUERY_LIMIT_FIELDS,
+    );
+    const authoredCursorLimits = spec.cursorLimits ?? {};
+    assertKnownSpecFields(authoredCursorLimits, `search index ${name} cursorLimits`, SEARCH_CURSOR_LIMIT_FIELDS);
+    const cursorLimits = { ttlMs: 120_000, maxBytes: 2_048, ...authoredCursorLimits };
+    assert(
+      cursorLimits.ttlMs === 120_000 && cursorLimits.maxBytes === 2_048,
+      `search index ${name} cursorLimits are fixed at { ttlMs: 120000, maxBytes: 2048 } in v1`,
+    );
+    const maintenanceLimits = lowerLimits(
+      spec.maintenanceLimits,
+      'maintenanceLimits',
+      {
+        searchMaintenanceEffects: 1_024,
+        searchPostingOps: 4_096,
+        searchPositions: 8_192,
+        searchBytes: 256 * 1024,
+      },
+      {
+        searchMaintenanceEffects: 1_024,
+        searchPostingOps: 4_096,
+        searchPositions: 8_192,
+        searchBytes: 256 * 1024,
+      },
+      SEARCH_MAINTENANCE_LIMIT_FIELDS,
+    );
+    this.searchIndexes.push({
+      formatVersion: 1,
+      name,
+      semanticVersion: spec.semanticVersion,
+      analyzer: 'snapback-category-unicode17-v1',
+      analyzerTablesDigest: 'sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d',
+      textFields,
+      fieldClassifications: Object.fromEntries(
+        Object.entries(fieldClassifications).sort(([left], [right]) => (
+          left < right ? -1 : left > right ? 1 : 0
+        )),
+      ),
+      equalityFilters,
+      storedFields,
+      highlightFields,
+      visibility: { ...visibility },
+      tieBreak: 'score-desc-row-id-asc.v1',
+      sourceLimits,
+      queryLimits,
+      cursorLimits,
+      maintenanceLimits,
+    });
     return this;
   }
 
@@ -467,6 +725,60 @@ export function defineSchema(tables, options = {}) {
   };
 }
 
+const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
+
+/**
+ * Define an ordinary, non-live query carried by SearchQueryPlanV1.
+ *
+ * @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — the wire stays
+ * QueryOutput while client.search projects rows/cursor to SearchPageV1.
+ */
+export function defineSearchQuery(spec) {
+  assertKnownSpecFields(spec, 'SearchQuery', SEARCH_QUERY_SPEC_FIELDS);
+  const table = spec.table?.__table === true ? spec.table : null;
+  assert(table && typeof table.__tableName === 'string', 'defineSearchQuery table must be a defineTable(...) installed in defineSchema(...)');
+  assert(typeof spec.index === 'string' && spec.index.length > 0, 'defineSearchQuery index is required');
+  assert(table.searchIndexes.some((candidate) => candidate.name === spec.index), `defineSearchQuery names unknown search index ${table.__tableName}.${spec.index}`);
+  const visibility = table.searchIndexes.find((candidate) => candidate.name === spec.index).visibility;
+  const auth = spec.auth ?? (visibility.kind === 'owner' ? 'authenticated' : 'public');
+  assert(AUTH_REQUIREMENTS.has(auth), 'SearchQuery auth must be public, optional-user, or authenticated');
+  if (visibility.kind === 'owner') assert(auth === 'authenticated', 'owner search requires authenticated auth');
+  const searchItem = v.object({
+    rowId: v.string(),
+    score: v.integer({ min: 0, max: 22_937_600 }),
+    fields: v.json(),
+    highlights: v.array(v.object({
+      field: v.string(),
+      text: v.string({ maxBytes: 256 }),
+      matches: v.array(v.object({
+        start: v.integer({ min: 0 }),
+        end: v.integer({ min: 0 }),
+      }), { maxItems: 8 }),
+    }), { maxItems: 3 }),
+  });
+  return {
+    [FN]: true,
+    __kind: 'Query',
+    auth,
+    args: {
+      query: v.json(),
+      limit: v.optional(v.integer({ min: 1, max: 50 })),
+      after: v.optional(v.string({ maxBytes: 2_048 })),
+    },
+    // Runtime result validation sees the ordinary QueryOutput rows. The
+    // generated FunctionReference below projects those rows plus the
+    // transport cursor to SearchPageV1 for client.search().
+    resultContract: results.records(searchItem),
+    searchPlan: {
+      table: table.__tableName,
+      index: spec.index,
+      parser: 'snapback-search-parser-v1',
+      resultProjection: 'search-page-v1',
+      requiredCapability: 'full_text_search_v1',
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Ephemeral realtime collections
 // ---------------------------------------------------------------------------
@@ -542,9 +854,15 @@ export const authKind = () => ({ __expr: true, kind: 'AuthKind' });
 export const authActorKind = () => ({ __expr: true, kind: 'AuthActorKind' });
 export const authIsDelegated = () => ({ __expr: true, kind: 'AuthIsDelegated' });
 export const lit = (value) => ({ __expr: true, Literal: value });
+export const literal = lit;
 export const bindingRef = (name) => ({ __expr: true, Binding: name });
+export const binding = bindingRef;
 export const runtimeId = () => ({ __expr: true, kind: 'RuntimeId' });
 export const runtimeNow = () => ({ __expr: true, kind: 'RuntimeNow' });
+export const authActualActor = () => ({ __expr: true, kind: 'AuthActorUserId' });
+export const authActivityActorKind = () => ({ __expr: true, kind: 'AuthActivityActorKind' });
+export const authGrantId = () => ({ __expr: true, kind: 'AuthGrantId' });
+export const clientMutationDigest = () => ({ __expr: true, kind: 'ClientMutationDigest' });
 
 /** The whole args object — the null-safe base for optional-arg access. */
 export const argsRoot = () => ({ __expr: true, kind: 'Args' });
@@ -677,6 +995,124 @@ function queryDef(kind, spec) {
  *  syncable-live subset; ordinary defineQuery is a callable server read only. */
 export const defineLiveQuery = (spec) => queryDef('LiveQuery', spec);
 export const defineQuery = (spec) => queryDef('Query', spec);
+
+export const owner = (field) => {
+  assert(typeof field === 'string' && field.length > 0, 'owner() expects a field');
+  return Object.freeze({ kind: 'owner', field });
+};
+export const throughParent = () => Object.freeze({ kind: 'through-parent.v1' });
+export const throughScope = ({ scopeField, scopeIncarnationField } = {}) => {
+  assert(typeof scopeField === 'string' && typeof scopeIncarnationField === 'string', 'throughScope() expects scope fields');
+  return Object.freeze({ kind: 'through-scope.v1', scopeField, scopeIncarnationField });
+};
+
+function selectedFields(select, where) {
+  assert(select && typeof select === 'object' && !Array.isArray(select), `${where} select is required`);
+  return Object.entries(select).map(([name, field]) => {
+    assert(typeof field === 'string' && field.length > 0, `${where} select.${name} must name a field`);
+    return { name, field };
+  });
+}
+
+/** One visible parent plus one index-bounded child page.
+ * @ref LLP 0104#1-bounded-parentchild-query-profile */
+export function defineBoundedChildrenQuery(spec) {
+  assertKnownSpecFields(spec, 'BoundedChildrenQuery', new Set(['parent', 'children', 'take', 'parentDeletion']));
+  const parent = spec.parent;
+  const children = spec.children;
+  const parentFacts = relationalTable(parent?.table, 'parent.table');
+  const childFacts = relationalTable(children?.table, 'children.table');
+  assert(parentFacts.name !== childFacts.name, 'bounded children parent and child tables must differ');
+  assert(typeof parent.idArg === 'string' && parent.idArg.length > 0, 'parent.idArg is required');
+  const visibility = relationalVisibility(parentFacts, parent.visibility, 'parent');
+  assert(children.visibility?.kind === 'through-parent.v1', 'children visibility must be throughParent()');
+  const foreignKey = childFacts.fields[children.foreignKey];
+  assert(
+    !foreignKey?.optional && foreignKey.fieldType?.Id?.table === parentFacts.name,
+    'children.foreignKey must be a required id of the parent table',
+  );
+  const incarnationField = childFacts.fields[children.parentIncarnation];
+  assert(
+    !incarnationField?.optional
+      && incarnationField.fieldType?.RelationIncarnation?.foreignKeyField === children.foreignKey
+      && incarnationField.fieldType?.RelationIncarnation?.parentTable === parentFacts.name,
+    'children.parentIncarnation must be the matching required relationIncarnationOf field',
+  );
+  assert(Array.isArray(children.order) && children.order.length > 0 && children.order.every((entry) => entry.direction === 'Asc'), 'children.order must be non-empty ascending order');
+  for (const entry of children.order) {
+    const validator = childFacts.fields[entry.field];
+    assert(
+      validator && !validator.optional
+        && ['String', 'Integer', 'Boolean'].includes(validator.fieldType)
+          || (!validator?.optional && validator?.fieldType?.Id),
+      `children order field ${entry.field} must be required string, integer, boolean, or id`,
+    );
+  }
+  assert(Number.isSafeInteger(spec.take) && spec.take >= 0 && spec.take <= 1_024, 'take must be 0..1024');
+  const index = childFacts.indexes.find((candidate) => candidate.name === children.index);
+  const exact = [children.foreignKey, children.parentIncarnation, ...children.order.map((entry) => entry.field)];
+  assert(index && index.unique !== true && index.fields.length === exact.length && index.fields.every((field, i) => field === exact[i]), `children.index must be exactly [${exact.join(', ')}]`);
+  assert(spec.parentDeletion === 'hide-orphans.v1', 'parentDeletion must be hide-orphans.v1');
+  const parentProjection = selectedFields(parent.select, 'parent');
+  const childProjection = selectedFields(children.select, 'children');
+  for (const leaf of parentProjection) {
+    assert(
+      leaf.field === '_id' || parentFacts.fields[leaf.field],
+      `parent projection names unknown field ${parentFacts.name}.${leaf.field}`,
+    );
+  }
+  for (const leaf of childProjection) {
+    assert(
+      leaf.field === '_id' || childFacts.fields[leaf.field],
+      `children projection names unknown field ${childFacts.name}.${leaf.field}`,
+    );
+  }
+  assert(childProjection.some((leaf) => leaf.field === '_id'), 'children projection must include _id');
+  for (const entry of children.order) {
+    assert(
+      childProjection.some((leaf) => leaf.field === entry.field),
+      `children projection must include order field ${entry.field}`,
+    );
+  }
+  const projectedValidator = (facts, projection) => v.object(Object.fromEntries(
+    projection.map((leaf) => [
+      leaf.name,
+      leaf.field === '_id' ? v.id(facts.name) : facts.fields[leaf.field],
+    ]),
+  ));
+  const parentResult = projectedValidator(parentFacts, parentProjection);
+  const childResult = projectedValidator(childFacts, childProjection);
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    auth: visibility.kind === 'owner' ? 'authenticated' : 'public',
+    resultContract: results.records(v.object({
+      kind: v.union([v.literal('absent'), v.literal('visible')]),
+      parent: v.union([v.null(), parentResult]),
+      children: v.array(childResult, { maxItems: spec.take }),
+      continuation: v.union([v.null(), v.string({ maxBytes: 1_024 })]),
+    })),
+    args: {
+      [parent.idArg]: v.id(parentFacts.name),
+      cursor: v.optional(v.string({ maxBytes: 1_024 })),
+    },
+    boundedChildrenPlan: {
+      profile: 'bounded-children.v1',
+      parentTable: parentFacts.name,
+      parentIdArg: parent.idArg,
+      parentVisibility: visibility.kind === 'public-read' ? 'publicRead' : { owner: { field: visibility.field } },
+      parentProjection,
+      childTable: childFacts.name,
+      childForeignKey: children.foreignKey,
+      childRelationIncarnation: children.parentIncarnation,
+      childIndex: children.index,
+      order: children.order,
+      take: spec.take,
+      childProjection,
+      parentDeletion: spec.parentDeletion,
+    },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Relational queries (LLP 0080 §1 — the closed first relational profile)
@@ -1197,8 +1633,13 @@ function exactRelationalVisibilityObject(visibility) {
 
 function jsQueryDef(kind, spec) {
   assertKnownSpecFields(spec, kind, JS_QUERY_SPEC_FIELDS);
-  assert(spec.source, `${kind} requires a handler source file`);
-  assert(spec.exportName, `${kind} requires exportName`);
+  const inline = spec.handler !== undefined;
+  const legacy = spec.source !== undefined || spec.exportName !== undefined;
+  assert(inline !== legacy, `${kind} requires exactly one handler form: handler or source + exportName`);
+  if (legacy) {
+    assert(spec.source, `${kind} requires a handler source file`);
+    assert(spec.exportName, `${kind} requires exportName`);
+  }
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
   if (spec.authScopeField !== undefined) {
     assert(
@@ -1207,23 +1648,26 @@ function jsQueryDef(kind, spec) {
     );
   }
   if (spec.result !== undefined) {
-    // LLP 0032 P3: a JS handler can return any shape, so its result rows are
-    // typed only when declared. `result` describes the app fields of each
-    // returned row (system fields ride along); undeclared results are typed
-    // as an honest `unknown`, never guessed from the first read table.
-    assert(spec.result && spec.result.__validator && spec.result.primitive === 'object', `${kind} result must be a v.object(...) row validator`);
+    assert(
+      spec.result?.__resultContract === true
+        || (spec.result?.__validator === true && spec.result.primitive === 'object'),
+      `${kind} result must be results.documents(...), results.records(...), or the legacy v.object(...) row validator`,
+    );
   }
   return {
     [FN]: true,
     __kind: kind,
     ...authoredFunctionAuth(spec, kind),
     args: spec.args ?? {},
-    ...(spec.result !== undefined ? { result: spec.result } : {}),
+    ...(spec.result?.__resultContract === true
+      ? { resultContract: spec.result }
+      : (spec.result !== undefined ? { result: spec.result } : {})),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {
-      source: spec.source,
-      exportName: spec.exportName,
+      ...(inline
+        ? { inlineHandler: spec.handler }
+        : { source: spec.source, exportName: spec.exportName }),
       reads: spec.reads,
       writes: [],
       authScopeField: spec.authScopeField ?? null,
@@ -1286,6 +1730,177 @@ export const insertEach = (table, source, itemAs, values) => {
   return { InsertEach: { table, source: expectExpr(source, 'insertEach()'), item_as: itemAs, values } };
 };
 
+export const assertSourceChanged = (table, id, operation) => {
+  assert(['insert', 'patch', 'delete'].includes(operation), 'assertSourceChanged operation must be insert, patch, or delete');
+  return { AssertSourceChanged: { table, id: expectExpr(id, 'assertSourceChanged()'), operation } };
+};
+
+export const mutationPlan = (...steps) => Object.freeze({
+  __mutationPlan: true,
+  steps: steps.flat(),
+});
+
+export const existingOwner = ({ table, id, visibility } = {}) => {
+  assert(table?.__table === true && id?.__expr === true, 'existingOwner() expects a table and id expression');
+  assert(visibility?.kind === 'owner', 'existingOwner() visibility must be owner(field)');
+  return Object.freeze({ __activityScope: true, mode: 'existing-owner.v1', table, id, visibility });
+};
+
+export const clientMutation = () => Object.freeze({ kind: 'client-mutation.v1' });
+
+/** Closed source write plus one provenance-bearing activity append.
+ * @ref LLP 0104#2-closed-write-plus-activity-profile */
+export function defineWriteWithActivity(spec) {
+  assertKnownSpecFields(spec, 'WriteWithActivity', new Set([
+    'args', 'scope', 'primary', 'source', 'activity', 'idempotency',
+    'result', 'returns', 'auth',
+  ]));
+  assert(spec.scope?.__activityScope === true, 'scope must use existingOwner()');
+  assert(spec.primary?.__mutationPlan === true, 'primary must use mutationPlan()');
+  assert(spec.idempotency?.kind === 'client-mutation.v1', 'idempotency must use clientMutation()');
+  assert(spec.result?.__resultContract === true && spec.result.kind === 'value', 'result must use results.value(...)');
+  const scopeTable = spec.scope.table.__tableName;
+  const sourceTable = spec.source?.table?.__tableName;
+  const activityTable = spec.activity?.table?.__tableName;
+  assert(scopeTable && sourceTable && activityTable, 'scope/source/activity tables must be installed schema tables');
+  assert(scopeTable !== sourceTable && sourceTable !== activityTable && scopeTable !== activityTable, 'scope, source, and activity tables must be distinct');
+  const admittedSteps = new Set(['Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let']);
+  assert(
+    spec.primary.steps.every((step) => admittedSteps.has(Object.keys(step)[0])),
+    'primary contains a step outside the closed point-operation profile',
+  );
+  const sourceSteps = spec.primary.steps.filter((step) => {
+    const [kind] = Object.keys(step);
+    return ['Insert', 'Patch', 'Delete'].includes(kind) && step[kind].table === sourceTable;
+  });
+  assert(sourceSteps.length === 1, 'primary must contain exactly one source write');
+  const sourceStep = sourceSteps[0];
+  const authoredWrites = spec.primary.steps.filter((step) => (
+    ['Insert', 'Patch', 'Delete'].includes(Object.keys(step)[0])
+  ));
+  assert(
+    authoredWrites.every((step) => Object.values(step)[0].table !== activityTable),
+    'primary may not write the activity table',
+  );
+  assert(
+    authoredWrites.length <= 2,
+    'primary admits one source write and at most one scope patch',
+  );
+  for (const step of authoredWrites) {
+    const [kind, payload] = Object.entries(step)[0];
+    if (payload.table !== sourceTable) {
+      assert(
+        kind === 'Patch' && payload.table === scopeTable,
+        'the only non-source write admitted by primary is a scope patch',
+      );
+    }
+  }
+  const pointReads = spec.primary.steps.filter((step) => Object.hasOwn(step, 'Get')).length;
+  const guardsAndLets = spec.primary.steps.filter((step) => (
+    Object.hasOwn(step, 'Guard') || Object.hasOwn(step, 'Let')
+  )).length;
+  assert(pointReads <= 8, 'primary admits at most eight auxiliary point reads');
+  assert(guardsAndLets <= 16, 'primary admits at most sixteen Guard/Let steps');
+  const sourceOperation = Object.keys(sourceStep)[0].toLowerCase();
+  const scopeBinding = '__activityScope';
+  const activityIdBinding = '__activityId';
+  const provenance = spec.activity.provenance;
+  const visibility = spec.activity.visibility;
+  assert(visibility?.kind === 'through-scope.v1', 'activity.visibility must use throughScope()');
+  const requiredProvenance = [
+    'scopeId', 'sourceTable', 'sourceId', 'operation', 'effectiveSubject',
+    'actualActor', 'actorKind', 'grant', 'occurredAt', 'mutation',
+  ];
+  assert(requiredProvenance.every((slot) => typeof provenance?.[slot] === 'string'), 'activity.provenance must map every required slot');
+  assert(
+    new Set(Object.values(provenance)).size === Object.values(provenance).length,
+    'activity.provenance field mappings must be distinct',
+  );
+  const activityFacts = relationalTable(spec.activity.table, 'activity');
+  for (const [slot, fieldName] of Object.entries(provenance)) {
+    const fieldValidator = activityFacts.fields[fieldName];
+    assert(fieldValidator, `activity.provenance.${slot} names unknown field ${activityTable}.${fieldName}`);
+    assert(
+      slot === 'grant' || !fieldValidator.optional,
+      `activity provenance field ${activityTable}.${fieldName} must be required`,
+    );
+  }
+  assert(
+    provenance.scopeId === visibility.scopeField,
+    'activity provenance scopeId must equal visibility.scopeField',
+  );
+  assert(
+    visibility.scopeIncarnationField !== provenance.scopeId,
+    'activity scope id and incarnation fields must differ',
+  );
+  assert(
+    activityFacts.fields[visibility.scopeIncarnationField]?.fieldType?.RelationIncarnation,
+    'activity visibility scopeIncarnationField must be a relationIncarnationOf field',
+  );
+  const sourceFacts = relationalTable(spec.source.table, 'source');
+  for (const facts of [sourceFacts, activityFacts]) {
+    for (const index of facts.indexes.filter((candidate) => candidate.unique === true)) {
+      assert(
+        index.fields[0] === visibility.scopeField
+          && index.fields[1] === visibility.scopeIncarnationField,
+        `${facts.name} unique index ${index.name} must be scoped by [${visibility.scopeField}, ${visibility.scopeIncarnationField}]`,
+      );
+    }
+  }
+  const values = {
+    ...(spec.activity.values ?? {}),
+    [provenance.scopeId]: spec.scope.id,
+    [provenance.sourceTable]: lit(sourceTable),
+    [provenance.sourceId]: spec.source.id,
+    [provenance.operation]: lit(sourceOperation),
+    [provenance.effectiveSubject]: authUserId(),
+    [provenance.actualActor]: authActualActor(),
+    [provenance.actorKind]: authActivityActorKind(),
+    [provenance.grant]: authGrantId(),
+    [provenance.occurredAt]: runtimeNow(),
+    [provenance.mutation]: clientMutationDigest(),
+  };
+  const steps = [
+    get(scopeTable, spec.scope.id, scopeBinding, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
+    guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), 'SNAPBACK_ROW_NOT_FOUND'),
+    ...spec.primary.steps,
+    assertSourceChanged(sourceTable, spec.source.id, sourceOperation),
+    insert(activityTable, values, { bindIdAs: activityIdBinding }),
+  ];
+  return {
+    [FN]: true,
+    __kind: 'Mutation',
+    ...authoredFunctionAuth({ auth: spec.auth ?? 'authenticated' }, 'Mutation'),
+    args: spec.args ?? {},
+    resultContract: spec.result,
+    plan: { steps, return_value: { Expr: expectExpr(spec.returns, 'WriteWithActivity returns') } },
+    writeWithActivityPlan: {
+      profile: 'write-with-activity.v1',
+      mode: 'existing-owner-v1',
+      scopeTable,
+      scopeId: spec.scope.id,
+      scopeOwnerField: spec.scope.visibility.field,
+      sourceTable,
+      sourceId: spec.source.id,
+      sourceOperation,
+      activityTable,
+      provenanceFields: provenance,
+      effectFormula: {
+        scopeReads: 1,
+        scopePatches: authoredWrites.some((step) => step.Patch?.table === scopeTable) ? 1 : 0,
+        auxiliaryPointReads: pointReads,
+        sourceWrites: 1,
+        activityInserts: 1,
+        runtimeIds: sourceOperation === 'insert' ? 2 : 1,
+        runtimeNow: 1,
+        settlementLookups: 1,
+        settlementWrites: 1,
+        maximumApplicationWrites: 2 + (authoredWrites.some((step) => step.Patch?.table === scopeTable) ? 1 : 0),
+      },
+    },
+  };
+}
+
 export const returnBinding = (name) => ({ Binding: name });
 export const returnChangedCount = () => ({ kind: 'ChangedCount' });
 export const returnDocument = (table, id) => ({ Document: { table, id } });
@@ -1296,11 +1911,15 @@ export const returnExpr = (expr) => ({ Expr: expectExpr(expr, 'returnExpr()') })
 export function defineMutation(spec) {
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
+  if (spec.result !== undefined) {
+    assert(spec.result?.__resultContract === true, 'defineMutation result must use results.document(...) or results.value(...)');
+  }
   return {
     [FN]: true,
     __kind: 'Mutation',
     ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
+    ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...normalizeStandardPattern(spec, 'Mutation'),
     plan: { steps, return_value: spec.returns ?? null },
   };
@@ -1318,9 +1937,17 @@ export const OUTGREW_IR_CLASSES = Object.freeze({
 });
 
 export function defineJsMutation(spec) {
-  assert(spec.source, 'defineJsMutation requires a handler source file');
-  assert(spec.exportName, 'defineJsMutation requires exportName');
+  const inline = spec.handler !== undefined;
+  const legacy = spec.source !== undefined || spec.exportName !== undefined;
+  assert(inline !== legacy, 'defineJsMutation requires exactly one handler form: handler or source + exportName');
+  if (legacy) {
+    assert(spec.source, 'defineJsMutation requires a handler source file');
+    assert(spec.exportName, 'defineJsMutation requires exportName');
+  }
   assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
+  if (spec.result !== undefined) {
+    assert(spec.result?.__resultContract === true, 'defineJsMutation result must use results.document(...) or results.value(...)');
+  }
   if (spec.outgrewIr !== undefined) {
     assert(
       typeof spec.outgrewIr === 'string' && OUTGREW_IR_CLASSES[spec.outgrewIr],
@@ -1332,10 +1959,12 @@ export function defineJsMutation(spec) {
     __kind: 'Mutation',
     ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
+    ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
     js: {
-      source: spec.source,
-      exportName: spec.exportName,
+      ...(inline
+        ? { inlineHandler: spec.handler }
+        : { source: spec.source, exportName: spec.exportName }),
       reads: spec.reads ?? [],
       writes: spec.writes,
       syncabilityClass: 'mutation',
@@ -1352,6 +1981,26 @@ export const runMutation = (name, args = {}, opts = {}) => ({
 });
 
 export function defineAction(spec) {
+  if (spec.result !== undefined) {
+    assert(spec.result?.__resultContract === true, 'defineAction result must use results.document(...) or results.value(...)');
+  }
+  if (spec.handler !== undefined) {
+    assert(spec.js === undefined && spec.plan === undefined, 'defineAction handler cannot be mixed with js or plan');
+    return {
+      [FN]: true,
+      __kind: 'Action',
+      ...authoredFunctionAuth(spec, 'Action'),
+      args: spec.args ?? {},
+      ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
+      uses: spec.uses ?? [],
+      js: {
+        inlineHandler: spec.handler,
+        reads: [],
+        writes: spec.writes ?? [],
+        syncabilityClass: 'action',
+      },
+    };
+  }
   if (spec.js) {
     assert(spec.js.source, 'defineAction js.source is required');
     assert(spec.js.exportName, 'defineAction js.exportName is required');
@@ -1360,6 +2009,7 @@ export function defineAction(spec) {
       __kind: 'Action',
       ...authoredFunctionAuth(spec, 'Action'),
       args: spec.args ?? {},
+      ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
       // @ref LLP 0036#declared-configuration-in-the-manifest — D8: the config
       // entries this action may receive via ctx.secrets.
       uses: spec.uses ?? [],
@@ -1379,6 +2029,7 @@ export function defineAction(spec) {
     __kind: 'Action',
     ...authoredFunctionAuth(spec, 'Action'),
     args: spec.args ?? {},
+    ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     uses: spec.uses ?? [],
     plan: { steps, return_value: spec.returns ?? null },
     writes: spec.writes ?? [],

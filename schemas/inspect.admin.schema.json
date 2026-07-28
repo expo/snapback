@@ -406,6 +406,125 @@
       ],
       "type": "string"
     },
+    "BoundedChildrenQueryPlan": {
+      "additionalProperties": false,
+      "description": "`bounded-children.v1`: one visible parent point read followed by one exact,\nforward, `take + 1` child-index range. The one computed result record keeps\nits continuation inside the row, leaving the ordinary top-level query\ncursor unused.\n\n@ref LLP 0104#cursor-and-result-closure — the result is a closed computed\n  record and the cursor binds the current parent version/incarnation.",
+      "properties": {
+        "childForeignKey": {
+          "type": "string"
+        },
+        "childIndex": {
+          "type": "string"
+        },
+        "childProjection": {
+          "items": {
+            "$ref": "#/$defs/BoundedProjectionField"
+          },
+          "type": "array"
+        },
+        "childRelationIncarnation": {
+          "type": "string"
+        },
+        "childTable": {
+          "type": "string"
+        },
+        "order": {
+          "items": {
+            "$ref": "#/$defs/OrderExpr"
+          },
+          "type": "array"
+        },
+        "parentDeletion": {
+          "type": "string"
+        },
+        "parentIdArg": {
+          "type": "string"
+        },
+        "parentProjection": {
+          "items": {
+            "$ref": "#/$defs/BoundedProjectionField"
+          },
+          "type": "array"
+        },
+        "parentTable": {
+          "type": "string"
+        },
+        "parentVisibility": {
+          "$ref": "#/$defs/BoundedParentVisibility"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "take": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "profile",
+        "parentTable",
+        "parentIdArg",
+        "parentVisibility",
+        "parentProjection",
+        "childTable",
+        "childForeignKey",
+        "childRelationIncarnation",
+        "childIndex",
+        "order",
+        "take",
+        "childProjection",
+        "parentDeletion"
+      ],
+      "type": "object"
+    },
+    "BoundedParentVisibility": {
+      "oneOf": [
+        {
+          "enum": [
+            "publicRead"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "owner"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BoundedProjectionField": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "field"
+      ],
+      "type": "object"
+    },
     "BrowserCredentialPosture": {
       "description": "The strongest browser credential claim the target can honestly advertise.\n\nA restrictive CSP does not upgrade bearer v1: app-origin script can still\nread or exercise the coordinator's IndexedDB/page-memory credential.",
       "enum": [
@@ -459,10 +578,16 @@
             "cron_action_run_mutation": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
+            "full_text_search_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
             "host_plan_runtime": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "ibex_ctx_db_host_bridge": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "inline_handler_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "live_subscriptions": {
@@ -478,6 +603,15 @@
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "relational_query_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "result_contract_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "versioned_seed_install_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "versioned_seed_reset_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             }
           },
@@ -501,6 +635,17 @@
         "ephemeralWebSocketPublish": {
           "default": false,
           "type": "boolean"
+        },
+        "fullTextSearch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FullTextSearchFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exact local portable-search posture. Absent on Cloudflare,\nconformance, and hosted targets until their independent corpus\nqualifies."
         },
         "hostedAuth": {
           "$ref": "#/$defs/HostedAuthCapabilities",
@@ -1831,6 +1976,31 @@
             "Id"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Framework-owned relation-incarnation stamp. It is stored as a string,\nbut unlike an application string it is never writable by application\narguments. The paired required foreign-key field is the complete\nrelationship declaration.\n\n@ref LLP 0104#protected-relation-incarnation-and-stamping — central\n  writers overwrite the stamp from the active parent registry.",
+          "properties": {
+            "RelationIncarnation": {
+              "properties": {
+                "foreignKeyField": {
+                  "type": "string"
+                },
+                "parentTable": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "foreignKeyField",
+                "parentTable"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RelationIncarnation"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -1864,9 +2034,117 @@
       ],
       "type": "string"
     },
+    "FullTextSearchFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "authorizationFilters": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "boolean"
+        },
+        "cursorTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "facets": {
+          "type": "boolean"
+        },
+        "highlights": {
+          "type": "boolean"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "parser": {
+          "type": "string"
+        },
+        "scoreMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scorer": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "suggestions": {
+          "type": "boolean"
+        },
+        "unicodeVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "analyzer",
+        "unicodeVersion",
+        "analyzerTablesDigest",
+        "parser",
+        "scorer",
+        "scoreMax",
+        "maintenance",
+        "pagination",
+        "cursorTtlMs",
+        "accelerator",
+        "authorizationFilters",
+        "highlights",
+        "counts",
+        "facets",
+        "suggestions",
+        "offline",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
+    },
     "FunctionDefinition": {
       "additionalProperties": false,
       "properties": {
+        "argsContractHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "authRequirement": {
           "anyOf": [
             {
@@ -1918,10 +2196,24 @@
             "null"
           ]
         },
+        "handlerForm": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "default": "",
           "description": "Required stable identity for grants and consent. Deserialization\ntolerates an absent field (empty string) so the refusal is a typed\nload-time diagnostic rather than an opaque parse error, but\n[`FunctionManifest::validate_artifact`] rejects a manifest whose\nfunction lacks a non-empty id before it can install.\n\n@ref LLP 0012#v0-function-manifest — function ids are required and\n  stable; a missing id fails load with a typed diagnostic because\n  scoped grants and consent are keyed by this identity.",
           "type": "string"
+        },
+        "implementationHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "kind": {
           "$ref": "#/$defs/FunctionKind"
@@ -1955,6 +2247,19 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "resultContract": {
+          "$ref": "#/$defs/FunctionResultContract",
+          "default": {
+            "kind": "unknown"
+          }
+        },
+        "resultContractHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "retainable": {
           "description": "Results may be durably retained only when the item-8 admission profile\nvalidates this declaration and the complete read summary.\n\n@ref LLP 0053#retained-and-offline-authorization — retainability is an\n  explicit capability, never inferred from live/callable status.",
@@ -2110,6 +2415,116 @@
       },
       "type": "object"
     },
+    "FunctionResultContract": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "documents",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "records",
+              "type": "string"
+            },
+            "record": {
+              "$ref": "#/$defs/ResultValueContract"
+            }
+          },
+          "required": [
+            "kind",
+            "record"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "document",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "value",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/ResultValueContract"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "legacyQueryRowsV0",
+              "type": "string"
+            },
+            "row": {
+              "$ref": "#/$defs/ResultValueContract"
+            }
+          },
+          "required": [
+            "kind",
+            "row"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "FunctionRuntime": {
       "oneOf": [
         {
@@ -2154,6 +2569,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Non-live portable indexed search. The operation uses the ordinary\nquery envelope while storage projects SearchItemV1 values into rows.\n\n@ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a\nQuery-kind HostPlan and never gains live semantics by implication.",
+          "properties": {
+            "SearchQuery": {
+              "$ref": "#/$defs/SearchQueryPlanV1"
+            }
+          },
+          "required": [
+            "SearchQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Mutation": {
               "$ref": "#/$defs/MutationPlan"
@@ -2186,6 +2614,32 @@
           },
           "required": [
             "RelationalQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Protected one-parent bounded child page.",
+          "properties": {
+            "BoundedChildrenQuery": {
+              "$ref": "#/$defs/BoundedChildrenQueryPlan"
+            }
+          },
+          "required": [
+            "BoundedChildrenQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Closed source/scope/activity transaction.",
+          "properties": {
+            "WriteWithActivity": {
+              "$ref": "#/$defs/WriteWithActivityPlan"
+            }
+          },
+          "required": [
+            "WriteWithActivity"
           ],
           "type": "object"
         }
@@ -3178,6 +3632,35 @@
             "InsertEach"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Host-owned assertion inserted only by `write-with-activity.v1`.\nExactly one matching changed source row must already exist in the\nprovisional transaction; missing/no-op/wrong-source execution refuses\nbefore the activity insert and settlement.",
+          "properties": {
+            "AssertSourceChanged": {
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "operation": {
+                  "$ref": "#/$defs/WriteWithActivitySourceOperation"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "operation"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssertSourceChanged"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -3546,6 +4029,259 @@
       ],
       "type": "string"
     },
+    "ResultObjectFieldContract": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/ResultValueContract"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "value"
+      ],
+      "type": "object"
+    },
+    "ResultValueContract": {
+      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "null",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "boolean",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "string",
+              "type": "string"
+            },
+            "maxBytes": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "maxBytes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "integer",
+              "type": "string"
+            },
+            "max": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "min": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "finiteReal",
+              "type": "string"
+            },
+            "max": {
+              "format": "double",
+              "type": "number"
+            },
+            "min": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "principal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "id",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": true
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "json",
+              "type": "string"
+            },
+            "maxBytes": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxDepth": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "maxDepth",
+            "maxBytes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "array",
+              "type": "string"
+            },
+            "maxItems": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "element",
+            "maxItems"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "union",
+              "type": "string"
+            },
+            "variants": {
+              "items": {
+                "$ref": "#/$defs/ResultValueContract"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "variants"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "allowExtra": {
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "$ref": "#/$defs/ResultObjectFieldContract"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "object",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "fields",
+            "allowExtra"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ReturnValue": {
       "oneOf": [
         {
@@ -3892,6 +4628,306 @@
       ],
       "type": "object"
     },
+    "SearchCursorLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ttlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ttlMs",
+        "maxBytes"
+      ],
+      "type": "object"
+    },
+    "SearchFieldClassV1": {
+      "enum": [
+        "public",
+        "private",
+        "sensitive",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "SearchIndexManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "cursorLimits": {
+          "$ref": "#/$defs/SearchCursorLimitsV1",
+          "default": {
+            "maxBytes": 2048,
+            "ttlMs": 120000
+          }
+        },
+        "equalityFilters": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fieldClassifications": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchFieldClassV1"
+          },
+          "description": "Closed classification carrier for every participating field that is\nnot already classified by `text_fields`.",
+          "type": "object"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "highlightFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maintenanceLimits": {
+          "$ref": "#/$defs/SearchMaintenanceLimitsV1",
+          "default": {
+            "searchBytes": 262144,
+            "searchMaintenanceEffects": 1024,
+            "searchPositions": 8192,
+            "searchPostingOps": 4096
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "queryLimits": {
+          "$ref": "#/$defs/SearchQueryLimitsV1",
+          "default": {
+            "maxCandidateWork": 10000,
+            "maxPrefixTerms": 256,
+            "minPrefixScalars": 2
+          }
+        },
+        "semanticVersion": {
+          "type": "string"
+        },
+        "sourceLimits": {
+          "$ref": "#/$defs/SearchSourceLimitsV1",
+          "default": {
+            "maxIndexedBytes": 32768,
+            "maxPostingOperations": 4096,
+            "maxTokens": 2048
+          }
+        },
+        "storedFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "textFields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchTextFieldV1"
+          },
+          "type": "object"
+        },
+        "tieBreak": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/SearchVisibilityV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "name",
+        "semanticVersion",
+        "analyzer",
+        "analyzerTablesDigest",
+        "textFields",
+        "fieldClassifications",
+        "visibility",
+        "tieBreak"
+      ],
+      "type": "object"
+    },
+    "SearchMaintenanceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "searchBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchMaintenanceEffects": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPositions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPostingOps": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "searchMaintenanceEffects",
+        "searchPostingOps",
+        "searchPositions",
+        "searchBytes"
+      ],
+      "type": "object"
+    },
+    "SearchQueryLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxCandidateWork": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPrefixTerms": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minPrefixScalars": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxCandidateWork",
+        "maxPrefixTerms",
+        "minPrefixScalars"
+      ],
+      "type": "object"
+    },
+    "SearchQueryPlanV1": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "string"
+        },
+        "parser": {
+          "type": "string"
+        },
+        "requiredCapability": {
+          "type": "string"
+        },
+        "resultProjection": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "index",
+        "parser",
+        "resultProjection",
+        "requiredCapability"
+      ],
+      "type": "object"
+    },
+    "SearchSourceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxIndexedBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPostingOperations": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTokens": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxIndexedBytes",
+        "maxTokens",
+        "maxPostingOperations"
+      ],
+      "type": "object"
+    },
+    "SearchTextFieldV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/SearchFieldClassV1",
+          "default": "public"
+        },
+        "weight": {
+          "format": "uint32",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weight"
+      ],
+      "type": "object"
+    },
+    "SearchVisibilityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ServerInfo": {
       "description": "Server-runtime facts surfaced on the admin dashboard.",
       "properties": {
@@ -4098,6 +5134,13 @@
             "null"
           ]
         },
+        "searchIndexes": {
+          "description": "Portable full-text indexes over this ordinary table. Search metadata is\ntable-local because source field/visibility validation and synchronous\nmaintenance are schema obligations, not function-handler conventions.\n\n@ref LLP 0073#search-declarations — one versioned declaration owns the\ncomplete portable index semantics and work bounds.",
+          "items": {
+            "$ref": "#/$defs/SearchIndexManifestV1"
+          },
+          "type": "array"
+        },
         "syncable": {
           "default": false,
           "type": "boolean"
@@ -4117,11 +5160,16 @@
         "cron_action_run_mutation",
         "host_plan_runtime",
         "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
         "live_subscriptions",
         "mutation_read_set_validation",
         "permission_epoch_resync",
         "relational_query_v1",
-        "migration_keyset_scan_v1"
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1"
       ],
       "type": "string"
     },
@@ -4138,6 +5186,8 @@
         {
           "enum": [
             "AuthUserId",
+            "AuthActorUserId",
+            "AuthGrantId",
             "RuntimeId",
             "RuntimeNow"
           ],
@@ -4169,6 +5219,16 @@
         {
           "const": "AuthActorKind",
           "description": "Actor kind for delegated authority; null for direct and autonomous use.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActivityActorKind",
+          "description": "Total activity-provenance projection: `human` for sessions and `agent`\nfor delegated service authority. Unsupported authority classes leave\nit absent and the write-with-activity profile refuses.",
+          "type": "string"
+        },
+        {
+          "const": "ClientMutationDigest",
+          "description": "Digest of the server-constructed canonical client-mutation identity.",
           "type": "string"
         },
         {
@@ -4385,6 +5445,204 @@
           "type": "object"
         }
       ]
+    },
+    "WriteActivityProvenanceFields": {
+      "additionalProperties": false,
+      "properties": {
+        "actorKind": {
+          "type": "string"
+        },
+        "actualActor": {
+          "type": "string"
+        },
+        "effectiveSubject": {
+          "type": "string"
+        },
+        "grant": {
+          "type": "string"
+        },
+        "mutation": {
+          "type": "string"
+        },
+        "occurredAt": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "scopeId": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "sourceTable": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scopeId",
+        "sourceTable",
+        "sourceId",
+        "operation",
+        "effectiveSubject",
+        "actualActor",
+        "actorKind",
+        "grant",
+        "occurredAt",
+        "mutation"
+      ],
+      "type": "object"
+    },
+    "WriteWithActivityEffectFormula": {
+      "additionalProperties": false,
+      "properties": {
+        "activityInserts": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "auxiliaryPointReads": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maximumApplicationWrites": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "runtimeIds": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "runtimeNow": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scopePatches": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scopeReads": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlementLookups": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlementWrites": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sourceWrites": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scopeReads",
+        "scopePatches",
+        "auxiliaryPointReads",
+        "sourceWrites",
+        "activityInserts",
+        "runtimeIds",
+        "runtimeNow",
+        "settlementLookups",
+        "settlementWrites",
+        "maximumApplicationWrites"
+      ],
+      "type": "object"
+    },
+    "WriteWithActivityMode": {
+      "enum": [
+        "existing-owner-v1",
+        "create-owner-v1"
+      ],
+      "type": "string"
+    },
+    "WriteWithActivityPlan": {
+      "additionalProperties": false,
+      "description": "One normalized `write-with-activity.v1` plan. `mutation` is the complete\nexecutable closed IR including scope/source guards, the host-checked source\neffect assertion, the activity insert, and final result expression.\n\n@ref LLP 0104#total-effect-formulas — the plan carries its mode-indexed,\n  quantitative ceiling rather than reconstructing it from names.",
+      "properties": {
+        "activityTable": {
+          "type": "string"
+        },
+        "effectFormula": {
+          "$ref": "#/$defs/WriteWithActivityEffectFormula"
+        },
+        "mode": {
+          "$ref": "#/$defs/WriteWithActivityMode"
+        },
+        "mutation": {
+          "$ref": "#/$defs/MutationPlan"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "provenanceFields": {
+          "$ref": "#/$defs/WriteActivityProvenanceFields"
+        },
+        "scopeId": {
+          "$ref": "#/$defs/ValueExpr"
+        },
+        "scopeOwnerField": {
+          "type": "string"
+        },
+        "scopeTable": {
+          "type": "string"
+        },
+        "sourceId": {
+          "$ref": "#/$defs/ValueExpr"
+        },
+        "sourceOperation": {
+          "$ref": "#/$defs/WriteWithActivitySourceOperation"
+        },
+        "sourceTable": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "mode",
+        "scopeTable",
+        "scopeId",
+        "scopeOwnerField",
+        "sourceTable",
+        "sourceId",
+        "sourceOperation",
+        "activityTable",
+        "provenanceFields",
+        "effectFormula",
+        "mutation"
+      ],
+      "type": "object"
+    },
+    "WriteWithActivitySourceOperation": {
+      "enum": [
+        "insert",
+        "patch",
+        "delete"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/inspect.admin.schema.json",

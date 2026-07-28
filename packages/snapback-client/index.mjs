@@ -32,6 +32,18 @@ import {
   generateSenderConstraintKey,
   isCanonicalSenderNonce,
 } from './sender-proof.mjs';
+import { prepareReactBindingForClient } from './react-binding.mjs';
+export { parseSearchQueryV1, search } from './search.mjs';
+export {
+  CANONICAL_CLIENT_VALUE_V1_LIMITS,
+  canonicalizeClientValueV1,
+  canonicalReactStoreKeyV1,
+} from './canonical-client-value.mjs';
+export {
+  admittedReactReference,
+  assertPreparedReactBinding,
+  preparedReactBindingClient,
+} from './react-binding.mjs';
 
 export {
   AgentAuthorityFence,
@@ -112,6 +124,43 @@ export const LIVE_RECONNECT_MAX_DELAY_MS = 10_000;
 // Provider poll floor: the declared HTTP outbox drain cadence used as the
 // stream fallback and emitted by codegen as the manifest `pollCadenceMs`.
 export const DEFAULT_POLL_CADENCE_MS = 1_500;
+
+const SNAPBACK_ID_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+const SNAPBACK_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
+
+/**
+ * Admit an opaque id obtained at an untyped application boundary into the
+ * generated table-specific id type. This proves only Snapback's bounded wire
+ * grammar; it deliberately does not claim that the row currently exists.
+ */
+export function admitSnapbackId(table, value) {
+  if (typeof table !== 'string' || !SNAPBACK_ID_TABLE.test(table)) {
+    throw new TypeError('SNAPBACK_CLIENT_ID_TABLE_INVALID: table must be a generated identifier');
+  }
+  if (typeof value !== 'string' || !SNAPBACK_OPAQUE_ID.test(value)) {
+    throw new TypeError(
+      'SNAPBACK_CLIENT_ID_INVALID: value must be a 1..256 byte ASCII opaque id',
+    );
+  }
+  return value;
+}
+
+export function newSeedOperationIdV1(nowMs = Date.now()) {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0 || nowMs > 0xffffffffffff) {
+    throw new RangeError('seed operation timestamp is outside UUIDv7 range');
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let timestamp = BigInt(nowMs);
+  for (let index = 5; index >= 0; index -= 1) {
+    bytes[index] = Number(timestamp & 0xffn);
+    timestamp >>= 8n;
+  }
+  bytes[6] = 0x70 | (bytes[6] & 0x0f);
+  bytes[8] = 0x80 | (bytes[8] & 0x3f);
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
@@ -1222,6 +1271,9 @@ export class SnapbackClient {
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // Set only after capability preflight advertises the hosted ephemeral
+    // authority offer. Old servers therefore never see an unknown member.
+    ephemeralAuthorityProtocol = null,
     authCoordinator = null,
     agentAuthority = null,
     senderConstrained = false,
@@ -1296,6 +1348,7 @@ export class SnapbackClient {
       authInvalidation: authInvalidationProtocol,
       authorityDescriptor: authorityDescriptorProtocol,
       authorizedLease: authorizedLeaseProtocol,
+      ephemeralAuthority: ephemeralAuthorityProtocol,
     });
     // Keep the last validated projection separate from the current network
     // attempt. A forced offline probe may reject without poisoning or
@@ -1318,6 +1371,16 @@ export class SnapbackClient {
     this.__laneConsumers = new Map();
     // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
     this.__connectionGrants = new Map();
+    // Hosted ephemeral recovery is application data production, not transport
+    // authority. Registrations never receive the opaque authority identity;
+    // they are invoked only after a fresh empty successor snapshot.
+    //
+    // @ref LLP 0105#four-way-wire-rollout-and-republisher — registrations are
+    // bounded, generation-fenced, idempotently disposable, and become current
+    // only after a successful publish acknowledgement.
+    this.__ephemeralRepublishers = new Map();
+    this.__ephemeralRepublisherGeneration = 0;
+    this.__ephemeralAuthorityByCollection = new Map();
     this.__authControllers = new Set();
     this.__rawLiveStreams = new Set();
     this.__authTransportGeneration = 0;
@@ -2813,6 +2876,9 @@ export class SnapbackClient {
       ...(this.authProtocols.authInvalidation != null
         ? { authInvalidationProtocol: this.authProtocols.authInvalidation }
         : {}),
+      ...(this.authProtocols.ephemeralAuthority != null
+        ? { ephemeralAuthorityProtocol: this.authProtocols.ephemeralAuthority }
+        : {}),
       // @ref LLP 0094#0b3-the-wireversion-open-time-offer — B2: the kit
       // offers the exact token; the response echo witnesses the binding.
       ...(withWireVersion ? { wireVersion: WIRE_VERSION_TOKEN } : {}),
@@ -2856,6 +2922,20 @@ export class SnapbackClient {
       });
     };
     const validateOfferedGrant = (granted) => {
+      if (
+        this.authProtocols.ephemeralAuthority != null
+        && granted?.ephemeralAuthorityProtocol !== this.authProtocols.ephemeralAuthority
+      ) {
+        const error = new Error(
+          'SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED: server did not echo the offered protocol',
+        );
+        error.code = 'SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED';
+        error.diagnostic = {
+          code: error.code,
+          message: 'server did not echo the offered ephemeral authority protocol',
+        };
+        throw error;
+      }
       if (granted?.wireVersion === WIRE_VERSION_TOKEN) {
         wireVersionEndpointVerdicts.set(this.baseUrl, 'modern');
         return granted;
@@ -2966,6 +3046,9 @@ export class SnapbackClient {
           // The §0B.3 bound-version witness: the token on explicitly bound
           // lineages, null on legacy lineages and pre-B1 servers (§0B.6).
           wireVersion: typeof granted.wireVersion === 'string' ? granted.wireVersion : null,
+          ephemeralAuthorityProtocol: Number.isSafeInteger(granted.ephemeralAuthorityProtocol)
+            ? granted.ephemeralAuthorityProtocol
+            : null,
         }, granted?.[AUTHORITY_CAPTURE] ?? null);
       },
       (error) => {
@@ -3546,6 +3629,9 @@ export class SnapbackClient {
 
   health() { return this.#req('GET', '/health'); }
   inspect() { return this.#req('GET', '/inspect'); }
+  prepareReactBinding(options) {
+    return prepareReactBindingForClient(this, options);
+  }
 
   async authRequestCode(email) {
     if (this.authCoordinator) await this.authSession();
@@ -4019,6 +4105,79 @@ export class SnapbackClient {
     }
     return outcome;
   }
+  async #requireVersionedSeedCapability(capability) {
+    const inspection = await this.inspect();
+    const supported = inspection?.capabilityManifest?.supportedCapabilities ?? [];
+    if (!Array.isArray(supported) || !supported.includes(capability)) {
+      const diagnostic = {
+        code: 'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+        message: `target does not advertise required versioned seed capability ${capability}`,
+        details: { capability },
+      };
+      const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+      error.code = diagnostic.code;
+      error.diagnostic = diagnostic;
+      throw error;
+    }
+  }
+  async ensureVersionedSeed(artifact, {
+    operationId = newSeedOperationIdV1(),
+    requestedMode = 'dev',
+  } = {}) {
+    await this.#requireVersionedSeedCapability('versioned_seed_install_v1');
+    return this.#adminReq('POST', '/_snapback/api/app/seed/ensure-v1', {
+      formatVersion: 'snapback.seed.install-request.v1',
+      operationId,
+      artifact,
+      requestedMode,
+    });
+  }
+  async previewVersionedSeed(artifact, {
+    operation = 'install',
+    requestedMode = 'dev',
+    expectedDataVersionStream,
+  } = {}) {
+    const capability = operation === 'install'
+      ? 'versioned_seed_install_v1'
+      : 'versioned_seed_reset_v1';
+    await this.#requireVersionedSeedCapability(capability);
+    return this.#adminReq('POST', '/_snapback/api/app/seed/preview-v1', {
+      formatVersion: 'snapback.seed.preview-request.v1',
+      ...(artifact ? { artifact } : {}),
+      requestedMode,
+      operation,
+      ...(expectedDataVersionStream ? { expectedDataVersionStream } : {}),
+    });
+  }
+  async resetInstallVersionedSeed(artifact, {
+    operationId = newSeedOperationIdV1(),
+    requestedMode = 'dev',
+    expectedDataVersionStream,
+  } = {}) {
+    await this.#requireVersionedSeedCapability('versioned_seed_reset_v1');
+    return this.#adminReq('POST', '/_snapback/api/app/seed/reset-install-v1', {
+      formatVersion: 'snapback.seed.reset-request.v1',
+      operationId,
+      operation: 'resetInstall',
+      requestedMode,
+      expectedDataVersionStream,
+      artifact,
+    });
+  }
+  async clearVersionedSeed({
+    operationId = newSeedOperationIdV1(),
+    requestedMode = 'dev',
+    expectedDataVersionStream,
+  } = {}) {
+    await this.#requireVersionedSeedCapability('versioned_seed_reset_v1');
+    return this.#adminReq('POST', '/_snapback/api/app/seed/clear-v1', {
+      formatVersion: 'snapback.seed.reset-request.v1',
+      operationId,
+      operation: 'clear',
+      requestedMode,
+      expectedDataVersionStream,
+    });
+  }
   // app.reset folds seed in as an optional argument (LLP 0031 D5): reset() wipes,
   // reset(seed) / seed(seed) reset-then-seed. There is no seed-without-reset path.
   reset(seed) { return this.#adminReq('POST', '/_snapback/api/app/reset', seed ? { seed } : {}); }
@@ -4037,6 +4196,36 @@ export class SnapbackClient {
       undefined,
       { expectedAuthorityCapture: authorityCapture },
     );
+  }
+
+  async search(ref, {
+    query,
+    limit,
+    after,
+    userId,
+    readSet = [],
+    authorityCapture = null,
+  } = {}) {
+    if (!query || typeof query !== 'object' || !Array.isArray(query.all)) {
+      throw new TypeError('Snapback search requires a structured SearchQueryAstV1');
+    }
+    const args = {
+      query,
+      ...(limit !== undefined ? { limit } : {}),
+      ...(after !== undefined ? { after } : {}),
+    };
+    const output = await this.query(ref, {
+      args,
+      userId,
+      readSet,
+      authorityCapture,
+    });
+    const cursor = output?.cursor ?? null;
+    return {
+      items: Array.isArray(output?.rows) ? output.rows : [],
+      cursor,
+      hasMore: cursor !== null,
+    };
   }
 
   /// Mint a bundle boot idempotency key (LLP 0092 §0D.3): 22-char base64url
@@ -4345,6 +4534,7 @@ export class SnapbackClient {
         () => overlay.applyInitialSnapshot(snapshot),
       );
       if (!committed.committed) throw staleAuthorityError();
+      await this.#republishAfterAuthorityReplacement(collection, snapshot, overlay);
       return overlay;
     } catch (error) {
       overlay?.dispose();
@@ -4363,6 +4553,86 @@ export class SnapbackClient {
         }).catch(() => {});
       }
       throw error;
+    }
+  }
+
+  registerEphemeralRepublisher(ref, callback) {
+    const collection = collectionName(ref);
+    if (typeof callback !== 'function') {
+      throw new TypeError('registerEphemeralRepublisher requires a callback');
+    }
+    let registrations = this.__ephemeralRepublishers.get(collection);
+    if (!registrations) {
+      registrations = new Set();
+      this.__ephemeralRepublishers.set(collection, registrations);
+    }
+    if (registrations.size >= 64) {
+      const error = new Error('SNAPBACK_EPHEMERAL_REPUBLISHER_LIMIT: at most 64 registrations per collection');
+      error.code = 'SNAPBACK_EPHEMERAL_REPUBLISHER_LIMIT';
+      throw error;
+    }
+    const registration = { callback, disposed: false };
+    registrations.add(registration);
+    const dispose = () => {
+      if (registration.disposed) return;
+      registration.disposed = true;
+      registrations.delete(registration);
+      if (registrations.size === 0) this.__ephemeralRepublishers.delete(collection);
+    };
+    return Object.freeze({ dispose });
+  }
+
+  async #republishAfterAuthorityReplacement(collection, snapshot, overlay) {
+    const message = unwrapEphemeralMessage(snapshot);
+    const authority = snapshot?.ephemeralAuthorityInstance
+      ?? snapshot?.ephemeral_authority_instance
+      ?? message?.Snapshot?.ephemeralAuthorityInstance
+      ?? message?.Snapshot?.ephemeral_authority_instance
+      ?? null;
+    if (typeof authority !== 'string' || authority.length === 0) return;
+    const previous = this.__ephemeralAuthorityByCollection.get(collection);
+    this.__ephemeralAuthorityByCollection.set(collection, authority);
+    if (previous === undefined || previous === authority) return;
+    const entries = message?.Snapshot?.entries;
+    if (!Array.isArray(entries) || entries.length !== 0) return;
+    const registrations = [...(this.__ephemeralRepublishers.get(collection) ?? [])];
+    if (registrations.length === 0) return;
+    const generation = ++this.__ephemeralRepublisherGeneration;
+    for (const registration of registrations) {
+      if (registration.disposed || generation !== this.__ephemeralRepublisherGeneration) return;
+      let acknowledged = false;
+      const publish = async (value, options = {}) => {
+        if (registration.disposed || generation !== this.__ephemeralRepublisherGeneration) {
+          const error = new Error('SNAPBACK_EPHEMERAL_REPUBLISHER_STALE: authority changed while republishing');
+          error.code = 'SNAPBACK_EPHEMERAL_REPUBLISHER_STALE';
+          throw error;
+        }
+        const outcome = await overlay.publish(value, options);
+        acknowledged = outcome?.accepted !== false && outcome?.ok !== false;
+        if (!acknowledged) {
+          const error = new Error('SNAPBACK_EPHEMERAL_REPUBLISH_UNACKNOWLEDGED: successor publish was not accepted');
+          error.code = 'SNAPBACK_EPHEMERAL_REPUBLISH_UNACKNOWLEDGED';
+          throw error;
+        }
+        return outcome;
+      };
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error('SNAPBACK_EPHEMERAL_REPUBLISH_TIMEOUT: callback exceeded 5000ms');
+          error.code = 'SNAPBACK_EPHEMERAL_REPUBLISH_TIMEOUT';
+          reject(error);
+        }, 5_000);
+      });
+      try {
+        const result = await Promise.race([
+          Promise.resolve(registration.callback(Object.freeze({ collection, publish }))),
+          timeout,
+        ]);
+        if (result !== undefined && !acknowledged) await publish(result);
+      } finally {
+        clearTimeout(timer);
+      }
     }
   }
 
@@ -4776,6 +5046,49 @@ export class SnapbackClient {
     return manager;
   }
 
+  // @ref LLP 0102#closed-connection-and-cancellation-protocol — registries
+  // receive a cancellation handle before asynchronous subscription admission.
+  startLiveQuery(ref, options = {}) {
+    let current = null;
+    let disposed = false;
+    let cleanup = Promise.resolve();
+    const { supersedes = null, ...liveOptions } = options;
+    const start = this.liveQuery(ref, {
+      ...liveOptions,
+      supersedesSubscriptionId: supersedes?.current?.subscriptionId ?? null,
+    }).then(async (handle) => {
+      current = handle;
+      if (disposed) {
+        try {
+          handle.dispose();
+        } finally {
+          cleanup = Promise.resolve(handle.settled?.()).catch(() => {});
+          await cleanup;
+        }
+      }
+    });
+    const observedStart = start.catch(() => {});
+    return Object.freeze({
+      get current() { return current; },
+      started() { return start; },
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        if (current) {
+          try {
+            current.dispose();
+          } finally {
+            cleanup = Promise.resolve(current.settled?.()).catch(() => {});
+          }
+        }
+      },
+      async settled() {
+        await observedStart;
+        await cleanup;
+      },
+    });
+  }
+
   // The "current value + subscription" seam as a live handle: holds the latest
   // rows, starting from the authoritative snapshot (snapshot-with-subscribe,
   // one operation — LLP 0034 §1 / Exact LLP 0284 §2.1 rule 1).
@@ -4823,6 +5136,9 @@ export class SnapbackClient {
     // loss or resync re-enters through the ordinary fresh subscribe,
     // superseding the adopted registration.
     registeredSubscription = null,
+    // Provider-registry-only one-for-one predecessor handoff. Ordinary
+    // callers leave this null.
+    supersedesSubscriptionId = null,
   } = {}) {
     if (this.__externalBearerTransition) {
       await this.__externalBearerTransition;
@@ -4910,6 +5226,8 @@ export class SnapbackClient {
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
     let pauseReleasePromise = Promise.resolve();
+    let initialSupersedes = supersedesSubscriptionId;
+    let cleanupTail = Promise.resolve();
 
     const handle = {
       subscriptionId: null,
@@ -5869,13 +6187,17 @@ export class SnapbackClient {
     const bestEffortUnsubscribeLive = (
       subscriptionId,
       retirementState = authorizationTaskState(handleAuthorityCapture),
-    ) => unsubscribeLiveForLifecycle(subscriptionId, retirementState)
+    ) => {
+      const cleanup = unsubscribeLiveForLifecycle(subscriptionId, retirementState)
         .catch(() => {
           // Best-effort: the subscription may already be gone (disconnect,
           // supersession) or the server unreachable — the reaper covers it.
           // Never finish a retiring predecessor after its lifecycle/fence was
           // replaced; owner continuity remains until authoritative cleanup.
         });
+      cleanupTail = Promise.allSettled([cleanupTail, cleanup]).then(() => {});
+      return cleanup;
+    };
 
     const subscribeLifecycleError = (state) => {
       const code = state === 'disposed'
@@ -6129,7 +6451,7 @@ export class SnapbackClient {
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
       // Capture only after acquiring the per-handle subscribe queue.
-      const supersedes = handle.subscriptionId ?? null;
+      const supersedes = handle.subscriptionId ?? initialSupersedes;
       let attempt = null;
       let readinessRetries = 0;
       for (;;) {
@@ -6214,6 +6536,7 @@ export class SnapbackClient {
         }
       }
       const { sub, epochAtStart, demandEpochAtStart, heldResume } = attempt;
+      initialSupersedes = null;
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
       try {
@@ -6891,6 +7214,17 @@ export class SnapbackClient {
       if (firstCleanupError) throw firstCleanupError;
     };
 
+    handle.settled = async () => {
+      await Promise.allSettled([
+        freshSubscribeTail,
+        pauseReleasePromise,
+        cleanupTail,
+      ]);
+      if (disposed && transport === 'stream') {
+        await client.__liveStreamManagers?.get(connectionId)?.settled?.();
+      }
+    };
+
     await establish();
     return handle;
   }
@@ -6923,6 +7257,7 @@ class LiveStreamManager {
     // and close the manager even while a caller is awaiting readiness.
     this.readinessStateListeners = new Set();
     this.pendingRequests = new Map();
+    this.settlementWaiters = new Set();
 
     this.ws = null;
     this.open = false;
@@ -6982,6 +7317,11 @@ class LiveStreamManager {
 
   isReady() {
     return this.open && this.readyGeneration === this.socketGeneration;
+  }
+
+  settled() {
+    if (this.closed) return Promise.resolve();
+    return new Promise((resolve) => this.settlementWaiters.add(resolve));
   }
 
   /// Prove the CURRENT socket generation through a correlated ping/pong.
@@ -7652,6 +7992,8 @@ class LiveStreamManager {
     this.stateListeners.clear();
     this.readinessStateListeners.clear();
     this.onRelease();
+    for (const resolve of this.settlementWaiters) resolve();
+    this.settlementWaiters.clear();
   }
 }
 
@@ -7772,6 +8114,8 @@ export class EphemeralOverlay {
     this.userId = userId;
     this.permissions = permissions;
     this.scopeEpoch = null;
+    this.ephemeralAuthorityInstance = null;
+    this.__retiredEphemeralAuthorities = new Set();
     this.highWaterVersion = 0;
     this.entries = new Map();
     this.tombstones = new Map();
@@ -7972,6 +8316,43 @@ export class EphemeralOverlay {
     }
     const message = unwrapEphemeralMessage(input);
     if (!message) return 'not_ephemeral';
+    const authority = input?.ephemeralAuthorityInstance
+      ?? input?.ephemeral_authority_instance
+      ?? Object.values(message)[0]?.ephemeralAuthorityInstance
+      ?? Object.values(message)[0]?.ephemeral_authority_instance
+      ?? null;
+    const requiresAuthority = this.client.authProtocols?.ephemeralAuthority != null;
+    if (requiresAuthority && (typeof authority !== 'string' || authority.length === 0)) {
+      this.entries.clear();
+      this.tombstones.clear();
+      this.highWaterVersion = 0;
+      this.needsResync = true;
+      this.#notifyChange('needs_resync');
+      return 'authority_missing';
+    }
+    if (typeof authority === 'string' && authority.length > 0) {
+      if (this.__retiredEphemeralAuthorities.has(authority)) return 'ignored_stale_authority';
+      if (
+        this.ephemeralAuthorityInstance !== null
+        && this.ephemeralAuthorityInstance !== authority
+      ) {
+        const isSnapshot = message.Snapshot !== undefined;
+        if (!isSnapshot) {
+          this.entries.clear();
+          this.tombstones.clear();
+          this.highWaterVersion = 0;
+          this.needsResync = true;
+          this.#notifyChange('needs_resync');
+          return 'authority_changed';
+        }
+        this.__retiredEphemeralAuthorities.add(this.ephemeralAuthorityInstance);
+        this.entries.clear();
+        this.tombstones.clear();
+        this.scopeEpoch = null;
+        this.highWaterVersion = 0;
+      }
+      this.ephemeralAuthorityInstance = authority;
+    }
     if (this.__connectionContinuityLost) {
       // A delayed predecessor Snapshot is no more trustworthy than a delayed
       // delta after connection-wide continuity loss. Ordinary room-scoped

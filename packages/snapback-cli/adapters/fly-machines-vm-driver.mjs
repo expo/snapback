@@ -2,15 +2,13 @@
 // @ref LLP 0072#adapter-contract-and-first-profile — the first concrete
 // provider driver for `single-instance-container-vm.v1`, speaking the closed
 // stdin protocol against the real Fly Machines API. This slice implements the
-// read-only observation surface (`doctor`, `inspect`) and the bounded
-// provider-event `logs` query. It never fabricates provider facts: every
+// observation surface (`doctor`, `inspect`), provider lease endpoints, and
+// the bounded provider-event `logs` query. It never fabricates provider facts: every
 // response digests the raw provider bytes it derived from, `remoteEvidence`
 // is true only against the canonical provider endpoint, and read-back
 // verification (two independent fetches, equal digests) backs every
-// `remoteProviderAttestation`. Lifecycle operations (upload, provision,
-// stage, activate, rollback, backup, restore) are NOT implemented here and
-// fail closed at the process boundary; `inspectAdmin` refuses in-protocol
-// until the served-manifest sourcing is wired (remaining-surface ticket).
+// `remoteProviderAttestation`. Remaining lifecycle operations fail closed;
+// `inspectAdmin` refuses until served-manifest sourcing is wired.
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -18,6 +16,7 @@ import { execFileSync } from 'node:child_process';
 const CANONICAL_API_BASE = 'https://api.machines.dev';
 const RESPONSE_SCHEMA = 'snapback.vm-adapter-response.v1';
 const QUERY_RESPONSE_SCHEMA = 'snapback.vm-adapter-query-response.v1';
+const LIFECYCLE_RESPONSE_SCHEMA = 'snapback.vm-adapter-lifecycle-response.v1';
 const CAPABILITY_GAPS = [
   'control-plane.release-manifest',
   'control-plane.lifecycle-train',
@@ -93,6 +92,24 @@ async function providerGet(base, token, path) {
   return { status: response.status, body, roundTripMs: Date.now() - startedAt, uri: `${CANONICAL_API_BASE}${path}` };
 }
 
+async function providerEffect(base, token, path, { method, body = null, leaseNonce = null }) {
+  const response = await fetch(`${base}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(leaseNonce ? { 'fly-machine-lease-nonce': leaseNonce } : {}),
+    },
+    ...(body === null ? {} : { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  return {
+    status: response.status,
+    body: await response.text(),
+    uri: `${CANONICAL_API_BASE}${path}`,
+  };
+}
+
 async function probeOriginTls(origin) {
   try {
     const response = await fetch(`${origin}/`, { method: 'HEAD', signal: AbortSignal.timeout(6_000), redirect: 'manual' });
@@ -128,6 +145,23 @@ async function observe(target) {
   }
   const appFacts = JSON.parse(appRead.body);
   const machines = JSON.parse(machinesRead.body);
+  // @ref LLP 0105#one-fail-closed-hosted-authority-and-recoverable-supervisor
+  // — stale/zero/multiple/ambiguous roster facts withdraw every protected
+  // hosted path. V1 has no independent route roster endpoint, so every
+  // Machine in the bound app is conservatively treated as production-routed.
+  if (machines.length !== 1) {
+    return {
+      observation: null,
+      credentialStatus: 'ready',
+      diagnostics: [{
+        code: 'SNAPBACK_EPHEMERAL_ROUTING_UNSAFE',
+        severity: 'error',
+        message: `expected exactly one Machine in the bound app; observed ${machines.length}`,
+      }],
+      canonical,
+      raw: [appRead, machinesRead],
+    };
+  }
   const machine = machines.find((entry) => entry.state === 'started') ?? machines[0];
   if (!machine) {
     return { observation: null, credentialStatus: 'ready', diagnostics: [{ code: 'SNAPBACK_ADAPTER_NO_MACHINE', severity: 'error', message: 'application has no machines' }], canonical, raw: [] };
@@ -288,6 +322,109 @@ function finishQuery(request, content) {
   return { ...withoutOutput, outputSha256 };
 }
 
+function finishLifecycle(request, content) {
+  const inputSha256 = sha256(Buffer.from(`snapback-vm-adapter-lifecycle-input-v1\0${canonicalJson(request)}`));
+  const withoutOutput = {
+    schemaVersion: LIFECYCLE_RESPONSE_SCHEMA,
+    operation: request.operation,
+    operationId: request.operationId,
+    idempotentReplay: false,
+    remoteEvidence: false,
+    inputSha256,
+    ...content,
+  };
+  const outputSha256 = sha256(Buffer.from(`snapback-vm-adapter-lifecycle-output-v1\0${canonicalJson(withoutOutput)}`));
+  return { ...withoutOutput, outputSha256 };
+}
+
+async function handleLifecycle(request) {
+  const refuse = (code, message, diagnostics = []) => finishLifecycle(request, {
+    ok: false,
+    lease: request.lease ?? null,
+    observation: null,
+    evidence: [],
+    backup: null,
+    restore: null,
+    diagnostics: [...diagnostics, { code, severity: 'error', message }],
+  });
+  if (!['acquireLease', 'releaseLease'].includes(request.operation)) {
+    return refuse(
+      'SNAPBACK_ADAPTER_OPERATION_UNSUPPORTED',
+      `lifecycle operation ${boundedText(request.operation, 64)} is not implemented by this driver`,
+    );
+  }
+  const result = await observe(request.target);
+  if (!result.observation) {
+    return finishLifecycle(request, {
+      ok: false,
+      lease: request.lease ?? null,
+      observation: null,
+      evidence: [],
+      backup: null,
+      restore: null,
+      diagnostics: result.diagnostics,
+    });
+  }
+  if (request.operation === 'releaseLease' && !request.lease?.leaseId) {
+    return refuse('SNAPBACK_DEPLOY_LEASE_INVALID', 'releaseLease requires the exact acquired lease');
+  }
+  const { base, canonical } = apiBase();
+  const credential = resolveCredential(request.target.adapter.credentialRef);
+  const path = `/v1/apps/${result.app}/machines/${result.machine.id}/lease`;
+  const effect = request.operation === 'acquireLease'
+    ? await providerEffect(base, credential.token, path, {
+      method: 'POST',
+      body: { description: `snapback:${request.operationId}`, ttl: 60 },
+    })
+    : await providerEffect(base, credential.token, path, {
+      method: 'DELETE',
+      leaseNonce: request.lease.leaseId,
+    });
+  const expectedStatus = request.operation === 'acquireLease' ? 201 : 200;
+  if (effect.status !== expectedStatus) {
+    return refuse(
+      effect.status === 409
+        ? 'SNAPBACK_DEPLOY_LEASE_CONFLICT'
+        : 'SNAPBACK_ADAPTER_PROVIDER_EFFECT_FAILED',
+      `provider ${request.operation} failed (http ${effect.status})`,
+    );
+  }
+  let parsed = {};
+  try { parsed = JSON.parse(effect.body); } catch { /* verified below */ }
+  const now = Date.now();
+  const lease = request.operation === 'acquireLease' ? {
+    leaseId: parsed?.data?.nonce,
+    targetId: request.target.targetId,
+    operationId: request.operationId,
+    expectedActivationGeneration: result.observation.activationGeneration,
+    acquiredAtMs: now,
+    expiresAtMs: Number(parsed?.data?.expires_at) * 1_000,
+  } : null;
+  if (request.operation === 'acquireLease' && (
+    typeof lease.leaseId !== 'string'
+    || !Number.isSafeInteger(lease.expiresAtMs)
+    || lease.expiresAtMs <= now
+  )) {
+    return refuse('SNAPBACK_DEPLOY_LEASE_INVALID', 'provider returned an invalid lease');
+  }
+  return finishLifecycle(request, {
+    ok: true,
+    remoteEvidence: canonical,
+    lease,
+    observation: result.observation,
+    evidence: canonical ? [{
+      kind: 'remoteProviderAttestation',
+      uri: effect.uri,
+      sha256: sha256(Buffer.from(effect.body)),
+      bytes: Buffer.byteLength(effect.body),
+      verified: true,
+    }] : [],
+    backup: null,
+    restore: null,
+    diagnostics: result.diagnostics,
+  });
+}
+
 async function main() {
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
@@ -304,6 +441,10 @@ async function main() {
   }
   if (request?.schemaVersion === 'snapback.vm-adapter-query-request.v1') {
     process.stdout.write(`${JSON.stringify(await handleQuery(request))}\n`);
+    return;
+  }
+  if (request?.schemaVersion === 'snapback.vm-adapter-lifecycle-request.v1') {
+    process.stdout.write(`${JSON.stringify(await handleLifecycle(request))}\n`);
     return;
   }
   // Lifecycle and any unrecognized operations fail closed at the process

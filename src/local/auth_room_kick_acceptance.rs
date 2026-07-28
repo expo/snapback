@@ -1001,6 +1001,7 @@ fn game_schema() -> SchemaManifest {
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["gameId".to_owned(), "userId".to_owned()]),
+                search_indexes: Vec::new(),
                 membership: None,
             },
             TableManifest {
@@ -1030,6 +1031,7 @@ fn game_schema() -> SchemaManifest {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             },
         ],

@@ -211,9 +211,14 @@ pub(crate) fn operation_profile_requirement(
     has_dev_user: bool,
 ) -> OperationProfileRequirement {
     match operation {
-        "app.reset" | "app.ensure.provision" | "schema.load" | "functions.load" => {
-            OperationProfileRequirement::NonProd
-        }
+        "app.reset"
+        | "app.ensure.provision"
+        | "app.seed.ensure.v1"
+        | "app.seed.preview.v1"
+        | "app.seed.reset-install.v1"
+        | "app.seed.clear.v1"
+        | "schema.load"
+        | "functions.load" => OperationProfileRequirement::NonProd,
         // The direct and multiplexed runners are developer/operator bypass
         // surfaces even when they project an anonymous handler input. Hosted
         // production invocation goes through the ordinary app-data gate.
@@ -2693,6 +2698,7 @@ mod tests {
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()

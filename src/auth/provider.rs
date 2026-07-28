@@ -948,7 +948,8 @@ impl ProviderSessionIssuancePlan {
         if self.sender_issuance.replace(commitment).is_some() {
             return Err(provider_unavailable());
         }
-        let bearer = SessionBearer::generate_sender_v2(random).map_err(|_| provider_unavailable())?;
+        let bearer =
+            SessionBearer::generate_sender_v2(random).map_err(|_| provider_unavailable())?;
         let token_hash = bearer.token_hash();
         self.projected.token_digest = TokenDigest::from_token_hash(&token_hash);
         self.candidate.bearer = Some(bearer);
@@ -1685,17 +1686,18 @@ impl AuthAdmission {
                 // family binding (not the presented spelling) selects the
                 // successor spelling, so every successor of a sender-bound
                 // family stays `sbs2_`.
-                let sender_bound = crate::auth::sender_proof::presented_token_has_sender_family_binding(
-                    connection,
-                    token_hash.as_bytes(),
-                )
-                .map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
-                        "auth",
-                        "sender family binding state is unavailable",
+                let sender_bound =
+                    crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                        connection,
+                        token_hash.as_bytes(),
                     )
-                })?;
+                    .map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                            "auth",
+                            "sender family binding state is unavailable",
+                        )
+                    })?;
                 Ok((lookup, sender_bound))
             })
             .map_err(|_| provider_unavailable())?;

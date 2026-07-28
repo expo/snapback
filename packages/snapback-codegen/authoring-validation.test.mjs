@@ -67,6 +67,48 @@ function handlerWith(statement) {
 
 {
   const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  notes: defineTable({ body: v.string(), status: v.string() }).searchIndex('search_notes', {
+    semanticVersion: 'notes.v1',
+    textFields: { body: { weight: 1, classification: 'public' } },
+    equalityFilters: ['status'],
+  }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID'
+    && diagnostic.requiredFields?.includes('status')
+  )));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  notes: defineTable({ body: v.string(), status: v.string() }).searchIndex('search_notes', {
+    semanticVersion: 'notes.v1',
+    textFields: { body: { weight: 1, classification: 'public' } },
+    fieldClassifications: { status: 'private' },
+    storedFields: ['status'],
+    visibility: { kind: 'public-read' },
+  }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID'
+    && diagnostic.field === 'status'
+  )));
+}
+
+{
+  const diagnostics = await invalidCase({
     functions: `
 import { defineQuery } from '${defineUrl}';
 export const listTodos = defineQuery({ table: 'todos', args: { forged: {} } });
@@ -687,10 +729,79 @@ export default defineRoutes([
 import { defineRoutes } from '${defineUrl}';
 export default defineRoutes([{ route: '/', queries: [{ function: 'listTodos', args: {} }] }]);
 `), 'ROUTES_ARGS_INVALID');
-  expectCode(await routesCase(`
+expectCode(await routesCase(`
 import { defineRoutes, routeParam } from '${defineUrl}';
 export default defineRoutes([{ route: '/t/:title', queries: [{ function: 'listTodos', args: { title: 'x', extra: [routeParam('title')] } }] }]);
 `), 'ROUTES_ARGS_INVALID');
+}
+
+{
+  // @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — authoring
+  // emits the closed index and SearchQuery plan rather than backend syntax.
+  const result = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const incidents = defineTable({
+  title: v.string(),
+  status: v.string(),
+  owner: v.principal(),
+}).searchIndex('search_incidents', {
+  semanticVersion: 'incidents.v1',
+  textFields: { title: { weight: 8, classification: 'private' } },
+  fieldClassifications: { owner: 'private', status: 'private' },
+  equalityFilters: ['status'],
+  storedFields: ['owner', 'status', 'title'],
+  highlightFields: ['title'],
+  visibility: { kind: 'owner', field: 'owner' },
+});
+export default defineSchema({ incidents });
+`,
+    functions: `
+import { defineSearchQuery } from '${defineUrl}';
+import { incidents } from './schema.mjs';
+export const searchIncidents = defineSearchQuery({
+  table: incidents,
+  index: 'search_incidents',
+});
+`,
+  });
+  const schema = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.equal(schema.requiredCapabilities.includes('full_text_search_v1'), true);
+  assert.equal(schema.tables[0].searchIndexes[0].analyzer, 'snapback-category-unicode17-v1');
+  assert.equal(schema.tables[0].searchIndexes[0].visibility.kind, 'owner');
+  assert.deepEqual(schema.tables[0].searchIndexes[0].fieldClassifications, {
+    owner: 'private',
+    status: 'private',
+  });
+  const functions = JSON.parse(readFileSync(join(result.outDir, 'functions.manifest.json'), 'utf8'));
+  const searchPlan = functions.functions[0].runtime.HostPlan.SearchQuery;
+  assert.deepEqual(searchPlan, {
+    table: 'incidents',
+    index: 'search_incidents',
+    parser: 'snapback-search-parser-v1',
+    resultProjection: 'search-page-v1',
+    requiredCapability: 'full_text_search_v1',
+  });
+  assert.equal(functions.functions[0].authRequirement, 'authenticated');
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  notes: defineTable({ body: v.string() }).searchIndex('search_notes', {
+    semanticVersion: 'notes.v1',
+    textFields: { body: { weight: 1, classification: 'sensitive' } },
+  }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => (
+    diagnostic.code === 'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID'
+    && diagnostic.field === 'body'
+  )));
 }
 
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

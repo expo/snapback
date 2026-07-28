@@ -19,6 +19,7 @@ import { exactContractWeb } from '@exact/devtools/contract-web';
 // mechanics, and degrade-to-shell). Imported relatively like the rest of the
 // demo's repo-local modules; the plugin is dependency-free by design.
 import { snapbackChannelA } from '../../../../packages/snapback-vite/channel-a.mjs';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const snapbackTarget = process.env.SNAPBACK_GRAFFITI_API ?? 'http://127.0.0.1:4431';
 const generatedDir = join(__dirname, '..', '..', 'snapback', 'generated');
@@ -26,6 +27,10 @@ const generatedDir = join(__dirname, '..', '..', 'snapback', 'generated');
 export default () => ({
   root: __dirname,
   plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [generatedDir],
+    }),
     // Before the Exact preset so the seam sees matching document requests
     // first; unmanifested (or degraded) requests fall through untouched.
     snapbackChannelA({

@@ -5,10 +5,15 @@
   "description": "Installable Snapback developer loop and native server launcher.",
   "files": [
     "cli.mjs",
+    "comparator-profile.mjs",
+    "comparator-receipt.schema.json",
     "deployment-control.mjs",
     "hosted-admission-producer.mjs",
     "index.mjs",
     "mcp-control.mjs",
+    "runtime-recovery.mjs",
+    "fixtures/comparator/green.config.mjs",
+    "fixtures/comparator/app/snapback",
     "templates"
   ],
   "bin": {
@@ -16,8 +21,11 @@
   },
   "exports": {
     ".": "./index.mjs",
+    "./comparator": "./comparator-profile.mjs",
+    "./comparator-receipt.schema.json": "./comparator-receipt.schema.json",
     "./deployment-control": "./deployment-control.mjs",
     "./hosted-admission-producer": "./hosted-admission-producer.mjs",
+    "./runtime-recovery": "./runtime-recovery.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -35,6 +43,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node comparator-profile.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }

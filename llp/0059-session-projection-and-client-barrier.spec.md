@@ -3005,3 +3005,13 @@ per-storage-key Web-Lock one-key localStorage protocol.
 
 The reviews advised and the author ratified after their material findings were
 closed. This document is Accepted; neither LLP 0039 nor LLP 0053 is unfrozen.
+
+## Dated amendment: versioned seed reset reuse (2026-07-27)
+
+LLP 0103 reset-install and clear are callers of this Spec's existing single
+reset coordinator, not alternate reset implementations. Their protected
+identity/operation writes occur in the same SQLite transaction as deletion and
+data-stream rotation. They retain the stream ticket, blocked admission,
+successor projection/issuer publication, commit-uncertainty reconciliation,
+and release/response ordering defined here. A postcommit failure therefore
+reconciles the committed successor and never reruns seed row effects.

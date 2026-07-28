@@ -148,9 +148,7 @@ pub enum HandlerInvokeResponse {
     /// The harness refused or failed the invocation before settlement
     /// (transport auth, body limits, unknown route, missing deadline
     /// capability). Also carried on non-200 statuses.
-    Fatal {
-        fatal: String,
-    },
+    Fatal { fatal: String },
     /// The handler (or its detached work) outlived the settlement deadline;
     /// the invocation failed and committed no writes.
     DidNotSettle {

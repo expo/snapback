@@ -50,12 +50,16 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves eight request spellings:
+The endpoint serves twelve request spellings:
 
 | Request operation | Purpose |
 | --- | --- |
 | `app.inspect` | Full runtime/artifact/capability projection. |
 | `app.reset` | Coordinated destructive reset, optionally with seed. |
+| `app.seed.ensure.v1` | Install a generated versioned seed or observe its current match. |
+| `app.seed.preview.v1` | Classify a versioned install/reset/clear without writing. |
+| `app.seed.reset-install.v1` | Coordinated destructive reset plus versioned install. |
+| `app.seed.clear.v1` | Coordinated destructive clear with an idempotent receipt. |
 | `schema.load` | Load a generated schema manifest. |
 | `functions.load` | Load a generated function/config/cron manifest. |
 | `function.run` | Run a query/live query, mutation, or action with its kind-specific gate. |
@@ -68,23 +72,27 @@ verbs—a running server cannot safely own starting/stopping itself.
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`.
 
-## The exact 13 registry identities
+## The exact 17 registry identities
 
-The HTTP request names above expand into these 13 audited operation identities:
+The HTTP request names above expand into these 17 audited operation identities:
 
 1. `host_ops.app.inspect`
 2. `host_ops.function.explain`
 3. `host_ops.function.explain.impersonated`
 4. `host_ops.app.reset`
-5. `host_ops.schema.load`
-6. `host_ops.functions.load`
-7. `host_ops.auth.mintSession`
-8. `host_ops.auth.rescueCollidingTable`
-9. `host_ops.function.run.query`
-10. `host_ops.function.run.mutation`
-11. `host_ops.function.run.action`
-12. `host_ops.function.run.unknown`
-13. `host_ops.function.run.impersonated`
+5. `host_ops.app.seed.ensure.v1`
+6. `host_ops.app.seed.preview.v1`
+7. `host_ops.app.seed.reset-install.v1`
+8. `host_ops.app.seed.clear.v1`
+9. `host_ops.schema.load`
+10. `host_ops.functions.load`
+11. `host_ops.auth.mintSession`
+12. `host_ops.auth.rescueCollidingTable`
+13. `host_ops.function.run.query`
+14. `host_ops.function.run.mutation`
+15. `host_ops.function.run.action`
+16. `host_ops.function.run.unknown`
+17. `host_ops.function.run.impersonated`
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
@@ -96,8 +104,11 @@ The admin credential authenticates the transport; it does not silently invent
 an app caller. In sessions mode, sensitive query/explain results additionally
 require the bounded admin-secret-read lease. An impersonated branch requires
 the process-bound capability and is unavailable in production. Destructive
-reset runs through the authorization-stream coordinator and fails closed if
-that projection is unavailable.
+reset, versioned reset-install, and versioned clear run through the same
+authorization-stream coordinator and fail closed if that projection is
+unavailable. Every `app.seed.*.v1` operation is AdminWrite + NonProd,
+including preview. Its Rust-owned body belongs only under `input`; legacy
+`seed`/`schema`/`functions` siblings are refused.
 
 The partial local `servicePrincipal`/scoped-token slice is admitted only by
 generated app-data calls. Host operations—including `function.run`—do not

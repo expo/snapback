@@ -4,8 +4,8 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/server.rs, schemas/mutation.output.schema.json, demos/todo/snapback/functions.mjs, demos/todo/snapback/handlers.mjs, demos/todo/tests/acceptance/headless.mjs]
-examples: [demos/todo, demos/todo-v2]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0101-inline-handlers-and-result-contracts.spec.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/backend-bakeoff/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+examples: [demos/todo, demos/todo-v2, demos/backend-bakeoff]
 status: current
 targets: [local]
 maturity: shipped
@@ -27,27 +27,59 @@ same monotonic version. A rejected mutation commits nothing.
 
 ## Define the write boundary
 
-The JS form declares arguments, handler source, and its possible writes:
+The paved JS form colocates its direct handler expression with arguments,
+result contract, and possible writes:
 
-```js source=demos/todo/snapback/functions.mjs
-export const createTodo = defineJsMutation({
-  args: { title: v.string() },
-  source: 'handlers.mjs',
-  exportName: 'createTodo',
-  writes: ['todos'],
+```js source=demos/backend-bakeoff/snapback/functions.mjs
+export const createIncident = defineJsMutation({
+  args: {
+    title: v.string(),
+    severity: v.string(),
+    actorId: v.string(),
+    now: v.integer(),
+  },
+  result: results.value(v.id('incidents')),
+  writes: ['incidents', 'activity'],
+  handler: async (ctx, args) => {
+    const title = String(args.title ?? '').trim();
+    if (!title) throw new Error('incident title is required');
+    if (!new Set(['SEV-1', 'SEV-2', 'SEV-3']).has(args.severity)) {
+      throw new Error('invalid severity');
+    }
+    const incidentId = await ctx.db.insert('incidents', {
+      title,
+      summary: 'Investigation started. Add tasks and field notes as evidence arrives.',
+      severity: args.severity,
+      status: 'investigating',
+      commanderId: args.actorId,
+      createdAt: args.now,
+      updatedAt: args.now,
+    });
+    await ctx.db.insert('activity', {
+      incidentId,
+      actorId: args.actorId,
+      sourceTable: 'incidents',
+      sourceId: incidentId,
+      operation: 'insert',
+      effectiveSubject: args.actorId,
+      actualActor: args.actorId,
+      actorKind: 'human',
+      mutationDigest: 'explicit-js-handler.v1',
+      kind: 'incident.created',
+      detail: `${args.severity} incident opened`,
+      createdAt: args.now,
+      sortKey: args.now,
+    });
+    return incidentId;
+  },
 });
 ```
 
-The handler writes only through `ctx.db`. Server-owned ids, timestamps, and
-row versions are not arguments and are never authored by the handler:
-
-```js source=demos/todo/snapback/handlers.mjs
-    return await ctx.db.insert('todos', {
-      title,
-      completed: false,
-      userId: ctx.auth.userId,
-    });
-```
+The handler writes only through `ctx.db`. Server-owned ids, row versions, and
+storage timestamps are never authored by the handler. Inline v1 is
+self-contained: imported or sibling helpers require the legacy
+`{ source, exportName }` form, which remains compatible but cannot be mixed
+with `handler`.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
@@ -72,6 +104,16 @@ created id, changed count, and server-owned row fields together:
     assertEqual(created.changed_count, 1, 'changed_count');
     const rows = (await db.query(api.listTodos, { userId: ADA })).rows;
 ```
+
+Use `results.value(validator)` for a direct scalar/object payload or
+`results.document(table)` for one complete stored document. The generated
+mutation reference carries that exact logical result type. Snapback validates
+the post-JSON result against the frozen effective contract before committing
+writes or retaining a successful settlement. A mismatch returns
+`SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`; no write, durable version, or
+successful settlement survives, and the diagnostic never echoes the rejected
+value. The general result ceiling is 4 MiB, while retained mutation output
+also keeps its existing 65,536-byte ceiling.
 
 An error is a structured `SNAPBACK_*` diagnostic. A rejected queued mutation
 still has a terminal receipt on the error envelope so the client store can
@@ -159,3 +201,7 @@ that needs its successor fails before writing with
   They are server-owned.
 - **Do not infer success from HTTP status alone.** Consume the result,
   diagnostic, and terminal receipt envelope.
+- **Do not omit a result contract when callers depend on the payload shape.**
+  Omission deliberately generates `unknown`.
+- **Do not validate a mutation result after committing.** The runtime-owned
+  pre-commit validator is what makes result-contract failure atomic.

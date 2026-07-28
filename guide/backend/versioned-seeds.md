@@ -1,0 +1,84 @@
+---
+title: Versioned seeds
+id: backend.versioned-seed
+order: 8
+audience: agent-first
+capabilities: [backend.versioned-seed]
+authorities: [llp/0103-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-27
+reviewed-commit: HEAD
+---
+
+# Versioned seeds
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted compiled-seed custody remains an explicit GAP.
+
+Use a versioned seed to establish a known fixture on a fresh database. Use a
+migration to evolve durable data, or an explicit reset-install when destroying
+the current instance is intended. A versioned seed is never an upsert.
+
+## Author the identity
+
+Add a portable `seedVersion` beside `tables` in `snapback/seed.json`. Codegen
+emits `generated/seed.artifact.json` with the app id and a canonical
+content digest. Changing the table bytes requires a new version. Reusing one
+version for different bytes refuses `SNAPBACK_SEED_VERSION_REUSED`.
+
+The identity is scoped to the current data-version stream. The first install
+stores the rows, identity, and receipt atomically. Repeating the exact artifact
+returns a pure `matched` observation of the establishing receipt. Presenting a
+different identity to an installed stream refuses
+`SNAPBACK_SEED_MIGRATION_REQUIRED`; it does not modify rows.
+
+Named tables count as targets even when their seed arrays are empty. Occupied
+targets without an active identity refuse as nonempty or partially untracked
+data. This prevents Snapback from silently adopting a legacy database.
+
+## Use the generated lifecycle
+
+`SnapbackClient.ensureVersionedSeed(artifact)` is the non-destructive install
+path. `previewVersionedSeed` reports the current/requested identity and exact
+direct, derived, total, and reset-deletion counts without changing the
+database or WAL. Preview is still an administrative NonProd operation.
+
+For an intentional destructive change, preview `resetInstall`, retain its
+tagged predecessor stream (`absent` or the exact present UUIDv7), and pass that
+carrier to `resetInstallVersionedSeed`. `clearVersionedSeed` uses the same
+predecessor check and coordinated reset but installs no successor identity.
+Stale predecessor carriers and historical operation replays refuse.
+
+The managed CLI and Vite lifecycle consume the generated artifact through the
+same client methods. They preflight `versioned_seed_install_v1` or
+`versioned_seed_reset_v1` and never fall back to legacy `ensure`, `seed`, or
+`reset(seed)`. A watch reload therefore matches or reports drift; it does not
+reset a populated database.
+
+The direct administrative routes are
+`/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}`.
+Automation can instead use the corresponding
+`app.seed.{ensure,preview,reset-install,clear}.v1` host operations. All four
+require AdminWrite plus the NonProd profile, and host-operation bodies place
+the closed seed request only under `input`.
+
+## Interpret refusals
+
+- `SNAPBACK_SEED_MIGRATION_REQUIRED`: migrate, or explicitly reset-install.
+- `SNAPBACK_SEED_VERSION_REUSED`: choose a new version for changed bytes.
+- `SNAPBACK_SEED_NONEMPTY_UNTRACKED` or
+  `SNAPBACK_SEED_PARTIAL_UNTRACKED`: inspect the existing data; reset-install
+  only if its deletion is intended.
+- `SNAPBACK_SEED_OPERATION_HISTORICAL`: obtain a fresh predecessor stream and
+  operation id.
+- `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`: keep total direct plus changed
+  maintained-projection outputs at or below 1,024.
+- `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED`: the selected target does not
+  advertise the required protocol; there is no compatibility fallback.
+
+The local protocol is advertised as **experimental** while LLP 0103 remains in
+Review. The executable manifest is the advertisement gate: every required
+local row must pass, while hosted compiled-seed custody stays visibly GAP.

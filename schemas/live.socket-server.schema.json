@@ -148,6 +148,12 @@
                   },
                   "type": "array"
                 },
+                "ephemeral_authority_instance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "high_water_version": {
                   "description": "Authoritative room cursor at the instant the snapshot and\nsubscriber registration became one operation. This remains valid\neven when `entries` is empty or the newest event was a delete.",
                   "format": "uint64",
@@ -194,6 +200,12 @@
                 "entry": {
                   "$ref": "#/$defs/EphemeralEntry"
                 },
+                "ephemeral_authority_instance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "room": {
                   "$ref": "#/$defs/RoomId"
                 },
@@ -227,6 +239,12 @@
                   "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
+                },
+                "ephemeral_authority_instance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "key": {
                   "type": "string"
@@ -271,6 +289,12 @@
           "properties": {
             "ResyncRequired": {
               "properties": {
+                "ephemeral_authority_instance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "reason": {
                   "$ref": "#/$defs/ResyncReason"
                 },
@@ -309,6 +333,12 @@
           "properties": {
             "Error": {
               "properties": {
+                "ephemeral_authority_instance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "error": {
                   "$ref": "#/$defs/EphemeralError"
                 },

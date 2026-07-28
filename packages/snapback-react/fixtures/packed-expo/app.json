@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "Snapback packed Expo proof",
+    "slug": "snapback-packed-expo-proof",
+    "version": "1.0.0",
+    "platforms": ["ios"]
+  }
+}

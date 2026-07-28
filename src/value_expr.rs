@@ -60,6 +60,10 @@ pub struct ExprEnv<'a> {
     pub auth_user_id: Option<&'a str>,
     pub auth_kind: Option<&'a str>,
     pub auth_actor_kind: Option<&'a str>,
+    pub auth_activity_actor_kind: Option<&'a str>,
+    pub auth_actor_user_id: Option<&'a str>,
+    pub auth_grant_id: Option<&'a str>,
+    pub client_mutation_digest: Option<&'a str>,
     pub auth_is_delegated: bool,
     pub bindings: Option<&'a BTreeMap<String, Value>>,
     pub now_ms: Option<u64>,
@@ -138,6 +142,39 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
         ValueExpr::AuthActorKind => Ok(env
             .auth_actor_kind
             .map_or(Value::Null, |kind| Value::String(kind.to_owned()))),
+        ValueExpr::AuthActivityActorKind => env
+            .auth_activity_actor_kind
+            .map(|kind| Value::String(kind.to_owned()))
+            .ok_or_else(|| {
+                ExprError::Fail(SnapbackError::error(
+                    "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
+                    "auth",
+                    "authority does not provide an auditable activity actor kind",
+                ))
+            }),
+        ValueExpr::AuthActorUserId => env
+            .auth_actor_user_id
+            .map(|actor| Value::String(actor.to_owned()))
+            .ok_or_else(|| {
+                ExprError::Fail(SnapbackError::error(
+                    "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
+                    "auth",
+                    "authority does not provide an auditable actual actor",
+                ))
+            }),
+        ValueExpr::AuthGrantId => Ok(env
+            .auth_grant_id
+            .map_or(Value::Null, |grant| Value::String(grant.to_owned()))),
+        ValueExpr::ClientMutationDigest => env
+            .client_mutation_digest
+            .map(|digest| Value::String(digest.to_owned()))
+            .ok_or_else(|| {
+                ExprError::Fail(SnapbackError::error(
+                    "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED",
+                    "sync",
+                    "write-with-activity requires a durable client mutation identity",
+                ))
+            }),
         ValueExpr::AuthIsDelegated => Ok(Value::Bool(env.auth_is_delegated)),
         ValueExpr::Binding(name) => match env.bindings {
             None => Err(ExprError::Unanalyzable("Binding")),
@@ -569,6 +606,7 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
             MutationStep::Get { id, .. } => exprs.push(id),
             MutationStep::Guard { cond, .. } => exprs.push(cond),
             MutationStep::Let { expr, .. } => exprs.push(expr),
+            MutationStep::AssertSourceChanged { id, .. } => exprs.push(id),
             MutationStep::DeleteWhere { filter, .. } => {
                 exprs.extend(filter.iter().map(|f| &f.value))
             }
@@ -688,6 +726,10 @@ fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
         | ValueExpr::AuthUserId
         | ValueExpr::AuthKind
         | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
         | ValueExpr::AuthIsDelegated
         | ValueExpr::Binding(_)
         | ValueExpr::Literal(_)
@@ -760,6 +802,10 @@ mod tests {
             auth_user_id: Some("user-1"),
             auth_kind: Some("human"),
             auth_actor_kind: None,
+            auth_activity_actor_kind: Some("human"),
+            auth_actor_user_id: Some("user-1"),
+            auth_grant_id: None,
+            client_mutation_digest: Some("sha256:test"),
             auth_is_delegated: false,
             bindings: Some(bindings),
             now_ms: Some(1_000),

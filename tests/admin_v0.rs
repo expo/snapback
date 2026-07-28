@@ -436,10 +436,9 @@ async fn websocket_live_stream_pushes_existing_live_updates() {
     let mut request = format!("ws://{addr}/live/client_ws/stream")
         .into_client_request()
         .unwrap();
-    request.headers_mut().insert(
-        "sec-websocket-protocol",
-        "snapback.v1".parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("sec-websocket-protocol", "snapback.v1".parse().unwrap());
     request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().unwrap(),
@@ -1836,10 +1835,9 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let mut request = format!("ws://{addr}/live/conn-b/stream")
         .into_client_request()
         .unwrap();
-    request.headers_mut().insert(
-        "sec-websocket-protocol",
-        "snapback.v1".parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("sec-websocket-protocol", "snapback.v1".parse().unwrap());
     request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().unwrap(),
@@ -2151,10 +2149,9 @@ async fn stream_upgrade_requires_the_connection_token() {
     let mut header_request = format!("ws://{addr}/live/gated_ws/stream")
         .into_client_request()
         .unwrap();
-    header_request.headers_mut().insert(
-        "sec-websocket-protocol",
-        "snapback.v1".parse().unwrap(),
-    );
+    header_request
+        .headers_mut()
+        .insert("sec-websocket-protocol", "snapback.v1".parse().unwrap());
     header_request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().unwrap(),
@@ -2422,6 +2419,7 @@ fn todo_schema() -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()
@@ -2492,10 +2490,9 @@ async fn s3_websocket_frames_bind_to_the_socket_connection() {
     let mut request = format!("ws://{addr}/live/client_ws_a/stream")
         .into_client_request()
         .unwrap();
-    request.headers_mut().insert(
-        "sec-websocket-protocol",
-        "snapback.v1".parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("sec-websocket-protocol", "snapback.v1".parse().unwrap());
     request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().unwrap(),
@@ -2592,10 +2589,9 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     let mut request = format!("ws://{addr}/live/owner_ws/stream")
         .into_client_request()
         .unwrap();
-    request.headers_mut().insert(
-        "sec-websocket-protocol",
-        "snapback.v1".parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("sec-websocket-protocol", "snapback.v1".parse().unwrap());
     request.headers_mut().insert(
         "x-snapback-connection-token",
         grant.connection_token.parse().unwrap(),

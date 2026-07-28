@@ -27,7 +27,7 @@ follows the converged revision and records target-specific nonclaims.
 
 ## Desired resolution
 
-- Add a declared search index over a table or closed generated projection,
+- Add a declared search index over an ordinary application table,
   with weighted text fields, exact filters, stored display fields, visibility,
   analyzer/version, size/work limits, and update mode.
 - Generate the portable analyzer/parser/matcher/scorer artifacts, operation
@@ -35,7 +35,8 @@ follows the converged revision and records target-specific nonclaims.
 - Implement local SQLite term/position/source storage, transactional update and
   delete, structured term/phrase/prefix/exclusion/filter queries, deterministic
   ranking, bounded overfetch, authorization-safe release, highlights, and
-  MACed snapshot cursors.
+  AEAD-protected current-keyset cursors. V1 deliberately makes no
+  cross-request snapshot-stability claim.
 - Implement rebuild/catch-up/activation, tombstones, corruption quarantine,
   backup/restore posture, and stable restart diagnostics.
 - A native FTS accelerator may only return a proven no-false-negative candidate
@@ -48,8 +49,10 @@ follows the converged revision and records target-specific nonclaims.
 - Unicode/analyzer, parser, query, phrase/prefix, malformed input, injection,
   ranking, cursor, pagination, update/delete, rebuild, corruption, and
   backup/restore vectors pass.
-- Permission/membership/moderation changes leak no title, snippet, score,
-  count, timing classification, or existence fact, including across cursors.
+- Owner/public visibility changes leak no title, snippet, score, count, timing
+  classification, or existence fact, including across cursors. Membership,
+  moderation, relation-derived visibility, and generated-projection sources
+  are explicit v1 rejections/nonclaims with conformance cases.
 - Searchable-at-commit behavior and synchronous failure rollback are proven for
   the bounded Signal Desk fixture.
 - Signal Desk uses the generated indexed search ref and deletes its scan/filter

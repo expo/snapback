@@ -8,7 +8,15 @@
 // and hot push stay with the `snapback` CLI (LLP 0041's boundary); this
 // plugin loads already-generated artifacts at bring-up and nothing more.
 
-import { diagnosticError } from '@snapback/cli';
+import { existsSync } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  diagnosticError,
+  resolveGeneratedArtifact,
+  verifyGeneratedGraph,
+} from '@snapback/cli';
 
 import { APP_ROUTE_ALLOWLIST, matchAppRoute } from './allowlist.mjs';
 import {
@@ -54,6 +62,46 @@ function normalizeRoute(route) {
     });
   }
   return value;
+}
+
+// Resolve materialized generated imports through the manifest-bound cache.
+// Source files keep the ergonomic `snapback/generated/api.mjs` spelling while
+// Vite consumes only bytes whose digest belongs to the complete inputsHash.
+//
+// @ref LLP 0010#generated-artifacts — bundlers must not trust a stale
+// materialized projection when the review manifest identifies an immutable
+// complete-input graph.
+export function resolveGeneratedImport(id, importer) {
+  if (
+    typeof id !== 'string'
+    || typeof importer !== 'string'
+    || id.startsWith('\0')
+    || (!id.startsWith('.') && !isAbsolute(id))
+  ) {
+    return null;
+  }
+  const suffixAt = id.search(/[?#]/u);
+  const source = suffixAt === -1 ? id : id.slice(0, suffixAt);
+  const suffix = suffixAt === -1 ? '' : id.slice(suffixAt);
+  const importerPath = importer.startsWith('file:')
+    ? fileURLToPath(importer)
+    : importer.split(/[?#]/u, 1)[0];
+  const requested = isAbsolute(source)
+    ? resolve(source)
+    : resolve(dirname(importerPath), source);
+  let generatedRoot = dirname(requested);
+  while (true) {
+    if (
+      /^generated(?:-[a-z0-9-]+)?$/u.test(generatedRoot.split(sep).at(-1) ?? '')
+      && existsSync(resolve(generatedRoot, 'artifacts.json'))
+    ) {
+      const artifactPath = relative(generatedRoot, requested).split(sep).join('/');
+      return `${resolveGeneratedArtifact(generatedRoot, artifactPath)}${suffix}`;
+    }
+    const parent = dirname(generatedRoot);
+    if (parent === generatedRoot) return null;
+    generatedRoot = parent;
+  }
 }
 
 // The virtual module ships only the relative base path and sanitized state.
@@ -124,6 +172,10 @@ export function snapbackDev(options = {}) {
     },
 
     configResolved(config) {
+      const projectRoot = resolve(options.projectRoot ?? config.root);
+      for (const generatedRoot of options.generatedRoots ?? []) {
+        verifyGeneratedGraph(resolve(projectRoot, generatedRoot));
+      }
       if (command !== 'serve' || mode === 'off') return;
       assertLoopbackHost(config.server?.host, {
         allowNonLoopbackHost: options.allowNonLoopbackHost === true,
@@ -176,8 +228,10 @@ export function snapbackDev(options = {}) {
       });
     },
 
-    resolveId(id) {
+    resolveId(id, importer) {
       if (id === VIRTUAL_MODULE_ID) return RESOLVED_VIRTUAL_MODULE_ID;
+      const generated = resolveGeneratedImport(id, importer);
+      if (generated !== null) return generated;
       return undefined;
     },
 

@@ -1,0 +1,577 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:b66c5a66f2988f20",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "fixturePresence": {
+      "coalesce": true,
+      "defaultTtlMs": 5000,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 30000,
+      "name": "fixturePresence",
+      "publishBudget": {
+        "burst": 60,
+        "maxValueBytes": 1024,
+        "sustainedHz": 20
+      },
+      "routingFields": [
+        "roomId"
+      ],
+      "scopeFields": [
+        "roomId"
+      ]
+    }
+  },
+  "inputsHash": "b68476e8ba8617edf92b6e558e1ff54c7984c026778d8aded1e6185982ba344f",
+  "manifestVersion": 2,
+  "mutations": {
+    "publishLiveRow": {
+      "argOrder": [
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:8f4a0b35032b4065fdd92bf3969a17ec55c6001da2326c576dfdaf62d7dce9e4",
+      "implementationHash": "sha256:70556b75a69e78855b53c5c1d3f10c93a030a8a4398d91e283f12dc5f06b74eb",
+      "invalidates": [
+        "liveRows"
+      ],
+      "name": "publishLiveRow",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "liveRows"
+      ]
+    },
+    "rejectInvalidWrite": {
+      "argOrder": [
+        "value"
+      ],
+      "args": {
+        "value": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:667ce5de2952fbf2c8a1db169e3f9fd2d2e1946c3f60c9b6828dbb2fc4a7e1f1",
+      "implementationHash": "sha256:729a47250b5c74fe3be36269230b0430dfea60b83ff66ddf2e18e27c7e001e2f",
+      "invalidates": [
+        "rejectionRows"
+      ],
+      "name": "rejectInvalidWrite",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "rejectionRows"
+      ]
+    },
+    "writePrimaryAndActivity": {
+      "argOrder": [
+        "primary",
+        "activity"
+      ],
+      "args": {
+        "activity": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "primary": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:b80cc87f8cb46c6ec07f7efb9bc81eab489b912d6f6973605f6ea7b7136d6a00",
+      "implementationHash": "sha256:2e30a434cd1ffbd07cdf2972ba1f01ab63f7bf0c875e2359b8dfab147ba9ccd2",
+      "invalidates": [
+        "primaryRows",
+        "activityRows"
+      ],
+      "name": "writePrimaryAndActivity",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "primaryRows",
+        "activityRows"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "activityRows": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:b57ce30e925a5f6f30b030d2a6092aa41175306cc65a0dd57fb0b8a56dcbc2ad",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "activityRows",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "activityRows"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "value": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "activityRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "activityRows"
+      },
+      "resultHash": "sha256:46eb4150afe67767c41fb7922c74311919be00941b8deddb1ecce2b46a012c5f",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "fixturePresence": {
+      "argOrder": [
+        "roomId"
+      ],
+      "args": {
+        "roomId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 5000,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 30,
+      "maxTtlMs": 30000,
+      "mode": "live",
+      "name": "fixturePresence",
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "scopeFields": [
+        "roomId"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "liveRows": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:5edd9ca4944a06a5c1bf962a29bf231c0d038c4a1f25c8ede2fffdecf0301696",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "liveRows",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "liveRows"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "liveRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "liveRows"
+      },
+      "resultHash": "sha256:ba4a45143d6f6efa5f35a6ad58d1830248eb5807f5caf9e57e233fe16f82dcb8",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "primaryRows": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:2421830293b53ebd55114614924ea4592e1a1bfe0708b0c0bad06c7e7d0f77e4",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "primaryRows",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "primaryRows"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "value": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "primaryRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "primaryRows"
+      },
+      "resultHash": "sha256:eeb982ca6eb410b47d21339f943f854502bb668616447dd68934611c10c3a446",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "rejectionRows": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:8f012aad5a4928fd73976c0edaa566990bf5b6f5c9b3bc2c3f39f1b51e3a6d80",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "rejectionRows",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "rejectionRows"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "value": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rejectionRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "rejectionRows"
+      },
+      "resultHash": "sha256:145be32064f6940253b62f0e05479e3ee9c28f7dea0fe00a1a2c3edb64b62bc1",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:f353f53b173be606",
+  "schemaVersion": "snapback.v0"
+}

@@ -14,9 +14,9 @@
 # compile/link failure past a healthy artifact set is bootstrap's
 # SNAPBACK_IBEX_CARGO_BUILD_FAILED, and a binary that links but cannot load
 # hermesvm.framework at launch (missing LC_RPATH) is
-# SNAPBACK_IBEX_RUNTIME_LOAD_FAILED; this doctor stays read-only and does not
-# compile or launch, so it reports the artifact precondition rather than
-# reproducing those build/link failures.
+# SNAPBACK_IBEX_RUNTIME_LOAD_FAILED. The exact-link smoke below stays read-only
+# by using an automatically removed temporary Cargo target, but it now does
+# reproduce both classes before reporting a healthy checkout.
 #
 # Exit status: 0 when vendor/ibex is healthy enough to bootstrap/build,
 # 1 when any error-severity finding is reported.
@@ -40,6 +40,7 @@ fi
 
 FINDINGS=0
 JSON_CHECKS=""
+RUNTIME_RECOVERY_JSON="null"
 
 json_escape() {
     printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null \
@@ -262,13 +263,46 @@ else
     hint "install bun (https://bun.sh)"
 fi
 
+# --- 6. Exact current-checkout link + launch ----------------------------------
+
+# @ref LLP 0010#native-runtime-bootstrap -- presence is only a precondition:
+# prove that this checkout's final binary target links and launches. The helper
+# owns a temporary Cargo target and removes it after success, failure, signal,
+# or timeout, preserving doctor's read-only repository contract.
+if [ "$FINDINGS" -eq 0 ] && command -v cargo >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+    probe_status=0
+    probe_json="$(node "$ROOT/scripts/runtime-link-smoke.mjs" --json)" || probe_status=$?
+    if printf '%s' "$probe_json" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+        RUNTIME_RECOVERY_JSON="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["recovery"], separators=(",",":")))')"
+        probe_code="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["diagnostic"]["code"])')"
+        probe_message="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["diagnostic"]["message"])')"
+        if [ "$probe_status" -eq 0 ]; then
+            note "OK $probe_code: $probe_message"
+        else
+            report ERROR "$probe_code" "$probe_message"
+            missing_symbols="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin)["diagnostic"].get("details",{}).get("missingSymbols",[])))')"
+            [ -z "$missing_symbols" ] || note "missing symbols: $missing_symbols"
+            hint "$ROOT/scripts/bootstrap-ibex-runtime"
+            override="$(printf '%s' "$probe_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["recovery"].get("recovery",{}).get("overrideCommand") or "")')"
+            [ -z "$override" ] || hint "$override  # explicit stale-binary escape; identity remains classified"
+        fi
+        if [ "$JSON_MODE" != 1 ]; then
+            note "runtime recovery record: $RUNTIME_RECOVERY_JSON"
+        fi
+    else
+        report ERROR SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED \
+            "the exact-link helper failed without a structured report (exit $probe_status)"
+        hint "node $ROOT/scripts/runtime-link-smoke.mjs"
+    fi
+fi
+
 # --- Verdict -----------------------------------------------------------------
 
 if [ "$JSON_MODE" = 1 ]; then
     OK_VALUE=true
     [ "$FINDINGS" -gt 0 ] && OK_VALUE=false
-    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","ok":%s,"errorFindings":%s,"checks":[%s]}\n' \
-        "$TARGET_OS" "$OK_VALUE" "$FINDINGS" "$JSON_CHECKS"
+    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","ok":%s,"errorFindings":%s,"checks":[%s],"runtimeRecovery":%s}\n' \
+        "$TARGET_OS" "$OK_VALUE" "$FINDINGS" "$JSON_CHECKS" "$RUNTIME_RECOVERY_JSON"
     [ "$FINDINGS" -eq 0 ] && exit 0
     exit 1
 fi

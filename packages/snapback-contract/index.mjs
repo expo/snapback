@@ -2976,6 +2976,16 @@ export async function createSnapbackContractSurface({
       boundary,
       links,
       provider,
+      // Contract delegates the complete republisher lifecycle to its owned
+      // headless client; it does not create a second authority or publish
+      // transport.
+      //
+      // @ref LLP 0105#complete-carriers-and-remaining-exact-assignments —
+      // Contract shares headless registration, replacement, empty-snapshot,
+      // generation-fence, acknowledgement, inspection, and disposal.
+      registerEphemeralRepublisher: (reference, callback) => (
+        client.registerEphemeralRepublisher(reference, callback)
+      ),
       diagnostics,
       pendingCount: () => Math.max(pending.size, durablePendingCount),
       retained: () => retainedOffline,
@@ -4905,6 +4915,9 @@ async function createMultiLiveContractSurface({
       boundary,
       links,
       provider,
+      registerEphemeralRepublisher: (reference, callback) => (
+        client.registerEphemeralRepublisher(reference, callback)
+      ),
       diagnostics,
       pendingCount: () => pending.size,
       declaredQueries: queryNames,

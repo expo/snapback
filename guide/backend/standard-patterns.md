@@ -4,13 +4,13 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/standard-patterns.mjs]
-examples: [packages/snapback-codegen/standard-patterns.test.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-26
-reviewed-commit: 5606ab06
+reviewed-commit: HEAD
 ---
 
 # Safe standard data patterns
@@ -158,6 +158,54 @@ or public rows. Express those semantics directly with the declarative builders
 or a JavaScript handler under their governing design. A schema field or index
 can prove structure; it cannot prove who may see or mutate a row.
 
+## Design reference: write plus one activity row
+
+`defineWriteWithActivity` is implemented as a closed conformance surface for
+LLP 0104, but remains **review-gated and unadvertised**. Do not use its export
+as evidence that `write_activity_v1` is available on a target. Capability
+manifests must continue to report a GAP until the full result-retention,
+fault-injection, paired-authorization, first-party queue-owner, and
+cross-target corpus is green.
+
+The direct session path in
+`node demos/backend-bakeoff/tests/snapback.mjs` proves atomic source/activity
+versions, exact insert and patch replay, storage-equal no-op rollback, and
+refusal of attempted development impersonation. The shared three-backend UI
+keeps its explicit mutation because its persona is not backend-specific
+session custody; this is a deliberate adapter pressure point, not a missing
+local executor.
+
+The helper makes one existing-owner transaction reviewable:
+
+1. point-read the declared scope and collapse missing/invisible to
+   `SNAPBACK_ROW_NOT_FOUND`;
+2. run a bounded closed primary plan;
+3. verify the declared source table, id, operation, and exactly one changed
+   row;
+4. insert exactly one activity row with server-derived authority provenance
+   and the scope relation incarnation; and
+5. validate and durably retain the exact LLP 0101 result under LLP 0043's
+   client mutation identity.
+
+The source operation is exactly `insert`, `patch`, or `delete`. Empty and
+storage-identical patches are not effects; missing targets and operation
+mismatches roll the whole transaction back before activity or settlement.
+Scope, source, and activity identities are declared, not inferred from the
+first write or from field names.
+
+Activity provenance comes only from admitted server authority. Sessions map
+to a direct human actor. Delegated service authority requires an effective
+user and records the distinct agent actor and grant. Anonymous, admin bypass,
+system, bare/autonomous service, and dev impersonation refuse. The activity
+stores a purpose-derived SHA-256 digest of the canonical durable
+`ClientMutationIdentity`, not the cleartext client mutation id.
+
+Inspect the generated plan and `EffectCeilingV1`: it must expose the scope
+read/patch count, auxiliary point reads, one source effect, one activity
+insert, runtime IDs/time, settlement lookup/write, and maximum application
+writes. A maintained-projection participant or an unpartitioned observable
+unique constraint is outside this profile.
+
 ## Anti-patterns
 
 - Do not accept owner, creation time, update time, or generated IDs from client
@@ -168,3 +216,8 @@ can prove structure; it cannot prove who may see or mutate a row.
 - Do not infer visibility from field names such as `ownerId` or `userId`.
 - Do not stretch these helpers over joins, ACLs, or migrations; leave the
   profile and state those semantics explicitly.
+- Do not append activity after commit or treat a no-op patch as an auditable
+  source change.
+- Do not accept effective subject, actual actor, actor kind, grant, or
+  mutation digest from application arguments.
+- Do not treat the review-gated activity helper as a positive capability.

@@ -89,6 +89,107 @@
       ],
       "type": "string"
     },
+    "FullTextSearchFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "authorizationFilters": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "boolean"
+        },
+        "cursorTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "facets": {
+          "type": "boolean"
+        },
+        "highlights": {
+          "type": "boolean"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "parser": {
+          "type": "string"
+        },
+        "scoreMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scorer": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "suggestions": {
+          "type": "boolean"
+        },
+        "unicodeVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "analyzer",
+        "unicodeVersion",
+        "analyzerTablesDigest",
+        "parser",
+        "scorer",
+        "scoreMax",
+        "maintenance",
+        "pagination",
+        "cursorTtlMs",
+        "accelerator",
+        "authorizationFilters",
+        "highlights",
+        "counts",
+        "facets",
+        "suggestions",
+        "offline",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
+    },
     "HostedAuthCapabilities": {
       "additionalProperties": false,
       "description": "Closed hosted-auth capability descriptor authored by the serving target.\n\n@ref LLP 0060#d5-hosted-readiness-is-conjunctive — every deployment fact\nand the browser credential posture is independent and fail-closed.",
@@ -238,11 +339,16 @@
         "cron_action_run_mutation",
         "host_plan_runtime",
         "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
         "live_subscriptions",
         "mutation_read_set_validation",
         "permission_epoch_resync",
         "relational_query_v1",
-        "migration_keyset_scan_v1"
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1"
       ],
       "type": "string"
     }
@@ -292,10 +398,16 @@
         "cron_action_run_mutation": {
           "$ref": "#/$defs/CapabilityMaturity"
         },
+        "full_text_search_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
         "host_plan_runtime": {
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "ibex_ctx_db_host_bridge": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "inline_handler_v1": {
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "live_subscriptions": {
@@ -311,6 +423,15 @@
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "relational_query_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "result_contract_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "versioned_seed_install_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "versioned_seed_reset_v1": {
           "$ref": "#/$defs/CapabilityMaturity"
         }
       },
@@ -334,6 +455,17 @@
     "ephemeralWebSocketPublish": {
       "default": false,
       "type": "boolean"
+    },
+    "fullTextSearch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FullTextSearchFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Exact local portable-search posture. Absent on Cloudflare,\nconformance, and hosted targets until their independent corpus\nqualifies."
     },
     "hostedAuth": {
       "$ref": "#/$defs/HostedAuthCapabilities",

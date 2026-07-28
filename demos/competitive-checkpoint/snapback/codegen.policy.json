@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": [
+    "api.d.ts",
+    "api.mjs"
+  ]
+}

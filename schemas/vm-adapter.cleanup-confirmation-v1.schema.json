@@ -1,0 +1,33 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.cleanup-confirmation-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cleanupPlanId": {
+      "type": "string"
+    },
+    "confirmationSha256": {
+      "type": "string"
+    },
+    "confirmedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "inventorySha256": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "cleanupPlanId",
+    "inventorySha256",
+    "confirmationSha256",
+    "confirmedAtMs"
+  ],
+  "title": "CleanupConfirmationV1",
+  "type": "object"
+}

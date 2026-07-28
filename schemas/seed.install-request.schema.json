@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "SeedArtifactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "formatVersion": {
+          "type": "string"
+        },
+        "seedDigest": {
+          "type": "string"
+        },
+        "seedVersion": {
+          "type": "string"
+        },
+        "tables": {
+          "additionalProperties": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "appId",
+        "seedVersion",
+        "seedDigest",
+        "tables"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.install-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/SeedArtifactV1"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "requestedMode": {
+      "$ref": "#/$defs/AuthMode"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "operationId",
+    "artifact",
+    "requestedMode"
+  ],
+  "title": "InstallSeedRequestV1",
+  "type": "object"
+}

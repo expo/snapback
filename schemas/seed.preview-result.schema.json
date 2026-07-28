@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "ActiveSeedIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "dataVersionStream": {
+          "type": "string"
+        },
+        "derivedProjectionRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "directApplicationRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "seedDigest": {
+          "type": "string"
+        },
+        "seedVersion": {
+          "type": "string"
+        },
+        "totalApplicationEffects": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "appId",
+        "seedVersion",
+        "seedDigest",
+        "dataVersionStream",
+        "schemaHash",
+        "directApplicationRows",
+        "derivedProjectionRows",
+        "totalApplicationEffects"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.preview-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "current": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ActiveSeedIdentityV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "derivedProjectionRows": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "diagnosticCode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "directApplicationRows": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "requested": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ActiveSeedIdentityV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resetDeletedRows": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "state": {
+      "type": "string"
+    },
+    "totalApplicationEffects": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "state",
+    "directApplicationRows",
+    "derivedProjectionRows",
+    "totalApplicationEffects",
+    "resetDeletedRows"
+  ],
+  "title": "SeedPreviewResultV1",
+  "type": "object"
+}

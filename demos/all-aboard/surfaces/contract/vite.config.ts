@@ -23,6 +23,7 @@
 import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 // Page-visible API origin (injected into the browser bundle). `same-origin`
 // lets the target-profile resolver use `/snapback/*` behind local Vite and
@@ -177,6 +178,10 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
   return ({
   root: __dirname,
   plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(__dirname, '../../snapback/generated')],
+    }),
     foldSnapbackBuildConstants,
     sourceProvenanceProbe,
     exactContractWeb({

@@ -1,0 +1,167 @@
+{
+  "$defs": {
+    "ActiveSeedIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "dataVersionStream": {
+          "type": "string"
+        },
+        "derivedProjectionRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "directApplicationRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "seedDigest": {
+          "type": "string"
+        },
+        "seedVersion": {
+          "type": "string"
+        },
+        "totalApplicationEffects": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "appId",
+        "seedVersion",
+        "seedDigest",
+        "dataVersionStream",
+        "schemaHash",
+        "directApplicationRows",
+        "derivedProjectionRows",
+        "totalApplicationEffects"
+      ],
+      "type": "object"
+    },
+    "SeedInstallReceiptV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "dataVersionStream": {
+          "type": "string"
+        },
+        "derivedProjectionRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "directApplicationRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "formatVersion": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/SeedOperationV1"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/SeedOutcomeV1"
+        },
+        "requestDigest": {
+          "type": "string"
+        },
+        "resetDeletedRows": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "seedDigest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "seedVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "totalApplicationEffects": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "operationId",
+        "requestDigest",
+        "operation",
+        "outcome",
+        "appId",
+        "schemaHash",
+        "dataVersionStream",
+        "directApplicationRows",
+        "derivedProjectionRows",
+        "totalApplicationEffects",
+        "resetDeletedRows"
+      ],
+      "type": "object"
+    },
+    "SeedOperationV1": {
+      "enum": [
+        "install",
+        "reset-install",
+        "clear"
+      ],
+      "type": "string"
+    },
+    "SeedOutcomeV1": {
+      "enum": [
+        "installed",
+        "reset-installed",
+        "cleared"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.matched-observation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "active": {
+      "$ref": "#/$defs/ActiveSeedIdentityV1"
+    },
+    "establishingReceipt": {
+      "$ref": "#/$defs/SeedInstallReceiptV1"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "outcome",
+    "active",
+    "establishingReceipt"
+  ],
+  "title": "SeedMatchedObservationV1",
+  "type": "object"
+}

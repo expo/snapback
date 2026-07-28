@@ -280,10 +280,7 @@ pub fn wire_fixture_corpus() -> Value {
         42,
         2,
         InvalidationDisposition::Quarantine,
-        Some((
-            ResolutionKind::Snapshot,
-            "ack_fixture_same_version_1",
-        )),
+        Some((ResolutionKind::Snapshot, "ack_fixture_same_version_1")),
         Some("authorized at new epoch"),
     ));
     let terminal_delete_authorization_invalidation = wire(&invalidation_envelope(

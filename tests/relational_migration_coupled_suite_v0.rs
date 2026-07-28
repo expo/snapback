@@ -35,17 +35,17 @@ fn schema() -> SchemaManifest {
         field_type: FieldType::String,
         optional,
     };
-    let table = |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| {
-        TableManifest {
+    let table =
+        |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
             name: name.to_owned(),
             fields,
             indexes,
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
-        }
-    };
+        };
     SchemaManifest {
         tables: vec![
             table(
@@ -304,10 +304,7 @@ fn seeded(items: Vec<Map<String, Value>>, groups: Vec<Map<String, Value>>) -> Lo
     snapback.apply_schema(schema()).expect("apply suite schema");
     snapback
         .seed(SeedData {
-            tables: BTreeMap::from([
-                ("items".to_owned(), items),
-                ("groups".to_owned(), groups),
-            ]),
+            tables: BTreeMap::from([("items".to_owned(), items), ("groups".to_owned(), groups)]),
         })
         .expect("seed suite data");
     snapback
@@ -337,14 +334,20 @@ fn mutate(snapback: &mut LocalSnapback, name: &str, args: Value) -> usize {
 
 fn summaries_by_label(snapback: &LocalSnapback, label: &str) -> Vec<Value> {
     snapback
-        .invoke_query("readSummariesByLabel", owner_input(json!({ "label": label })))
+        .invoke_query(
+            "readSummariesByLabel",
+            owner_input(json!({ "label": label })),
+        )
         .expect("read summaries by label")
         .rows
 }
 
 fn summaries_by_title(snapback: &LocalSnapback, title: &str) -> Vec<Value> {
     snapback
-        .invoke_query("readSummariesByTitle", owner_input(json!({ "title": title })))
+        .invoke_query(
+            "readSummariesByTitle",
+            owner_input(json!({ "title": title })),
+        )
         .expect("read summaries by title")
         .rows
 }
@@ -416,13 +419,21 @@ fn boundary_1023_1024_write_ceiling_and_admission() {
     // Disclosed-capacity ladder, 0 references: the joined-row update is
     // exactly one write.
     assert_eq!(
-        mutate(&mut snapback, "relabelGroup", json!({ "id": "g2", "label": "L-zero-2" })),
+        mutate(
+            &mut snapback,
+            "relabelGroup",
+            json!({ "id": "g2", "label": "L-zero-2" })
+        ),
         1,
         "0 references: 1 direct write, 0 output writes"
     );
     // 1 reference: one direct write plus one output write.
     assert_eq!(
-        mutate(&mut snapback, "relabelGroup", json!({ "id": "g3", "label": "L-one-2" })),
+        mutate(
+            &mut snapback,
+            "relabelGroup",
+            json!({ "id": "g3", "label": "L-one-2" })
+        ),
         2,
         "1 reference: 1 direct + 1 output write"
     );
@@ -435,7 +446,11 @@ fn boundary_1023_1024_write_ceiling_and_admission() {
 
     // 1,023 references: exactly 1,024 total writes, and it succeeds.
     assert_eq!(
-        mutate(&mut snapback, "relabelGroup", json!({ "id": "g1", "label": "L-full-2" })),
+        mutate(
+            &mut snapback,
+            "relabelGroup",
+            json!({ "id": "g1", "label": "L-full-2" })
+        ),
         1 + FAN_OUT_LIMIT as usize,
         "1,023 references: 1 direct + 1,023 output writes = the full bound"
     );
@@ -453,7 +468,11 @@ fn boundary_1023_1024_write_ceiling_and_admission() {
         )
         .expect_err("the 1,024th reference must refuse");
     assert_eq!(error.diagnostic.code, "SNAPBACK_PROJECTION_FANOUT_EXCEEDED");
-    assert_eq!(items_by_title(&snapback, "t-extra"), 0, "no root row leaked");
+    assert_eq!(
+        items_by_title(&snapback, "t-extra"),
+        0,
+        "no root row leaked"
+    );
     assert_eq!(
         items_by_group(&snapback, "g-full"),
         FAN_OUT_LIMIT as usize,
@@ -481,7 +500,11 @@ fn boundary_1023_1024_write_ceiling_and_admission() {
     // output write, and the output's joined leaves update in the same
     // commit.
     assert_eq!(
-        mutate(&mut snapback, "moveItem", json!({ "id": "i-move", "group": "g-one" })),
+        mutate(
+            &mut snapback,
+            "moveItem",
+            json!({ "id": "i-move", "group": "g-one" })
+        ),
         2,
         "a key move is 1 direct + 1 changed output row"
     );
@@ -529,7 +552,11 @@ fn boundary_1023_1024_write_ceiling_and_admission() {
         )
         .expect_err("the second step's refusal must fail the whole mutation");
     assert_eq!(error.diagnostic.code, "SNAPBACK_PROJECTION_FANOUT_EXCEEDED");
-    assert_eq!(items_by_title(&snapback, "t-ok"), 0, "step one rolled back too");
+    assert_eq!(
+        items_by_title(&snapback, "t-ok"),
+        0,
+        "step one rolled back too"
+    );
     assert_eq!(items_by_title(&snapback, "t-over"), 0);
     assert_eq!(
         items_by_group(&snapback, "g-one"),
@@ -562,7 +589,10 @@ fn pre_activation_1024_reference_corpus_refuses_activation() {
         "{diagnostics:?}"
     );
     let error = snapback
-        .invoke_query("readItemsByGroup", owner_input(json!({ "group": "g-full" })))
+        .invoke_query(
+            "readItemsByGroup",
+            owner_input(json!({ "group": "g-full" })),
+        )
         .expect_err("a refused activation must not install the manifest");
     assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
 }
@@ -584,10 +614,7 @@ fn materialize_all_oracle_over_1100_roots_matches_independent_digest() {
             item_row(&format!("i{index:04}"), &format!("t{index:04}"), slug)
         })
         .collect();
-    let groups = vec![
-        group_row("ga", "g-a", "L-a"),
-        group_row("gb", "g-b", "L-b"),
-    ];
+    let groups = vec![group_row("ga", "g-a", "L-a"), group_row("gb", "g-b", "L-b")];
     let mut snapback = seeded(items, groups);
     let diagnostics = activate(&mut snapback);
     assert!(
@@ -617,8 +644,7 @@ fn materialize_all_oracle_over_1100_roots_matches_independent_digest() {
         })
         .collect();
     let digest_rows: Vec<Value> = expected_logical.values().cloned().collect();
-    let expected_digest =
-        snapback::rqs::seq1_digest(&digest_rows).expect("independent digest");
+    let expected_digest = snapback::rqs::seq1_digest(&digest_rows).expect("independent digest");
     assert_eq!(
         receipt.content_digest, expected_digest,
         "the streaming rebuild digest equals the independent materializeAll \

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createServer as createNetServer } from 'node:net';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generateApp, scaffoldApp } from '@snapback/cli';
@@ -18,6 +18,7 @@ import {
   createSnapbackViteLifecycle,
   matchAppRoute,
   renderVirtualModule,
+  resolveGeneratedImport,
   snapbackDev,
 } from './index.mjs';
 
@@ -137,7 +138,28 @@ try {
   })}\n`);
   const generated = await generateApp(backend);
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics ?? null));
-  const api = (await import(pathToFileURL(join(backend, 'generated', 'api.mjs')).href)).default;
+  const appRoot = join(root, 'app');
+  const appImporter = join(appRoot, 'src', 'App.tsx');
+  const materializedApiImport = relative(dirname(appImporter), join(backend, 'generated', 'api.mjs'));
+  const verifiedApiPath = resolveGeneratedImport(materializedApiImport, appImporter);
+  assert.notEqual(verifiedApiPath, join(backend, 'generated', 'api.mjs'));
+  assert.match(verifiedApiPath, /[\\/]\.snapback[\\/]codegen-cache[\\/]/);
+  const api = (await import(pathToFileURL(verifiedApiPath).href)).default;
+  const reviewPlugin = snapbackDev({
+    server: { mode: 'off' },
+    projectRoot: project,
+    generatedRoots: ['snapback/generated'],
+  });
+  reviewPlugin.config({}, { command: 'build' });
+  reviewPlugin.configResolved({ root: project, server: {} });
+  const materializedApiPath = join(backend, 'generated', 'api.mjs');
+  const materializedApiBytes = readFileSync(materializedApiPath);
+  writeFileSync(materializedApiPath, 'export default { stale: true };\n');
+  assert.throws(
+    () => reviewPlugin.configResolved({ root: project, server: {} }),
+    (error) => error.code === 'SNAPBACK_CODEGEN_MATERIALIZATION_INVALID',
+  );
+  writeFileSync(materializedApiPath, materializedApiBytes);
 
   const database = join(project, '.snapback', 'dev.sqlite3');
   const readyFile = join(project, '.snapback', 'dev.ready.json');
@@ -146,7 +168,6 @@ try {
   // --- Managed end-to-end through a real Vite dev server ---------------------
 
   const { createServer } = await import('vite');
-  const appRoot = join(root, 'app');
   scaffoldWebRoot(appRoot);
   const vitePort = await freePort();
   viteServer = await createServer({

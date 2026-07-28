@@ -1,0 +1,83 @@
+{
+  "appId": "app",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [
+    {
+      "burst": 60,
+      "defaultTtlMs": 5000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 1024,
+      "name": "fixturePresence",
+      "publish": "AllowAll",
+      "routingFields": [
+        "roomId"
+      ],
+      "scopeFields": [
+        "roomId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 20
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b68476e8ba8617edf92b6e558e1ff54c7984c026778d8aded1e6185982ba344f",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:f353f53b173be606",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "liveRows",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "value",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "primaryRows",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "value",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "activityRows",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "value",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "rejectionRows",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

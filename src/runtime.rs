@@ -3524,6 +3524,7 @@ mod membership_bridge_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: None,
                         principal: "userId".to_owned(),
@@ -3559,6 +3560,7 @@ mod membership_bridge_tests {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -3572,6 +3574,7 @@ mod membership_bridge_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -3599,6 +3602,7 @@ mod membership_bridge_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: None,
                         principal: "userId".to_owned(),

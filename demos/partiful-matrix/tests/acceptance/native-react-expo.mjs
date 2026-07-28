@@ -7,12 +7,14 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { stopChild } from '../../../_kit/server-process.mjs';
 import { SnapbackClient } from '../../../../packages/snapback-client/index.mjs';
-import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
+const generatedRoot = resolve(repoRoot, 'demos/partiful-matrix/snapback/generated');
+const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
 const appRoot = resolve(repoRoot, 'demos/partiful-matrix/native/react-expo');
 const serverBin = resolve(repoRoot, 'target/debug/snapback');
 const androidSdk = process.env.ANDROID_SDK_ROOT || process.env.ANDROID_HOME || resolve(process.env.HOME, 'Library/Android/sdk');
@@ -21,8 +23,8 @@ const javaHome = process.env.JAVA_HOME || '/Applications/Android Studio.app/Cont
 const deviceId = process.env.PARTITIME_IOS_DEVICE || 'E0E49A2F-54A7-4355-8EB4-D52138E3361B';
 const dataPort = 18763;
 const witnessPort = 18764;
-const schemaManifest = JSON.parse(readFileSync(resolve(repoRoot, 'demos/partiful-matrix/snapback/generated/schema.manifest.json'), 'utf8'));
-const functionsManifest = JSON.parse(readFileSync(resolve(repoRoot, 'demos/partiful-matrix/snapback/generated/functions.manifest.json'), 'utf8'));
+const schemaManifest = readGeneratedJson(generatedRoot, 'schema.manifest.json');
+const functionsManifest = readGeneratedJson(generatedRoot, 'functions.manifest.json');
 const seed = JSON.parse(readFileSync(resolve(repoRoot, 'demos/partiful-matrix/snapback/seed.json'), 'utf8'));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 const platform = option('platform');

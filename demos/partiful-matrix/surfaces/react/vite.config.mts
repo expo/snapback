@@ -6,6 +6,7 @@ import { defineConfig } from 'vite';
 import { convexDeploymentUrl } from '../../backends/gateway/convex';
 import { loadLocalSecrets } from '../../backends/gateway/secrets.mjs';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const memoryEntry = process.env.PARTITIME_MEMORY_ENTRY === '1';
@@ -18,7 +19,14 @@ const proxy = {
   '/snapback': { target: process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433', changeOrigin: true, ws: true, rewrite: (path: string) => path.replace(/^\/snapback/, '') },
 };
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), partitimeCostAttribution()],
+  plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(root, '../../snapback/generated')],
+    }),
+    react(),
+    partitimeCostAttribution(),
+  ],
   define: {
     __MATRIX_BACKEND__: JSON.stringify(mode),
     __SNAPBACK_API_ORIGIN__: JSON.stringify(process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433'),

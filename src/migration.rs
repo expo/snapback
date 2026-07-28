@@ -44,7 +44,11 @@ const MIGRATION_ID_TAG: &[u8] = b"snapback-migration-id-v1\0";
 pub const MIGRATION_TIMESTAMP_MAX_EXCLUSIVE: u64 = 1 << 48;
 
 fn plan_invalid(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_MIGRATION_PLAN_INVALID", "migration", message.into())
+    SnapbackError::error(
+        "SNAPBACK_MIGRATION_PLAN_INVALID",
+        "migration",
+        message.into(),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +192,9 @@ impl MigrationStep {
             Self::ValidateUnique { table, fields } => {
                 format!("{table}#unique({})", fields.join(","))
             }
-            Self::CopyTable { table, generation, .. }
+            Self::CopyTable {
+                table, generation, ..
+            }
             | Self::StageTableGeneration { table, generation }
             | Self::RetireGeneration { table, generation } => {
                 format!("{table}@g{generation}")
@@ -256,7 +262,11 @@ impl MigrationStep {
 /// The canonical step ID (LLP 0081 §2): `s<ordinal>:<stepType>:<target>`,
 /// 1-based ordinal over the plan's pinned normative order.
 pub fn canonical_step_id(ordinal: usize, step: &MigrationStep) -> String {
-    format!("s{ordinal}:{}:{}", step.step_type(), step.qualified_target())
+    format!(
+        "s{ordinal}:{}:{}",
+        step.step_type(),
+        step.qualified_target()
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -534,8 +544,8 @@ fn prefixed_digest(prefix: &str, body: &Value) -> SnapbackResult<String> {
 /// `sha256:` prefix) so `planId = migration-v1:<planDigest>` reads as one
 /// identity token; the golden vectors freeze this.
 pub fn plan_digest(body: &MigrationPlanBody) -> SnapbackResult<String> {
-    let value = serde_json::to_value(body)
-        .map_err(|_| plan_invalid("plan body does not serialize"))?;
+    let value =
+        serde_json::to_value(body).map_err(|_| plan_invalid("plan body does not serialize"))?;
     prefixed_digest(MIGRATION_PLAN_DIGEST_PREFIX, &value)
 }
 
@@ -1054,7 +1064,9 @@ pub fn derive_plan_steps(
     intents: &[MigrationIntent],
 ) -> SnapbackResult<Vec<MigrationStepRecord>> {
     if intents.is_empty() {
-        return Err(plan_invalid("a migration plan requires at least one intent"));
+        return Err(plan_invalid(
+            "a migration plan requires at least one intent",
+        ));
     }
     let table_position: BTreeMap<&str, usize> = successor_schema
         .tables
@@ -1075,21 +1087,19 @@ pub fn derive_plan_steps(
         })
         .collect();
     ordered.sort_by(|a, b| {
-        (a.0, a.1)
-            .cmp(&(b.0, b.1))
-            .then_with(|| {
-                // Total-order backstop, pinned: qualified target then step
-                // type of each intent's first chain step.
-                let left = a.2.chain();
-                let right = b.2.chain();
-                let left_key = left
-                    .first()
-                    .map(|step| (step.qualified_target(), step.step_type()));
-                let right_key = right
-                    .first()
-                    .map(|step| (step.qualified_target(), step.step_type()));
-                left_key.cmp(&right_key)
-            })
+        (a.0, a.1).cmp(&(b.0, b.1)).then_with(|| {
+            // Total-order backstop, pinned: qualified target then step
+            // type of each intent's first chain step.
+            let left = a.2.chain();
+            let right = b.2.chain();
+            let left_key = left
+                .first()
+                .map(|step| (step.qualified_target(), step.step_type()));
+            let right_key = right
+                .first()
+                .map(|step| (step.qualified_target(), step.step_type()));
+            left_key.cmp(&right_key)
+        })
     });
     let mut records = Vec::new();
     let mut ordinal = 0_usize;
@@ -1205,9 +1215,7 @@ pub struct MigrationPreviewObservationV1 {
     pub capability_health: BTreeMap<String, String>,
 }
 
-pub fn observation_digest(
-    observation: &MigrationPreviewObservationV1,
-) -> SnapbackResult<String> {
+pub fn observation_digest(observation: &MigrationPreviewObservationV1) -> SnapbackResult<String> {
     let value = serde_json::to_value(observation)
         .map_err(|_| plan_invalid("observation does not serialize"))?;
     prefixed_digest(MIGRATION_OBSERVATION_DIGEST_PREFIX, &value)
@@ -1404,8 +1412,8 @@ pub struct MigrationApprovalV1 {
 }
 
 pub fn approval_digest(approval: &MigrationApprovalV1) -> SnapbackResult<String> {
-    let value = serde_json::to_value(approval)
-        .map_err(|_| plan_invalid("approval does not serialize"))?;
+    let value =
+        serde_json::to_value(approval).map_err(|_| plan_invalid("approval does not serialize"))?;
     prefixed_digest(MIGRATION_APPROVAL_DIGEST_PREFIX, &value)
 }
 
@@ -1424,7 +1432,9 @@ pub fn validate_approval_shape(approval: &MigrationApprovalV1) -> SnapbackResult
         .strip_prefix(MIGRATION_OPERATION_ID_PREFIX)
         .is_none_or(str::is_empty)
     {
-        return Err(plan_invalid("approval operationId is not operation-v1 shaped"));
+        return Err(plan_invalid(
+            "approval operationId is not operation-v1 shaped",
+        ));
     }
     if approval.operation_id.contains(&approval.plan_digest) {
         return Err(plan_invalid(
@@ -1492,13 +1502,18 @@ fn validate_backfill_expr(
     where_: &str,
 ) -> SnapbackResult<()> {
     match expr {
-        ValueExpr::RuntimeNow | ValueExpr::RuntimeId => Err(plan_invalid(format!(
-            "{where_}: backfill expressions cannot read ambient time or randomness; \
+        ValueExpr::RuntimeNow | ValueExpr::RuntimeId | ValueExpr::ClientMutationDigest => {
+            Err(plan_invalid(format!(
+                "{where_}: backfill expressions cannot read ambient time or randomness; \
              use an explicit plan constant"
-        ))),
+            )))
+        }
         ValueExpr::AuthUserId
         | ValueExpr::AuthKind
         | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
         | ValueExpr::AuthIsDelegated => Err(plan_invalid(format!(
             "{where_}: backfill expressions have no caller and cannot read authorization"
         ))),
@@ -1601,10 +1616,11 @@ pub fn validate_plan_artifact(
              (proven under the barrier) or 'dual-compatible'",
         ));
     }
-    if matches!(body.proof.method, MigrationProofMethod::SampledAudit)
-        && body.proof.bound.is_none()
+    if matches!(body.proof.method, MigrationProofMethod::SampledAudit) && body.proof.bound.is_none()
     {
-        return Err(plan_invalid("sampled-audit proof requires a declared bound"));
+        return Err(plan_invalid(
+            "sampled-audit proof requires a declared bound",
+        ));
     }
     let step_ids: BTreeSet<&str> = body.steps.iter().map(|step| step.id.as_str()).collect();
     if step_ids.len() != body.steps.len() {
@@ -1667,17 +1683,17 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
     MigrationAdmissionV1,
 )> {
     use crate::manifest::{FieldManifest, IndexManifest, TableManifest};
-    let table = |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| {
-        TableManifest {
+    let table =
+        |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
             name: name.to_owned(),
             fields,
             indexes,
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
-        }
-    };
+        };
     let string_field = |name: &str, optional: bool| FieldManifest {
         name: name.to_owned(),
         field_type: FieldType::String,
@@ -1902,12 +1918,17 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }
         };
         let predecessor = crate::manifest::SchemaManifest {
             tables: vec![
-                table("notes", vec![field("body", false), field("draft", true)], Vec::new()),
+                table(
+                    "notes",
+                    vec![field("body", false), field("draft", true)],
+                    Vec::new(),
+                ),
                 table("legacy", vec![field("value", false)], Vec::new()),
             ],
             ..Default::default()
@@ -1916,7 +1937,11 @@ mod tests {
             tables: vec![
                 table(
                     "notes",
-                    vec![field("body", false), field("draft", false), field("tag", true)],
+                    vec![
+                        field("body", false),
+                        field("draft", false),
+                        field("tag", true),
+                    ],
                     vec![crate::manifest::IndexManifest {
                         name: "by_tag".to_owned(),
                         fields: vec!["tag".to_owned()],
@@ -1971,8 +1996,8 @@ mod tests {
         let refusal = |predecessor: &crate::manifest::SchemaManifest,
                        successor: &crate::manifest::SchemaManifest,
                        needle: &str| {
-            let error = derive_intents(predecessor, successor)
-                .expect_err("ambiguous diff must refuse");
+            let error =
+                derive_intents(predecessor, successor).expect_err("ambiguous diff must refuse");
             assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
             assert!(
                 error.diagnostic.message.contains(needle),
@@ -2080,6 +2105,7 @@ mod tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -2104,6 +2130,7 @@ mod tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -2121,7 +2148,10 @@ mod tests {
         let (again, ..) = fixture();
         assert_eq!(artifact, again, "identical inputs seal identical artifacts");
         assert_eq!(artifact.plan_digest.len(), 64);
-        assert_eq!(artifact.plan_id, format!("migration-v1:{}", artifact.plan_digest));
+        assert_eq!(
+            artifact.plan_id,
+            format!("migration-v1:{}", artifact.plan_digest)
+        );
 
         let (predecessor, successor) = schemas();
         validate_plan_artifact(&artifact, &predecessor, &successor).expect("valid plan");
@@ -2235,12 +2265,13 @@ mod tests {
         for (expr, needle) in [
             (ValueExpr::RuntimeNow, "ambient time"),
             (ValueExpr::AuthUserId, "authorization"),
-            (ValueExpr::Arg("undeclared".to_owned()), "no declared plan constant"),
+            (
+                ValueExpr::Arg("undeclared".to_owned()),
+                "no declared plan constant",
+            ),
         ] {
             let tampered = reseal(&|body: &mut MigrationPlanBody| {
-                if let MigrationStep::BackfillField { expr: slot, .. } =
-                    &mut body.steps[1].step
-                {
+                if let MigrationStep::BackfillField { expr: slot, .. } = &mut body.steps[1].step {
                     *slot = expr.clone();
                 }
             });
@@ -2294,9 +2325,7 @@ mod tests {
         );
         assert_eq!(
             vectors["plan"]["planId"],
-            json!(
-                "migration-v1:7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d"
-            ),
+            json!("migration-v1:7265b14a64990e75b2ef112638fe1147b6d70a6d7667f149ad86c05a5e8cc30d"),
         );
         assert_eq!(
             vectors["observationDigest"],
@@ -2339,11 +2368,11 @@ mod tests {
         validate_approval_shape(&approval).expect("valid approval");
 
         let mut derived = approval.clone();
-        derived.operation_id = format!(
-            "{MIGRATION_OPERATION_ID_PREFIX}{}",
-            approval.plan_digest
+        derived.operation_id = format!("{MIGRATION_OPERATION_ID_PREFIX}{}", approval.plan_digest);
+        assert!(
+            validate_approval_shape(&derived).is_err(),
+            "plan-derived id"
         );
-        assert!(validate_approval_shape(&derived).is_err(), "plan-derived id");
 
         let mut expired = approval.clone();
         expired.expires_at_ms = expired.issued_at_ms;

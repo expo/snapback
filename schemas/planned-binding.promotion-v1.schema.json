@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "LogicalResourcePromotionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "logicalName": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "logicalName",
+        "providerId"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/planned-binding.promotion-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "journeyId": {
+      "type": "string"
+    },
+    "logicalResourceIds": {
+      "items": {
+        "$ref": "#/$defs/LogicalResourcePromotionV1"
+      },
+      "type": "array"
+    },
+    "ownershipSentinel": {
+      "type": "string"
+    },
+    "plannedBindingSha256": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "targetBindingSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "journeyId",
+    "plannedBindingSha256",
+    "provider",
+    "region",
+    "ownershipSentinel",
+    "logicalResourceIds",
+    "targetBindingSha256"
+  ],
+  "title": "PlannedBindingPromotionV1",
+  "type": "object"
+}

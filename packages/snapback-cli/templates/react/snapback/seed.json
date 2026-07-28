@@ -1,0 +1,11 @@
+{
+  "tables": {
+    "todos": [
+      {
+        "_id": "todo_welcome",
+        "title": "Build with Snapback",
+        "completed": false
+      }
+    ]
+  }
+}

@@ -1,1 +1,3 @@
 .snapback/
+snapback/generated/*
+!snapback/generated/artifacts.json

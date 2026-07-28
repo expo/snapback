@@ -917,8 +917,8 @@ impl ResumableSha256 {
     pub fn new() -> Self {
         Self {
             state: [
-                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
-                0x1f83d9ab, 0x5be0cd19,
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+                0x5be0cd19,
             ],
             length_bytes: 0,
             buffer: Vec::with_capacity(64),
@@ -964,11 +964,7 @@ impl ResumableSha256 {
             b = a;
             a = temp1.wrapping_add(temp2);
         }
-        for (word, value) in self
-            .state
-            .iter_mut()
-            .zip([a, b, c, d, e, f, g, h])
-        {
+        for (word, value) in self.state.iter_mut().zip([a, b, c, d, e, f, g, h]) {
             *word = word.wrapping_add(value);
         }
     }
@@ -1202,8 +1198,7 @@ pub fn content_digest_artifact() -> Value {
             stream.absorb_row(row).expect("vector rows canonicalize");
         }
         let checkpoint = stream.checkpoint();
-        let mut resumed =
-            ContentDigestStream::resume(&checkpoint).expect("checkpoint resumes");
+        let mut resumed = ContentDigestStream::resume(&checkpoint).expect("checkpoint resumes");
         for row in &logical_rows[split..] {
             resumed.absorb_row(row).expect("vector rows canonicalize");
         }
@@ -1632,6 +1627,71 @@ impl ResumeKeyring {
         Some((key.key_id.clone(), key.secret.clone()))
     }
 
+    /// Search cursors have a much shorter verification overlap than RQS
+    /// tokens. Return the active generation first, followed only by retired
+    /// roots still inside search's 120-second TTL. Callers derive a
+    /// domain-separated AEAD key; raw material never enters a cursor.
+    ///
+    /// @ref LLP 0073#ranking-order-and-cursors — current plus explicitly
+    /// overlapping predecessors, never the full RQS retention window.
+    pub(crate) fn search_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+        let mut keys = self
+            .keys
+            .iter()
+            .filter(|key| {
+                key.retired_at_ms
+                    .is_none_or(|retired_at| now_ms.saturating_sub(retired_at) <= 120_000)
+            })
+            .map(|key| (key.key_id.clone(), *key.secret))
+            .collect::<Vec<_>>();
+        keys.sort_by(|left, right| {
+            let active_left = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == left.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            let active_right = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == right.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            active_right.cmp(&active_left).then(left.0.cmp(&right.0))
+        });
+        keys
+    }
+
+    /// Root material for the purpose-derived bounded-children AEAD. The
+    /// cursor lifetime never exceeds the resume ring's retired-key overlap,
+    /// so routine rotation preserves availability without widening custody.
+    pub(crate) fn bounded_children_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+        let mut keys = self
+            .keys
+            .iter()
+            .filter(|key| {
+                key.retired_at_ms.is_none_or(|retired_at| {
+                    now_ms.saturating_sub(retired_at) <= crate::bounded_children_cursor::MAX_AGE_MS
+                })
+            })
+            .map(|key| (key.key_id.clone(), *key.secret))
+            .collect::<Vec<_>>();
+        keys.sort_by(|left, right| {
+            let active_left = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == left.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            let active_right = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == right.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            active_right
+                .cmp(&active_left)
+                .then_with(|| left.0.cmp(&right.0))
+        });
+        keys
+    }
+
     /// Resolve a presented key id for verification under the overlap window.
     fn verification_key(&self, key_id: &str, now_ms: u64) -> Result<&ResumeKey, &'static str> {
         let key = self
@@ -1790,8 +1850,7 @@ mod tests {
                 let mut first = ResumableSha256::new();
                 first.update(&case[..split]);
                 let checkpoint = first.export_state();
-                let mut second =
-                    ResumableSha256::import_state(&checkpoint).expect("state imports");
+                let mut second = ResumableSha256::import_state(&checkpoint).expect("state imports");
                 second.update(&case[split..]);
                 assert_eq!(hex(&second.finalize()), expected, "split at {split}");
             }

@@ -121,8 +121,62 @@ export function validateSnapbackContractArtifacts({
   if (artifactIndex?.artifacts) {
     validateDescriptorSet(contractManifest, artifactIndex.artifacts, diag);
   }
+  if (artifactIndex?.manifestVersion === 2) {
+    validateReviewManifestProjection(contractManifest, artifactIndex, diag);
+  }
 
   return diagnostics;
+}
+
+function validateReviewManifestProjection(manifest, artifactIndex, diag) {
+  const files = artifactIndex.files;
+  if (!Array.isArray(files)) {
+    diag('SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID', 'Generated review manifest has no digested file inventory.');
+    return;
+  }
+  const byPath = new Map();
+  for (const file of files) {
+    if (
+      typeof file?.path !== 'string'
+      || typeof file?.logicalKind !== 'string'
+      || typeof file?.consumer !== 'string'
+      || !/^sha256:[0-9a-f]{64}$/u.test(file?.sha256 ?? '')
+      || !['consumer-committed', 'regenerable-cache'].includes(file?.custody)
+    ) {
+      diag('SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID', 'Generated review manifest contains an invalid file record.', {
+        artifact: file?.path ?? null,
+      });
+      continue;
+    }
+    byPath.set(file.path, file);
+  }
+  const contractManifestRecord = byPath.get('contract-data.manifest.json');
+  if (
+    contractManifestRecord?.logicalKind !== 'contract-data-manifest'
+    || contractManifestRecord?.consumer !== 'contract'
+  ) {
+    diag('SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID', 'Contract data manifest is not identified as a Contract consumer projection.', {
+      artifact: 'contract-data.manifest.json',
+    });
+  }
+  const declared = new Set(artifactIndex.artifacts ?? []);
+  for (const path of declared) {
+    if (!byPath.has(path)) {
+      diag('SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID', 'Legacy artifact inventory is not covered by the digested review inventory.', {
+        artifact: path,
+      });
+    }
+  }
+  for (const name of Object.keys(manifest.queries ?? {})) {
+    const suffix = manifest.queries[name]?.ephemeral === true ? '.ephemeral.ts' : '.query.ts';
+    const path = `contract/${name}${suffix}`;
+    if (byPath.get(path)?.consumer !== 'contract') {
+      diag('SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID', 'Contract descriptor is not identified as a Contract consumer projection.', {
+        binding: name,
+        artifact: path,
+      });
+    }
+  }
 }
 
 function validateBindingSet(manifest, functions, diag) {

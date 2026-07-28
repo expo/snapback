@@ -1,0 +1,666 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "result_contract_v1"
+  ],
+  "appId": "app",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:b66c5a66f2988f20",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "activityRows",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "activityRows"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "activityRows",
+      "handlerForm": "plan",
+      "id": "app:activityRows",
+      "implementationHash": "sha256:b57ce30e925a5f6f30b030d2a6092aa41175306cc65a0dd57fb0b8a56dcbc2ad",
+      "kind": "LiveQuery",
+      "name": "activityRows",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "activityRows",
+        "tables": [
+          "activityRows"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "activityRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "activityRows"
+      },
+      "resultContractHash": "sha256:46eb4150afe67767c41fb7922c74311919be00941b8deddb1ecce2b46a012c5f",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "activityRows"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "liveRows",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "liveRows"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "liveRows",
+      "handlerForm": "plan",
+      "id": "app:liveRows",
+      "implementationHash": "sha256:5edd9ca4944a06a5c1bf962a29bf231c0d038c4a1f25c8ede2fffdecf0301696",
+      "kind": "LiveQuery",
+      "name": "liveRows",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "liveRows",
+        "tables": [
+          "liveRows"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "liveRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "liveRows"
+      },
+      "resultContractHash": "sha256:ba4a45143d6f6efa5f35a6ad58d1830248eb5807f5caf9e57e233fe16f82dcb8",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "liveRows"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "primaryRows",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "primaryRows"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "primaryRows",
+      "handlerForm": "plan",
+      "id": "app:primaryRows",
+      "implementationHash": "sha256:2421830293b53ebd55114614924ea4592e1a1bfe0708b0c0bad06c7e7d0f77e4",
+      "kind": "LiveQuery",
+      "name": "primaryRows",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "primaryRows",
+        "tables": [
+          "primaryRows"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "primaryRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "primaryRows"
+      },
+      "resultContractHash": "sha256:eeb982ca6eb410b47d21339f943f854502bb668616447dd68934611c10c3a446",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "primaryRows"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContractHash": "sha256:8f4a0b35032b4065fdd92bf3969a17ec55c6001da2326c576dfdaf62d7dce9e4",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "publishLiveRow",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "liveRows"
+          }
+        ]
+      },
+      "exportedName": "publishLiveRow",
+      "handlerForm": "module",
+      "id": "app:publishLiveRow",
+      "implementationHash": "sha256:70556b75a69e78855b53c5c1d3f10c93a030a8a4398d91e283f12dc5f06b74eb",
+      "kind": "Mutation",
+      "name": "publishLiveRow",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "publishLiveRow",
+          "source": "async function publishLiveRow(ctx, args) {\n  return ctx.db.insert('liveRows', { body: args.body });\n}\n\nasync function writePrimaryAndActivity(ctx, args) {\n  const primary = await ctx.db.insert('primaryRows', { value: args.primary });\n  const activity = await ctx.db.insert('activityRows', { value: args.activity });\n  return { primary, activity };\n}\n\nasync function rejectInvalidWrite(ctx, args) {\n  await ctx.db.insert('rejectionRows', { value: args.value });\n  const error = new Error('fixture mutation deliberately rejected');\n  error.code = 'FIXTURE_REJECTED';\n  throw error;\n}\n\nglobalThis.__snapbackHandlers = {\n  publishLiveRow,\n  writePrimaryAndActivity,\n  rejectInvalidWrite,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "liveRows",
+        "tables": [
+          "liveRows"
+        ]
+      }
+    },
+    {
+      "argsContractHash": "sha256:667ce5de2952fbf2c8a1db169e3f9fd2d2e1946c3f60c9b6828dbb2fc4a7e1f1",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "rejectInvalidWrite",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rejectionRows"
+          }
+        ]
+      },
+      "exportedName": "rejectInvalidWrite",
+      "handlerForm": "module",
+      "id": "app:rejectInvalidWrite",
+      "implementationHash": "sha256:729a47250b5c74fe3be36269230b0430dfea60b83ff66ddf2e18e27c7e001e2f",
+      "kind": "Mutation",
+      "name": "rejectInvalidWrite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "rejectInvalidWrite",
+          "source": "async function publishLiveRow(ctx, args) {\n  return ctx.db.insert('liveRows', { body: args.body });\n}\n\nasync function writePrimaryAndActivity(ctx, args) {\n  const primary = await ctx.db.insert('primaryRows', { value: args.primary });\n  const activity = await ctx.db.insert('activityRows', { value: args.activity });\n  return { primary, activity };\n}\n\nasync function rejectInvalidWrite(ctx, args) {\n  await ctx.db.insert('rejectionRows', { value: args.value });\n  const error = new Error('fixture mutation deliberately rejected');\n  error.code = 'FIXTURE_REJECTED';\n  throw error;\n}\n\nglobalThis.__snapbackHandlers = {\n  publishLiveRow,\n  writePrimaryAndActivity,\n  rejectInvalidWrite,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rejectionRows",
+        "tables": [
+          "rejectionRows"
+        ]
+      }
+    },
+    {
+      "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "rejectionRows",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rejectionRows"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "rejectionRows",
+      "handlerForm": "plan",
+      "id": "app:rejectionRows",
+      "implementationHash": "sha256:8f012aad5a4928fd73976c0edaa566990bf5b6f5c9b3bc2c3f39f1b51e3a6d80",
+      "kind": "LiveQuery",
+      "name": "rejectionRows",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "rejectionRows",
+        "tables": [
+          "rejectionRows"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rejectionRows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "rejectionRows"
+      },
+      "resultContractHash": "sha256:145be32064f6940253b62f0e05479e3ee9c28f7dea0fe00a1a2c3edb64b62bc1",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "rejectionRows"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContractHash": "sha256:b80cc87f8cb46c6ec07f7efb9bc81eab489b912d6f6973605f6ea7b7136d6a00",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "writePrimaryAndActivity",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activityRows"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "primaryRows"
+          }
+        ]
+      },
+      "exportedName": "writePrimaryAndActivity",
+      "handlerForm": "module",
+      "id": "app:writePrimaryAndActivity",
+      "implementationHash": "sha256:2e30a434cd1ffbd07cdf2972ba1f01ab63f7bf0c875e2359b8dfab147ba9ccd2",
+      "kind": "Mutation",
+      "name": "writePrimaryAndActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "writePrimaryAndActivity",
+          "source": "async function publishLiveRow(ctx, args) {\n  return ctx.db.insert('liveRows', { body: args.body });\n}\n\nasync function writePrimaryAndActivity(ctx, args) {\n  const primary = await ctx.db.insert('primaryRows', { value: args.primary });\n  const activity = await ctx.db.insert('activityRows', { value: args.activity });\n  return { primary, activity };\n}\n\nasync function rejectInvalidWrite(ctx, args) {\n  await ctx.db.insert('rejectionRows', { value: args.value });\n  const error = new Error('fixture mutation deliberately rejected');\n  error.code = 'FIXTURE_REJECTED';\n  throw error;\n}\n\nglobalThis.__snapbackHandlers = {\n  publishLiveRow,\n  writePrimaryAndActivity,\n  rejectInvalidWrite,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "primaryRows",
+        "tables": [
+          "primaryRows",
+          "activityRows"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b68476e8ba8617edf92b6e558e1ff54c7984c026778d8aded1e6185982ba344f",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "publishLiveRow"
+      },
+      "message": "publishLiveRow: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "rejectInvalidWrite"
+      },
+      "message": "rejectInvalidWrite: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "writePrimaryAndActivity"
+      },
+      "message": "writePrimaryAndActivity: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

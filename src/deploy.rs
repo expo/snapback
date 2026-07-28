@@ -1362,6 +1362,394 @@ pub struct DeployPlan {
     pub expires_at_ms: u64,
 }
 
+// --- Hosted Fly v2 control-plane carriers ---------------------------------
+//
+// These shapes are deliberately defined in Rust even though the first
+// supervisor implementation is JavaScript. LLP 0037 makes Rust the authority
+// for every shared Snapback artifact and the generated schemas are consumed by
+// the supervisor and provider-driver conformance tests.
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum FlyTargetBindingVersion {
+    #[serde(rename = "snapback.fly-target-binding.v2")]
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FlyCredentialBindingV2 {
+    pub role: String,
+    pub credential_ref: String,
+    pub fingerprint: String,
+    pub allowed_verbs: Vec<String>,
+    pub resource_prefixes: Vec<String>,
+}
+
+/// Closed, generation-fenced binding for one Fly target.
+///
+/// @ref LLP 0105#expiring-routed-machine-authority — effect-time discovery is
+/// forbidden; the control plane pins the complete roster, routes, storage,
+/// certificate posture, supervisor, and separated credential roles.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FlyTargetBindingV2 {
+    pub schema_version: FlyTargetBindingVersion,
+    pub target_id: String,
+    pub binding_generation: u64,
+    pub predecessor_binding_sha256: Option<String>,
+    pub organization_id: String,
+    pub app_id: String,
+    pub region: String,
+    pub public_origin: String,
+    pub active_machine_id: String,
+    pub machine_roster: Vec<String>,
+    pub routed_machine_ids: Vec<String>,
+    pub service_process_groups: Vec<String>,
+    pub autostop_enabled: bool,
+    pub autostart_enabled: bool,
+    pub autoscale_enabled: bool,
+    pub volume_id: String,
+    pub oci_repository: String,
+    pub oci_digest: String,
+    pub tigris_bucket: String,
+    pub artifact_prefix: String,
+    pub backup_prefix: String,
+    pub control_state_prefix: String,
+    pub audit_prefix: String,
+    pub log_prefix: String,
+    pub cleanup_prefix: String,
+    pub tls_issuer: String,
+    pub certificate_posture: String,
+    pub external_head_key: String,
+    pub ownership_sentinel: String,
+    pub supervisor_installation_id: String,
+    pub supervisor_oci_digest: String,
+    pub credentials: Vec<FlyCredentialBindingV2>,
+    pub observed_at_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum HostedAdmissionV2Version {
+    #[serde(rename = "snapback.hosted-admission.v2")]
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAdmissionV2 {
+    pub schema_version: HostedAdmissionV2Version,
+    pub target_id: String,
+    pub deployment_id: String,
+    pub binding_generation: u64,
+    pub target_binding_sha256: String,
+    pub control_head_sha256: String,
+    pub supervisor_incarnation: String,
+    pub exact_roster_sha256: String,
+    pub routed_machine_id: String,
+    pub hosted_auth_expires_at_ms: u64,
+    pub routed_machine_expires_at_ms: u64,
+    pub replay_floor: u64,
+    pub admission_generation: u64,
+    pub issued_at_ms: u64,
+    pub signature: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProviderEffectIntentVersion {
+    #[serde(rename = "snapback.provider-effect-intent.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderEffectIntentV1 {
+    pub schema_version: ProviderEffectIntentVersion,
+    pub operation_id: String,
+    pub operation: String,
+    pub request_sha256: String,
+    pub semantic_effect_id: String,
+    pub target_binding_sha256: String,
+    pub plan_sha256: String,
+    pub effect_kind: String,
+    pub logical_resource_name: String,
+    pub desired_provider_state_sha256: String,
+    pub predecessor_head_sha256: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProviderEffectObservationVersion {
+    #[serde(rename = "snapback.provider-effect-observation.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderEffectObservationV1 {
+    pub schema_version: ProviderEffectObservationVersion,
+    pub semantic_effect_id: String,
+    pub provider_request_sha256: String,
+    pub provider_uri: String,
+    pub provider_revision: Option<String>,
+    pub observed_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ProviderEffectTerminalVersion {
+    #[serde(rename = "snapback.provider-effect-terminal.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderEffectTerminalOutcome {
+    NotApplied,
+    Applied,
+    CommitUncertain,
+}
+
+/// Immutable terminal for one original effect attempt. Reconciliation appends
+/// a separate `ProviderEffectReconciliationV1`; it never edits this record.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderEffectTerminalV1 {
+    pub schema_version: ProviderEffectTerminalVersion,
+    pub semantic_effect_id: String,
+    pub outcome: ProviderEffectTerminalOutcome,
+    pub reason: Option<String>,
+    pub provider_version: Option<String>,
+    pub redacted_evidence_sha256: Option<String>,
+    pub retained_result_sha256: Option<String>,
+    pub last_observation_sha256: Option<String>,
+    pub recovery_class: Option<String>,
+    pub recorded_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderEffectReconciliationV1 {
+    pub schema_version: String,
+    pub reconciliation_id: String,
+    pub semantic_effect_id: String,
+    pub uncertain_terminal_sha256: String,
+    pub fresh_provider_observation_sha256: String,
+    pub fresh_control_head_sha256: String,
+    pub resolved_outcome: ProviderEffectTerminalOutcome,
+    pub retained_result_sha256: Option<String>,
+    pub recorded_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum HostedControlHeadVersion {
+    #[serde(rename = "snapback.hosted-control-head.v2")]
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedControlHeadV2 {
+    pub schema_version: HostedControlHeadVersion,
+    pub target_id: String,
+    pub generation: u64,
+    pub predecessor_sha256: Option<String>,
+    pub binding_sha256: String,
+    pub active_release_id: Option<String>,
+    pub activation_generation: u64,
+    pub journal_root_sha256: String,
+    pub admission_generation: u64,
+    pub spend_floor: u64,
+    pub cleanup_floor: u64,
+    pub replay_floor: u64,
+    pub supervisor_incarnation: String,
+    pub committed_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PlannedBindingPromotionV1 {
+    pub schema_version: String,
+    pub journey_id: String,
+    pub planned_binding_sha256: String,
+    pub provider: String,
+    pub region: String,
+    pub ownership_sentinel: String,
+    pub logical_resource_ids: Vec<LogicalResourcePromotionV1>,
+    pub target_binding_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LogicalResourcePromotionV1 {
+    pub logical_name: String,
+    pub provider_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum SpendLedgerVersion {
+    #[serde(rename = "snapback.hosted-spend-ledger.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SpendGrantState {
+    Planned,
+    Reserved,
+    Effecting,
+    Consumed,
+    Released,
+    CommitUncertain,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedSpendGrantV1 {
+    pub grant_id: String,
+    pub journey_id: String,
+    pub plan_sha256: String,
+    pub target_or_planned_binding_sha256: String,
+    pub semantic_effect_ids: Vec<String>,
+    pub maximum_micros: u64,
+    pub held_micros: u64,
+    pub state: SpendGrantState,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedSpendLedgerV1 {
+    pub schema_version: SpendLedgerVersion,
+    pub journey_id: String,
+    pub currency: String,
+    pub tariff_source: String,
+    pub tariff_observed_at_ms: u64,
+    pub maximum_micros: u64,
+    pub remaining_micros: u64,
+    pub cleanup_reserve_micros: u64,
+    pub grants: Vec<HostedSpendGrantV1>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AdapterLifecycleOperationV2 {
+    AcquireLease,
+    RenewLease,
+    UploadImmutableRelease,
+    ProvisionInactive,
+    CompatibilityPreflight,
+    CreateVerifiedBackup,
+    StageRelease,
+    ActivateGeneration,
+    VerifyServedPath,
+    Rollback,
+    FenceExternalEffects,
+    RestoreBackupInactive,
+    VerifyRestoredComponents,
+    VerifyRestoredApplication,
+    ActivateRestoredGeneration,
+    ReconcileEffect,
+    ReleaseLease,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterLifecycleRequestV2Version {
+    #[serde(rename = "snapback.vm-adapter-lifecycle-request.v2")]
+    V2,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AdapterLifecycleResponseV2Version {
+    #[serde(rename = "snapback.vm-adapter-lifecycle-response.v2")]
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterLifecycleRequestV2 {
+    pub schema_version: AdapterLifecycleRequestV2Version,
+    pub operation: AdapterLifecycleOperationV2,
+    pub operation_id: String,
+    pub attempt: u32,
+    pub target_binding: FlyTargetBindingV2,
+    pub plan_sha256: String,
+    pub request_sha256: String,
+    pub predecessor_head: HostedControlHeadV2,
+    pub lease: Option<DeploymentLease>,
+    pub effect_intent: ProviderEffectIntentV1,
+    pub confirmation_sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AdapterLifecycleResponseV2 {
+    pub schema_version: AdapterLifecycleResponseV2Version,
+    pub operation: AdapterLifecycleOperationV2,
+    pub operation_id: String,
+    pub ok: bool,
+    pub idempotent_replay: bool,
+    pub remote_evidence: bool,
+    pub request_sha256: String,
+    pub observation: Option<ProviderEffectObservationV1>,
+    pub terminal: ProviderEffectTerminalV1,
+    pub control_head: HostedControlHeadV2,
+    pub diagnostics: Vec<AdapterSafeDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum CleanupPlanVersion {
+    #[serde(rename = "snapback.vm-adapter-cleanup-plan.v1")]
+    V1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CleanupResourceV1 {
+    pub logical_name: String,
+    pub provider_id: String,
+    pub resource_kind: String,
+    pub ownership_sentinel: String,
+    pub disposition: String,
+    pub continuing_cost_micros_per_hour: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CleanupPlanV1 {
+    pub schema_version: CleanupPlanVersion,
+    pub cleanup_plan_id: String,
+    pub journey_id: String,
+    pub target_or_planned_binding_sha256: String,
+    pub ownership_sentinel: String,
+    pub resources: Vec<CleanupResourceV1>,
+    pub cleanup_reserve_micros: u64,
+    pub inventory_sha256: String,
+    pub confirmation_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CleanupConfirmationV1 {
+    pub schema_version: String,
+    pub cleanup_plan_id: String,
+    pub inventory_sha256: String,
+    pub confirmation_sha256: String,
+    pub confirmed_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CleanupReceiptV1 {
+    pub schema_version: String,
+    pub cleanup_plan_id: String,
+    pub journey_id: String,
+    pub deleted_provider_ids: Vec<String>,
+    pub retained_evidence_prefixes: Vec<String>,
+    pub revoked_credential_fingerprints: Vec<String>,
+    pub absence_proof_sha256: String,
+    pub continuing_cost_micros_per_hour: u64,
+    pub completed: bool,
+    pub recorded_at_ms: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

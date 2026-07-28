@@ -5,8 +5,10 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-23 (dated pointer note: LLP 0089 proposes the agent provisioning acceptance gate under this Spec's bar); 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024
+**Revised:** 2026-07-27 (LLP 0101 amendment: generated review evidence covers
+inline-handler admission, effective result contracts, exact client inference,
+and pre-publication/pre-commit validation); 2026-07-23 (dated pointer note: LLP 0089 proposes the agent provisioning acceptance gate under this Spec's bar); 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024, LLP 0101
 
 ## Summary
 
@@ -138,9 +140,16 @@ submodule uninitialized, submodule wedged — with or without Ibex sources in
 the directory — checkout drift, prepared Hermes artifacts missing) as
 human-readable findings that reuse the stable codes, severities, and
 suggested-next-checks vocabulary of the diagnostic shape below, without
-writing to the tree. It emits text lines plus an exit status, not the
-machine-readable diagnostic objects that section specifies for product
-surfaces.
+writing to the tree. Once the static prerequisites pass, it builds the exact
+`snapback` Cargo binary in an automatically cleaned temporary target and
+launches that new binary with dynamic-loader overrides scrubbed. Success
+therefore means both “the current checkout is buildable” and “the just-linked
+binary is runnable”; an older runnable `target/debug/snapback` is reported
+separately and never substitutes for that proof. Text and JSON modes carry the
+same `snapback.runtime-recovery.v1` record: selected binary and resolver rung,
+expected checkout commit/dirty state, actual binary stamp when inspectable,
+automatic-reuse reason, exact producer inputs, and safe bootstrap or explicit
+binary-override recovery.
 
 ### Bootstrap diagnostic codes
 
@@ -174,8 +183,20 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
 - `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED` — the vendored `download-hermes.sh`
   fallback failed and no sibling Ibex artifacts were available.
 - `SNAPBACK_IBEX_CARGO_BUILD_FAILED` — artifacts verified, but the
-  Snapback/vendored-runtime build did not compile or link (a code error, not a
-  missing artifact).
+  Snapback/vendored-runtime build did not compile (a code error, not a missing
+  artifact).
+- `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` — compilation reached the final consumer
+  link, but its producer libraries do not provide every required symbol. The
+  diagnostic names every parsed missing symbol and records the exact Cargo,
+  Rust, target, feature, native environment, and artifact inputs.
+- `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT` — the disposable exact-link probe did
+  not finish inside its bounded deadline; its temporary target is still
+  removed.
+- `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED` — the probe received `SIGINT` or
+  `SIGTERM`, terminated its Cargo process group, and removed its temporary
+  target before returning.
+- `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED` — the probe driver itself failed
+  before it could emit its structured result.
 - `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` — the binary links but cannot load
   `hermesvm.framework` at launch without `DYLD_*` set, i.e. it is missing the
   `LC_RPATH` that `build.rs` emits (ENG-22664).
@@ -743,6 +764,24 @@ invocation succeeding), with structured envelopes and diagnostics
 throughout, plus fetch-checked `.md` docs URLs and a skills-package
 scenario. That gate is specified in LLP 0089; this Spec's contract and
 ladder are unchanged by it.
+
+## Dated acceptance profile: inline handlers and results (2026-07-27)
+
+The codegen review surface records handler form, source-linked admission
+diagnostics in local custody, implementation/argument/result hashes, effective
+result-contract kind, and degraded-unknown counts. The public/provider surface
+never contains executable source or private paths. Failed inline extraction or
+result-contract generation leaves the preceding complete artifact set intact.
+
+Acceptance exercises all four inline operation kinds plus the legacy module
+lane; rejects mixed, indirect, free-capturing, class, dynamic-import, and
+eval-like handlers; proves byte-identical regeneration and identity changes;
+checks exact generated headless and React inference; and covers valid/invalid
+document, record-array, document, and direct-value egress. Mutation evidence
+must prove invalid output rolls back its writes and settlement, while
+query/live/action evidence proves invalid output is not published. The
+maintained backend bakeoff is the repository fixture for deleting the separate
+handler registry without restoring casts at its client boundary.
 
 ## Open Questions
 

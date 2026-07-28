@@ -2754,6 +2754,7 @@ struct ConnectionGrantRecord {
     ///   at open, and immutable for the grant lineage; legacy is implicitly
     ///   v1 for the equality rules but never upgraded in place.
     wire_version: Option<String>,
+    ephemeral_authority_protocol: Option<u32>,
 }
 
 /// The sender half of a `BoundGrantAuthorityV2` session grant: the custody
@@ -3143,6 +3144,7 @@ struct ConnectionOpenAttempt<'a> {
     /// tokens before the registry runs, preserving §0B.3's
     /// classification-before-equality precedence). `None` = offerless.
     wire_version_offer: Option<String>,
+    ephemeral_authority_protocol: Option<u32>,
     admission: Option<&'a AdmissionLease>,
 }
 
@@ -3165,6 +3167,7 @@ impl<'a> ConnectionOpenAttempt<'a> {
             monotonic_now,
             auth_invalidation_protocol,
             wire_version_offer: None,
+            ephemeral_authority_protocol: None,
             admission: None,
         }
     }
@@ -3178,6 +3181,11 @@ impl<'a> ConnectionOpenAttempt<'a> {
     /// that never offer (in-crate embeddings, the bundle mint) stay legacy.
     fn with_wire_version(mut self, wire_version_offer: Option<String>) -> Self {
         self.wire_version_offer = wire_version_offer;
+        self
+    }
+
+    fn with_ephemeral_authority_protocol(mut self, protocol: Option<u32>) -> Self {
+        self.ephemeral_authority_protocol = protocol;
         self
     }
 }
@@ -4091,6 +4099,14 @@ pub struct ConnectionGrant {
         skip_serializing_if = "Option::is_none"
     )]
     pub wire_version: Option<String>,
+    /// Echo present iff the client offered the known hosted-ephemeral
+    /// authority protocol. Absence never fails durable/local connection use.
+    #[serde(
+        rename = "ephemeralAuthorityProtocol",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ephemeral_authority_protocol: Option<u32>,
 }
 
 impl std::fmt::Debug for ConnectionGrant {
@@ -4106,6 +4122,10 @@ impl std::fmt::Debug for ConnectionGrant {
                 &self.authorization_invalidation,
             )
             .field("wire_version", &self.wire_version)
+            .field(
+                "ephemeral_authority_protocol",
+                &self.ephemeral_authority_protocol,
+            )
             .finish()
     }
 }
@@ -4140,6 +4160,10 @@ pub struct OpenConnectionRequest {
     /// implicitly bound to v1 for the socket-equality rule.
     #[serde(default, alias = "wire_version")]
     pub wire_version: Option<String>,
+    /// Capability-first hosted ephemeral offer. Known binds, unknown refuses,
+    /// and absent degrades without failing durable connection use.
+    #[serde(default, alias = "ephemeral_authority_protocol")]
+    pub ephemeral_authority_protocol: Option<u32>,
 }
 
 impl std::fmt::Debug for OpenConnectionRequest {
@@ -4156,6 +4180,10 @@ impl std::fmt::Debug for OpenConnectionRequest {
                 &self.auth_invalidation_protocol,
             )
             .field("wire_version", &self.wire_version)
+            .field(
+                "ephemeral_authority_protocol",
+                &self.ephemeral_authority_protocol,
+            )
             .finish()
     }
 }
@@ -4685,6 +4713,7 @@ impl ConnectionRegistry {
             monotonic_now,
             auth_invalidation_protocol,
             wire_version_offer,
+            ephemeral_authority_protocol,
             admission,
         } = attempt;
         let PreparedConnectionOpenAuthority {
@@ -4754,6 +4783,10 @@ impl ConnectionRegistry {
                     .grants
                     .get(id)
                     .and_then(|existing| existing.wire_version.clone());
+                let lineage_ephemeral_authority_protocol = grants
+                    .grants
+                    .get(id)
+                    .and_then(|existing| existing.ephemeral_authority_protocol);
                 if let Some(offer) = wire_version_offer.as_deref() {
                     let bound_version = lineage_wire_version
                         .as_deref()
@@ -4763,6 +4796,22 @@ impl ConnectionRegistry {
                             "SNAPBACK_WIRE_VERSION_MISMATCH",
                             "realtime",
                             "the wire-version offer does not equal this connection lineage's bound version; open a fresh connection to change versions",
+                        ));
+                    }
+                }
+                if let Some(offer) = ephemeral_authority_protocol {
+                    let Some(bound) = lineage_ephemeral_authority_protocol else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
+                            "ephemeral",
+                            "a legacy connection lineage cannot be upgraded in place",
+                        ));
+                    };
+                    if offer != bound {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
+                            "ephemeral",
+                            "the ephemeral authority offer does not equal this lineage",
                         ));
                     }
                 }
@@ -4785,6 +4834,8 @@ impl ConnectionRegistry {
                         // Echo ⇔ explicit binding: a legacy lineage's
                         // confirming re-open offer produces no echo.
                         wire_version: lineage_wire_version,
+                        ephemeral_authority_protocol:
+                            lineage_ephemeral_authority_protocol,
                     },
                     grant_id,
                     newly_minted: false,
@@ -4854,6 +4905,7 @@ impl ConnectionRegistry {
                     socket_teardown: None,
                     authorization_invalidation: authorization_invalidation.clone(),
                     wire_version: wire_version_offer.clone(),
+                    ephemeral_authority_protocol,
                 },
             );
             Ok(OpenedConnectionGrant {
@@ -4862,6 +4914,7 @@ impl ConnectionRegistry {
                     connection_token,
                     authorization_invalidation,
                     wire_version: wire_version_offer.clone(),
+                    ephemeral_authority_protocol,
                 },
                 grant_id,
                 newly_minted: true,
@@ -5731,13 +5784,20 @@ async fn open_connection(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
     let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
-    let (suggested, previous_token, auth_invalidation_protocol, wire_version) = body
+    let (
+        suggested,
+        previous_token,
+        auth_invalidation_protocol,
+        wire_version,
+        ephemeral_authority_protocol,
+    ) = body
         .map(|body| {
             (
                 body.connection_id,
                 body.previous_token,
                 body.auth_invalidation_protocol,
                 body.wire_version,
+                body.ephemeral_authority_protocol,
             )
         })
         .unwrap_or_default();
@@ -5751,6 +5811,15 @@ async fn open_connection(
             "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
             "auth",
             "this server understands authInvalidationProtocol 1 only; omit the field to open a legacy connection",
+        )));
+    }
+    if ephemeral_authority_protocol
+        .is_some_and(|offered| offered != crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1)
+    {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+            "ephemeral",
+            "this server understands ephemeralAuthorityProtocol 1 only; omit the field to keep hosted ephemeral unavailable",
         )));
     }
     // @ref LLP 0094#0b3-the-wireversion-open-time-offer — known binds, unknown
@@ -5785,6 +5854,7 @@ async fn open_connection(
                 auth_invalidation_protocol,
             )
             .with_wire_version(wire_version)
+            .with_ephemeral_authority_protocol(ephemeral_authority_protocol)
             .with_admission(&admission),
         )?
     };
@@ -7362,6 +7432,36 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(app_reset),
         ),
+        // @ref LLP 0103#153-routes-host-operations-and-authority — this
+        // predecessor-unknown family has four closed AdminWrite routes.
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/app/seed/ensure-v1",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(versioned_seed_ensure),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/app/seed/preview-v1",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(versioned_seed_preview),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/app/seed/reset-install-v1",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(versioned_seed_reset_install),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/app/seed/clear-v1",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(versioned_seed_clear),
+        ),
         RegisteredRoute::new(
             write(
                 "/_snapback/api/client-mutations/purge",
@@ -8598,6 +8698,10 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/functions/load"
                 | "/_snapback/api/host-ops"
                 | "/_snapback/api/app/reset"
+                | "/_snapback/api/app/seed/ensure-v1"
+                | "/_snapback/api/app/seed/preview-v1"
+                | "/_snapback/api/app/seed/reset-install-v1"
+                | "/_snapback/api/app/seed/clear-v1"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
         )
@@ -9796,10 +9900,8 @@ async fn enforce_registered_route_policy(
                 _ => None,
             }
         };
-        match crate::auth::effective_source::derive_effective_source(
-            peer_ip,
-            forwarded.as_deref(),
-        ) {
+        match crate::auth::effective_source::derive_effective_source(peer_ip, forwarded.as_deref())
+        {
             Ok(source) => Some(source),
             Err(error) => {
                 return apply_registered_response_controls(
@@ -13327,6 +13429,30 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             SessionModeOverlay::NONE,
         ),
         host(
+            "host_ops.app.seed.ensure.v1",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.app.seed.preview.v1",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.app.seed.reset-install.v1",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.app.seed.clear.v1",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
             "host_ops.schema.load",
             RoutePolicy::AdminWrite,
             EffectPolicy::None,
@@ -13656,6 +13782,10 @@ pub(crate) fn host_ops_operation_spec(
     let name = match operation {
         "app.inspect" => "host_ops.app.inspect",
         "app.reset" => "host_ops.app.reset",
+        "app.seed.ensure.v1" => "host_ops.app.seed.ensure.v1",
+        "app.seed.preview.v1" => "host_ops.app.seed.preview.v1",
+        "app.seed.reset-install.v1" => "host_ops.app.seed.reset-install.v1",
+        "app.seed.clear.v1" => "host_ops.app.seed.clear.v1",
         "schema.load" => "host_ops.schema.load",
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
@@ -15331,6 +15461,45 @@ async fn host_ops_handler_inner(
         return Ok(Json(result));
     }
 
+    if request.operation == "app.seed.ensure.v1" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            request.user_id.is_some(),
+            policy_mode,
+            &secret_reads,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+        )?;
+        if crate::admin::require_operation_profile(
+            &ctx,
+            &request.operation,
+            request.user_id.is_some(),
+        )
+        .is_err()
+        {
+            let result = with_snapback(&state, move |snapback| {
+                crate::host_ops::execute_host_op_with_profile_and_authority(
+                    snapback, request, server_url, profile, None,
+                )
+            })
+            .await;
+            return Ok(Json(result));
+        }
+        let result = with_snapback_authorization_write(
+            &state,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                crate::host_ops::execute_host_op_with_profile_and_authority(
+                    snapback, request, server_url, profile, None,
+                )
+            },
+        )
+        .await?;
+        return Ok(Json(result));
+    }
+
     if request.operation == "schema.load" {
         crate::admin::authorize_host_operation(
             &ctx,
@@ -15528,6 +15697,101 @@ async fn host_ops_handler_inner(
             }
             return Ok(Json(result));
         }
+    }
+
+    let versioned_seed_reset = matches!(
+        requested_operation.as_str(),
+        "app.seed.reset-install.v1" | "app.seed.clear.v1"
+    );
+    if versioned_seed_reset {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            request.user_id.is_some(),
+            policy_mode,
+            &secret_reads,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+        )?;
+        let outcome = match crate::admin::require_operation_profile(
+            &ctx,
+            &request.operation,
+            request.user_id.is_some(),
+        ) {
+            Err(error) => Err(error.0),
+            Ok(()) if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request) => {
+                Err(SnapbackError::error(
+                    "SNAPBACK_SEED_DECLARATION_INVALID",
+                    "seed",
+                    "versioned seed host operation accepts its body only under input",
+                ))
+            }
+            Ok(()) => request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "versioned seed reset requires input",
+                    )
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<crate::seed_identity::ResetSeedRequestV1>(value)
+                        .map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_SEED_DECLARATION_INVALID",
+                                "seed",
+                                "versioned seed reset input is not the closed v1 carrier",
+                            )
+                        })
+                })
+                .and_then(|parsed| {
+                    let exact = matches!(
+                        (requested_operation.as_str(), parsed.operation),
+                        (
+                            "app.seed.reset-install.v1",
+                            crate::seed_identity::SeedResetOperationV1::ResetInstall
+                        ) | (
+                            "app.seed.clear.v1",
+                            crate::seed_identity::SeedResetOperationV1::Clear
+                        )
+                    );
+                    exact.then_some(parsed).ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_SEED_DECLARATION_INVALID",
+                            "seed",
+                            "versioned seed operation does not match its host operation name",
+                        )
+                    })
+                }),
+        };
+        let outcome = match outcome {
+            Ok(parsed) => {
+                let admission = route_admission.as_ref().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_MODE_PENDING",
+                        "auth",
+                        "versioned seed reset is missing managed admission",
+                    )
+                });
+                match admission {
+                    Ok(admission) => {
+                        coordinated_versioned_seed_reset(&runtime, admission, parsed).await
+                    }
+                    Err(error) => Err(error),
+                }
+            }
+            Err(error) => Err(error),
+        };
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::coordinated_versioned_seed_result(
+                snapback, &request, server_url, profile, outcome,
+            )
+        })
+        .await;
+        return Ok(Json(result));
     }
 
     let reset_preauthorized = requested_operation == "app.reset";
@@ -15761,16 +16025,83 @@ async fn coordinated_app_reset(
     let owned_runtime = runtime.clone();
     let owned_admission = route_admission.clone();
     let transaction = spawn_owned_auth_transaction(async move {
-        coordinated_app_reset_inner(&owned_runtime, &owned_admission, seed).await
+        coordinated_app_reset_inner(
+            &owned_runtime,
+            &owned_admission,
+            CoordinatedResetInput::Legacy(seed),
+        )
+        .await
     });
-    await_owned_auth_transaction(transaction).await?
+    match await_owned_auth_transaction(transaction).await?? {
+        CoordinatedResetOutput::Legacy(output) => Ok(output),
+        CoordinatedResetOutput::Versioned(_) => unreachable!("legacy reset returned seed receipt"),
+    }
+}
+
+#[derive(Clone)]
+enum CoordinatedResetInput {
+    Legacy(Option<SeedData>),
+    Versioned(crate::seed_identity::ResetSeedRequestV1),
+}
+
+enum CoordinatedResetOutput {
+    Legacy(Option<crate::manifest::MutationOutput>),
+    Versioned(crate::seed_identity::SeedInstallReceiptV1),
+}
+
+enum CoordinatedResetCommitted {
+    Legacy(crate::local::CoordinatedResetCommit),
+    Versioned(crate::local::CoordinatedVersionedSeedResetCommit),
+}
+
+fn map_reset_attempt<T>(
+    attempt: AuthTransactionAttempt<T>,
+    map: impl FnOnce(T) -> CoordinatedResetCommitted,
+) -> AuthTransactionAttempt<CoordinatedResetCommitted> {
+    match attempt {
+        AuthTransactionAttempt::Committed(value) => AuthTransactionAttempt::Committed(map(value)),
+        AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+        AuthTransactionAttempt::CommitUncertain(error) => {
+            AuthTransactionAttempt::CommitUncertain(error)
+        }
+    }
+}
+
+async fn coordinated_versioned_seed_reset(
+    runtime: &AppState,
+    route_admission: &AdmissionLease,
+    request: crate::seed_identity::ResetSeedRequestV1,
+) -> SnapbackResult<crate::seed_identity::SeedInstallReceiptV1> {
+    let request_digest = request.request_digest()?;
+    let operation_id = request.operation_id.clone();
+    if let Some(receipt) = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.replay_versioned_seed_operation(&operation_id, &request_digest)
+    })
+    .await?
+    {
+        return Ok(receipt);
+    }
+    let owned_runtime = runtime.clone();
+    let owned_admission = route_admission.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        coordinated_app_reset_inner(
+            &owned_runtime,
+            &owned_admission,
+            CoordinatedResetInput::Versioned(request),
+        )
+        .await
+    });
+    match await_owned_auth_transaction(transaction).await?? {
+        CoordinatedResetOutput::Versioned(receipt) => Ok(receipt),
+        CoordinatedResetOutput::Legacy(_) => unreachable!("versioned reset returned legacy output"),
+    }
 }
 
 async fn coordinated_app_reset_inner(
     runtime: &AppState,
     route_admission: &AdmissionLease,
-    seed: Option<SeedData>,
-) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
+    input: CoordinatedResetInput,
+) -> SnapbackResult<CoordinatedResetOutput> {
     let active_auth_mode = runtime.auth_mode_state().active;
     if active_auth_mode == AuthMode::Dev
         && runtime.auth_provider.is_none()
@@ -15780,17 +16111,44 @@ async fn coordinated_app_reset_inner(
             &runtime.snapback,
             route_admission.clone(),
             "app reset transaction and successor runtime projection",
-            move |snapback, predecessor, successor| match snapback
-                .attempt_reset_with_seed_and_authorization_stream(seed, predecessor, successor)
-            {
-                AuthTransactionAttempt::Committed(committed) => {
-                    AuthTransactionAttempt::Committed(snapback.publish_coordinated_reset(committed))
+            move |snapback, predecessor, successor| match input {
+                CoordinatedResetInput::Legacy(seed) => {
+                    match snapback.attempt_reset_with_seed_and_authorization_stream(
+                        seed,
+                        predecessor,
+                        successor,
+                    ) {
+                        AuthTransactionAttempt::Committed(committed) => {
+                            AuthTransactionAttempt::Committed(CoordinatedResetOutput::Legacy(
+                                snapback.publish_coordinated_reset(committed),
+                            ))
+                        }
+                        AuthTransactionAttempt::RolledBack(error) => {
+                            AuthTransactionAttempt::RolledBack(error)
+                        }
+                        AuthTransactionAttempt::CommitUncertain(error) => {
+                            AuthTransactionAttempt::CommitUncertain(error)
+                        }
+                    }
                 }
-                AuthTransactionAttempt::RolledBack(error) => {
-                    AuthTransactionAttempt::RolledBack(error)
-                }
-                AuthTransactionAttempt::CommitUncertain(error) => {
-                    AuthTransactionAttempt::CommitUncertain(error)
+                CoordinatedResetInput::Versioned(request) => {
+                    match snapback.attempt_versioned_seed_reset_with_authorization_stream(
+                        request,
+                        predecessor,
+                        successor,
+                    ) {
+                        AuthTransactionAttempt::Committed(committed) => {
+                            AuthTransactionAttempt::Committed(CoordinatedResetOutput::Versioned(
+                                snapback.publish_coordinated_versioned_seed_reset(committed),
+                            ))
+                        }
+                        AuthTransactionAttempt::RolledBack(error) => {
+                            AuthTransactionAttempt::RolledBack(error)
+                        }
+                        AuthTransactionAttempt::CommitUncertain(error) => {
+                            AuthTransactionAttempt::CommitUncertain(error)
+                        }
+                    }
                 }
             },
         )
@@ -15827,11 +16185,24 @@ async fn coordinated_app_reset_inner(
                 Ok(effect) => effect,
                 Err(error) => return AuthTransactionAttempt::RolledBack(error),
             };
-            snapback.attempt_reset_with_seed_and_authorization_stream(
-                seed,
-                &predecessor,
-                &durable_successor,
-            )
+            match input {
+                CoordinatedResetInput::Legacy(seed) => map_reset_attempt(
+                    snapback.attempt_reset_with_seed_and_authorization_stream(
+                        seed,
+                        &predecessor,
+                        &durable_successor,
+                    ),
+                    CoordinatedResetCommitted::Legacy,
+                ),
+                CoordinatedResetInput::Versioned(request) => map_reset_attempt(
+                    snapback.attempt_versioned_seed_reset_with_authorization_stream(
+                        request,
+                        &predecessor,
+                        &durable_successor,
+                    ),
+                    CoordinatedResetCommitted::Versioned,
+                ),
+            }
         },
     )
     .await
@@ -15845,18 +16216,14 @@ async fn coordinated_app_reset_inner(
             drop(maintenance);
             return coordinator.finish_stream_reset(
                 carrier,
-                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::RolledBack(
-                    error,
-                ),
+                AuthTransactionAttempt::<CoordinatedResetOutput>::RolledBack(error),
             );
         }
         AuthTransactionAttempt::CommitUncertain(error) => {
             drop(maintenance);
             return coordinator.finish_stream_reset(
                 carrier,
-                AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
-                    error,
-                ),
+                AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error),
             );
         }
     };
@@ -15875,8 +16242,13 @@ async fn coordinated_app_reset_inner(
         .auth_terminal_lifecycle
         .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
     runtime.clear_reset_auth_invalidation();
-    let seeded = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.publish_coordinated_reset(committed)
+    let output = with_snapback(&runtime.snapback, move |snapback| match committed {
+        CoordinatedResetCommitted::Legacy(committed) => {
+            CoordinatedResetOutput::Legacy(snapback.publish_coordinated_reset(committed))
+        }
+        CoordinatedResetCommitted::Versioned(committed) => CoordinatedResetOutput::Versioned(
+            snapback.publish_coordinated_versioned_seed_reset(committed),
+        ),
     })
     .await;
     runtime.secret_reads.clear_after_committed_reset();
@@ -15948,9 +16320,7 @@ async fn coordinated_app_reset_inner(
                 .await;
                 let classified = coordinator.finish_stream_reset(
                     carrier,
-                    AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
-                        error,
-                    ),
+                    AuthTransactionAttempt::<CoordinatedResetOutput>::CommitUncertain(error),
                 );
                 return match classified {
                     Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_REVOCATION_UNCERTAIN" => {
@@ -15985,7 +16355,7 @@ async fn coordinated_app_reset_inner(
             "committed reset successor projection could not be reconciled",
         ));
     }
-    Ok(seeded)
+    Ok(output)
 }
 
 /// `app.reset` — the gated system write that resets the instance and, per
@@ -16006,6 +16376,99 @@ async fn app_reset(
     let seed = parse_optional_json::<AppResetBody>(&headers, body)?.and_then(|body| body.seed);
     let seeded = coordinated_app_reset(&runtime, &route_admission, seed).await?;
     Ok(Json(AppResetResponse { seeded }))
+}
+
+fn required_seed_json<T: serde::de::DeserializeOwned>(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<T, ApiError> {
+    parse_optional_json(headers, body)?.ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_SEED_DECLARATION_INVALID",
+            "seed",
+            "versioned seed request requires one closed JSON body",
+        ))
+    })
+}
+
+async fn versioned_seed_ensure(
+    State(runtime): State<AppState>,
+    State(ctx): State<Arc<ServerContext>>,
+    Extension(_route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::seed_identity::SeedEnsureResultV1>, ApiError> {
+    crate::admin::authorize_operation(&ctx, &headers, "app.seed.ensure.v1", None)?;
+    crate::admin::require_operation_profile(&ctx, "app.seed.ensure.v1", false)?;
+    let request = required_seed_json::<crate::seed_identity::InstallSeedRequestV1>(&headers, body)?;
+    let outcome = with_snapback_authorization_write(
+        &runtime.snapback,
+        |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+        move |snapback| snapback.ensure_versioned_seed(request),
+    )
+    .await??;
+    Ok(Json(outcome))
+}
+
+async fn versioned_seed_preview(
+    State(runtime): State<AppState>,
+    State(ctx): State<Arc<ServerContext>>,
+    Extension(_route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::seed_identity::SeedPreviewResultV1>, ApiError> {
+    crate::admin::authorize_operation(&ctx, &headers, "app.seed.preview.v1", None)?;
+    crate::admin::require_operation_profile(&ctx, "app.seed.preview.v1", false)?;
+    let request = required_seed_json::<crate::seed_identity::SeedPreviewRequestV1>(&headers, body)?;
+    let outcome = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.preview_versioned_seed(request)
+    })
+    .await?;
+    Ok(Json(outcome))
+}
+
+async fn versioned_seed_reset_install(
+    State(runtime): State<AppState>,
+    State(ctx): State<Arc<ServerContext>>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::seed_identity::SeedInstallReceiptV1>, ApiError> {
+    crate::admin::authorize_operation(&ctx, &headers, "app.seed.reset-install.v1", None)?;
+    crate::admin::require_operation_profile(&ctx, "app.seed.reset-install.v1", false)?;
+    let request = required_seed_json::<crate::seed_identity::ResetSeedRequestV1>(&headers, body)?;
+    if request.operation != crate::seed_identity::SeedResetOperationV1::ResetInstall {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_SEED_DECLARATION_INVALID",
+            "seed",
+            "reset-install-v1 route requires operation resetInstall",
+        )));
+    }
+    Ok(Json(
+        coordinated_versioned_seed_reset(&runtime, &route_admission, request).await?,
+    ))
+}
+
+async fn versioned_seed_clear(
+    State(runtime): State<AppState>,
+    State(ctx): State<Arc<ServerContext>>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::seed_identity::SeedInstallReceiptV1>, ApiError> {
+    crate::admin::authorize_operation(&ctx, &headers, "app.seed.clear.v1", None)?;
+    crate::admin::require_operation_profile(&ctx, "app.seed.clear.v1", false)?;
+    let request = required_seed_json::<crate::seed_identity::ResetSeedRequestV1>(&headers, body)?;
+    if request.operation != crate::seed_identity::SeedResetOperationV1::Clear {
+        return Err(ApiError::from(SnapbackError::error(
+            "SNAPBACK_SEED_DECLARATION_INVALID",
+            "seed",
+            "clear-v1 route requires operation clear",
+        )));
+    }
+    Ok(Json(
+        coordinated_versioned_seed_reset(&runtime, &route_admission, request).await?,
+    ))
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -20121,6 +20584,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0080 slice 1: two joined rows sharing a unique key conflict
         // with the index invariant; the executor refuses rather than picks.
         | "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY"
+        // @ref LLP 0104#final-author-reconciliation-after-round-3 — bounded
+        // child cursors restart (rather than reposition) when their parent
+        // incarnation changes; unavailable parents and effectless activity
+        // writes likewise conflict with the current durable state.
+        | "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED"
+        | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
+        | "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        | "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED"
         // @ref LLP 0055#principal-kinds — deactivation is refused when it would
         //   leave a protected LLP 0056 resource with no eligible holder; the
         //   operation conflicts with the last-eligible-holder invariant.
@@ -20147,6 +20618,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MIGRATION_RESYNC_REQUIRED"
         | "SNAPBACK_MIGRATION_UPGRADE_REQUIRED"
         | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
+        | "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED"
+        | "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED"
+        | "SNAPBACK_SEED_IDENTITY_CORRUPT"
+        | "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED"
+        | "SNAPBACK_SEED_MIGRATION_REQUIRED"
+        | "SNAPBACK_SEED_NONEMPTY_UNTRACKED"
+        | "SNAPBACK_SEED_OPERATION_HISTORICAL"
+        | "SNAPBACK_SEED_OPERATION_ID_REUSED"
+        | "SNAPBACK_SEED_PARTIAL_UNTRACKED"
+        | "SNAPBACK_SEED_VERSION_REUSED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
         // @ref LLP 0017#security-defaults — admin gating distinguishes "disabled"
@@ -20167,6 +20648,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
         | "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
         | "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
+        // LLP 0104: the closed activity profile accepts only authority classes
+        // that project trustworthy, total provenance.
+        | "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED"
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
         //   refused fail-closed at every authority-creating/exercising path.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
@@ -20319,6 +20803,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // unmintable cursor is a transient serving failure, not a terminal
         // page silently lied about.
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
+        | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
         // LLP 0081 §4: the persisted fence and barrier failures are
         // transient serving refusals — the barrier clears at a terminal
@@ -20522,6 +21007,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PLAN_SOURCE_INVALID"
         // LLP 0080 slice 1: a malformed relational plan is author input.
         | "SNAPBACK_RELATIONAL_PLAN_INVALID"
+        // LLP 0104: malformed bounded-child declarations/cursors and direct
+        // writes to the protected incarnation marker are author/client input.
+        | "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID"
+        | "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID"
+        | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID"
+        | "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED"
+        | "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED"
+        | "SNAPBACK_RELATION_SCHEMA_INVALID"
+        | "SNAPBACK_RELATION_FOREIGN_KEY_INVALID"
+        | "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED"
         // LLP 0065 §1: a HostPlan whose observed operations exceed its
         // admitted EffectCeilingV1 is a doctored/under-declared artifact.
         | "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
@@ -20558,6 +21053,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // malformed, cross-plan, and cross-owner are byte-indistinguishable.
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
+        | "SNAPBACK_SEED_DECLARATION_INVALID"
         | "SNAPBACK_SEED_INVALID"
         | "SNAPBACK_SCHEMA_DUPLICATE_FIELD"
         | "SNAPBACK_SCHEMA_DUPLICATE_INDEX"
@@ -21136,6 +21632,7 @@ mod tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -21347,6 +21844,7 @@ mod tests {
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["roomId".to_owned(), "userId".to_owned()]),
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ephemeral_collections: vec![collection],
@@ -22244,6 +22742,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -22837,7 +23336,7 @@ globalThis.__snapbackHandlers = {
                         .uri(format!("/outbox/{connection_id}"))
                         .header(super::CONNECTION_TOKEN_HEADER, connection_token)
                         .header("x-snapback-auth-client-protocol", "1")
-                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .expect("matrix connection act request"),
                     None,
@@ -24577,6 +25076,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -25305,7 +25805,7 @@ globalThis.__snapbackHandlers = {
                         })
                         .uri(uri)
                         .header("x-snapback-auth-client-protocol", "1")
-                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -25448,6 +25948,7 @@ globalThis.__snapbackHandlers = {
                         syncable: false,
                         permission_backing: false,
                         permission_fields: None,
+                        search_indexes: Vec::new(),
                         membership: None,
                     }],
                     ..SchemaManifest::default()
@@ -26721,6 +27222,7 @@ globalThis.__snapbackHandlers = {
                         syncable: true,
                         permission_backing: false,
                         permission_fields: None,
+                        search_indexes: Vec::new(),
                         membership: None,
                     }],
                     ..SchemaManifest::default()
@@ -26762,7 +27264,12 @@ globalThis.__snapbackHandlers = {
             public_query.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
             let diagnostics = snapback.load_functions(FunctionManifest {
                 bundle_hash: Some("hosted-function-route-fixture".to_owned()),
-                functions: vec![authenticated, authenticated_mutation, optional, public_query],
+                functions: vec![
+                    authenticated,
+                    authenticated_mutation,
+                    optional,
+                    public_query,
+                ],
                 ..FunctionManifest::default()
             });
             assert!(
@@ -31638,6 +32145,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect("prepare coalesce HTTP act");
         let upsert = |value: &[u8], entry_version| crate::ephemeral::EphemeralMessage::Upsert {
+            ephemeral_authority_instance: None,
             room: crate::ephemeral::RoomId {
                 collection: "cursors".to_owned(),
                 scope: crate::ephemeral::Scope::default(),
@@ -32738,6 +33246,7 @@ globalThis.__snapbackHandlers = {
             connection_token: SENTINEL.to_owned(),
             authorization_invalidation: None,
             wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
+            ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
         };
         let grant_debug = format!("{grant:?}");
         assert!(!grant_debug.contains(SENTINEL), "{grant_debug}");
@@ -32748,6 +33257,7 @@ globalThis.__snapbackHandlers = {
             previous_token: Some(SENTINEL.to_owned()),
             auth_invalidation_protocol: None,
             wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
+            ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
         };
         let open_debug = format!("{open:?}");
         assert!(!open_debug.contains(SENTINEL), "{open_debug}");
@@ -33363,6 +33873,14 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PLAN_BOUNDS",
         "SNAPBACK_PLAN_INVALID",
         "SNAPBACK_RELATIONAL_PLAN_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID",
+        "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED",
+        "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED",
+        "SNAPBACK_RELATION_SCHEMA_INVALID",
+        "SNAPBACK_RELATION_FOREIGN_KEY_INVALID",
+        "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED",
         "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED",
         "SNAPBACK_MIGRATION_PLAN_INVALID",
         "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
@@ -33386,6 +33904,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_RELATIONAL_CURSOR_INVALID",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
+        "SNAPBACK_SEED_DECLARATION_INVALID",
         "SNAPBACK_SEED_INVALID",
         "SNAPBACK_SCHEMA_DUPLICATE_FIELD",
         "SNAPBACK_SCHEMA_DUPLICATE_INDEX",
@@ -33467,6 +33986,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
         "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
         "SNAPBACK_PROFILE_FORBIDS",
+        "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
@@ -33534,6 +34054,20 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MUTATION_CONFLICT",
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
         "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
+        "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED",
+        "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+        "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+        "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED",
+        "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED",
+        "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
+        "SNAPBACK_SEED_IDENTITY_CORRUPT",
+        "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED",
+        "SNAPBACK_SEED_MIGRATION_REQUIRED",
+        "SNAPBACK_SEED_NONEMPTY_UNTRACKED",
+        "SNAPBACK_SEED_OPERATION_HISTORICAL",
+        "SNAPBACK_SEED_OPERATION_ID_REUSED",
+        "SNAPBACK_SEED_PARTIAL_UNTRACKED",
+        "SNAPBACK_SEED_VERSION_REUSED",
         "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
     ];
 
@@ -33592,6 +34126,7 @@ globalThis.__snapbackHandlers = {
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_MIGRATION_FENCE_CLOSED",
         "SNAPBACK_MIGRATION_BARRIER_FAILED",
@@ -39764,10 +40299,9 @@ globalThis.__snapbackHandlers = {
 
         // Unknown candidates refuse UNSUPPORTED (classification precedes
         // equality — never MISMATCH).
-        let unknown =
-            tokio_tungstenite::connect_async(request(Some("snapback.v2, snapback.v1.0")))
-                .await
-                .expect_err("unknown candidates are refused");
+        let unknown = tokio_tungstenite::connect_async(request(Some("snapback.v2, snapback.v1.0")))
+            .await
+            .expect_err("unknown candidates are refused");
         assert_eq!(
             refusal(unknown),
             (400, "SNAPBACK_WIRE_VERSION_UNSUPPORTED".to_owned())

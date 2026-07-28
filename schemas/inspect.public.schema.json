@@ -254,10 +254,16 @@
             "cron_action_run_mutation": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
+            "full_text_search_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
             "host_plan_runtime": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "ibex_ctx_db_host_bridge": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "inline_handler_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "live_subscriptions": {
@@ -273,6 +279,15 @@
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "relational_query_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "result_contract_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "versioned_seed_install_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "versioned_seed_reset_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             }
           },
@@ -296,6 +311,17 @@
         "ephemeralWebSocketPublish": {
           "default": false,
           "type": "boolean"
+        },
+        "fullTextSearch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FullTextSearchFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exact local portable-search posture. Absent on Cloudflare,\nconformance, and hosted targets until their independent corpus\nqualifies."
         },
         "hostedAuth": {
           "$ref": "#/$defs/HostedAuthCapabilities",
@@ -803,8 +829,134 @@
             "Id"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Framework-owned relation-incarnation stamp. It is stored as a string,\nbut unlike an application string it is never writable by application\narguments. The paired required foreign-key field is the complete\nrelationship declaration.\n\n@ref LLP 0104#protected-relation-incarnation-and-stamping — central\n  writers overwrite the stamp from the active parent registry.",
+          "properties": {
+            "RelationIncarnation": {
+              "properties": {
+                "foreignKeyField": {
+                  "type": "string"
+                },
+                "parentTable": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "foreignKeyField",
+                "parentTable"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "RelationIncarnation"
+          ],
+          "type": "object"
         }
       ]
+    },
+    "FullTextSearchFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "authorizationFilters": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "boolean"
+        },
+        "cursorTtlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "facets": {
+          "type": "boolean"
+        },
+        "highlights": {
+          "type": "boolean"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "parser": {
+          "type": "string"
+        },
+        "scoreMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scorer": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "suggestions": {
+          "type": "boolean"
+        },
+        "unicodeVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "analyzer",
+        "unicodeVersion",
+        "analyzerTablesDigest",
+        "parser",
+        "scorer",
+        "scoreMax",
+        "maintenance",
+        "pagination",
+        "cursorTtlMs",
+        "accelerator",
+        "authorizationFilters",
+        "highlights",
+        "counts",
+        "facets",
+        "suggestions",
+        "offline",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
     },
     "FunctionKind": {
       "enum": [
@@ -1600,6 +1752,12 @@
     "PublicFunctionDefinition": {
       "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
       "properties": {
+        "argsContractHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "authRequirement": {
           "anyOf": [
             {
@@ -1634,9 +1792,21 @@
             "null"
           ]
         },
+        "handlerForm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "description": "Always present: the validated manifest guarantees a non-empty stable\nid, so the public projection never serves a null function identity.",
           "type": "string"
+        },
+        "implementationHash": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "kind": {
           "$ref": "#/$defs/FunctionKind"
@@ -1662,6 +1832,12 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "resultContractHash": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "retainable": {
           "type": "boolean"
@@ -1815,9 +1991,12 @@
       "description": "Which host-plan family a redacted `HostPlan` runtime executes.",
       "enum": [
         "Query",
+        "SearchQuery",
         "Mutation",
         "Action",
-        "RelationalQuery"
+        "RelationalQuery",
+        "BoundedChildrenQuery",
+        "WriteWithActivity"
       ],
       "type": "string"
     },
@@ -2217,6 +2396,278 @@
       ],
       "type": "object"
     },
+    "SearchCursorLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ttlMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ttlMs",
+        "maxBytes"
+      ],
+      "type": "object"
+    },
+    "SearchFieldClassV1": {
+      "enum": [
+        "public",
+        "private",
+        "sensitive",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "SearchIndexManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "analyzer": {
+          "type": "string"
+        },
+        "analyzerTablesDigest": {
+          "type": "string"
+        },
+        "cursorLimits": {
+          "$ref": "#/$defs/SearchCursorLimitsV1",
+          "default": {
+            "maxBytes": 2048,
+            "ttlMs": 120000
+          }
+        },
+        "equalityFilters": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fieldClassifications": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchFieldClassV1"
+          },
+          "description": "Closed classification carrier for every participating field that is\nnot already classified by `text_fields`.",
+          "type": "object"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "highlightFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maintenanceLimits": {
+          "$ref": "#/$defs/SearchMaintenanceLimitsV1",
+          "default": {
+            "searchBytes": 262144,
+            "searchMaintenanceEffects": 1024,
+            "searchPositions": 8192,
+            "searchPostingOps": 4096
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "queryLimits": {
+          "$ref": "#/$defs/SearchQueryLimitsV1",
+          "default": {
+            "maxCandidateWork": 10000,
+            "maxPrefixTerms": 256,
+            "minPrefixScalars": 2
+          }
+        },
+        "semanticVersion": {
+          "type": "string"
+        },
+        "sourceLimits": {
+          "$ref": "#/$defs/SearchSourceLimitsV1",
+          "default": {
+            "maxIndexedBytes": 32768,
+            "maxPostingOperations": 4096,
+            "maxTokens": 2048
+          }
+        },
+        "storedFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "textFields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SearchTextFieldV1"
+          },
+          "type": "object"
+        },
+        "tieBreak": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/SearchVisibilityV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "name",
+        "semanticVersion",
+        "analyzer",
+        "analyzerTablesDigest",
+        "textFields",
+        "fieldClassifications",
+        "visibility",
+        "tieBreak"
+      ],
+      "type": "object"
+    },
+    "SearchMaintenanceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "searchBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchMaintenanceEffects": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPositions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "searchPostingOps": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "searchMaintenanceEffects",
+        "searchPostingOps",
+        "searchPositions",
+        "searchBytes"
+      ],
+      "type": "object"
+    },
+    "SearchQueryLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxCandidateWork": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPrefixTerms": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minPrefixScalars": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxCandidateWork",
+        "maxPrefixTerms",
+        "minPrefixScalars"
+      ],
+      "type": "object"
+    },
+    "SearchSourceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxIndexedBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPostingOperations": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTokens": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxIndexedBytes",
+        "maxTokens",
+        "maxPostingOperations"
+      ],
+      "type": "object"
+    },
+    "SearchTextFieldV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/SearchFieldClassV1",
+          "default": "public"
+        },
+        "weight": {
+          "format": "uint32",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weight"
+      ],
+      "type": "object"
+    },
+    "SearchVisibilityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "SessionInvalidation": {
       "enum": [
         "unavailable",
@@ -2306,6 +2757,13 @@
             "null"
           ]
         },
+        "searchIndexes": {
+          "description": "Portable full-text indexes over this ordinary table. Search metadata is\ntable-local because source field/visibility validation and synchronous\nmaintenance are schema obligations, not function-handler conventions.\n\n@ref LLP 0073#search-declarations — one versioned declaration owns the\ncomplete portable index semantics and work bounds.",
+          "items": {
+            "$ref": "#/$defs/SearchIndexManifestV1"
+          },
+          "type": "array"
+        },
         "syncable": {
           "default": false,
           "type": "boolean"
@@ -2325,11 +2783,16 @@
         "cron_action_run_mutation",
         "host_plan_runtime",
         "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
         "live_subscriptions",
         "mutation_read_set_validation",
         "permission_epoch_resync",
         "relational_query_v1",
-        "migration_keyset_scan_v1"
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1"
       ],
       "type": "string"
     }

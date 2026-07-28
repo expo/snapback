@@ -20,8 +20,8 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 A Snapback backend is a directory — conventionally `<app>/snapback/` —
-holding a handful of source-authored `.mjs` files plus a committed
-`generated/` tree that codegen produces from them:
+holding a handful of source-authored `.mjs` files plus a generated review
+manifest and an ignored, regenerable artifact materialization:
 
 ```text
 myapp/
@@ -30,11 +30,17 @@ myapp/
     functions.mjs     # query/mutation/action definitions
     handlers.mjs      # bundled ctx.db handler module (only if you use JS handlers)
     seed.json         # deterministic declarative seed
-    generated/        # codegen output — committed, deterministic, never hand-edited
+    generated/
+      artifacts.json  # committed deterministic review manifest
+      ...             # ignored cache materialization; never hand-edited
+  .snapback/
+    codegen-cache/    # complete graphs keyed by the complete inputsHash
 ```
 
-You write the first four. Everything under `generated/` comes from
-`node packages/snapback-codegen/index.mjs myapp/snapback` and is committed.
+You write the first four. Codegen owns everything under `generated/` and
+`.snapback/codegen-cache/`. Commit `generated/artifacts.json` and only
+consumer projections explicitly required by policy; see
+[generated artifact custody](./generated-artifacts.md).
 
 ## Declare the schema
 
@@ -183,14 +189,17 @@ and transition rules.
 node packages/snapback-codegen/index.mjs myapp/snapback
 ```
 
-Codegen **fails closed**: on any error it writes nothing (no silent stale
-output) and exits 1 with stable diagnostic codes (`QUERY_UNKNOWN_FIELD`,
-`FUNCTION_RESERVED_EXPORT`, ...). On success it writes
-`myapp/snapback/generated/` — server manifests
+Codegen **fails closed**: on any error it leaves the previously serveable
+graph intact and exits 1 with stable diagnostic codes
+(`QUERY_UNKNOWN_FIELD`, `FUNCTION_RESERVED_EXPORT`, ...). On success it writes
+a complete input-hash cache and materializes `myapp/snapback/generated/` for
+compatibility — server manifests
 (`schema.manifest.json`, `functions.manifest.json`), the client binding
 surface (`api.mjs` + `api.d.ts`), Contract binding modules under
 `contract/`, per-function argument schemas under `operations/`, and
-`artifacts.json` carrying the `inputsHash` freshness key. Commit the tree.
+`artifacts.json` carrying digests, custody, the `inputsHash`, and the
+deterministic author summary. Commit the review manifest, not the ordinary
+cache projections.
 
 A running server loads the app over its admin API — the kit client wraps
 the endpoints:
@@ -244,7 +253,8 @@ edit-regenerate-test cycle, and
   references plus the kit client (or the Contract adapter /
   React arm) are the product path; raw `fetch` against `/query/...` is how
   demos accumulated unauditable glue before the kit existed.
-- **Do not edit anything under `generated/`.** Regenerate. The server
+- **Do not edit anything under `generated/` or `.snapback/codegen-cache/`.**
+  Regenerate. The server
   rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,
   `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`).
 - **Do not set `_createdAt`/`_updatedAt`/`_id`/`_version`.** Server-owned;

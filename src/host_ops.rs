@@ -29,9 +29,13 @@ pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
 pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 8] = [
+pub const SERVED_HOST_OPS: [&str; 12] = [
     "app.inspect",
     "app.reset",
+    "app.seed.ensure.v1",
+    "app.seed.preview.v1",
+    "app.seed.reset-install.v1",
+    "app.seed.clear.v1",
     "schema.load",
     "functions.load",
     "function.run",
@@ -365,6 +369,11 @@ pub struct HostOpsRequest {
     pub functions: Option<FunctionManifest>,
     #[serde(default)]
     pub seed: Option<SeedData>,
+    /// Closed operation body for predecessor-unknown families. Versioned seed
+    /// operations accept their Rust-owned carrier only here; legacy wrapper
+    /// siblings never participate in the request digest.
+    #[serde(default, deserialize_with = "deserialize_optional_closed_value")]
+    pub input: Option<Value>,
     #[serde(default)]
     pub function: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_closed_value")]
@@ -513,12 +522,30 @@ impl fmt::Debug for HostOpsRequest {
             .field("has_schema", &self.schema.is_some())
             .field("has_functions", &self.functions.is_some())
             .field("has_seed", &self.seed.is_some())
+            .field("has_input", &self.input.is_some())
             .field("function", &self.function.as_ref().map(|_| "[REDACTED]"))
             .field("args", &self.args.as_ref().map(|_| "[REDACTED]"))
             .field("user_id", &self.user_id.as_ref().map(|_| "[REDACTED]"))
             .field("kind", &self.kind.as_ref().map(|_| "[REDACTED]"))
             .finish()
     }
+}
+
+/// Versioned seed operations admit only the common operation/requestId
+/// wrapper plus their closed Rust-owned `input`. In particular, no legacy
+/// host-operation sibling may be silently discarded before the seed request
+/// digest is computed.
+///
+/// @ref LLP 0103#162-closed-carriers-and-exact-operation-combinations —
+/// seed bodies live only under `HostOpsRequest.input`.
+pub(crate) fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsRequest) -> bool {
+    request.schema.is_some()
+        || request.functions.is_some()
+        || request.seed.is_some()
+        || request.function.is_some()
+        || request.args.is_some()
+        || request.user_id.is_some()
+        || request.kind.is_some()
 }
 
 pub fn new_request_id() -> String {
@@ -772,6 +799,41 @@ pub(crate) fn coordinated_reset_result(
     }
 }
 
+pub(crate) fn coordinated_versioned_seed_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: crate::diagnostic::SnapbackResult<crate::seed_identity::SeedInstallReceiptV1>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(receipt) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority_admin("host-ops admin write gate"),
+            serde_json::to_value(receipt).unwrap_or(Value::Null),
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_admin("host-ops admin write gate"),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 /// Project a sessions-mode function activation already executed through the
 /// complete-pair provisioning barrier. The dev-mode embedding continues to
 /// use the legacy branch below; only the server's sessions path calls this
@@ -997,6 +1059,119 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 coordinated_reset_result(snapback, &request, server_url, profile, outcome)
             }
         }
+        "app.seed.ensure.v1" => {
+            if versioned_seed_wrapper_has_forbidden_siblings(&request) {
+                return envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![host_op_diagnostic(
+                        "SNAPBACK_SEED_DECLARATION_INVALID",
+                        &operation,
+                        "versioned seed host operation accepts its body only under input",
+                    )],
+                );
+            }
+            let parsed = request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "app.seed.ensure.v1 requires input",
+                    )
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<crate::seed_identity::InstallSeedRequestV1>(value)
+                        .map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_SEED_DECLARATION_INVALID",
+                                "seed",
+                                "app.seed.ensure.v1 input is not the closed v1 carrier",
+                            )
+                        })
+                });
+            match parsed.and_then(|request| snapback.ensure_versioned_seed(request)) {
+                Ok(result) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    serde_json::to_value(result).unwrap_or(Value::Null),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "app.seed.preview.v1" => {
+            if versioned_seed_wrapper_has_forbidden_siblings(&request) {
+                return envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![host_op_diagnostic(
+                        "SNAPBACK_SEED_DECLARATION_INVALID",
+                        &operation,
+                        "versioned seed host operation accepts its body only under input",
+                    )],
+                );
+            }
+            let parsed = request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "app.seed.preview.v1 requires input",
+                    )
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<crate::seed_identity::SeedPreviewRequestV1>(value)
+                        .map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_SEED_DECLARATION_INVALID",
+                                "seed",
+                                "app.seed.preview.v1 input is not the closed v1 carrier",
+                            )
+                        })
+                });
+            match parsed.and_then(|request| snapback.preview_versioned_seed(request)) {
+                Ok(result) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    serde_json::to_value(result).unwrap_or(Value::Null),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "app.seed.reset-install.v1" | "app.seed.clear.v1" => envelope(
+            snapback,
+            false,
+            authority_admin("host-ops admin write gate"),
+            Value::Object(Default::default()),
+            vec![Diagnostic::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "versioned seed reset must execute through the authorization-stream coordinator",
+            )],
+        ),
         "schema.load" => {
             let Some(schema) = request.schema.clone() else {
                 return envelope(

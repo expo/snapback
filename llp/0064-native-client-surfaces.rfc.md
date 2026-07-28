@@ -5,10 +5,12 @@
 **Systems:** Client integration, React/Expo, Exact Native, Code generation, Auth, Live Queries, Offline, Packaging, Testing
 **Author:** Snapback maintainers
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 — Adds the protocol-native surface implemented by the
+**Revised:** 2026-07-27 — LLP 0101 aligns generated headless, React, and React
+Expo references on exact argument/result inference without a caller result
+generic. 2026-07-26 — Adds the protocol-native surface implemented by the
 Swift proving client, explicit host lifecycle hooks, and the framework-binding
 value boundary. 2026-07-20 — Initial native carrier and client-surface contract
-**Related:** LLP 0008 (local-first sync), LLP 0012 (headless integration and capability classes), LLP 0016 (multi-surface evaluation), LLP 0034 (provider lifecycle), LLP 0043 (offline replay), LLP 0053 (authorization invalidation), LLP 0063 (Partitime roadmap); Exact LLP 0331/0332 (Exact Native platforms), Exact LLP 0373 (Partitime counterpart)
+**Related:** LLP 0008 (local-first sync), LLP 0012 (headless integration and capability classes), LLP 0016 (multi-surface evaluation), LLP 0034 (provider lifecycle), LLP 0043 (offline replay), LLP 0053 (authorization invalidation), LLP 0063 (Partitime roadmap), LLP 0101; Exact LLP 0331/0332 (Exact Native platforms), Exact LLP 0373 (Partitime counterpart)
 
 ## Summary
 
@@ -245,6 +247,22 @@ The reference gates are:
 
 Every per-OS receipt is independently content-addressed. Aggregate roadmap
 claims join those receipts but never replace them.
+
+## Dated alignment: generated result identity (2026-07-27)
+
+Generated references now carry compile-time `Args` and handler-payload
+`Result` phantoms derived from the Rust-owned effective result contract, while
+retaining the complete existing runtime reference identity. Headless calls,
+the first-party React binding, React Expo, and provider consumers use that same
+reference. Query/live references yield typed arrays; mutation/action references
+yield their direct payload. A caller cannot supply a result generic that
+overrides the generated contract.
+
+This is a type-and-egress tightening, not a new wire compatibility protocol.
+LLP 0101's final reconciliation explicitly leaves LLPs 0090–0095's shipped
+whole-artifact/function-reference behavior intact and adds no
+`ExpectedOperationV1` carrier. Legacy or third-party untyped references remain
+`unknown`; runtime result validation is still authoritative.
 
 ## Rollout
 

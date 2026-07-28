@@ -21,6 +21,16 @@
         "null"
       ]
     },
+    "ephemeralAuthorityProtocol": {
+      "default": null,
+      "description": "Capability-first hosted ephemeral offer. Known binds, unknown refuses,\nand absent degrades without failing durable connection use.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "previousToken": {
       "default": null,
       "description": "A prior grant's bearer. This field is deliberately absent from every\nserver response and from all receipt/capsule schemas.",

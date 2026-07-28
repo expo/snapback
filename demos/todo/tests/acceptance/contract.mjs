@@ -15,6 +15,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { resolveExact } from '../../../_kit/exact-resolver.mjs';
 import {
@@ -32,7 +33,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const backendDir = join(here, '..', '..', 'snapback');
 const contractDir = join(here, '..', '..', 'surfaces', 'contract');
-const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'utf8'));
+const generatedRoot = join(backendDir, 'generated');
+const gen = (f) => readGeneratedJson(generatedRoot, f);
 const demoManifest = JSON.parse(readFileSync(join(here, '..', '..', 'demo.snapback.json'), 'utf8'));
 
 const ADA = 'user_ada';

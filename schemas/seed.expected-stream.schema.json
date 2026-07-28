@@ -1,0 +1,37 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.expected-stream.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "const": "absent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "const": "present",
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "value"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "ExpectedDataVersionStreamV1"
+}

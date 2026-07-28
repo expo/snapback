@@ -1,0 +1,6 @@
+
+.env.local
+.snapback/
+dist/
+snapback/generated/*
+!snapback/generated/artifacts.json

@@ -7,6 +7,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::str::FromStr;
 
+pub use crate::search::types::{
+    FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
+    SearchFieldClassV1, SearchFilterV1, SearchHighlightV1, SearchIndexManifestV1, SearchItemV1,
+    SearchMaintenanceLimitsV1, SearchMatchAtomV1, SearchMatchRangeV1, SearchPageV1, SearchPhraseV1,
+    SearchQueryAstV1, SearchQueryLimitsV1, SearchQueryPlanV1, SearchRequestV1,
+    SearchSourceLimitsV1, SearchTermV1, SearchTextFieldV1, SearchVisibilityV1,
+};
+
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
 /// Non-pair artifacts (capabilities, diagnostics, runtime state, and wire DTOs)
@@ -399,6 +407,19 @@ pub struct TableManifest {
     pub fields: Vec<FieldManifest>,
     #[serde(default)]
     pub indexes: Vec<IndexManifest>,
+    /// Portable full-text indexes over this ordinary table. Search metadata is
+    /// table-local because source field/visibility validation and synchronous
+    /// maintenance are schema obligations, not function-handler conventions.
+    ///
+    /// @ref LLP 0073#search-declarations — one versioned declaration owns the
+    /// complete portable index semantics and work bounds.
+    #[serde(
+        default,
+        rename = "searchIndexes",
+        alias = "search_indexes",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub search_indexes: Vec<SearchIndexManifestV1>,
     #[serde(default)]
     pub syncable: bool,
     /// This table contains facts that grant or revoke authority. This axis is
@@ -735,6 +756,19 @@ pub enum FieldType {
     Id {
         table: String,
     },
+    /// Framework-owned relation-incarnation stamp. It is stored as a string,
+    /// but unlike an application string it is never writable by application
+    /// arguments. The paired required foreign-key field is the complete
+    /// relationship declaration.
+    ///
+    /// @ref LLP 0104#protected-relation-incarnation-and-stamping — central
+    ///   writers overwrite the stamp from the active parent registry.
+    RelationIncarnation {
+        #[serde(rename = "foreignKeyField", alias = "foreign_key_field")]
+        foreign_key_field: String,
+        #[serde(rename = "parentTable", alias = "parent_table")]
+        parent_table: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -912,9 +946,24 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
                 ) => validate_relational_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query,
+                    FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
+                ) => validate_search_query_plan_shape(plan)?,
+                (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
+                ) => validate_bounded_children_plan_shape(plan)?,
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
+                (
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)),
+                ) => {
+                    validate_write_with_activity_plan_shape(plan)?;
+                    crate::value_expr::validate_mutation_plan(&plan.mutation)?;
+                }
                 (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
                     crate::value_expr::validate_action_plan(plan)?
                 }
@@ -936,6 +985,7 @@ impl FunctionManifest {
             validate_public_inline(function)?;
             validate_retainable_query(function)?;
             validate_effect_ceiling(function)?;
+            validate_result_contract_definition(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -1072,6 +1122,98 @@ impl FunctionManifest {
         }
         Ok(())
     }
+}
+
+fn validate_result_contract_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let compatible = match (&function.kind, &function.result_contract) {
+        (_, FunctionResultContract::Unknown)
+        | (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionResultContract::Documents { .. }
+            | FunctionResultContract::Records { .. }
+            | FunctionResultContract::LegacyQueryRowsV0 { .. },
+        )
+        | (
+            FunctionKind::Mutation | FunctionKind::Action,
+            FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. },
+        ) => true,
+        _ => false,
+    };
+    if !compatible {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
+            "runtime",
+            format!(
+                "function {} result contract does not match kind {:?}",
+                function.name, function.kind
+            ),
+        ));
+    }
+    if let Some(form) = function.handler_form.as_deref() {
+        let form_matches = match (form, &function.runtime) {
+            ("inline" | "module", FunctionRuntime::IbexModule(_)) => true,
+            ("plan", FunctionRuntime::HostPlan(_)) => true,
+            _ => false,
+        };
+        if !form_matches {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
+                "runtime",
+                format!("function {} has an invalid handler form", function.name),
+            ));
+        }
+        if form == "inline"
+            && !function
+                .required_capabilities
+                .iter()
+                .any(|capability| capability == "inline_handler_v1")
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "capability",
+                format!(
+                    "function {} uses an inline handler without inline_handler_v1",
+                    function.name
+                ),
+            ));
+        }
+    }
+    for hash in [
+        function.implementation_hash.as_deref(),
+        function.args_contract_hash.as_deref(),
+        function.result_contract_hash.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let digest = hash.strip_prefix("sha256:").unwrap_or_default();
+        if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                "runtime",
+                format!(
+                    "function {} carries an invalid contract hash",
+                    function.name
+                ),
+            ));
+        }
+    }
+    if function.result_contract_hash.is_some()
+        && !function
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "result_contract_v1")
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "capability",
+            format!(
+                "function {} carries a result contract without result_contract_v1",
+                function.name
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn unsupported_capability_error(capability: &str, message: impl Into<String>) -> SnapbackError {
@@ -1230,6 +1372,10 @@ pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> b
         ValueExpr::AuthUserId
         | ValueExpr::AuthKind
         | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
         | ValueExpr::AuthIsDelegated
         | ValueExpr::RuntimeId
         | ValueExpr::RuntimeNow => true,
@@ -1312,11 +1458,17 @@ fn validate_protected_value_expr(
     match value {
         ValueExpr::RuntimeNow => Err(protected_input_error(function, "RuntimeNow")),
         ValueExpr::RuntimeId => Err(protected_input_error(function, "RuntimeId")),
+        ValueExpr::ClientMutationDigest => {
+            Err(protected_input_error(function, "ClientMutationDigest"))
+        }
         ValueExpr::Arg(_)
         | ValueExpr::Args
         | ValueExpr::AuthUserId
         | ValueExpr::AuthKind
         | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
         | ValueExpr::AuthIsDelegated
         | ValueExpr::Binding(_)
         | ValueExpr::Literal(_) => Ok(()),
@@ -1411,6 +1563,18 @@ impl ObservedEffects {
             ValueExpr::AuthActorKind => {
                 self.authorization_inputs.insert("authActorKind");
             }
+            ValueExpr::AuthActivityActorKind => {
+                self.authorization_inputs.insert("activityActorKind");
+            }
+            ValueExpr::AuthActorUserId => {
+                self.authorization_inputs.insert("actualActor");
+            }
+            ValueExpr::AuthGrantId => {
+                self.authorization_inputs.insert("grantId");
+            }
+            ValueExpr::ClientMutationDigest => {
+                self.host_operations.insert("clientMutationDigest");
+            }
             ValueExpr::AuthIsDelegated => {
                 self.authorization_inputs.insert("authIsDelegated");
             }
@@ -1457,12 +1621,20 @@ impl ObservedEffects {
                     self.authorization_inputs.insert("membershipPredicate");
                 }
             }
+            HandlerPlan::SearchQuery(plan) => {
+                self.read(&plan.table, "search", Some(&plan.index));
+            }
             HandlerPlan::RelationalQuery(plan) => {
                 self.read(&plan.root, "query", Some(&plan.root_index));
                 self.read(&plan.joined, "query", Some(&plan.joined_index));
                 self.filters(&plan.root_filters);
                 self.filters(&plan.root_visibility);
                 self.filters(&plan.joined_visibility);
+            }
+            HandlerPlan::BoundedChildrenQuery(plan) => {
+                self.read(&plan.parent_table, "point", None);
+                self.read(&plan.child_table, "query", Some(&plan.child_index));
+                self.authorization_inputs.insert("parentVisibility");
             }
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
@@ -1488,6 +1660,10 @@ impl ObservedEffects {
                         }
                         MutationStep::Guard { cond, .. } => self.expr(cond),
                         MutationStep::Let { expr, .. } => self.expr(expr),
+                        MutationStep::AssertSourceChanged { table, id, .. } => {
+                            self.read(table, "sourceEffect", None);
+                            self.expr(id);
+                        }
                         MutationStep::DeleteWhere { table, filter } => {
                             self.write(table, "deleteWhere");
                             self.read(table, "query", None);
@@ -1505,6 +1681,12 @@ impl ObservedEffects {
                         }
                     }
                 }
+            }
+            HandlerPlan::WriteWithActivity(plan) => {
+                self.read(&plan.scope_table, "point", None);
+                self.handler_plan(&HandlerPlan::Mutation(plan.mutation.clone()));
+                self.authorization_inputs.insert("resolvedAppAuthority");
+                self.host_operations.insert("clientMutationSettlement");
             }
             HandlerPlan::Action(plan) => {
                 for step in &plan.steps {
@@ -1608,52 +1790,59 @@ fn undeclarable_retention(function: &FunctionDefinition, reason: &str) -> Snapba
 }
 
 fn collect(value: &ValueExpr, dimensions: &mut BTreeSet<AuthorizationInputDimension>) {
-        match value {
-            ValueExpr::AuthUserId => {
-                dimensions.insert(AuthorizationInputDimension::UserId);
-            }
-            ValueExpr::AuthKind => {
-                dimensions.insert(AuthorizationInputDimension::Kind);
-            }
-            ValueExpr::AuthActorKind => {
-                dimensions.insert(AuthorizationInputDimension::ActorKind);
-            }
-            ValueExpr::AuthIsDelegated => {
-                dimensions.insert(AuthorizationInputDimension::IsDelegated);
-            }
-            ValueExpr::Arg(_)
-            | ValueExpr::Args
-            | ValueExpr::Binding(_)
-            | ValueExpr::Literal(_)
-            | ValueExpr::RuntimeId
-            | ValueExpr::RuntimeNow => {}
-            ValueExpr::Field { base, .. } => collect(base, dimensions),
-            ValueExpr::Binary { left, right, .. } => {
-                collect(left, dimensions);
-                collect(right, dimensions);
-            }
-            ValueExpr::Unary { expr, .. } => collect(expr, dimensions),
-            ValueExpr::If { cond, then, r#else } => {
-                collect(cond, dimensions);
-                collect(then, dimensions);
-                collect(r#else, dimensions);
-            }
-            ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
-                for value in values {
-                    collect(value, dimensions);
-                }
-            }
-            ValueExpr::Record { fields } => {
-                for value in fields.values() {
-                    collect(value, dimensions);
-                }
-            }
-            // A membership semi-join authorizes on the effective principal.
-            ValueExpr::MembershipExists(_) => {
-                dimensions.insert(AuthorizationInputDimension::UserId);
+    match value {
+        ValueExpr::AuthUserId => {
+            dimensions.insert(AuthorizationInputDimension::UserId);
+        }
+        ValueExpr::AuthKind => {
+            dimensions.insert(AuthorizationInputDimension::Kind);
+        }
+        ValueExpr::AuthActorKind => {
+            dimensions.insert(AuthorizationInputDimension::ActorKind);
+        }
+        ValueExpr::AuthActivityActorKind | ValueExpr::AuthActorUserId => {
+            dimensions.insert(AuthorizationInputDimension::ActorKind);
+        }
+        ValueExpr::AuthGrantId => {
+            dimensions.insert(AuthorizationInputDimension::Opaque);
+        }
+        ValueExpr::ClientMutationDigest => {}
+        ValueExpr::AuthIsDelegated => {
+            dimensions.insert(AuthorizationInputDimension::IsDelegated);
+        }
+        ValueExpr::Arg(_)
+        | ValueExpr::Args
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow => {}
+        ValueExpr::Field { base, .. } => collect(base, dimensions),
+        ValueExpr::Binary { left, right, .. } => {
+            collect(left, dimensions);
+            collect(right, dimensions);
+        }
+        ValueExpr::Unary { expr, .. } => collect(expr, dimensions),
+        ValueExpr::If { cond, then, r#else } => {
+            collect(cond, dimensions);
+            collect(then, dimensions);
+            collect(r#else, dimensions);
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect(value, dimensions);
             }
         }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect(value, dimensions);
+            }
+        }
+        // A membership semi-join authorizes on the effective principal.
+        ValueExpr::MembershipExists(_) => {
+            dimensions.insert(AuthorizationInputDimension::UserId);
+        }
     }
+}
 
 fn host_plan_authorization_dimensions(
     function: &FunctionDefinition,
@@ -1892,6 +2081,94 @@ pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> Snapb
     Ok(())
 }
 
+/// Structural admission for the portable search carrier. Table/index binding
+/// and field classifications are validated against the schema at activation.
+pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackResult<()> {
+    if plan.table.trim().is_empty()
+        || plan.index.trim().is_empty()
+        || plan.parser != crate::search::types::SEARCH_PARSER
+        || plan.result_projection != "search-page-v1"
+        || plan.required_capability != crate::search::types::SEARCH_CAPABILITY
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+            "search",
+            "search plan must name one table/index and the exact v1 parser, result, and capability profiles",
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> SnapbackResult<()> {
+    let valid_projection = |fields: &[BoundedProjectionField]| {
+        !fields.is_empty()
+            && fields
+                .iter()
+                .all(|field| !field.name.trim().is_empty() && !field.field.trim().is_empty())
+    };
+    if plan.profile != "bounded-children.v1"
+        || plan.parent_table.trim().is_empty()
+        || plan.parent_id_arg.trim().is_empty()
+        || plan.child_table.trim().is_empty()
+        || plan.child_foreign_key.trim().is_empty()
+        || plan.child_relation_incarnation.trim().is_empty()
+        || plan.child_index.trim().is_empty()
+        || plan.order.is_empty()
+        || plan
+            .order
+            .iter()
+            .any(|order| order.direction != OrderDirection::Asc)
+        || plan.take > 1024
+        || plan.parent_deletion != "hide-orphans.v1"
+        || !valid_projection(&plan.parent_projection)
+        || !valid_projection(&plan.child_projection)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID",
+            "query",
+            "bounded children plan is outside the closed v1 profile",
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> SnapbackResult<()> {
+    if plan.profile != "write-with-activity.v1"
+        || plan.scope_table.trim().is_empty()
+        || plan.source_table.trim().is_empty()
+        || plan.activity_table.trim().is_empty()
+        || plan.source_table == plan.activity_table
+        || plan.scope_table == plan.activity_table
+        || plan.effect_formula.source_writes != 1
+        || plan.effect_formula.activity_inserts != 1
+        || plan.effect_formula.runtime_now != 1
+        || plan.effect_formula.settlement_lookups != 1
+        || plan.effect_formula.settlement_writes > 1
+        || plan.effect_formula.auxiliary_point_reads > 8
+        || plan.effect_formula.maximum_application_writes > 3
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
+            "mutation",
+            "write-with-activity plan is outside the closed v1 profile",
+        ));
+    }
+    let assertions = plan
+        .mutation
+        .steps
+        .iter()
+        .filter(|step| matches!(step, MutationStep::AssertSourceChanged { .. }))
+        .count();
+    if assertions != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
+            "mutation",
+            "write-with-activity plan must contain one source-effect assertion",
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_query_plan_shape(plan: &QueryPlan) -> SnapbackResult<()> {
     // @ref LLP 0007#query-semantics — every direct artifact must enter the
     // same bounded portable expression profile before it can be installed.
@@ -1956,6 +2233,88 @@ pub fn effective_query_limit(plan: &QueryPlan) -> usize {
     plan.limit.unwrap_or(QUERY_DEFAULT_LIMIT)
 }
 
+/// The schema-expanded value grammar used to validate handler results at the
+/// Rust publication boundary.
+///
+/// @ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts
+/// are Rust-owned, bounded, and carried by every generated function.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum ResultValueContract {
+    Null,
+    Boolean,
+    String {
+        #[serde(rename = "maxBytes", alias = "max_bytes")]
+        max_bytes: usize,
+    },
+    Integer {
+        min: i64,
+        max: i64,
+    },
+    FiniteReal {
+        min: f64,
+        max: f64,
+    },
+    Principal,
+    Id {
+        table: String,
+    },
+    Literal {
+        value: Value,
+    },
+    Json {
+        #[serde(rename = "maxDepth", alias = "max_depth")]
+        max_depth: usize,
+        #[serde(rename = "maxBytes", alias = "max_bytes")]
+        max_bytes: usize,
+    },
+    Array {
+        element: Box<ResultValueContract>,
+        #[serde(rename = "maxItems", alias = "max_items")]
+        max_items: usize,
+    },
+    Union {
+        variants: Vec<ResultValueContract>,
+    },
+    Object {
+        fields: Vec<ResultObjectFieldContract>,
+        #[serde(rename = "allowExtra", alias = "allow_extra")]
+        allow_extra: bool,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResultObjectFieldContract {
+    pub name: String,
+    pub required: bool,
+    pub value: ResultValueContract,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum FunctionResultContract {
+    #[default]
+    Unknown,
+    Documents {
+        table: String,
+        document: ResultValueContract,
+    },
+    Records {
+        record: ResultValueContract,
+    },
+    Document {
+        table: String,
+        document: ResultValueContract,
+    },
+    Value {
+        value: ResultValueContract,
+    },
+    LegacyQueryRowsV0 {
+        row: ResultValueContract,
+    },
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
@@ -1976,6 +2335,16 @@ pub struct FunctionDefinition {
     pub kind: FunctionKind,
     #[serde(default, rename = "sourceSpan", alias = "source_span")]
     pub source_span: Option<SourceSpan>,
+    #[serde(default, rename = "handlerForm", alias = "handler_form")]
+    pub handler_form: Option<String>,
+    #[serde(default, rename = "implementationHash", alias = "implementation_hash")]
+    pub implementation_hash: Option<String>,
+    #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
+    pub args_contract_hash: Option<String>,
+    #[serde(default, rename = "resultContract", alias = "result_contract")]
+    pub result_contract: FunctionResultContract,
+    #[serde(default, rename = "resultContractHash", alias = "result_contract_hash")]
+    pub result_contract_hash: Option<String>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -2088,6 +2457,11 @@ impl FunctionDefinition {
             exported_name: Some(name.clone()),
             kind,
             source_span: None,
+            handler_form: None,
+            implementation_hash: None,
+            args_contract_hash: None,
+            result_contract: FunctionResultContract::Unknown,
+            result_contract_hash: None,
             required_capabilities: Vec::new(),
             auth_requirement: None,
             authority_independent: false,
@@ -2351,6 +2725,145 @@ pub struct RelationalQueryPlan {
     pub joined_index: String,
 }
 
+/// `bounded-children.v1`: one visible parent point read followed by one exact,
+/// forward, `take + 1` child-index range. The one computed result record keeps
+/// its continuation inside the row, leaving the ordinary top-level query
+/// cursor unused.
+///
+/// @ref LLP 0104#cursor-and-result-closure — the result is a closed computed
+///   record and the cursor binds the current parent version/incarnation.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BoundedChildrenQueryPlan {
+    pub profile: String,
+    #[serde(rename = "parentTable", alias = "parent_table")]
+    pub parent_table: String,
+    #[serde(rename = "parentIdArg", alias = "parent_id_arg")]
+    pub parent_id_arg: String,
+    #[serde(rename = "parentVisibility", alias = "parent_visibility")]
+    pub parent_visibility: BoundedParentVisibility,
+    #[serde(rename = "parentProjection", alias = "parent_projection")]
+    pub parent_projection: Vec<BoundedProjectionField>,
+    #[serde(rename = "childTable", alias = "child_table")]
+    pub child_table: String,
+    #[serde(rename = "childForeignKey", alias = "child_foreign_key")]
+    pub child_foreign_key: String,
+    #[serde(
+        rename = "childRelationIncarnation",
+        alias = "child_relation_incarnation"
+    )]
+    pub child_relation_incarnation: String,
+    #[serde(rename = "childIndex", alias = "child_index")]
+    pub child_index: String,
+    pub order: Vec<OrderExpr>,
+    pub take: u32,
+    #[serde(rename = "childProjection", alias = "child_projection")]
+    pub child_projection: Vec<BoundedProjectionField>,
+    #[serde(rename = "parentDeletion", alias = "parent_deletion")]
+    pub parent_deletion: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum BoundedParentVisibility {
+    PublicRead,
+    Owner { field: String },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BoundedProjectionField {
+    pub name: String,
+    pub field: String,
+}
+
+/// One normalized `write-with-activity.v1` plan. `mutation` is the complete
+/// executable closed IR including scope/source guards, the host-checked source
+/// effect assertion, the activity insert, and final result expression.
+///
+/// @ref LLP 0104#total-effect-formulas — the plan carries its mode-indexed,
+///   quantitative ceiling rather than reconstructing it from names.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WriteWithActivityPlan {
+    pub profile: String,
+    pub mode: WriteWithActivityMode,
+    #[serde(rename = "scopeTable", alias = "scope_table")]
+    pub scope_table: String,
+    #[serde(rename = "scopeId", alias = "scope_id")]
+    pub scope_id: ValueExpr,
+    #[serde(rename = "scopeOwnerField", alias = "scope_owner_field")]
+    pub scope_owner_field: String,
+    #[serde(rename = "sourceTable", alias = "source_table")]
+    pub source_table: String,
+    #[serde(rename = "sourceId", alias = "source_id")]
+    pub source_id: ValueExpr,
+    #[serde(rename = "sourceOperation", alias = "source_operation")]
+    pub source_operation: WriteWithActivitySourceOperation,
+    #[serde(rename = "activityTable", alias = "activity_table")]
+    pub activity_table: String,
+    #[serde(rename = "provenanceFields", alias = "provenance_fields")]
+    pub provenance_fields: WriteActivityProvenanceFields,
+    #[serde(rename = "effectFormula", alias = "effect_formula")]
+    pub effect_formula: WriteWithActivityEffectFormula,
+    pub mutation: MutationPlan,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WriteWithActivityMode {
+    ExistingOwnerV1,
+    CreateOwnerV1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteWithActivitySourceOperation {
+    Insert,
+    Patch,
+    Delete,
+}
+
+impl WriteWithActivitySourceOperation {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Insert => "insert",
+            Self::Patch => "patch",
+            Self::Delete => "delete",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WriteActivityProvenanceFields {
+    pub scope_id: String,
+    pub source_table: String,
+    pub source_id: String,
+    pub operation: String,
+    pub effective_subject: String,
+    pub actual_actor: String,
+    pub actor_kind: String,
+    pub grant: String,
+    pub occurred_at: String,
+    pub mutation: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WriteWithActivityEffectFormula {
+    pub scope_reads: u8,
+    pub scope_patches: u8,
+    pub auxiliary_point_reads: u8,
+    pub source_writes: u8,
+    pub activity_inserts: u8,
+    pub runtime_ids: u8,
+    pub runtime_now: u8,
+    pub settlement_lookups: u8,
+    pub settlement_writes: u8,
+    pub maximum_application_writes: u8,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum JoinKind {
     Inner,
@@ -2516,6 +3029,14 @@ pub struct PublicFunctionDefinition {
     #[serde(rename = "exportedName")]
     pub exported_name: Option<String>,
     pub kind: FunctionKind,
+    #[serde(rename = "handlerForm", skip_serializing_if = "Option::is_none")]
+    pub handler_form: Option<String>,
+    #[serde(rename = "implementationHash", skip_serializing_if = "Option::is_none")]
+    pub implementation_hash: Option<String>,
+    #[serde(rename = "argsContractHash", skip_serializing_if = "Option::is_none")]
+    pub args_contract_hash: Option<String>,
+    #[serde(rename = "resultContractHash", skip_serializing_if = "Option::is_none")]
+    pub result_contract_hash: Option<String>,
     #[serde(rename = "requiredCapabilities")]
     pub required_capabilities: Vec<String>,
     #[serde(rename = "authRequirement")]
@@ -2565,9 +3086,12 @@ pub enum PublicFunctionRuntime {
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub enum PublicHostPlanKind {
     Query,
+    SearchQuery,
     Mutation,
     Action,
     RelationalQuery,
+    BoundedChildrenQuery,
+    WriteWithActivity,
 }
 
 /// Public projection of [`IbexModule`]: the export name, never the source.
@@ -2689,6 +3213,11 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             exported_name,
             kind,
             source_span: _,
+            handler_form,
+            implementation_hash,
+            args_contract_hash,
+            result_contract: _,
+            result_contract_hash,
             required_capabilities,
             auth_requirement,
             authority_independent,
@@ -2711,6 +3240,10 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             name,
             exported_name,
             kind,
+            handler_form,
+            implementation_hash,
+            args_contract_hash,
+            result_contract_hash,
             required_capabilities,
             auth_requirement,
             authority_independent,
@@ -2735,11 +3268,14 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
         match runtime {
             FunctionRuntime::HostPlan(plan) => PublicFunctionRuntime::HostPlan(match plan {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
+                HandlerPlan::SearchQuery(_) => PublicHostPlanKind::SearchQuery,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
                 // Plan-level kind only: per-row facts stay off the ordinary
                 // inspection surface (LLP 0080 §7).
                 HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
+                HandlerPlan::BoundedChildrenQuery(_) => PublicHostPlanKind::BoundedChildrenQuery,
+                HandlerPlan::WriteWithActivity(_) => PublicHostPlanKind::WriteWithActivity,
             }),
             // `source: _` is the redaction this projection exists for.
             FunctionRuntime::IbexModule(IbexModule { source: _, export }) => {
@@ -2752,6 +3288,12 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum HandlerPlan {
     Query(QueryPlan),
+    /// Non-live portable indexed search. The operation uses the ordinary
+    /// query envelope while storage projects SearchItemV1 values into rows.
+    ///
+    /// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a
+    /// Query-kind HostPlan and never gains live semantics by implication.
+    SearchQuery(SearchQueryPlanV1),
     Mutation(MutationPlan),
     Action(ActionPlan),
     // @ref LLP 0080#1-closed-relational-plan — closed bounded-join plan.
@@ -2759,6 +3301,10 @@ pub enum HandlerPlan {
     /// only; targets that cannot execute it report a machine-readable
     /// capability gap before invocation.
     RelationalQuery(RelationalQueryPlan),
+    /// Protected one-parent bounded child page.
+    BoundedChildrenQuery(BoundedChildrenQueryPlan),
+    /// Closed source/scope/activity transaction.
+    WriteWithActivity(WriteWithActivityPlan),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3141,6 +3687,15 @@ pub enum MutationStep {
         item_as: String,
         values: BTreeMap<String, ValueExpr>,
     },
+    /// Host-owned assertion inserted only by `write-with-activity.v1`.
+    /// Exactly one matching changed source row must already exist in the
+    /// provisional transaction; missing/no-op/wrong-source execution refuses
+    /// before the activity insert and settlement.
+    AssertSourceChanged {
+        table: String,
+        id: ValueExpr,
+        operation: WriteWithActivitySourceOperation,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3176,6 +3731,14 @@ pub enum ValueExpr {
     AuthKind,
     /// Actor kind for delegated authority; null for direct and autonomous use.
     AuthActorKind,
+    /// Total activity-provenance projection: `human` for sessions and `agent`
+    /// for delegated service authority. Unsupported authority classes leave
+    /// it absent and the write-with-activity profile refuses.
+    AuthActivityActorKind,
+    AuthActorUserId,
+    AuthGrantId,
+    /// Digest of the server-constructed canonical client-mutation identity.
+    ClientMutationDigest,
     /// True only when an actor is exercising authority for another principal.
     AuthIsDelegated,
     Binding(String),
@@ -3238,7 +3801,11 @@ pub enum ValueExpr {
 impl ValueExpr {
     pub(crate) fn uses_actor_projection(&self) -> bool {
         match self {
-            Self::AuthActorKind | Self::AuthIsDelegated => true,
+            Self::AuthActorKind
+            | Self::AuthActivityActorKind
+            | Self::AuthActorUserId
+            | Self::AuthGrantId
+            | Self::AuthIsDelegated => true,
             Self::Field { base, .. } => base.uses_actor_projection(),
             Self::Binary { left, right, .. } => {
                 left.uses_actor_projection() || right.uses_actor_projection()
@@ -3259,6 +3826,7 @@ impl ValueExpr {
             | Self::AuthKind
             | Self::Binding(_)
             | Self::Literal(_)
+            | Self::ClientMutationDigest
             | Self::RuntimeId
             | Self::RuntimeNow
             | Self::MembershipExists(_) => false,
@@ -3267,7 +3835,7 @@ impl ValueExpr {
 
     pub(crate) fn uses_runtime_intrinsic(&self) -> bool {
         match self {
-            Self::RuntimeId | Self::RuntimeNow => true,
+            Self::RuntimeId | Self::RuntimeNow | Self::ClientMutationDigest => true,
             Self::Field { base, .. } => base.uses_runtime_intrinsic(),
             Self::Binary { left, right, .. } => {
                 left.uses_runtime_intrinsic() || right.uses_runtime_intrinsic()
@@ -3287,6 +3855,9 @@ impl ValueExpr {
             | Self::AuthUserId
             | Self::AuthKind
             | Self::AuthActorKind
+            | Self::AuthActivityActorKind
+            | Self::AuthActorUserId
+            | Self::AuthGrantId
             | Self::AuthIsDelegated
             | Self::Binding(_)
             | Self::Literal(_)
@@ -3336,6 +3907,22 @@ pub struct AuthInput {
     #[serde(skip)]
     #[schemars(skip)]
     #[doc(hidden)]
+    pub authorization_activity_actor_kind: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub authorization_actor_user_id: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub authorization_grant_id: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub client_mutation_digest: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
     pub authorization_is_delegated: bool,
 }
 
@@ -3359,6 +3946,23 @@ impl AuthInput {
             direct.authorization_is_delegated = false;
             direct
         })
+    }
+
+    pub(crate) fn with_activity_provenance(
+        mut self,
+        actor_user_id: Option<&str>,
+        actor_kind: Option<&str>,
+        grant_id: Option<&str>,
+    ) -> Self {
+        self.authorization_actor_user_id = actor_user_id.map(str::to_owned);
+        self.authorization_activity_actor_kind = actor_kind.map(str::to_owned);
+        self.authorization_grant_id = grant_id.map(str::to_owned);
+        self
+    }
+
+    pub(crate) fn with_client_mutation_digest(mut self, digest: Option<&str>) -> Self {
+        self.client_mutation_digest = digest.map(str::to_owned);
+        self
     }
 }
 
@@ -3793,6 +4397,8 @@ pub enum TargetCapabilityId {
     HostPlanRuntime,
     #[serde(rename = "ibex_ctx_db_host_bridge")]
     IbexCtxDbHostBridge,
+    #[serde(rename = "inline_handler_v1")]
+    InlineHandlerV1,
     #[serde(rename = "live_subscriptions")]
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
@@ -3803,21 +4409,34 @@ pub enum TargetCapabilityId {
     RelationalQueryV1,
     #[serde(rename = "migration_keyset_scan_v1")]
     MigrationKeysetScanV1,
+    #[serde(rename = "full_text_search_v1")]
+    FullTextSearchV1,
+    #[serde(rename = "result_contract_v1")]
+    ResultContractV1,
+    #[serde(rename = "versioned_seed_install_v1")]
+    VersionedSeedInstallV1,
+    #[serde(rename = "versioned_seed_reset_v1")]
+    VersionedSeedResetV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 16] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
         Self::CronActionRunMutation,
         Self::HostPlanRuntime,
         Self::IbexCtxDbHostBridge,
+        Self::InlineHandlerV1,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
         Self::RelationalQueryV1,
         Self::MigrationKeysetScanV1,
+        Self::FullTextSearchV1,
+        Self::ResultContractV1,
+        Self::VersionedSeedInstallV1,
+        Self::VersionedSeedResetV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -3828,11 +4447,16 @@ impl TargetCapabilityId {
             Self::CronActionRunMutation => "cron_action_run_mutation",
             Self::HostPlanRuntime => "host_plan_runtime",
             Self::IbexCtxDbHostBridge => "ibex_ctx_db_host_bridge",
+            Self::InlineHandlerV1 => "inline_handler_v1",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
+            Self::FullTextSearchV1 => "full_text_search_v1",
+            Self::ResultContractV1 => "result_contract_v1",
+            Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
+            Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
         }
     }
 
@@ -3855,8 +4479,13 @@ impl TargetCapabilityId {
         // positive presence is now the plain 0058 compatibility assertion
         // for every registered id. Artifacts that still acknowledge a
         // promoted id are unaffected (stable acknowledgment is a no-op).
-        // The next non-stable id restores a `match self` here.
-        CapabilityMaturity::Stable
+        match self {
+            Self::InlineHandlerV1
+            | Self::ResultContractV1
+            | Self::VersionedSeedInstallV1
+            | Self::VersionedSeedResetV1 => CapabilityMaturity::Experimental,
+            _ => CapabilityMaturity::Stable,
+        }
     }
 
     /// Evaluate the id's named positive predicate for one exact target/runtime
@@ -3880,6 +4509,7 @@ impl TargetCapabilityId {
             }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
+            Self::InlineHandlerV1 => facts.inline_handler_v1_registered,
             Self::LiveSubscriptions => manifest.live_subscriptions,
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
@@ -3902,6 +4532,20 @@ impl TargetCapabilityId {
             // migration scan is a target capability; a target without it
             // cannot claim migration proofs.
             Self::MigrationKeysetScanV1 => facts.migration_keyset_scan_v1_registered,
+            Self::FullTextSearchV1 => {
+                facts.full_text_search_v1_registered
+                    && manifest.full_text_search.as_ref().is_some_and(|facts| {
+                        facts.capability_id == "full_text_search_v1"
+                            && facts.maturity == "stable"
+                            && facts.storage_engines == ["sqlite"]
+                    })
+            }
+            Self::ResultContractV1 => facts.result_contract_v1_registered,
+            // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate
+            // — the local fact is enabled only by the complete mandatory
+            // conformance receipt; hosted/default target facts remain false.
+            Self::VersionedSeedInstallV1 => facts.versioned_seed_install_v1_registered,
+            Self::VersionedSeedResetV1 => facts.versioned_seed_reset_v1_registered,
         }
     }
 }
@@ -3967,6 +4611,11 @@ pub struct TargetCapabilityFacts {
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
     migration_keyset_scan_v1_registered: bool,
+    full_text_search_v1_registered: bool,
+    inline_handler_v1_registered: bool,
+    result_contract_v1_registered: bool,
+    versioned_seed_install_v1_registered: bool,
+    versioned_seed_reset_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3978,10 +4627,19 @@ pub struct TargetCapabilityFacts {
 
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
+        // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
+        // are advertised only after the closed executable suite passes every
+        // mandatory local row; LLP 0103 remains Review, so registry maturity
+        // stays experimental until the author accepts the contract.
         Self {
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
+            full_text_search_v1_registered: true,
+            inline_handler_v1_registered: true,
+            result_contract_v1_registered: true,
+            versioned_seed_install_v1_registered: true,
+            versioned_seed_reset_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -4170,11 +4828,7 @@ pub struct CapabilityManifest {
     /// the closed fence lane registry. Present exactly when the target has
     /// a migration executor; absent targets refuse with
     /// `SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE`.
-    #[serde(
-        default,
-        rename = "migration",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, rename = "migration", skip_serializing_if = "Option::is_none")]
     pub migration: Option<MigrationTargetFacts>,
     /// Relational-query facts (LLP 0080 §4): the live delivery class and
     /// the closed set of admitted retention classes. Present exactly when
@@ -4199,6 +4853,16 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub standard_patterns: Option<StandardPatternFacts>,
+    /// Exact local portable-search posture. Absent on Cloudflare,
+    /// conformance, and hosted targets until their independent corpus
+    /// qualifies.
+    #[serde(
+        default,
+        rename = "fullTextSearch",
+        alias = "full_text_search",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub full_text_search: Option<FullTextSearchFactsV1>,
 }
 
 /// The declared standard-pattern live posture (LLP 0065 §4).
@@ -4389,6 +5053,7 @@ impl CapabilityManifest {
             migration: Some(MigrationTargetFacts::local_v1()),
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
+            full_text_search: Some(FullTextSearchFactsV1::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -4465,7 +5130,10 @@ impl CapabilityManifest {
                 },
                 ResourceLimit {
                     name: "maximum_result_size".to_owned(),
-                    status: ResourceLimitStatus::Advisory,
+                    // @ref LLP 0101#result-contract-vocabulary — every
+                    // handler result now crosses the shared 4 MiB
+                    // post-JSON-image validator before publication/commit.
+                    status: ResourceLimitStatus::Enforced,
                 },
                 ResourceLimit {
                     name: "maximum_subscription_count".to_owned(),
@@ -4536,6 +5204,10 @@ impl CapabilityManifest {
         let mut manifest = Self::local_v0_declared();
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
         manifest.local_server_lifecycle = false;
+        manifest.full_text_search = None;
+        let mut facts = TargetCapabilityFacts::local_auth_aware();
+        facts.full_text_search_v1_registered = false;
+        manifest.refresh_supported_capabilities(facts);
         manifest
     }
 
@@ -4549,6 +5221,7 @@ impl CapabilityManifest {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
         manifest.runtime_engine = "workerd-v8".to_owned();
+        manifest.full_text_search = None;
         // Ephemeral, cron, and actions stay on the canonical server; the twin
         // swaps only query/mutation handler execution.
         manifest
@@ -4602,6 +5275,7 @@ impl CapabilityManifest {
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.full_text_search = None;
         manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
         manifest.supported_auth_modes = vec![AuthMode::Dev];
         manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {
@@ -4937,7 +5611,10 @@ mod membership_manifest_grammar_tests {
             .require_capabilities(["relational_query_v1"], &BTreeSet::new())
             .expect_err("a projection bundle refuses on a target without the relational engine");
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
-        assert_eq!(refusal.diagnostic.details["capability"], "relational_query_v1");
+        assert_eq!(
+            refusal.diagnostic.details["capability"],
+            "relational_query_v1"
+        );
     }
 
     // @ref LLP 0058#capability-maturity — the maturity map annotates the

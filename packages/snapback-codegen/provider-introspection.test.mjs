@@ -283,6 +283,45 @@ export const editTodo = defineMutation({
     ({ code, severity }) => code === 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED'
       && severity === 'warning',
   ));
+  const closedComposite = clone(sqlite);
+  closedComposite.operations.queries[0].result.row = {
+    shape: 'object',
+    fields: {
+      kind: { shape: 'literal', value: 'visible' },
+      parent: {
+        shape: 'union',
+        variants: [
+          { shape: 'literal', value: null },
+          {
+            shape: 'object',
+            fields: { id: { shape: 'primitive', name: 'string' } },
+          },
+        ],
+      },
+      children: {
+        shape: 'array',
+        items: {
+          shape: 'object',
+          fields: { id: { shape: 'primitive', name: 'string' } },
+        },
+      },
+      continuation: {
+        shape: 'union',
+        variants: [
+          { shape: 'literal', value: null },
+          { shape: 'primitive', name: 'string' },
+        ],
+      },
+    },
+  };
+  assert.deepEqual(validateProviderResultShapeVocabulary(closedComposite), []);
+  assert.equal(validateProviderIntrospection(closedComposite).length, 0);
+  const compositeBindings = createProviderBindingMetadata(closedComposite);
+  assert.equal(compositeBindings.ok, true, JSON.stringify(compositeBindings.diagnostics));
+  assert.equal(
+    compositeBindings.metadata.bindings.queries[0].resultType,
+    'ReadonlyArray<{ "children": ReadonlyArray<{ "id": string }>; "continuation": null | string; "kind": "visible"; "parent": null | { "id": string } }>',
+  );
   const novelShape = clone(sqlite);
   novelShape.operations.queries[0].result.row = { shape: 'tuple', items: [] };
   assert.equal(

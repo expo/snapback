@@ -83,8 +83,11 @@ generation errors are the distinct `generation-failed` state.
 
 Codegen is deterministic and **fails closed** — on error it writes nothing
 and exits 1 with stable diagnostic codes on stderr, so there is never
-silently stale output. On success it prints the `inputsHash` freshness key.
-Commit `generated/` with your source change: the server compares hashes and
+silently stale output. On success it prints an author summary and the
+`inputsHash` freshness key. Commit `generated/artifacts.json` with your source
+change, plus only projections explicitly named by consumer policy. The
+complete graph is regenerated under `.snapback/codegen-cache/<inputsHash>/`;
+see [generated artifact custody](./generated-artifacts.md). The server compares hashes and
 rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,
 `SNAPBACK_STALE_CONTRACT_DATA_INPUTS_HASH`) rather than serving them.
 
@@ -129,7 +132,7 @@ failures everywhere carry stable `SNAPBACK_*` diagnostic codes
 
 ## Anti-patterns
 
-- **Do not hand-edit `generated/` or skip the regenerate step** — the
+- **Do not hand-edit the review manifest/cache or skip the regenerate step** — the
   server's stale-artifact rejection exists because "it probably still
   matches" was wrong often enough.
 - **Do not assert on diagnostic message strings.** Codes are the contract;

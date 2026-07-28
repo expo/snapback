@@ -2797,6 +2797,7 @@ fn todo_schema() -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()
@@ -4869,6 +4870,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         syncable: false,
         permission_backing: false,
         permission_fields: None,
+        search_indexes: Vec::new(),
         membership: None,
     });
     snapback
@@ -4949,6 +4951,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         syncable: false,
         permission_backing: false,
         permission_fields: None,
+        search_indexes: Vec::new(),
         membership: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
@@ -5581,6 +5584,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()

@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "EphemeralAuthorityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "definitionGeneration": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "machineId": {
+          "type": "string"
+        },
+        "processBootId": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "releaseId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "deploymentId",
+        "releaseId",
+        "activationGeneration",
+        "machineId",
+        "processBootId",
+        "definitionGeneration"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/ephemeral.authority-instance-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authority": {
+      "$ref": "#/$defs/EphemeralAuthorityV1"
+    },
+    "authoritySha256": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "authority",
+    "authoritySha256"
+  ],
+  "title": "EphemeralAuthorityInstanceV1",
+  "type": "object"
+}

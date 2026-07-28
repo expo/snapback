@@ -5,11 +5,13 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-26 (stable codegen identity now takes `appId` from the
+**Revised:** 2026-07-27 (LLP 0101 amendment: JS handlers may be colocated as
+direct self-contained expressions; explicit result contracts flow through
+generated references and runtime egress validation); 2026-07-26 (stable codegen identity now takes `appId` from the
 nearest ancestor `demo.snapback.json` explicit `id`, so nesting a backend below
 `backends/` cannot silently rename its functions; bare backends retain the
 immediate-parent compatibility fallback); 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the deferred joins/query-planning and schema-migrations bullets now point at Accepted LLP 0080 and LLP 0081 as their controlling authorities, and the generated standard-pattern conditional-lowering carve-out from this RFC's unconditional host-plan writes is recorded per Accepted LLP 0065); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0101
 
 ## Summary
 
@@ -574,6 +576,23 @@ opaque functions may be marked explicitly. A create-with-host convenience, if
 shipped, is only sugar over the same bootstrap witness. Optimistic adapters
 must preserve the same transition and denial semantics rather than invent a
 client-only membership lane.
+
+## Dated alignment: inline handlers and result contracts (2026-07-27)
+
+LLP 0101 adds a paved, colocated JavaScript form in which a directly exported
+query, live query, mutation, or action builder contains one direct,
+self-contained `handler` expression. The existing `source`/`exportName` form
+remains the compatibility lane; mixing the forms or capturing imported or
+sibling values is invalid. The exported binding still determines the stable
+function id.
+
+Operations may declare `results.documents`, `results.records`,
+`results.document`, or `results.value`. Codegen freezes the effective
+schema-bound contract, hashes it, and makes its precise result type part of the
+generated reference. Runtime validation occurs on the post-JSON image before
+query/live/action publication and before mutation commit. Omission is the
+explicit degraded `Unknown` contract, not result inference from handler code.
+LLP 0101's final author reconciliation governs the exact grammar and bounds.
 
 ## Status
 

@@ -659,6 +659,25 @@ impl ClientMutationIdentity {
             input_fingerprint: mutation_input_fingerprint(input),
         }
     }
+
+    /// Provenance-only digest of the exact server-constructed durable
+    /// settlement identity. The activity row never receives the opaque
+    /// client mutation id or its authority/input fingerprints in cleartext.
+    pub(crate) fn activity_digest(&self) -> String {
+        let canonical = canonical_json(json!({
+            "authFingerprint": self.auth_fingerprint,
+            "authorityInstanceId": self.authority_instance_id,
+            "clientMutationId": self.id,
+            "function": self.function,
+            "inputFingerprint": self.input_fingerprint,
+        }));
+        let encoded =
+            serde_json::to_vec(&canonical).expect("client mutation identity JSON serializes");
+        let mut digest = Sha256::new();
+        digest.update(b"snapback:client-mutation-identity:v1\n");
+        digest.update(encoded);
+        format!("sha256:{:x}", digest.finalize())
+    }
 }
 
 /// One executed IR mutation plan with its recorded deterministic answers —
@@ -781,9 +800,42 @@ pub struct LocalDatabase {
 fn reset_and_seed_transaction(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
+    projections: &[crate::manifest::MaintainedProjectionPlan],
     seed: Option<SeedData>,
     successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-) -> SnapbackResult<Option<MutationOutput>> {
+    versioned: Option<(&crate::seed_identity::ResetSeedRequestV1, &str)>,
+) -> SnapbackResult<(
+    Option<MutationOutput>,
+    Option<crate::seed_identity::SeedInstallReceiptV1>,
+)> {
+    let current_data_stream = crate::seed_identity::strict_current_data_version_stream(tx)?;
+    if let Some((request, request_digest)) = versioned {
+        validate_versioned_seed_request(schema, request.requested_mode, request.artifact.as_ref())?;
+        if !crate::seed_identity::expected_stream_matches(
+            &request.expected_data_version_stream,
+            current_data_stream.as_deref(),
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEED_OPERATION_HISTORICAL",
+                "seed",
+                "expected data-version stream is no longer current",
+            ));
+        }
+        if crate::seed_identity::replay_completed_operation(
+            tx,
+            &request.operation_id,
+            request_digest,
+            current_data_stream.as_deref(),
+        )?
+        .is_some()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEED_REPLAY_REQUIRES_PREFLIGHT",
+                "seed",
+                "current operation replay must complete before entering the reset coordinator",
+            ));
+        }
+    }
     // @ref LLP 0077#issuance-refresh-and-recovery — the stream-incarnation
     // reset advances sender replay authority and clears old proof/nonce state
     // inside this same destructive transaction.
@@ -794,20 +846,45 @@ fn reset_and_seed_transaction(
     auth::reset_auth_catalog_in(tx)?;
     // @ref LLP 0007#schema-evolution — dormant rollback tables are still
     // inside the app-wide reset boundary.
-    for table in physical_user_tables(tx)? {
+    let physical_tables = physical_user_tables(tx)?;
+    let mut reset_deleted_rows = 0usize;
+    for table in &physical_tables {
+        if versioned.is_some() {
+            let count: i64 = tx.query_row(
+                &format!("SELECT COUNT(*) FROM {}", quote_ident(table)?),
+                [],
+                |row| row.get(0),
+            )?;
+            reset_deleted_rows = reset_deleted_rows
+                .checked_add(usize::try_from(count).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_SEED_IDENTITY_CORRUPT",
+                        "seed",
+                        "reset deletion count is not representable",
+                    )
+                })?)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_SEED_IDENTITY_CORRUPT",
+                        "seed",
+                        "reset deletion count overflowed",
+                    )
+                })?;
+        }
         tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
     }
     tx.execute("DELETE FROM _snapback_changes", [])?;
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
+    tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
     // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a
     // cursor-closing terminal event; retained attempt settlement evidence is
     // application state and resets with it.
     tx.execute("DELETE FROM _snapback_stream_attempts", [])?;
     auth_invalidation::clear_retry_episodes_in(tx)?;
     authorized_lease::clear_authorized_lease_reservations_in(tx)?;
-    auth_invalidation::rotate_data_version_stream_in(tx)?;
+    let successor_data_stream = auth_invalidation::rotate_data_version_stream_in(tx)?;
     tx.execute(
         "DELETE FROM _snapback_meta WHERE key = ?1",
         params![META_RETENTION_FLOOR],
@@ -823,16 +900,54 @@ fn reset_and_seed_transaction(
     // durable in the same transaction as every destructive reset effect.
     auth_stream::rotate_authorization_stream_incarnation_in(tx, successor)?;
     set_version(tx, 0)?;
+    // @ref LLP 0073#rebuilds-and-migrations — destructive reset rotates the
+    // physical generation, invalidating every pre-reset cursor and rebuilding
+    // only from the reset/seed source cut.
+    for table in [
+        "_snapback_search_terms",
+        "_snapback_search_sources",
+        "_snapback_search_frontiers",
+        "_snapback_search_builds",
+        "_snapback_search_journal_leases",
+        "_snapback_search_generations",
+    ] {
+        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    }
+    crate::search::sqlite::activate_manifest_in_tx(tx, schema, 0)?;
 
-    match seed {
-        None => Ok(None),
+    let seeded = match seed {
+        None => None,
         Some(seed) => {
             // Reset deleted every managed row above, so the predecessor cut is
             // the freshly installed zero head. Keep the all-declaration
             // preflight explicit: unlike ordinary seed, no pre-reset corrupt
             // row is allowed to participate in activation.
             preflight_membership_activation_sources(tx, schema, 0)?;
-            let changes = seed_into_transaction(tx, schema, seed, 1)?;
+            let mut changes = seed_into_transaction(tx, schema, seed, 1)?;
+            let direct_application_rows = changes.len();
+            if !projections.is_empty() {
+                maintain_projections_in_tx(
+                    tx,
+                    schema,
+                    projections,
+                    &mut changes,
+                    &BTreeMap::new(),
+                    1,
+                    now_millis(),
+                    if versioned.is_some() {
+                        ProjectionEffectCeiling::VersionedSeedV1
+                    } else {
+                        ProjectionEffectCeiling::MutationV1
+                    },
+                )?;
+            }
+            if versioned.is_some() {
+                crate::seed_identity::checked_application_effects(
+                    direct_application_rows,
+                    changes.len().saturating_sub(direct_application_rows),
+                )?;
+            }
+            crate::search::maintain_search_indexes_in_tx(tx, schema, &changes, 1)?;
             // Reset seed is another declaration-privileged writer. Judge its
             // complete same-transaction resource/roster state before the reset
             // cut can publish, including closed roles, referential integrity,
@@ -842,14 +957,230 @@ fn reset_and_seed_transaction(
             if changed_count > 0 {
                 set_version(tx, 1)?;
             }
-            Ok(Some(MutationOutput {
+            Some(MutationOutput {
                 version: if changed_count > 0 { 1 } else { 0 },
                 changed_count,
                 result: Value::Null,
                 ctx_ledger: None,
-            }))
+            })
+        }
+    };
+    let receipt = if let Some((request, request_digest)) = versioned {
+        let schema_hash = required_versioned_seed_schema_hash(schema)?;
+        let (operation, outcome, artifact) = match request.operation {
+            crate::seed_identity::SeedResetOperationV1::ResetInstall => (
+                crate::seed_identity::SeedOperationV1::ResetInstall,
+                crate::seed_identity::SeedOutcomeV1::ResetInstalled,
+                request.artifact.as_ref(),
+            ),
+            crate::seed_identity::SeedResetOperationV1::Clear => (
+                crate::seed_identity::SeedOperationV1::Clear,
+                crate::seed_identity::SeedOutcomeV1::Cleared,
+                None,
+            ),
+        };
+        let direct_application_rows = artifact
+            .map(crate::seed_identity::SeedArtifactV1::row_count)
+            .transpose()?
+            .unwrap_or(0);
+        let total_application_effects = seeded.as_ref().map_or(0, |output| output.changed_count);
+        let derived_projection_rows =
+            total_application_effects.saturating_sub(direct_application_rows);
+        let receipt = crate::seed_identity::SeedInstallReceiptV1 {
+            format_version: crate::seed_identity::SEED_RECEIPT_FORMAT_V1.to_owned(),
+            operation_id: request.operation_id.clone(),
+            request_digest: request_digest.to_owned(),
+            operation,
+            outcome,
+            app_id: schema.app_id.clone(),
+            seed_version: artifact.map(|artifact| artifact.seed_version.clone()),
+            seed_digest: artifact.map(|artifact| artifact.seed_digest.clone()),
+            schema_hash,
+            data_version_stream: successor_data_stream,
+            direct_application_rows,
+            derived_projection_rows,
+            total_application_effects,
+            reset_deleted_rows,
+        };
+        if let Some(artifact) = artifact {
+            crate::seed_identity::store_installation(tx, artifact, &receipt)?;
+        }
+        crate::seed_identity::store_completed_operation(
+            tx,
+            current_data_stream.as_deref(),
+            &receipt,
+        )?;
+        crate::seed_identity::best_effort_prune_history(tx, &receipt.data_version_stream);
+        Some(receipt)
+    } else {
+        None
+    };
+    Ok((seeded, receipt))
+}
+
+fn required_versioned_seed_schema_hash(schema: &SchemaManifest) -> SnapbackResult<String> {
+    schema.schema_hash.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SEED_DECLARATION_INVALID",
+            "seed",
+            "versioned seed requires the loaded generated schema identity",
+        )
+    })
+}
+
+pub(crate) fn validate_versioned_seed_request(
+    schema: &SchemaManifest,
+    requested_mode: AuthMode,
+    artifact: Option<&crate::seed_identity::SeedArtifactV1>,
+) -> SnapbackResult<()> {
+    if schema.effective_auth_mode() != requested_mode {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED",
+            "seed",
+            "versioned seed requested mode does not match the active app mode",
+        ));
+    }
+    required_versioned_seed_schema_hash(schema)?;
+    if let Some(artifact) = artifact {
+        artifact.validate()?;
+        if artifact.app_id != schema.app_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEED_DECLARATION_INVALID",
+                "seed",
+                "versioned seed appId does not match the active schema",
+            ));
+        }
+        for table_name in artifact.tables.keys() {
+            let table = schema_table(schema, table_name)?;
+            if requested_mode == AuthMode::Sessions && table.membership.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED",
+                    "seed",
+                    "sessions-mode versioned seed cannot install membership rows",
+                ));
+            }
         }
     }
+    Ok(())
+}
+
+fn versioned_seed_target_occupancy(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    artifact: &crate::seed_identity::SeedArtifactV1,
+) -> SnapbackResult<Vec<bool>> {
+    artifact
+        .tables
+        .keys()
+        .map(|table_name| {
+            let table = schema_table(schema, table_name)?;
+            let occupied = tx
+                .query_row(
+                    &format!(
+                        "SELECT 1 FROM {} LIMIT 1",
+                        quote_ident(table.name.as_str())?
+                    ),
+                    [],
+                    |_| Ok(true),
+                )
+                .optional()?
+                .unwrap_or(false);
+            Ok(occupied)
+        })
+        .collect()
+}
+
+fn count_physical_application_rows(tx: &Transaction<'_>) -> SnapbackResult<usize> {
+    physical_user_tables(tx)?
+        .into_iter()
+        .try_fold(0usize, |total, table| {
+            let count: i64 = tx.query_row(
+                &format!("SELECT COUNT(*) FROM {}", quote_ident(&table)?),
+                [],
+                |row| row.get(0),
+            )?;
+            let count = usize::try_from(count).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_SEED_IDENTITY_CORRUPT",
+                    "seed",
+                    "application row count is not representable",
+                )
+            })?;
+            total.checked_add(count).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SEED_IDENTITY_CORRUPT",
+                    "seed",
+                    "application row count overflowed",
+                )
+            })
+        })
+}
+
+fn preview_identity(
+    artifact: &crate::seed_identity::SeedArtifactV1,
+    stream: &str,
+    schema: &SchemaManifest,
+    direct_application_rows: usize,
+    derived_projection_rows: usize,
+) -> crate::seed_identity::ActiveSeedIdentityV1 {
+    crate::seed_identity::ActiveSeedIdentityV1 {
+        app_id: artifact.app_id.clone(),
+        seed_version: artifact.seed_version.clone(),
+        seed_digest: artifact.seed_digest.clone(),
+        data_version_stream: stream.to_owned(),
+        schema_hash: schema.schema_hash.clone().unwrap_or_default(),
+        direct_application_rows,
+        derived_projection_rows,
+        total_application_effects: direct_application_rows.saturating_add(derived_projection_rows),
+    }
+}
+
+/// Evaluate versioned-seed projection effects against an owned in-memory
+/// database copy. The source connection is read only by SQLite backup; every
+/// simulated DML byte is confined to the disposable copy, preserving the
+/// preview contract for the database and its WAL.
+///
+/// @ref LLP 0103#165-executable-effect-accounting — preview reports the same
+/// distinct changed projection-output rows as a real install.
+fn simulate_versioned_seed_projection_rows(
+    database: &LocalDatabase,
+    schema: &SchemaManifest,
+    projections: &[crate::manifest::MaintainedProjectionPlan],
+    artifact: &crate::seed_identity::SeedArtifactV1,
+    reset_first: bool,
+) -> SnapbackResult<usize> {
+    let mut simulation = database.detached_read_snapshot()?;
+    let tx = simulation
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    if reset_first {
+        for table in physical_user_tables(&tx)? {
+            tx.execute(&format!("DELETE FROM {}", quote_ident(&table)?), [])?;
+        }
+        // Reset-generated relation incarnations are application-derived
+        // protected state. The real reset clears them before seeding; the
+        // disposable preview must model that same successor cut.
+        tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
+    }
+    let current_version = current_version_on(&tx)?;
+    let next_version = next_storage_version(current_version)?;
+    let mut changes = seed_into_transaction(&tx, schema, artifact.seed_data(), next_version)?;
+    let direct_application_rows = changes.len();
+    if !projections.is_empty() {
+        maintain_projections_in_tx(
+            &tx,
+            schema,
+            projections,
+            &mut changes,
+            &BTreeMap::new(),
+            next_version,
+            now_millis(),
+            ProjectionEffectCeiling::UnboundedPreview,
+        )?;
+    }
+    let derived_projection_rows = changes.len().saturating_sub(direct_application_rows);
+    tx.rollback()?;
+    Ok(derived_projection_rows)
 }
 
 fn storage_version_corrupt(message: impl Into<String>) -> SnapbackError {
@@ -2062,8 +2393,16 @@ impl LocalDatabase {
                 "reset coordinator predecessor does not match durable authorization state",
             ));
         }
-        let seeded = match reset_and_seed_transaction(&tx, &schema, seed, successor) {
-            Ok(seeded) => seeded,
+        let seeded = match reset_and_seed_transaction(
+            &tx,
+            &schema,
+            self.projections.as_ref(),
+            seed,
+            successor,
+            None,
+        ) {
+            Ok((seeded, None)) => seeded,
+            Ok((_seeded, Some(_))) => unreachable!("legacy reset produced versioned receipt"),
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
         };
         #[cfg(test)]
@@ -2111,6 +2450,144 @@ impl LocalDatabase {
                             Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
                         },
                         None => auth::AuthTransactionAttempt::Committed(seeded),
+                    },
+                    Ok(durable) if durable == authorization_predecessor => {
+                        drop(prepared);
+                        auth::AuthTransactionAttempt::RolledBack(error)
+                    }
+                    Ok(_) | Err(_) => {
+                        if let Some(prepared) = prepared {
+                            prepared.ambiguous();
+                        }
+                        auth::AuthTransactionAttempt::CommitUncertain(error)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn replay_versioned_seed_operation(
+        &mut self,
+        operation_id: &str,
+        request_digest: &str,
+    ) -> SnapbackResult<Option<crate::seed_identity::SeedInstallReceiptV1>> {
+        let tx = self.conn.transaction()?;
+        let current = crate::seed_identity::strict_current_data_version_stream(&tx)?;
+        let replay = crate::seed_identity::replay_completed_operation(
+            &tx,
+            operation_id,
+            request_digest,
+            current.as_deref(),
+        )?;
+        tx.rollback()?;
+        Ok(replay)
+    }
+
+    /// The versioned reset half of LLP 0103 rides the exact same durable
+    /// transaction and commit-certainty machinery as every shipped reset.
+    pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
+        &mut self,
+        request: crate::seed_identity::ResetSeedRequestV1,
+        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    ) -> auth::AuthTransactionAttempt<(
+        Option<MutationOutput>,
+        crate::seed_identity::SeedInstallReceiptV1,
+    )> {
+        if let Err(error) = request.validate() {
+            return auth::AuthTransactionAttempt::RolledBack(error);
+        }
+        let request_digest = match request.request_digest() {
+            Ok(digest) => digest,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        let seed = request
+            .artifact
+            .as_ref()
+            .map(crate::seed_identity::SeedArtifactV1::seed_data);
+        let schema = self.schema.clone();
+        let projections = self.projections.clone();
+        let authorization_interlock = self.authorization_interlock.clone();
+        let tx = match self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+        {
+            Ok(tx) => tx,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error.into()),
+        };
+        let authorization_predecessor = match auth_stream::read_authorization_version_on(&tx) {
+            Ok(version) => version,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        if authorization_predecessor
+            .as_ref()
+            .map(|version| version.incarnation.as_str())
+            != Some(predecessor.as_str())
+        {
+            return auth::AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
+                "auth",
+                "reset coordinator predecessor does not match durable authorization state",
+            ));
+        }
+        let (seeded, receipt) = match reset_and_seed_transaction(
+            &tx,
+            &schema,
+            projections.as_ref(),
+            seed,
+            successor,
+            Some((&request, &request_digest)),
+        ) {
+            Ok((seeded, Some(receipt))) => (seeded, receipt),
+            Ok((_seeded, None)) => unreachable!("versioned reset omitted receipt"),
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        let authorization = AuthorizationCommitWitness {
+            version: AuthorizationVersion {
+                incarnation: successor.as_str().to_owned(),
+                epoch: 0,
+            },
+            event: true,
+            incarnation_rotated: true,
+            membership_declarations: Vec::new(),
+        };
+        let min_commit_version = seeded.as_ref().map_or(0, |output| output.version);
+        let prepared = match prepare_authorization_commit_interlock(
+            &authorization,
+            AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_interlock.as_ref(),
+        ) {
+            Ok(prepared) => prepared,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        let committed = (seeded, receipt);
+        #[cfg(test)]
+        if let Err(error) = BEFORE_RESET_COMMIT_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook()?;
+            }
+            Ok::<(), SnapbackError>(())
+        }) {
+            return auth::AuthTransactionAttempt::RolledBack(error);
+        }
+        match tx.commit() {
+            Ok(()) => match prepared {
+                Some(prepared) => match prepared.committed(min_commit_version) {
+                    Ok(()) => auth::AuthTransactionAttempt::Committed(committed),
+                    Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                },
+                None => auth::AuthTransactionAttempt::Committed(committed),
+            },
+            Err(error) => {
+                let error = SnapbackError::from(error);
+                match auth_stream::read_authorization_version_snapshot(&self.conn) {
+                    Ok(durable) if durable == Some(authorization.version.clone()) => match prepared
+                    {
+                        Some(prepared) => match prepared.committed(min_commit_version) {
+                            Ok(()) => auth::AuthTransactionAttempt::Committed(committed),
+                            Err(error) => auth::AuthTransactionAttempt::CommitUncertain(error),
+                        },
+                        None => auth::AuthTransactionAttempt::Committed(committed),
                     },
                     Ok(durable) if durable == authorization_predecessor => {
                         drop(prepared);
@@ -2187,6 +2664,321 @@ impl LocalDatabase {
         Ok(())
     }
 
+    /// Install or observe one generated v1 seed against the current app pair.
+    /// Row effects, projection effects, identity, receipt, and idempotency
+    /// evidence share this one SQLite writer transaction.
+    ///
+    /// @ref LLP 0103#165-executable-effect-accounting — application effects
+    /// are bounded before the transaction can publish any byte.
+    pub fn ensure_versioned_seed(
+        &mut self,
+        request: crate::seed_identity::InstallSeedRequestV1,
+    ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+        request.validate()?;
+        validate_versioned_seed_request(
+            &self.schema,
+            request.requested_mode,
+            Some(&request.artifact),
+        )?;
+        let request_digest = request.request_digest()?;
+        let schema = self.schema.clone();
+        let projections = self.projections.clone();
+        let authorization_interlock = self.authorization_interlock.clone();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        crate::seed_identity::create_infra(&tx)?;
+        let current_stream = crate::seed_identity::strict_current_data_version_stream(&tx)?;
+
+        if let Some(receipt) = crate::seed_identity::replay_completed_operation(
+            &tx,
+            &request.operation_id,
+            &request_digest,
+            current_stream.as_deref(),
+        )? {
+            if receipt.operation != crate::seed_identity::SeedOperationV1::Install {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEED_OPERATION_ID_REUSED",
+                    "seed",
+                    "operation id belongs to another seed operation",
+                ));
+            }
+            tx.rollback()?;
+            return Ok(crate::seed_identity::SeedEnsureResultV1::Installed { receipt });
+        }
+
+        if let Some(stream) = current_stream.as_deref()
+            && let Some(active) = crate::seed_identity::active_installation(&tx, stream)?
+        {
+            if active.identity.app_id == request.artifact.app_id
+                && active.identity.seed_version == request.artifact.seed_version
+                && active.identity.seed_digest == request.artifact.seed_digest
+            {
+                tx.rollback()?;
+                return Ok(crate::seed_identity::SeedEnsureResultV1::Matched {
+                    observation: crate::seed_identity::SeedMatchedObservationV1 {
+                        format_version: crate::seed_identity::SEED_MATCHED_OBSERVATION_FORMAT_V1
+                            .to_owned(),
+                        outcome: "matched".to_owned(),
+                        active: active.identity,
+                        establishing_receipt: active.receipt,
+                    },
+                });
+            }
+            let code = if active.identity.app_id == request.artifact.app_id
+                && active.identity.seed_version == request.artifact.seed_version
+            {
+                "SNAPBACK_SEED_VERSION_REUSED"
+            } else {
+                "SNAPBACK_SEED_MIGRATION_REQUIRED"
+            };
+            return Err(SnapbackError::error(
+                code,
+                "seed",
+                "another versioned seed identity is active in the current data stream",
+            ));
+        }
+
+        let occupancy = versioned_seed_target_occupancy(&tx, &schema, &request.artifact)?;
+        if occupancy.iter().any(|occupied| *occupied) {
+            let code = if occupancy.iter().all(|occupied| *occupied) {
+                "SNAPBACK_SEED_NONEMPTY_UNTRACKED"
+            } else {
+                "SNAPBACK_SEED_PARTIAL_UNTRACKED"
+            };
+            return Err(SnapbackError::error(
+                code,
+                "seed",
+                "seed targets contain application rows without active versioned identity",
+            ));
+        }
+
+        let predecessor_stream = current_stream.clone();
+        let stream = match current_stream {
+            Some(stream) => stream,
+            None => auth_invalidation::ensure_data_version_stream_in(&tx)?,
+        };
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
+        let touched = request.artifact.tables.keys().cloned().collect();
+        validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
+        preflight_membership_activation_sources(&tx, &schema, current_version)?;
+        let mut changes =
+            seed_into_transaction(&tx, &schema, request.artifact.seed_data(), next_version)?;
+        let direct_application_rows = changes.len();
+        if !projections.is_empty() {
+            maintain_projections_in_tx(
+                &tx,
+                &schema,
+                projections.as_ref(),
+                &mut changes,
+                &BTreeMap::new(),
+                next_version,
+                now_millis(),
+                ProjectionEffectCeiling::VersionedSeedV1,
+            )?;
+        }
+        let derived_projection_rows = changes.len().saturating_sub(direct_application_rows);
+        let total_application_effects = crate::seed_identity::checked_application_effects(
+            direct_application_rows,
+            derived_projection_rows,
+        )?;
+        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        validate_membership_activation(&tx, &schema, next_version)?;
+        if !changes.is_empty() {
+            set_version(&tx, next_version)?;
+        }
+        let receipt = crate::seed_identity::SeedInstallReceiptV1 {
+            format_version: crate::seed_identity::SEED_RECEIPT_FORMAT_V1.to_owned(),
+            operation_id: request.operation_id.clone(),
+            request_digest,
+            operation: crate::seed_identity::SeedOperationV1::Install,
+            outcome: crate::seed_identity::SeedOutcomeV1::Installed,
+            app_id: request.artifact.app_id.clone(),
+            seed_version: Some(request.artifact.seed_version.clone()),
+            seed_digest: Some(request.artifact.seed_digest.clone()),
+            schema_hash: required_versioned_seed_schema_hash(&schema)?,
+            data_version_stream: stream,
+            direct_application_rows,
+            derived_projection_rows,
+            total_application_effects,
+            reset_deleted_rows: 0,
+        };
+        crate::seed_identity::store_installation(&tx, &request.artifact, &receipt)?;
+        crate::seed_identity::store_completed_operation(
+            &tx,
+            predecessor_stream.as_deref(),
+            &receipt,
+        )?;
+        crate::seed_identity::best_effort_prune_history(&tx, &receipt.data_version_stream);
+        let authorization_predecessor = auth_stream::read_authorization_version_on(&tx)?;
+        let authorization = authorization::authorization_commit_hook_in(
+            &tx,
+            authorization::AuthorizationCommitCause::AppWrites {
+                schema: &schema,
+                changes: &changes,
+            },
+        )?;
+        let version = if changes.is_empty() {
+            current_version
+        } else {
+            next_version
+        };
+        commit_with_authorization_interlock(
+            tx,
+            &authorization,
+            AuthorizationCommitImpact::AppWrites {
+                schema: &schema,
+                changes: &changes,
+            },
+            authorization_predecessor,
+            version,
+            authorization_interlock,
+        )?;
+        Ok(crate::seed_identity::SeedEnsureResultV1::Installed { receipt })
+    }
+
+    /// Read-only classification for the v1 seed family. This uses a deferred
+    /// transaction and rolls it back without creating stream metadata.
+    pub fn preview_versioned_seed(
+        &mut self,
+        request: crate::seed_identity::SeedPreviewRequestV1,
+    ) -> SnapbackResult<crate::seed_identity::SeedPreviewResultV1> {
+        request.validate()?;
+        validate_versioned_seed_request(
+            &self.schema,
+            request.requested_mode,
+            request.artifact.as_ref(),
+        )?;
+        let schema = self.schema.clone();
+        let tx = self.conn.transaction()?;
+        let stream = crate::seed_identity::strict_current_data_version_stream(&tx)?;
+        let active = match stream.as_deref() {
+            Some(stream) => crate::seed_identity::active_installation(&tx, stream)?,
+            None => None,
+        };
+        let direct = request
+            .artifact
+            .as_ref()
+            .map(crate::seed_identity::SeedArtifactV1::row_count)
+            .transpose()?
+            .unwrap_or(0);
+        let reset_deleted_rows = if matches!(
+            request.operation,
+            crate::seed_identity::SeedPreviewOperationV1::ResetInstall
+                | crate::seed_identity::SeedPreviewOperationV1::Clear
+        ) {
+            count_physical_application_rows(&tx)?
+        } else {
+            0
+        };
+        let mut state = "installable".to_owned();
+        let mut diagnostic_code = None;
+        if matches!(
+            request.operation,
+            crate::seed_identity::SeedPreviewOperationV1::Install
+        ) {
+            match (&active, request.artifact.as_ref()) {
+                (Some(active), Some(artifact))
+                    if active.identity.app_id == artifact.app_id
+                        && active.identity.seed_version == artifact.seed_version
+                        && active.identity.seed_digest == artifact.seed_digest =>
+                {
+                    state = "matched".to_owned();
+                }
+                (Some(active), Some(artifact))
+                    if active.identity.app_id == artifact.app_id
+                        && active.identity.seed_version == artifact.seed_version =>
+                {
+                    state = "refused".to_owned();
+                    diagnostic_code = Some("SNAPBACK_SEED_VERSION_REUSED".to_owned());
+                }
+                (Some(_), Some(_)) => {
+                    state = "refused".to_owned();
+                    diagnostic_code = Some("SNAPBACK_SEED_MIGRATION_REQUIRED".to_owned());
+                }
+                (None, Some(artifact)) => {
+                    let occupancy = versioned_seed_target_occupancy(&tx, &schema, artifact)?;
+                    if occupancy.iter().any(|occupied| *occupied) {
+                        state = "refused".to_owned();
+                        diagnostic_code = Some(
+                            if occupancy.iter().all(|occupied| *occupied) {
+                                "SNAPBACK_SEED_NONEMPTY_UNTRACKED"
+                            } else {
+                                "SNAPBACK_SEED_PARTIAL_UNTRACKED"
+                            }
+                            .to_owned(),
+                        );
+                    }
+                }
+                _ => unreachable!("preview validation closed operation/artifact combinations"),
+            }
+        } else if let Some(expected) = request.expected_data_version_stream.as_ref()
+            && !crate::seed_identity::expected_stream_matches(expected, stream.as_deref())
+        {
+            state = "refused".to_owned();
+            diagnostic_code = Some("SNAPBACK_SEED_OPERATION_HISTORICAL".to_owned());
+        } else {
+            state = match request.operation {
+                crate::seed_identity::SeedPreviewOperationV1::ResetInstall => {
+                    "reset-installable".to_owned()
+                }
+                crate::seed_identity::SeedPreviewOperationV1::Clear => "clearable".to_owned(),
+                crate::seed_identity::SeedPreviewOperationV1::Install => unreachable!(),
+            };
+        }
+        let current = active.as_ref().map(|active| active.identity.clone());
+        tx.rollback()?;
+        let mut derived = if state == "matched" {
+            active
+                .as_ref()
+                .map_or(0, |active| active.identity.derived_projection_rows)
+        } else {
+            0
+        };
+        let reset_first = matches!(
+            request.operation,
+            crate::seed_identity::SeedPreviewOperationV1::ResetInstall
+        );
+        if let Some(artifact) = request.artifact.as_ref()
+            && (reset_first || state == "installable")
+        {
+            derived = simulate_versioned_seed_projection_rows(
+                self,
+                &schema,
+                self.projections.as_ref(),
+                artifact,
+                reset_first,
+            )?;
+        }
+        let total = direct.checked_add(derived).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
+                "seed",
+                "versioned seed application-effect count overflowed",
+            )
+        })?;
+        if total > crate::seed_identity::VERSIONED_SEED_MAX_EFFECTS_V1 {
+            state = "refused".to_owned();
+            diagnostic_code = Some("SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED".to_owned());
+        }
+        let requested = request.artifact.as_ref().and_then(|artifact| {
+            stream
+                .as_ref()
+                .map(|stream| preview_identity(artifact, stream, &schema, direct, derived))
+        });
+        Ok(crate::seed_identity::SeedPreviewResultV1 {
+            state,
+            diagnostic_code,
+            current,
+            requested,
+            direct_application_rows: direct,
+            derived_projection_rows: derived,
+            total_application_effects: total,
+            reset_deleted_rows,
+        })
+    }
+
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
         self.seed_with_authorization(seed)
             .map(|commit| commit.output)
@@ -2206,6 +2998,7 @@ impl LocalDatabase {
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
         let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
         Ok(changes)
@@ -2232,6 +3025,7 @@ impl LocalDatabase {
         let changed_count = changes.len();
 
         if changed_count > 0 {
+            crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
             set_version(&tx, next_version)?;
         }
         let authorization_predecessor = auth_stream::read_authorization_version_on(&tx)?;
@@ -2491,6 +3285,15 @@ impl LocalDatabase {
         input: &HandlerInput,
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<MutationCommit> {
+        if let Some(output) = self.client_mutation_result(identity)? {
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+                authorization: None,
+            });
+        }
         Ok(self
             .execute_mutation_plan(plan, input, true, Some(identity))?
             .commit)
@@ -2506,6 +3309,15 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        if let Some(output) = self.client_mutation_result(identity)? {
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+                authorization: None,
+            });
+        }
         Ok(self
             .execute_mutation_plan_with_lifecycle(
                 plan,
@@ -2627,13 +3439,16 @@ impl LocalDatabase {
                 | MutationStep::Delete { table, .. }
                 | MutationStep::DeleteWhere { table, .. }
                 | MutationStep::InsertEach { table, .. }
-                | MutationStep::Get { table, .. } => Some(table.as_str()),
+                | MutationStep::Get { table, .. }
+                | MutationStep::AssertSourceChanged { table, .. } => Some(table.as_str()),
                 MutationStep::Guard { .. } | MutationStep::Let { .. } => None,
             };
             if let Some(target) = target {
                 touched_tables.insert(target.to_owned());
-                if !matches!(step, MutationStep::Get { .. })
-                    && schema.table(target).is_some_and(|t| t.membership.is_some())
+                if !matches!(
+                    step,
+                    MutationStep::Get { .. } | MutationStep::AssertSourceChanged { .. }
+                ) && schema.table(target).is_some_and(|t| t.membership.is_some())
                 {
                     return Err(membership_hostplan_write_denied(target));
                 }
@@ -2763,7 +3578,9 @@ impl LocalDatabase {
                     {
                         projection_pre_images.insert(
                             (table.name.clone(), id.clone()),
-                            document.as_ref().and_then(|value| value.as_object().cloned()),
+                            document
+                                .as_ref()
+                                .and_then(|value| value.as_object().cloned()),
                         );
                     }
                     if delete_document(&tx, table, &id)? {
@@ -2908,6 +3725,46 @@ impl LocalDatabase {
                         direct_bindings.insert(bind_as.clone(), direct_value);
                     }
                     bindings.insert(bind_as.clone(), value);
+                }
+                MutationStep::AssertSourceChanged {
+                    table,
+                    id,
+                    operation,
+                } => {
+                    let id = expect_string(
+                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        "source id",
+                    )?;
+                    let expected = match operation {
+                        crate::manifest::WriteWithActivitySourceOperation::Insert => {
+                            ChangeOp::Insert
+                        }
+                        crate::manifest::WriteWithActivitySourceOperation::Patch => {
+                            ChangeOp::Update
+                        }
+                        crate::manifest::WriteWithActivitySourceOperation::Delete => {
+                            ChangeOp::Delete
+                        }
+                    };
+                    let matches = changes
+                        .iter()
+                        .filter(|change| {
+                            change.table == *table && change.id == id && change.op == expected
+                        })
+                        .count();
+                    if matches != 1 {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED",
+                            "mutation",
+                            "activity append requires exactly one changed source row",
+                        )
+                        .with_details(json!({
+                            "table": table,
+                            "id": id,
+                            "operation": operation.as_str(),
+                            "matchingEffects": matches,
+                        })));
+                    }
                 }
                 MutationStep::DeleteWhere { table, filter } => {
                     let table = schema_table(&schema, table)?;
@@ -3072,8 +3929,13 @@ impl LocalDatabase {
                 &projection_pre_images,
                 next_version,
                 now_ms,
+                ProjectionEffectCeiling::MutationV1,
             )?;
         }
+        // @ref LLP 0073#index-maintenance — derived postings are replaced
+        // after projection convergence and before the source head publishes;
+        // any bound/storage failure aborts the complete mutation.
+        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
         }
@@ -3531,7 +4393,9 @@ impl LocalDatabase {
                     {
                         projection_pre_images.insert(
                             (table.name.clone(), id.clone()),
-                            document.as_ref().and_then(|value| value.as_object().cloned()),
+                            document
+                                .as_ref()
+                                .and_then(|value| value.as_object().cloned()),
                         );
                     }
                     if delete_document(&tx, table, &id)? {
@@ -3598,8 +4462,10 @@ impl LocalDatabase {
                 &projection_pre_images,
                 next_version,
                 now_ms,
+                ProjectionEffectCeiling::MutationV1,
             )?;
         }
+        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
 
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
@@ -3767,6 +4633,20 @@ impl LocalDatabase {
               records INTEGER NOT NULL CHECK(records >= 0),
               bytes INTEGER NOT NULL CHECK(bytes >= 0)
             );
+            -- @ref LLP 0104#protected-relation-incarnation-and-stamping —
+            -- delete/recreate of one logical id mints a distinct incarnation,
+            -- so stale children never reconnect to its successor.
+            CREATE TABLE IF NOT EXISTS _snapback_relation_incarnations_v1 (
+              table_name TEXT NOT NULL,
+              row_id TEXT NOT NULL,
+              incarnation TEXT NOT NULL,
+              active INTEGER NOT NULL CHECK(active IN (0, 1)),
+              PRIMARY KEY(table_name, row_id, incarnation)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS
+              _snapback_relation_incarnations_v1_active
+              ON _snapback_relation_incarnations_v1(table_name, row_id)
+              WHERE active = 1;
             -- @ref LLP 0053#invalidation-is-an-obligation-not-a-message —
             -- retry episodes are durable auth-control state, never outbox
             -- messages or process-local timer records.
@@ -3806,6 +4686,7 @@ impl LocalDatabase {
               ON _snapback_authorized_lease_reservations(authorized_until_server_ms);
             ",
         )?;
+        crate::search::sqlite::create_infra(&self.conn)?;
         // Keep corruption preflights O(number of corrupt rows), which is zero
         // for every healthy database. MIN/MAX alone cannot detect an invalid
         // non-high-water predecessor, and scanning a table's entire journal on
@@ -3903,6 +4784,10 @@ impl LocalDatabase {
              ON _snapback_client_mutations(auth_fingerprint)",
             [],
         )?;
+        // @ref LLP 0103#151-active-identity-is-stream-keyed — future-unaware
+        // predecessor resets remain safe because active identity is keyed by
+        // the already-governed data-version stream.
+        crate::seed_identity::create_infra(&tx)?;
         tx.commit()?;
         self.ensure_client_mutation_retention_counters()?;
         Ok(())
@@ -4318,11 +5203,8 @@ fn migration_scan_initial_state(
                 .checkpoint()
         }),
         system_digest: header.map(|header| {
-            crate::rqs::ContentDigestStream::new(
-                crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN,
-                header,
-            )
-            .checkpoint()
+            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, header)
+                .checkpoint()
         }),
     })
 }
@@ -4514,7 +5396,10 @@ pub(crate) fn migration_keyset_scan_batch_on(
             let mut logical = Map::new();
             let mut system = Map::new();
             for (key, value) in object {
-                if matches!(key.as_str(), "_id" | "_version" | "_createdAt" | "_updatedAt") {
+                if matches!(
+                    key.as_str(),
+                    "_id" | "_version" | "_createdAt" | "_updatedAt"
+                ) {
                     system.insert(key.clone(), value.clone());
                 } else {
                     logical.insert(key.clone(), value.clone());
@@ -4677,8 +5562,21 @@ pub(crate) fn validate_relational_boundary(
     boundary: &[Value],
     id: &str,
 ) -> SnapbackResult<KeysetAfter> {
-    let table = schema_table(schema, &plan.root)?;
-    if boundary.len() != plan.order.len() {
+    validate_query_keyset_boundary(schema, &plan.root, &plan.order, boundary, id)
+}
+
+/// Validate an AEAD-decoded boundary for a closed query profile. This is the
+/// common type/order check used by relational and bounded-children cursors;
+/// callers still own their uniform public refusal.
+pub(crate) fn validate_query_keyset_boundary(
+    schema: &SchemaManifest,
+    table_name: &str,
+    order: &[OrderExpr],
+    boundary: &[Value],
+    id: &str,
+) -> SnapbackResult<KeysetAfter> {
+    let table = schema_table(schema, table_name)?;
+    if boundary.len() != order.len() {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_KEYSET_INVALID",
             "query",
@@ -4693,10 +5591,10 @@ pub(crate) fn validate_relational_boundary(
         ));
     }
     let mut entries = Vec::with_capacity(boundary.len());
-    for (value, order) in boundary.iter().zip(&plan.order) {
-        ensure_orderable_field(table, &order.field)?;
-        validate_query_filter_value(table, &order.field, value)?;
-        entries.push((order.field.clone(), value.clone()));
+    for (value, order_entry) in boundary.iter().zip(order) {
+        ensure_orderable_field(table, &order_entry.field)?;
+        validate_query_filter_value(table, &order_entry.field, value)?;
+        entries.push((order_entry.field.clone(), value.clone()));
     }
     Ok(KeysetAfter {
         entries,
@@ -4848,9 +5746,8 @@ fn projection_root_key(
 }
 
 fn projection_key_bytes(key: &[Value]) -> SnapbackResult<String> {
-    crate::rqs::jcs(&Value::Array(key.to_vec())).map_err(|_| {
-        projection_invariant("output-key bytes are not canonicalizable".to_owned())
-    })
+    crate::rqs::jcs(&Value::Array(key.to_vec()))
+        .map_err(|_| projection_invariant("output-key bytes are not canonicalizable".to_owned()))
 }
 
 /// Receipt of one `RebuildMaintainedProjection` operation (the LLP 0081
@@ -5015,8 +5912,7 @@ impl LocalDatabase {
             let Some(key) = projection_root_key(plan, id, root.as_object())? else {
                 continue;
             };
-            let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)?
-            else {
+            let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)? else {
                 continue;
             };
             desired.insert(projection_key_bytes(&key)?, (key, logical));
@@ -5093,8 +5989,7 @@ impl LocalDatabase {
                     });
                     if !unchanged {
                         patch_document(&tx, output_table, id, logical, next_version, now_ms)?;
-                        let document =
-                            get_document_from_tx(&tx, output_table, id, next_version)?;
+                        let document = get_document_from_tx(&tx, output_table, id, next_version)?;
                         record_change(
                             &tx,
                             next_version,
@@ -5134,9 +6029,8 @@ impl LocalDatabase {
                 json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
             })
             .collect();
-        let content_digest = crate::rqs::seq1_digest(&digest_rows).map_err(|_| {
-            projection_invariant("rebuilt rows are not canonicalizable".to_owned())
-        })?;
+        let content_digest = crate::rqs::seq1_digest(&digest_rows)
+            .map_err(|_| projection_invariant("rebuilt rows are not canonicalizable".to_owned()))?;
 
         // --- Publication: admission/receipt row + digest pin + commit. ----
         let generation_key = format!("projection_generation:{}", plan.id);
@@ -5168,7 +6062,11 @@ impl LocalDatabase {
             content_digest,
             row_count: desired.len(),
             generation,
-            published_version: if changed { next_version } else { current_version },
+            published_version: if changed {
+                next_version
+            } else {
+                current_version
+            },
             cause: cause.to_owned(),
             at_ms: now_ms,
         };
@@ -5313,9 +6211,7 @@ fn projection_logical_row(
     for leaf in &plan.projection {
         let value = match &leaf.source {
             ProjectionSource::Literal(value) => value.clone(),
-            ProjectionSource::RootField(field) => {
-                root.get(field).cloned().unwrap_or(Value::Null)
-            }
+            ProjectionSource::RootField(field) => root.get(field).cloned().unwrap_or(Value::Null),
             ProjectionSource::JoinedField(field) => joined_row
                 .as_ref()
                 .and_then(|row| row.get(field).cloned())
@@ -5324,6 +6220,59 @@ fn projection_logical_row(
         fields.insert(leaf.name.clone(), value);
     }
     Ok(Some(fields))
+}
+
+#[derive(Clone, Copy)]
+enum ProjectionEffectCeiling {
+    MutationV1,
+    VersionedSeedV1,
+    UnboundedPreview,
+}
+
+fn projection_effect_ceiling_error(
+    ceiling: ProjectionEffectCeiling,
+    direct_writes: usize,
+    projection_writes: usize,
+) -> Option<SnapbackError> {
+    let total = match direct_writes.checked_add(projection_writes) {
+        Some(total) => total,
+        None => {
+            return Some(match ceiling {
+                ProjectionEffectCeiling::VersionedSeedV1 => SnapbackError::error(
+                    "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
+                    "seed",
+                    "versioned seed application-effect count overflowed",
+                ),
+                ProjectionEffectCeiling::MutationV1 | ProjectionEffectCeiling::UnboundedPreview => {
+                    projection_invariant(
+                        "projection application-effect count overflowed".to_owned(),
+                    )
+                }
+            });
+        }
+    };
+    match ceiling {
+        ProjectionEffectCeiling::UnboundedPreview => None,
+        ProjectionEffectCeiling::MutationV1 if total > 1024 => {
+            Some(projection_fanout_exceeded(format!(
+                "direct writes ({direct_writes}) plus projection writes \
+                 ({projection_writes}) exceed the 1024-write mutation bound"
+            )))
+        }
+        ProjectionEffectCeiling::VersionedSeedV1
+            if total > crate::seed_identity::VERSIONED_SEED_MAX_EFFECTS_V1 =>
+        {
+            Some(SnapbackError::error(
+                "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
+                "seed",
+                format!(
+                    "versioned seed exceeds the {}-effect ceiling",
+                    crate::seed_identity::VERSIONED_SEED_MAX_EFFECTS_V1
+                ),
+            ))
+        }
+        _ => None,
+    }
 }
 
 /// Same-transaction projection maintenance (LLP 0080 §5): close the
@@ -5341,6 +6290,7 @@ fn maintain_projections_in_tx(
     pre_images: &BTreeMap<(String, String), Option<Map<String, Value>>>,
     next_version: u64,
     now_ms: u64,
+    effect_ceiling: ProjectionEffectCeiling,
 ) -> SnapbackResult<()> {
     use crate::manifest::ProjectionOutputKey;
 
@@ -5348,9 +6298,9 @@ fn maintain_projections_in_tx(
     let mut projection_writes = 0_usize;
 
     for plan in plans {
-        let touches_plan = changes[..direct_writes].iter().any(|change| {
-            change.table == plan.root || change.table == plan.joined
-        });
+        let touches_plan = changes[..direct_writes]
+            .iter()
+            .any(|change| change.table == plan.root || change.table == plan.joined);
         if !touches_plan {
             continue;
         }
@@ -5410,8 +6360,7 @@ fn maintain_projections_in_tx(
                 if let Some(post) = post
                     && let Some(joined_key) = root_join_key_of(post)
                 {
-                    admission_joined_keys
-                        .insert(projection_key_bytes(&joined_key)?, joined_key);
+                    admission_joined_keys.insert(projection_key_bytes(&joined_key)?, joined_key);
                 }
             }
             if change.table == plan.joined {
@@ -5481,9 +6430,7 @@ fn maintain_projections_in_tx(
                     .get("_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
-                if let Some(key) =
-                    projection_root_key(plan, id, document.as_object())?
-                {
+                if let Some(key) = projection_root_key(plan, id, document.as_object())? {
                     affected.insert(projection_key_bytes(&key)?, key);
                 }
             }
@@ -5589,11 +6536,10 @@ fn maintain_projections_in_tx(
             };
             let Some(write) = write else { continue };
             projection_writes += 1;
-            if direct_writes + projection_writes > 1024 {
-                return Err(projection_fanout_exceeded(format!(
-                    "direct writes ({direct_writes}) plus projection writes \
-                     ({projection_writes}) exceed the 1024-write mutation bound"
-                )));
+            if let Some(error) =
+                projection_effect_ceiling_error(effect_ceiling, direct_writes, projection_writes)
+            {
+                return Err(error);
             }
             match write {
                 Some(next) => {
@@ -6421,6 +7367,38 @@ impl DbRead<'_> {
         }
     }
 
+    pub(crate) fn search(
+        &self,
+        plan: &crate::search::types::SearchQueryPlanV1,
+        input: &HandlerInput,
+        authority: &crate::search::sqlite::SearchExecutionAuthority<'_>,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                crate::search::query_search_on(conn, schema, plan, input, authority)
+            }
+            DbRead::Live(db) => {
+                crate::search::query_search_on(&db.conn, &db.schema, plan, input, authority)
+            }
+        }
+    }
+
+    pub(crate) fn search_database_identity(&self) -> SnapbackResult<String> {
+        let conn = match self {
+            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Live(db) => &db.conn,
+        };
+        let value: Option<String> = conn
+            .query_row(
+                "SELECT value FROM _snapback_meta
+                 WHERE key = 'auth_invalidation_data_version_stream_v1'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(value.unwrap_or_else(|| "search-local-uninitialized-stream".to_owned()))
+    }
+
     /// Keyset-bounded, total-ordered query — the relational root window.
     pub(crate) fn query_keyset(
         &self,
@@ -6484,6 +7462,26 @@ impl DbRead<'_> {
             DbRead::Pinned { conn, schema } => get_on(conn, schema, table, id),
             _ => self.live().expect("live db").get(table, id),
         }
+    }
+
+    pub(crate) fn active_relation_incarnation(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> SnapbackResult<Option<String>> {
+        let conn = match self {
+            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Live(db) => &db.conn,
+        };
+        Ok(conn
+            .query_row(
+                "SELECT incarnation
+                   FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                params![table, id],
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
@@ -7642,6 +8640,58 @@ fn validate_membership_activation(
             }
         }
     }
+    validate_relation_activation(tx, manifest)?;
+    Ok(())
+}
+
+fn validate_relation_activation(
+    tx: &Transaction<'_>,
+    manifest: &SchemaManifest,
+) -> SnapbackResult<()> {
+    for child in &manifest.tables {
+        for stamp in &child.fields {
+            let FieldType::RelationIncarnation {
+                foreign_key_field,
+                parent_table,
+            } = &stamp.field_type
+            else {
+                continue;
+            };
+            let sql = format!(
+                "SELECT c._id
+                   FROM {child_table} c
+              LEFT JOIN {parent_table_sql} p
+                     ON p._id = c.{foreign_key}
+              LEFT JOIN _snapback_relation_incarnations_v1 r
+                     ON r.table_name = ?1
+                    AND r.row_id = c.{foreign_key}
+                    AND r.incarnation = c.{stamp_field}
+                    AND r.active = 1
+                  WHERE p._id IS NULL OR r.incarnation IS NULL
+                  LIMIT 1",
+                child_table = quote_ident(&child.name)?,
+                parent_table_sql = quote_ident(parent_table)?,
+                foreign_key = quote_ident(foreign_key_field)?,
+                stamp_field = quote_ident(&stamp.name)?,
+            );
+            if let Some(row_id) = tx
+                .query_row(&sql, params![parent_table], |row| row.get::<_, String>(0))
+                .optional()?
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                    "schema",
+                    "existing relation rows are missing a matching active parent incarnation",
+                )
+                .with_details(json!({
+                    "childTable": child.name,
+                    "field": stamp.name,
+                    "rowId": row_id,
+                    "parentTable": parent_table,
+                })));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -7699,6 +8749,92 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     "schema",
                     format!("duplicate field {}.{}", table.name, field.name),
                 ));
+            }
+            if let FieldType::RelationIncarnation {
+                foreign_key_field,
+                parent_table,
+            } = &field.field_type
+            {
+                if field.optional {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATION_SCHEMA_INVALID",
+                        "schema",
+                        "relation-incarnation fields must be required",
+                    )
+                    .with_details(json!({
+                        "table": table.name,
+                        "field": field.name,
+                    })));
+                }
+                let foreign_key = table.field(foreign_key_field).ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_RELATION_SCHEMA_INVALID",
+                        "schema",
+                        "relation-incarnation field names an unknown foreign key",
+                    )
+                    .with_details(json!({
+                        "table": table.name,
+                        "field": field.name,
+                        "foreignKeyField": foreign_key_field,
+                    }))
+                })?;
+                if foreign_key.optional
+                    || !matches!(
+                        &foreign_key.field_type,
+                        FieldType::Id { table } if table == parent_table
+                    )
+                    || manifest.table(parent_table).is_none()
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATION_SCHEMA_INVALID",
+                        "schema",
+                        "relation foreign key must be a required id of the declared parent",
+                    )
+                    .with_details(json!({
+                        "table": table.name,
+                        "field": field.name,
+                        "foreignKeyField": foreign_key_field,
+                        "parentTable": parent_table,
+                    })));
+                }
+            }
+            if let FieldType::RelationIncarnation {
+                foreign_key_field,
+                parent_table,
+            } = &field.field_type
+            {
+                let foreign_key = table.field(foreign_key_field).ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_RELATION_SCHEMA_INVALID",
+                        "schema",
+                        "relation-incarnation field names an unknown foreign key",
+                    )
+                    .with_details(json!({
+                        "table": table.name,
+                        "field": field.name,
+                        "foreignKeyField": foreign_key_field,
+                    }))
+                })?;
+                if field.optional
+                    || foreign_key.optional
+                    || !matches!(
+                        &foreign_key.field_type,
+                        FieldType::Id { table } if table == parent_table
+                    )
+                    || manifest.table(parent_table).is_none()
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATION_SCHEMA_INVALID",
+                        "schema",
+                        "relation stamp must be required and pair with a required parent id",
+                    )
+                    .with_details(json!({
+                        "table": table.name,
+                        "field": field.name,
+                        "foreignKeyField": foreign_key_field,
+                        "parentTable": parent_table,
+                    })));
+                }
             }
         }
 
@@ -7794,6 +8930,195 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     .with_detail("table", table.name.clone())
                     .with_detail("index", index.name.clone())
                     .with_detail("field", field.clone()));
+                }
+            }
+        }
+
+        let mut search_names = BTreeSet::new();
+        for search in &table.search_indexes {
+            validate_user_identifier("search index", &search.name)?;
+            if !search_names.insert(search.name.clone()) || indexes.contains(&search.name) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                    "search",
+                    format!("duplicate search/index name {}.{}", table.name, search.name),
+                ));
+            }
+            if search.format_version != 1
+                || search.semantic_version.is_empty()
+                || search.analyzer != crate::search::types::SEARCH_ANALYZER
+                || search.analyzer_tables_digest
+                    != crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
+                || search.tie_break != "score-desc-row-id-asc.v1"
+                || search.text_fields.is_empty()
+                || search.text_fields.len() > 16
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                    "search",
+                    format!(
+                        "search index {}.{} is outside full-text-search-v1",
+                        table.name, search.name
+                    ),
+                ));
+            }
+            for (field, text) in &search.text_fields {
+                let declared = ensure_field(table, field)?;
+                if declared.field_type != FieldType::String
+                    || text.weight == 0
+                    || text.weight > 64
+                    || matches!(
+                        text.classification,
+                        crate::search::types::SearchFieldClassV1::Sensitive
+                            | crate::search::types::SearchFieldClassV1::Forbidden
+                    )
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                        "search",
+                        format!(
+                            "search text field {}.{}.{} must be a non-sensitive string with weight 1..64",
+                            table.name, search.name, field
+                        ),
+                    ));
+                }
+            }
+            for field in search
+                .equality_filters
+                .iter()
+                .chain(search.stored_fields.iter())
+                .chain(search.highlight_fields.iter())
+            {
+                ensure_field(table, field)?;
+            }
+            for field in &search.equality_filters {
+                let declared = ensure_field(table, field)?;
+                if !matches!(
+                    declared.field_type,
+                    FieldType::String
+                        | FieldType::Boolean
+                        | FieldType::Integer
+                        | FieldType::Principal
+                        | FieldType::Id { .. }
+                ) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                        "search",
+                        format!(
+                            "search equality field {}.{}.{} must use a portable exact scalar type",
+                            table.name, search.name, field
+                        ),
+                    ));
+                }
+            }
+            for field in &search.stored_fields {
+                let declared = ensure_field(table, field)?;
+                if matches!(declared.field_type, FieldType::Json) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                        "search",
+                        format!(
+                            "search stored field {}.{}.{} must be a bounded scalar display field",
+                            table.name, search.name, field
+                        ),
+                    ));
+                }
+            }
+            if search
+                .highlight_fields
+                .iter()
+                .any(|field| !search.text_fields.contains_key(field))
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                    "search",
+                    format!(
+                        "search index {}.{} highlights must name indexed text fields",
+                        table.name, search.name
+                    ),
+                ));
+            }
+            for fields in [
+                &search.equality_filters,
+                &search.stored_fields,
+                &search.highlight_fields,
+            ] {
+                if fields.windows(2).any(|pair| pair[0] >= pair[1]) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                        "search",
+                        format!(
+                            "search index {}.{} field sets must be lexically sorted and unique",
+                            table.name, search.name
+                        ),
+                    ));
+                }
+            }
+            let source_limits = &search.source_limits;
+            let query_limits = &search.query_limits;
+            let cursor_limits = &search.cursor_limits;
+            let maintenance_limits = &search.maintenance_limits;
+            if source_limits.max_indexed_bytes == 0
+                || source_limits.max_indexed_bytes > 32 * 1024
+                || source_limits.max_tokens == 0
+                || source_limits.max_tokens > 2_048
+                || source_limits.max_posting_operations == 0
+                || source_limits.max_posting_operations > 4_096
+                || query_limits.max_candidate_work == 0
+                || query_limits.max_candidate_work > 10_000
+                || query_limits.max_prefix_terms == 0
+                || query_limits.max_prefix_terms > 256
+                || !(1..=64).contains(&query_limits.min_prefix_scalars)
+                || cursor_limits.ttl_ms != crate::search::types::SEARCH_CURSOR_TTL_MS
+                || cursor_limits.max_bytes as usize != crate::search::types::SEARCH_CURSOR_MAX_BYTES
+                || maintenance_limits.search_maintenance_effects == 0
+                || maintenance_limits.search_maintenance_effects as usize
+                    > crate::search::types::SEARCH_MAX_MAINTENANCE_EFFECTS
+                || maintenance_limits.search_posting_ops == 0
+                || maintenance_limits.search_posting_ops as usize
+                    > crate::search::types::SEARCH_MAX_POSTING_OPS
+                || maintenance_limits.search_positions == 0
+                || maintenance_limits.search_positions as usize
+                    > crate::search::types::SEARCH_MAX_POSITIONS
+                || maintenance_limits.search_bytes == 0
+                || maintenance_limits.search_bytes as usize
+                    > crate::search::types::SEARCH_MAX_BYTES_PER_COMMIT
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                    "search",
+                    format!(
+                        "search index {}.{} limits exceed or contradict the portable v1 ceilings",
+                        table.name, search.name
+                    ),
+                ));
+            }
+            match &search.visibility {
+                crate::search::types::SearchVisibilityV1::PublicRead => {
+                    if search.text_fields.values().any(|field| {
+                        field.classification != crate::search::types::SearchFieldClassV1::Public
+                    }) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                            "search",
+                            "public-read search admits only public text fields",
+                        ));
+                    }
+                }
+                crate::search::types::SearchVisibilityV1::Owner { field } => {
+                    let owner = ensure_field(table, field)?;
+                    if owner.optional
+                        || !matches!(owner.field_type, FieldType::String | FieldType::Principal)
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                            "search",
+                            format!(
+                                "owner search {}.{} requires a non-optional string/principal owner field",
+                                table.name, search.name
+                            ),
+                        ));
+                    }
                 }
             }
         }
@@ -8007,6 +9332,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Json => "Json",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
+        FieldType::RelationIncarnation { .. } => "RelationIncarnation",
     }
 }
 
@@ -8902,9 +10228,10 @@ fn validate_query_filter_value(
             field.optional
         } else {
             match field.field_type {
-                FieldType::String | FieldType::Principal | FieldType::Id { .. } => {
-                    value.is_string()
-                }
+                FieldType::String
+                | FieldType::Principal
+                | FieldType::Id { .. }
+                | FieldType::RelationIncarnation { .. } => value.is_string(),
                 FieldType::Boolean => value.is_boolean(),
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
@@ -9611,6 +10938,10 @@ fn eval_expr(
         auth_user_id: input.auth.user_id.as_deref(),
         auth_kind: input.auth.authorization_kind.as_deref(),
         auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_activity_actor_kind: input.auth.authorization_activity_actor_kind.as_deref(),
+        auth_actor_user_id: input.auth.authorization_actor_user_id.as_deref(),
+        auth_grant_id: input.auth.authorization_grant_id.as_deref(),
+        client_mutation_digest: input.auth.client_mutation_digest.as_deref(),
         auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: Some(bindings),
         now_ms: Some(now_ms),
@@ -9683,7 +11014,11 @@ fn value_expr_depends_on_projection(
     direct_bindings: &BTreeMap<String, Value>,
 ) -> bool {
     match expr {
-        ValueExpr::AuthActorKind | ValueExpr::AuthIsDelegated => true,
+        ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::AuthIsDelegated => true,
         ValueExpr::Binding(name) => bindings.get(name) != direct_bindings.get(name),
         ValueExpr::Field { base, .. } => {
             value_expr_depends_on_projection(base, bindings, direct_bindings)
@@ -9710,6 +11045,7 @@ fn value_expr_depends_on_projection(
         | ValueExpr::Args
         | ValueExpr::AuthUserId
         | ValueExpr::AuthKind
+        | ValueExpr::ClientMutationDigest
         | ValueExpr::Literal(_)
         | ValueExpr::RuntimeId
         | ValueExpr::RuntimeNow
@@ -9736,7 +11072,13 @@ fn seed_into_transaction(
 ) -> SnapbackResult<Vec<ChangedRow>> {
     let mut changes = Vec::new();
     let now_ms = now_millis();
-    for (table_name, rows) in seed.tables {
+    let mut tables = seed.tables.into_iter().collect::<Vec<_>>();
+    // Stable parent-before-child order makes automatic stamping apply to seed
+    // writers without weakening the write-time parent-existence check.
+    tables.sort_by_key(|(table_name, _)| {
+        relation_table_depth(schema, table_name, &mut BTreeSet::new())
+    });
+    for (table_name, rows) in tables {
         let table = schema_table(schema, &table_name)?;
         for mut row in rows {
             // Declarative seeds may choose a stable id, but every other
@@ -9775,6 +11117,29 @@ fn seed_into_transaction(
         }
     }
     Ok(changes)
+}
+
+fn relation_table_depth(
+    schema: &SchemaManifest,
+    table_name: &str,
+    visiting: &mut BTreeSet<String>,
+) -> usize {
+    if !visiting.insert(table_name.to_owned()) {
+        return 0;
+    }
+    let depth = schema
+        .table(table_name)
+        .into_iter()
+        .flat_map(|table| table.fields.iter())
+        .filter_map(|field| match &field.field_type {
+            FieldType::RelationIncarnation { parent_table, .. } => Some(parent_table.as_str()),
+            _ => None,
+        })
+        .map(|parent| 1 + relation_table_depth(schema, parent, visiting))
+        .max()
+        .unwrap_or(0);
+    visiting.remove(table_name);
+    depth
 }
 
 fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
@@ -12300,9 +13665,13 @@ fn insert_document(
                 format!("{key} is managed by Snapback"),
             ));
         }
-        ensure_field(table, key)?;
+        let field = ensure_field(table, key)?;
+        if matches!(field.field_type, FieldType::RelationIncarnation { .. }) {
+            return Err(relation_incarnation_write_protected(table, key));
+        }
     }
 
+    let relation_stamps = resolve_relation_stamps(tx, table, row)?;
     let mut document = Map::new();
     document.insert("_id".to_owned(), Value::String(id.to_owned()));
     document.insert("_version".to_owned(), json!(version));
@@ -12323,7 +13692,10 @@ fn insert_document(
     ];
 
     for field in &table.fields {
-        let value = match row.get(&field.name) {
+        let value = match relation_stamps
+            .get(&field.name)
+            .or_else(|| row.get(&field.name))
+        {
             Some(value) => {
                 validate_declared_field_value(field, value)?;
                 value.clone()
@@ -12361,8 +13733,142 @@ fn insert_document(
     statement
         .execute(params_from_iter(values.iter()))
         .map_err(map_unique_constraint_error)?;
+    activate_relation_incarnation(tx, &table.name, id)?;
 
     Ok(Value::Object(document))
+}
+
+fn relation_incarnation_write_protected(table: &TableManifest, field: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED",
+        "storage",
+        format!(
+            "{}.{} is a framework-owned relation-incarnation stamp",
+            table.name, field
+        ),
+    )
+    .with_detail("table", table.name.clone())
+    .with_detail("field", field.to_owned())
+}
+
+/// Resolve every protected child stamp from an actually-present parent and its
+/// one active registry incarnation. A registry row alone is insufficient:
+/// parent delete has no referential action, and a dangling/buffered-pending
+/// child write must refuse at the write boundary.
+///
+/// @ref LLP 0104#protected-relation-incarnation-and-stamping — central
+/// writers stamp, and missing/inactive parents fail with one public outcome.
+fn resolve_relation_stamps(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    values: &Map<String, Value>,
+) -> SnapbackResult<BTreeMap<String, Value>> {
+    let mut resolved = BTreeMap::new();
+    for field in &table.fields {
+        let FieldType::RelationIncarnation {
+            foreign_key_field,
+            parent_table,
+        } = &field.field_type
+        else {
+            continue;
+        };
+        let parent_id = values
+            .get(foreign_key_field)
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_RELATION_FOREIGN_KEY_INVALID",
+                    "storage",
+                    format!(
+                        "{}.{} must be a nonempty parent id before {} can be stamped",
+                        table.name, foreign_key_field, field.name
+                    ),
+                )
+                .with_detail("table", table.name.clone())
+                .with_detail("field", foreign_key_field.clone())
+            })?;
+        let parent_exists = tx
+            .query_row(
+                &format!(
+                    "SELECT 1 FROM {} WHERE _id = ?1",
+                    quote_ident(parent_table)?
+                ),
+                params![parent_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let incarnation = tx
+            .query_row(
+                "SELECT incarnation
+                   FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                params![parent_table, parent_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if !parent_exists || incarnation.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+                "storage",
+                "relation parent is missing or inactive",
+            )
+            .with_details(json!({
+                "childTable": table.name,
+                "foreignKeyField": foreign_key_field,
+                "parentTable": parent_table,
+            })));
+        }
+        resolved.insert(
+            field.name.clone(),
+            Value::String(incarnation.expect("checked above")),
+        );
+    }
+    Ok(resolved)
+}
+
+fn activate_relation_incarnation(
+    tx: &Transaction<'_>,
+    table: &str,
+    id: &str,
+) -> SnapbackResult<String> {
+    // A predecessor binary cannot clear protected tables introduced after it
+    // shipped. Its legacy reset still deletes the application row and rotates
+    // the data stream, so a later insert of that row id must retire the stale
+    // active stamp before creating the successor incarnation.
+    //
+    // @ref LLP 0104#protected-relation-incarnation-and-stamping — one active
+    // incarnation belongs to the actually-present parent row; delete/recreate
+    // always receives a fresh value and never revives predecessor children.
+    tx.execute(
+        "UPDATE _snapback_relation_incarnations_v1
+            SET active = 0
+          WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+        params![table, id],
+    )?;
+    let incarnation = Uuid::now_v7().to_string();
+    tx.execute(
+        "INSERT INTO _snapback_relation_incarnations_v1(
+           table_name, row_id, incarnation, active
+         ) VALUES (?1, ?2, ?3, 1)",
+        params![table, id, incarnation],
+    )
+    .map_err(map_unique_constraint_error)?;
+    Ok(incarnation)
+}
+
+fn deactivate_relation_incarnation(
+    tx: &Transaction<'_>,
+    table: &str,
+    id: &str,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "UPDATE _snapback_relation_incarnations_v1
+            SET active = 0
+          WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+        params![table, id],
+    )?;
+    Ok(())
 }
 
 /// Reclassify a SQLite UNIQUE-constraint failure into a stable, typed
@@ -12401,13 +13907,81 @@ fn patch_document(
     version: u64,
     now_ms: u64,
 ) -> SnapbackResult<bool> {
+    let current = get_document_from_tx(tx, table, id, version)?;
+    let Some(current) = current.and_then(|value| value.as_object().cloned()) else {
+        // Preserve validation-before-existence for protected/unknown fields.
+        for (field, value) in row {
+            let field_manifest = ensure_field(table, field)?;
+            if matches!(
+                field_manifest.field_type,
+                FieldType::RelationIncarnation { .. }
+            ) {
+                return Err(relation_incarnation_write_protected(table, field));
+            }
+            validate_declared_field_value(field_manifest, value)?;
+        }
+        return Ok(false);
+    };
+    let mut authored = row.clone();
+    for field in row.keys() {
+        let field_manifest = ensure_field(table, field)?;
+        if matches!(
+            field_manifest.field_type,
+            FieldType::RelationIncarnation { .. }
+        ) {
+            return Err(relation_incarnation_write_protected(table, field));
+        }
+    }
+    // A foreign-key patch always re-derives its protected stamp. Unchanged
+    // foreign keys preserve the stamp without consulting the parent.
+    let relation_input = table
+        .fields
+        .iter()
+        .filter_map(|field| match &field.field_type {
+            FieldType::RelationIncarnation {
+                foreign_key_field, ..
+            } if authored.contains_key(foreign_key_field) => Some(field),
+            _ => None,
+        })
+        .map(|field| {
+            let FieldType::RelationIncarnation {
+                foreign_key_field, ..
+            } = &field.field_type
+            else {
+                unreachable!()
+            };
+            (
+                field.name.clone(),
+                foreign_key_field.clone(),
+                authored.get(foreign_key_field).cloned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    if !relation_input.is_empty() {
+        let mut complete_relation_values = current.clone();
+        complete_relation_values.extend(authored.clone());
+        let stamps = resolve_relation_stamps(tx, table, &complete_relation_values)?;
+        for (stamp_field, _, _) in relation_input {
+            if let Some(stamp) = stamps.get(&stamp_field) {
+                authored.insert(stamp_field, stamp.clone());
+            }
+        }
+    }
+    // A patch is a source effect only when its persisted application fields
+    // differ exactly. Empty and storage-equal patches are both no-ops.
+    if authored
+        .iter()
+        .all(|(field, value)| current.get(field) == Some(value))
+    {
+        return Ok(false);
+    }
     let mut assignments = vec!["_version = ?".to_owned(), "_updatedAt = ?".to_owned()];
     let mut values = vec![
         SqlValue::Integer(version_to_sql_integer(version)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
 
-    for (field, value) in row {
+    for (field, value) in &authored {
         if is_system_field(field) {
             return Err(SnapbackError::error(
                 "SNAPBACK_SYSTEM_FIELD_WRITE",
@@ -12419,13 +13993,6 @@ fn patch_document(
         validate_declared_field_value(field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
         values.push(json_to_sql_value(value, Some(&field_manifest.field_type))?);
-    }
-    // Validate the complete patch before consulting row existence. The
-    // portable contract rejects malformed writes independent of current
-    // state; a missing id must not turn protected/unknown/wrong-type values
-    // into an accepted no-op while the hosted target rejects them.
-    if get_row_version(tx, table, id, version)?.is_none() {
-        return Ok(false);
     }
     values.push(SqlValue::Text(id.to_owned()));
 
@@ -12446,6 +14013,9 @@ fn delete_document(tx: &Transaction<'_>, table: &TableManifest, id: &str) -> Sna
         quote_ident(&table.name)?
     ))?;
     let changed = statement.execute(params![id])?;
+    if changed > 0 {
+        deactivate_relation_incarnation(tx, &table.name, id)?;
+    }
     Ok(changed > 0)
 }
 
@@ -12687,9 +14257,11 @@ pub(crate) fn prove_retained_work_posture(
         if !sqlite_table_exists(tx, table)? {
             return Ok(0);
         }
-        Ok(tx.query_row(&format!("SELECT COUNT(*) FROM {}", quote_ident(table)?), [], |row| {
-            row.get(0)
-        })?)
+        Ok(tx.query_row(
+            &format!("SELECT COUNT(*) FROM {}", quote_ident(table)?),
+            [],
+            |row| row.get(0),
+        )?)
     };
     let retained_mutations = count("_snapback_client_mutations")?;
     let retry_episodes = count("_snapback_auth_retry_episodes")?;
@@ -12697,7 +14269,10 @@ pub(crate) fn prove_retained_work_posture(
     match posture {
         crate::migration::RetainedWorkPosture::Empty
         | crate::migration::RetainedWorkPosture::DualCompatible
-            if empty => Ok(()),
+            if empty =>
+        {
+            Ok(())
+        }
         _ => Err(SnapbackError::error(
             "SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE",
             "storage",
@@ -12789,7 +14364,7 @@ fn set_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     Ok(())
 }
 
-fn row_to_document(
+pub(crate) fn row_to_document(
     row: &rusqlite::Row<'_>,
     table: &TableManifest,
     columns: &[String],
@@ -12926,7 +14501,10 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
         None => Err(type_error("portable scalar", value)),
         // A principal is nominal typing over the string space: it stores and
         // coerces exactly like a String (LLP 0056 §Declaring a membership table).
-        Some(FieldType::String) | Some(FieldType::Principal) | Some(FieldType::Id { .. }) => value
+        Some(FieldType::String)
+        | Some(FieldType::Principal)
+        | Some(FieldType::Id { .. })
+        | Some(FieldType::RelationIncarnation { .. }) => value
             .as_str()
             .map(|value| SqlValue::Text(value.to_owned()))
             .ok_or_else(|| type_error("string", value)),
@@ -13039,7 +14617,11 @@ fn is_system_field(field: &str) -> bool {
 
 fn sqlite_type(field_type: &FieldType) -> &'static str {
     match field_type {
-        FieldType::String | FieldType::Json | FieldType::Principal | FieldType::Id { .. } => "TEXT",
+        FieldType::String
+        | FieldType::Json
+        | FieldType::Principal
+        | FieldType::Id { .. }
+        | FieldType::RelationIncarnation { .. } => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
     }
@@ -13067,7 +14649,7 @@ pub(crate) fn is_auth_reserved_identifier(value: &str) -> bool {
     folded == "_auth" || folded.starts_with("_auth_")
 }
 
-fn quote_ident(value: &str) -> SnapbackResult<String> {
+pub(crate) fn quote_ident(value: &str) -> SnapbackResult<String> {
     if !is_identifier(value) {
         return Err(SnapbackError::error(
             "SNAPBACK_INVALID_IDENTIFIER",
@@ -13488,6 +15070,7 @@ mod guarded_commit_tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -13625,8 +15208,7 @@ mod guarded_commit_tests {
                 "batch size {batch_rows}"
             );
             assert_eq!(
-                resumed.sealed_digests,
-                one_shot.sealed_digests,
+                resumed.sealed_digests, one_shot.sealed_digests,
                 "batch size {batch_rows}: resumed digests must equal one-shot"
             );
         }
@@ -13709,6 +15291,7 @@ mod guarded_commit_tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -13719,6 +15302,453 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    fn relation_schema() -> SchemaManifest {
+        use crate::manifest::IndexManifest;
+        SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "parents".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "owner".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "title".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                },
+                TableManifest {
+                    name: "children".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "parentId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "parents".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "parentIncarnation".to_owned(),
+                            field_type: FieldType::RelationIncarnation {
+                                foreign_key_field: "parentId".to_owned(),
+                                parent_table: "parents".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "position".to_owned(),
+                            field_type: FieldType::Integer,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "body".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: vec![IndexManifest {
+                        name: "by_parent_position".to_owned(),
+                        fields: vec![
+                            "parentId".to_owned(),
+                            "parentIncarnation".to_owned(),
+                            "position".to_owned(),
+                        ],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                },
+                TableManifest {
+                    name: "activity".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "parentId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "parents".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "parentIncarnation".to_owned(),
+                            field_type: FieldType::RelationIncarnation {
+                                foreign_key_field: "parentId".to_owned(),
+                                parent_table: "parents".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "sourceId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "children".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "operation".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "actualActor".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "actorKind".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "mutationDigest".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn relation_database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory relation database");
+        db.apply_schema(relation_schema())
+            .expect("apply relation schema");
+        db
+    }
+
+    fn object(entries: &[(&str, Value)]) -> Map<String, Value> {
+        entries
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), value.clone()))
+            .collect()
+    }
+
+    // @ref LLP 0104#protected-relation-incarnation-and-stamping — the
+    // registry has exactly one active incarnation, every central writer
+    // stamps from a present active parent, direct writes refuse, and
+    // delete/recreate cannot revive an orphan.
+    #[test]
+    fn relation_incarnation_is_protected_and_delete_recreate_isolated() {
+        let mut db = relation_database();
+        let parent = db.schema.table("parents").expect("parent table").clone();
+        let child = db.schema.table("children").expect("child table").clone();
+        {
+            let tx = db.conn.transaction().expect("insert transaction");
+            insert_document(
+                &tx,
+                &parent,
+                "parent-1",
+                &object(&[("owner", json!("user-1")), ("title", json!("first"))]),
+                1,
+                1_000,
+            )
+            .expect("insert parent");
+            insert_document(
+                &tx,
+                &child,
+                "child-old",
+                &object(&[
+                    ("parentId", json!("parent-1")),
+                    ("position", json!(1)),
+                    ("body", json!("old")),
+                ]),
+                1,
+                1_000,
+            )
+            .expect("central writer stamps child");
+            tx.commit().expect("commit initial relation");
+        }
+        let old_incarnation: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'child-old'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("old stamp");
+
+        {
+            let tx = db.conn.transaction().expect("protected patch transaction");
+            let error = patch_document(
+                &tx,
+                &child,
+                "child-old",
+                &object(&[("parentIncarnation", json!("forged"))]),
+                2,
+                2_000,
+            )
+            .expect_err("protected stamp cannot be patched");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED"
+            );
+        }
+        {
+            let tx = db.conn.transaction().expect("delete transaction");
+            assert!(delete_document(&tx, &parent, "parent-1").expect("delete parent"));
+            tx.commit().expect("commit parent delete");
+        }
+
+        for parent_id in ["parent-1", "never-existed"] {
+            let tx = db
+                .conn
+                .transaction()
+                .expect("unavailable parent transaction");
+            let error = insert_document(
+                &tx,
+                &child,
+                &format!("child-{parent_id}"),
+                &object(&[
+                    ("parentId", json!(parent_id)),
+                    ("position", json!(2)),
+                    ("body", json!("refused")),
+                ]),
+                3,
+                3_000,
+            )
+            .expect_err("missing and inactive parents both refuse");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
+            );
+        }
+
+        {
+            let tx = db.conn.transaction().expect("recreate transaction");
+            insert_document(
+                &tx,
+                &parent,
+                "parent-1",
+                &object(&[("owner", json!("user-1")), ("title", json!("second"))]),
+                4,
+                4_000,
+            )
+            .expect("recreate parent");
+            insert_document(
+                &tx,
+                &child,
+                "child-new",
+                &object(&[
+                    ("parentId", json!("parent-1")),
+                    ("position", json!(2)),
+                    ("body", json!("new")),
+                ]),
+                4,
+                4_000,
+            )
+            .expect("stamp child under successor incarnation");
+            tx.commit().expect("commit recreated relation");
+        }
+        let new_incarnation: String = db
+            .conn
+            .query_row(
+                "SELECT parentIncarnation FROM children WHERE _id = 'child-new'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("new stamp");
+        assert_ne!(old_incarnation, new_incarnation);
+        let active: i64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'parents' AND row_id = 'parent-1' AND active = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("active registry count");
+        assert_eq!(active, 1);
+        let visible_old: i64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM children
+                  WHERE _id = 'child-old' AND parentIncarnation = ?1",
+                params![new_incarnation],
+                |row| row.get(0),
+            )
+            .expect("orphan visibility count");
+        assert_eq!(visible_old, 0, "old child is not revived by id reuse");
+    }
+
+    // @ref LLP 0104#total-effect-formulas — source-effect assertion and the
+    // activity append share one transaction; exact replay commits once, and
+    // no-op/wrong-operation paths roll back before activity or settlement.
+    #[test]
+    fn write_with_activity_source_assertion_is_atomic_and_replay_safe() {
+        let mut db = relation_database();
+        {
+            let tx = db.conn.transaction().expect("parent transaction");
+            let parent = db.schema.table("parents").expect("parent").clone();
+            insert_document(
+                &tx,
+                &parent,
+                "parent-1",
+                &object(&[("owner", json!("user-1")), ("title", json!("incident"))]),
+                1,
+                1_000,
+            )
+            .expect("insert scope");
+            tx.commit().expect("commit scope");
+        }
+
+        let source_id = ValueExpr::Binding("sourceId".to_owned());
+        let plan = MutationPlan {
+            steps: vec![
+                MutationStep::Insert {
+                    table: "children".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), ValueExpr::Literal(json!("parent-1"))),
+                        ("position".to_owned(), ValueExpr::Literal(json!(1))),
+                        ("body".to_owned(), ValueExpr::Literal(json!("triage"))),
+                    ]),
+                    bind_id_as: Some("sourceId".to_owned()),
+                },
+                MutationStep::AssertSourceChanged {
+                    table: "children".to_owned(),
+                    id: source_id.clone(),
+                    operation: crate::manifest::WriteWithActivitySourceOperation::Insert,
+                },
+                MutationStep::Insert {
+                    table: "activity".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), ValueExpr::Literal(json!("parent-1"))),
+                        ("sourceId".to_owned(), source_id.clone()),
+                        ("operation".to_owned(), ValueExpr::Literal(json!("insert"))),
+                        ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
+                        ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
+                        ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                    ]),
+                    bind_id_as: Some("activityId".to_owned()),
+                },
+            ],
+            return_value: Some(ReturnValue::Expr(ValueExpr::Record {
+                fields: BTreeMap::from([
+                    (
+                        "activityId".to_owned(),
+                        ValueExpr::Binding("activityId".to_owned()),
+                    ),
+                    ("sourceId".to_owned(), source_id),
+                ]),
+            })),
+        };
+        let mut input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("user-1".to_owned()),
+                ..AuthInput::default()
+            }
+            .with_activity_provenance(Some("user-1"), Some("human"), None),
+            ..HandlerInput::default()
+        };
+        let identity = ClientMutationIdentity::new("cm_activity_exact", "addTask", &input);
+        let digest = identity.activity_digest();
+        input.auth = input
+            .auth
+            .with_client_mutation_digest(Some(digest.as_str()));
+        let first = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("first activity commit");
+        let replay = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("exact replay");
+        assert_eq!(first.output, replay.output);
+        let source_id = first.output.result["sourceId"].as_str().expect("source id");
+        let activity_id = first.output.result["activityId"]
+            .as_str()
+            .expect("activity id");
+        let (source_version, activity_version, stored_digest): (i64, i64, String) = db
+            .conn
+            .query_row(
+                "SELECT c._version, a._version, a.mutationDigest
+                   FROM children c JOIN activity a ON a.sourceId = c._id
+                  WHERE c._id = ?1 AND a._id = ?2",
+                params![source_id, activity_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("source/activity versions");
+        assert_eq!(source_version, activity_version);
+        assert_eq!(stored_digest, digest);
+        let counts: (i64, i64) = db
+            .conn
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM children),
+                   (SELECT count(*) FROM activity)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("row counts");
+        assert_eq!(counts, (1, 1), "replay appends no duplicate activity");
+
+        let no_op = MutationPlan {
+            steps: vec![
+                MutationStep::Patch {
+                    table: "children".to_owned(),
+                    id: ValueExpr::Literal(json!(source_id)),
+                    values: BTreeMap::from([(
+                        "body".to_owned(),
+                        ValueExpr::Literal(json!("triage")),
+                    )]),
+                },
+                MutationStep::AssertSourceChanged {
+                    table: "children".to_owned(),
+                    id: ValueExpr::Literal(json!(source_id)),
+                    operation: crate::manifest::WriteWithActivitySourceOperation::Patch,
+                },
+                MutationStep::Insert {
+                    table: "activity".to_owned(),
+                    values: BTreeMap::new(),
+                    bind_id_as: None,
+                },
+            ],
+            return_value: None,
+        };
+        let no_op_identity = ClientMutationIdentity::new("cm_activity_noop", "patchTask", &input);
+        let error = db
+            .execute_mutation_idempotent(&no_op, &input, &no_op_identity)
+            .expect_err("storage-identical patch is not an activity source effect");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED"
+        );
+        let after: (i64, i64) = db
+            .conn
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM children),
+                   (SELECT count(*) FROM activity)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("counts after refusal");
+        assert_eq!(after, counts);
+        assert!(
+            db.client_mutation_result(&no_op_identity)
+                .expect("settlement lookup")
+                .is_none(),
+            "refusal retains no settlement"
+        );
     }
 
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time
@@ -13768,7 +15798,10 @@ mod guarded_commit_tests {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .expect("tx");
-        for posture in [RetainedWorkPosture::Empty, RetainedWorkPosture::DualCompatible] {
+        for posture in [
+            RetainedWorkPosture::Empty,
+            RetainedWorkPosture::DualCompatible,
+        ] {
             let error = prove_retained_work_posture(&tx, posture)
                 .expect_err("retained work must fail closed");
             assert_eq!(
@@ -13823,13 +15856,17 @@ mod guarded_commit_tests {
         assert_eq!(events[0].version, 1);
         assert_eq!(events[0].body, body);
         assert_eq!(
-            db.latest_schema_transition().expect("latest").expect("some").body,
+            db.latest_schema_transition()
+                .expect("latest")
+                .expect("some")
+                .body,
             body
         );
 
         // High-water/head-cut equality holds across the event: pruning's
         // whole-journal validation (head vs journal MAX) accepts it.
-        db.prune_change_journal(2_000, 10, 10).expect("prune validates");
+        db.prune_change_journal(2_000, 10, 10)
+            .expect("prune validates");
         assert_eq!(db.journal_floor_version().expect("floor"), 1);
 
         // Constructor invariants: floor mismatch and a non-advancing
@@ -13956,6 +15993,7 @@ mod guarded_commit_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -13976,6 +16014,7 @@ mod guarded_commit_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -14337,10 +16376,7 @@ mod guarded_commit_tests {
                 .expect("seed row"),
         ];
         db.seed(SeedData {
-            tables: BTreeMap::from([
-                ("books".to_owned(), books),
-                ("authors".to_owned(), authors),
-            ]),
+            tables: BTreeMap::from([("books".to_owned(), books), ("authors".to_owned(), authors)]),
         })
         .expect("seed sparse fixture");
 
@@ -16429,6 +18465,7 @@ mod guarded_commit_tests {
             syncable: true,
             permission_backing: true,
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+            search_indexes: Vec::new(),
             membership: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
@@ -16500,6 +18537,7 @@ mod guarded_commit_tests {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -17934,6 +19972,7 @@ mod membership_write_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -17963,6 +20002,7 @@ mod membership_write_tests {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: None,
                         principal: "userId".to_owned(),
@@ -18112,6 +20152,7 @@ mod membership_write_tests {
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             });
             let mut db = ready_db_with_schema(schema);
@@ -19200,6 +21241,7 @@ mod membership_write_tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: Some("appRoles".to_owned()),
                     principal: "userId".to_owned(),
@@ -20902,5 +22944,121 @@ mod membership_write_tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(columns, ["role", "userId", "_id"]);
+    }
+
+    #[test]
+    fn versioned_seed_conformance_precommit_fault_restores_complete_predecessor() {
+        use crate::auth::coordinator::AuthCoordinator;
+        use crate::auth::session_projection::{
+            AuthorizationStreamRecord, ProjectionSource, SessionProjection,
+        };
+        use crate::seed_identity::{
+            ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
+            SEED_ARTIFACT_FORMAT_V1, SEED_INSTALL_REQUEST_FORMAT_V1, SEED_RESET_REQUEST_FORMAT_V1,
+            SeedArtifactV1, SeedEnsureResultV1, SeedResetOperationV1, artifact_digest,
+        };
+
+        let manifest: SchemaManifest = serde_json::from_str(include_str!(
+            "../demos/todo/snapback/generated/schema.manifest.json"
+        ))
+        .expect("todo generated schema");
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(manifest).expect("apply schema");
+        let make_artifact = |version: &str, id: &str| {
+            let mut artifact = SeedArtifactV1 {
+                format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+                app_id: "todo".to_owned(),
+                seed_version: version.to_owned(),
+                seed_digest: String::new(),
+                tables: BTreeMap::from([(
+                    "todos".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!(id)),
+                        ("title".to_owned(), json!(version)),
+                        ("completed".to_owned(), json!(false)),
+                        ("userId".to_owned(), json!("user_conformance")),
+                    ])],
+                )]),
+            };
+            artifact.seed_digest = artifact_digest(&artifact).expect("artifact digest");
+            artifact
+        };
+        let predecessor_artifact = make_artifact("predecessor", "old");
+        let predecessor = db
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-000000000201".to_owned(),
+                artifact: predecessor_artifact.clone(),
+                requested_mode: AuthMode::Dev,
+            })
+            .expect("install predecessor");
+        let SeedEnsureResultV1::Installed {
+            receipt: predecessor_receipt,
+        } = predecessor
+        else {
+            panic!("fresh predecessor must install")
+        };
+
+        let incarnation = db
+            .ensure_authorization_stream_incarnation()
+            .expect("authorization stream");
+        let source = ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                .encode_bytes()
+                .expect("stream record"),
+            restore_declaration_id: None,
+            users: Vec::new(),
+            identities: Vec::new(),
+            sessions: Vec::new(),
+            superseded_tokens: Vec::new(),
+        };
+        let projection =
+            SessionProjection::rebuild_with_fresh_startup_id(source, now_millis(), Instant::now())
+                .expect("session projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let carrier = coordinator
+            .premark_stream_reset_if_drained()
+            .expect("reset carrier");
+        let request = ResetSeedRequestV1 {
+            format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
+            operation_id: "01982c7a-7c00-7000-8000-000000000202".to_owned(),
+            operation: SeedResetOperationV1::ResetInstall,
+            requested_mode: AuthMode::Dev,
+            expected_data_version_stream: ExpectedDataVersionStreamV1::Present {
+                value: predecessor_receipt.data_version_stream.clone(),
+            },
+            artifact: Some(make_artifact("successor", "new")),
+        };
+        let request_digest = request.request_digest().expect("request digest");
+        inject_reset_commit_failure_for_test();
+        let attempt = db.attempt_versioned_seed_reset_with_authorization_stream(
+            request,
+            carrier.predecessor(),
+            carrier.successor(),
+        );
+        coordinator
+            .finish_stream_reset(carrier, attempt)
+            .expect_err("precommit fault rolls back");
+
+        let scan = db.scan_table("todos", 10, 0).expect("predecessor rows");
+        assert_eq!(scan.total, 1);
+        assert_eq!(scan.rows[0]["_id"], "old");
+        assert!(
+            db.replay_versioned_seed_operation(
+                "01982c7a-7c00-7000-8000-000000000202",
+                &request_digest,
+            )
+            .expect("operation lookup")
+            .is_none()
+        );
+        let matched = db
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-000000000203".to_owned(),
+                artifact: predecessor_artifact,
+                requested_mode: AuthMode::Dev,
+            })
+            .expect("predecessor identity remains active");
+        assert!(matches!(matched, SeedEnsureResultV1::Matched { .. }));
     }
 }

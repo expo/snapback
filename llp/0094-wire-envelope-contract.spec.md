@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
+**Revised:** 2026-07-27 (LLP 0101 amendment: result-contract failures use the
+existing error envelope and refusal registry; no expected-operation wire
+carrier is introduced); 2026-07-25 (initial draft; §0D receipt typing and §0A.4 hosted
 route migration implemented with this draft); 2026-07-25 (§0A.5 drain
 response contract and §0E live-ownership code scope, from the P-2 Swift
 clean-room defect ledger); 2026-07-25 (v0.2, review-round-1 resolutions,
@@ -61,7 +63,7 @@ instances, and real served-frame validation for all four reply variants;
 the §0A.1 conformance caveat is retired)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
-LLP 0092, LLP 0093
+LLP 0092, LLP 0093, LLP 0101
 
 ## Summary
 
@@ -942,6 +944,14 @@ must-understand style:
 | `SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH` | 400 | unsubscribe/resume | the retained subscription belongs to a different function than the route path |
 | `SNAPBACK_CONNECTION_TOKEN_REQUIRED` | 401 | every `ConnectionAuth` route | no connection credential was presented |
 | `SNAPBACK_CONNECTION_TOKEN_INVALID` | 403 | every `ConnectionAuth` route | the grant is invalid/reaped/expired; take LLP 0095 T-GRANT-LOSS, do not retry the dead grant |
+| `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` | existing invocation status | query/live/mutation/action response | the handler's post-JSON output violates its effective LLP 0101 contract or egress ceiling; the ordinary error envelope carries bounded operation/hash/kind/path facts and never the rejected value |
+
+LLP 0101 adds no `ExpectedOperationV1`, compatibility-policy offer, request
+member, response member, socket subprotocol, or resume/replay tuple in this
+version. Generated references retain the existing whole-artifact compatibility
+behavior. Result-contract validation is an implementation seam behind the
+existing query/live/mutation/action envelope families; only the structured
+refusal above is additive to this registry.
 
 Existing codes this spec touches but does not change:
 `SNAPBACK_CONNECTION_SOCKET_REQUIRED` (hosted

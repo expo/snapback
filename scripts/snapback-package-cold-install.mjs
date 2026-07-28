@@ -17,6 +17,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -479,6 +480,76 @@ await build({
     cli: join(scaffoldRoot, 'node_modules', '.bin', 'snapback'),
     scaffoldRoot,
   });
+
+  // @ref LLP 0102#exact-executable-gate — the React release proof installs
+  // materialized package tarballs in fresh web and Expo projects. Repository
+  // workspaces and source-tree resolution cannot satisfy this gate.
+  const installPackedFixture = async (fixtureRoot) => {
+    const manifestPath = join(fixtureRoot, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    for (const name of Object.keys(manifest.dependencies ?? {})) {
+      if (dependencies[name]) manifest.dependencies[name] = dependencies[name];
+    }
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    writeFileSync(
+      join(fixtureRoot, '.npmrc'),
+      `registry=${PUBLIC_NPM_REGISTRY}\n@ccheever:registry=${installRegistry}\n`,
+    );
+    await runAsyncOrFail('npm', [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--registry', PUBLIC_NPM_REGISTRY,
+      ...tarballs,
+    ], {
+      cwd: fixtureRoot,
+      timeout: 360_000,
+    });
+    for (const name of ['@snapback/client', '@snapback/react']) {
+      const installed = join(fixtureRoot, 'node_modules', ...name.split('/'));
+      if (!existsSync(installed) || lstatSync(installed).isSymbolicLink()) {
+        fail(`${fixtureRoot}: ${name} is not a materialized tarball install`);
+      }
+      const resolved = realpathSync(installed);
+      if (resolved.startsWith(join(root, 'packages'))) {
+        fail(`${fixtureRoot}: ${name} resolved back into the repository source tree`);
+      }
+    }
+    const packageText = readFileSync(manifestPath, 'utf8');
+    const lockText = readFileSync(join(fixtureRoot, 'package-lock.json'), 'utf8');
+    if (packageText.includes('workspace:') || lockText.includes('workspace:')) {
+      fail(`${fixtureRoot}: packed fixture retains a workspace alias`);
+    }
+  };
+
+  const reactScaffoldRoot = join(appRoot, 'react-starter');
+  run(developerCli, ['new', reactScaffoldRoot, '--template', 'react', '--json'], { cwd: appRoot });
+  await installPackedFixture(reactScaffoldRoot);
+  run(
+    join(reactScaffoldRoot, 'node_modules', '.bin', 'snapback'),
+    ['generate', 'snapback', '--json'],
+    { cwd: reactScaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
+  );
+  run('npm', ['run', 'typecheck'], { cwd: reactScaffoldRoot });
+  run('npm', ['test'], { cwd: reactScaffoldRoot });
+  run('npm', ['run', 'build'], { cwd: reactScaffoldRoot });
+  run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
+
+  const expoFixtureRoot = join(appRoot, 'react-expo');
+  cpSync(
+    join(root, 'packages', 'snapback-react', 'fixtures', 'packed-expo'),
+    expoFixtureRoot,
+    { recursive: true },
+  );
+  await installPackedFixture(expoFixtureRoot);
+  run(
+    join(expoFixtureRoot, 'node_modules', '.bin', 'snapback'),
+    ['generate', 'snapback', '--json'],
+    { cwd: expoFixtureRoot, env: { ...process.env, npm_config_offline: 'true' } },
+  );
+  run('npm', ['run', 'typecheck'], { cwd: expoFixtureRoot });
+  run('npm', ['run', 'export:ios'], { cwd: expoFixtureRoot, timeout: 240_000 });
+
   run(process.execPath, ['bundle.mjs'], { cwd: appRoot });
   const browserBundle = readFileSync(join(appRoot, 'dist', 'browser-entry.js'), 'utf8');
   if (/\bnode:/.test(browserBundle)) fail('browser adapter bundle contains a Node builtin import');
@@ -544,6 +615,8 @@ await build({
       packagedScaffoldAndOfflineGenerate: true,
       packagedDeployBuildAndVerify: true,
       packagedManagedDevReadyAttachWatchAndStop: true,
+      packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
+      packedReactExpoTypecheckAndIosExport: true,
       browserAdapterBundle: true,
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,
       browserBundleBytes: Buffer.byteLength(browserBundle),

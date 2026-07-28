@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "ProviderEffectTerminalOutcome": {
+      "enum": [
+        "notApplied",
+        "applied",
+        "commitUncertain"
+      ],
+      "type": "string"
+    },
+    "ProviderEffectTerminalVersion": {
+      "enum": [
+        "snapback.provider-effect-terminal.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/provider-effect.terminal-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Immutable terminal for one original effect attempt. Reconciliation appends\na separate `ProviderEffectReconciliationV1`; it never edits this record.",
+  "properties": {
+    "lastObservationSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "outcome": {
+      "$ref": "#/$defs/ProviderEffectTerminalOutcome"
+    },
+    "providerVersion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recordedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "recoveryClass": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "redactedEvidenceSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retainedResultSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/ProviderEffectTerminalVersion"
+    },
+    "semanticEffectId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "semanticEffectId",
+    "outcome",
+    "recordedAtMs"
+  ],
+  "title": "ProviderEffectTerminalV1",
+  "type": "object"
+}

@@ -1,0 +1,108 @@
+{
+  "id": "backend-bakeoff",
+  "title": "Signal Desk — three-backend React bake-off",
+  "description": "One incident-response React product contract implemented with Snapback, Convex, and Supabase to compare schema, transactional functions, durable realtime, presence, search, derived reads, client integration, local setup, and executable evidence.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": [
+    "API",
+    "Storage",
+    "Runtime",
+    "Realtime",
+    "Ephemeral",
+    "React",
+    "Developer experience",
+    "Competitive research"
+  ],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "liveSubscriptions": true,
+    "ephemeralRealtime": true,
+    "javascriptHandlers": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs (colocated handlers)",
+    "codegen": "bunx snapback generate snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/provider-bindings.json",
+      "snapback/generated/provider-bindings.d.ts",
+      "snapback/generated/artifacts.json",
+      "snapback/generated/contract/*"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": {
+      "incidents": 2,
+      "tasks": 3,
+      "comments": 2,
+      "activity": 2
+    },
+    "users": ["user_ada", "user_grace", "user_lin"]
+  },
+  "surfaces": {
+    "reactThreeBackendProduct": {
+      "requirement": "required-local-comparison",
+      "buildTargets": ["web"],
+      "build": "bun run --cwd demos/backend-bakeoff typecheck && bun run --cwd demos/backend-bakeoff build",
+      "entrypoint": "src/main.tsx",
+      "toolchain": "bun, Node.js, three separately configured backend processes"
+    },
+    "snapbackNativeAcceptance": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "bun run --cwd demos/backend-bakeoff test:snapback",
+      "toolchain": "node>=24, bootstrap-validated Snapback binary"
+    },
+    "convexNativeAcceptance": {
+      "requirement": "required-local-comparison",
+      "runner": "bun run --cwd demos/backend-bakeoff test:convex",
+      "toolchain": "local Convex deployment"
+    },
+    "supabaseNativeAcceptance": {
+      "requirement": "required-hosted-comparison",
+      "runner": "bun run --cwd demos/backend-bakeoff test:supabase",
+      "toolchain": "configured Supabase project with Realtime"
+    }
+  },
+  "acceptanceChecks": {
+    "snapbackNativeAcceptance": [
+      "generated artifacts and deterministic seed load",
+      "task and activity commit atomically",
+      "native live query delivers a second-client write",
+      "search and derived brief execute in the backend",
+      "ephemeral presence does not advance durable storage",
+      "invalid status rejects without changing the row"
+    ],
+    "competitiveNativeAcceptance": [
+      "Convex seed, transactional mutation, native subscription, search, and brief",
+      "Supabase transactional RPC, native Postgres Changes, search, and brief",
+      "one shared frontend adapter contract covers all three backends"
+    ]
+  },
+  "capabilityGaps": [
+    "hosted Snapback target",
+    "published Snapback React packages and first-party starter",
+    "generated result types for arbitrary JavaScript handlers",
+    "hosted and remote-service indexed full-text search parity (local SQLite is experimental)",
+    "production identity parity in this demo",
+    "browser acceptance evidence in this run because the in-app browser connector failed before session setup"
+  ],
+  "notClaiming": [
+    "throughput, latency, cost, or scale benchmark results",
+    "production auth or authorization parity",
+    "hosted deployment parity",
+    "offline-first behavior",
+    "formal time-and-motion results",
+    "visual browser acceptance from the 2026-07-27 run"
+  ]
+}

@@ -180,6 +180,7 @@ fn schema() -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()
@@ -308,8 +309,7 @@ fn local_workerd_invoke_requires_its_generated_bearer() {
         })
         .expect_err("an unauthenticated local invoke must be refused");
         assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+            error.diagnostic.code, "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
             "{mode:?}: {error}; details={}",
             error.diagnostic.details
         );
@@ -1252,8 +1252,8 @@ fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
             &std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {file}")),
         )
         .unwrap_or_else(|error| panic!("parse {file}: {error}"));
-        let validator =
-            jsonschema::validator_for(&schema).unwrap_or_else(|error| panic!("compile {file}: {error}"));
+        let validator = jsonschema::validator_for(&schema)
+            .unwrap_or_else(|error| panic!("compile {file}: {error}"));
         let value: Value = serde_json::from_str(raw)
             .unwrap_or_else(|error| panic!("{role} bytes were not JSON: {error}"));
         let errors: Vec<String> = validator
@@ -1271,7 +1271,11 @@ fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
         .invoke_request
         .as_deref()
         .expect("capture recorded the invocation request");
-    validate("handler.invoke.input.schema.json", invoke_request, "invoke request");
+    validate(
+        "handler.invoke.input.schema.json",
+        invoke_request,
+        "invoke request",
+    );
     let invoke_response = captured
         .invoke_response
         .as_deref()

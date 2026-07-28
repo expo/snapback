@@ -1,0 +1,194 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "fixturePresence",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"body\": string }",
+        "effects": {
+          "invalidates": [
+            "liveRows"
+          ],
+          "writes": [
+            "liveRows"
+          ]
+        },
+        "name": "publishLiveRow",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"value\": string }",
+        "effects": {
+          "invalidates": [
+            "rejectionRows"
+          ],
+          "writes": [
+            "rejectionRows"
+          ]
+        },
+        "name": "rejectInvalidWrite",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"activity\": string; \"primary\": string }",
+        "effects": {
+          "invalidates": [
+            "primaryRows",
+            "activityRows"
+          ],
+          "writes": [
+            "primaryRows",
+            "activityRows"
+          ]
+        },
+        "name": "writePrimaryAndActivity",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "activityRows"
+          ]
+        },
+        "name": "activityRows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"value\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "liveRows"
+          ]
+        },
+        "name": "liveRows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"body\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "primaryRows"
+          ]
+        },
+        "name": "primaryRows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"value\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rejectionRows"
+          ]
+        },
+        "name": "rejectionRows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"value\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "b68476e8ba8617edf92b6e558e1ff54c7984c026778d8aded1e6185982ba344f",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

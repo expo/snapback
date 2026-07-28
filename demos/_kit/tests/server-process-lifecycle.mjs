@@ -284,6 +284,53 @@ function captureConsoleError() {
 }
 
 try {
+  {
+    let launchAttempted = false;
+    const typedDiagnostic = {
+      code: 'SNAPBACK_IBEX_RUNTIME_LINK_FAILED',
+      severity: 'error',
+      subsystem: 'runtime-link',
+      message: 'fixture exact link failed',
+      details: { missingSymbols: ['ex_fixture_symbol'] },
+    };
+    const typedRecovery = {
+      schemaVersion: 'snapback.runtime-recovery.v1',
+      selectedBinary: null,
+      selectionRung: 'none',
+      expected: EXPECTED,
+      actualStamp: null,
+      currentCheckout: { buildable: false, runnable: false },
+      reuse: { allowed: false, reason: 'fixture link failure' },
+      diagnostic: { code: typedDiagnostic.code, missingSymbols: ['ex_fixture_symbol'] },
+      producerInputs: { root: scratch, target: 'snapback' },
+      recovery: { repairCommand: 'scripts/bootstrap-ibex-runtime', overrideCommand: null },
+    };
+    await assert.rejects(
+      __startServerForTests(
+        { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
+        {
+          ...deps,
+          runtimeLinkProbe: async () => ({
+            ok: false,
+            diagnostic: typedDiagnostic,
+            recovery: typedRecovery,
+          }),
+          launchSpec() {
+            launchAttempted = true;
+            throw new Error('must not launch after exact-link failure');
+          },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, typedDiagnostic.code);
+        assert.deepEqual(error.diagnostic, typedDiagnostic);
+        assert.equal(error.runtimeRecovery, typedRecovery);
+        return true;
+      },
+    );
+    assert.equal(launchAttempted, false, 'Cargo fallback must be gated by the exact-link probe');
+  }
+
   // Pin the deliberate port default: a requested port stays a verified-reuse
   // probe, the spawn lands on an OS-assigned isolated port, and that
   // reassignment is loud — never silent (kit port-binding ticket, 2026-07-24).
@@ -718,6 +765,10 @@ try {
       assert.equal(configured.launch.rung, 'configured');
       assert.equal(configured.identity.verdict, 'stamp-mismatch');
       assert.match(configured.identity.mismatches[0], /health commit feedface/);
+      assert.equal(configured.runtimeRecovery.schemaVersion, 'snapback.runtime-recovery.v1');
+      assert.equal(configured.runtimeRecovery.selectionRung, 'configured');
+      assert.equal(configured.runtimeRecovery.actualStamp.gitCommit, DRIFTED_LADDER.gitCommit);
+      assert.match(configured.runtimeRecovery.recovery.overrideCommand, /SNAPBACK_SERVER_BINARY=/);
       await configured.stop();
       running.splice(running.indexOf(configured), 1);
     }

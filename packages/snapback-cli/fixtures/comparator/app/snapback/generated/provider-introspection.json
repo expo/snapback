@@ -1,0 +1,695 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "channel": {
+          "coalesce": true,
+          "defaultTtlMs": 5000,
+          "deliveryMode": "latest",
+          "keyMode": "Connection",
+          "maxDeltaRateHz": 30,
+          "maxTtlMs": 30000,
+          "publish": {
+            "burst": 60,
+            "maxValueBytes": 1024,
+            "sustainedHz": 20
+          },
+          "routingFields": [
+            "roomId"
+          ],
+          "scopeFields": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "execution": {
+          "localRunnable": true,
+          "serverRunnable": false
+        },
+        "name": "fixturePresence",
+        "result": {
+          "kind": "list",
+          "row": {
+            "shape": "unknown"
+          }
+        }
+      }
+    ],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "body"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:8f4a0b35032b4065fdd92bf3969a17ec55c6001da2326c576dfdaf62d7dce9e4",
+          "implementationHash": "sha256:70556b75a69e78855b53c5c1d3f10c93a030a8a4398d91e283f12dc5f06b74eb",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "liveRows"
+          ],
+          "writes": [
+            "liveRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "publishLiveRow",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "value": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "value"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:667ce5de2952fbf2c8a1db169e3f9fd2d2e1946c3f60c9b6828dbb2fc4a7e1f1",
+          "implementationHash": "sha256:729a47250b5c74fe3be36269230b0430dfea60b83ff66ddf2e18e27c7e001e2f",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "rejectionRows"
+          ],
+          "writes": [
+            "rejectionRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "rejectInvalidWrite",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "activity": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "primary": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "primary",
+            "activity"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:b80cc87f8cb46c6ec07f7efb9bc81eab489b912d6f6973605f6ea7b7136d6a00",
+          "implementationHash": "sha256:2e30a434cd1ffbd07cdf2972ba1f01ab63f7bf0c875e2359b8dfab147ba9ccd2",
+          "result": {
+            "kind": "unknown"
+          },
+          "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "primaryRows",
+            "activityRows"
+          ],
+          "writes": [
+            "primaryRows",
+            "activityRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "writePrimaryAndActivity",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+          "implementationHash": "sha256:b57ce30e925a5f6f30b030d2a6092aa41175306cc65a0dd57fb0b8a56dcbc2ad",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "activityRows"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "value",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "activityRows"
+          },
+          "resultHash": "sha256:46eb4150afe67767c41fb7922c74311919be00941b8deddb1ecce2b46a012c5f",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "activityRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "activityRows",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "value": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+          "implementationHash": "sha256:5edd9ca4944a06a5c1bf962a29bf231c0d038c4a1f25c8ede2fffdecf0301696",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "liveRows"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "body",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "liveRows"
+          },
+          "resultHash": "sha256:ba4a45143d6f6efa5f35a6ad58d1830248eb5807f5caf9e57e233fe16f82dcb8",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "liveRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "liveRows",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "body": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+          "implementationHash": "sha256:2421830293b53ebd55114614924ea4592e1a1bfe0708b0c0bad06c7e7d0f77e4",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "primaryRows"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "value",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "primaryRows"
+          },
+          "resultHash": "sha256:eeb982ca6eb410b47d21339f943f854502bb668616447dd68934611c10c3a446",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "primaryRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "primaryRows",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "value": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
+          "implementationHash": "sha256:8f012aad5a4928fd73976c0edaa566990bf5b6f5c9b3bc2c3f39f1b51e3a6d80",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rejectionRows"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "value",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "rejectionRows"
+          },
+          "resultHash": "sha256:145be32064f6940253b62f0e05479e3ee9c28f7dea0fe00a1a2c3edb64b62bc1",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rejectionRows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "rejectionRows",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "value": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:b66c5a66f2988f20",
+    "inputsHash": "b68476e8ba8617edf92b6e558e1ff54c7984c026778d8aded1e6185982ba344f",
+    "schemaHash": "sha256:f353f53b173be606"
+  }
+}

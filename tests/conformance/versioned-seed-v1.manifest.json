@@ -1,0 +1,186 @@
+{
+  "artifactKind": "snapback.versioned-seed-conformance.v1",
+  "schemaVersion": "snapback.versioned-seed-conformance-manifest.v1",
+  "formatVersion": 1,
+  "capabilities": [
+    "versioned_seed_install_v1",
+    "versioned_seed_reset_v1"
+  ],
+  "predecessorArtifact": {
+    "gitCommit": "3db3185a8325b5e8209b637080ab65d775c880ea",
+    "buildRecipe": "git worktree add --detach <dir> 3db3185a8325b5e8209b637080ab65d775c880ea && scripts/bootstrap-ibex-runtime && cargo build --locked --bin snapback",
+    "source": "clean-worktree-or-content-addressed-ci-cache",
+    "required": true
+  },
+  "cases": [
+    {
+      "id": "http-install-state-matrix",
+      "runner": "http",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 10,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "http-preview-byte-identity",
+      "runner": "http",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 6,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "http-reset-install-clear",
+      "runner": "http",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 8,
+      "capabilityPredicate": ["versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "cli-install-matched-drift",
+      "runner": "cli",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 4,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "cli-no-legacy-fallback",
+      "runner": "cli",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 2,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "host-op-ensure-v1",
+      "runner": "host-op",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 2,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "host-op-preview-v1",
+      "runner": "host-op",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 3,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "host-op-reset-install-v1",
+      "runner": "host-op",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 2,
+      "capabilityPredicate": ["versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "host-op-clear-v1",
+      "runner": "host-op",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 2,
+      "capabilityPredicate": ["versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "vite-managed-versioned-seed",
+      "runner": "vite",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 3,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "package-cold-install",
+      "runner": "package",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 3,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "restore-leaves-identity-absent",
+      "runner": "restore",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 4,
+      "capabilityPredicate": ["versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "migration-refuses-identity-advance",
+      "runner": "migration",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 1,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "predecessor-legacy-reset-rotates-away",
+      "runner": "predecessor",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 7,
+      "capabilityPredicate": ["versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "crash-before-commit-zero-effects",
+      "runner": "fault",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 2,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "response-loss-replay-one-effect",
+      "runner": "fault",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 5,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "empty-array-target-occupancy",
+      "runner": "storage",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 1,
+      "capabilityPredicate": ["versioned_seed_install_v1"],
+      "status": "required"
+    },
+    {
+      "id": "sessions-membership-refusal",
+      "runner": "auth",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 1,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "effect-bound-1024",
+      "runner": "storage",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 1,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "effect-bound-1025-refusal",
+      "runner": "storage",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 1,
+      "capabilityPredicate": ["versioned_seed_install_v1", "versioned_seed_reset_v1"],
+      "status": "required"
+    },
+    {
+      "id": "hosted-compiled-seed",
+      "runner": "hosted-gap",
+      "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
+      "expectedAssertions": 0,
+      "capabilityPredicate": [],
+      "status": "gap",
+      "gap": "No hosted target is qualified for versioned seed v1."
+    }
+  ]
+}

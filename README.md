@@ -198,7 +198,12 @@ artifacts); only when git cannot complete it does it refuse with
 writing anything itself (writing artifacts into an uninitialized submodule
 path is how fresh worktrees used to get permanently blocked at
 `git submodule update --init`). `scripts/ibex-doctor` diagnoses these states
-read-only.
+read-only. After those prerequisites pass, doctor also performs an exact Cargo
+link in an automatically removed temporary target and launches the newly linked
+binary with dynamic-loader overrides scrubbed. Its
+`snapback.runtime-recovery.v1` record distinguishes a runnable older binary
+from a buildable current checkout and carries the safe bootstrap or explicit
+`SNAPBACK_SERVER_BINARY` override.
 
 With the checkout in place, the script reuses prepared artifacts from a sibling
 `../ibex` checkout when they are present, copying them into the ignored

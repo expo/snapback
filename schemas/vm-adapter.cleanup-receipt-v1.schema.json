@@ -1,0 +1,64 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.cleanup-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "absenceProofSha256": {
+      "type": "string"
+    },
+    "cleanupPlanId": {
+      "type": "string"
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "continuingCostMicrosPerHour": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deletedProviderIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "recordedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "retainedEvidencePrefixes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "revokedCredentialFingerprints": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "cleanupPlanId",
+    "journeyId",
+    "deletedProviderIds",
+    "retainedEvidencePrefixes",
+    "revokedCredentialFingerprints",
+    "absenceProofSha256",
+    "continuingCostMicrosPerHour",
+    "completed",
+    "recordedAtMs"
+  ],
+  "title": "CleanupReceiptV1",
+  "type": "object"
+}

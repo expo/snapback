@@ -92,6 +92,8 @@ try {
   });
   assert.equal(report.ok, true);
   assert.equal(report.runtime.source, 'override');
+  assert.equal(report.runtimeRecovery.schemaVersion, 'snapback.runtime-recovery.v1');
+  assert.equal(report.runtimeRecovery.selectedBinary, fakeRuntime);
   assert.equal(report.probe, 'launch-only');
 
   const project = join(root, 'todo-contract');
@@ -102,6 +104,15 @@ try {
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
 
+  const reactProject = join(root, 'react-starter');
+  const reactScaffold = scaffoldApp(reactProject, { template: 'react' });
+  assert.equal(reactScaffold.ok, true);
+  const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
+  assert.match(reactManifest.dependencies['@snapback/react'], /^\^\d+\.\d+\.\d+/);
+  const generatedReact = await generateApp(join(reactProject, 'snapback'));
+  assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
+  assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackQueries/);
+
   const git = (...args) => {
     const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -110,6 +121,11 @@ try {
   git('init');
   git('add', '.');
   git('-c', 'user.name=Snapback Test', '-c', 'user.email=snapback-test@example.invalid', 'commit', '-m', 'fixture');
+  assert.deepEqual(
+    git('ls-files', 'snapback/generated').split('\n').filter(Boolean),
+    ['snapback/generated/artifacts.json'],
+    'ordinary scaffolds commit only the codegen review manifest',
+  );
   const releaseOutput = join(root, 'releases');
   const release = await buildRelease({
     backendDirectory: join(project, 'snapback'),
@@ -122,6 +138,14 @@ try {
   assert.equal(release.activationEligible, false);
   assert.ok(release.gaps.some((gap) => gap.id === 'control-plane.backup-restore' && gap.blocking));
   assert.equal(verifyRelease(release.releaseDirectory).releaseId, release.releaseId);
+  const releaseManifest = JSON.parse(readFileSync(join(release.releaseDirectory, 'release.manifest.json'), 'utf8'));
+  const releasedReviewManifest = JSON.parse(readFileSync(join(release.releaseDirectory, 'components', 'app', 'artifacts.json'), 'utf8'));
+  assert.equal(releasedReviewManifest.manifestVersion, 2);
+  const releasedPaths = new Set(releaseManifest.components.map(({ path }) => path));
+  assert(releasedPaths.has('components/app/artifacts.json'));
+  for (const file of releasedReviewManifest.files) {
+    assert(releasedPaths.has(`components/app/${file.path}`), `release closure omitted reviewed artifact ${file.path}`);
+  }
   const reused = await buildRelease({
     backendDirectory: join(project, 'snapback'),
     outputDirectory: releaseOutput,

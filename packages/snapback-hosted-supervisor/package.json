@@ -1,0 +1,29 @@
+{
+  "name": "@snapback/hosted-supervisor",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fail-closed single-writer supervisor for Snapback hosted targets.",
+  "files": [
+    "bootstrap.mjs",
+    "cli.mjs",
+    "service.mjs",
+    "index.mjs"
+  ],
+  "bin": {
+    "snapback-hosted-supervisor": "./cli.mjs",
+    "snapback-hosted-supervisor-bootstrap": "./bootstrap.mjs"
+  },
+  "exports": {
+    ".": "./index.mjs",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node index.test.mjs && node bootstrap.test.mjs"
+  }
+}

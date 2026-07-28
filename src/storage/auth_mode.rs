@@ -600,6 +600,11 @@ impl LocalDatabase {
                     current_version_on(tx)?,
                 )?;
                 apply_schema_indexes(tx, &schema_manifest)?;
+                crate::search::sqlite::activate_manifest_in_tx(
+                    tx,
+                    &schema_manifest,
+                    current_version_on(tx)?,
+                )?;
 
                 let generation = current.state.next_generation()?;
                 let staged = StagedAuthModeRecord {
@@ -1033,6 +1038,7 @@ impl LocalDatabase {
         }
         super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
         apply_schema_indexes(&tx, &manifest)?;
+        crate::search::sqlite::activate_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let next = AuthModeStateRecord {
@@ -1217,6 +1223,11 @@ impl LocalDatabase {
                 };
                 super::validate_membership_activation(tx, &manifest, current_version_on(tx)?)?;
                 apply_schema_indexes(tx, &manifest)?;
+                crate::search::sqlite::activate_manifest_in_tx(
+                    tx,
+                    &manifest,
+                    current_version_on(tx)?,
+                )?;
 
                 let raw = serialize_json(&manifest)?;
                 save_active_manifest_in(tx, &current.state, &raw)?;
@@ -1332,6 +1343,7 @@ impl LocalDatabase {
         // pre-index validator as staged and same-mode deployment.
         super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
         apply_schema_indexes(&tx, &manifest)?;
+        crate::search::sqlite::activate_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let authorization_predecessor = if activation_changed {
@@ -1790,6 +1802,7 @@ mod tests {
             syncable: false,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }
     }
@@ -1857,6 +1870,7 @@ mod tests {
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             },
             TableManifest {
@@ -1884,6 +1898,7 @@ mod tests {
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: None,
                     principal: "userId".to_owned(),

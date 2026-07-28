@@ -31,6 +31,18 @@ if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
     exit 1
 fi
 
+# Generated projections are ignored cache materializations. Regenerate before
+# compiling so this proof works from a cold clone and cannot consume stale
+# checked-in declarations.
+node packages/snapback-codegen/index.mjs demos/todo/snapback >/dev/null
+node packages/snapback-codegen/index.mjs demos/todo-v2/snapback >/dev/null
+SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback >/dev/null
+SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/tests/egress-probe >/dev/null
+node packages/snapback-codegen/index.mjs demos/cursors-web/snapback >/dev/null
+node packages/snapback-codegen/index.mjs demos/graffiti/snapback >/dev/null
+node packages/snapback-codegen/index.mjs demos/card-game/snapback >/dev/null
+node packages/snapback-codegen/index.mjs demos/rbac/snapback >/dev/null
+
 "$TSC" \
     --noEmit \
     --strict \

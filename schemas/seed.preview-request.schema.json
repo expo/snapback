@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "ExpectedDataVersionStreamV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "absent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "present",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SeedArtifactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "formatVersion": {
+          "type": "string"
+        },
+        "seedDigest": {
+          "type": "string"
+        },
+        "seedVersion": {
+          "type": "string"
+        },
+        "tables": {
+          "additionalProperties": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "appId",
+        "seedVersion",
+        "seedDigest",
+        "tables"
+      ],
+      "type": "object"
+    },
+    "SeedPreviewOperationV1": {
+      "enum": [
+        "install",
+        "resetInstall",
+        "clear"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.preview-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SeedArtifactV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expectedDataVersionStream": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExpectedDataVersionStreamV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "operation": {
+      "$ref": "#/$defs/SeedPreviewOperationV1"
+    },
+    "requestedMode": {
+      "$ref": "#/$defs/AuthMode"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "requestedMode",
+    "operation"
+  ],
+  "title": "SeedPreviewRequestV1",
+  "type": "object"
+}

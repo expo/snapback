@@ -125,7 +125,14 @@ mod tests {
             classify_open_offer(Some("snapback.v1"), SUPPORTED_WIRE_VERSIONS),
             OpenWireVersionOffer::Known("snapback.v1")
         );
-        for unknown in ["snapback.v2", "snapback.v1.0", "snapback.vx", "", "v1", "SNAPBACK.V1"] {
+        for unknown in [
+            "snapback.v2",
+            "snapback.v1.0",
+            "snapback.vx",
+            "",
+            "v1",
+            "SNAPBACK.V1",
+        ] {
             assert_eq!(
                 classify_open_offer(Some(unknown), SUPPORTED_WIRE_VERSIONS),
                 OpenWireVersionOffer::Unknown,
@@ -197,11 +204,7 @@ mod tests {
         );
         // And the bound version present still wins.
         assert_eq!(
-            classify_socket_offer(
-                ["snapback.v2", "snapback.v1"],
-                WIRE_VERSION_V1,
-                &supported
-            ),
+            classify_socket_offer(["snapback.v2", "snapback.v1"], WIRE_VERSION_V1, &supported),
             SocketWireVersionOffer::Bound
         );
     }

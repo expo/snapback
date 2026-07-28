@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
-import api from '../../snapback/generated/api.mjs';
 import { createConvexAdapter } from '../../backends/gateway/convex.ts';
 import { loadLocalSecrets, requireSecret } from '../../backends/gateway/secrets.mjs';
 import { createSqliteAdapter } from '../../backends/gateway/sqlite.ts';
@@ -14,7 +14,9 @@ import { createSupabaseAdapter, EPHEMERAL_SCHEMA_PREFIX } from '../../backends/g
 const here = import.meta.dirname;
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const backendDir = resolve(here, '..', '..', 'snapback');
-const generated = (name) => JSON.parse(readFileSync(join(backendDir, 'generated', name), 'utf8'));
+const generatedRoot = join(backendDir, 'generated');
+const generated = (name) => readGeneratedJson(generatedRoot, name);
+const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const secrets = loadLocalSecrets(repoRoot);
 const suite = createSuite('partiful matrix / provider conformance', { expectedChecks: 13 });

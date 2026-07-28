@@ -1162,6 +1162,7 @@ mod tests {
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()

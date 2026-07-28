@@ -18,6 +18,7 @@ import {
   readReadyDescriptor,
   resolveRuntimeBinary,
   scrubDynamicLoaderEnvironment,
+  resolveGeneratedArtifact,
   validateDevTarget,
   waitForReady,
 } from '@snapback/cli';
@@ -54,19 +55,39 @@ function normalizeSetup(setup, projectRoot) {
   const generated = backendDirectory ? join(backendDirectory, 'generated') : null;
   const schema = setup.schema
     ? resolve(projectRoot, setup.schema)
-    : (generated ? join(generated, 'schema.manifest.json') : null);
+    : (generated ? resolveGeneratedArtifact(generated, 'schema.manifest.json') : null);
   const functions = setup.functions
     ? resolve(projectRoot, setup.functions)
-    : (generated ? join(generated, 'functions.manifest.json') : null);
+    : (generated ? resolveGeneratedArtifact(generated, 'functions.manifest.json') : null);
   const seed = setup.seed
     ? resolve(projectRoot, setup.seed)
     : (backendDirectory ? join(backendDirectory, 'seed.json') : null);
+  let seedArtifact = null;
+  if (generated) {
+    try {
+      seedArtifact = resolveGeneratedArtifact(generated, 'seed.artifact.json');
+    } catch {
+      // Legacy generated graphs intentionally have no versioned seed export.
+    }
+  }
+  const capabilities = generated
+    ? resolveGeneratedArtifact(generated, 'capability.manifest.json')
+    : null;
   const reset = setup.reset ?? 'if-new';
   if (!RESET_POLICIES.includes(reset)) {
     throw diagnosticError('SNAPBACK_DEV_SETUP_INVALID', `setup.reset must be one of ${RESET_POLICIES.join(', ')}`, { reset });
   }
   if (!schema && !functions && reset === 'never') return null;
-  return { backendDirectory, schema, functions, seed, reset, allowAttached: setup.allowAttached === true };
+  return {
+    backendDirectory,
+    schema,
+    functions,
+    seed,
+    seedArtifact,
+    capabilities,
+    reset,
+    allowAttached: setup.allowAttached === true,
+  };
 }
 
 function readJsonArtifact(path, label) {
@@ -145,6 +166,20 @@ async function postHostOp(serverUrl, adminToken, body) {
     });
   }
   return envelope;
+}
+
+function operationIdV7() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let timestamp = BigInt(Date.now());
+  for (let index = 5; index >= 0; index -= 1) {
+    bytes[index] = Number(timestamp & 0xffn);
+    timestamp >>= 8n;
+  }
+  bytes[6] = 0x70 | (bytes[6] & 0x0f);
+  bytes[8] = 0x80 | (bytes[8] & 0x3f);
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export function createSnapbackViteLifecycle(options = {}) {
@@ -300,6 +335,24 @@ export function createSnapbackViteLifecycle(options = {}) {
 
   async function runSetup({ dbExisted }) {
     const loaded = { schema: false, functions: false };
+    const shouldReset = setup.reset === 'always' || (setup.reset === 'if-new' && !dbExisted);
+    const versionedArtifact = setup.seedArtifact && existsSync(setup.seedArtifact)
+      ? readJsonArtifact(setup.seedArtifact, 'seed.artifact.json')
+      : null;
+    if (versionedArtifact) {
+      const capabilities = setup.capabilities
+        ? readJsonArtifact(setup.capabilities, 'capability.manifest.json')
+        : null;
+      const supported = new Set(capabilities?.supportedCapabilities ?? []);
+      const required = shouldReset ? 'versioned_seed_reset_v1' : 'versioned_seed_install_v1';
+      if (!supported.has(required)) {
+        throw diagnosticError(
+          'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+          `generated target manifest does not advertise ${required}; versioned seed will not fall back to legacy reset/seed`,
+          { capability: required },
+        );
+      }
+    }
     if (setup.schema) {
       await postHostOp(state.serverUrl, adminToken, {
         operation: 'schema.load',
@@ -314,8 +367,44 @@ export function createSnapbackViteLifecycle(options = {}) {
       });
       loaded.functions = true;
     }
-    const shouldReset = setup.reset === 'always' || (setup.reset === 'if-new' && !dbExisted);
-    if (shouldReset) {
+    if (versionedArtifact) {
+      if (shouldReset) {
+        const preview = await postHostOp(state.serverUrl, adminToken, {
+          operation: 'app.seed.preview.v1',
+          input: {
+            formatVersion: 'snapback.seed.preview-request.v1',
+            artifact: versionedArtifact,
+            requestedMode: 'dev',
+            operation: 'install',
+          },
+        });
+        const stream = preview?.data?.requested?.dataVersionStream;
+        const expectedDataVersionStream = typeof stream === 'string'
+          ? { state: 'present', value: stream }
+          : { state: 'absent' };
+        await postHostOp(state.serverUrl, adminToken, {
+          operation: 'app.seed.reset-install.v1',
+          input: {
+            formatVersion: 'snapback.seed.reset-request.v1',
+            operationId: operationIdV7(),
+            operation: 'resetInstall',
+            requestedMode: 'dev',
+            expectedDataVersionStream,
+            artifact: versionedArtifact,
+          },
+        });
+      } else {
+        await postHostOp(state.serverUrl, adminToken, {
+          operation: 'app.seed.ensure.v1',
+          input: {
+            formatVersion: 'snapback.seed.install-request.v1',
+            operationId: operationIdV7(),
+            artifact: versionedArtifact,
+            requestedMode: 'dev',
+          },
+        });
+      }
+    } else if (shouldReset) {
       const seed = setup.seed && existsSync(setup.seed)
         ? readJsonArtifact(setup.seed, 'seed.json')
         : null;

@@ -102,6 +102,7 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()
@@ -129,6 +130,7 @@ fn edge_schema() -> SchemaManifest {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }],
         ..SchemaManifest::default()
@@ -396,6 +398,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()

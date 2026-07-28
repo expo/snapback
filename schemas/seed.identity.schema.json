@@ -1,0 +1,49 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "dataVersionStream": {
+      "type": "string"
+    },
+    "derivedProjectionRows": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "directApplicationRows": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaHash": {
+      "type": "string"
+    },
+    "seedDigest": {
+      "type": "string"
+    },
+    "seedVersion": {
+      "type": "string"
+    },
+    "totalApplicationEffects": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "appId",
+    "seedVersion",
+    "seedDigest",
+    "dataVersionStream",
+    "schemaHash",
+    "directApplicationRows",
+    "derivedProjectionRows",
+    "totalApplicationEffects"
+  ],
+  "title": "ActiveSeedIdentityV1",
+  "type": "object"
+}

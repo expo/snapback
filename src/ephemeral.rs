@@ -848,6 +848,65 @@ const MAX_OVERLAY_TOMBSTONES: usize = 1_024;
 /// validation enforces it before replacing live collection state.
 const LOCAL_HARD_MAX_TTL_MS: Millis = 30_000;
 
+/// Capability-negotiated hosted ephemeral authority-instance protocol.
+/// Missing offer preserves durable/local behavior and withholds hosted
+/// ephemeral; unknown values refuse before a connection lineage is minted.
+pub const EPHEMERAL_AUTHORITY_PROTOCOL_V1: u32 = 1;
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EphemeralAuthorityV1 {
+    pub profile: String,
+    pub deployment_id: String,
+    pub release_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub activation_generation: u64,
+    pub machine_id: String,
+    pub process_boot_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub definition_generation: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EphemeralAuthorityInstanceV1 {
+    pub schema_version: String,
+    pub authority: EphemeralAuthorityV1,
+    pub authority_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedEphemeralFactsV1 {
+    pub schema_version: String,
+    pub available: bool,
+    pub profile: String,
+    pub backend_sha256: String,
+    pub implementation_sha256: String,
+    pub routing_authority_sha256: String,
+    pub routed_machine_count: u32,
+    pub deployment_id: String,
+    pub release_id: String,
+    pub activation_generation: u64,
+    pub process_boot_id: String,
+    pub definition_generation: u64,
+    pub authority_sha256: String,
+    pub maximum_active_rooms: u64,
+    pub maximum_entries_per_room: u64,
+    pub maximum_subscribers_per_room: u64,
+    pub maximum_value_bytes: u64,
+    pub maximum_frame_bytes: u64,
+    pub dispatch_ms: u64,
+    pub auth_invalidation_protocol: u32,
+    pub state_persistence: String,
+    pub loss_recovery: String,
+    pub durable_lane_priority: bool,
+    pub excluded_from_backup: bool,
+    pub excluded_from_migration: bool,
+    pub excluded_from_restore: bool,
+    pub nonclaims: Vec<String>,
+}
+
 // Retained ephemeral metadata is bounded independently of value payloads.
 // Otherwise a 1-byte cursor with a multi-megabyte scope/key/identity can
 // bypass every value-byte and entry-count budget while being copied into room
@@ -1045,6 +1104,8 @@ pub enum ResyncReason {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum EphemeralMessage {
     Snapshot {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ephemeral_authority_instance: Option<String>,
         room: RoomId,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         scope_epoch: u64,
@@ -1058,12 +1119,16 @@ pub enum EphemeralMessage {
         entries: Vec<EphemeralEntry>,
     },
     Upsert {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ephemeral_authority_instance: Option<String>,
         room: RoomId,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: u64,
         entry: EphemeralEntry,
     },
     Remove {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ephemeral_authority_instance: Option<String>,
         room: RoomId,
         key: EntryKey,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -1075,6 +1140,8 @@ pub enum EphemeralMessage {
         reason: RemoveReason,
     },
     ResyncRequired {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ephemeral_authority_instance: Option<String>,
         room: RoomId,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         scope_epoch: u64,
@@ -1083,6 +1150,8 @@ pub enum EphemeralMessage {
         reason: ResyncReason,
     },
     Error {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ephemeral_authority_instance: Option<String>,
         room: Option<RoomId>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -2324,6 +2393,7 @@ impl OutboundQueue {
             for (room, (scope_epoch, room_authority_generation)) in resync_epochs {
                 let result = self.push_resync(
                     Arc::new(EphemeralMessage::ResyncRequired {
+                        ephemeral_authority_instance: None,
                         room,
                         scope_epoch,
                         room_authority_generation,
@@ -3133,6 +3203,7 @@ impl OutboundQueue {
                 // it. The retained allocation is unchanged because only two
                 // inline integers and the fixed reason differ.
                 pending.message = Arc::new(EphemeralMessage::ResyncRequired {
+                    ephemeral_authority_instance: None,
                     room,
                     scope_epoch,
                     room_authority_generation,
@@ -3147,6 +3218,7 @@ impl OutboundQueue {
             return 0;
         }
         let message = Arc::new(EphemeralMessage::ResyncRequired {
+            ephemeral_authority_instance: None,
             room,
             scope_epoch,
             room_authority_generation,
@@ -4929,6 +5001,7 @@ impl LocalEphemeralBackend {
             }
             self.record_queue_push(outbox.push_resync(
                 Arc::new(EphemeralMessage::Snapshot {
+                    ephemeral_authority_instance: None,
                     room: room_id.clone(),
                     scope_epoch,
                     room_authority_generation,
@@ -4942,6 +5015,7 @@ impl LocalEphemeralBackend {
         for (connection_id, outbox, effect_fence) in denied_outboxes {
             self.record_queue_push(lock(&outbox).push_resync(
                 Arc::new(EphemeralMessage::Error {
+                    ephemeral_authority_instance: None,
                     room: Some(room_id.clone()),
                     room_authority_generation: Some(room_authority_generation),
                     error: EphemeralError::new(
@@ -5404,6 +5478,7 @@ impl LocalEphemeralBackend {
                 &room_id,
                 &collection,
                 EphemeralMessage::Upsert {
+                    ephemeral_authority_instance: None,
                     room: room_id.clone(),
                     room_authority_generation,
                     entry,
@@ -5746,6 +5821,7 @@ impl LocalEphemeralBackend {
                 .saturating_add(connection_room_bytes);
             self.index_connection_room(&request.connection_id, &room_id);
             Ok(EphemeralMessage::Snapshot {
+                ephemeral_authority_instance: None,
                 room: room_id.clone(),
                 scope_epoch: room.scope_epoch,
                 room_authority_generation,
@@ -6043,6 +6119,7 @@ impl LocalEphemeralBackend {
                 {
                     let result = outbox.push_resync(
                         Arc::new(EphemeralMessage::ResyncRequired {
+                            ephemeral_authority_instance: None,
                             room_authority_generation,
                             room,
                             scope_epoch,
@@ -6693,6 +6770,7 @@ impl LocalEphemeralBackend {
                 }
                 let result = lock(&subscriber.outbox).push_resync(
                     Arc::new(EphemeralMessage::ResyncRequired {
+                        ephemeral_authority_instance: None,
                         room: room_id.clone(),
                         scope_epoch: room.scope_epoch,
                         room_authority_generation: resync.room_authority_generation,
@@ -6958,6 +7036,7 @@ impl LocalEphemeralBackend {
             outbox.purge_room_epoch(room_id, scope_epoch, effect_fence.as_ref());
             self.record_queue_push(outbox.push_resync(
                 Arc::new(EphemeralMessage::ResyncRequired {
+                    ephemeral_authority_instance: None,
                     room: room_id.clone(),
                     scope_epoch,
                     room_authority_generation: 0,
@@ -7193,6 +7272,7 @@ impl LocalEphemeralBackend {
                 resyncs.push((
                     connection_id,
                     EphemeralMessage::ResyncRequired {
+                        ephemeral_authority_instance: None,
                         room_authority_generation,
                         room: room_id.clone(),
                         scope_epoch,
@@ -7693,6 +7773,7 @@ fn remove_entry_locked(
     }
     let entry_version = room.allocate_version();
     Ok(Some(EphemeralMessage::Remove {
+        ephemeral_authority_instance: None,
         room: room_id.clone(),
         key: key.clone(),
         scope_epoch: room.scope_epoch,
@@ -8935,6 +9016,7 @@ mod tests {
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -9012,6 +9094,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some("board-members".to_owned()),
                 principal: "userId".to_owned(),
@@ -9423,6 +9506,7 @@ mod tests {
             for _ in 0..MAX_OUTBOX_BACKLOG {
                 let result = queue.push_resync(
                     Arc::new(EphemeralMessage::Error {
+                        ephemeral_authority_instance: None,
                         room: None,
                         room_authority_generation: None,
                         error: EphemeralError::new(
@@ -10910,6 +10994,7 @@ mod tests {
         let room = room();
         let key = EntryKey("publisher".to_owned());
         let message = Arc::new(EphemeralMessage::Upsert {
+            ephemeral_authority_instance: None,
             room: room.clone(),
             room_authority_generation: 0,
             entry: EphemeralEntry {
@@ -11850,6 +11935,7 @@ mod tests {
         let room = room();
         let mut overlay = ClientEphemeralOverlay::default();
         overlay.apply(&EphemeralMessage::Snapshot {
+            ephemeral_authority_instance: None,
             room: room.clone(),
             scope_epoch: 1,
             room_authority_generation: 0,
@@ -11865,6 +11951,7 @@ mod tests {
         });
 
         let stale = EphemeralMessage::Upsert {
+            ephemeral_authority_instance: None,
             room: room.clone(),
             room_authority_generation: 0,
             entry: EphemeralEntry {
@@ -11899,6 +11986,7 @@ mod tests {
         let mut overlay = ClientEphemeralOverlay::default();
         assert_eq!(
             overlay.apply(&EphemeralMessage::Snapshot {
+                ephemeral_authority_instance: None,
                 room: room.clone(),
                 scope_epoch: 7,
                 room_authority_generation: 0,
@@ -11909,6 +11997,7 @@ mod tests {
         );
         assert_eq!(
             overlay.apply(&EphemeralMessage::Snapshot {
+                ephemeral_authority_instance: None,
                 room: room.clone(),
                 scope_epoch: 7,
                 room_authority_generation: 0,
@@ -11920,6 +12009,7 @@ mod tests {
         assert!(overlay.room_entries(&room).is_empty());
         assert_eq!(
             overlay.apply(&EphemeralMessage::Upsert {
+                ephemeral_authority_instance: None,
                 room: room.clone(),
                 room_authority_generation: 0,
                 entry: entry(2, b"delayed"),
@@ -11935,6 +12025,7 @@ mod tests {
         let key = EntryKey("a".to_owned());
         let mut overlay = ClientEphemeralOverlay::default();
         overlay.apply(&EphemeralMessage::Snapshot {
+            ephemeral_authority_instance: None,
             room: room.clone(),
             scope_epoch: 1,
             room_authority_generation: 0,
@@ -11950,6 +12041,7 @@ mod tests {
         });
         assert_eq!(
             overlay.apply(&EphemeralMessage::Remove {
+                ephemeral_authority_instance: None,
                 room: room.clone(),
                 key: key.clone(),
                 scope_epoch: 1,
@@ -11961,6 +12053,7 @@ mod tests {
         );
         assert_eq!(
             overlay.apply(&EphemeralMessage::Upsert {
+                ephemeral_authority_instance: None,
                 room: room.clone(),
                 room_authority_generation: 0,
                 entry: EphemeralEntry {
@@ -12108,6 +12201,7 @@ mod tests {
         let room = room();
         let mut overlay = ClientEphemeralOverlay::default();
         overlay.apply(&EphemeralMessage::Snapshot {
+            ephemeral_authority_instance: None,
             room: room.clone(),
             scope_epoch: 1,
             room_authority_generation: 0,
@@ -12625,6 +12719,7 @@ mod tests {
         // A client saw the old incarnation.
         let mut overlay = ClientEphemeralOverlay::default();
         overlay.apply(&EphemeralMessage::Snapshot {
+            ephemeral_authority_instance: None,
             room: first.room.clone(),
             scope_epoch: first.scope_epoch,
             room_authority_generation: 0,
@@ -12653,6 +12748,7 @@ mod tests {
         // IgnoredStale (the dead-epoch behavior would have compared
         // entry_version 1 against the retained version and dropped it).
         let applied = overlay.apply(&EphemeralMessage::Upsert {
+            ephemeral_authority_instance: None,
             room: reborn.room.clone(),
             room_authority_generation: 0,
             entry: EphemeralEntry {
@@ -13447,6 +13543,7 @@ mod tests {
         let durable = RealtimeEnvelope::Durable(DurableMessage::new(vec![u8::MAX; 4_096]));
         let escaped = "\0".repeat(4_096);
         let ephemeral = RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
+            ephemeral_authority_instance: None,
             room: Some(RoomId {
                 collection: escaped.clone(),
                 routing_key: escaped.clone(),
@@ -14114,6 +14211,7 @@ mod tests {
         let outbox = backend.ensure_outbox("conn");
         let upsert = |value: &[u8], entry_version| {
             Arc::new(EphemeralMessage::Upsert {
+                ephemeral_authority_instance: None,
                 room: room(),
                 room_authority_generation: 0,
                 entry: EphemeralEntry {
@@ -14159,6 +14257,7 @@ mod tests {
         let fence = ConnectionEffectFence::session("inc", "grant", "session", 1);
         let upsert = |key: &str, entry_version| {
             Arc::new(EphemeralMessage::Upsert {
+                ephemeral_authority_instance: None,
                 room: room(),
                 room_authority_generation: 0,
                 entry: EphemeralEntry {
@@ -14415,6 +14514,7 @@ mod tests {
         let successor = ConnectionEffectFence::session("inc", "grant-new", "session", 2);
         let upsert = |value: &[u8], entry_version| {
             Arc::new(EphemeralMessage::Upsert {
+                ephemeral_authority_instance: None,
                 room: room(),
                 room_authority_generation: 1,
                 entry: EphemeralEntry {

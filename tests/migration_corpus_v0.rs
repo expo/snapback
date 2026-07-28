@@ -11,19 +11,18 @@
 //!   full-proof digests; a digest with no independent expected value is
 //!   inventory, not proof.
 
+use serde_json::json;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest, ValueExpr,
 };
 use snapback::migration::{
-    CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement,
-    MigrationCeilings, MigrationConstants, MigrationExecutionStrategy, MigrationExpectedOutput,
-    MigrationIntent, MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof,
-    MigrationProofMethod, MigrationVerification, RetainedWorkPosture,
-    MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_plan_steps,
-    new_operation_id,
+    CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+    MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement, MigrationCeilings,
+    MigrationConstants, MigrationExecutionStrategy, MigrationExpectedOutput, MigrationIntent,
+    MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
+    MigrationVerification, RetainedWorkPosture, derive_plan_steps, new_operation_id,
 };
-use serde_json::json;
 use std::collections::BTreeMap;
 
 const PUBLICATION_TS: u64 = 2_000_000_000_000;
@@ -43,6 +42,7 @@ fn table(name: &str, fields: Vec<(&str, bool)>) -> TableManifest {
         syncable: true,
         permission_backing: false,
         permission_fields: None,
+        search_indexes: Vec::new(),
         membership: None,
     }
 }
@@ -137,10 +137,7 @@ fn plan() -> MigrationPlanArtifactV1 {
     MigrationPlanArtifactV1::seal(body).expect("seal plan")
 }
 
-fn approval(
-    snapback: &mut LocalSnapback,
-    plan: &MigrationPlanArtifactV1,
-) -> MigrationApprovalV1 {
+fn approval(snapback: &mut LocalSnapback, plan: &MigrationPlanArtifactV1) -> MigrationApprovalV1 {
     let resolved = snapback
         .migrate_resolved_audience()
         .expect("resolve local audience");

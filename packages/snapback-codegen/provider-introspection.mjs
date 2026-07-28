@@ -19,7 +19,8 @@ const QUERY_KEYS = new Set([
   'name', 'args', 'argOrder', 'reads', 'result', 'serverRunnable',
   'localRunnable', 'retainable', 'subscription', 'mode', 'livePush',
   'initialSnapshot', 'defaultLive', 'ephemeral', 'transport',
-  'pollCadenceMs',
+  'pollCadenceMs', 'argsHash', 'resultHash', 'resultContract',
+  'implementationHash',
 ]);
 const EPHEMERAL_QUERY_KEYS = new Set([
   ...QUERY_KEYS, 'maxDeltaRateHz', 'coalesce', 'keyMode', 'scopeFields',
@@ -27,7 +28,12 @@ const EPHEMERAL_QUERY_KEYS = new Set([
 ]);
 const MUTATION_KEYS = new Set([
   'name', 'args', 'argOrder', 'writes', 'invalidates', 'optimistic',
-  'plan', 'serverRunnable',
+  'plan', 'serverRunnable', 'argsHash', 'resultHash', 'resultContract',
+  'implementationHash',
+]);
+const ACTION_KEYS = new Set([
+  'name', 'args', 'argOrder', 'writes', 'serverRunnable', 'argsHash',
+  'resultHash', 'resultContract', 'implementationHash',
 ]);
 const EPHEMERAL_SECTION_KEYS = new Set([
   'name', 'ephemeral', 'keyMode', 'scopeFields', 'routingFields',
@@ -52,6 +58,7 @@ export function createSnapbackProviderIntrospection({
   receipts,
   queries,
   mutations,
+  actions = {},
   ephemeral,
 }) {
   const queryOperations = [];
@@ -67,6 +74,9 @@ export function createSnapbackProviderIntrospection({
 
   const mutationOperations = sortedEntries(mutations).map(([name, binding]) => (
     mutationOperation(name, binding)
+  ));
+  const actionOperations = sortedEntries(actions).map(([name, binding]) => (
+    actionOperation(name, binding)
   ));
 
   return canonicalize({
@@ -91,6 +101,7 @@ export function createSnapbackProviderIntrospection({
     operations: {
       queries: queryOperations,
       mutations: mutationOperations,
+      actions: actionOperations,
       ephemeral: ephemeralOperations,
     },
   });
@@ -178,7 +189,7 @@ export function validateProviderIntrospection(introspection) {
   closedObject(
     introspection.operations,
     '$.operations',
-    ['queries', 'mutations', 'ephemeral'],
+    ['queries', 'mutations', 'actions', 'ephemeral'],
     ['queries', 'mutations', 'ephemeral'],
     add,
   );
@@ -187,9 +198,11 @@ export function validateProviderIntrospection(introspection) {
   for (const [kind, validator] of [
     ['queries', validateQuery],
     ['mutations', validateMutation],
+    ['actions', validateAction],
     ['ephemeral', validateEphemeral],
   ]) {
     const operations = introspection.operations?.[kind];
+    if (kind === 'actions' && operations === undefined) continue;
     if (!Array.isArray(operations)) {
       add(`$.operations.${kind}`, 'must be an array');
       continue;
@@ -358,7 +371,7 @@ export function createProviderBindingMetadata(introspection) {
     return { ok: false, diagnostics, metadata: null };
   }
 
-  const bindings = { queries: [], mutations: [], ephemeral: [] };
+  const bindings = { queries: [], mutations: [], actions: [], ephemeral: [] };
   const renderType = (descriptor, path) => renderDataType(descriptor, path, diagnostics);
   for (const kind of ['queries', 'ephemeral']) {
     for (const operation of introspection.operations[kind]) {
@@ -383,6 +396,19 @@ export function createProviderBindingMetadata(introspection) {
       ),
       effects: operation.effects,
       optimistic: operation.optimistic,
+      resultType: resultTypeFromContract(operation.contract?.result),
+    }));
+  }
+  for (const operation of introspection.operations.actions ?? []) {
+    bindings.actions.push(canonicalize({
+      name: operation.name,
+      argumentsType: renderArgumentsType(
+        operation.arguments,
+        `actions.${operation.name}.arguments`,
+        diagnostics,
+      ),
+      resultType: resultTypeFromContract(operation.contract?.result),
+      effects: operation.effects,
     }));
   }
 
@@ -425,7 +451,7 @@ export function createProviderBindingMetadata(introspection) {
 export function validateProviderBindingTypeNames(introspection) {
   const seen = new Map();
   const problems = [];
-  for (const kind of ['queries', 'mutations', 'ephemeral']) {
+  for (const kind of ['queries', 'mutations', 'actions', 'ephemeral']) {
     for (const [index, operation] of (introspection?.operations?.[kind] ?? []).entries()) {
       if (typeof operation?.name !== 'string') continue;
       const alias = pascalIdentifier(operation.name);
@@ -489,6 +515,30 @@ export function validateProviderResultShapeVocabulary(introspection) {
       }
       return;
     }
+    if (descriptor?.shape === 'literal') {
+      if (
+        descriptor.value !== null
+        && !['string', 'number', 'boolean'].includes(typeof descriptor.value)
+      ) {
+        problems.push(`${path}.value: unmapped ${describe(descriptor.value)}`);
+      }
+      return;
+    }
+    if (descriptor?.shape === 'array') {
+      inspectType(descriptor.items, `${path}.items`);
+      return;
+    }
+    if (
+      descriptor?.shape === 'union'
+      && Array.isArray(descriptor.variants)
+      && descriptor.variants.length >= 2
+      && descriptor.variants.length <= 8
+    ) {
+      descriptor.variants.forEach((variant, index) => (
+        inspectType(variant, `${path}.variants[${index}]`)
+      ));
+      return;
+    }
     problems.push(`${path}.shape: unmapped ${describe(descriptor?.shape)}`);
   }
 }
@@ -506,6 +556,7 @@ export function renderProviderBindingTypes(metadata) {
   ];
   const queryMembers = [];
   const mutationMembers = [];
+  const actionMembers = [];
   for (const binding of [
     ...(metadata?.bindings?.queries ?? []),
     ...(metadata?.bindings?.ephemeral ?? []),
@@ -518,16 +569,24 @@ export function renderProviderBindingTypes(metadata) {
   for (const binding of metadata?.bindings?.mutations ?? []) {
     const name = pascalIdentifier(binding.name);
     lines.push(`export type ${name}Args = ${binding.argumentsType};`);
-    mutationMembers.push(`  ${JSON.stringify(binding.name)}: { args: ${name}Args };`);
+    lines.push(`export type ${name}Result = ${binding.resultType ?? 'unknown'};`);
+    mutationMembers.push(`  ${JSON.stringify(binding.name)}: { args: ${name}Args; result: ${name}Result };`);
+  }
+  for (const binding of metadata?.bindings?.actions ?? []) {
+    const name = pascalIdentifier(binding.name);
+    lines.push(`export type ${name}Args = ${binding.argumentsType};`);
+    lines.push(`export type ${name}Result = ${binding.resultType ?? 'unknown'};`);
+    actionMembers.push(`  ${JSON.stringify(binding.name)}: { args: ${name}Args; result: ${name}Result };`);
   }
   lines.push('', 'export interface ProviderQueryBindings {', ...queryMembers, '}');
   lines.push('export interface ProviderMutationBindings {', ...mutationMembers, '}');
+  lines.push('export interface ProviderActionBindings {', ...actionMembers, '}');
   return `${lines.join('\n')}\n`;
 }
 
 function assertDistinctRenderedBindingTypeNames(metadata) {
   const seen = new Map();
-  for (const kind of ['queries', 'mutations', 'ephemeral']) {
+  for (const kind of ['queries', 'mutations', 'actions', 'ephemeral']) {
     for (const binding of metadata?.bindings?.[kind] ?? []) {
       const alias = pascalIdentifier(binding?.name);
       const prior = seen.get(alias);
@@ -580,6 +639,30 @@ function renderDataType(descriptor, path, diagnostics) {
   if (descriptor?.shape === 'object' && isObject(descriptor.fields)) {
     return renderObjectFields(descriptor.fields, path, diagnostics);
   }
+  if (descriptor?.shape === 'literal') {
+    if (
+      descriptor.value === null
+      || ['string', 'number', 'boolean'].includes(typeof descriptor.value)
+    ) return JSON.stringify(descriptor.value);
+    diagnostics.push(unmappedShapeDiagnostic(path, descriptor.value, 'literal'));
+    return 'never';
+  }
+  if (descriptor?.shape === 'array') {
+    return `ReadonlyArray<${renderDataType(descriptor.items, `${path}.items`, diagnostics)}>`;
+  }
+  if (
+    descriptor?.shape === 'union'
+    && Array.isArray(descriptor.variants)
+    && descriptor.variants.length >= 2
+  ) {
+    return descriptor.variants
+      .map((variant, index) => renderDataType(
+        variant,
+        `${path}.variants[${index}]`,
+        diagnostics,
+      ))
+      .join(' | ');
+  }
   diagnostics.push(unmappedShapeDiagnostic(path, descriptor?.shape, 'shape'));
   return 'never';
 }
@@ -629,6 +712,7 @@ function queryOperation(name, binding) {
     dependencies: { reads: binding?.reads ?? [] },
     delivery: deliveryDescriptor(binding),
     ...(binding?.retainable === true ? { retainable: true } : {}),
+    ...(binding?.implementationHash ? { contract: contractWitness(binding) } : {}),
   };
 }
 
@@ -650,10 +734,59 @@ function mutationOperation(name, binding) {
       supported: optimistic,
       source: optimistic ? (hasProviderPlan ? 'provider-plan' : 'consumer') : 'none',
     },
+    ...(binding?.implementationHash ? { contract: contractWitness(binding) } : {}),
     ...(hasProviderPlan
       ? { extensions: { snapback: { contractPlan: binding.plan } } }
       : {}),
   };
+}
+
+function actionOperation(name, binding) {
+  return {
+    name,
+    arguments: argumentsDescriptor(binding),
+    execution: {
+      serverRunnable: binding?.serverRunnable === true,
+      localRunnable: false,
+    },
+    effects: { writes: binding?.writes ?? [] },
+    ...(binding?.implementationHash ? { contract: contractWitness(binding) } : {}),
+  };
+}
+
+function contractWitness(binding) {
+  return {
+    revision: 'snapback.result-contract.v1',
+    implementationHash: binding?.implementationHash,
+    argumentsHash: binding?.argsHash,
+    resultHash: binding?.resultHash,
+    result: binding?.resultContract,
+  };
+}
+
+function resultTypeFromContract(contract) {
+  if (!contract || contract.kind === 'unknown') return 'unknown';
+  if (contract.kind === 'document') return 'Record<string, unknown>';
+  if (contract.kind === 'documents' || contract.kind === 'records' || contract.kind === 'legacyQueryRowsV0') {
+    return 'ReadonlyArray<Record<string, unknown>>';
+  }
+  if (contract.kind !== 'value') return 'unknown';
+  return resultValueType(contract.value);
+}
+
+function resultValueType(value) {
+  if (!value) return 'unknown';
+  if (value.kind === 'null') return 'null';
+  if (value.kind === 'boolean') return 'boolean';
+  if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'id') return 'string';
+  if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
+  if (value.kind === 'literal') return JSON.stringify(value.value);
+  if (value.kind === 'array') return `ReadonlyArray<${resultValueType(value.element)}>`;
+  if (value.kind === 'union') return value.variants.map(resultValueType).join(' | ');
+  if (value.kind === 'object') {
+    return `{ ${value.fields.map((field) => `${JSON.stringify(field.name)}${field.required ? '' : '?'}: ${resultValueType(field.value)}`).join('; ')} }`;
+  }
+  return 'unknown';
 }
 
 function ephemeralOperation(name, binding, section) {
@@ -726,6 +859,14 @@ function projectQuery(operation, isEphemeral) {
     initialSnapshot: operation.delivery.initialSnapshot,
     defaultLive: operation.delivery.defaultLive,
     ephemeral: isEphemeral,
+    ...(operation.contract
+      ? {
+          implementationHash: operation.contract.implementationHash,
+          argsHash: operation.contract.argumentsHash,
+          resultHash: operation.contract.resultHash,
+          resultContract: operation.contract.result,
+        }
+      : {}),
   };
 
   if (isEphemeral) {
@@ -757,6 +898,14 @@ function projectMutation(operation) {
     writes: operation.effects.writes,
     invalidates: operation.effects.invalidates,
     optimistic: operation.optimistic.supported,
+    ...(operation.contract
+      ? {
+          implementationHash: operation.contract.implementationHash,
+          argsHash: operation.contract.argumentsHash,
+          resultHash: operation.contract.resultHash,
+          resultContract: operation.contract.result,
+        }
+      : {}),
     ...(plan !== undefined ? { plan } : {}),
     serverRunnable: operation.execution.serverRunnable,
   };
@@ -799,7 +948,7 @@ function validateCapabilities(capabilities, add) {
 function validateQuery(operation, path, add) {
   closedObject(operation, path, [
     'name', 'arguments', 'result', 'execution', 'dependencies', 'delivery',
-    'retainable', 'extensions',
+    'retainable', 'extensions', 'contract',
   ], ['name', 'arguments', 'result', 'execution', 'dependencies', 'delivery'], add);
   nonEmptyString(operation?.name, `${path}.name`, add);
   validateArguments(operation?.arguments, `${path}.arguments`, add);
@@ -808,6 +957,9 @@ function validateQuery(operation, path, add) {
   closedObject(operation?.dependencies, `${path}.dependencies`, ['reads'], ['reads'], add);
   stringSet(operation?.dependencies?.reads, `${path}.dependencies.reads`, add);
   validateDelivery(operation?.delivery, `${path}.delivery`, add);
+  if (operation?.contract !== undefined) {
+    validateContractWitness(operation.contract, `${path}.contract`, add);
+  }
   if (operation?.retainable !== undefined && typeof operation.retainable !== 'boolean') {
     add(`${path}.retainable`, 'must be boolean');
   }
@@ -816,6 +968,7 @@ function validateQuery(operation, path, add) {
 function validateMutation(operation, path, add) {
   closedObject(operation, path, [
     'name', 'arguments', 'execution', 'effects', 'optimistic', 'extensions',
+    'contract',
   ], ['name', 'arguments', 'execution', 'effects', 'optimistic'], add);
   nonEmptyString(operation?.name, `${path}.name`, add);
   validateArguments(operation?.arguments, `${path}.arguments`, add);
@@ -833,6 +986,42 @@ function validateMutation(operation, path, add) {
   }
   if (operation?.optimistic?.source === 'provider-plan' && operation?.extensions?.snapback?.contractPlan === undefined) {
     add(`${path}.extensions.snapback.contractPlan`, 'is required for Snapback provider-plan optimism');
+  }
+  if (operation?.contract !== undefined) {
+    validateContractWitness(operation.contract, `${path}.contract`, add);
+  }
+}
+
+function validateAction(operation, path, add) {
+  closedObject(operation, path, [
+    'name', 'arguments', 'execution', 'effects', 'contract', 'extensions',
+  ], ['name', 'arguments', 'execution', 'effects'], add);
+  nonEmptyString(operation?.name, `${path}.name`, add);
+  validateArguments(operation?.arguments, `${path}.arguments`, add);
+  validateExecution(operation?.execution, `${path}.execution`, add);
+  closedObject(operation?.effects, `${path}.effects`, ['writes'], ['writes'], add);
+  stringSet(operation?.effects?.writes, `${path}.effects.writes`, add);
+  if (operation?.contract !== undefined) {
+    validateContractWitness(operation.contract, `${path}.contract`, add);
+  }
+}
+
+function validateContractWitness(contract, path, add) {
+  closedObject(contract, path, [
+    'revision', 'implementationHash', 'argumentsHash', 'resultHash', 'result',
+  ], [
+    'revision', 'implementationHash', 'argumentsHash', 'resultHash', 'result',
+  ], add);
+  if (contract?.revision !== 'snapback.result-contract.v1') {
+    add(`${path}.revision`, 'must be "snapback.result-contract.v1"');
+  }
+  for (const key of ['implementationHash', 'argumentsHash', 'resultHash']) {
+    if (typeof contract?.[key] !== 'string' || !/^sha256:[0-9a-f]{64}$/u.test(contract[key])) {
+      add(`${path}.${key}`, 'must be a sha256 digest');
+    }
+  }
+  if (!isObject(contract?.result) || typeof contract.result.kind !== 'string') {
+    add(`${path}.result`, 'must be a result contract object');
   }
 }
 
@@ -930,8 +1119,40 @@ function validateDataType(descriptor, path, add) {
         validateDataType(field, `${path}.fields.${name}`, add);
       }
     }
+  } else if (descriptor.shape === 'literal') {
+    closedObject(descriptor, path, ['shape', 'value', 'optional'], ['shape', 'value'], add);
+    if (
+      descriptor.value !== null
+      && !['string', 'number', 'boolean'].includes(typeof descriptor.value)
+    ) {
+      add(`${path}.value`, 'must be a finite scalar or null');
+    } else if (typeof descriptor.value === 'number' && !Number.isFinite(descriptor.value)) {
+      add(`${path}.value`, 'must be finite');
+    }
+  } else if (descriptor.shape === 'array') {
+    closedObject(descriptor, path, ['shape', 'items', 'optional'], ['shape', 'items'], add);
+    validateDataType(descriptor.items, `${path}.items`, add);
+  } else if (descriptor.shape === 'union') {
+    closedObject(
+      descriptor,
+      path,
+      ['shape', 'variants', 'optional'],
+      ['shape', 'variants'],
+      add,
+    );
+    if (
+      !Array.isArray(descriptor.variants)
+      || descriptor.variants.length < 2
+      || descriptor.variants.length > 8
+    ) {
+      add(`${path}.variants`, 'must contain 2–8 data type descriptors');
+    } else {
+      descriptor.variants.forEach((variant, index) => (
+        validateDataType(variant, `${path}.variants[${index}]`, add)
+      ));
+    }
   } else {
-    add(`${path}.shape`, 'must be unknown, primitive, or object');
+    add(`${path}.shape`, 'must be unknown, primitive, object, literal, array, or union');
   }
   if (descriptor.optional !== undefined && typeof descriptor.optional !== 'boolean') {
     add(`${path}.optional`, 'must be boolean');
@@ -1107,7 +1328,7 @@ function isObject(value) {
  * separately from semantic schema problems so a new backend shape can never
  * disappear silently during projection.
  */
-export function validateSnapbackIntrospectionSource({ queries, mutations, ephemeral }) {
+export function validateSnapbackIntrospectionSource({ queries, mutations, actions = {}, ephemeral }) {
   const problems = [];
   for (const [name, binding] of sortedEntries(queries)) {
     const allowed = binding?.ephemeral === true ? EPHEMERAL_QUERY_KEYS : QUERY_KEYS;
@@ -1115,6 +1336,9 @@ export function validateSnapbackIntrospectionSource({ queries, mutations, epheme
   }
   for (const [name, binding] of sortedEntries(mutations)) {
     unexpectedKeys(binding, MUTATION_KEYS, `mutations.${name}`, problems);
+  }
+  for (const [name, binding] of sortedEntries(actions)) {
+    unexpectedKeys(binding, ACTION_KEYS, `actions.${name}`, problems);
   }
   for (const [name, section] of sortedEntries(ephemeral)) {
     unexpectedKeys(section, EPHEMERAL_SECTION_KEYS, `ephemeral.${name}`, problems);

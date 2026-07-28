@@ -1,0 +1,142 @@
+---
+title: Portable indexed text search
+id: backend.text-search
+order: 27
+audience: agent-first
+capabilities: [backend.text-search]
+authorities: [llp/0073-portable-full-text-search.rfc.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/search.mjs]
+examples: [demos/backend-bakeoff]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-27
+reviewed-commit: HEAD
+---
+
+# Portable indexed text search
+
+> **Local target only.** Indexed text search requires the stable
+> `full_text_search_v1` capability. The local SQLite target reports the exact
+> analyzer, parser, scorer, cursor, and nonclaims in its capability manifest.
+> PostgreSQL, Cloudflare, live search, offline search, sensitive fields, and
+> native FTS acceleration are not claimed.
+
+Use a search index when a query must match words, phrases, or prefixes without
+scanning application rows in a JavaScript handler. Search is a closed host
+plan: source mutations maintain canonical term, position, and source records
+inside the same SQLite transaction, and queries send a structured AST rather
+than SQL, FTS, or provider syntax.
+
+## Declare an index
+
+Add `searchIndex` to an ordinary bounded table. A semantic version names the
+meaning of its analyzer, fields, weights, visibility, stored result fields,
+and ordering. Changing any of those facts requires a new semantic version and
+rebuild.
+
+```js source=demos/backend-bakeoff/snapback/schema.mjs
+export const incidents = defineTable({
+  title: v.string(),
+  summary: v.string(),
+  severity: v.string(),
+  status: v.string(),
+  commanderId: v.string(),
+  createdAt: v.integer(),
+  updatedAt: v.integer(),
+})
+  .index('by_updated', ['updatedAt'])
+  .searchIndex('search_incidents', {
+    semanticVersion: 'signal-desk-incidents.v1',
+    textFields: {
+      title: { weight: 8, classification: 'public' },
+      summary: { weight: 4, classification: 'public' },
+      severity: { weight: 2, classification: 'public' },
+      status: { weight: 2, classification: 'public' },
+    },
+    fieldClassifications: {
+      commanderId: 'public',
+      createdAt: 'public',
+      updatedAt: 'public',
+    },
+    equalityFilters: ['severity', 'status'],
+    storedFields: [
+      'commanderId',
+      'createdAt',
+      'severity',
+      'status',
+      'summary',
+      'title',
+      'updatedAt',
+    ],
+    highlightFields: ['summary', 'title'],
+    visibility: { kind: 'public-read' },
+  })
+  .sync();
+```
+
+Text weights are integers from 1 through 64. Every participating field needs
+an explicit classification: text fields carry it beside their weight, while
+`fieldClassifications` must classify exactly the participating equality,
+stored, or owner fields that are not text fields. `public-read` admits only
+public fields. Owner search instead declares
+`visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
+string or principal and every query is pushed into the server-resolved
+effective user's partition. Membership and relation-derived visibility are
+not accepted in v1.
+
+Export the operation with
+`defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an
+ordinary `Query`, deliberately not a `LiveQuery`.
+
+## Search from a client
+
+`parseSearchQueryV1` turns convenience text into the closed AST before the
+request. `client.search` maps the normal query transport `{rows, cursor}` into
+`{items, cursor, hasMore}`.
+
+```ts source=demos/backend-bakeoff/src/backends/snapback.ts
+  async searchIncidents(term: string) {
+    const result = await this.client.search(api.searchIncidents, {
+      query: parseSearchQueryV1(term, {
+        fields: ['title', 'summary', 'severity', 'status'],
+      }),
+    });
+    return result.items.map((item) =>
+      incident({ _id: item.rowId, ...item.fields }));
+  }
+```
+
+The parser admits required terms and phrases, one flat `OR`, direct `-term`
+exclusions, and one final `prefix*`. For programmatic queries, use the exported
+`search.term`, `search.phrase`, `search.prefix`, `search.any`, `search.not`,
+`search.filter`, and `search.all` constructors.
+
+Results order by exact integer score descending, then opaque row id ascending.
+Highlights are plain text with scalar ranges; the caller owns escaping and
+markup. A continuation is AEAD-protected, caller/index/query/limit-bound, and
+valid for at most 120 seconds. Pagination is current-keyset, not a retained
+snapshot.
+
+## Handle bounded refusals
+
+- `SNAPBACK_SEARCH_QUERY_INVALID`: malformed AST, unsupported syntax, or a
+  declaration-bound limit was violated.
+- `SNAPBACK_SEARCH_WORK_LIMIT`: the caller's visible posting partition exceeded
+  its deterministic exact-ranking or prefix ceiling; no partial page is
+  released.
+- `SNAPBACK_SEARCH_CURSOR_RESTART`: identity, policy, generation, query, limit,
+  key generation, or TTL no longer matches. Restart at page one.
+- `SNAPBACK_SEARCH_INDEX_UNAVAILABLE`: the target/profile/index is not active.
+- `SNAPBACK_SEARCH_INDEX_CORRUPT`: a posting failed its authoritative
+  source/version/owner recheck. Treat source data as authoritative and rebuild.
+
+## Anti-patterns
+
+- Do not collect rows and call `includes`, a regex, or a locale-sensitive
+  lowercase function in a handler.
+- Do not pass raw SQLite FTS, PostgreSQL `tsquery`, or a provider search string.
+- Do not expose count, facets, suggestions, or autocomplete as if v1
+  authorized them; it does not.
+- Do not subscribe to a search operation or retain it offline.
+- Do not use scores as authorization, moderation, pricing, or other correctness
+  inputs.

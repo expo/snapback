@@ -15,7 +15,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/client": "workspace:*"
+    "@snapback/client": "workspace:*",
+    "@snapback/codegen": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

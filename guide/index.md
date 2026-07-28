@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed: 2026-07-27
+reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -52,6 +52,9 @@ you never build around a feature because you didn't know it existed.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
   regenerate → acceptance test → inspect, including the packaged
   `new`/`generate`/`dev`/`doctor` loop.
+- [Generated artifact custody and review](./getting-started/generated-artifacts.md)
+  — the committed review manifest, policy projections, ignored input-hash
+  cache, summaries, and fail-closed resolution.
 
 ### Backend
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
@@ -65,6 +68,13 @@ you never build around a feature because you didn't know it existed.
   unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
+- [Portable indexed text search](./backend/text-search.md) — weighted
+  term/phrase/prefix search with structured ASTs, deterministic ranking,
+  authorization partitions, highlights, and current-keyset cursors
+  (experimental).
+- [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
+  identity, non-destructive matching, explicit reset-install/clear, and
+  migration boundaries (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
@@ -126,7 +136,8 @@ you never build around a feature because you didn't know it existed.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
-  discipline, doctor, and bootstrap failure vocabulary.
+  discipline, exact runtime link/launch doctoring, binary recovery records,
+  and bootstrap failure vocabulary.
 - [Admin console](./operating/admin-console.md) — build, launch, develop, and
   debug through the privileged Contract system app.
 

@@ -1,8 +1,22 @@
 /target/
 /.snapback/
+**/.snapback/codegen-cache/
 /.snapback.snapback.restore.lock
 node_modules/
 .agent-local-secrets.md
+
+# Maintained demo backends commit the deterministic review manifest, not the
+# regenerable materialized graph. Codegen and bundler/runtime resolvers consume
+# the digest-bound graph from each app's .snapback/codegen-cache.
+demos/*/snapback/generated/*
+!demos/*/snapback/generated/artifacts.json
+!demos/competitive-checkpoint/snapback/generated/api.d.ts
+!demos/competitive-checkpoint/snapback/generated/api.mjs
+!demos/partiful-matrix/snapback/generated/api.mjs
+demos/todo-v2/snapback/generated-remote-service/*
+!demos/todo-v2/snapback/generated-remote-service/artifacts.json
+demos/all-aboard/tests/egress-probe/generated/*
+!demos/all-aboard/tests/egress-probe/generated/artifacts.json
 *.swp
 /cloudflare/.wrangler/
 /dist-publish/

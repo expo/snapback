@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/writePrimaryAndActivity.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activity": {
+      "type": "string"
+    },
+    "primary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "primary",
+    "activity"
+  ],
+  "title": "app:writePrimaryAndActivity arguments",
+  "type": "object"
+}

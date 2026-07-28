@@ -1,0 +1,485 @@
+{
+  "$defs": {
+    "AdapterLifecycleOperationV2": {
+      "enum": [
+        "acquireLease",
+        "renewLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "rollback",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "activateRestoredGeneration",
+        "reconcileEffect",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "AdapterLifecycleRequestV2Version": {
+      "enum": [
+        "snapback.vm-adapter-lifecycle-request.v2"
+      ],
+      "type": "string"
+    },
+    "DeploymentLease": {
+      "additionalProperties": false,
+      "description": "Provider-enforced lease over one deployment mutation train. The lease id is\nan opaque fence, not a credential; provider credentials remain behind the\ndescriptor's external secret-store handle.",
+      "properties": {
+        "acquiredAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expectedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "leaseId": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "leaseId",
+        "targetId",
+        "operationId",
+        "expectedActivationGeneration",
+        "acquiredAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "FlyCredentialBindingV2": {
+      "additionalProperties": false,
+      "properties": {
+        "allowedVerbs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string"
+        },
+        "resourcePrefixes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "credentialRef",
+        "fingerprint",
+        "allowedVerbs",
+        "resourcePrefixes"
+      ],
+      "type": "object"
+    },
+    "FlyTargetBindingV2": {
+      "additionalProperties": false,
+      "description": "Closed, generation-fenced binding for one Fly target.\n\n@ref LLP 0105#expiring-routed-machine-authority — effect-time discovery is\nforbidden; the control plane pins the complete roster, routes, storage,\ncertificate posture, supervisor, and separated credential roles.",
+      "properties": {
+        "activeMachineId": {
+          "type": "string"
+        },
+        "appId": {
+          "type": "string"
+        },
+        "artifactPrefix": {
+          "type": "string"
+        },
+        "auditPrefix": {
+          "type": "string"
+        },
+        "autoscaleEnabled": {
+          "type": "boolean"
+        },
+        "autostartEnabled": {
+          "type": "boolean"
+        },
+        "autostopEnabled": {
+          "type": "boolean"
+        },
+        "backupPrefix": {
+          "type": "string"
+        },
+        "bindingGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "certificatePosture": {
+          "type": "string"
+        },
+        "cleanupPrefix": {
+          "type": "string"
+        },
+        "controlStatePrefix": {
+          "type": "string"
+        },
+        "credentials": {
+          "items": {
+            "$ref": "#/$defs/FlyCredentialBindingV2"
+          },
+          "type": "array"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "externalHeadKey": {
+          "type": "string"
+        },
+        "logPrefix": {
+          "type": "string"
+        },
+        "machineRoster": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "observedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ociDigest": {
+          "type": "string"
+        },
+        "ociRepository": {
+          "type": "string"
+        },
+        "organizationId": {
+          "type": "string"
+        },
+        "ownershipSentinel": {
+          "type": "string"
+        },
+        "predecessorBindingSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "routedMachineIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/FlyTargetBindingVersion"
+        },
+        "serviceProcessGroups": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "supervisorInstallationId": {
+          "type": "string"
+        },
+        "supervisorOciDigest": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "tigrisBucket": {
+          "type": "string"
+        },
+        "tlsIssuer": {
+          "type": "string"
+        },
+        "volumeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "targetId",
+        "bindingGeneration",
+        "organizationId",
+        "appId",
+        "region",
+        "publicOrigin",
+        "activeMachineId",
+        "machineRoster",
+        "routedMachineIds",
+        "serviceProcessGroups",
+        "autostopEnabled",
+        "autostartEnabled",
+        "autoscaleEnabled",
+        "volumeId",
+        "ociRepository",
+        "ociDigest",
+        "tigrisBucket",
+        "artifactPrefix",
+        "backupPrefix",
+        "controlStatePrefix",
+        "auditPrefix",
+        "logPrefix",
+        "cleanupPrefix",
+        "tlsIssuer",
+        "certificatePosture",
+        "externalHeadKey",
+        "ownershipSentinel",
+        "supervisorInstallationId",
+        "supervisorOciDigest",
+        "credentials",
+        "observedAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "FlyTargetBindingVersion": {
+      "enum": [
+        "snapback.fly-target-binding.v2"
+      ],
+      "type": "string"
+    },
+    "HostedControlHeadV2": {
+      "additionalProperties": false,
+      "properties": {
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "activeReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "admissionGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "bindingSha256": {
+          "type": "string"
+        },
+        "cleanupFloor": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "committedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "generation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "journalRootSha256": {
+          "type": "string"
+        },
+        "predecessorSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replayFloor": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/HostedControlHeadVersion"
+        },
+        "spendFloor": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "supervisorIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "targetId",
+        "generation",
+        "bindingSha256",
+        "activationGeneration",
+        "journalRootSha256",
+        "admissionGeneration",
+        "spendFloor",
+        "cleanupFloor",
+        "replayFloor",
+        "supervisorIncarnation",
+        "committedAtMs"
+      ],
+      "type": "object"
+    },
+    "HostedControlHeadVersion": {
+      "enum": [
+        "snapback.hosted-control-head.v2"
+      ],
+      "type": "string"
+    },
+    "ProviderEffectIntentV1": {
+      "additionalProperties": false,
+      "properties": {
+        "desiredProviderStateSha256": {
+          "type": "string"
+        },
+        "effectKind": {
+          "type": "string"
+        },
+        "logicalResourceName": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planSha256": {
+          "type": "string"
+        },
+        "predecessorHeadSha256": {
+          "type": "string"
+        },
+        "requestSha256": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/ProviderEffectIntentVersion"
+        },
+        "semanticEffectId": {
+          "type": "string"
+        },
+        "targetBindingSha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "operationId",
+        "operation",
+        "requestSha256",
+        "semanticEffectId",
+        "targetBindingSha256",
+        "planSha256",
+        "effectKind",
+        "logicalResourceName",
+        "desiredProviderStateSha256",
+        "predecessorHeadSha256"
+      ],
+      "type": "object"
+    },
+    "ProviderEffectIntentVersion": {
+      "enum": [
+        "snapback.provider-effect-intent.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.lifecycle-request-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attempt": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "confirmationSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effectIntent": {
+      "$ref": "#/$defs/ProviderEffectIntentV1"
+    },
+    "lease": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeploymentLease"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "$ref": "#/$defs/AdapterLifecycleOperationV2"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planSha256": {
+      "type": "string"
+    },
+    "predecessorHead": {
+      "$ref": "#/$defs/HostedControlHeadV2"
+    },
+    "requestSha256": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterLifecycleRequestV2Version"
+    },
+    "targetBinding": {
+      "$ref": "#/$defs/FlyTargetBindingV2"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "attempt",
+    "targetBinding",
+    "planSha256",
+    "requestSha256",
+    "predecessorHead",
+    "effectIntent"
+  ],
+  "title": "AdapterLifecycleRequestV2",
+  "type": "object"
+}

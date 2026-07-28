@@ -482,7 +482,8 @@ impl ResolvedAppAuthority {
                 user_id: Some(user_id.clone()),
                 ..AuthInput::default()
             }
-            .with_authorization_projection(Some("human"), None, false),
+            .with_authorization_projection(Some("human"), None, false)
+            .with_activity_provenance(Some(user_id), Some("human"), None),
             Self::DevImpersonation { user_id, .. } => AuthInput {
                 principal: None,
                 session_id: None,
@@ -493,6 +494,7 @@ impl ResolvedAppAuthority {
             Self::ServicePrincipal {
                 actor_user_id,
                 effective_user_id,
+                grant_id,
                 ..
             } => AuthInput {
                 principal: None,
@@ -508,6 +510,11 @@ impl ResolvedAppAuthority {
                 }),
                 effective_user_id.as_ref().map(|_| "agent"),
                 effective_user_id.is_some(),
+            )
+            .with_activity_provenance(
+                effective_user_id.as_ref().map(|_| actor_user_id.as_str()),
+                effective_user_id.as_ref().map(|_| "agent"),
+                effective_user_id.as_ref().map(|_| grant_id.as_str()),
             ),
             Self::Anonymous | Self::AdminBypass { .. } | Self::System => AuthInput::default(),
         }

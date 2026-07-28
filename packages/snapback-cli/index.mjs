@@ -27,7 +27,11 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@snapback/client';
-import { generate } from '@snapback/codegen';
+import { formatCodegenSummary, generate } from '@snapback/codegen';
+import {
+  resolveGeneratedArtifact,
+  verifyGeneratedGraph,
+} from '@snapback/codegen/review-surface';
 import {
   addTarget,
   applyBackupPlan,
@@ -58,6 +62,15 @@ import {
   verifyRemoteDrillPlan,
   verifyRestoreReceipt,
 } from './deployment-control.mjs';
+import {
+  createRuntimeRecoveryRecord,
+  inspectRuntimeBinary,
+} from './runtime-recovery.mjs';
+import {
+  loadComparatorProfile,
+  readComparatorReceipt,
+  runComparatorAcceptance,
+} from './comparator-profile.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -89,10 +102,25 @@ export {
   verifyRestoreReceipt,
 } from './deployment-control.mjs';
 export {
+  resolveGeneratedArtifact,
+  verifyGeneratedGraph,
+};
+export {
   createExternalReplayFloorAdvanceReceipt,
   prepareHostedAdmissionBoot,
   refreshHostedAdmissionProjection,
 } from './hosted-admission-producer.mjs';
+export {
+  COMPARATOR_CHECKS,
+  COMPARATOR_PROFILE_SCHEMA_VERSION,
+  COMPARATOR_RECEIPT_SCHEMA_VERSION,
+  defineComparatorProfile,
+  loadComparatorProfile,
+  readComparatorReceipt,
+  runComparatorAcceptance,
+  validateComparatorReceipt,
+  writeComparatorReceipt,
+} from './comparator-profile.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -172,6 +200,37 @@ function doctorDiagnostic(code, subsystem, message, details = undefined) {
   };
 }
 
+function installedRuntimeRecovery(runtime, {
+  runnable,
+  actualStamp = null,
+  diagnostic = null,
+  reason = null,
+} = {}) {
+  return createRuntimeRecoveryRecord({
+    selectedBinary: runtime?.binary ?? null,
+    selectionRung: !runtime
+      ? 'none'
+      : runtime.source === 'override'
+        ? 'configured'
+        : 'packaged-runtime',
+    actualStamp,
+    buildable: null,
+    runnable,
+    reuseAllowed: runnable === true,
+    reuseReason: reason,
+    diagnostic,
+    producerInputs: runtime
+      ? { platform: runtime.platform, runtimeSource: runtime.source }
+      : null,
+    repairCommand: runtime?.source === 'override'
+      ? 'unset SNAPBACK_RUNTIME_BINARY && reinstall @snapback/cli'
+      : 'reinstall @snapback/cli and its platform runtime package',
+    overrideCommand: runtime?.binary
+      ? `SNAPBACK_RUNTIME_BINARY=${JSON.stringify(runtime.binary)}`
+      : null,
+  });
+}
+
 // @ref LLP 0074#priority-6-setup-that-fails-rarely-and-diagnostically —
 // doctor proves a disposable VM/bundle/query/mutation/live/shutdown slice;
 // file-presence and `--help` checks alone cannot certify the installed loop.
@@ -180,7 +239,16 @@ export async function doctor(options = {}) {
   try {
     runtime = resolveRuntimeBinary(options);
   } catch (error) {
-    return { schemaVersion: 'snapback.cli-doctor.v2', ok: false, checks: [error.diagnostic] };
+    return {
+      schemaVersion: 'snapback.cli-doctor.v2',
+      ok: false,
+      checks: [error.diagnostic],
+      runtimeRecovery: installedRuntimeRecovery(null, {
+        runnable: false,
+        diagnostic: { code: error.diagnostic?.code ?? 'SNAPBACK_RUNTIME_BINARY_MISSING' },
+        reason: error.message,
+      }),
+    };
   }
   const checks = [];
   const launch = spawnSync(runtime.binary, ['--help'], {
@@ -189,10 +257,16 @@ export async function doctor(options = {}) {
     timeout: 15_000,
   });
   if (launch.status !== 0) {
+    const runtimeRecovery = installedRuntimeRecovery(runtime, {
+      runnable: false,
+      diagnostic: { code: 'SNAPBACK_IBEX_RUNTIME_LOAD_FAILED' },
+      reason: launch.stderr?.slice(0, 2_000) ?? `runtime exited ${launch.status ?? launch.signal}`,
+    });
     return {
       schemaVersion: 'snapback.cli-doctor.v2',
       ok: false,
       runtime,
+      runtimeRecovery,
       checks: [doctorDiagnostic(
         'SNAPBACK_IBEX_RUNTIME_LOAD_FAILED',
         'runtime',
@@ -201,13 +275,33 @@ export async function doctor(options = {}) {
       )],
     };
   }
+  const identityProbe = inspectRuntimeBinary(runtime.binary, options.env);
+  const runtimeRecovery = installedRuntimeRecovery(runtime, {
+    runnable: true,
+    actualStamp: identityProbe.stamp,
+    diagnostic: {
+      code: identityProbe.stamp
+        ? 'SNAPBACK_RUNTIME_LAUNCH_OK'
+        : 'SNAPBACK_RUNTIME_IDENTITY_UNAVAILABLE',
+    },
+    reason: identityProbe.stamp
+      ? 'selected runtime launched and reported its independent build stamp'
+      : `selected runtime launched, but its build stamp was unavailable: ${identityProbe.reason}`,
+  });
   checks.push(doctorDiagnostic(
     'SNAPBACK_RUNTIME_LAUNCH_OK',
     'runtime',
     'the packaged Snapback binary launched without ambient dynamic-loader paths',
   ));
   if (options.verticalSlice === false) {
-    return { schemaVersion: 'snapback.cli-doctor.v2', ok: true, runtime, checks, probe: 'launch-only' };
+    return {
+      schemaVersion: 'snapback.cli-doctor.v2',
+      ok: true,
+      runtime,
+      runtimeRecovery,
+      checks,
+      probe: 'launch-only',
+    };
   }
 
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-doctor-'));
@@ -240,7 +334,10 @@ export async function doctor(options = {}) {
       { readyFile, database },
     );
     const adminToken = managedAdminToken(descriptor, database);
-    loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, { seed: true });
+    await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
+      seed: true,
+      database,
+    });
     checks.push(doctorDiagnostic(
       'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
       'runtime',
@@ -354,14 +451,27 @@ export async function doctor(options = {}) {
     }
   }
   if (failure) {
-    return { schemaVersion: 'snapback.cli-doctor.v2', ok: false, runtime, checks: [...checks, failure] };
+    return {
+      schemaVersion: 'snapback.cli-doctor.v2',
+      ok: false,
+      runtime,
+      runtimeRecovery,
+      checks: [...checks, failure],
+    };
   }
   checks.push(doctorDiagnostic(
     'SNAPBACK_DOCTOR_SHUTDOWN_OK',
     'runtime',
     'the disposable server stopped and its temporary state was removed',
   ));
-  return { schemaVersion: 'snapback.cli-doctor.v2', ok: true, runtime, checks, probe: 'vertical-slice' };
+  return {
+    schemaVersion: 'snapback.cli-doctor.v2',
+    ok: true,
+    runtime,
+    runtimeRecovery,
+    checks,
+    probe: 'vertical-slice',
+  };
 }
 
 function safeProjectName(name) {
@@ -858,10 +968,11 @@ export async function buildRelease(options = {}) {
   if (!generated.ok) {
     throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
   }
-  const generatedRoot = join(backendRoot, 'generated');
-  const schemaPath = join(generatedRoot, 'schema.manifest.json');
-  const functionsPath = join(generatedRoot, 'functions.manifest.json');
-  const capabilityPath = join(generatedRoot, 'capability.manifest.json');
+  const generatedRoot = generated.outDir;
+  const verifiedGenerated = verifyGeneratedGraph(generatedRoot);
+  const schemaPath = resolveGeneratedArtifact(generatedRoot, 'schema.manifest.json');
+  const functionsPath = resolveGeneratedArtifact(generatedRoot, 'functions.manifest.json');
+  const capabilityPath = resolveGeneratedArtifact(generatedRoot, 'capability.manifest.json');
   const schemaManifest = parseJsonFile(schemaPath, 'schemaManifest');
   const functionsManifest = parseJsonFile(functionsPath, 'functionManifest');
   const capabilityManifest = parseJsonFile(capabilityPath, 'capabilityManifest');
@@ -914,7 +1025,7 @@ export async function buildRelease(options = {}) {
     });
   }
 
-  let components = collectReleaseTree(generatedRoot, 'app');
+  let components = collectReleaseTree(verifiedGenerated.graphRoot, 'app');
   for (const name of ['package.json', 'bun.lock', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock']) {
     const path = join(projectRoot, name);
     if (existsSync(path)) components.push(scanReleaseFile(path, `meta/${name}`));
@@ -1187,14 +1298,64 @@ export async function waitForReady(path, child, timeoutMs = 15_000) {
   throw diagnosticError('SNAPBACK_DEV_SERVER_READY_TIMEOUT', `Snapback did not write ${path} within ${timeoutMs}ms`, { path });
 }
 
-function loadGenerated(binary, projectRoot, backendRoot, readyFile, adminToken, { seed = false } = {}) {
+export async function loadGenerated(
+  binary,
+  projectRoot,
+  backendRoot,
+  readyFile,
+  adminToken,
+  { seed = false, database = null, skipSchemaFunctions = false } = {},
+) {
   const generated = join(backendRoot, 'generated');
   const targetArgs = ['--ready-file', readyFile, ...(adminToken ? ['--token', adminToken] : [])];
-  requireNativeSuccess(native(binary, [
-    'load', ...targetArgs,
-    '--schema', join(generated, 'schema.manifest.json'),
-    '--functions', join(generated, 'functions.manifest.json'),
-  ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
+  let versionedSeedPath = null;
+  try {
+    versionedSeedPath = resolveGeneratedArtifact(generated, 'seed.artifact.json');
+  } catch {
+    // Legacy generated graphs intentionally have no versioned seed export.
+  }
+  const artifact = versionedSeedPath && existsSync(versionedSeedPath)
+    ? JSON.parse(readFileSync(versionedSeedPath, 'utf8'))
+    : null;
+  if (artifact) {
+    const capabilityManifest = JSON.parse(
+      readFileSync(resolveGeneratedArtifact(generated, 'capability.manifest.json'), 'utf8'),
+    );
+    const capability = seed ? 'versioned_seed_reset_v1' : 'versioned_seed_install_v1';
+    if (!(capabilityManifest.supportedCapabilities ?? []).includes(capability)) {
+      throw diagnosticError(
+        'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+        `generated target manifest does not advertise ${capability}; managed CLI will not fall back to legacy reset/seed`,
+        { capability },
+      );
+    }
+  }
+  if (!skipSchemaFunctions) {
+    requireNativeSuccess(native(binary, [
+      'load', ...targetArgs,
+      '--schema', resolveGeneratedArtifact(generated, 'schema.manifest.json'),
+      '--functions', resolveGeneratedArtifact(generated, 'functions.manifest.json'),
+    ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
+  }
+  if (artifact) {
+    const descriptor = validateDevTarget(readReadyDescriptor(readyFile), {
+      readyFile,
+      database,
+    });
+    const client = new SnapbackClient(descriptor.serverUrl, { adminToken });
+    if (seed) {
+      const preview = await client.previewVersionedSeed(artifact, { operation: 'install' });
+      const stream = preview?.requested?.dataVersionStream;
+      await client.resetInstallVersionedSeed(artifact, {
+        expectedDataVersionStream: typeof stream === 'string'
+          ? { state: 'present', value: stream }
+          : { state: 'absent' },
+      });
+    } else {
+      await client.ensureVersionedSeed(artifact);
+    }
+    return;
+  }
   const seedPath = join(backendRoot, 'seed.json');
   if (seed && existsSync(seedPath)) {
     requireNativeSuccess(
@@ -1249,9 +1410,38 @@ export async function runDev(options = {}) {
   const database = resolve(options.database ?? join(stateRoot, 'dev.sqlite3'));
   const databaseExistedBeforeStart = existsSync(database);
   const runtime = resolveRuntimeBinary(options);
+  const runtimeIdentity = inspectRuntimeBinary(runtime.binary, options.env);
+  const runtimeRecovery = installedRuntimeRecovery(runtime, {
+    runnable: runtimeIdentity.runnable,
+    actualStamp: runtimeIdentity.stamp,
+    diagnostic: {
+      code: runtimeIdentity.runnable
+        ? 'SNAPBACK_RUNTIME_LAUNCH_OK'
+        : 'SNAPBACK_RUNTIME_IDENTITY_UNAVAILABLE',
+    },
+    reason: runtimeIdentity.runnable
+      ? 'selected dev runtime launched and reported its independent build stamp'
+      : runtimeIdentity.reason,
+  });
   const clientArm = resolveClientArm(options.client, projectRoot);
   const generated = await generateApp(backendRoot);
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
+  let startupArtifacts = null;
+  if (options.bootstrapGeneratedAtStart === true) {
+    const generatedRoot = join(backendRoot, 'generated');
+    startupArtifacts = join(dirname(readyFile), 'startup-artifacts.json');
+    writeFileSync(startupArtifacts, `${JSON.stringify({
+      formatVersion: 1,
+      schema: JSON.parse(readFileSync(
+        resolveGeneratedArtifact(generatedRoot, 'schema.manifest.json'),
+        'utf8',
+      )),
+      functions: JSON.parse(readFileSync(
+        resolveGeneratedArtifact(generatedRoot, 'functions.manifest.json'),
+        'utf8',
+      )),
+    })}\n`, { mode: 0o600 });
+  }
 
   let managed = false;
   let child = null;
@@ -1262,7 +1452,12 @@ export async function runDev(options = {}) {
     if (options.attach === true) {
       throw diagnosticError('SNAPBACK_DEV_READY_FILE_REQUIRED', `--attach requires ${readyFile}`, { readyFile });
     }
-    child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+    child = spawn(runtime.binary, [
+      'start',
+      '--ready-file', readyFile,
+      '--db', database,
+      ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
+    ], {
       cwd: projectRoot,
       env: scrubDynamicLoaderEnvironment(options.env),
       stdio: options.serverStdio ?? ['ignore', 2, 2],
@@ -1283,16 +1478,32 @@ export async function runDev(options = {}) {
   let adminToken;
   try {
     adminToken = managedAdminToken(descriptor, database);
-    requireNativeSuccess(
-      native(runtime.binary, [
-        'inspect', '--ready-file', readyFile,
-        ...(adminToken ? ['--token', adminToken] : []),
-      ], { cwd: projectRoot }),
-      'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
-      'ready-file attach',
-    );
-    loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
+    // `/inspect` becomes the bounded administrative projection when an admin
+    // credential is attached, and therefore correctly requires a separately
+    // minted secret-read lease. Dev attachment needs only liveness and process
+    // identity, so use the public health projection and never upgrade this
+    // check into administrative data-read authority.
+    const health = await new SnapbackClient(descriptor.serverUrl).health();
+    if (
+      health?.ok !== true
+      || (
+        typeof descriptor.startupNonce === 'string'
+        && health?.binary?.startupNonce !== descriptor.startupNonce
+      )
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+        'ready-file health identity did not match the live server',
+        {
+          expectedStartupNonce: descriptor.startupNonce ?? null,
+          observedStartupNonce: health?.binary?.startupNonce ?? null,
+        },
+      );
+    }
+    await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
       seed: managed && !databaseExistedBeforeStart,
+      database,
+      skipSchemaFunctions: managed && startupArtifacts !== null,
     });
   } catch (error) {
     closeManaged();
@@ -1307,6 +1518,7 @@ export async function runDev(options = {}) {
     readyFile,
     serverUrl: descriptor.serverUrl,
     runtime,
+    runtimeRecovery,
   };
   options.onEvent?.(result);
   if (options.watch === false) {
@@ -1350,7 +1562,9 @@ export async function runDev(options = {}) {
     }
     if (closed) return null;
     try {
-      loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken);
+      await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
+        database,
+      });
       return emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename, ...extra });
     } catch (error) {
       return emitDevEvent({
@@ -1763,6 +1977,12 @@ function takeBooleanFlag(args, name) {
 function printResult(result, json) {
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.ok === undefined) console.log(JSON.stringify(result, null, 2));
+  else if (result.ok !== false && result.schemaVersion === 'snapback.generate.v1' && result.summary) {
+    for (const diagnostic of result.diagnostics ?? []) {
+      console.error(`[${diagnostic.severity}] ${diagnostic.code} (${diagnostic.subsystem}) ${diagnostic.message}`);
+    }
+    console.log(formatCodegenSummary(result.summary));
+  }
   else if (result.ok !== false) console.log(`${result.schemaVersion}: ok`);
   else console.error(JSON.stringify(result, null, 2));
 }
@@ -1779,9 +1999,78 @@ export async function runCli(argv, options = {}) {
     printResult(result, json);
     return result.ok ? 0 : 1;
   }
+  if (command === 'accept') {
+    const subcommand = args.shift();
+    if (subcommand !== 'comparator') {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback accept comparator --config <profile.mjs> [--receipt <receipt.json>] [--timeout-ms <ms>] [--json]',
+      );
+    }
+    const verifyReceipt = takeFlag(args, '--verify-receipt');
+    const maxAgeRaw = takeFlag(args, '--max-age-ms');
+    if (verifyReceipt !== null) {
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback accept comparator --verify-receipt <receipt.json> [--max-age-ms <ms>] [--json]',
+        );
+      }
+      const maxAgeMs = maxAgeRaw === null ? null : Number(maxAgeRaw);
+      if (maxAgeMs !== null && (!Number.isSafeInteger(maxAgeMs) || maxAgeMs < 0)) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--max-age-ms must be a non-negative integer',
+        );
+      }
+      const verified = readComparatorReceipt(verifyReceipt, { maxAgeMs });
+      const result = {
+        schemaVersion: 'snapback.comparator-verification.v1',
+        ok: verified.status === 'passed',
+        profileId: verified.profileId,
+        receiptSchemaVersion: verified.schemaVersion,
+        status: verified.status,
+        exitCode: verified.exitCode,
+        checks: verified.checks,
+        capabilityGaps: verified.capabilityGaps,
+        cleanup: verified.cleanup,
+        diagnostic: verified.diagnostic,
+        identity: verified.identity,
+        finishedAtMs: verified.finishedAtMs,
+      };
+      printResult(result, json);
+      return verified.exitCode;
+    }
+    const config = takeFlag(args, '--config');
+    const receiptFile = takeFlag(args, '--receipt');
+    const timeoutRaw = takeFlag(args, '--timeout-ms');
+    if (!config || maxAgeRaw !== null || args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback accept comparator --config <profile.mjs> [--receipt <receipt.json>] [--timeout-ms <ms>] [--json]',
+      );
+    }
+    const timeoutMs = timeoutRaw === null ? 15_000 : Number(timeoutRaw);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        '--timeout-ms must be a positive integer',
+      );
+    }
+    const profile = await loadComparatorProfile(config);
+    const result = await runComparatorAcceptance(profile, {
+      timeoutMs,
+      receiptFile,
+      ...(options.comparatorStartTarget
+        ? { startTarget: options.comparatorStartTarget }
+        : {}),
+    });
+    printResult(result, json);
+    return result.exitCode;
+  }
   if (command === 'new') {
     const target = args.shift();
-    if (!target) throw diagnosticError('SNAPBACK_NEW_NAME_REQUIRED', 'usage: snapback new <name> [--template todo-contract]');
+    if (!target) throw diagnosticError('SNAPBACK_NEW_NAME_REQUIRED', 'usage: snapback new <name> [--template todo-contract|react]');
     const template = takeFlag(args, '--template', 'todo-contract');
     const result = scaffoldApp(target, { template });
     printResult(result, json);

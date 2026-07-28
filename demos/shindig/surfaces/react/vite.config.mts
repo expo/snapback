@@ -5,11 +5,12 @@
 // squatting Vite from another checkout (the Diary 0008 :4420 gotcha).
 
 import { realpathSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const snapbackTarget = process.env.SNAPBACK_SHINDIG_API ?? 'http://127.0.0.1:4431';
 const surfaceRoot = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +33,14 @@ const sourceProvenanceProbe: PluginOption = {
 };
 
 export default defineConfig({
-  plugins: [react(), sourceProvenanceProbe],
+  plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(surfaceRoot, '../../snapback/generated')],
+    }),
+    react(),
+    sourceProvenanceProbe,
+  ],
   define: {
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
   },

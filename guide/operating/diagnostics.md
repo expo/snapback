@@ -4,13 +4,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
 examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: 5606ab06
+reviewed: 2026-07-27
+reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
 ---
 
 # Diagnostics and local doctoring
@@ -80,7 +80,11 @@ scripts/ibex-doctor
 ```
 
 It checks the submodule state, prepared Hermes artifacts/framework, CLI,
-runtime-load posture, and required tools. On a clean checkout, bootstrap before
+required tools, and then the part file-presence checks cannot prove: an exact
+link of this checkout's final `snapback` Cargo target in an automatically
+cleaned temporary target directory, followed by launch of that newly linked
+binary with `DYLD_*` and `LD_LIBRARY_PATH` scrubbed. An older runnable binary
+does not make the current checkout green. On a clean checkout, bootstrap before
 Cargo build/test/run:
 
 ```sh
@@ -95,6 +99,10 @@ The stable bootstrap failure vocabulary is:
 `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING`,
 `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED`,
 `SNAPBACK_IBEX_CARGO_BUILD_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_LINK_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`,
+`SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
+`SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
 `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`.
 
@@ -102,6 +110,30 @@ The doctor additionally distinguishes uninitialized/conflicting/drifted
 submodules, a missing vendored CLI, missing Node/Bun/Cargo, and dynamic-loader
 configuration. Follow the emitted next checks; do not collapse those states
 into “build failed.”
+
+Every runtime entry point exposes the same
+`snapback.runtime-recovery.v1` record: repository doctor (`runtimeRecovery` in
+`--json`), bootstrap (one `runtime recovery record:` line), packaged
+`snapback doctor` and `snapback dev` (`runtimeRecovery`), and demo
+`startServer` (`handle.runtimeRecovery`, or `error.runtimeRecovery` on launch
+failure). It names the selected binary and resolver rung, expected checkout
+commit/dirty state, actual build stamp, whether the current checkout proved
+buildable/runnable, why automatic reuse was allowed or refused, exact producer
+inputs, and safe repair or explicit override.
+
+The read-only native `snapback build-identity` command prints
+`snapback.binary-identity.v1` without binding a port. Doctor and helpers use it
+to obtain the executable's independently embedded commit, dirty state, crate
+version, and build profile; older binaries that predate the command may still
+be classified runnable via `--help`, but their actual stamp remains honestly
+unknown.
+
+When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
+`ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes
+blindly. Run the recorded bootstrap command. If the record also names a
+runnable stale binary, use its quoted `SNAPBACK_SERVER_BINARY=...` override
+only as an explicit temporary escape; its independent stamp and resolver rung
+remain visible, so the override cannot masquerade as a current-checkout build.
 
 For an installed application runtime, run the packaged vertical-slice doctor:
 

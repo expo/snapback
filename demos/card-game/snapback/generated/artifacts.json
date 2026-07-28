@@ -23,10 +23,262 @@
     "contract/signalReady.mutation.ts",
     "contract/signalReady.mutation.contract-meta.ts"
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:d9036064c40e99f0444ebbc1280abc58c73c74c9daf00c53e4fbca522a6d8607",
+  "bundleHash": "snapback.v1:sessions:function:sha256:43d83fd1975a61cd70e043f07067cf363774c66afed660e37a8a3b7c9a00c2a5",
+  "cache": {
+    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3Aa26391b3c62925a0d46cdc4915c89585d83b0264fc85bb0ef29f3f068f0f1406",
+    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3Aa26391b3c62925a0d46cdc4915c89585d83b0264fc85bb0ef29f3f068f0f1406",
+    "regenerationRule": "regenerate-or-fail-closed"
+  },
   "config": [],
   "cronJobs": [],
+  "custody": {
+    "consumer-committed": 0,
+    "regenerable-cache": 20,
+    "review-manifest": 1
+  },
   "ephemeralCollections": [],
+  "files": [
+    {
+      "bytes": 3360,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:86a404e34877355fe68e90af6e5c0c8fd10dbe586a96cd2685619d1a95504203"
+    },
+    {
+      "bytes": 1711,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:5e70aba34d44436a85eb27ac70053e554ae16596154daf97f4b2df18bca1560b"
+    },
+    {
+      "bytes": 4564,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "capability-manifest",
+      "path": "capability.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:451d73ed534b4bacf6dd09916c52d96aed1f19249e6d57470b2eeb4e6fef77ce"
+    },
+    {
+      "bytes": 4606,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-data-manifest",
+      "path": "contract-data.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:d06a701429cd89c2e8d61c2050b01da6eab263c08580f4967adc35aba8f942c9"
+    },
+    {
+      "bytes": 287,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/acceptHandCard.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:0d4dc7aa89a64dafb112770848f9b57e7e95d533f8917eb58d72b952bd41ebb4"
+    },
+    {
+      "bytes": 551,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/acceptHandCard.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2cecd140d4609314f8570511af6be680bf6c644c65b4da3cdcef7427180e9e09"
+    },
+    {
+      "bytes": 595,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/myHand.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:5db92270cbafddddbadb5e859031deccbb29d43df9962a754b47aae21abc872b"
+    },
+    {
+      "bytes": 468,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/myHand.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:8c8dd2643ca2afd5803c0e8e7d9a3394c60e4a708e14e832d8cde868fed46a08"
+    },
+    {
+      "bytes": 855,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/runtime-links.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:0fcc51178fe1f8cf650bc0e372bea2cb3f6ccb4c1071bbca3a4d1bf96932c397"
+    },
+    {
+      "bytes": 295,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/signalReady.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:91a3d5796098533123b1076e2f150209cbbae1181bd4e90cfc5b7ea99fcb9383"
+    },
+    {
+      "bytes": 517,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/signalReady.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2deb8bdd0f99032362670c0e341b8bb8e8b13100467671ce3c4801ed33a86389"
+    },
+    {
+      "bytes": 9775,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "function-manifest",
+      "path": "functions.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2f7fe703ab9431e0f9d5d4018342dde057b49a4f4d9164c0e510adba44138091"
+    },
+    {
+      "bytes": 477,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/acceptHandCard.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:8e445f51d9415058821c9db7c18bedea0e4c3ec68dce86e0fd777cd22fb0840a"
+    },
+    {
+      "bytes": 340,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/myHand.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:41299fe9da65c65506aa4fe7b802a2b77195ac44cb5cfcbe9113173a706b5545"
+    },
+    {
+      "bytes": 409,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/signalReady.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:71b8a4e14b21a24d6b93d32d24bfc38b51b777305d49a36a1426bfe2c5fe189b"
+    },
+    {
+      "bytes": 523,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "package-metadata",
+      "path": "package.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+    },
+    {
+      "bytes": 780,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:84a6dcad2b3140e0697040534442e23b2930044ba722d720d3982b7a1181db98"
+    },
+    {
+      "bytes": 1999,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:f8b1fb5a5166609f6dca7f4a5819c0e222b47662024fe8a4e69d833cda7cb315"
+    },
+    {
+      "bytes": 6174,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-introspection",
+      "path": "provider-introspection.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e185d16e1c1baf4686b4583aa9d9edec3b5fa86b6c77741d816b25f9de32fa7c"
+    },
+    {
+      "bytes": 2139,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "schema-manifest",
+      "path": "schema.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:34b9b0d9190a1761f37631d645d151a304ce918d55d835d55e9a176e74a1de1f"
+    }
+  ],
   "functions": [
     {
       "id": "card-game:acceptHandCard",
@@ -45,9 +297,41 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:eca41dc2b26f08b9a2675501a6d4da5a92d4fed038f51f000899ec049e6e43b9",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:d7fe69812b8f16f92b96be87e2696096084f4bf48cd30a125a2fe053ba3f7e8c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:a26391b3c62925a0d46cdc4915c89585d83b0264fc85bb0ef29f3f068f0f1406",
+  "manifestVersion": 2,
+  "reviewManifest": {
+    "authority": "@snapback/codegen/review-manifest.schema.json",
+    "custody": "review-manifest",
+    "path": "artifacts.json"
+  },
+  "schemaHash": "snapback.v1:sessions:schema:sha256:4fb09f1162fd61caf325de22757ead8d6c3ad695a42f3c930b23e9f6393ba8d9",
   "schemaVersion": "snapback.v0",
+  "summary": {
+    "appId": "card-game",
+    "counts": {
+      "custody": {
+        "consumerCommitted": 0,
+        "regenerableCache": 20,
+        "reviewManifest": 1,
+        "total": 21
+      },
+      "degradedResults": 0,
+      "ephemeralCollections": 0,
+      "operations": {
+        "action": 0,
+        "live": 1,
+        "liveQuery": 1,
+        "mutation": 2,
+        "query": 0,
+        "total": 3
+      },
+      "tables": 2,
+      "warnings": 0
+    },
+    "degradedResults": [],
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:a26391b3c62925a0d46cdc4915c89585d83b0264fc85bb0ef29f3f068f0f1406",
+    "schemaVersion": "snapback.codegen-summary.v1"
+  },
   "tables": [
     "hands",
     "readySignals"

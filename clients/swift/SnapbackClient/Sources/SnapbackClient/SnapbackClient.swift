@@ -65,6 +65,14 @@ public actor SnapbackClient {
         public var authorizationNamespace: JSONValue?
     }
 
+    public struct EphemeralRepublisherToken: Sendable {
+        fileprivate let id: UUID
+        fileprivate let collection: String
+    }
+
+    public typealias EphemeralRepublisher = @Sendable () async throws -> JSONValue?
+    public typealias EphemeralPublisher = @Sendable (JSONValue) async throws -> Void
+
     static let wireVersionToken = "snapback.v1"
     static let connectionTokenHeader = "x-snapback-connection-token"
 
@@ -90,6 +98,8 @@ public actor SnapbackClient {
     private var resumeSubscriptionIds: [String] = []
     private var resumeLiveAfterForeground = false
     private var resumePollAfterForeground = false
+    private var ephemeralRepublishers: [String: [UUID: EphemeralRepublisher]] = [:]
+    private var ephemeralRepublisherGeneration: UInt64 = 0
 
     public init(configuration: Configuration, session: URLSession? = nil) {
         self.configuration = configuration
@@ -98,6 +108,63 @@ public actor SnapbackClient {
 
     public func onUpdate(_ handler: @escaping @Sendable (String, [JSONValue]) -> Void) {
         updateHandlers.append(handler)
+    }
+
+    /// Register application-owned presence production for a successor
+    /// ephemeral authority. The callback receives no authority or credential
+    /// facts and is invoked only after a fresh empty successor snapshot.
+    ///
+    /// @ref LLP 0105#complete-carriers-and-remaining-exact-assignments —
+    /// Swift shares the bounded, generation-fenced, acknowledgement-owned
+    /// republisher lifecycle with the first-party JavaScript arms.
+    public func registerEphemeralRepublisher(
+        collection: String,
+        callback: @escaping EphemeralRepublisher
+    ) throws -> EphemeralRepublisherToken {
+        guard !collection.isEmpty else {
+            throw ClientError.invalidState("ephemeral republisher collection is empty")
+        }
+        var registrations = ephemeralRepublishers[collection] ?? [:]
+        guard registrations.count < 64 else {
+            throw ClientError.invalidState("SNAPBACK_EPHEMERAL_REPUBLISHER_LIMIT")
+        }
+        let id = UUID()
+        registrations[id] = callback
+        ephemeralRepublishers[collection] = registrations
+        return EphemeralRepublisherToken(id: id, collection: collection)
+    }
+
+    public func unregisterEphemeralRepublisher(_ token: EphemeralRepublisherToken) {
+        ephemeralRepublishers[token.collection]?[token.id] = nil
+        if ephemeralRepublishers[token.collection]?.isEmpty == true {
+            ephemeralRepublishers[token.collection] = nil
+        }
+    }
+
+    /// Transport integration calls this after it has cleared the predecessor
+    /// overlay and established an empty snapshot under a changed authority.
+    public func republishEphemeralAfterAuthorityChange(
+        collection: String,
+        freshSnapshotIsEmpty: Bool,
+        publish: @escaping EphemeralPublisher
+    ) async throws {
+        guard freshSnapshotIsEmpty else { return }
+        ephemeralRepublisherGeneration &+= 1
+        let generation = ephemeralRepublisherGeneration
+        let callbacks = Array((ephemeralRepublishers[collection] ?? [:]).values)
+        for callback in callbacks {
+            guard generation == ephemeralRepublisherGeneration else {
+                throw ClientError.invalidState("SNAPBACK_EPHEMERAL_REPUBLISHER_STALE")
+            }
+            if let value = try await callback() {
+                guard generation == ephemeralRepublisherGeneration else {
+                    throw ClientError.invalidState("SNAPBACK_EPHEMERAL_REPUBLISHER_STALE")
+                }
+                // A successful return is the acknowledgement boundary; the
+                // transport publisher must throw for any negative/missing ack.
+                try await publish(value)
+            }
+        }
     }
 
     public var connectionId: String? { grant?.connectionId }

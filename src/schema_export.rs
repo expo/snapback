@@ -30,17 +30,22 @@ use crate::auth::wire::{
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
-    AdapterLifecycleRequest, AdapterLifecycleResponse, AdapterQualificationManifest,
-    AdapterQueryRequest, AdapterQueryResponse, AdapterRequest, AdapterResponse, BackupManifest,
-    BackupPlan, ControlAuditEvent, DeployPlan, DeployReceipt, ExternalReplayFloorAdvanceReceipt,
-    HostedAdmissionProjectionReceipt, HostedAdmissionRefreshReceipt, HostedAuthDrillReceipt,
-    MaintenanceReceipt, PreparedReleaseManifest, ReleaseManifest, RemoteDrillPlan,
-    RestoreActivationPlan, RestorePlan, RollbackPlan, TargetDescriptor,
+    AdapterLifecycleRequest, AdapterLifecycleRequestV2, AdapterLifecycleResponse,
+    AdapterLifecycleResponseV2, AdapterQualificationManifest, AdapterQueryRequest,
+    AdapterQueryResponse, AdapterRequest, AdapterResponse, BackupManifest, BackupPlan,
+    CleanupConfirmationV1, CleanupPlanV1, CleanupReceiptV1, ControlAuditEvent, DeployPlan,
+    DeployReceipt, ExternalReplayFloorAdvanceReceipt, FlyTargetBindingV2,
+    HostedAdmissionProjectionReceipt, HostedAdmissionRefreshReceipt, HostedAdmissionV2,
+    HostedAuthDrillReceipt, HostedControlHeadV2, HostedSpendLedgerV1, MaintenanceReceipt,
+    PlannedBindingPromotionV1, PreparedReleaseManifest, ProviderEffectIntentV1,
+    ProviderEffectObservationV1, ProviderEffectReconciliationV1, ProviderEffectTerminalV1,
+    ReleaseManifest, RemoteDrillPlan, RestoreActivationPlan, RestorePlan, RollbackPlan,
+    TargetDescriptor,
 };
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::{
-    DeleteRequest, EphemeralMessage, PublishOutcome, PublishRequest, RealtimeEnvelope,
-    SubscribeRequest,
+    DeleteRequest, EphemeralAuthorityInstanceV1, EphemeralMessage, HostedEphemeralFactsV1,
+    PublishOutcome, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
@@ -63,6 +68,11 @@ use crate::manifest::{
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
     MigrationPreviewObservationV1, MigrationRehearsalPlanV1,
+};
+use crate::seed_identity::{
+    ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
+    SeedArtifactV1, SeedEnsureResultV1, SeedInstallReceiptV1, SeedMatchedObservationV1,
+    SeedPreviewRequestV1, SeedPreviewResultV1,
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
@@ -112,6 +122,46 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
+        ),
+        finish(
+            "seed.artifact.schema.json",
+            schemars::schema_for!(SeedArtifactV1),
+        ),
+        finish(
+            "seed.receipt.schema.json",
+            schemars::schema_for!(SeedInstallReceiptV1),
+        ),
+        finish(
+            "seed.identity.schema.json",
+            schemars::schema_for!(ActiveSeedIdentityV1),
+        ),
+        finish(
+            "seed.expected-stream.schema.json",
+            schemars::schema_for!(ExpectedDataVersionStreamV1),
+        ),
+        finish(
+            "seed.matched-observation.schema.json",
+            schemars::schema_for!(SeedMatchedObservationV1),
+        ),
+        finish(
+            "seed.ensure-result.schema.json",
+            schemars::schema_for!(SeedEnsureResultV1),
+        ),
+        finish(
+            "seed.install-request.schema.json",
+            schemars::schema_for!(InstallSeedRequestV1),
+        ),
+        finish(
+            "seed.reset-request.schema.json",
+            schemars::schema_for!(ResetSeedRequestV1),
+        ),
+        finish(
+            "seed.preview-request.schema.json",
+            schemars::schema_for!(SeedPreviewRequestV1),
+        ),
+        finish(
+            "seed.preview-result.schema.json",
+            schemars::schema_for!(SeedPreviewResultV1),
         ),
         // LLP 0081 canonical migration artifacts (the Phase C wave-1 types).
         finish(
@@ -221,6 +271,64 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "vm-adapter.lifecycle-response.schema.json",
             schemars::schema_for!(AdapterLifecycleResponse),
+        ),
+        // LLP 0105 hosted Fly v2 carriers. These stay unavailable as public
+        // capabilities until their deterministic and real-provider gates pass.
+        finish(
+            "fly-target.binding-v2.schema.json",
+            schemars::schema_for!(FlyTargetBindingV2),
+        ),
+        finish(
+            "hosted-admission-v2.schema.json",
+            schemars::schema_for!(HostedAdmissionV2),
+        ),
+        finish(
+            "vm-adapter.lifecycle-request-v2.schema.json",
+            schemars::schema_for!(AdapterLifecycleRequestV2),
+        ),
+        finish(
+            "vm-adapter.lifecycle-response-v2.schema.json",
+            schemars::schema_for!(AdapterLifecycleResponseV2),
+        ),
+        finish(
+            "provider-effect.intent-v1.schema.json",
+            schemars::schema_for!(ProviderEffectIntentV1),
+        ),
+        finish(
+            "provider-effect.observation-v1.schema.json",
+            schemars::schema_for!(ProviderEffectObservationV1),
+        ),
+        finish(
+            "provider-effect.terminal-v1.schema.json",
+            schemars::schema_for!(ProviderEffectTerminalV1),
+        ),
+        finish(
+            "provider-effect.reconciliation-v1.schema.json",
+            schemars::schema_for!(ProviderEffectReconciliationV1),
+        ),
+        finish(
+            "hosted-control-head-v2.schema.json",
+            schemars::schema_for!(HostedControlHeadV2),
+        ),
+        finish(
+            "planned-binding.promotion-v1.schema.json",
+            schemars::schema_for!(PlannedBindingPromotionV1),
+        ),
+        finish(
+            "hosted-spend-ledger-v1.schema.json",
+            schemars::schema_for!(HostedSpendLedgerV1),
+        ),
+        finish(
+            "vm-adapter.cleanup-plan-v1.schema.json",
+            schemars::schema_for!(CleanupPlanV1),
+        ),
+        finish(
+            "vm-adapter.cleanup-confirmation-v1.schema.json",
+            schemars::schema_for!(CleanupConfirmationV1),
+        ),
+        finish(
+            "vm-adapter.cleanup-receipt-v1.schema.json",
+            schemars::schema_for!(CleanupReceiptV1),
         ),
         finish(
             "backup.manifest.schema.json",
@@ -541,6 +649,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "ephemeral.publish.input.schema.json",
             schemars::schema_for!(PublishRequest),
+        ),
+        finish(
+            "ephemeral.authority-instance-v1.schema.json",
+            schemars::schema_for!(EphemeralAuthorityInstanceV1),
+        ),
+        finish(
+            "hosted-ephemeral.facts-v1.schema.json",
+            schemars::schema_for!(HostedEphemeralFactsV1),
         ),
         finish(
             "ephemeral.subscribe.input.schema.json",

@@ -8,14 +8,16 @@ import { fileURLToPath } from 'node:url';
 
 import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
+import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { createSuite, runAcceptance, writeMachineReport } from '../../../_kit/harness.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
-import api from '../../snapback/generated/api.mjs';
-import artifactIndex from '../../snapback/generated/artifacts.json' with { type: 'json' };
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const demoRoot = resolve(here, '..', '..');
+const generatedRoot = resolve(demoRoot, 'snapback/generated');
+const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
+const artifactIndex = readGeneratedJson(generatedRoot, 'artifacts.json');
 const protocol = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'comparison-protocol.v1.json'), 'utf8'));
 const phase4VisualSpec = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'visual-spec.v1.json'), 'utf8'));
 const axeSource = readFileSync(join(repoRoot, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');

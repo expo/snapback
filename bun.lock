@@ -29,6 +29,7 @@
       },
       "dependencies": {
         "@snapback/client": "workspace:*",
+        "@snapback/codegen": "workspace:*",
       },
     },
     "packages/snapback-cli": {

@@ -174,7 +174,14 @@ pub(crate) fn live_subscription_may_be_affected(
         FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => changes
             .iter()
             .any(|change| change.table == plan.root || change.table == plan.joined),
+        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => changes
+            .iter()
+            .any(|change| change.table == plan.parent_table || change.table == plan.child_table),
+        FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
+            changes.iter().any(|change| change.table == plan.table)
+        }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
+        | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_))
         | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,
     }
 }
@@ -489,6 +496,10 @@ fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
         auth_user_id: input.auth.user_id.as_deref(),
         auth_kind: input.auth.authorization_kind.as_deref(),
         auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_activity_actor_kind: input.auth.authorization_activity_actor_kind.as_deref(),
+        auth_actor_user_id: input.auth.authorization_actor_user_id.as_deref(),
+        auth_grant_id: input.auth.authorization_grant_id.as_deref(),
+        client_mutation_digest: input.auth.client_mutation_digest.as_deref(),
         auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: None,
         now_ms: None,

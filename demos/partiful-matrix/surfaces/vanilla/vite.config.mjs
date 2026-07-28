@@ -1,7 +1,8 @@
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const proxy = {
@@ -19,7 +20,13 @@ const proxy = {
 };
 
 export default defineConfig(({ mode }) => ({
-  plugins: [partitimeCostAttribution()],
+  plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(root, '../../snapback/generated')],
+    }),
+    partitimeCostAttribution(),
+  ],
   define: {
     __MATRIX_BACKEND__: JSON.stringify(mode),
     __SNAPBACK_API_ORIGIN__: JSON.stringify(process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433'),

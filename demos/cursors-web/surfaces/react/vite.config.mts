@@ -6,11 +6,12 @@
 // `/snapback` proxy remains as a fallback for manual poking.
 
 import { realpathSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const snapbackTarget = process.env.SNAPBACK_CURSORS_API ?? 'http://127.0.0.1:4425';
 // This config is ESM (.mts), so the surface root comes from import.meta.url.
@@ -40,7 +41,14 @@ const sourceProvenanceProbe: PluginOption = {
 };
 
 export default defineConfig({
-  plugins: [react(), sourceProvenanceProbe],
+  plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(surfaceRoot, '../../snapback/generated')],
+    }),
+    react(),
+    sourceProvenanceProbe,
+  ],
   define: {
     __SNAPBACK_API_ORIGIN__: JSON.stringify(snapbackTarget),
   },

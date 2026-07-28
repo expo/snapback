@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "FlyCredentialBindingV2": {
+      "additionalProperties": false,
+      "properties": {
+        "allowedVerbs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string"
+        },
+        "resourcePrefixes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "credentialRef",
+        "fingerprint",
+        "allowedVerbs",
+        "resourcePrefixes"
+      ],
+      "type": "object"
+    },
+    "FlyTargetBindingVersion": {
+      "enum": [
+        "snapback.fly-target-binding.v2"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/fly-target.binding-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Closed, generation-fenced binding for one Fly target.\n\n@ref LLP 0105#expiring-routed-machine-authority — effect-time discovery is\nforbidden; the control plane pins the complete roster, routes, storage,\ncertificate posture, supervisor, and separated credential roles.",
+  "properties": {
+    "activeMachineId": {
+      "type": "string"
+    },
+    "appId": {
+      "type": "string"
+    },
+    "artifactPrefix": {
+      "type": "string"
+    },
+    "auditPrefix": {
+      "type": "string"
+    },
+    "autoscaleEnabled": {
+      "type": "boolean"
+    },
+    "autostartEnabled": {
+      "type": "boolean"
+    },
+    "autostopEnabled": {
+      "type": "boolean"
+    },
+    "backupPrefix": {
+      "type": "string"
+    },
+    "bindingGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "certificatePosture": {
+      "type": "string"
+    },
+    "cleanupPrefix": {
+      "type": "string"
+    },
+    "controlStatePrefix": {
+      "type": "string"
+    },
+    "credentials": {
+      "items": {
+        "$ref": "#/$defs/FlyCredentialBindingV2"
+      },
+      "type": "array"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "externalHeadKey": {
+      "type": "string"
+    },
+    "logPrefix": {
+      "type": "string"
+    },
+    "machineRoster": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "observedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ociDigest": {
+      "type": "string"
+    },
+    "ociRepository": {
+      "type": "string"
+    },
+    "organizationId": {
+      "type": "string"
+    },
+    "ownershipSentinel": {
+      "type": "string"
+    },
+    "predecessorBindingSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publicOrigin": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "routedMachineIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/FlyTargetBindingVersion"
+    },
+    "serviceProcessGroups": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "supervisorInstallationId": {
+      "type": "string"
+    },
+    "supervisorOciDigest": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "tigrisBucket": {
+      "type": "string"
+    },
+    "tlsIssuer": {
+      "type": "string"
+    },
+    "volumeId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "targetId",
+    "bindingGeneration",
+    "organizationId",
+    "appId",
+    "region",
+    "publicOrigin",
+    "activeMachineId",
+    "machineRoster",
+    "routedMachineIds",
+    "serviceProcessGroups",
+    "autostopEnabled",
+    "autostartEnabled",
+    "autoscaleEnabled",
+    "volumeId",
+    "ociRepository",
+    "ociDigest",
+    "tigrisBucket",
+    "artifactPrefix",
+    "backupPrefix",
+    "controlStatePrefix",
+    "auditPrefix",
+    "logPrefix",
+    "cleanupPrefix",
+    "tlsIssuer",
+    "certificatePosture",
+    "externalHeadKey",
+    "ownershipSentinel",
+    "supervisorInstallationId",
+    "supervisorOciDigest",
+    "credentials",
+    "observedAtMs",
+    "expiresAtMs"
+  ],
+  "title": "FlyTargetBindingV2",
+  "type": "object"
+}

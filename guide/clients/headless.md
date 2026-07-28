@@ -41,6 +41,9 @@ additional exports are required.
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // Set only after capability preflight advertises the hosted ephemeral
+    // authority offer. Old servers therefore never see an unknown member.
+    ephemeralAuthorityProtocol = null,
     authCoordinator = null,
     agentAuthority = null,
     senderConstrained = false,
@@ -176,6 +179,25 @@ are an authorization error; matching hashes do not bypass the gate. A fresh
 mode transition requires the server restart named by its staged-mode response.
 The explicit variant currently refuses `routes`; ensure routes separately only
 on the legacy `dev` path. Never reset as a mount side effect.
+
+### Versioned seed lifecycle is capability-gated
+
+A generated `seed.artifact.json` uses the predecessor-unknown v1 family:
+`ensureVersionedSeed`, `previewVersionedSeed`,
+`resetInstallVersionedSeed`, and `clearVersionedSeed`. Each method first reads
+the target capability manifest and refuses
+`SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED` when the matching
+`versioned_seed_install_v1` or `versioned_seed_reset_v1` assertion is absent.
+It never retries through legacy `ensureApp({seed})`, `reset(seed)`, or
+`seed(seed)`.
+
+The predecessor-backed executable local gate is complete, so local and remote
+SQLite targets advertise those ids with `experimental` maturity while LLP 0103
+remains in Review. Artifacts must acknowledge that maturity; hosted
+compiled-seed custody remains a GAP. Preview is AdminWrite + NonProd even
+though it is read-only; reset-install and clear reuse the ordinary coordinated
+app reset and require an exact `{state:"absent"}` or
+`{state:"present",value:<UUIDv7>}` predecessor stream.
 
 ## Call ordinary functions
 

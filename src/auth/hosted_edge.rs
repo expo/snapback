@@ -287,7 +287,10 @@ pub fn select_admission_for_now(
     // The chain's total span is capped, so a pre-signed window cannot become an
     // unbounded grant of un-withdrawable serving.
     if let (Some(first), Some(last)) = (envelopes.first(), envelopes.last())
-        && last.admission.expires_at_ms.saturating_sub(first.admission.issued_at_ms)
+        && last
+            .admission
+            .expires_at_ms
+            .saturating_sub(first.admission.issued_at_ms)
             > MAX_PRESIGNED_WINDOW_MS
     {
         return Err(refuse(
@@ -349,7 +352,12 @@ pub fn configuration_digest(
         profile.as_bytes(),
         public_origin.as_bytes(),
         first_contact_transport.wire_value().as_bytes(),
-        if bind_is_loopback { b"loopback" } else { b"routable" }.as_slice(),
+        if bind_is_loopback {
+            b"loopback"
+        } else {
+            b"routable"
+        }
+        .as_slice(),
         if operator_surface_disabled {
             b"operator-disabled".as_slice()
         } else {
@@ -510,7 +518,8 @@ fn advance_watermark(
             )
         })?;
     if let Some((durable_epoch, durable_floor)) = current
-        && (admission_epoch < durable_epoch as u64 || sender_replay_epoch_floor < durable_floor as u64)
+        && (admission_epoch < durable_epoch as u64
+            || sender_replay_epoch_floor < durable_floor as u64)
     {
         return Err(refuse(
             "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",

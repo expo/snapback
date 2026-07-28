@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "HostedAdmissionV2Version": {
+      "enum": [
+        "snapback.hosted-admission.v2"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/hosted-admission-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admissionGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "bindingGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "controlHeadSha256": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "exactRosterSha256": {
+      "type": "string"
+    },
+    "hostedAuthExpiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "issuedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "replayFloor": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "routedMachineExpiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "routedMachineId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/HostedAdmissionV2Version"
+    },
+    "signature": {
+      "type": "string"
+    },
+    "supervisorIncarnation": {
+      "type": "string"
+    },
+    "targetBindingSha256": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "targetId",
+    "deploymentId",
+    "bindingGeneration",
+    "targetBindingSha256",
+    "controlHeadSha256",
+    "supervisorIncarnation",
+    "exactRosterSha256",
+    "routedMachineId",
+    "hostedAuthExpiresAtMs",
+    "routedMachineExpiresAtMs",
+    "replayFloor",
+    "admissionGeneration",
+    "issuedAtMs",
+    "signature"
+  ],
+  "title": "HostedAdmissionV2",
+  "type": "object"
+}

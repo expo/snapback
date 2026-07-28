@@ -4,13 +4,13 @@ id: backend.relational-queries
 order: 26
 audience: agent-first
 capabilities: [backend.relational-queries]
-authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
-examples: [packages/snapback-codegen/relational-authoring.test.mjs]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0104-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-26
-reviewed-commit: 6aa857a8f426e0618c09e09f9f35fbfd72438638
+reviewed-commit: HEAD
 ---
 
 # Relational queries (bounded joins)
@@ -182,3 +182,56 @@ The contract, all enforced at generation and re-proved at activation:
 Author-supplied root filters beyond visibility remain specified by
 LLP 0080 but not yet implemented — see the Step 5 implementation program
 under `issues/`.
+
+## Design reference: one bounded child page
+
+`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program,
+but it is **review-gated and not an advertised capability**. Do not select it
+for production based on code presence. The capability index remains a GAP
+until the paired-store, restore/backfill, cursor-vector, result-contract,
+first-party client, and hosted-target gates named by LLP 0104 pass without
+skips.
+
+The local executor is not declaration-only:
+`node demos/backend-bakeoff/tests/snapback.mjs` exercises owner, invisible,
+missing, and inactive parents plus a two-page `sbbc1` traversal against the
+persisted server. That local proof is green; the remaining GAP is the Spec's
+publication lifecycle and cross-target evidence.
+
+The reviewed declaration makes the security and work proof explicit:
+
+- the parent visibility is `owner(field)` or `public-read`;
+- the child relationship is a required typed parent id plus a required
+  `v.relationIncarnationOf(...)` stamp owned by the framework;
+- the named child index is exactly
+  `[foreignKey, relationIncarnation, ...ascendingOrderFields]`;
+- the child projection includes `_id` and every order field;
+- `take` is 0–1024, with at most `take + 1` physical index entries examined;
+  `take: 0` performs no child read;
+- parent deletion retains but hides orphan children, and recreating the same
+  application id cannot revive them;
+- missing and invisible parents return the same discriminator row:
+  `{kind: "absent", parent: null, children: [], continuation: null}`;
+- visible pages use the AEAD-protected `sbbc1` continuation inside the
+  computed row; the top-level query cursor remains absent; and
+- only the cursor-free first page is `live_replace`. Cursor-bearing
+  subscribe/resume refuses.
+
+Central inserts, buffered handlers, seed, migration, import, and restore all
+stamp the protected relation field from a physically present active parent.
+Application attempts to insert or patch that field refuse. Moving a foreign
+key re-derives the stamp; moving to a missing or inactive parent refuses.
+
+The v1 cursor is not an offset or raw order key. It is a 1,024-byte-capped
+XChaCha20-Poly1305 credential binding app/database/target, authorization
+stream, function and normalized plan, parent id/incarnation/version,
+authority partition, order schema, boundary values, and child `_id`.
+Malformed or cross-boundary use is uniformly invalid; a valid credential
+whose parent or authorization stream changed requires a first-page restart.
+
+## Anti-patterns
+
+- Do not hand-author a relation-incarnation value or expose it as an argument.
+- Do not group an unbounded all-child feed in the client and call it bounded.
+- Do not authorize children after applying the page limit.
+- Do not treat the review-gated builder as a positive target capability.

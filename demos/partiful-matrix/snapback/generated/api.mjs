@@ -3,59 +3,80 @@ export const ephemeral = Object.freeze({});
 export const api = Object.freeze({
   "createEvent": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:11bc6dcdfece337b5d765023c0a5f0242538a3296d724021a9459d9d0343cddc",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:createEvent",
+    "implementationHash": "sha256:64eb1b02feb382852e74b04130d5068dcd0ab4df53de33e2794510d54171f761",
     "kind": "Mutation",
     "name": "createEvent",
+    "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
   },
   "ephemeral": {},
   "eventDetails": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventDetails",
+    "implementationHash": "sha256:a12a0fe9883ad380cd2be981f38e0051836486ef2627d94b08475ebeb5add2bb",
     "kind": "LiveQuery",
     "name": "eventDetails",
+    "resultContractHash": "sha256:6e8a1da359492e15583446874c01c70905672629a0178b17e55efb0b794f35aa",
     "schemaVersion": "snapback.v0"
   },
   "eventWall": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:eventWall",
+    "implementationHash": "sha256:d7983cc112d417b3d61228e7b3bafdf70c2b019476f08ac5d1a898e873f3bfe0",
     "kind": "LiveQuery",
     "name": "eventWall",
+    "resultContractHash": "sha256:da7850a1955d58adcc8e8ffd656e579e565f45a1244d4f5284d9345f395f93e6",
     "schemaVersion": "snapback.v0"
   },
   "guestList": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:67254eab07a32f3783be79c251fcea67733518d76f1b6471b2dd6e7feb3320ed",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:guestList",
+    "implementationHash": "sha256:4ed599fb6f3ee4464cf8608bb0924e38c803b794dce1b58a48924c423bfb5ce6",
     "kind": "LiveQuery",
     "name": "guestList",
+    "resultContractHash": "sha256:f3ec19b7f27f93fe3bb28136548d8c2499d55dc5bcab0a671945bd17f9f454f7",
     "schemaVersion": "snapback.v0"
   },
   "listEvents": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:9180707834c57228763b20d5f1682ddbb0a3a19164c12d19b7ba8ab5f202e418",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:listEvents",
+    "implementationHash": "sha256:ca5ca8503609674aa32794c4ebff838343183f2782d05c3f6d66adfe03cfe3f6",
     "kind": "LiveQuery",
     "name": "listEvents",
+    "resultContractHash": "sha256:6e8a1da359492e15583446874c01c70905672629a0178b17e55efb0b794f35aa",
     "schemaVersion": "snapback.v0"
   },
   "postMessage": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:5104e0a91c1d073390e5e9233f4726fa318f09e4ba263f0eb099add41062d7a6",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:postMessage",
+    "implementationHash": "sha256:9ed335af28be64707c2b1af408c6cbe1c0675a6af9d6835b9924261988c3b0e9",
     "kind": "Mutation",
     "name": "postMessage",
+    "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
   },
   "rsvp": {
     "appId": "partiful-matrix",
+    "argsContractHash": "sha256:5c61185bbd96f8447561d40a7ca7abbbd9e01e8e1515be6424d298ee7dd6382f",
     "artifactKind": "functionReference",
     "id": "partiful-matrix:rsvp",
+    "implementationHash": "sha256:ffc64e0c114dab7450b318f6e297878cac04cac7481c6f1e6bdf3f2660dcd649",
     "kind": "Mutation",
     "name": "rsvp",
+    "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
   }
 });

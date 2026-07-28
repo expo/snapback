@@ -2592,6 +2592,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         },
         LiveSocketServerFrame::Ephemeral {
             message: EphemeralMessage::ResyncRequired {
+                ephemeral_authority_instance: None,
                 room: snapback::ephemeral::RoomId {
                     collection: "cursors".to_owned(),
                     scope: Scope::from_pairs([("doc", "d1")]),
@@ -2711,6 +2712,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     for envelope in [
         RealtimeEnvelope::Durable(DurableMessage::new(b"{\"kind\":\"live_replace\"}".to_vec())),
         RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+            ephemeral_authority_instance: None,
             room: snapback::ephemeral::RoomId {
                 collection: "cursors".to_owned(),
                 scope: Scope::from_pairs([("doc", "d1")]),
@@ -2734,6 +2736,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             connection_token: "tok_1".to_owned(),
             authorization_invalidation: None,
             wire_version: None,
+            ephemeral_authority_protocol: None,
         })
         .unwrap(),
     );
@@ -2746,6 +2749,9 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             connection_token: "tok_1".to_owned(),
             authorization_invalidation: None,
             wire_version: Some("snapback.v1".to_owned()),
+            ephemeral_authority_protocol: Some(
+                snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1,
+            ),
         })
         .unwrap(),
     );
@@ -2754,6 +2760,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         previous_token: Some("sct_prior_bearer".to_owned()),
         auth_invalidation_protocol: None,
         wire_version: Some("snapback.v1".to_owned()),
+        ephemeral_authority_protocol: Some(snapback::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),
     })
     .unwrap();
     assert_validates("connection.open.input.schema.json", &open_request);
@@ -3123,7 +3130,10 @@ fn handler_marker_envelope_schemas_accept_served_shapes_and_reject_extensions() 
     assert_rejects("handler.invoke.output.schema.json", &bad_phase);
     assert_rejects("handler.invoke.output.schema.json", &json!({}));
     let mut sweepless = settled;
-    sweepless.as_object_mut().unwrap().remove("unhandledRejections");
+    sweepless
+        .as_object_mut()
+        .unwrap()
+        .remove("unhandledRejections");
     assert_rejects("handler.invoke.output.schema.json", &sweepless);
 
     // Host-call body.
@@ -3464,7 +3474,10 @@ fn gap_row_schemas_accept_representative_values() {
     assert_validates("live.socket-client.sessions.schema.json", &session_ping);
     let mut asserted_identity = session_publish.clone();
     asserted_identity["request"]["user_id"] = json!("user_1");
-    assert_rejects("live.socket-client.sessions.schema.json", &asserted_identity);
+    assert_rejects(
+        "live.socket-client.sessions.schema.json",
+        &asserted_identity,
+    );
     let mut unknown_kind = session_publish;
     unknown_kind["type"] = json!("ephemeral_broadcast");
     assert_rejects("live.socket-client.sessions.schema.json", &unknown_kind);

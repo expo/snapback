@@ -9,6 +9,7 @@ const demos = discoverDemoSetups(repoRoot);
 assert(demos.has('graffiti'), 'Graffiti is discovered from demo.snapback.json');
 assert.deepEqual([...demos.keys()].sort(), [
   'all-aboard',
+  'backend-bakeoff',
   'card-game',
   'cursors-web',
   'graffiti',

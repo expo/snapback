@@ -1,0 +1,142 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/hosted-ephemeral.facts-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activationGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "authInvalidationProtocol": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "authoritySha256": {
+      "type": "string"
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "backendSha256": {
+      "type": "string"
+    },
+    "definitionGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "dispatchMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "durableLanePriority": {
+      "type": "boolean"
+    },
+    "excludedFromBackup": {
+      "type": "boolean"
+    },
+    "excludedFromMigration": {
+      "type": "boolean"
+    },
+    "excludedFromRestore": {
+      "type": "boolean"
+    },
+    "implementationSha256": {
+      "type": "string"
+    },
+    "lossRecovery": {
+      "type": "string"
+    },
+    "maximumActiveRooms": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maximumEntriesPerRoom": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maximumFrameBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maximumSubscribersPerRoom": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maximumValueBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "nonclaims": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "processBootId": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "releaseId": {
+      "type": "string"
+    },
+    "routedMachineCount": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "routingAuthoritySha256": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "statePersistence": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "available",
+    "profile",
+    "backendSha256",
+    "implementationSha256",
+    "routingAuthoritySha256",
+    "routedMachineCount",
+    "deploymentId",
+    "releaseId",
+    "activationGeneration",
+    "processBootId",
+    "definitionGeneration",
+    "authoritySha256",
+    "maximumActiveRooms",
+    "maximumEntriesPerRoom",
+    "maximumSubscribersPerRoom",
+    "maximumValueBytes",
+    "maximumFrameBytes",
+    "dispatchMs",
+    "authInvalidationProtocol",
+    "statePersistence",
+    "lossRecovery",
+    "durableLanePriority",
+    "excludedFromBackup",
+    "excludedFromMigration",
+    "excludedFromRestore",
+    "nonclaims"
+  ],
+  "title": "HostedEphemeralFactsV1",
+  "type": "object"
+}

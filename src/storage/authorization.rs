@@ -162,6 +162,7 @@ mod tests {
                 permission_backing: true,
                 permission_fields: permission_fields
                     .map(|fields| fields.into_iter().map(str::to_owned).collect()),
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -216,6 +217,7 @@ mod tests {
                 // The declaration, not a duplicated raw flag, owns this.
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: Some("event-members".to_owned()),
                     principal: "principalId".to_owned(),

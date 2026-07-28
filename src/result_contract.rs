@@ -1,0 +1,326 @@
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::manifest::{
+    FunctionDefinition, FunctionResultContract, ResultObjectFieldContract, ResultValueContract,
+};
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
+
+/// Every handler result, including an `unknown` compatibility result, is
+/// bounded before it can be published or committed.
+///
+/// @ref LLP 0101#final-author-reconciliation-after-round-3 — the Rust host
+/// validates the post-JSON value; mutations are checked while effects are
+/// still buffered.
+pub const MAX_HANDLER_RESULT_BYTES: usize = 4 * 1024 * 1024;
+const MAX_RESULT_NODES: usize = 65_536;
+const MAX_RESULT_DEPTH: usize = 16;
+
+pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> SnapbackResult<()> {
+    let bytes = serde_json::to_vec(value).map_err(|_| violation(function, "$"))?;
+    if bytes.len() > MAX_HANDLER_RESULT_BYTES {
+        return Err(violation(function, "$"));
+    }
+    let mut budget = ValidationBudget { nodes: 0 };
+    match &function.result_contract {
+        FunctionResultContract::Unknown => validate_json_budget(value, 0, &mut budget),
+        FunctionResultContract::Documents { document, .. } => {
+            validate_rows(function, value, document, &mut budget)
+        }
+        FunctionResultContract::Records { record } => {
+            validate_rows(function, value, record, &mut budget)
+        }
+        FunctionResultContract::LegacyQueryRowsV0 { row } => {
+            validate_rows(function, value, row, &mut budget)
+        }
+        FunctionResultContract::Document { document, .. } => {
+            validate_value(function, value, document, "$", 0, &mut budget)
+        }
+        FunctionResultContract::Value { value: contract } => {
+            validate_value(function, value, contract, "$", 0, &mut budget)
+        }
+    }
+    .map_err(|path| violation(function, &path))
+}
+
+fn validate_rows(
+    function: &FunctionDefinition,
+    value: &Value,
+    row: &ResultValueContract,
+    budget: &mut ValidationBudget,
+) -> Result<(), String> {
+    let rows = value.as_array().ok_or_else(|| "$".to_owned())?;
+    for (index, value) in rows.iter().enumerate() {
+        validate_value(function, value, row, &format!("$[{index}]"), 1, budget)?;
+    }
+    Ok(())
+}
+
+struct ValidationBudget {
+    nodes: usize,
+}
+
+fn consume(budget: &mut ValidationBudget, depth: usize, path: &str) -> Result<(), String> {
+    budget.nodes = budget.nodes.saturating_add(1);
+    if budget.nodes > MAX_RESULT_NODES || depth > MAX_RESULT_DEPTH {
+        Err(path.to_owned())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_value(
+    function: &FunctionDefinition,
+    value: &Value,
+    contract: &ResultValueContract,
+    path: &str,
+    depth: usize,
+    budget: &mut ValidationBudget,
+) -> Result<(), String> {
+    let _ = function;
+    consume(budget, depth, path)?;
+    match contract {
+        ResultValueContract::Null if value.is_null() => Ok(()),
+        ResultValueContract::Boolean if value.is_boolean() => Ok(()),
+        ResultValueContract::String { max_bytes } => value
+            .as_str()
+            .filter(|text| text.len() <= *max_bytes)
+            .map(|_| ())
+            .ok_or_else(|| path.to_owned()),
+        ResultValueContract::Integer { min, max } => value
+            .as_i64()
+            .filter(|number| number >= min && number <= max)
+            .map(|_| ())
+            .ok_or_else(|| path.to_owned()),
+        ResultValueContract::FiniteReal { min, max } => value
+            .as_f64()
+            .filter(|number| number.is_finite() && number >= min && number <= max)
+            .map(|_| ())
+            .ok_or_else(|| path.to_owned()),
+        ResultValueContract::Principal | ResultValueContract::Id { .. } => value
+            .as_str()
+            .filter(|text| !text.is_empty())
+            .map(|_| ())
+            .ok_or_else(|| path.to_owned()),
+        ResultValueContract::Literal { value: expected } if value == expected => Ok(()),
+        ResultValueContract::Json {
+            max_depth,
+            max_bytes,
+        } => {
+            if serde_json::to_vec(value).map_or(true, |bytes| bytes.len() > *max_bytes) {
+                return Err(path.to_owned());
+            }
+            validate_json_budget_with_limit(value, depth, *max_depth, budget, path)
+        }
+        ResultValueContract::Array { element, max_items } => {
+            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            if values.len() > *max_items {
+                return Err(path.to_owned());
+            }
+            for (index, value) in values.iter().enumerate() {
+                validate_value(
+                    function,
+                    value,
+                    element,
+                    &format!("{path}[{index}]"),
+                    depth + 1,
+                    budget,
+                )?;
+            }
+            Ok(())
+        }
+        ResultValueContract::Union { variants } => {
+            for variant in variants {
+                let mut trial = ValidationBudget {
+                    nodes: budget.nodes,
+                };
+                if validate_value(function, value, variant, path, depth, &mut trial).is_ok() {
+                    budget.nodes = trial.nodes;
+                    return Ok(());
+                }
+            }
+            Err(path.to_owned())
+        }
+        ResultValueContract::Object {
+            fields,
+            allow_extra,
+        } => validate_object(function, value, fields, *allow_extra, path, depth, budget),
+        _ => Err(path.to_owned()),
+    }
+}
+
+fn validate_object(
+    function: &FunctionDefinition,
+    value: &Value,
+    fields: &[ResultObjectFieldContract],
+    allow_extra: bool,
+    path: &str,
+    depth: usize,
+    budget: &mut ValidationBudget,
+) -> Result<(), String> {
+    let object = value.as_object().ok_or_else(|| path.to_owned())?;
+    let names = fields
+        .iter()
+        .map(|field| field.name.as_str())
+        .collect::<BTreeSet<_>>();
+    if !allow_extra {
+        if let Some(name) = object.keys().find(|name| !names.contains(name.as_str())) {
+            return Err(format!("{path}.{}", path_segment(name)));
+        }
+    }
+    for field in fields {
+        match object.get(&field.name) {
+            Some(value) => validate_value(
+                function,
+                value,
+                &field.value,
+                &format!("{path}.{}", path_segment(&field.name)),
+                depth + 1,
+                budget,
+            )?,
+            None if field.required => {
+                return Err(format!("{path}.{}", path_segment(&field.name)));
+            }
+            None => {}
+        }
+    }
+    Ok(())
+}
+
+fn path_segment(name: &str) -> String {
+    if name
+        .bytes()
+        .all(|byte| byte == b'_' || byte.is_ascii_alphanumeric())
+    {
+        name.to_owned()
+    } else {
+        "<field>".to_owned()
+    }
+}
+
+fn validate_json_budget(
+    value: &Value,
+    depth: usize,
+    budget: &mut ValidationBudget,
+) -> Result<(), String> {
+    validate_json_budget_with_limit(value, depth, MAX_RESULT_DEPTH, budget, "$")
+}
+
+fn validate_json_budget_with_limit(
+    value: &Value,
+    depth: usize,
+    max_depth: usize,
+    budget: &mut ValidationBudget,
+    path: &str,
+) -> Result<(), String> {
+    consume(budget, depth, path)?;
+    if depth > max_depth {
+        return Err(path.to_owned());
+    }
+    match value {
+        Value::Array(values) => {
+            for (index, value) in values.iter().enumerate() {
+                validate_json_budget_with_limit(
+                    value,
+                    depth + 1,
+                    max_depth,
+                    budget,
+                    &format!("{path}[{index}]"),
+                )?;
+            }
+        }
+        Value::Object(object) => {
+            for (name, value) in object {
+                validate_json_budget_with_limit(
+                    value,
+                    depth + 1,
+                    max_depth,
+                    budget,
+                    &format!("{path}.{}", path_segment(name)),
+                )?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn violation(function: &FunctionDefinition, path: &str) -> SnapbackError {
+    let path_hash = Sha256::digest(path.as_bytes());
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
+        "runtime",
+        format!(
+            "handler {:?} returned a value outside its declared result contract",
+            function.id
+        ),
+    )
+    .with_details(json!({
+        "functionId": function.id,
+        "resultContractHash": function.result_contract_hash,
+        "pathHash": format!("sha256:{path_hash:x}"),
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{FunctionKind, FunctionRuntime, HandlerPlan, QueryPlan};
+
+    fn function(contract: FunctionResultContract) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            "rows",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        function.result_contract = contract;
+        function.result_contract_hash = Some("sha256:test".to_owned());
+        function
+    }
+
+    #[test]
+    fn exact_record_contract_rejects_extra_fields_without_echoing_values() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+        });
+        let error = validate_handler_result(
+            &function,
+            &json!([{"title": "ok", "secret": "do-not-echo"}]),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+        );
+        assert!(!error.to_string().contains("do-not-echo"));
+    }
+
+    #[test]
+    fn record_contract_accepts_matching_rows() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+        });
+        validate_handler_result(&function, &json!([{"title": "ok"}])).unwrap();
+    }
+}

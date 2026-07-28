@@ -1,0 +1,11 @@
+{
+  "tables": {
+    "todos": [
+      {
+        "_id": "todo_expo",
+        "title": "Bundle Snapback for Expo",
+        "completed": false
+      }
+    ]
+  }
+}

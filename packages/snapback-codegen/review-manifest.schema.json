@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/codegen-review-manifest.v2.json",
+  "title": "Snapback codegen review manifest",
+  "type": "object",
+  "required": [
+    "artifactKind",
+    "manifestVersion",
+    "inputsHash",
+    "reviewManifest",
+    "cache",
+    "custody",
+    "files",
+    "summary"
+  ],
+  "properties": {
+    "artifactKind": { "const": "artifactIndex" },
+    "manifestVersion": { "const": 2 },
+    "inputsHash": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{16,64}|snapback\\.v[0-9]+:[a-z0-9][a-z0-9-]*:inputs:sha256:[0-9a-f]{64})$"
+    },
+    "reviewManifest": {
+      "type": "object",
+      "required": ["path", "custody", "authority"],
+      "properties": {
+        "path": { "const": "artifacts.json" },
+        "custody": { "const": "review-manifest" },
+        "authority": { "const": "@snapback/codegen/review-manifest.schema.json" }
+      },
+      "additionalProperties": false
+    },
+    "cache": {
+      "type": "object",
+      "required": ["key", "graphPath", "regenerationRule"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "graphPath": { "type": "string", "minLength": 1 },
+        "regenerationRule": { "const": "regenerate-or-fail-closed" }
+      },
+      "additionalProperties": false
+    },
+    "custody": {
+      "type": "object",
+      "required": ["review-manifest", "consumer-committed", "regenerable-cache"],
+      "properties": {
+        "review-manifest": { "const": 1 },
+        "consumer-committed": { "type": "integer", "minimum": 0 },
+        "regenerable-cache": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "bytes",
+          "logicalKind",
+          "custody",
+          "consumer",
+          "regeneration"
+        ],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "logicalKind": { "type": "string", "minLength": 1 },
+          "custody": { "enum": ["consumer-committed", "regenerable-cache"] },
+          "consumer": { "type": "string", "minLength": 1 },
+          "regeneration": {
+            "type": "object",
+            "required": ["rule", "command"],
+            "properties": {
+              "rule": { "const": "complete-inputs-hash" },
+              "command": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["schemaVersion", "appId", "inputsHash", "counts", "degradedResults"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.codegen-summary.v1" },
+        "appId": { "type": "string", "minLength": 1 },
+        "inputsHash": { "type": "string", "minLength": 1 },
+        "counts": { "type": "object" },
+        "degradedResults": { "type": "array" }
+      }
+    }
+  }
+}

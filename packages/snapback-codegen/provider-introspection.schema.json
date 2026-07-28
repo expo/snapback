@@ -69,6 +69,10 @@
           "type": "array",
           "items": { "$ref": "#/$defs/mutation" }
         },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
         "ephemeral": {
           "type": "array",
           "items": { "$ref": "#/$defs/ephemeral" }
@@ -90,6 +94,18 @@
     "extensions": {
       "type": "object",
       "additionalProperties": true
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["revision", "implementationHash", "argumentsHash", "resultHash", "result"],
+      "properties": {
+        "revision": { "const": "snapback.result-contract.v1" },
+        "implementationHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "argumentsHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "resultHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "result": { "type": "object" }
+      }
     },
     "dataType": {
       "oneOf": [
@@ -121,6 +137,43 @@
             "fields": {
               "type": "object",
               "additionalProperties": { "$ref": "#/$defs/dataType" }
+            },
+            "optional": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "value"],
+          "properties": {
+            "shape": { "const": "literal" },
+            "value": {
+              "type": ["string", "number", "boolean", "null"]
+            },
+            "optional": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "items"],
+          "properties": {
+            "shape": { "const": "array" },
+            "items": { "$ref": "#/$defs/dataType" },
+            "optional": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "variants"],
+          "properties": {
+            "shape": { "const": "union" },
+            "variants": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": { "$ref": "#/$defs/dataType" }
             },
             "optional": { "type": "boolean" }
           }
@@ -224,6 +277,7 @@
         },
         "delivery": { "$ref": "#/$defs/delivery" },
         "retainable": { "type": "boolean" },
+        "contract": { "$ref": "#/$defs/contract" },
         "extensions": { "$ref": "#/$defs/extensions" }
       }
     },
@@ -253,6 +307,27 @@
             "source": { "enum": ["none", "provider-plan", "consumer"] }
           }
         },
+        "contract": { "$ref": "#/$defs/contract" },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "arguments", "execution", "effects"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "arguments": { "$ref": "#/$defs/arguments" },
+        "execution": { "$ref": "#/$defs/execution" },
+        "effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["writes"],
+          "properties": {
+            "writes": { "$ref": "#/$defs/stringSet" }
+          }
+        },
+        "contract": { "$ref": "#/$defs/contract" },
         "extensions": { "$ref": "#/$defs/extensions" }
       }
     },

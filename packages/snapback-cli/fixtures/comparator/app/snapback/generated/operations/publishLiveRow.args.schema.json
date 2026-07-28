@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/publishLiveRow.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "body"
+  ],
+  "title": "app:publishLiveRow arguments",
+  "type": "object"
+}

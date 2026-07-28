@@ -1,8 +1,0 @@
-{
-  "$id": "https://schemas.snapback.dev/apps/rbac/acceptInvite.args.schema.json",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "properties": {},
-  "title": "rbac:acceptInvite arguments",
-  "type": "object"
-}

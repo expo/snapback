@@ -37,6 +37,7 @@ export default () => ({
   plugins: [
     snapbackDev({
       projectRoot: __dirname,
+      generatedRoots: [join(demoRoot, 'snapback', 'generated')],
       server: externalTarget
         ? { mode: 'external', url: externalTarget }
         : {

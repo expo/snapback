@@ -68,7 +68,10 @@ fn case_input(case: &Value) -> HandlerInput {
 }
 
 fn field_order(plan: &RelationalQueryPlan) -> Vec<String> {
-    plan.projection.iter().map(|leaf| leaf.name.clone()).collect()
+    plan.projection
+        .iter()
+        .map(|leaf| leaf.name.clone())
+        .collect()
 }
 
 fn storage_lane(
@@ -78,7 +81,8 @@ fn storage_lane(
     input: &HandlerInput,
 ) -> Result<Vec<Value>, String> {
     let mut db = LocalDatabase::memory().expect("memory storage lane");
-    db.apply_schema(schema.clone()).expect("apply corpus schema");
+    db.apply_schema(schema.clone())
+        .expect("apply corpus schema");
     db.seed(SeedData {
         tables: tables.clone(),
     })
@@ -109,7 +113,10 @@ fn corpus_executes_byte_identically_across_local_lanes() {
         .apply_schema(schema.clone())
         .expect("apply corpus schema to dispatch lanes");
     let lane = snapback.read_lane();
-    assert!(lane.available(), "file-backed fixture exposes the read lane");
+    assert!(
+        lane.available(),
+        "file-backed fixture exposes the read lane"
+    );
     let base_tables: BTreeMap<String, Vec<Map<String, Value>>> =
         serde_json::from_value(corpus["tables"].clone()).expect("corpus tables");
     snapback
@@ -282,7 +289,9 @@ fn paired_databases_keep_missing_and_invisible_indistinguishable() {
             "mirrors": [],
         }))
         .expect("paired tables");
-        snapback.seed(SeedData { tables }).expect("seed paired rows");
+        snapback
+            .seed(SeedData { tables })
+            .expect("seed paired rows");
         snapback
     };
     let input = |args: Value| HandlerInput {
@@ -334,7 +343,10 @@ fn paired_databases_keep_missing_and_invisible_indistinguishable() {
         relational_result_encoding_v1(&order, &next_invisible.rows).expect("invisible 2 encodes"),
         relational_result_encoding_v1(&order, &next_missing.rows).expect("missing 2 encodes"),
     );
-    assert_eq!(next_invisible.cursor.is_some(), next_missing.cursor.is_some());
+    assert_eq!(
+        next_invisible.cursor.is_some(),
+        next_missing.cursor.is_some()
+    );
 
     // Cursor refusals are byte-identical on both databases.
     let refusal = |snapback: &LocalSnapback| {
@@ -448,7 +460,10 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
         .iter()
         .map(|row| row["title"].as_str().expect("title"))
         .collect();
-    assert_eq!(titles, vec!["t00000", "t00300", "t00600", "t00900", "t01200"]);
+    assert_eq!(
+        titles,
+        vec!["t00000", "t00300", "t00600", "t00900", "t01200"]
+    );
     assert!(continuation.is_some(), "full sparse window continues");
 
     // Duplicate order keys: two evaluations are byte-identical, and the

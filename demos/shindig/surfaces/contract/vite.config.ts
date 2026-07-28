@@ -7,8 +7,10 @@
 // the React arm so both surfaces compare against one server.
 
 import { realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { exactContractWeb } from '@exact/devtools/contract-web';
+import { snapbackDev } from '../../../../packages/snapback-vite/index.mjs';
 
 const snapbackTarget = process.env.SNAPBACK_SHINDIG_API ?? 'http://127.0.0.1:4431';
 
@@ -42,6 +44,10 @@ const sourceProvenanceProbe = {
 export default () => ({
   root: __dirname,
   plugins: [
+    snapbackDev({
+      server: { mode: 'off' },
+      generatedRoots: [resolve(__dirname, '../../snapback/generated')],
+    }),
     sourceProvenanceProbe,
     exactContractWeb({
       data: 'snapback',

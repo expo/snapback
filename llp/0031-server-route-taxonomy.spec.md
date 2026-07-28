@@ -1100,6 +1100,15 @@ the Cloudflare acceptance suites are its enforcement seam, and
 `cloudflare/test/acceptance.mjs` + `acceptance.protocol-hardening.mjs`
 exercise the migrated paths and gates.
 
+## Dated amendment: versioned seed route family (2026-07-27)
+
+LLP 0103 registers
+`/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}` as
+reserved administrative app-lifecycle routes. Each is centrally classified
+AdminWrite and NonProd before its closed Rust body is parsed or seed state is
+inspected. The four routes have one-to-one LLP 0024 host-operation names and
+no legacy or root alias.
+
 ## Status
 
 Active and implemented (accepted in the LLP 0032 R1 batch): LLP 0032

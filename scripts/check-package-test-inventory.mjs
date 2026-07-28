@@ -33,6 +33,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
+      'comparator-profile.test.mjs',
       'dev-loop.test.mjs',
       'hosted-admission-producer.test.mjs',
       'mcp-control.test.mjs',
@@ -55,6 +56,7 @@ const inventories = [
       'bundle.test.mjs',
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
+      'hosted-ephemeral.test.mjs',
       'package.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-native.test.mjs',
@@ -63,8 +65,16 @@ const inventories = [
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
+      'search.test.mjs',
       'wire-version.test.mjs',
     ],
+  },
+  {
+    id: '@snapback/hosted-supervisor',
+    packageDir: 'packages/snapback-hosted-supervisor',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['index.test.mjs'],
   },
   {
     id: '@snapback/react',
@@ -95,15 +105,19 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'identifier-validation.test.mjs',
+      'inline-result-contracts.test.mjs',
       'maintained-projections.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
       'rbac-authoring.test.mjs',
       'receipt-capability.test.mjs',
+      'relation-activity-authoring.test.mjs',
       'relational-authoring.test.mjs',
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
+      'review-surface.test.mjs',
+      'seed-artifact.test.mjs',
       'standard-patterns.test.mjs',
     ],
   },
@@ -112,7 +126,9 @@ const inventories = [
     packageDir: 'packages/snapback-contract',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'artifact-validation.test.mjs',
       'auth-coordinator-contract.test.mjs',
       'auth-coordinator-missed-wakeup.test.mjs',
       'auth-coordinator.test.mjs',
@@ -236,7 +252,19 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // maintained Fly Machines VM driver suite.
 // 87 -> 88 (LLP 0094 B2): @snapback/client gains the wire-version
 // negotiation suite (open-time offer, echo witness, §0B.6 fallback).
-assert.equal(total, 88, 'reviewed package/admin test count changed');
+// 88 -> 89 (package-owned comparator acceptance kit): @snapback/cli gains
+// the five-property comparator, failure matrix, receipt, and pack proof.
+// 89 -> 91 (codegen review surface): @snapback/codegen gains cache/custody
+// conformance and @snapback/contract gains review-manifest projection checks.
+// 91 -> 94 (backend-bakeoff reconciliation): @snapback/client gains portable
+// search parsing, while @snapback/codegen gains inline/result-contract and
+// versioned-seed artifact coverage.
+// 94 -> 95 (LLP 0104): @snapback/codegen gains the bounded-relation and
+// transactional write/activity authoring corpus.
+// 95 -> 97 (LLP 0105): @snapback/client gains hosted ephemeral authority
+// replacement/republish coverage and the independently packed supervisor
+// gains its deterministic fencing/effect/spend/TLS/cleanup corpus.
+assert.equal(total, 97, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

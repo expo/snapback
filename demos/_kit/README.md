@@ -100,7 +100,12 @@ checkout:
    build.
 3. **`cargo run`** — the source-tree fallback, and the default whenever no
    binary qualifies (including every dirty-checkout launch: only a rebuild can
-   contain local edits).
+   contain local edits). Before spawning Cargo, the kit runs the same exact
+   link-and-launch probe as `scripts/ibex-doctor`: this checkout's manifest,
+   lockfile, feature selection, native inputs, target, and final binary must
+   link and launch. Missing symbols and stale-override evidence remain typed on
+   `error.diagnostic` and `error.runtimeRecovery` instead of collapsing into an
+   opaque harness startup failure.
 
 Every spawned child is bound to its unique ready-file nonce via `/health`; the
 returned handle reports `launch: { rung, command }` and `identity: { verdict,
@@ -109,6 +114,13 @@ both sides), `unpinned` (commits agree but a dirty side means the bytes are
 not pinned), `env-stamped` (an explicit `SNAPBACK_BUILD_GIT_COMMIT` /
 `SNAPBACK_BUILD_GIT_DIRTY` in the launch environment — the deterministic CI
 seam, attested rather than verified), `unverifiable`, and `stamp-mismatch`.
+
+It also reports `runtimeRecovery`, the same
+`snapback.runtime-recovery.v1` record emitted by repository
+`scripts/ibex-doctor`/bootstrap and packaged `snapback doctor`/`dev`. That
+record keeps the selected binary, resolver rung, expected checkout state,
+actual stamp, reuse reason, and exact safe override together. A final launch
+failure carries the record on `error.runtimeRecovery` and prints it once.
 
 The kit **never injects** checkout-derived stamp values into children:
 `build.rs` runs its own git probe over the binary's real inputs

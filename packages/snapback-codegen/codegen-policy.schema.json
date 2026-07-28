@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/codegen-policy.v1.json",
+  "title": "Snapback codegen custody policy",
+  "type": "object",
+  "required": ["schemaVersion", "committedProjections"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.codegen-policy.v1" },
+    "committedProjections": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.{1,2})(?:/|$))(?!.*\\\\).+$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

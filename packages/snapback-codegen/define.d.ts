@@ -17,7 +17,8 @@ export type FieldType =
   | 'Real'
   | 'Json'
   | 'Principal'
-  | { readonly Id: { readonly table: string } };
+  | { readonly Id: { readonly table: string } }
+  | { readonly RelationIncarnation: { readonly foreignKeyField: string; readonly parentTable: string } };
 
 export interface Validator<
   Value = unknown,
@@ -47,16 +48,45 @@ export type InferObjectValidatorFields<Fields extends Record<string, Validator>>
   & { [Name in OptionalValidatorKeys<Fields>]?: Exclude<InferValidator<Fields[Name]>, undefined> };
 
 export declare const v: {
-  string(): Validator<string, 'String', false>;
+  string(options?: { maxBytes?: number }): Validator<string, 'String', false>;
   principal(): Validator<string, 'Principal', false>;
   id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false>;
+  relationIncarnationOf<const ForeignKey extends string, const Parent extends string>(
+    spec: { foreignKeyField: ForeignKey; parentTable: Parent },
+  ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false>;
   boolean(): Validator<boolean, 'Boolean', false>;
-  integer(): Validator<number, 'Integer', false>;
-  real(): Validator<number, 'Real', false>;
-  number(): Validator<number, 'Real', false>;
-  json(): Validator<unknown, 'Json', false>;
+  integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false>;
+  real(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
+  number(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
+  finiteReal(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
+  json(options?: { maxDepth?: number; maxBytes?: number }): Validator<unknown, 'Json', false>;
+  null(): Validator<null, 'Json', false>;
+  literal<const Value extends string | number | boolean | null>(value: Value): Validator<Value, 'Json', false>;
   object<const Fields extends Record<string, Validator>>(fields: Fields): Validator<InferObjectValidatorFields<Fields>, 'Json', false> & { readonly fields: Fields };
   optional<Inner extends Validator>(inner: Inner): Validator<InferValidator<Inner> | undefined, Inner['fieldType'], true>;
+  array<Inner extends Validator>(
+    inner: Inner,
+    options?: { maxItems?: number },
+  ): Validator<ReadonlyArray<InferValidator<Inner>>, 'Json', false>;
+  union<const Variants extends readonly Validator[]>(
+    variants: Variants,
+  ): Validator<InferValidator<Variants[number]>, 'Json', false>;
+};
+
+export interface ResultContract<Result = unknown> {
+  readonly __resultContract: true;
+  readonly __result?: Result;
+}
+
+export declare const results: {
+  documents<const Table extends string>(table: Table): ResultContract<ReadonlyArray<{ readonly _id: string }>>;
+  records<const RowValidator extends Validator>(
+    validator: RowValidator,
+  ): ResultContract<ReadonlyArray<InferValidator<RowValidator>>>;
+  document<const Table extends string>(table: Table): ResultContract<{ readonly _id: string }>;
+  value<const ValueValidator extends Validator>(
+    validator: ValueValidator,
+  ): ResultContract<InferValidator<ValueValidator>>;
 };
 
 export interface MembershipResourceRef<Table extends string = string> {
@@ -93,7 +123,13 @@ export declare function authKind(): ValueExpr;
 export declare function authActorKind(): ValueExpr;
 export declare function authIsDelegated(): ValueExpr;
 export declare function lit(value: unknown): ValueExpr;
+export declare const literal: typeof lit;
 export declare function bindingRef(name: string): ValueExpr;
+export declare const binding: typeof bindingRef;
+export declare function authActualActor(): ValueExpr;
+export declare function authActivityActorKind(): ValueExpr;
+export declare function authGrantId(): ValueExpr;
+export declare function clientMutationDigest(): ValueExpr;
 export declare function runtimeId(): ValueExpr;
 export declare function runtimeNow(): ValueExpr;
 /** Null-propagating access by arbitrary string key (hyphenated keys fine). */
@@ -217,7 +253,8 @@ export type TargetCapabilityId =
   | 'ibex_ctx_db_host_bridge'
   | 'live_subscriptions'
   | 'mutation_read_set_validation'
-  | 'permission_epoch_resync';
+  | 'permission_epoch_resync'
+  | 'full_text_search_v1';
 
 export interface FunctionAuthOptions {
   /** Controls whether the resolved server authority must carry a user. */
@@ -252,35 +289,41 @@ export interface HostPlanQuerySpec extends QueryAuthOptions {
   membership?: MembershipPredicate[];
 }
 
-export interface JsQuerySpec extends QueryAuthOptions {
+interface JsQuerySpecBase extends QueryAuthOptions {
   args?: Record<string, Validator>;
-  source: string;
-  exportName: string;
   reads: string[];
-  result?: Validator;
+  result?: Validator | ResultContract;
   authScopeField?: string;
   /** Closed declaration for diagnostics. JavaScript remains non-retainable
    * until its ctx.auth and module-state profile is mechanically proved. */
   authorizationDependence?: AuthorizationInputDimension[];
   defaultLive?: boolean;
 }
+export type JsQuerySpec = JsQuerySpecBase & (
+  | { source: string; exportName: string; handler?: never }
+  | { handler: (ctx: any, args: any) => unknown; source?: never; exportName?: never }
+);
 
 export interface HostPlanMutationSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   plan: MutationStep | MutationStep[];
   returns?: ReturnSpec;
+  result?: ResultContract;
 }
 
-export interface JsMutationSpec extends AuthorityCreatingAuthOptions {
+interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
-  source: string;
-  exportName: string;
   reads?: string[];
   writes: string[];
+  result?: ResultContract;
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
   outgrewIr?: OutgrewIrClass;
 }
+export type JsMutationSpec = JsMutationSpecBase & (
+  | { source: string; exportName: string; handler?: never }
+  | { handler: (ctx: any, args: any) => unknown; source?: never; exportName?: never }
+);
 
 export interface HostPlanActionSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
@@ -288,13 +331,16 @@ export interface HostPlanActionSpec extends AuthorityCreatingAuthOptions {
   returns?: unknown;
   writes?: string[];
   uses?: string[];
+  result?: ResultContract;
 }
 
 export interface JsActionSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
-  js: { source: string; exportName: string };
+  js?: { source: string; exportName: string };
+  handler?: (ctx: any, args: any) => unknown;
   writes?: string[];
   uses?: string[];
+  result?: ResultContract;
 }
 
 export type MembershipRole = string;
@@ -338,9 +384,41 @@ type ScopeOf<Spec extends MembershipSpec> = Spec extends { scope: 'app' } ? 'app
 
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
+  searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
+}
+
+export type SearchFieldClassification = 'public' | 'private' | 'sensitive' | 'forbidden';
+export interface SearchIndexSpec<Fields extends Record<string, Validator>> {
+  semanticVersion: string;
+  textFields: Partial<Record<keyof Fields & string, {
+    weight: number;
+    classification: SearchFieldClassification;
+  }>>;
+  fieldClassifications?: Partial<Record<keyof Fields & string, SearchFieldClassification>>;
+  equalityFilters?: Array<keyof Fields & string>;
+  storedFields?: Array<keyof Fields & string>;
+  highlightFields?: Array<keyof Fields & string>;
+  visibility?: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
+  sourceLimits?: {
+    maxIndexedBytes?: number;
+    maxTokens?: number;
+    maxPostingOperations?: number;
+  };
+  queryLimits?: {
+    maxCandidateWork?: number;
+    maxPrefixTerms?: number;
+    minPrefixScalars?: number;
+  };
+  cursorLimits?: { ttlMs?: number; maxBytes?: number };
+  maintenanceLimits?: {
+    searchMaintenanceEffects?: number;
+    searchPostingOps?: number;
+    searchPositions?: number;
+    searchBytes?: number;
+  };
 }
 
 export interface MembershipTableBuilder<
@@ -371,6 +449,11 @@ export declare function defineQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineJsQuery(spec: JsQuerySpec): unknown;
 export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;
+export declare function defineSearchQuery(spec: {
+  table: TableBuilder;
+  index: string;
+  auth?: AuthRequirement;
+}): unknown;
 
 export interface RelationalVisibilitySpec {
   root: { kind: 'owner'; field: string } | { kind: 'public-read' };
@@ -392,6 +475,13 @@ export interface RelationalQuerySpec {
   defaultLive?: boolean;
 }
 export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
+export declare function owner(field: string): { kind: 'owner'; field: string };
+export declare function throughParent(): { kind: 'through-parent.v1' };
+export declare function throughScope(spec: {
+  scopeField: string;
+  scopeIncarnationField: string;
+}): { kind: 'through-scope.v1'; scopeField: string; scopeIncarnationField: string };
+export declare function defineBoundedChildrenQuery(spec: unknown): unknown;
 
 export interface MaintainedProjectionSpec {
   /** Stable plan identity; the row-identity domain across rebuilds. */
@@ -422,6 +512,11 @@ export interface MaintainedProjectionSpec {
 export declare function defineMaintainedProjection(spec: MaintainedProjectionSpec): unknown;
 export declare function isMaintainedProjectionDef(value: unknown): boolean;
 export declare function defineMutation(spec: HostPlanMutationSpec): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
+export declare function mutationPlan(...steps: unknown[]): unknown;
+export declare function existingOwner(spec: unknown): unknown;
+export declare function clientMutation(): { kind: 'client-mutation.v1' };
+export declare function assertSourceChanged(table: string, id: ValueExpr, operation: 'insert' | 'patch' | 'delete'): unknown;
+export declare function defineWriteWithActivity(spec: unknown): unknown;
 export declare function defineJsMutation(spec: JsMutationSpec): unknown;
 export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): unknown;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;

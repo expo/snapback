@@ -2610,6 +2610,12 @@ pub(crate) struct CoordinatedResetCommit {
     next_secret_read_generation: u64,
 }
 
+#[derive(Debug)]
+pub(crate) struct CoordinatedVersionedSeedResetCommit {
+    reset: CoordinatedResetCommit,
+    receipt: crate::seed_identity::SeedInstallReceiptV1,
+}
+
 #[derive(Clone, Debug)]
 struct LiveSubscription {
     id: String,
@@ -2692,6 +2698,10 @@ fn collect_value_expr_arg_names(value: &ValueExpr, out: &mut BTreeSet<String>) {
         | ValueExpr::AuthUserId
         | ValueExpr::AuthKind
         | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
         | ValueExpr::AuthIsDelegated
         | ValueExpr::RuntimeId
         | ValueExpr::RuntimeNow
@@ -4027,6 +4037,81 @@ impl LocalSnapback {
                 AuthTransactionAttempt::CommitUncertain(error)
             }
         }
+    }
+
+    pub(crate) fn ensure_versioned_seed(
+        &mut self,
+        request: crate::seed_identity::InstallSeedRequestV1,
+    ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+        self.db.ensure_versioned_seed(request)
+    }
+
+    pub(crate) fn preview_versioned_seed(
+        &mut self,
+        request: crate::seed_identity::SeedPreviewRequestV1,
+    ) -> SnapbackResult<crate::seed_identity::SeedPreviewResultV1> {
+        self.db.preview_versioned_seed(request)
+    }
+
+    pub(crate) fn replay_versioned_seed_operation(
+        &mut self,
+        operation_id: &str,
+        request_digest: &str,
+    ) -> SnapbackResult<Option<crate::seed_identity::SeedInstallReceiptV1>> {
+        self.db
+            .replay_versioned_seed_operation(operation_id, request_digest)
+    }
+
+    pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
+        &mut self,
+        request: crate::seed_identity::ResetSeedRequestV1,
+        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    ) -> crate::storage::auth::AuthTransactionAttempt<CoordinatedVersionedSeedResetCommit> {
+        use crate::storage::auth::AuthTransactionAttempt;
+
+        let app_generation = match next_app_generation() {
+            Ok(generation) => generation,
+            Err(error) => return AuthTransactionAttempt::RolledBack(error),
+        };
+        let secret_read_generation = self.secret_read_reset_generation.load(Ordering::Acquire);
+        let next_secret_read_generation =
+            match next_secret_read_reset_generation(secret_read_generation) {
+                Ok(generation) => generation,
+                Err(error) => return AuthTransactionAttempt::RolledBack(error),
+            };
+        match self
+            .db
+            .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
+        {
+            AuthTransactionAttempt::Committed((seeded, receipt)) => {
+                AuthTransactionAttempt::Committed(CoordinatedVersionedSeedResetCommit {
+                    reset: CoordinatedResetCommit {
+                        seeded,
+                        app_generation,
+                        secret_read_generation,
+                        next_secret_read_generation,
+                    },
+                    receipt,
+                })
+            }
+            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                AuthTransactionAttempt::CommitUncertain(error)
+            }
+        }
+    }
+
+    pub(crate) fn publish_coordinated_versioned_seed_reset(
+        &mut self,
+        committed: CoordinatedVersionedSeedResetCommit,
+    ) -> crate::seed_identity::SeedInstallReceiptV1 {
+        self.finish_committed_reset(
+            committed.reset.app_generation,
+            committed.reset.secret_read_generation,
+            committed.reset.next_secret_read_generation,
+        );
+        committed.receipt
     }
 
     /// Publish reset-owned process state while the coordinator's stream
@@ -5514,6 +5599,7 @@ impl LocalSnapback {
             if let Some(identity) = identity.as_ref()
                 && let Some(output) = self.db.client_mutation_result(identity)?
             {
+                crate::result_contract::validate_handler_result(&function, &output.result)?;
                 let commit = MutationCommit {
                     output,
                     changes: Vec::new(),
@@ -5536,10 +5622,23 @@ impl LocalSnapback {
                     StagedRecordedMutation::Done(Box::new(recorded)),
                 ));
             }
+            let client_mutation_digest = identity
+                .as_ref()
+                .map(ClientMutationIdentity::activity_digest);
+            input.auth = input
+                .auth
+                .with_client_mutation_digest(client_mutation_digest.as_deref());
             let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
             let (preflight, execution) = match &function.runtime {
-                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                )) => {
                     let preview = self.db.dry_run_mutation(plan, &input)?;
+                    crate::result_contract::validate_handler_result(
+                        &function,
+                        &preview.commit.output.result,
+                    )?;
                     input.ctx_ledger = Some(CtxAnswerLedger {
                         version: ctx_ledger_version(),
                         ids: preview.generated_ids,
@@ -5570,6 +5669,7 @@ impl LocalSnapback {
                         result: executed.result,
                         ctx_ledger: executed.ctx_ledger,
                     };
+                    crate::result_contract::validate_handler_result(&function, &payload.result)?;
                     let preview = self.db.dry_run_buffered_writes(
                         &input,
                         payload.writes.clone(),
@@ -5857,7 +5957,7 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(prepared.authority())?;
         refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
         let admission = prepared.admission_lease().clone();
-        let input = prepared.canonicalize_input(input);
+        let mut input = prepared.canonicalize_input(input);
         let identity = if let Some(id) = client_mutation_id {
             let incarnation = self.db.ensure_authorization_stream_incarnation()?;
             let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
@@ -5878,6 +5978,7 @@ impl LocalSnapback {
         if let Some(identity) = identity.as_ref()
             && let Some(output) = self.db.client_mutation_result(identity)?
         {
+            crate::result_contract::validate_handler_result(&function, &output.result)?;
             return Ok(MutationCommit {
                 output,
                 changes: Vec::new(),
@@ -5886,6 +5987,12 @@ impl LocalSnapback {
                 authorization: None,
             });
         }
+        let client_mutation_digest = identity
+            .as_ref()
+            .map(ClientMutationIdentity::activity_digest);
+        input.auth = input
+            .auth
+            .with_client_mutation_digest(client_mutation_digest.as_deref());
         // Legacy function-declared permission-epoch scopes are evaluated
         // BEFORE the mutation executes. This compatibility resync map is not
         // LLP 0053's durable global AuthorizationVersion, which advances in
@@ -5899,28 +6006,66 @@ impl LocalSnapback {
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let commit = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => match identity.as_ref() {
-                Some(identity) => {
-                    self.db
-                        .execute_mutation_idempotent_guarded(plan, &input, identity, || {
-                            prepared.effect_guard("idempotent mutation transaction")
-                        })?
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+            )) => {
+                // Validate the exact dry-run result while all writes remain
+                // provisional. Reuse its ctx ledger so generated ids/time are
+                // identical when the guarded transaction executes.
+                let preview = self.db.dry_run_mutation(plan, &input)?;
+                crate::result_contract::validate_handler_result(
+                    &function,
+                    &preview.commit.output.result,
+                )?;
+                input.ctx_ledger = Some(CtxAnswerLedger {
+                    version: ctx_ledger_version(),
+                    ids: preview.generated_ids,
+                    now: preview.now_ms,
+                    auth_fingerprint: None,
+                });
+                match identity.as_ref() {
+                    Some(identity) => self.db.execute_mutation_idempotent_guarded(
+                        plan,
+                        &input,
+                        identity,
+                        || prepared.effect_guard("idempotent mutation transaction"),
+                    )?,
+                    None => self.db.execute_mutation_guarded(
+                        plan,
+                        &input,
+                        || Ok(()),
+                        || prepared.effect_guard("mutation transaction"),
+                    )?,
                 }
-                None => self.db.execute_mutation_guarded(
-                    plan,
+            }
+            FunctionRuntime::IbexModule(module) => {
+                let executed = crate::runtime::execute_ibex_mutation_prepared(
+                    module,
+                    input.clone(),
+                    &prepared,
+                    DbRead::Live(&self.db),
+                    Some(&self.warm_vms),
+                    None,
+                )?;
+                crate::result_contract::validate_handler_result(&function, &executed.result)?;
+                let membership_plans = self
+                    .db
+                    .authorize_membership_commands(executed.membership_commands)?;
+                self.db.commit_buffered_writes_idempotent_guarded(
                     &input,
+                    BufferedCommitPayload {
+                        writes: executed.writes,
+                        membership_plans,
+                        read_dependencies: executed.reads,
+                        result: executed.result,
+                        ctx_ledger: executed.ctx_ledger,
+                    },
+                    identity.as_ref(),
                     || Ok(()),
-                    || prepared.effect_guard("mutation transaction"),
-                )?,
-            },
-            FunctionRuntime::IbexModule(module) => self.runtime.invoke_ibex_mutation_prepared(
-                module,
-                input.clone(),
-                &prepared,
-                &mut self.db,
-                Some(&self.warm_vms),
-                identity.as_ref(),
-            )?,
+                    || prepared.effect_guard("ibex mutation transaction"),
+                )?
+            }
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -5959,12 +6104,16 @@ impl LocalSnapback {
         refuse_unprovenanced_host_plan_authority_creation(prepared, &function, self.db.schema())?;
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
-        let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a host-plan mutation"),
-            ));
+        let plan = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => plan,
+            FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) => &plan.mutation,
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not a host-plan mutation"),
+                ));
+            }
         };
         let commit = self
             .db
@@ -6089,6 +6238,7 @@ impl LocalSnapback {
                 ),
             ));
         }
+        crate::result_contract::validate_handler_result(&function, &executed.result)?;
         let membership_plans = self
             .db
             .authorize_membership_commands(executed.membership_commands)?;
@@ -6183,7 +6333,10 @@ impl LocalSnapback {
             });
         }
         let execution = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+            )) => {
                 self.db.dry_run_mutation(plan, &input).map(|execution| {
                     let mut diagnostics = Vec::new();
                     // The IR ledger honors D1's declared id bound: past it the
@@ -6228,6 +6381,10 @@ impl LocalSnapback {
                 }),
             _ => unreachable!("tier matched above"),
         };
+        let execution = execution.and_then(|tuple| {
+            crate::result_contract::validate_handler_result(&function, &tuple.0.output.result)?;
+            Ok(tuple)
+        });
         match execution {
             Ok((commit, ledger, diagnostics)) => Ok(MutationDryRunOutcome {
                 tier,
@@ -7467,6 +7624,20 @@ impl LocalSnapback {
         };
 
         let subscription_input = retained_authority.canonicalize_input(input.input);
+        if matches!(
+            function.runtime,
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_))
+        ) && subscription_input
+            .args
+            .get("cursor")
+            .is_some_and(|cursor| !cursor.is_null())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED",
+                "query",
+                "bounded children live subscriptions support the first page only",
+            ));
+        }
 
         // RQS eligibility + token admission (LLP 0090 D1.1 / rollout step 1).
         // Eligibility keys minting AND admission alike; auth-scoped
@@ -7782,9 +7953,8 @@ impl LocalSnapback {
         // connection) coexist. An unknown id is a quiet no-op: reconnects
         // race disconnect teardown, which may have dropped it already.
         let superseded_witness = superseded_subscription_id.clone();
-        let supersession_refusal = (supersession_requested
-            && superseded_subscription_id.is_none())
-        .then_some("SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN".to_owned());
+        let supersession_refusal = (supersession_requested && superseded_subscription_id.is_none())
+            .then_some("SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN".to_owned());
         if let Some(old_id) = superseded_subscription_id {
             let retired_scope = self
                 .subscriptions
@@ -9527,7 +9697,10 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(invocation.authority())?;
         let canonical_input = invocation.canonicalize_input(input.clone());
         match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+            )) => {
                 refuse_unprovenanced_host_plan_authority_creation(
                     &invocation,
                     &function,
@@ -11372,16 +11545,16 @@ impl LocalSnapback {
             ));
         }
         let audience = self.migrate_resolved_audience()?;
-        let receipt = self.db.migrate_apply(
-            crate::storage::migration_executor::MigrationApplyRequest {
-                artifact,
-                approval,
-                successor_schema,
-                audience: &audience,
-                now_ms: now_millis(),
-                rehearsal,
-            },
-        )?;
+        let receipt =
+            self.db
+                .migrate_apply(crate::storage::migration_executor::MigrationApplyRequest {
+                    artifact,
+                    approval,
+                    successor_schema,
+                    audience: &audience,
+                    now_ms: now_millis(),
+                    rehearsal,
+                })?;
         // The successor is authoritative: refresh every schema projection
         // the serving process holds, then retire every retained live
         // subscription with a clear-retained resync — no predecessor
@@ -11453,14 +11626,13 @@ impl LocalSnapback {
                         ResolutionKind::TerminalDelete,
                         witness,
                     )?;
-                    let projection =
-                        state.obligations.projection(&scope).ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
-                                "auth",
-                                "a just-raised publication obligation has no projection",
-                            )
-                        })?;
+                    let projection = state.obligations.projection(&scope).ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+                            "auth",
+                            "a just-raised publication obligation has no projection",
+                        )
+                    })?;
                     let (candidate, _retirement) =
                         state.prepare_scope_retirement_authenticated(&scope)?;
                     (projection, candidate)
@@ -11817,6 +11989,10 @@ impl LocalSnapback {
             // creation boundary so no public envelope observes raw secret
             // text before a later retention sink gets a chance to redact it.
             invocation_redactor.redact_error(error)
+        });
+        let result = result.and_then(|value| {
+            crate::result_contract::validate_handler_result(&function, &value)?;
+            Ok(value)
         });
         #[cfg(test)]
         BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
@@ -14248,6 +14424,24 @@ fn validate_function_schema_references(
     for function in &manifest.functions {
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
+                crate::manifest::validate_search_query_plan_shape(plan)?;
+                let declared = table(&plan.table)?;
+                if !declared
+                    .search_indexes
+                    .iter()
+                    .any(|candidate| candidate.name == plan.index)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                        "search",
+                        format!(
+                            "search query {} references unknown search index {}.{}",
+                            function.name, plan.table, plan.index
+                        ),
+                    ));
+                }
+            }
             // @ref LLP 0080#1-closed-relational-plan — activation validates
             //   the root window exactly like a single-table plan (fields,
             //   membership privacy, Json-order refusal, named root index)
@@ -14327,7 +14521,10 @@ fn validate_function_schema_references(
                     }
                 }
             }
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+            )) => {
                 for step in &plan.steps {
                     match step {
                         MutationStep::Insert {
@@ -14351,7 +14548,8 @@ fn validate_function_schema_references(
                             }
                         }
                         MutationStep::Delete { table: name, .. }
-                        | MutationStep::Get { table: name, .. } => {
+                        | MutationStep::Get { table: name, .. }
+                        | MutationStep::AssertSourceChanged { table: name, .. } => {
                             table(name)?;
                         }
                         MutationStep::DeleteWhere {
@@ -14370,6 +14568,32 @@ fn validate_function_schema_references(
                     &plan.return_value
                 {
                     table(name)?;
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+                let parent = table(&plan.parent_table)?;
+                let child = table(&plan.child_table)?;
+                field(&plan.child_table, &plan.child_foreign_key)?;
+                field(&plan.child_table, &plan.child_relation_incarnation)?;
+                for projection in &plan.parent_projection {
+                    field(&parent.name, &projection.field)?;
+                }
+                for projection in &plan.child_projection {
+                    field(&child.name, &projection.field)?;
+                }
+                let mut exact = vec![
+                    plan.child_foreign_key.clone(),
+                    plan.child_relation_incarnation.clone(),
+                ];
+                exact.extend(plan.order.iter().map(|order| order.field.clone()));
+                if !child.indexes.iter().any(|index| {
+                    index.name == plan.child_index && !index.unique && index.fields == exact
+                }) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID",
+                        "query",
+                        "bounded children requires the exact declared child index",
+                    ));
                 }
             }
             FunctionRuntime::HostPlan(HandlerPlan::Action(_)) | FunctionRuntime::IbexModule(_) => {}
@@ -14438,9 +14662,7 @@ fn validate_maintained_projections(
             Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
                 "runtime",
-                format!(
-                    "maintained projection references unknown field {table_name}.{field_name}"
-                ),
+                format!("maintained projection references unknown field {table_name}.{field_name}"),
             ))
         }
     };
@@ -14472,7 +14694,10 @@ fn validate_maintained_projections(
             ));
         }
         if plan.id.is_empty() || !plan_ids.insert(&plan.id) {
-            return Err(invalid(&plan.id, "plan id must be non-empty and unique".into()));
+            return Err(invalid(
+                &plan.id,
+                "plan id must be non-empty and unique".into(),
+            ));
         }
         if plan.root == plan.joined
             || plan.output_table == plan.root
@@ -14487,12 +14712,18 @@ fn validate_maintained_projections(
             || plan.joined_alias.is_empty()
             || plan.root_alias == plan.joined_alias
         {
-            return Err(invalid(&plan.id, "source aliases must be distinct and non-empty".into()));
+            return Err(invalid(
+                &plan.id,
+                "source aliases must be distinct and non-empty".into(),
+            ));
         }
         if plan.join_on.is_empty() || plan.join_on.len() > 4 {
             return Err(invalid(
                 &plan.id,
-                format!("1..=4 join equality pairs required, got {}", plan.join_on.len()),
+                format!(
+                    "1..=4 join equality pairs required, got {}",
+                    plan.join_on.len()
+                ),
             ));
         }
         if plan.fan_out_limit == 0 || plan.fan_out_limit > 1023 {
@@ -14548,7 +14779,12 @@ fn validate_maintained_projections(
             .collect();
         let proven = joined_table.indexes.iter().any(|candidate| {
             candidate.unique
-                && candidate.fields.iter().map(String::as_str).collect::<Vec<_>>() == joined_key
+                && candidate
+                    .fields
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    == joined_key
         });
         if !proven {
             return Err(SnapbackError::error(
@@ -14615,7 +14851,10 @@ fn validate_maintained_projections(
             if leaf.name.is_empty() || !leaf_names.insert(&leaf.name) {
                 return Err(invalid(
                     &plan.id,
-                    format!("projection field {:?} must be non-empty and unique", leaf.name),
+                    format!(
+                        "projection field {:?} must be non-empty and unique",
+                        leaf.name
+                    ),
                 ));
             }
             field(&plan.output_table, &leaf.name)?;
@@ -14627,17 +14866,16 @@ fn validate_maintained_projections(
         }
 
         // Visibility rules (LLP 0080 §3, applied to the maintained form).
-        let owner_field = |visibility: &ProjectionVisibility,
-                           source: &str|
-         -> SnapbackResult<Option<String>> {
-            match visibility {
-                ProjectionVisibility::PublicRead => Ok(None),
-                ProjectionVisibility::Owner { field: name } => {
-                    field(source, name)?;
-                    Ok(Some(name.clone()))
+        let owner_field =
+            |visibility: &ProjectionVisibility, source: &str| -> SnapbackResult<Option<String>> {
+                match visibility {
+                    ProjectionVisibility::PublicRead => Ok(None),
+                    ProjectionVisibility::Owner { field: name } => {
+                        field(source, name)?;
+                        Ok(Some(name.clone()))
+                    }
                 }
-            }
-        };
+            };
         let root_owner = owner_field(&plan.root_visibility, &plan.root)?;
         let joined_owner = owner_field(&plan.joined_visibility, &plan.joined)?;
         let any_owner = root_owner.is_some() || joined_owner.is_some();
@@ -14657,7 +14895,10 @@ fn validate_maintained_projections(
             }
             _ => {}
         }
-        if let ProjectionVisibility::Owner { field: output_owner } = &plan.output_visibility {
+        if let ProjectionVisibility::Owner {
+            field: output_owner,
+        } = &plan.output_visibility
+        {
             field(&plan.output_table, output_owner)?;
             // The output owner must project directly from a source owner
             // field on a guaranteed-present source: the root, or the
@@ -14724,7 +14965,10 @@ fn validate_maintained_projections(
         if !output_tables.insert(&plan.output_table) {
             return Err(invalid(
                 &plan.id,
-                format!("output table {} already belongs to another projection", plan.output_table),
+                format!(
+                    "output table {} already belongs to another projection",
+                    plan.output_table
+                ),
             ));
         }
     }
@@ -14778,7 +15022,10 @@ fn validate_function_against_projection_outputs(
         )
     };
     match &function.runtime {
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+        | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+            crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+        )) => {
             for step in &plan.steps {
                 let target = match step {
                     MutationStep::Insert { table, .. }
@@ -14787,6 +15034,7 @@ fn validate_function_against_projection_outputs(
                     | MutationStep::DeleteWhere { table, .. }
                     | MutationStep::InsertEach { table, .. } => Some(table),
                     MutationStep::Get { .. }
+                    | MutationStep::AssertSourceChanged { .. }
                     | MutationStep::Guard { .. }
                     | MutationStep::Let { .. } => None,
                 };
@@ -14895,6 +15143,41 @@ fn relational_cursor_mint_unavailable() -> SnapbackError {
         "query",
         "a full relational page could not mint its continuation cursor; retry the request",
     )
+}
+
+fn bounded_children_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID",
+        "query",
+        "bounded-children cursor is not valid for this operation, parent, and authority partition; request the first page",
+    )
+}
+
+fn bounded_children_cursor_mint_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE",
+        "query",
+        "the bounded-children page could not mint its continuation; retry the request",
+    )
+}
+
+fn bounded_children_parent_restart_required() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED",
+        "query",
+        "the parent or authority stream changed; restart from the first page",
+    )
+}
+
+fn project_bounded_row(row: &Value, fields: &[crate::manifest::BoundedProjectionField]) -> Value {
+    let mut projected = serde_json::Map::new();
+    for field in fields {
+        projected.insert(
+            field.name.clone(),
+            row.get(&field.field).cloned().unwrap_or(Value::Null),
+        );
+    }
+    Value::Object(projected)
 }
 
 /// The one uniform standard-pattern cursor refusal (LLP 0065): malformed,
@@ -15213,6 +15496,101 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan))) => {
+            // @ref LLP 0073#authorization-and-result-release — the search
+            // executor receives only server-resolved authority and evaluates
+            // inside this pinned read snapshot; application input cannot
+            // supply an owner partition or cursor binding identity.
+            let cursor_authority = cursor_authority.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                    "search",
+                    "search cursor authority is unavailable",
+                )
+            })?;
+            let now_ms = now_millis();
+            let roots = cursor_authority
+                .keyring
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .search_cursor_materials(now_ms);
+            let database_id = db.search_database_identity()?;
+            let authority_instance = prepared.authority().resolved().invalidation_subject();
+            let owner_subject = match prepared.authority().resolved() {
+                ResolvedAppAuthority::Session { user_id, .. }
+                | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
+                ResolvedAppAuthority::ServicePrincipal {
+                    effective_user_id: Some(user_id),
+                    ..
+                } => Some(user_id.as_str()),
+                _ => None,
+            };
+            let release_policy_digest =
+                crate::rqs::sha256_identity(&serde_json::to_value(function).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                        "search",
+                        "search release policy does not serialize",
+                    )
+                })?)
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                        "search",
+                        "search release policy is not canonicalizable",
+                    )
+                })?;
+            let stream_epoch = prepared
+                .authority()
+                .authorization_stream_incarnation()
+                .unwrap_or(database_id.as_str());
+            let output = db.search(
+                plan,
+                &input,
+                &crate::search::sqlite::SearchExecutionAuthority {
+                    app_id: cursor_authority.app_id,
+                    database_id: &database_id,
+                    target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+                    stream_epoch: &stream_epoch,
+                    authority_instance: &authority_instance,
+                    owner_subject,
+                    release_policy_digest: &release_policy_digest,
+                    now_ms,
+                    cursor_roots: &roots,
+                },
+            )?;
+            let mut read_dependencies = vec![CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(output.version),
+                predicate: None,
+                rows: output
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        row.get("rowId")
+                            .and_then(Value::as_str)
+                            .map(ToOwned::to_owned)
+                    })
+                    .collect(),
+                field: None,
+                value: None,
+                order: Some(json!("score-desc-row-id-asc.v1")),
+                limit: input
+                    .args
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .map(|value| value as usize),
+                result_count: Some(output.rows.len()),
+                boundary: None,
+            }];
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
@@ -15330,6 +15708,225 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
+        ) => {
+            let parent_id = input
+                .args
+                .get(&plan.parent_id_arg)
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_BOUNDED_CHILDREN_PLAN_INVALID",
+                        "query",
+                        "bounded children parent id argument is missing or invalid",
+                    )
+                })?;
+            let parent = db.get(&plan.parent_table, parent_id)?;
+            let visible = parent
+                .as_ref()
+                .is_some_and(|parent| match &plan.parent_visibility {
+                    crate::manifest::BoundedParentVisibility::PublicRead => true,
+                    crate::manifest::BoundedParentVisibility::Owner { field } => {
+                        parent.get(field).and_then(Value::as_str) == input.auth.user_id.as_deref()
+                    }
+                });
+            if !visible {
+                return Ok(QueryInvocation {
+                    output: QueryOutput {
+                        version: db.current_version()?,
+                        rows: vec![json!({
+                            "kind": "absent",
+                            "parent": null,
+                            "children": [],
+                            "continuation": null,
+                        })],
+                        cursor: None,
+                    },
+                    read_dependencies: Vec::new(),
+                });
+            }
+            let incarnation = db
+                .active_relation_incarnation(&plan.parent_table, parent_id)?
+                .ok_or_else(bounded_children_parent_restart_required)?;
+            let parent = parent.expect("visible parent exists");
+            let parent_version = parent
+                .get("_version")
+                .and_then(Value::as_u64)
+                .ok_or_else(bounded_children_parent_restart_required)?;
+            let now_ms = now_millis();
+            let authority =
+                cursor_authority.ok_or_else(bounded_children_cursor_mint_unavailable)?;
+            let database_id = db.search_database_identity()?;
+            let stream_epoch = prepared
+                .authority()
+                .authorization_stream_incarnation()
+                .unwrap_or(database_id.as_str())
+                .to_owned();
+            let authority_partition = prepared.authority().resolved().invalidation_subject();
+            let plan_hash = crate::rqs::sha256_identity(
+                &serde_json::to_value(plan).map_err(|_| bounded_children_cursor_invalid())?,
+            )
+            .map_err(|_| bounded_children_cursor_invalid())?;
+            let order_fields = plan
+                .order
+                .iter()
+                .map(|entry| entry.field.clone())
+                .collect::<Vec<_>>();
+            // Cursor bytes stay deferred until the parent has passed
+            // visibility, preserving absent/invisible parity.
+            let keyset = match input.args.get("cursor") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(wire)) => {
+                    let roots = authority
+                        .keyring
+                        .read()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .bounded_children_cursor_materials(now_ms);
+                    let body = crate::bounded_children_cursor::decode(
+                        wire,
+                        &roots,
+                        authority.app_id,
+                        &database_id,
+                        TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+                        now_ms,
+                    )
+                    .map_err(|_| bounded_children_cursor_invalid())?;
+                    if body.stream_epoch != stream_epoch
+                        || body.parent_incarnation != incarnation
+                        || body.parent_version != parent_version
+                    {
+                        return Err(bounded_children_parent_restart_required());
+                    }
+                    if body.function != name
+                        || body.plan_hash != plan_hash
+                        || body.parent_id != parent_id
+                        || body.authority_partition != authority_partition
+                        || body.order_fields != order_fields
+                    {
+                        return Err(bounded_children_cursor_invalid());
+                    }
+                    Some(
+                        crate::storage::validate_query_keyset_boundary(
+                            db.schema(),
+                            &plan.child_table,
+                            &plan.order,
+                            &body.boundary,
+                            &body.row_id,
+                        )
+                        .map_err(|_| bounded_children_cursor_invalid())?,
+                    )
+                }
+                Some(_) => return Err(bounded_children_cursor_invalid()),
+            };
+            let child_query = QueryPlan {
+                table: plan.child_table.clone(),
+                filters: vec![
+                    crate::manifest::FilterExpr {
+                        field: plan.child_foreign_key.clone(),
+                        op: crate::manifest::FilterOp::Eq,
+                        value: ValueExpr::Literal(Value::String(parent_id.to_owned())),
+                    },
+                    crate::manifest::FilterExpr {
+                        field: plan.child_relation_incarnation.clone(),
+                        op: crate::manifest::FilterOp::Eq,
+                        value: ValueExpr::Literal(Value::String(incarnation.clone())),
+                    },
+                ],
+                membership_filters: Vec::new(),
+                order: plan.order.clone(),
+                limit: Some(plan.take.saturating_add(1) as usize),
+                indexed_by: Some(plan.child_index.clone()),
+            };
+            if plan.take == 0 {
+                return Ok(QueryInvocation {
+                    output: QueryOutput {
+                        version: db.current_version()?,
+                        rows: vec![json!({
+                            "kind": "visible",
+                            "parent": project_bounded_row(&parent, &plan.parent_projection),
+                            "children": [],
+                            "continuation": null,
+                        })],
+                        cursor: None,
+                    },
+                    read_dependencies: Vec::new(),
+                });
+            }
+            let mut child_output = db.query_keyset(&child_query, &input, keyset.as_ref())?;
+            let has_more = child_output.rows.len() > plan.take as usize;
+            child_output.rows.truncate(plan.take as usize);
+            let children = child_output
+                .rows
+                .iter()
+                .map(|row| project_bounded_row(row, &plan.child_projection))
+                .collect::<Vec<_>>();
+            let continuation = if has_more {
+                let boundary_row = child_output
+                    .rows
+                    .last()
+                    .ok_or_else(bounded_children_cursor_mint_unavailable)?;
+                let boundary = plan
+                    .order
+                    .iter()
+                    .map(|entry| {
+                        boundary_row
+                            .get(&entry.field)
+                            .cloned()
+                            .filter(|value| !value.is_null())
+                            .ok_or_else(bounded_children_cursor_mint_unavailable)
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()?;
+                let row_id = boundary_row
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .filter(|id| !id.is_empty())
+                    .ok_or_else(bounded_children_cursor_mint_unavailable)?;
+                let (key_generation, root) = authority
+                    .keyring
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .active_current()
+                    .ok_or_else(bounded_children_cursor_mint_unavailable)?;
+                let body = crate::bounded_children_cursor::Body::new(
+                    key_generation,
+                    authority.app_id.to_owned(),
+                    database_id,
+                    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                    stream_epoch.to_owned(),
+                    name.to_owned(),
+                    plan_hash,
+                    parent_id.to_owned(),
+                    incarnation,
+                    parent_version,
+                    authority_partition,
+                    order_fields,
+                    boundary,
+                    row_id.to_owned(),
+                    now_ms,
+                );
+                Some(
+                    crate::bounded_children_cursor::mint(&*root, &body)
+                        .map_err(|_| bounded_children_cursor_mint_unavailable())?,
+                )
+            } else {
+                None
+            };
+            Ok(QueryInvocation {
+                output: QueryOutput {
+                    version: child_output.version,
+                    rows: vec![json!({
+                        "kind": "visible",
+                        "parent": project_bounded_row(&parent, &plan.parent_projection),
+                        "children": children,
+                        "continuation": continuation,
+                    })],
+                    cursor: None,
+                },
+                read_dependencies: Vec::new(),
+            })
+        }
         (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
             let protected_query_profile = function.is_protected_query();
             let run = crate::runtime::run_ibex_query_with_reads_prepared(
@@ -15363,6 +15960,10 @@ fn execute_query_invocation(
             hook();
         }
     });
+    crate::result_contract::validate_handler_result(
+        function,
+        &Value::Array(invocation.output.rows.clone()),
+    )?;
     let _publication = prepared.effect_guard("query result handoff")?;
     Ok(invocation)
 }
@@ -15556,6 +16157,10 @@ fn eval_action_expr(
         auth_user_id: input.auth.user_id.as_deref(),
         auth_kind: input.auth.authorization_kind.as_deref(),
         auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_activity_actor_kind: input.auth.authorization_activity_actor_kind.as_deref(),
+        auth_actor_user_id: input.auth.authorization_actor_user_id.as_deref(),
+        auth_grant_id: input.auth.authorization_grant_id.as_deref(),
+        client_mutation_digest: input.auth.client_mutation_digest.as_deref(),
         auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: Some(bindings),
         now_ms: Some(metadata.due_at_ms),
@@ -15569,10 +16174,20 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
         FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
             (vec![plan.table.clone()], Vec::new())
         }
+        FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
+            (vec![plan.table.clone()], Vec::new())
+        }
         FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
             (vec![plan.root.clone(), plan.joined.clone()], Vec::new())
         }
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
+            vec![plan.parent_table.clone(), plan.child_table.clone()],
+            Vec::new(),
+        ),
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+        | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+            crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+        )) => {
             let mut reads = BTreeSet::new();
             let mut writes = BTreeSet::new();
             for step in &plan.steps {
@@ -15587,6 +16202,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                         writes.insert(table.clone());
                     }
                     MutationStep::Get { table, .. } => {
+                        reads.insert(table.clone());
+                    }
+                    MutationStep::AssertSourceChanged { table, .. } => {
                         reads.insert(table.clone());
                     }
                     MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
@@ -15793,6 +16411,7 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: None,
                     principal: "userId".to_owned(),
@@ -15849,6 +16468,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
         let members = TableManifest {
@@ -15876,6 +16496,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some("event_members".to_owned()),
                 principal: "userId".to_owned(),
@@ -16201,6 +16822,7 @@ mod tests {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -16270,6 +16892,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }];
         functions.bundle_hash = Some(format!(
@@ -16550,10 +17173,7 @@ mod tests {
             steps: vec![MutationStep::Patch {
                 table: "authors".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
-                values: BTreeMap::from([(
-                    "name".to_owned(),
-                    ValueExpr::Arg("name".to_owned()),
-                )]),
+                values: BTreeMap::from([("name".to_owned(), ValueExpr::Arg("name".to_owned()))]),
             }],
             return_value: None,
         };
@@ -16622,7 +17242,9 @@ mod tests {
         // 3. Exactly once: a duplicate of the settled form returns the
         //    recorded result (the staged server path's pre-check) and the
         //    row does not move.
-        let version_after = read_author(&snapback)["_version"].as_u64().expect("version");
+        let version_after = read_author(&snapback)["_version"]
+            .as_u64()
+            .expect("version");
         let recorded = snapback
             .db
             .client_mutation_result(&resynced_identity)
@@ -16630,7 +17252,9 @@ mod tests {
             .expect("settled result is recorded");
         assert_eq!(recorded.version, settled.output.version);
         assert_eq!(
-            read_author(&snapback)["_version"].as_u64().expect("version"),
+            read_author(&snapback)["_version"]
+                .as_u64()
+                .expect("version"),
             version_after,
             "the duplicate replay applied nothing",
         );
@@ -16685,7 +17309,10 @@ mod tests {
         snapback
             .retire_live_subscriptions_for_publication()
             .expect("retire for publication");
-        assert!(snapback.subscriptions.is_empty(), "no subscription survives");
+        assert!(
+            snapback.subscriptions.is_empty(),
+            "no subscription survives"
+        );
         let envelopes = rqs_drained_envelopes(&mut snapback, "conn-pub");
         let resync = envelopes
             .iter()
@@ -16702,13 +17329,12 @@ mod tests {
     #[test]
     fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
         use crate::migration::{
-            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
-            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
-            MigrationExecutionStrategy, MigrationExpectedOutput, MigrationIntent,
-            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
-            RetainedWorkPosture, MIGRATION_APPROVAL_SCHEMA_VERSION,
-            MIGRATION_PLAN_SCHEMA_VERSION, derive_intents, derive_plan_steps,
-            new_operation_id,
+            CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+            MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement,
+            MigrationCeilings, MigrationConstants, MigrationExecutionStrategy,
+            MigrationExpectedOutput, MigrationIntent, MigrationPlanArtifactV1, MigrationPlanBody,
+            MigrationProof, MigrationProofMethod, RetainedWorkPosture, derive_intents,
+            derive_plan_steps, new_operation_id,
         };
         let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
             name: name.to_owned(),
@@ -16723,6 +17349,7 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -16731,7 +17358,9 @@ mod tests {
         let successor = schema_of(vec![field("body", false)]);
 
         let mut snapback = LocalSnapback::memory().expect("memory fixture");
-        snapback.apply_schema(predecessor.clone()).expect("apply schema");
+        snapback
+            .apply_schema(predecessor.clone())
+            .expect("apply schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![FunctionDefinition::new(
                 "listByExtra",
@@ -16774,8 +17403,7 @@ mod tests {
             schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
             app: snapback.migrate_app_id(),
             instance: "memory".to_owned(),
-            target_profile_id:
-                crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
             predecessor_schema_hash: identity(&predecessor),
             successor_schema_hash: identity(&successor),
             predecessor_generation: 1,
@@ -16892,12 +17520,11 @@ mod tests {
     #[test]
     fn compatibility_posture_ordering_is_proven_not_declared() {
         use crate::migration::{
-            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
-            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
-            MigrationExecutionStrategy, MigrationExpectedOutput,
-            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
-            RetainedWorkPosture, MIGRATION_APPROVAL_SCHEMA_VERSION,
-            MIGRATION_PLAN_SCHEMA_VERSION, derive_intents, derive_plan_steps,
+            CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+            MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement,
+            MigrationCeilings, MigrationConstants, MigrationExecutionStrategy,
+            MigrationExpectedOutput, MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof,
+            MigrationProofMethod, RetainedWorkPosture, derive_intents, derive_plan_steps,
             new_operation_id,
         };
         let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
@@ -16913,6 +17540,7 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -16950,8 +17578,7 @@ mod tests {
                 schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                 app: snapback.migrate_app_id(),
                 instance: "memory".to_owned(),
-                target_profile_id:
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
                 predecessor_schema_hash: identity(&predecessor),
                 successor_schema_hash: identity(&successor),
                 predecessor_generation: 1,
@@ -17014,7 +17641,9 @@ mod tests {
         };
         let build = |compatible_functions: bool| {
             let mut snapback = LocalSnapback::memory().expect("memory posture fixture");
-            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            snapback
+                .apply_schema(predecessor.clone())
+                .expect("apply schema");
             let diagnostics = snapback.load_functions(FunctionManifest {
                 functions: vec![list_function("listNotes", !compatible_functions)],
                 ..FunctionManifest::default()
@@ -17062,7 +17691,10 @@ mod tests {
             let error = snapback
                 .migrate_apply_artifact(&artifact, &approval, &successor)
                 .expect_err("an unproven ordering must refuse");
-            assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PRECONDITION_FAILED");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+            );
             let expected_fragment = match posture {
                 CompatibilityPosture::DualCompatible => "dual-compatible ordering is unproven",
                 CompatibilityPosture::PredeployCompatible => {
@@ -17084,7 +17716,13 @@ mod tests {
                 "a refused ordering publishes nothing",
             );
             assert!(
-                snapback.db.schema().table("notes").expect("table").field("extra").is_some(),
+                snapback
+                    .db
+                    .schema()
+                    .table("notes")
+                    .expect("table")
+                    .field("extra")
+                    .is_some(),
                 "a refused ordering issues no DDL",
             );
         }
@@ -17101,13 +17739,12 @@ mod tests {
     #[test]
     fn restore_derived_rehearsal_gates_production_apply() {
         use crate::migration::{
-            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
-            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
-            MigrationExecutionStrategy, MigrationExpectedOutput,
-            MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof, MigrationProofMethod,
-            MigrationRehearsalBindingV1, MigrationRehearsalPlanV1, RetainedWorkPosture,
-            MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_intents,
-            derive_plan_steps, new_operation_id,
+            CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+            MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement,
+            MigrationCeilings, MigrationConstants, MigrationExecutionStrategy,
+            MigrationExpectedOutput, MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof,
+            MigrationProofMethod, MigrationRehearsalBindingV1, MigrationRehearsalPlanV1,
+            RetainedWorkPosture, derive_intents, derive_plan_steps, new_operation_id,
         };
         let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
             name: name.to_owned(),
@@ -17122,6 +17759,7 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -17133,7 +17771,9 @@ mod tests {
         };
         let instance = || {
             let mut snapback = LocalSnapback::memory().expect("memory rehearsal fixture");
-            snapback.apply_schema(predecessor.clone()).expect("apply schema");
+            snapback
+                .apply_schema(predecessor.clone())
+                .expect("apply schema");
             snapback
         };
         let sealed = |snapback: &LocalSnapback| {
@@ -17143,8 +17783,7 @@ mod tests {
                 schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                 app: snapback.migrate_app_id(),
                 instance: "memory".to_owned(),
-                target_profile_id:
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
                 predecessor_schema_hash: identity(&predecessor),
                 successor_schema_hash: identity(&successor),
                 predecessor_generation: 1,
@@ -17214,7 +17853,10 @@ mod tests {
         let error = production
             .migrate_apply_artifact(&artifact, &approval, &successor)
             .expect_err("a rehearsal-required plan gates production apply");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED"
+        );
 
         // The restore-derived isolated instance (the local profile's
         // byte-copy restore stands in for LLP 0072's backup manifest).
@@ -17229,8 +17871,7 @@ mod tests {
                 source_backup_identity: "backup-witness-1".to_owned(),
                 isolated_database_id: isolated_id,
                 restore_epoch_ms: 1_000,
-                target_profile_id:
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
             },
         )
         .expect("seal rehearsal");
@@ -17241,14 +17882,20 @@ mod tests {
         let error = production
             .migrate_rehearse_artifact(&artifact, &production_approval, &successor, &rehearsal)
             .expect_err("a rehearsal must not execute against production");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_REHEARSAL_INVALID"
+        );
 
         // (c) Against the bound restore-derived target it executes, marked.
         let isolated_approval = approve(&mut isolated, &artifact);
         let rehearsal_receipt = isolated
             .migrate_rehearse_artifact(&artifact, &isolated_approval, &successor, &rehearsal)
             .expect("rehearsal executes against its restore-derived target");
-        assert!(rehearsal_receipt.rehearsal, "the receipt is marked rehearsal");
+        assert!(
+            rehearsal_receipt.rehearsal,
+            "the receipt is marked rehearsal"
+        );
         assert_eq!(rehearsal_receipt.state.kind(), "released");
         assert!(rehearsal_receipt.completed_at_ms > 0);
 
@@ -17263,7 +17910,10 @@ mod tests {
                 Some(&doctored),
             )
             .expect_err("a cross-plan rehearsal receipt refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_REHEARSAL_INVALID"
+        );
 
         // (f) A stale rehearsal receipt refuses under the freshness policy.
         let mut stale = rehearsal_receipt.clone();
@@ -17276,7 +17926,10 @@ mod tests {
                 Some(&stale),
             )
             .expect_err("an over-age rehearsal receipt refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_REHEARSAL_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_REHEARSAL_INVALID"
+        );
 
         // (d) Consuming the fresh receipt, production apply still executes
         // the ORIGINAL plan against production, and its receipt is its
@@ -17486,7 +18139,10 @@ mod tests {
             let outcome = dual
                 .attest_app(EnsureAppMode::Sessions, dual_pair(&dual_predecessor_hash))
                 .expect("dual-compatible admits the predecessor attest during the window");
-            assert!(!outcome.matched, "the predecessor pair is admitted, not active");
+            assert!(
+                !outcome.matched,
+                "the predecessor pair is admitted, not active"
+            );
         }
 
         // The successor (active) pair still attests, matched.
@@ -18354,6 +19010,7 @@ mod tests {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         });
         let function = functions
@@ -18737,6 +19394,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -18754,6 +19412,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -18880,6 +19539,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             },
             TableManifest {
@@ -18897,6 +19557,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             },
         ];
@@ -18954,6 +19615,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -18971,6 +19633,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -19235,6 +19898,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -19252,6 +19916,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -19396,6 +20061,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
                 TableManifest {
@@ -19413,6 +20079,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 },
             ],
@@ -19833,7 +20500,11 @@ globalThis.__snapbackHandlers = {
 
     fn projection_fixture(
         fan_out_limit: u32,
-    ) -> (SchemaManifest, FunctionManifest, crate::manifest::MaintainedProjectionPlan) {
+    ) -> (
+        SchemaManifest,
+        FunctionManifest,
+        crate::manifest::MaintainedProjectionPlan,
+    ) {
         use crate::manifest::{
             FieldManifest, FieldType, IndexManifest, JoinEquality, JoinKind,
             MaintainedProjectionPlan, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
@@ -19844,17 +20515,17 @@ globalThis.__snapbackHandlers = {
             field_type: FieldType::String,
             optional,
         };
-        let table = |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| {
-            TableManifest {
+        let table =
+            |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
                 name: name.to_owned(),
                 fields,
                 indexes,
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
-            }
-        };
+            };
         let schema = SchemaManifest {
             tables: vec![
                 table(
@@ -20044,7 +20715,9 @@ globalThis.__snapbackHandlers = {
     fn maintained_projection_engine_end_to_end() {
         let (schema, functions, _plan) = projection_fixture(2);
         let mut snapback = LocalSnapback::memory().expect("memory projection fixture");
-        snapback.apply_schema(schema).expect("apply projection schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply projection schema");
         let diagnostics = snapback.load_functions(functions);
         assert!(
             diagnostics
@@ -20085,12 +20758,20 @@ globalThis.__snapbackHandlers = {
         };
 
         // Root insert with no matching author: inner join admits no row.
-        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        mutate(
+            &mut snapback,
+            "addBook",
+            json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }),
+        );
         assert!(summaries(&snapback).is_empty());
 
         // The joined row appears: the reverse index fans out to the root
         // and the output materializes in the author's commit.
-        mutate(&mut snapback, "addAuthor", json!({ "slug": "ada", "name": "Ada" }));
+        mutate(
+            &mut snapback,
+            "addAuthor",
+            json!({ "slug": "ada", "name": "Ada" }),
+        );
         let rows = summaries(&snapback);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["title"], json!("alpha"));
@@ -20101,7 +20782,11 @@ globalThis.__snapbackHandlers = {
 
         // Fan-out: a second book by Ada, then a rename updates both
         // summaries in the rename's own commit.
-        mutate(&mut snapback, "addBook", json!({ "title": "beta", "slug": "s-beta", "author": "ada" }));
+        mutate(
+            &mut snapback,
+            "addBook",
+            json!({ "title": "beta", "slug": "s-beta", "author": "ada" }),
+        );
         let author_id = snapback
             .db
             .query(
@@ -20128,7 +20813,10 @@ globalThis.__snapbackHandlers = {
         // 1 direct write + 2 changed output rows in one commit.
         assert_eq!(rename.changed_count, 3);
         let rows = summaries(&snapback);
-        assert!(rows.iter().all(|row| row["authorName"] == json!("Ada Lovelace")));
+        assert!(
+            rows.iter()
+                .all(|row| row["authorName"] == json!("Ada Lovelace"))
+        );
         let versions: BTreeSet<u64> = rows
             .iter()
             .map(|row| row["_version"].as_u64().expect("version"))
@@ -20176,14 +20864,25 @@ globalThis.__snapbackHandlers = {
         };
         let alpha_id = book_id(&snapback, "s-alpha");
         mutate(&mut snapback, "deleteBook", json!({ "id": alpha_id }));
-        assert_eq!(summaries(&snapback).len(), 1, "delete removes the output row");
-        mutate(&mut snapback, "addBook", json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }));
+        assert_eq!(
+            summaries(&snapback).len(),
+            1,
+            "delete removes the output row"
+        );
+        mutate(
+            &mut snapback,
+            "addBook",
+            json!({ "title": "alpha", "slug": "s-alpha", "author": "ada" }),
+        );
         let rows = summaries(&snapback);
         let alpha_row = rows
             .iter()
             .find(|row| row["title"] == json!("alpha"))
             .expect("alpha summary");
-        assert_eq!(alpha_row["_id"], first_id, "output row identity is key-stable");
+        assert_eq!(
+            alpha_row["_id"], first_id,
+            "output row identity is key-stable"
+        );
         assert_ne!(alpha_row["_createdAt"], first_created);
 
         // Fan-out admission: fanOutLimit is 2 and Ada already has two
@@ -20284,7 +20983,9 @@ globalThis.__snapbackHandlers = {
             "activation must succeed: {diagnostics:?}"
         );
         assert!(
-            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            diagnostics
+                .iter()
+                .any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
             "activation over existing data rebuilds: {diagnostics:?}"
         );
         let summaries = snapback
@@ -20321,7 +21022,9 @@ globalThis.__snapbackHandlers = {
         // Reloading the identical plan does not rebuild again.
         let diagnostics = snapback.load_functions(functions.clone());
         assert!(
-            diagnostics.iter().all(|d| d.code != "SNAPBACK_PROJECTION_REBUILT"),
+            diagnostics
+                .iter()
+                .all(|d| d.code != "SNAPBACK_PROJECTION_REBUILT"),
             "an unchanged plan digest must not rebuild: {diagnostics:?}"
         );
 
@@ -20332,7 +21035,9 @@ globalThis.__snapbackHandlers = {
             crate::manifest::ProjectionSource::JoinedField("slug".to_owned());
         let diagnostics = snapback.load_functions(revised);
         assert!(
-            diagnostics.iter().any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
+            diagnostics
+                .iter()
+                .any(|d| d.code == "SNAPBACK_PROJECTION_REBUILT"),
             "{diagnostics:?}"
         );
         let revised_receipt = snapback
@@ -20617,6 +21322,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -20661,10 +21367,7 @@ globalThis.__snapbackHandlers = {
                 steps: vec![MutationStep::Insert {
                     table: "todos".to_owned(),
                     values: BTreeMap::from([
-                        (
-                            "ownerId".to_owned(),
-                            ValueExpr::Literal(json!("user-a")),
-                        ),
+                        ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
                         ("slug".to_owned(), ValueExpr::Arg("slug".to_owned())),
                     ]),
                     bind_id_as: None,
@@ -20674,7 +21377,9 @@ globalThis.__snapbackHandlers = {
         );
 
         let mut snapback = LocalSnapback::memory().expect("memory pattern-live fixture");
-        snapback.apply_schema(schema).expect("apply pattern-live schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply pattern-live schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![pattern, control, add],
             ..FunctionManifest::default()
@@ -20811,7 +21516,9 @@ globalThis.__snapbackHandlers = {
         functions.functions.push(next_def);
 
         let mut snapback = LocalSnapback::memory().expect("memory sessions fixture");
-        snapback.apply_schema(schema).expect("apply sessions schema");
+        snapback
+            .apply_schema(schema)
+            .expect("apply sessions schema");
         let diagnostics = snapback.load_functions(functions);
         assert!(
             diagnostics
@@ -20985,6 +21692,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
         let schema = SchemaManifest {
@@ -21406,6 +22114,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         }];
         if include_extra {
@@ -21420,6 +22129,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             });
         }
@@ -21677,6 +22387,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -21896,6 +22607,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: false,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -22415,10 +23127,9 @@ globalThis.__snapbackHandlers = {
         let rerun = snapback
             .authorization_invalidation_frames("rel-shrink", &admission)
             .expect("managed rerun");
-        let rerun = serde_json::from_slice::<Value>(
-            &rerun.first().expect("fresh snapshot frame").payload,
-        )
-        .expect("rerun frame JSON");
+        let rerun =
+            serde_json::from_slice::<Value>(&rerun.first().expect("fresh snapshot frame").payload)
+                .expect("rerun frame JSON");
         assert_eq!(rerun["snapshot"]["rows"], json!([]));
         let ack_token = rerun["resolution"]["ackToken"]
             .as_str()
@@ -22795,6 +23506,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -22899,6 +23611,7 @@ globalThis.__snapbackHandlers = {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: None,
+                    search_indexes: Vec::new(),
                     membership: None,
                 }],
                 ..SchemaManifest::default()
@@ -23125,6 +23838,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
 
@@ -23155,6 +23869,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
         let authors = TableManifest {
@@ -23184,6 +23899,7 @@ globalThis.__snapbackHandlers = {
             syncable: true,
             permission_backing: false,
             permission_fields: None,
+            search_indexes: Vec::new(),
             membership: None,
         };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -24157,6 +24873,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: true,
                 permission_fields: Some(vec!["ownerId".to_owned()]),
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -25931,6 +26648,7 @@ globalThis.__snapbackHandlers = {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -27120,14 +27838,16 @@ globalThis.__snapbackHandlers = {
     //   admission on every lane at process open, from durable state alone.
     #[test]
     fn migration_fence_survives_process_reopen() {
-        let dir =
-            std::env::temp_dir().join(format!("snapback-mig-fence-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("snapback-mig-fence-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("create test dir");
         let path = dir.join("mig-fence.sqlite");
         let _ = std::fs::remove_file(&path);
         {
             let mut snapback = LocalSnapback::open(&path).expect("open");
-            assert!(snapback.admission.snapshot().accepting, "unfenced open accepts");
+            assert!(
+                snapback.admission.snapshot().accepting,
+                "unfenced open accepts"
+            );
             snapback
                 .db
                 .install_migration_fence_for_test("operation-v1:reopen")

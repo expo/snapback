@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "HostedSpendGrantV1": {
+      "additionalProperties": false,
+      "properties": {
+        "grantId": {
+          "type": "string"
+        },
+        "heldMicros": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "journeyId": {
+          "type": "string"
+        },
+        "maximumMicros": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "planSha256": {
+          "type": "string"
+        },
+        "semanticEffectIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/SpendGrantState"
+        },
+        "targetOrPlannedBindingSha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "grantId",
+        "journeyId",
+        "planSha256",
+        "targetOrPlannedBindingSha256",
+        "semanticEffectIds",
+        "maximumMicros",
+        "heldMicros",
+        "state"
+      ],
+      "type": "object"
+    },
+    "SpendGrantState": {
+      "enum": [
+        "planned",
+        "reserved",
+        "effecting",
+        "consumed",
+        "released",
+        "commitUncertain"
+      ],
+      "type": "string"
+    },
+    "SpendLedgerVersion": {
+      "enum": [
+        "snapback.hosted-spend-ledger.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/hosted-spend-ledger-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cleanupReserveMicros": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "grants": {
+      "items": {
+        "$ref": "#/$defs/HostedSpendGrantV1"
+      },
+      "type": "array"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "maximumMicros": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "remainingMicros": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/SpendLedgerVersion"
+    },
+    "tariffObservedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "tariffSource": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "journeyId",
+    "currency",
+    "tariffSource",
+    "tariffObservedAtMs",
+    "maximumMicros",
+    "remainingMicros",
+    "cleanupReserveMicros",
+    "grants"
+  ],
+  "title": "HostedSpendLedgerV1",
+  "type": "object"
+}

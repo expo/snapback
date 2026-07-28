@@ -4,13 +4,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, schemas/host-ready.schema.json]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-07-27
+reviewed-commit: HEAD
 ---
 
 # Acceptance testing
@@ -178,6 +178,67 @@ Then load and drive the app exactly as production clients do — see
 `loadSchema`/`loadFunctions`/`reset`/`seed` and the query/mutation calls,
 and [realtime/live-queries](../realtime/live-queries.md) for asserting on
 live updates.
+
+## The backend-comparator profile
+
+Use the published comparator profile when an app needs portable evidence for
+the five properties that backend bake-offs most often blur together:
+
+1. a mutation from one identity reaches another identity over native push;
+2. one mutation changes every declared durable-write witness;
+3. a rejected mutation leaves both visible state and the durable version
+   unchanged;
+4. connection-owned presence disappears on disconnect and TTL-bounded
+   presence disappears from a fresh server snapshot; and
+5. an ephemeral publish does not advance the durable storage version.
+
+Create a configuration module with `defineComparatorProfile` from
+`@snapback/cli/comparator`. It names the generated live-query, mutation, and
+ephemeral-collection refs and supplies arguments plus bounded callbacks:
+`live.matches(rows)`, `atomic.snapshot(client)`,
+`rejection.snapshot(client)`, and `presence.matches(entry)`. The kit owns the
+operations those callbacks observe; a callback cannot substitute polling for
+the live transport or take over lifecycle. The packaged
+`fixtures/comparator/green.config.mjs` is a complete, generated-ref example.
+Applications may append explicitly named `extraChecks`; the five profile
+checks remain mandatory and ordered.
+
+Run it from the application root:
+
+```sh
+snapback accept comparator \
+  --config ./snapback-comparator.config.mjs \
+  --receipt ./.snapback/comparator-receipt.json
+```
+
+The command generates and provisions the named backend into a fresh
+file-backed database, starts an OS-port-isolated managed server, creates
+separate actor and observer clients, disables live polling fallback, applies a
+deadline to every operation, and tears down the server and temporary state.
+Its exit codes match the ordinary acceptance harness: `0` means every declared
+check and cleanup passed, `1` means a product check failed or a required
+capability was classified as a GAP, and `2` means setup, timeout, server death,
+or cleanup failed.
+
+The retained `snapback.comparator-receipt.v1` document is validated against
+the package-owned
+`@snapback/cli/comparator-receipt.schema.json`. It carries exact target,
+generated-artifact, and server-binary identity when those identities became
+available; pre-start failures mark unavailable identity sections explicitly.
+It also carries expected and executed checks, per-check timing, capability
+GAPs, cleanup attestation, and nonclaims. Verify a retained receipt before
+aggregation, including freshness:
+
+```sh
+snapback accept comparator \
+  --verify-receipt ./.snapback/comparator-receipt.json \
+  --max-age-ms 3600000
+```
+
+Transport attribution comes from the product client’s
+`SubscriptionReceipt.transport`; an update callback alone is not push
+evidence. A zero-check or short receipt cannot validate as a pass, and a
+cleanup rejection always produces infrastructure exit `2`.
 
 ## Bootstrap a backend without the JS kit
 

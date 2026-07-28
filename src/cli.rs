@@ -715,6 +715,12 @@ pub enum HostCommand {
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
     Mcp,
+    /// Print this executable's independently stamped build identity. Runtime
+    /// diagnostics use this read-only command without binding a server port.
+    // @ref LLP 0031#server-binary-identity-on-health — expose the same
+    // independently embedded facts without starting a server, so link probes
+    // can classify the exact executable they just launched.
+    BuildIdentity,
     /// migrate.* — LLP 0081 reviewed storage evolution (local profile).
     Migrate {
         #[command(subcommand)]
@@ -1011,6 +1017,16 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
+        Some(HostCommand::BuildIdentity) => {
+            println!(
+                "{}",
+                serde_json::to_string(&json!({
+                    "schemaVersion": "snapback.binary-identity.v1",
+                    "binary": crate::identity::binary_identity(),
+                }))?
+            );
+            Ok(())
+        }
         // migrate.* owns `LocalSnapback` directly with no listener ever
         // bound, so the whole subcommand is one pre-bind blocking section —
         // without the handoff the first SQLite read panics the async-worker
@@ -1074,36 +1090,44 @@ async fn auth_backup_inner(
     database_path: &Path,
     output_directory: &Path,
 ) -> anyhow::Result<crate::auth::backup::AuthBackupOutcome> {
-    let database_path = resolve_database_path(database_path)?;
-    anyhow::ensure!(
-        database_path.is_file(),
-        "SNAPBACK_AUTH_BACKUP_INVALID: source database does not exist"
-    );
-    let _instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
-    let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::file_for_database(
-        &database_path,
-    ));
-    let provider = Arc::new(
-        crate::auth::provider::AuthProvider::new(
-            crate::auth::provider::AuthProviderProfile::Test,
-            keyring,
-        )
-        .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
-    );
+    let (database_path, _instance_lock, provider) = startup_blocking(|| {
+        let database_path = resolve_database_path(database_path)?;
+        anyhow::ensure!(
+            database_path.is_file(),
+            "SNAPBACK_AUTH_BACKUP_INVALID: source database does not exist"
+        );
+        let instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
+        let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::file_for_database(
+            &database_path,
+        ));
+        let provider = Arc::new(
+            crate::auth::provider::AuthProvider::new(
+                crate::auth::provider::AuthProviderProfile::Test,
+                keyring,
+            )
+            .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
+        );
+        Ok::<_, anyhow::Error>((database_path, instance_lock, provider))
+    })?;
     let maintenance = provider.exclusive_maintenance().await;
-    let mut snapback = LocalSnapback::open(&database_path)?;
     let created_at_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| elapsed.as_millis().min(9_007_199_254_740_991) as u64)
         .unwrap_or(0);
-    crate::auth::backup::create_backup(
-        snapback.auth_database_mut(),
-        maintenance.keyring(),
-        output_directory,
-        created_at_ms,
-        &crate::auth::crypto::OsRandom,
-    )
-    .map_err(anyhow::Error::new)
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — offline
+    // backup still runs beneath Tokio's CLI entrypoint, so every SQLite page
+    // read and copy crosses the sanctioned pre-bind blocking boundary.
+    startup_blocking(|| {
+        let mut snapback = LocalSnapback::open(&database_path)?;
+        crate::auth::backup::create_backup(
+            snapback.auth_database_mut(),
+            maintenance.keyring(),
+            output_directory,
+            created_at_ms,
+            &crate::auth::crypto::OsRandom,
+        )
+        .map_err(anyhow::Error::new)
+    })
 }
 
 /// Restore always targets a database inside a wholly absent instance
@@ -1903,13 +1927,20 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             Some(declaration_id) => {
                 let provider = auth_runtime.provider();
                 let maintenance = provider.exclusive_maintenance().await;
-                crate::auth::lifecycle::apply_declared_restore(
-                    snapback.auth_database_mut(),
-                    maintenance.mailbox(),
-                    &declaration_path,
-                    declaration_id,
-                    provider.now_ms(),
-                )?;
+                // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening —
+                // declared restore is a pre-bind SQLite transaction even
+                // though its maintenance authority is acquired
+                // asynchronously; execute the transaction in the sanctioned
+                // startup blocking section.
+                startup_blocking(|| {
+                    crate::auth::lifecycle::apply_declared_restore(
+                        snapback.auth_database_mut(),
+                        maintenance.mailbox(),
+                        &declaration_path,
+                        declaration_id,
+                        provider.now_ms(),
+                    )
+                })?;
             }
             None if declaration_present => {
                 return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
@@ -6351,17 +6382,16 @@ mod tests {
     // src/local.rs owns the semantic matrix).
     #[test]
     fn migrate_rehearse_verb_matches_the_library_path() {
+        use super::{MigrateCommand, migrate_command};
         use crate::manifest::SchemaManifest;
         use crate::migration::{
-            CompatibilityPosture, MigrationApprovalV1, MigrationAudienceV1,
-            MigrationBackupRequirement, MigrationCeilings, MigrationConstants,
-            MigrationExecutionStrategy, MigrationExpectedOutput, MigrationPlanArtifactV1,
-            MigrationPlanBody, MigrationProof, MigrationProofMethod,
-            MigrationRehearsalBindingV1, MigrationRehearsalPlanV1, RetainedWorkPosture,
-            MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION, derive_intents,
-            derive_plan_steps, new_operation_id,
+            CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
+            MigrationApprovalV1, MigrationAudienceV1, MigrationBackupRequirement,
+            MigrationCeilings, MigrationConstants, MigrationExecutionStrategy,
+            MigrationExpectedOutput, MigrationPlanArtifactV1, MigrationPlanBody, MigrationProof,
+            MigrationProofMethod, MigrationRehearsalBindingV1, MigrationRehearsalPlanV1,
+            RetainedWorkPosture, derive_intents, derive_plan_steps, new_operation_id,
         };
-        use super::{MigrateCommand, migrate_command};
 
         let field = |name: &str, optional: bool| crate::manifest::FieldManifest {
             name: name.to_owned(),
@@ -6376,6 +6406,7 @@ mod tests {
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
+                search_indexes: Vec::new(),
                 membership: None,
             }],
             ..SchemaManifest::default()
@@ -6419,15 +6450,16 @@ mod tests {
         let db = directory.path().join("isolated.sqlite");
         let (artifact, approval, rehearsal) = {
             let mut isolated = crate::local::LocalSnapback::open(&db).expect("open isolated");
-            isolated.apply_schema(predecessor.clone()).expect("apply schema");
+            isolated
+                .apply_schema(predecessor.clone())
+                .expect("apply schema");
             let intents = derive_intents(&predecessor, &successor).expect("derive intents");
             let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
             let artifact = MigrationPlanArtifactV1::seal(MigrationPlanBody {
                 schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                 app: isolated.migrate_app_id(),
                 instance: "cli-rehearse-witness".to_owned(),
-                target_profile_id:
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
                 predecessor_schema_hash: identity(&predecessor),
                 successor_schema_hash: identity(&successor),
                 predecessor_generation: 1,
@@ -6494,10 +6526,7 @@ mod tests {
             json!({ "artifact": artifact, "observation": observation, "approval": approval }),
         );
         let schema_path = write("successor.json", serde_json::to_value(&successor).unwrap());
-        let rehearsal_path = write(
-            "rehearsal.json",
-            serde_json::to_value(&rehearsal).unwrap(),
-        );
+        let rehearsal_path = write("rehearsal.json", serde_json::to_value(&rehearsal).unwrap());
 
         // (a) Binding refusal parity: the verb delegates to
         // `migrate_rehearse_artifact` before any receipt write, and a
@@ -6509,7 +6538,9 @@ mod tests {
         let other_db = directory.path().join("other.sqlite");
         {
             let mut other = crate::local::LocalSnapback::open(&other_db).expect("open other");
-            other.apply_schema(predecessor.clone()).expect("apply schema");
+            other
+                .apply_schema(predecessor.clone())
+                .expect("apply schema");
             let other_approval = approve_for(&mut other, &artifact);
             let error = other
                 .migrate_rehearse_artifact(&artifact, &other_approval, &successor, &rehearsal)
@@ -6599,7 +6630,10 @@ fn migrate_emit(operation: &str, outcome: anyhow::Result<Value>) -> anyhow::Resu
     }
 }
 
-fn migrate_read_json<T: serde::de::DeserializeOwned>(path: &PathBuf, what: &str) -> anyhow::Result<T> {
+fn migrate_read_json<T: serde::de::DeserializeOwned>(
+    path: &PathBuf,
+    what: &str,
+) -> anyhow::Result<T> {
     let raw = std::fs::read_to_string(path)
         .map_err(|error| anyhow::anyhow!("read {what} {}: {error}", path.display()))?;
     serde_json::from_str(&raw).map_err(|error| anyhow::anyhow!("parse {what}: {error}"))
@@ -6647,233 +6681,257 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             max_affected_rows,
             max_barrier_downtime_ms,
             out,
-        } => migrate_emit("migrate.preview", (|| {
-            let successor: crate::manifest::SchemaManifest =
-                migrate_read_json(&schema, "successor schema")?;
-            let constant_values: std::collections::BTreeMap<String, Value> = match &constants {
-                Some(path) => migrate_read_json(path, "constants")?,
-                None => Default::default(),
-            };
-            let snapback = crate::local::LocalSnapback::open(&db)?;
-            let predecessor = snapback.migrate_predecessor_schema();
-            let head = snapback.migrate_head_version()?;
-            // Explicit intents win; a schema-diff derivation covers exactly
-            // the unambiguous changes (LLP 0081 §2 — the derivation refuses
-            // anything needing a declared backfill/rename/conversion).
-            let intents: Vec<crate::migration::MigrationIntent> = match &intents {
-                Some(path) => migrate_read_json(path, "intents")?,
-                None => crate::migration::derive_intents(&predecessor, &successor)?,
-            };
-            let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
-            let body = crate::migration::MigrationPlanBody {
-                schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
-                app: snapback.migrate_app_id(),
-                instance: db.display().to_string(),
-                target_profile_id:
-                    crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
-                predecessor_schema_hash:
-                    crate::storage::migration_executor::schema_identity(&predecessor)?,
-                successor_schema_hash:
-                    crate::storage::migration_executor::schema_identity(&successor)?,
-                predecessor_generation: head,
-                steps,
-                execution_strategy:
-                    crate::migration::MigrationExecutionStrategy::SingleTransaction,
-                proof: crate::migration::MigrationProof {
-                    method: crate::migration::MigrationProofMethod::Full,
-                    bound: None,
-                },
-                ceilings: crate::migration::MigrationCeilings {
-                    max_affected_rows,
-                    max_bytes: 64 * 1024 * 1024,
-                    max_writes: max_affected_rows,
-                    max_barrier_downtime_ms,
-                },
-                compatibility_posture: crate::migration::CompatibilityPosture::SuccessorOnly,
-                retained_work_posture: crate::migration::RetainedWorkPosture::Empty,
-                backup: crate::migration::MigrationBackupRequirement {
-                    required: false,
-                    checkpoint_label: None,
-                    rehearsal_required: false,
-                },
-                expected_output: crate::migration::MigrationExpectedOutput {
-                    schema_hash: crate::storage::migration_executor::schema_identity(&successor)?,
-                    projection_generations: Default::default(),
-                },
-                constants: crate::migration::MigrationConstants {
-                    publication_timestamp_ms,
-                    rollback_timestamp_ms,
-                    values: constant_values,
-                },
-                boundaries: Default::default(),
-            };
-            let artifact = crate::migration::MigrationPlanArtifactV1::seal(body)?;
-            crate::migration::validate_plan_artifact(&artifact, &predecessor, &successor)?;
-            let observation = crate::migration::MigrationPreviewObservationV1 {
-                schema_version:
-                    crate::migration::MIGRATION_OBSERVATION_SCHEMA_VERSION.to_owned(),
-                plan_digest: artifact.plan_digest.clone(),
-                target_head_version: head,
-                observed_at_ms: wall_clock_now_ms(),
-                precondition_rows: Default::default(),
-                capability_health: Default::default(),
-            };
-            let file = MigratePreviewFile {
-                artifact,
-                observation,
-                generated_by: local_operator(),
-            };
-            std::fs::write(&out, serde_json::to_string_pretty(&file)?)?;
-            Ok(json!({
-                "planId": file.artifact.plan_id,
-                "planDigest": file.artifact.plan_digest,
-                "steps": file.artifact.body.steps.len(),
-                "out": out.display().to_string(),
-            }))
-        })()),
+        } => migrate_emit(
+            "migrate.preview",
+            (|| {
+                let successor: crate::manifest::SchemaManifest =
+                    migrate_read_json(&schema, "successor schema")?;
+                let constant_values: std::collections::BTreeMap<String, Value> = match &constants {
+                    Some(path) => migrate_read_json(path, "constants")?,
+                    None => Default::default(),
+                };
+                let snapback = crate::local::LocalSnapback::open(&db)?;
+                let predecessor = snapback.migrate_predecessor_schema();
+                let head = snapback.migrate_head_version()?;
+                // Explicit intents win; a schema-diff derivation covers exactly
+                // the unambiguous changes (LLP 0081 §2 — the derivation refuses
+                // anything needing a declared backfill/rename/conversion).
+                let intents: Vec<crate::migration::MigrationIntent> = match &intents {
+                    Some(path) => migrate_read_json(path, "intents")?,
+                    None => crate::migration::derive_intents(&predecessor, &successor)?,
+                };
+                let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
+                let body = crate::migration::MigrationPlanBody {
+                    schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+                    app: snapback.migrate_app_id(),
+                    instance: db.display().to_string(),
+                    target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                        .to_owned(),
+                    predecessor_schema_hash: crate::storage::migration_executor::schema_identity(
+                        &predecessor,
+                    )?,
+                    successor_schema_hash: crate::storage::migration_executor::schema_identity(
+                        &successor,
+                    )?,
+                    predecessor_generation: head,
+                    steps,
+                    execution_strategy:
+                        crate::migration::MigrationExecutionStrategy::SingleTransaction,
+                    proof: crate::migration::MigrationProof {
+                        method: crate::migration::MigrationProofMethod::Full,
+                        bound: None,
+                    },
+                    ceilings: crate::migration::MigrationCeilings {
+                        max_affected_rows,
+                        max_bytes: 64 * 1024 * 1024,
+                        max_writes: max_affected_rows,
+                        max_barrier_downtime_ms,
+                    },
+                    compatibility_posture: crate::migration::CompatibilityPosture::SuccessorOnly,
+                    retained_work_posture: crate::migration::RetainedWorkPosture::Empty,
+                    backup: crate::migration::MigrationBackupRequirement {
+                        required: false,
+                        checkpoint_label: None,
+                        rehearsal_required: false,
+                    },
+                    expected_output: crate::migration::MigrationExpectedOutput {
+                        schema_hash: crate::storage::migration_executor::schema_identity(
+                            &successor,
+                        )?,
+                        projection_generations: Default::default(),
+                    },
+                    constants: crate::migration::MigrationConstants {
+                        publication_timestamp_ms,
+                        rollback_timestamp_ms,
+                        values: constant_values,
+                    },
+                    boundaries: Default::default(),
+                };
+                let artifact = crate::migration::MigrationPlanArtifactV1::seal(body)?;
+                crate::migration::validate_plan_artifact(&artifact, &predecessor, &successor)?;
+                let observation = crate::migration::MigrationPreviewObservationV1 {
+                    schema_version: crate::migration::MIGRATION_OBSERVATION_SCHEMA_VERSION
+                        .to_owned(),
+                    plan_digest: artifact.plan_digest.clone(),
+                    target_head_version: head,
+                    observed_at_ms: wall_clock_now_ms(),
+                    precondition_rows: Default::default(),
+                    capability_health: Default::default(),
+                };
+                let file = MigratePreviewFile {
+                    artifact,
+                    observation,
+                    generated_by: local_operator(),
+                };
+                std::fs::write(&out, serde_json::to_string_pretty(&file)?)?;
+                Ok(json!({
+                    "planId": file.artifact.plan_id,
+                    "planDigest": file.artifact.plan_digest,
+                    "steps": file.artifact.body.steps.len(),
+                    "out": out.display().to_string(),
+                }))
+            })(),
+        ),
         MigrateCommand::Approve {
             plan,
             approver,
             expires_in_ms,
             db,
             out,
-        } => migrate_emit("migrate.approve", (|| {
-            let preview: MigratePreviewFile = migrate_read_json(&plan, "preview file")?;
-            let mut snapback = crate::local::LocalSnapback::open(&db)?;
-            let audience = snapback.migrate_resolved_audience()?;
-            let approver = approver.unwrap_or_else(local_operator);
-            let now = wall_clock_now_ms();
-            let approval = crate::migration::MigrationApprovalV1 {
-                schema_version:
-                    crate::migration::MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
-                plan_digest: preview.artifact.plan_digest.clone(),
-                observation_digest: crate::migration::observation_digest(&preview.observation)?,
-                policy_digest: "local-operator-policy-v1".to_owned(),
-                audience: crate::migration::MigrationAudienceV1 {
-                    project_id: None,
-                    target_id: None,
-                    environment_id: None,
-                    deployment_id: None,
-                    release_id: None,
-                    database_id: audience.database_id,
-                    stream_incarnation: audience.stream_incarnation,
-                    activation_generation: audience.activation_generation,
-                    target_profile_id: audience.target_profile_id,
-                },
-                approver: approver.clone(),
-                generator_is_approver: approver == preview.generated_by,
-                issued_at_ms: now,
-                expires_at_ms: now + expires_in_ms,
-                operation_id: crate::migration::new_operation_id(),
-            };
-            crate::migration::validate_approval_shape(&approval)?;
-            let approved = MigrateApprovedFile {
-                artifact: preview.artifact,
-                observation: preview.observation,
-                approval,
-            };
-            std::fs::write(&out, serde_json::to_string_pretty(&approved)?)?;
-            Ok(json!({
-                "operationId": approved.approval.operation_id,
-                "planId": approved.artifact.plan_id,
-                "generatorIsApprover": approved.approval.generator_is_approver,
-                "out": out.display().to_string(),
-            }))
-        })()),
+        } => migrate_emit(
+            "migrate.approve",
+            (|| {
+                let preview: MigratePreviewFile = migrate_read_json(&plan, "preview file")?;
+                let mut snapback = crate::local::LocalSnapback::open(&db)?;
+                let audience = snapback.migrate_resolved_audience()?;
+                let approver = approver.unwrap_or_else(local_operator);
+                let now = wall_clock_now_ms();
+                let approval = crate::migration::MigrationApprovalV1 {
+                    schema_version: crate::migration::MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+                    plan_digest: preview.artifact.plan_digest.clone(),
+                    observation_digest: crate::migration::observation_digest(&preview.observation)?,
+                    policy_digest: "local-operator-policy-v1".to_owned(),
+                    audience: crate::migration::MigrationAudienceV1 {
+                        project_id: None,
+                        target_id: None,
+                        environment_id: None,
+                        deployment_id: None,
+                        release_id: None,
+                        database_id: audience.database_id,
+                        stream_incarnation: audience.stream_incarnation,
+                        activation_generation: audience.activation_generation,
+                        target_profile_id: audience.target_profile_id,
+                    },
+                    approver: approver.clone(),
+                    generator_is_approver: approver == preview.generated_by,
+                    issued_at_ms: now,
+                    expires_at_ms: now + expires_in_ms,
+                    operation_id: crate::migration::new_operation_id(),
+                };
+                crate::migration::validate_approval_shape(&approval)?;
+                let approved = MigrateApprovedFile {
+                    artifact: preview.artifact,
+                    observation: preview.observation,
+                    approval,
+                };
+                std::fs::write(&out, serde_json::to_string_pretty(&approved)?)?;
+                Ok(json!({
+                    "operationId": approved.approval.operation_id,
+                    "planId": approved.artifact.plan_id,
+                    "generatorIsApprover": approved.approval.generator_is_approver,
+                    "out": out.display().to_string(),
+                }))
+            })(),
+        ),
         MigrateCommand::Apply {
             approved,
             schema,
             db,
             dry_run,
             rehearsal_receipt,
-        } => migrate_emit("migrate.apply", (|| {
-            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
-            let successor: crate::manifest::SchemaManifest =
-                migrate_read_json(&schema, "successor schema")?;
-            let mut snapback = crate::local::LocalSnapback::open(&db)?;
-            if dry_run {
-                let predecessor = snapback.migrate_predecessor_schema();
-                crate::migration::validate_plan_artifact(
+        } => migrate_emit(
+            "migrate.apply",
+            (|| {
+                let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+                let successor: crate::manifest::SchemaManifest =
+                    migrate_read_json(&schema, "successor schema")?;
+                let mut snapback = crate::local::LocalSnapback::open(&db)?;
+                if dry_run {
+                    let predecessor = snapback.migrate_predecessor_schema();
+                    crate::migration::validate_plan_artifact(
+                        &approved.artifact,
+                        &predecessor,
+                        &successor,
+                    )?;
+                    crate::migration::validate_approval_shape(&approved.approval)?;
+                    return Ok(json!({
+                        "dryRun": true,
+                        "operationId": approved.approval.operation_id,
+                        "planId": approved.artifact.plan_id,
+                        "wouldApply": true,
+                    }));
+                }
+                let rehearsal: Option<crate::storage::migration_executor::MigrationReceiptV1> =
+                    match &rehearsal_receipt {
+                        Some(path) => Some(migrate_read_json(path, "rehearsal receipt")?),
+                        None => None,
+                    };
+                let receipt = snapback.migrate_apply_artifact_with_rehearsal_receipt(
                     &approved.artifact,
-                    &predecessor,
+                    &approved.approval,
                     &successor,
+                    rehearsal.as_ref(),
                 )?;
-                crate::migration::validate_approval_shape(&approved.approval)?;
-                return Ok(json!({
-                    "dryRun": true,
-                    "operationId": approved.approval.operation_id,
-                    "planId": approved.artifact.plan_id,
-                    "wouldApply": true,
-                }));
-            }
-            let rehearsal: Option<crate::storage::migration_executor::MigrationReceiptV1> =
-                match &rehearsal_receipt {
-                    Some(path) => Some(migrate_read_json(path, "rehearsal receipt")?),
-                    None => None,
-                };
-            let receipt = snapback.migrate_apply_artifact_with_rehearsal_receipt(
-                &approved.artifact,
-                &approved.approval,
-                &successor,
-                rehearsal.as_ref(),
-            )?;
-            Ok(serde_json::to_value(&receipt)?)
-        })()),
+                Ok(serde_json::to_value(&receipt)?)
+            })(),
+        ),
         MigrateCommand::Rehearse {
             approved,
             schema,
             rehearsal_plan,
             db,
             out,
-        } => migrate_emit("migrate.rehearse", (|| {
-            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
-            let successor: crate::manifest::SchemaManifest =
-                migrate_read_json(&schema, "successor schema")?;
-            let rehearsal: crate::migration::MigrationRehearsalPlanV1 =
-                migrate_read_json(&rehearsal_plan, "rehearsal plan")?;
-            let mut snapback = crate::local::LocalSnapback::open(&db)?;
-            // Thin wrapper: identical semantics to the library path — the
-            // binding check, marking, and freshness anchor all live in the
-            // executor, not here.
-            let receipt = snapback.migrate_rehearse_artifact(
-                &approved.artifact,
-                &approved.approval,
-                &successor,
-                &rehearsal,
-            )?;
-            std::fs::write(&out, serde_json::to_string_pretty(&receipt)?)?;
-            Ok(json!({
-                "operationId": approved.approval.operation_id,
-                "planId": approved.artifact.plan_id,
-                "rehearsal": true,
-                "state": receipt.state.kind(),
-                "out": out.display().to_string(),
-            }))
-        })()),
-        MigrateCommand::Cancel { approved, db } => migrate_emit("migrate.cancel", (|| {
-            let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
-            let mut snapback = crate::local::LocalSnapback::open(&db)?;
-            snapback.migrate_request_cancel(&approved.approval.operation_id)?;
-            Ok(json!({
-                "operationId": approved.approval.operation_id,
-                "cancelRequested": true,
-            }))
-        })()),
-        MigrateCommand::Verify { operation_id, db } => migrate_emit("migrate.verify", (|| {
-            let snapback = crate::local::LocalSnapback::open(&db)?;
-            Ok(snapback.migrate_verify_receipt(&operation_id)?)
-        })()),
-        MigrateCommand::Rollback { receipt, db } => migrate_emit("migrate.rollback", (|| {
-            // The fast rollback runs under the original operation's
-            // approval, which acknowledged the rollback boundary by
-            // declaring the explicit rollback timestamp — so the input is
-            // the approved migration file (the same authority `apply`
-            // consumed), not a regenerated plan.
-            let approved: MigrateApprovedFile = migrate_read_json(&receipt, "approved file")?;
-            let mut snapback = crate::local::LocalSnapback::open(&db)?;
-            let rollback =
-                snapback.migrate_rollback_artifact(&approved.artifact, &approved.approval)?;
-            Ok(serde_json::to_value(&rollback)?)
-        })()),
+        } => migrate_emit(
+            "migrate.rehearse",
+            (|| {
+                let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+                let successor: crate::manifest::SchemaManifest =
+                    migrate_read_json(&schema, "successor schema")?;
+                let rehearsal: crate::migration::MigrationRehearsalPlanV1 =
+                    migrate_read_json(&rehearsal_plan, "rehearsal plan")?;
+                let mut snapback = crate::local::LocalSnapback::open(&db)?;
+                // Thin wrapper: identical semantics to the library path — the
+                // binding check, marking, and freshness anchor all live in the
+                // executor, not here.
+                let receipt = snapback.migrate_rehearse_artifact(
+                    &approved.artifact,
+                    &approved.approval,
+                    &successor,
+                    &rehearsal,
+                )?;
+                std::fs::write(&out, serde_json::to_string_pretty(&receipt)?)?;
+                Ok(json!({
+                    "operationId": approved.approval.operation_id,
+                    "planId": approved.artifact.plan_id,
+                    "rehearsal": true,
+                    "state": receipt.state.kind(),
+                    "out": out.display().to_string(),
+                }))
+            })(),
+        ),
+        MigrateCommand::Cancel { approved, db } => migrate_emit(
+            "migrate.cancel",
+            (|| {
+                let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
+                let mut snapback = crate::local::LocalSnapback::open(&db)?;
+                snapback.migrate_request_cancel(&approved.approval.operation_id)?;
+                Ok(json!({
+                    "operationId": approved.approval.operation_id,
+                    "cancelRequested": true,
+                }))
+            })(),
+        ),
+        MigrateCommand::Verify { operation_id, db } => migrate_emit(
+            "migrate.verify",
+            (|| {
+                let snapback = crate::local::LocalSnapback::open(&db)?;
+                Ok(snapback.migrate_verify_receipt(&operation_id)?)
+            })(),
+        ),
+        MigrateCommand::Rollback { receipt, db } => migrate_emit(
+            "migrate.rollback",
+            (|| {
+                // The fast rollback runs under the original operation's
+                // approval, which acknowledged the rollback boundary by
+                // declaring the explicit rollback timestamp — so the input is
+                // the approved migration file (the same authority `apply`
+                // consumed), not a regenerated plan.
+                let approved: MigrateApprovedFile = migrate_read_json(&receipt, "approved file")?;
+                let mut snapback = crate::local::LocalSnapback::open(&db)?;
+                let rollback =
+                    snapback.migrate_rollback_artifact(&approved.artifact, &approved.approval)?;
+                Ok(serde_json::to_value(&rollback)?)
+            })(),
+        ),
     }
 }

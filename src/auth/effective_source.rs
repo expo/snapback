@@ -51,8 +51,9 @@ pub fn derive_effective_source(
         ));
     }
 
-    let forwarded = forwarded
-        .ok_or_else(|| untrusted("hosted effective source requires exactly one forwarded header"))?;
+    let forwarded = forwarded.ok_or_else(|| {
+        untrusted("hosted effective source requires exactly one forwarded header")
+    })?;
 
     // 3. Strict syntax. Any malformed entry fails the whole header rather than
     //    being skipped: skipping is how a parser is talked into selecting a

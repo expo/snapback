@@ -26,6 +26,8 @@ const events = [
   { id: 'ev1', type: 'start', status: 'started', source: 'flyd', timestamp: 1_000 },
   { id: 'ev2', type: 'exit', status: 'stopped', source: 'flyd', timestamp: 2_000 },
 ];
+let includeSecondMachine = false;
+let leaseActive = false;
 const server = createServer((request, response) => {
   if (request.headers.authorization !== 'Bearer test-token') {
     response.writeHead(401).end('{"error":"unauthorized"}');
@@ -34,7 +36,32 @@ const server = createServer((request, response) => {
   if (request.url === '/v1/apps/snapback-drill') {
     response.end(JSON.stringify({ name: 'snapback-drill', organization: { slug: 'personal' } }));
   } else if (request.url === '/v1/apps/snapback-drill/machines') {
-    response.end(JSON.stringify([machine]));
+    response.end(JSON.stringify(includeSecondMachine
+      ? [machine, { id: 'second-machine', state: 'stopped', region: 'sjc' }]
+      : [machine]));
+  } else if (
+    request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/lease'
+    && request.method === 'POST'
+  ) {
+    if (leaseActive) {
+      response.writeHead(409).end('{"error":"lease exists"}');
+    } else {
+      leaseActive = true;
+      response.writeHead(201).end(JSON.stringify({
+        status: 'success',
+        data: { nonce: 'fixture-lease-nonce', expires_at: Math.floor(Date.now() / 1000) + 60 },
+      }));
+    }
+  } else if (
+    request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/lease'
+    && request.method === 'DELETE'
+  ) {
+    if (request.headers['fly-machine-lease-nonce'] !== 'fixture-lease-nonce') {
+      response.writeHead(400).end('{"error":"wrong nonce"}');
+    } else {
+      leaseActive = false;
+      response.end('{"status":"success","data":{"ok":true}}');
+    }
   } else if (request.url === '/v1/apps/snapback-drill/machines/849764f2e7dd58/events') {
     response.end(JSON.stringify(events));
   } else {
@@ -181,9 +208,52 @@ function runDriver(request, env = {}) {
   assert.ok(response.diagnostics.some((d) => d.code === 'SNAPBACK_ADAPTER_INSPECTION_UNAVAILABLE'));
 }
 
-// 6. Lifecycle and malformed requests fail closed at the process boundary.
+// 6. The two exact provider lease operations work against the fixture but can
+// never mint remote evidence from its noncanonical base. Every remaining
+// lifecycle spelling refuses in protocol.
 {
-  assert.equal((await runDriver({ schemaVersion: 'snapback.vm-adapter-lifecycle-request.v1', operation: 'activate', operationId: 'op-x', target })).status, 3);
+  const acquireRequest = {
+    schemaVersion: 'snapback.vm-adapter-lifecycle-request.v1',
+    operation: 'acquireLease',
+    operationId: 'op-lease',
+    attempt: 1,
+    target,
+    plan: {},
+    releaseDirectory: '',
+    lease: null,
+  };
+  const acquired = JSON.parse((await runDriver(acquireRequest)).stdout);
+  assert.equal(acquired.ok, true);
+  assert.equal(acquired.remoteEvidence, false);
+  assert.equal(acquired.lease.leaseId, 'fixture-lease-nonce');
+  const conflict = JSON.parse((await runDriver({ ...acquireRequest, operationId: 'op-lease-conflict' })).stdout);
+  assert.equal(conflict.ok, false);
+  assert.ok(conflict.diagnostics.some((d) => d.code === 'SNAPBACK_DEPLOY_LEASE_CONFLICT'));
+  const released = JSON.parse((await runDriver({
+    ...acquireRequest,
+    operation: 'releaseLease',
+    lease: acquired.lease,
+  })).stdout);
+  assert.equal(released.ok, true);
+  assert.equal(released.lease, null);
+  const unsupported = JSON.parse((await runDriver({
+    ...acquireRequest,
+    operation: 'activateGeneration',
+  })).stdout);
+  assert.equal(unsupported.ok, false);
+  assert.ok(unsupported.diagnostics.some((d) => d.code === 'SNAPBACK_ADAPTER_OPERATION_UNSUPPORTED'));
+
+  includeSecondMachine = true;
+  const unsafe = JSON.parse((await runDriver({
+    schemaVersion: 'snapback.vm-adapter-request.v1',
+    operation: 'doctor',
+    operationId: 'op-unsafe-roster',
+    target,
+  })).stdout);
+  assert.equal(unsafe.ok, false);
+  assert.ok(unsafe.diagnostics.some((d) => d.code === 'SNAPBACK_EPHEMERAL_ROUTING_UNSAFE'));
+  includeSecondMachine = false;
+
   const malformed = spawnSync(process.execPath, [driverPath], { input: 'not json\n', encoding: 'utf8', timeout: 30_000, env: { PATH: process.env.PATH } });
   assert.equal(malformed.status, 3);
 }
