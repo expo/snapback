@@ -156,6 +156,7 @@ const REQUIRED_BROWSER_FORBIDDEN_MARKER_KINDS = [
 const BROWSER_CAPTURE_KEYS = [
   'browser',
   'captureSanitized',
+  'materializationBoundary',
   'completedAtMs',
   'coverage',
   'forbiddenMarkerKindsChecked',
@@ -169,6 +170,15 @@ const BROWSER_CAPTURE_KEYS = [
   'startedAtMs',
   'surfaceManifest',
   'totalBytesScanned',
+];
+const BROWSER_CAPTURE_MATERIALIZATION_KEYS = [
+  'cdpEventMaterialization',
+  'chromiumInternalMaterialization',
+  'proofOwnedCopiesAndEncodings',
+  'requestPostDataProtocolCapBytes',
+  'resourceProtocolCapBytes',
+  'totalResourceProtocolCapBytes',
+  'unprovableCompletenessPolicy',
 ];
 const BROWSER_CAPTURE_BROWSER_KEYS = [
   'distributionBytes',
@@ -302,6 +312,11 @@ export function validateColdInstallBrowserEvidence(receipt) {
   requireExactKeys(capture, BROWSER_CAPTURE_KEYS, 'cold-install browser capture');
   requireExactKeys(capture.browser, BROWSER_CAPTURE_BROWSER_KEYS, 'cold-install browser identity');
   requireExactKeys(capture.coverage, BROWSER_CAPTURE_COVERAGE_KEYS, 'cold-install browser coverage');
+  requireExactKeys(
+    capture.materializationBoundary,
+    BROWSER_CAPTURE_MATERIALIZATION_KEYS,
+    'cold-install browser materialization boundary',
+  );
   const manifest = Array.isArray(capture.surfaceManifest) ? capture.surfaceManifest : [];
   let manifestBytes = 0;
   const manifestCounts = new Map();
@@ -373,6 +388,19 @@ export function validateColdInstallBrowserEvidence(receipt) {
     || capture.schemaVersion !== 'snapback.package-browser-capture.v1'
     || capture.captureSanitized !== true
     || capture.forbiddenValueRetention !== 'none'
+    || capture.materializationBoundary.cdpEventMaterialization
+      !== 'not-bounded-by-this-proof'
+    || capture.materializationBoundary.chromiumInternalMaterialization
+      !== 'not-bounded-by-this-proof'
+    || capture.materializationBoundary.proofOwnedCopiesAndEncodings
+      !== 'bounded-before-allocation'
+    || capture.materializationBoundary.requestPostDataProtocolCapBytes
+      !== capture.maxSurfaceBytes
+    || capture.materializationBoundary.resourceProtocolCapBytes
+      !== capture.maxSurfaceBytes
+    || capture.materializationBoundary.totalResourceProtocolCapBytes
+      !== capture.maxTotalBytes
+    || capture.materializationBoundary.unprovableCompletenessPolicy !== 'fail-closed'
     || capture.sourceRevision !== receipt.sourceRevision
     || capture.sourceDirty !== receipt.sourceDirty
     || capture.sourceDirty !== false

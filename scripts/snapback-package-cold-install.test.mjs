@@ -186,6 +186,69 @@ test('browser deep serializer covers nested maps, sets, buffers, and refuses byt
   );
 });
 
+test('browser deep serializer traverses custom classes, functions, accessors, and proxies', async () => {
+  const classSecret = `class-secret-${'a'.repeat(48)}`;
+  const functionSecret = `function-secret-${'b'.repeat(48)}`;
+  const proxySecret = `proxy-secret-${'c'.repeat(48)}`;
+  class SecretBox {}
+  const box = new SecretBox();
+  Object.defineProperty(box, 'revealed', {
+    configurable: true,
+    enumerable: false,
+    get: () => ({ nested: classSecret }),
+  });
+  function callable() {}
+  callable.privateState = { nested: functionSecret };
+  const proxied = new Proxy({ nested: null }, {
+    get(target, key, receiver) {
+      if (key === 'nested') return { secret: proxySecret };
+      return Reflect.get(target, key, receiver);
+    },
+    ownKeys() {
+      return ['nested'];
+    },
+  });
+  const rendered = await boundedSerializeBrowserValue(
+    { box, callable, proxied },
+    {
+      maxBytes: 64 * 1024,
+      maxDepth: 12,
+      maxNodes: 500,
+      maxProperties: 500,
+    },
+  );
+  assert.ok(rendered.includes(classSecret));
+  assert.ok(rendered.includes(functionSecret));
+  assert.ok(rendered.includes(proxySecret));
+
+  await assert.rejects(
+    boundedSerializeBrowserValue(new Proxy({}, {
+      ownKeys() {
+        throw new Error('proxy ownKeys refused');
+      },
+    }), {
+      maxBytes: 1024,
+      maxDepth: 4,
+      maxNodes: 20,
+      maxProperties: 20,
+    }),
+    /proxy ownKeys refused/u,
+  );
+  const oversized = {};
+  Object.defineProperty(oversized, 'payload', {
+    get: () => 'x'.repeat(4096),
+  });
+  await assert.rejects(
+    boundedSerializeBrowserValue(oversized, {
+      maxBytes: 256,
+      maxDepth: 4,
+      maxNodes: 20,
+      maxProperties: 20,
+    }),
+    /byte bound/u,
+  );
+});
+
 test('bounded async evidence pool limits concurrency and fails closed on task count', async () => {
   const pool = createBoundedAsyncTaskPool({ maxTasks: 8, maxConcurrency: 2 });
   let active = 0;
@@ -216,6 +279,7 @@ test('response, cache, IndexedDB, WebSocket, and chunked byte limits fail before
     'websocket-frame-received',
   ]) {
     const collector = createBoundedBrowserSurfaceCollector({
+      forbiddenMarkers: [],
       maxSurfaceBytes: 8,
       maxTotalBytes: 16,
       maxSurfaces: 2,
@@ -325,6 +389,15 @@ function browserJourneyFixture(overrides = {}) {
     ],
     captureSanitized: true,
     forbiddenValueRetention: 'none',
+    materializationBoundary: {
+      cdpEventMaterialization: 'not-bounded-by-this-proof',
+      chromiumInternalMaterialization: 'not-bounded-by-this-proof',
+      proofOwnedCopiesAndEncodings: 'bounded-before-allocation',
+      requestPostDataProtocolCapBytes: 16 * 1024 * 1024,
+      resourceProtocolCapBytes: 16 * 1024 * 1024,
+      totalResourceProtocolCapBytes: 128 * 1024 * 1024,
+      unprovableCompletenessPolicy: 'fail-closed',
+    },
     ...captureFieldOverrides,
   };
   return {
@@ -496,15 +569,14 @@ test('browser origin scanner normalizes HTTP(S), WS(S), and encoded forms', () =
 
 test('bounded browser scanner covers binary bytes and retains only sanitized shape', () => {
   const secret = `snapback-cold-canary-${'c'.repeat(48)}`;
+  const forbiddenMarkers = [{ kind: 'browser-secret-canary', value: secret }];
   const collector = createBoundedBrowserSurfaceCollector({
+    forbiddenMarkers,
     maxSurfaceBytes: 1024,
     maxTotalBytes: 2048,
   });
   collector.add('response-body', Buffer.from(`binary-prefix\0${secret}\0binary-suffix`));
-  assert.deepEqual(
-    collector.findLeaks([{ kind: 'browser-secret-canary', value: secret }]),
-    ['browser-secret-canary'],
-  );
+  assert.deepEqual(collector.findLeaks(), ['browser-secret-canary']);
   const summary = collector.sanitizedSummary();
   assert.equal(summary.totalBytesScanned, Buffer.byteLength(`binary-prefix\0${secret}\0binary-suffix`));
   assert.doesNotMatch(JSON.stringify(summary), new RegExp(secret, 'u'));
@@ -514,11 +586,13 @@ test('bounded browser scanner covers binary bytes and retains only sanitized sha
   );
 
   const sameSizeLeft = createBoundedBrowserSurfaceCollector({
+    forbiddenMarkers: [],
     maxSurfaceBytes: 64,
     maxTotalBytes: 64,
     maxSurfaces: 1,
   });
   const sameSizeRight = createBoundedBrowserSurfaceCollector({
+    forbiddenMarkers: [],
     maxSurfaceBytes: 64,
     maxTotalBytes: 64,
     maxSurfaces: 1,
@@ -531,6 +605,34 @@ test('bounded browser scanner covers binary bytes and retains only sanitized sha
   assert.notEqual(leftCommitment.contentSha256, rightCommitment.contentSha256);
   assert.doesNotMatch(JSON.stringify(leftCommitment), /left/u);
   assert.throws(() => sameSizeLeft.add('response-body', 'more'), /surface bound/u);
+});
+
+test('bounded browser scanner streams text, catches cross-chunk markers, and refuses before commit', () => {
+  const secret = `cross-chunk-secret-${'z'.repeat(48)}`;
+  const forbiddenMarkers = [{ kind: 'admin-token', value: secret }];
+  const collector = createBoundedBrowserSurfaceCollector({
+    forbiddenMarkers,
+    maxSurfaceBytes: 128 * 1024,
+    maxTotalBytes: 128 * 1024,
+    maxSurfaces: 1,
+  });
+  collector.add('page-state', `${'p'.repeat((64 * 1024) - 8)}${secret}`);
+  assert.deepEqual(collector.findLeaks(), ['admin-token']);
+  assert.equal(collector.sanitizedSummary().surfaceManifest.length, 1);
+  assert.throws(
+    () => collector.findLeaks([...forbiddenMarkers]),
+    /fixed before collection/u,
+  );
+
+  const refusing = createBoundedBrowserSurfaceCollector({
+    forbiddenMarkers: [],
+    maxSurfaceBytes: 32,
+    maxTotalBytes: 64,
+    maxSurfaces: 1,
+  });
+  assert.throws(() => refusing.add('page-state', 'x'.repeat(33)), /scan bound/u);
+  assert.deepEqual(refusing.sanitizedSummary().surfaceManifest, []);
+  assert.equal(refusing.sanitizedSummary().totalBytesScanned, 0);
 });
 
 test('qualified browser evidence fails closed on simulated, non-live, stale, or under-scanned journeys', () => {
@@ -552,6 +654,12 @@ test('qualified browser evidence fails closed on simulated, non-live, stale, or 
     },
     (receipt) => { receipt.browserJourney.capture.sourceRevision = 'f'.repeat(40); },
     (receipt) => { receipt.browserJourney.capture.sourceDirty = true; },
+    (receipt) => {
+      receipt.browserJourney.capture.materializationBoundary.cdpEventMaterialization =
+        'bounded-before-allocation';
+      receipt.browserJourney.captureSha256 =
+        sha256Hex(canonicalJcs(receipt.browserJourney.capture));
+    },
     (receipt) => { receipt.browserJourney.capture.completedAtMs += 11 * 60 * 1000; },
     (receipt) => {
       receipt.browserJourney.capture.coverage.responseBodiesScanned = 1;

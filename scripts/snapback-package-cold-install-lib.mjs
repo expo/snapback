@@ -393,7 +393,23 @@ export function createBoundedByteAccumulator({ label, maxBytes, maxChunks }) {
       if (chunks.length >= maxChunks) {
         throw new RangeError(`${label} exceeded the ${maxChunks}-chunk bound`);
       }
-      const bytes = Buffer.from(browserSurfaceBytes(value));
+      let bytes;
+      if (typeof value === 'string') {
+        if (value.length > maxBytes - totalBytes) {
+          throw new RangeError(`${label} exceeded the ${maxBytes}-byte bound`);
+        }
+        const byteLength = Buffer.byteLength(value);
+        if (byteLength > maxBytes - totalBytes) {
+          throw new RangeError(`${label} exceeded the ${maxBytes}-byte bound`);
+        }
+        bytes = Buffer.from(value);
+      } else {
+        const readable = browserSurfaceBytes(value);
+        if (readable.byteLength > maxBytes - totalBytes) {
+          throw new RangeError(`${label} exceeded the ${maxBytes}-byte bound`);
+        }
+        bytes = Buffer.from(readable);
+      }
       if (bytes.byteLength > maxBytes - totalBytes) {
         throw new RangeError(`${label} exceeded the ${maxBytes}-byte bound`);
       }
@@ -457,9 +473,15 @@ export async function boundedSerializeBrowserValue(value, limits) {
   let nodes = 0;
   let properties = 0;
   const chargeText = (text) => {
-    chargedBytes += encoder.encode(text).byteLength;
-    if (chargedBytes > maxBytes) {
+    if (text.length > maxBytes - chargedBytes) {
       throw new RangeError('browser value exceeded its byte bound');
+    }
+    for (let offset = 0; offset < text.length; offset += 64 * 1024) {
+      const chunk = text.slice(offset, offset + 64 * 1024);
+      chargedBytes += encoder.encode(chunk).byteLength;
+      if (chargedBytes > maxBytes) {
+        throw new RangeError('browser value exceeded its byte bound');
+      }
     }
     return text;
   };
@@ -475,11 +497,16 @@ export async function boundedSerializeBrowserValue(value, limits) {
     }
   };
   const base64 = (bytes) => {
-    let output = '';
-    for (let offset = 0; offset < bytes.byteLength; offset += 0x8000) {
-      output += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    const output = [];
+    for (let offset = 0; offset < bytes.byteLength; offset += 24 * 1024) {
+      const chunk = bytes.subarray(offset, offset + 24 * 1024);
+      let binary = '';
+      for (let inner = 0; inner < chunk.byteLength; inner += 0x8000) {
+        binary += String.fromCharCode(...chunk.subarray(inner, inner + 0x8000));
+      }
+      output.push(btoa(binary));
     }
-    return btoa(output);
+    return output.join('');
   };
   const normalize = async (current, depth) => {
     chargeNode(depth);
@@ -518,7 +545,11 @@ export async function boundedSerializeBrowserValue(value, limits) {
       if (bytes.byteLength > maxBytes - chargedBytes) {
         throw new RangeError('browser binary value exceeded its byte bound');
       }
-      chargedBytes += bytes.byteLength;
+      const encodedBytes = Math.ceil(bytes.byteLength / 3) * 4;
+      if (encodedBytes > maxBytes - chargedBytes) {
+        throw new RangeError('browser binary encoding exceeded its byte bound');
+      }
+      chargedBytes += encodedBytes;
       return {
         $type: current.constructor?.name ?? 'bytes',
         byteLength: bytes.byteLength,
@@ -530,7 +561,11 @@ export async function boundedSerializeBrowserValue(value, limits) {
         throw new RangeError('browser Blob exceeded its byte bound');
       }
       const bytes = new Uint8Array(await current.arrayBuffer());
-      chargedBytes += bytes.byteLength;
+      const encodedBytes = Math.ceil(bytes.byteLength / 3) * 4;
+      if (encodedBytes > maxBytes - chargedBytes) {
+        throw new RangeError('browser Blob encoding exceeded its byte bound');
+      }
+      chargedBytes += encodedBytes;
       return {
         $type: current.constructor?.name ?? 'blob',
         byteLength: bytes.byteLength,
@@ -594,7 +629,7 @@ export async function boundedSerializeBrowserValue(value, limits) {
     }
     const output = {
       $id: identity,
-      $type: chargeText(current.constructor?.name ?? typeof current),
+      $type: typeof current,
       properties: {},
     };
     for (const key of Reflect.ownKeys(current)) {
@@ -620,11 +655,82 @@ export async function boundedSerializeBrowserValue(value, limits) {
     return output;
   };
   const normalized = await normalize(value, 0);
-  const rendered = JSON.stringify({ normalized, nodes, properties });
-  if (encoder.encode(rendered).byteLength > maxBytes) {
-    throw new RangeError('browser value serialization exceeded its byte bound');
-  }
-  return rendered;
+  const renderedChunks = [];
+  let renderedBytes = 0;
+  let pending = '';
+  let pendingBytes = 0;
+  const flush = () => {
+    if (pending.length === 0) return;
+    renderedBytes += pendingBytes;
+    renderedChunks.push(pending);
+    pending = '';
+    pendingBytes = 0;
+  };
+  const append = (text) => {
+    if (text.length > maxBytes - renderedBytes - pendingBytes) {
+      throw new RangeError('browser value serialization exceeded its byte bound');
+    }
+    for (let offset = 0; offset < text.length; offset += 64 * 1024) {
+      const part = text.slice(offset, offset + 64 * 1024);
+      if (pending.length + part.length > 64 * 1024) flush();
+      const partBytes = encoder.encode(part).byteLength;
+      if (renderedBytes + pendingBytes + partBytes > maxBytes) {
+        throw new RangeError('browser value serialization exceeded its byte bound');
+      }
+      pending += part;
+      pendingBytes += partBytes;
+    }
+  };
+  const renderString = (text) => {
+    append('"');
+    for (let offset = 0; offset < text.length;) {
+      let end = Math.min(text.length, offset + 32 * 1024);
+      if (
+        end < text.length
+        && text.charCodeAt(end - 1) >= 0xd800
+        && text.charCodeAt(end - 1) <= 0xdbff
+      ) {
+        end += 1;
+      }
+      append(JSON.stringify(text.slice(offset, end)).slice(1, -1));
+      offset = end;
+    }
+    append('"');
+  };
+  const renderJson = (current) => {
+    if (typeof current === 'string') {
+      renderString(current);
+      return;
+    }
+    if (current === null || typeof current === 'boolean') {
+      append(String(current));
+      return;
+    }
+    if (typeof current === 'number') {
+      append(Number.isFinite(current) ? String(current) : 'null');
+      return;
+    }
+    if (Array.isArray(current)) {
+      append('[');
+      current.forEach((entry, index) => {
+        if (index > 0) append(',');
+        renderJson(entry);
+      });
+      append(']');
+      return;
+    }
+    append('{');
+    Object.keys(current).forEach((key, index) => {
+      if (index > 0) append(',');
+      renderString(key);
+      append(':');
+      renderJson(current[key]);
+    });
+    append('}');
+  };
+  renderJson({ normalized, nodes, properties });
+  flush();
+  return renderedChunks.join('');
 }
 
 export function browserForbiddenMarkerVariants({ kind, value } = {}) {
@@ -700,6 +806,7 @@ export function findBrowserVisibleLeaks({ surfaces, forbiddenMarkers }) {
 }
 
 export function createBoundedBrowserSurfaceCollector({
+  forbiddenMarkers,
   maxSurfaceBytes,
   maxTotalBytes,
   maxSurfaces = 10_000,
@@ -711,12 +818,69 @@ export function createBoundedBrowserSurfaceCollector({
     || maxTotalBytes < maxSurfaceBytes
     || !Number.isSafeInteger(maxSurfaces)
     || maxSurfaces < 1
+    || !Array.isArray(forbiddenMarkers)
   ) {
     throw new TypeError('browser scan budgets must be positive safe integers');
   }
-  const surfaces = [];
+  const markerEntries = [];
+  for (const marker of forbiddenMarkers) {
+    for (const variant of browserForbiddenMarkerVariants(marker)) {
+      const needle = Buffer.from(variant);
+      if (needle.byteLength > 0) markerEntries.push({ kind: marker.kind, needle });
+    }
+  }
+  const maxNeedleBytes = markerEntries.reduce(
+    (maximum, { needle }) => Math.max(maximum, needle.byteLength),
+    0,
+  );
   const manifest = [];
+  const leaks = new Set();
   let totalBytesScanned = 0;
+  const forEachUtf8Chunk = (text, visit) => {
+    for (let offset = 0; offset < text.length;) {
+      let end = Math.min(text.length, offset + 64 * 1024);
+      if (
+        end < text.length
+        && end > offset
+        && text.charCodeAt(end - 1) >= 0xd800
+        && text.charCodeAt(end - 1) <= 0xdbff
+      ) {
+        end += 1;
+      }
+      visit(Buffer.from(text.slice(offset, end)));
+      offset = end;
+    }
+  };
+  const byteLengthWithinBounds = (value) => {
+    if (typeof value === 'string') {
+      if (value.length > maxSurfaceBytes) {
+        throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
+      }
+      let byteLength = 0;
+      forEachUtf8Chunk(value, (chunk) => {
+        byteLength += chunk.byteLength;
+        if (byteLength > maxSurfaceBytes) {
+          throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
+        }
+      });
+      return byteLength;
+    }
+    const bytes = browserSurfaceBytes(value);
+    if (bytes.byteLength > maxSurfaceBytes) {
+      throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
+    }
+    return bytes.byteLength;
+  };
+  const forEachSurfaceChunk = (value, visit) => {
+    if (typeof value === 'string') {
+      forEachUtf8Chunk(value, visit);
+      return;
+    }
+    const bytes = browserSurfaceBytes(value);
+    for (let offset = 0; offset < bytes.byteLength; offset += 64 * 1024) {
+      visit(bytes.subarray(offset, offset + 64 * 1024));
+    }
+  };
   return Object.freeze({
     add(kind, value) {
       if (typeof kind !== 'string' || kind.length === 0) {
@@ -725,29 +889,47 @@ export function createBoundedBrowserSurfaceCollector({
       if (manifest.length >= maxSurfaces) {
         throw new RangeError(`browser surfaces exceeded the ${maxSurfaces}-surface bound`);
       }
-      const bytes = Buffer.from(browserSurfaceBytes(value));
-      if (bytes.byteLength > maxSurfaceBytes) {
-        throw new RangeError(`browser surface exceeded the ${maxSurfaceBytes}-byte scan bound`);
-      }
-      if (totalBytesScanned + bytes.byteLength > maxTotalBytes) {
+      const byteLength = byteLengthWithinBounds(value);
+      if (totalBytesScanned + byteLength > maxTotalBytes) {
         throw new RangeError(`browser surfaces exceeded the ${maxTotalBytes}-byte aggregate scan bound`);
       }
-      surfaces.push(bytes);
       const contentHash = createHash('sha256');
       contentHash.update('snapback-browser-surface-v1\0');
       updateFramed(contentHash, manifest.length);
       updateFramed(contentHash, kind);
-      updateFramed(contentHash, bytes.byteLength);
-      contentHash.update(bytes);
+      updateFramed(contentHash, byteLength);
+      let tail = Buffer.alloc(0);
+      const surfaceLeaks = new Set();
+      forEachSurfaceChunk(value, (chunk) => {
+        contentHash.update(chunk);
+        if (markerEntries.length === 0) return;
+        const searchable = tail.byteLength === 0
+          ? chunk
+          : Buffer.concat([tail, chunk], tail.byteLength + chunk.byteLength);
+        for (const { kind: markerKind, needle } of markerEntries) {
+          if (searchable.indexOf(needle) !== -1) surfaceLeaks.add(markerKind);
+        }
+        const tailBytes = Math.min(
+          searchable.byteLength,
+          Math.max(0, maxNeedleBytes - 1),
+        );
+        tail = tailBytes === 0
+          ? Buffer.alloc(0)
+          : Buffer.from(searchable.subarray(searchable.byteLength - tailBytes));
+      });
+      for (const markerKind of surfaceLeaks) leaks.add(markerKind);
       manifest.push(Object.freeze({
         kind,
-        bytesScanned: bytes.byteLength,
+        bytesScanned: byteLength,
         contentSha256: contentHash.digest('hex'),
       }));
-      totalBytesScanned += bytes.byteLength;
+      totalBytesScanned += byteLength;
     },
-    findLeaks(forbiddenMarkers) {
-      return findBrowserVisibleLeaks({ surfaces, forbiddenMarkers });
+    findLeaks(markers = forbiddenMarkers) {
+      if (markers !== forbiddenMarkers) {
+        throw new TypeError('browser forbidden markers must be fixed before collection');
+      }
+      return [...leaks].sort();
     },
     sanitizedSummary() {
       return Object.freeze({

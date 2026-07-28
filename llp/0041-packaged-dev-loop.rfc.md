@@ -112,11 +112,25 @@ complete selected Chromium headless-shell distribution, and the Playwright
 support tree with domain-separated streaming filesystem digests. It scans all
 console types and deeply serialized arguments, complete request/response and
 WebSocket-handshake metadata, binary bodies/frames, worker and service-worker
-data globals, Cache Storage, and IndexedDB. Count, byte, depth, file, task, and
-concurrency ceilings fail closed during collection; retained surface rows carry
-content commitments but no captured secret, origin, or filesystem value. This
-is an evidence-instrument correction and makes no new package-publication
-claim.)
+readable own properties and accessors (including custom classes and functions),
+Cache Storage, and IndexedDB. Forbidden markers are fixed before collection;
+the proof-owned scanner hashes and searches bounded chunks without retaining
+captured surfaces. Request and resource buffering use configured DevTools
+protocol caps, and an omitted body or inconsistent length proof is a refusal.
+Count, byte, depth, file, task, and concurrency ceilings fail closed during
+proof-owned collection; retained surface rows carry content commitments but no
+captured secret, origin, or filesystem value.
+
+The byte ceilings do **not** claim to bound Chromium's internal buffers or a
+CDP/Playwright event object that the browser and protocol have already
+materialized before the proof handler runs (notably a WebSocket
+`payloadData`). There is no per-frame CDP cap available to this instrument.
+The handler performs an O(1) encoded-length refusal before copying, decoding,
+or UTF-8 encoding such a value, and the receipt records this boundary
+explicitly. Thus the claim is bounded proof-owned copies and encodings plus
+fail-closed completeness, not bounded browser-process or protocol-transport
+memory. This is an evidence-instrument correction and makes no new
+package-publication claim.)
 
 **Revised (public clean-machine proof complete):** 2026-07-26 (GitHub Actions
 run `30216614778` installed the byte-bound public `0.1.0` closure on new
@@ -628,11 +642,14 @@ outside the root workspace and exercise independent consumer setups.
 - The packed React browser proof launches the exact headless-shell distribution
   whose complete path/type/mode/size/content identity is retained, not an
   ambient browser. It refuses symlinks, unsupported entries, checkout
-  HEAD/dirty drift, any truncated or over-limit surface, incomplete
+  HEAD/dirty drift, any truncated or over-limit proof-owned surface, incomplete
   request/response/console/worker/storage/WebSocket coverage, and any private
   marker found in those browser-readable bytes. The receipt retains bounded
   per-surface byte counts and domain-separated content commitments, never the
-  captured values themselves.
+  captured values themselves. It also retains the materialization boundary:
+  protocol body buffers are configured and completeness is fail-closed, while
+  Chromium-internal buffers and already-created CDP event objects remain
+  outside the proof's allocation-bound claim.
 
 ## Open Questions
 
