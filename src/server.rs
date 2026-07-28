@@ -12835,15 +12835,23 @@ impl BoundSnapbackApp {
 }
 
 fn router_for_state(state: AppState) -> Router {
+    let cors_state = state.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn(local_dev_cors))
+        .layer(middleware::from_fn_with_state(
+            cors_state,
+            local_dev_cors,
+        ))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
+    let cors_state = state.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn(local_dev_cors));
+        .layer(middleware::from_fn_with_state(
+            cors_state,
+            local_dev_cors,
+        ));
     SnapbackApp { router, state }
 }
 
@@ -14552,10 +14560,18 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
     })
 }
 
-async fn local_dev_cors(request: Request<Body>, next: Next) -> Response {
+async fn local_dev_cors(
+    State(state): State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
-    let allowed_origin = loopback_origin(request.headers().get(header::ORIGIN));
+    let allowed_origin = local_dev_cors_origin(
+        request.headers(),
+        state.server.profile,
+        state.allow_insecure_dev_auth,
+    );
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -14616,6 +14632,64 @@ fn loopback_origin(origin: Option<&HeaderValue>) -> Option<HeaderValue> {
         .any(|prefix| origin.starts_with(prefix))
         .then(|| HeaderValue::from_str(origin).ok())
         .flatten()
+}
+
+/// Admit the attended physical-device carrier without widening ordinary
+/// local-server CORS. The non-loopback exception requires all three explicit
+/// facts already used by the carrier:
+///
+/// - the process is in the non-production `test` profile;
+/// - the dangerous plaintext dev-auth override was supplied; and
+/// - the page origin uses the same private IPv4 host as the request target.
+///
+/// A random LAN page therefore cannot drive a loopback or differently bound
+/// server, and production ignores the override exactly as it does at the
+/// transport fence.
+fn local_dev_cors_origin(
+    headers: &HeaderMap,
+    profile: ServerProfile,
+    allow_insecure_dev_auth: bool,
+) -> Option<HeaderValue> {
+    let origin = headers.get(header::ORIGIN);
+    if let Some(origin) = loopback_origin(origin) {
+        return Some(origin);
+    }
+    if profile != ServerProfile::Test || !allow_insecure_dev_auth {
+        return None;
+    }
+
+    let origin = origin?.to_str().ok()?;
+    let origin_uri = origin.parse::<axum::http::Uri>().ok()?;
+    if origin_uri.scheme_str() != Some("http")
+        || origin_uri.query().is_some()
+        || origin_uri.path() != "/"
+    {
+        return None;
+    }
+    let origin_host = origin_uri.host()?;
+    let origin_ip = origin_host.parse::<std::net::Ipv4Addr>().ok()?;
+    if !physical_carrier_ipv4(origin_ip) {
+        return None;
+    }
+
+    let request_authority = headers
+        .get(header::HOST)?
+        .to_str()
+        .ok()?
+        .parse::<axum::http::uri::Authority>()
+        .ok()?;
+    if request_authority.host() != origin_host {
+        return None;
+    }
+
+    HeaderValue::from_str(origin).ok()
+}
+
+fn physical_carrier_ipv4(ip: std::net::Ipv4Addr) -> bool {
+    let [a, b, _, _] = ip.octets();
+    ip.is_private()
+        || ip.is_link_local()
+        || (a == 100 && (64..=127).contains(&b))
 }
 
 /// `/health` prefers the lock-free read lane (a busy write must not make the
@@ -20456,7 +20530,8 @@ mod tests {
         already_terminal_session_error, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
         finish_registered_response, install_test_finite_authority_pause,
-        linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
+        linearize_detached_action_abandonment, local_dev_cors_origin,
+        parse_action_watchdog_timeout, parse_optional_json, physical_carrier_ipv4,
         reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
         retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
         spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
@@ -20537,6 +20612,89 @@ mod tests {
     use tokio::sync::{Mutex, Semaphore};
     use tower::ServiceExt as _;
     use uuid::Uuid;
+
+    #[test]
+    fn physical_device_cors_requires_the_explicit_test_posture_and_same_private_host() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::ORIGIN,
+            HeaderValue::from_static("http://169.254.178.189:60186"),
+        );
+        headers.insert(
+            header::HOST,
+            HeaderValue::from_static("169.254.178.189:4433"),
+        );
+
+        assert_eq!(
+            local_dev_cors_origin(&headers, ServerProfile::Test, true)
+                .and_then(|value| value.to_str().ok().map(str::to_owned)),
+            Some("http://169.254.178.189:60186".to_owned()),
+        );
+        assert!(local_dev_cors_origin(&headers, ServerProfile::Test, false).is_none());
+        assert!(local_dev_cors_origin(&headers, ServerProfile::Dev, true).is_none());
+        assert!(local_dev_cors_origin(&headers, ServerProfile::Prod, true).is_none());
+
+        headers.insert(
+            header::HOST,
+            HeaderValue::from_static("169.254.178.190:4433"),
+        );
+        assert!(local_dev_cors_origin(&headers, ServerProfile::Test, true).is_none());
+    }
+
+    #[test]
+    fn physical_device_cors_rejects_public_non_http_and_non_origin_inputs() {
+        for (origin, host) in [
+            ("http://203.0.113.10:60186", "203.0.113.10:4433"),
+            ("https://169.254.178.189:60186", "169.254.178.189:4433"),
+            (
+                "http://169.254.178.189:60186/path",
+                "169.254.178.189:4433",
+            ),
+            (
+                "http://169.254.178.189:60186?query",
+                "169.254.178.189:4433",
+            ),
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::ORIGIN, HeaderValue::from_str(origin).unwrap());
+            headers.insert(header::HOST, HeaderValue::from_str(host).unwrap());
+            assert!(
+                local_dev_cors_origin(&headers, ServerProfile::Test, true).is_none(),
+                "{origin} must not be admitted",
+            );
+        }
+    }
+
+    #[test]
+    fn physical_device_cors_ipv4_set_matches_the_frozen_carrier_classes() {
+        for address in [
+            "10.1.2.3",
+            "172.16.0.110",
+            "172.31.255.254",
+            "192.168.1.20",
+            "169.254.178.189",
+            "100.64.0.1",
+            "100.127.255.254",
+        ] {
+            assert!(
+                physical_carrier_ipv4(address.parse().unwrap()),
+                "{address} should be admitted",
+            );
+        }
+        for address in [
+            "8.8.8.8",
+            "172.15.255.255",
+            "172.32.0.1",
+            "100.63.255.255",
+            "100.128.0.1",
+            "127.0.0.1",
+        ] {
+            assert!(
+                !physical_carrier_ipv4(address.parse().unwrap()),
+                "{address} should be rejected by the non-loopback exception",
+            );
+        }
+    }
 
     struct ManualServerAuthClock {
         base_epoch_ms: u64,
