@@ -1784,11 +1784,11 @@ export async function runDev(options = {}) {
         state: 'generation-failed',
         changed: filename,
         ...extra,
-        diagnostics: [error.diagnostic ?? {
-          code: error.code ?? 'SNAPBACK_DEV_GENERATION_FAILED',
+        diagnostics: [refined.diagnostic ?? {
+          code: refined.code ?? 'SNAPBACK_DEV_GENERATION_FAILED',
           severity: 'error',
           subsystem: 'codegen',
-          message: error.message,
+          message: refined.message,
         }],
       });
     }
@@ -2079,6 +2079,14 @@ export async function runDev(options = {}) {
       });
       return await regenerateAndLoad('(restart)', { ...tag });
     } catch (error) {
+      const refined = refineGeneratedArtifactFailure(error, {
+        binary: runtime.binary,
+        runtime,
+        runtimeIdentity,
+        artifacts: startupArtifacts
+          ? [startupArtifacts, ...startupArtifactSources]
+          : startupArtifactSources,
+      });
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: false,

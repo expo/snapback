@@ -4,6 +4,7 @@
 
 import assert from 'node:assert/strict';
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -42,6 +43,16 @@ const stateRoot = join(projectRoot, '.snapback');
 const readyFile = join(stateRoot, 'dev.ready.json');
 const database = join(stateRoot, 'dev.sqlite3');
 const startupArtifacts = join(stateRoot, 'startup-artifacts.json');
+const failNextStart = join(scratchRoot, 'fail-next-start');
+const runtimeWrapper = join(scratchRoot, 'snapback-runtime-wrapper');
+writeFileSync(runtimeWrapper, `#!/bin/sh
+if [ "$1" = "start" ] && [ -f ${JSON.stringify(failNextStart)} ]; then
+  echo "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH: startup artifact carrier rejected by stale runtime" >&2
+  exit 1
+fi
+exec ${JSON.stringify(runtimeBinary)} "$@"
+`);
+chmodSync(runtimeWrapper, 0o755);
 const events = [];
 let dev = null;
 
@@ -51,7 +62,7 @@ try {
     projectRoot,
     readyFile,
     database,
-    runtimeBinary,
+    runtimeBinary: runtimeWrapper,
     watch: true,
     serverStdio: ['ignore', 'ignore', 'ignore'],
     onEvent(event) {
@@ -104,7 +115,30 @@ try {
   assert.equal(successorSession.activeMode, 'sessions');
   assert.equal(successorSession.modeState, 'settled');
 
-  console.log('sessions-dev-loop.test.mjs: ordinary one-command startup and restart inferred and consumed the sessions artifact carrier');
+  writeFileSync(failNextStart, 'fail the next managed sessions restart\n');
+  const failedRestart = await dev.verbs.restart({
+    requestId: 'sessions-artifact-mismatch',
+  });
+  assert.equal(failedRestart.state, 'restart-failed');
+  assert.equal(failedRestart.requestId, 'sessions-artifact-mismatch');
+  assert.equal(
+    failedRestart.diagnostics[0].code,
+    'SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH',
+  );
+  assert.equal(
+    failedRestart.diagnostics[0].details.selectedBinary,
+    runtimeWrapper,
+  );
+  assert.match(
+    failedRestart.diagnostics[0].details.recovery.compatibleOverride,
+    /SNAPBACK_RUNTIME_BINARY/u,
+  );
+  assert.doesNotMatch(
+    failedRestart.diagnostics[0].message,
+    /refined is not defined|ReferenceError/u,
+  );
+
+  console.log('sessions-dev-loop.test.mjs: ordinary sessions startup/restart and deliberate stale-runtime restart diagnostics pass');
 } finally {
   dev?.close?.();
   rmSync(scratchRoot, { recursive: true, force: true });
