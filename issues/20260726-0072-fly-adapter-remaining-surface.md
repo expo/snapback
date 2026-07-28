@@ -146,3 +146,19 @@ roster-drift, schema-drift, and packed-renewer fixtures pass. This does not
 move any item out of bucket (c): the installed supervisor still runs the prior
 image and the fresh successor lifecycle/cutover/remote qualification remains
 unperformed.
+
+**Public-package authority tranche (2026-07-28):** the installable CLI now
+ships a package-owned `snapback hosted` registry, the Fly driver, and exact
+`FlyTargetBindingV2`, `HostedControlHeadV2`, and lifecycle request/response
+schema mirrors. `plan`, `inspect`, and `logs` are reachable without a source
+checkout. Every packaged lifecycle-v2 verb currently returns one structured
+`notApplied` terminal with `remoteEvidence: false`; packaging the vocabulary
+does not claim a provider effect.
+
+The independently packed supervisor now also carries the closed request/scope
+registry and an operator-authority core: Ed25519 request binding, per-device
+sequence and revocation checks, certificate-expiry binding, atomic canonical
+response replay, credential-response redaction, and the bounded release-upload
+state machine. These are checkout-free package proofs, not the external-store
+or provider-effect executor. The standing service has not been upgraded and
+no remote lifecycle row changes status.

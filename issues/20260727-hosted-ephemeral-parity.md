@@ -106,3 +106,13 @@ envelope. These are local code/schema proofs only: the live supervisor image
 has not yet been rebuilt from this source and the remote successor,
 restart/republish, durable-priority, and destructive corpora remain mandatory.
 The ticket remains open and the capability remains false.
+
+**Operator/package closure progress (2026-07-28):** the public CLI tarball now
+contains the hosted command registry, Fly driver, and exact v2
+binding/control-head/lifecycle schemas; its lifecycle verbs refuse
+structurally with `notApplied` until a standing-supervisor executor exists.
+The supervisor tarball contains the device-signed, sequenced operator
+authority and bounded release-upload core, with retained exact replay and
+revocation negatives. Neither module is wired to the live external authority
+store or Fly provider executor yet, so this creates no hosted-ephemeral or
+hosted-lifecycle claim and does not satisfy the remote corpus.

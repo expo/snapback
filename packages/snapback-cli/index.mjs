@@ -75,6 +75,11 @@ import {
   readComparatorReceipt,
   runComparatorAcceptance,
 } from './comparator-profile.mjs';
+import {
+  createHostedPlan,
+  invokeHostedLifecycle,
+  runHostedRead,
+} from './hosted-control.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -125,6 +130,15 @@ export {
   validateComparatorReceipt,
   writeComparatorReceipt,
 } from './comparator-profile.mjs';
+export {
+  HOSTED_ASSETS,
+  HOSTED_COMMAND_REGISTRY,
+  HOSTED_LIFECYCLE_VERBS,
+  createHostedPlan,
+  invokeHostedLifecycle,
+  resolveHostedAssets,
+  runHostedRead,
+} from './hosted-control.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -2332,6 +2346,84 @@ export async function runCli(argv, options = {}) {
     const result = await generateApp(args.shift() ?? 'snapback', { targetProfile });
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  if (command === 'hosted') {
+    const subcommand = args.shift();
+    if (subcommand === '--help' || subcommand === 'help' || subcommand === undefined) {
+      const result = createHostedPlan();
+      if (json) printResult(result, true);
+      else {
+        console.log('usage: snapback hosted <plan|inspect|logs|lifecycle> ...');
+        console.log(`lifecycle verbs: ${Object.keys(result.commands
+          .filter(({ kind }) => kind === 'lifecycle')
+          .reduce((verbs, { command }) => ({ ...verbs, [command.replace(/^lifecycle /, '')]: true }), {}))
+          .join(', ')}`);
+      }
+      return 0;
+    }
+    if (subcommand === 'plan') {
+      const targetId = takeFlag(args, '--target');
+      const controlRoot = takeFlag(args, '--control-root');
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback hosted plan [--target <id>] [--control-root <dir>] [--json]',
+        );
+      }
+      const result = createHostedPlan({
+        targetId,
+        controlRoot: controlRoot ?? undefined,
+        ...options,
+      });
+      printResult(result, json);
+      return 0;
+    }
+    if (subcommand === 'inspect' || subcommand === 'logs') {
+      const targetId = takeFlag(args, '--target');
+      const controlRoot = takeFlag(args, '--control-root');
+      const sinceRaw = takeFlag(args, '--since-ms');
+      const untilRaw = takeFlag(args, '--until-ms');
+      const limitRaw = takeFlag(args, '--limit');
+      const cursor = takeFlag(args, '--cursor');
+      if (!targetId || args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `usage: snapback hosted ${subcommand} --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>] [--json]`,
+        );
+      }
+      const result = runHostedRead(subcommand, {
+        targetId,
+        controlRoot: controlRoot ?? undefined,
+        ...(sinceRaw === null ? {} : { sinceMs: Number(sinceRaw) }),
+        ...(untilRaw === null ? {} : { untilMs: Number(untilRaw) }),
+        ...(limitRaw === null ? {} : { limit: Number(limitRaw) }),
+        ...(cursor === null ? {} : { cursor }),
+        ...options,
+      });
+      printResult(result, json);
+      return result.ok ? 0 : 1;
+    }
+    if (subcommand === 'lifecycle') {
+      const verb = args.shift();
+      const requestPath = takeFlag(args, '--request');
+      if (!verb || !requestPath || args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'usage: snapback hosted lifecycle <closed-verb> --request <vm-adapter-lifecycle-request-v2.json> [--json]',
+        );
+      }
+      const result = invokeHostedLifecycle(verb, {
+        requestPath,
+        ...options,
+      });
+      printResult(result, json);
+      return result.ok ? 0 : 2;
+    }
+    throw diagnosticError(
+      'SNAPBACK_HOSTED_COMMAND_UNKNOWN',
+      'usage: snapback hosted <plan|inspect|logs|lifecycle> ...',
+      { subcommand },
+    );
   }
   if (command === 'target') {
     const subcommand = args.shift();

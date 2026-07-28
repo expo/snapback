@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "HostedControlHeadVersion": {
+      "enum": [
+        "snapback.hosted-control-head.v2"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/hosted-control-head-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activationGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "activeReleaseId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "admissionGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "bindingSha256": {
+      "type": "string"
+    },
+    "cleanupFloor": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "committedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "generation": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "journalRootSha256": {
+      "type": "string"
+    },
+    "predecessorSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "replayFloor": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/HostedControlHeadVersion"
+    },
+    "spendFloor": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "supervisorIncarnation": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "targetId",
+    "generation",
+    "bindingSha256",
+    "activationGeneration",
+    "journalRootSha256",
+    "admissionGeneration",
+    "spendFloor",
+    "cleanupFloor",
+    "replayFloor",
+    "supervisorIncarnation",
+    "committedAtMs"
+  ],
+  "title": "HostedControlHeadV2",
+  "type": "object"
+}

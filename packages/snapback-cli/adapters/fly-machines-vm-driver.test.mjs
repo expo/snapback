@@ -194,6 +194,47 @@ function runDriver(request, env = {}) {
   assert.equal(JSON.parse(narrow.stdout).logs.entries.length, 1);
 }
 
+// The complete V2 lifecycle vocabulary is packaged now, but no new effect is
+// implied by that packaging. Every V2 request receives a structured
+// notApplied terminal until the standing-supervisor executor owns it.
+{
+  const request = {
+    schemaVersion: 'snapback.vm-adapter-lifecycle-request.v2',
+    operation: 'provisionInactive',
+    operationId: 'op-v2-refusal',
+    requestSha256: `sha256:${'1'.repeat(64)}`,
+    effectIntent: { semanticEffectId: 'effect-v2-refusal' },
+    predecessorHead: {
+      schemaVersion: 'snapback.hosted-control-head.v2',
+      targetId: target.targetId,
+      generation: 0,
+      bindingSha256: `sha256:${'2'.repeat(64)}`,
+      activationGeneration: 0,
+      activeReleaseId: null,
+      journalRootSha256: `sha256:${'3'.repeat(64)}`,
+      admissionGeneration: 0,
+      spendFloor: 0,
+      cleanupFloor: 0,
+      replayFloor: 0,
+      supervisorIncarnation: 'fixture-supervisor',
+      predecessorSha256: null,
+      committedAtMs: 1,
+    },
+  };
+  const child = await runDriver(request);
+  assert.equal(child.status, 0, child.stderr);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.schemaVersion, 'snapback.vm-adapter-lifecycle-response.v2');
+  assert.equal(response.ok, false);
+  assert.equal(response.remoteEvidence, false);
+  assert.equal(response.terminal.outcome, 'notApplied');
+  assert.equal(response.terminal.semanticEffectId, 'effect-v2-refusal');
+  assert.equal(response.controlHead.targetId, target.targetId);
+  assert.ok(response.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_HOSTED_SUPERVISOR_EXECUTOR_UNAVAILABLE',
+  ));
+}
+
 // 5. inspectAdmin refuses in protocol (recorded remaining surface).
 {
   const request = {

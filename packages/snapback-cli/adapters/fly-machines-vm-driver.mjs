@@ -17,6 +17,26 @@ const CANONICAL_API_BASE = 'https://api.machines.dev';
 const RESPONSE_SCHEMA = 'snapback.vm-adapter-response.v1';
 const QUERY_RESPONSE_SCHEMA = 'snapback.vm-adapter-query-response.v1';
 const LIFECYCLE_RESPONSE_SCHEMA = 'snapback.vm-adapter-lifecycle-response.v1';
+const LIFECYCLE_RESPONSE_SCHEMA_V2 = 'snapback.vm-adapter-lifecycle-response.v2';
+const LIFECYCLE_OPERATIONS_V2 = new Set([
+  'acquireLease',
+  'renewLease',
+  'uploadImmutableRelease',
+  'provisionInactive',
+  'compatibilityPreflight',
+  'createVerifiedBackup',
+  'stageRelease',
+  'activateGeneration',
+  'verifyServedPath',
+  'rollback',
+  'fenceExternalEffects',
+  'restoreBackupInactive',
+  'verifyRestoredComponents',
+  'verifyRestoredApplication',
+  'activateRestoredGeneration',
+  'reconcileEffect',
+  'releaseLease',
+]);
 const CAPABILITY_GAPS = [
   'control-plane.release-manifest',
   'control-plane.lifecycle-train',
@@ -425,6 +445,41 @@ async function handleLifecycle(request) {
   });
 }
 
+function handleLifecycleV2(request) {
+  // This first packaged tranche makes the complete V2 vocabulary explicit
+  // without accidentally routing any new provider effect through the legacy
+  // V1 lease-only implementation. The standing supervisor executor will
+  // replace this refusal one operation at a time.
+  return {
+    schemaVersion: LIFECYCLE_RESPONSE_SCHEMA_V2,
+    operation: request.operation,
+    operationId: request.operationId,
+    ok: false,
+    idempotentReplay: false,
+    remoteEvidence: false,
+    requestSha256: request.requestSha256,
+    terminal: {
+      schemaVersion: 'snapback.provider-effect-terminal.v1',
+      semanticEffectId: request.effectIntent?.semanticEffectId ?? 'invalid-effect-intent',
+      outcome: 'notApplied',
+      recordedAtMs: Date.now(),
+      reason: 'supervisorExecutorUnavailable',
+      recoveryClass: null,
+      providerVersion: null,
+      lastObservationSha256: null,
+      redactedEvidenceSha256: null,
+      retainedResultSha256: null,
+    },
+    controlHead: request.predecessorHead,
+    observation: null,
+    diagnostics: [{
+      code: 'SNAPBACK_HOSTED_SUPERVISOR_EXECUTOR_UNAVAILABLE',
+      severity: 'error',
+      message: `lifecycle operation ${boundedText(request.operation, 64)} is packaged but remains fail-closed until the standing supervisor executor is available`,
+    }],
+  };
+}
+
 async function main() {
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
@@ -445,6 +500,15 @@ async function main() {
   }
   if (request?.schemaVersion === 'snapback.vm-adapter-lifecycle-request.v1') {
     process.stdout.write(`${JSON.stringify(await handleLifecycle(request))}\n`);
+    return;
+  }
+  if (request?.schemaVersion === 'snapback.vm-adapter-lifecycle-request.v2'
+      && LIFECYCLE_OPERATIONS_V2.has(request.operation)
+      && typeof request.operationId === 'string'
+      && typeof request.requestSha256 === 'string'
+      && typeof request.effectIntent?.semanticEffectId === 'string'
+      && request.predecessorHead?.schemaVersion === 'snapback.hosted-control-head.v2') {
+    process.stdout.write(`${JSON.stringify(handleLifecycleV2(request))}\n`);
     return;
   }
   // Lifecycle and any unrecognized operations fail closed at the process

@@ -12,6 +12,7 @@
     "external-store.mjs",
     "hosted-edge-admission.mjs",
     "index.mjs",
+    "operator-authority.mjs",
     "target-onboarding.mjs"
   ],
   "bin": {
@@ -21,6 +22,7 @@
   },
   "exports": {
     ".": "./index.mjs",
+    "./operator-authority": "./operator-authority.mjs",
     "./target-onboarding": "./target-onboarding.mjs",
     "./package.json": "./package.json"
   },
@@ -31,7 +33,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node index.test.mjs && node external-store.test.mjs && node bootstrap.test.mjs && node hosted-edge-admission.test.mjs && node target-onboarding.test.mjs"
+    "test": "node package.test.mjs && node index.test.mjs && node operator-authority.test.mjs && node external-store.test.mjs && node bootstrap.test.mjs && node hosted-edge-admission.test.mjs && node target-onboarding.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "3.1096.0",
