@@ -4,13 +4,18 @@
   "claimTreatment": "checkpoint",
   "claimSatisfied": false,
   "platformClaimSatisfied": false,
-  "sourceRevision": "90e13112fae183a8875728d6de364feba140fd8c",
-  "sourceDirty": true,
+  "sourceRevision": "a1ad254599ac4d35f70d65f44563dabd6a539c45",
+  "sourceDirty": false,
   "publicationMode": "dry-run",
+  "publicationLedgerSchema": "snapback.package-candidate-ledger.v1",
+  "publicationTag": "bakeoff-0-1-1-a1ad254599ac",
+  "candidateLedgerSha256": null,
   "installSource": "staged",
+  "rootSelector": "exact",
+  "latestRootResolution": null,
   "registry": "disposable-loopback",
-  "scopePreset": "identity",
-  "version": "0.1.0",
+  "scopePreset": "ccheever",
+  "version": "0.1.1",
   "machine": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -27,63 +32,71 @@
   "packages": [
     {
       "sourceName": "@snapback/runtime-darwin-arm64",
-      "publishedName": "@snapback/runtime-darwin-arm64",
-      "version": "0.1.0",
-      "tarball": "snapback-runtime-darwin-arm64-0.1.0.tgz",
-      "sha256": "f43b65942ed5cba4297f180f46a6ee3b5959b3d19a1e7c32d1d276813e3b3141",
+      "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.1.tgz",
+      "sha256": "9d40671da106eb643b69ddb1f16083431e6964ee30af5329d4246c99f294649a",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/contract",
-      "publishedName": "@snapback/contract",
-      "version": "0.1.0",
-      "tarball": "snapback-contract-0.1.0.tgz",
-      "sha256": "24b4d9c421f3bb5f4bb988ef56b70a52bba187d7441a98e1f12c71a845339d8e",
+      "publishedName": "@ccheever/snapback-contract",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-contract-0.1.1.tgz",
+      "sha256": "39d75b239eaaf705676b6c3088943985232ae0f5ad6faf097cc28d469cde94a4",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/client",
-      "publishedName": "@snapback/client",
-      "version": "0.1.0",
-      "tarball": "snapback-client-0.1.0.tgz",
-      "sha256": "1378deb2d83c17cafcc5de1e9e9aaf5aadc7ce1e2fd22e745c093f9842eb045c",
+      "publishedName": "@ccheever/snapback-client",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-client-0.1.1.tgz",
+      "sha256": "b1c1f6472bc169ed78c6eff6f3130ca0065b820918acaaed8f02d840f4848045",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/codegen",
-      "publishedName": "@snapback/codegen",
-      "version": "0.1.0",
-      "tarball": "snapback-codegen-0.1.0.tgz",
-      "sha256": "a66051fa481b145170c49c6c327da15100e32ab2d5613b202c7bea0a39e5a7c5",
+      "publishedName": "@ccheever/snapback-codegen",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-codegen-0.1.1.tgz",
+      "sha256": "0e67d291250caf577fbc743253cb7e6dfe4b970c1b7a683b844e732fc865f75e",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/react",
-      "publishedName": "@snapback/react",
-      "version": "0.1.0",
-      "tarball": "snapback-react-0.1.0.tgz",
-      "sha256": "45d2489bdb6e68e5db1d67a8d4c944eb909fc546603723ef7b158a204fc15a88",
+      "publishedName": "@ccheever/snapback-react",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-react-0.1.1.tgz",
+      "sha256": "26d765abc88c0a0b57ce6f406a6ee6b0de35c72a0543d32cfb58344042b90bb9",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/app-cli",
-      "publishedName": "@snapback/app-cli",
-      "version": "0.1.0",
-      "tarball": "snapback-app-cli-0.1.0.tgz",
-      "sha256": "c97832dfd161d78603a2a98c76e793576d72db97def57337e372ecb14d7d0460",
+      "publishedName": "@ccheever/snapback-app-cli",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-app-cli-0.1.1.tgz",
+      "sha256": "b7f71a51f4c109a4c2eeda3e8aceccb2c074c61c9a793cca7a4ef805ccda6f68",
       "registrySha256": null
     },
     {
       "sourceName": "@snapback/cli",
-      "publishedName": "@snapback/cli",
-      "version": "0.1.0",
-      "tarball": "snapback-cli-0.1.0.tgz",
-      "sha256": "5d9250c425950597674e8099f416a764513f9b41bde9aa471ebac70270956f5a",
+      "publishedName": "@ccheever/snapback-cli",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-cli-0.1.1.tgz",
+      "sha256": "f87014b52ffc97f216e64f54a096d4b1749ee117560348a0a6344d408c4d4f97",
+      "registrySha256": null
+    },
+    {
+      "sourceName": "@snapback/vite",
+      "publishedName": "@ccheever/snapback-vite",
+      "version": "0.1.1",
+      "tarball": "ccheever-snapback-vite-0.1.1.tgz",
+      "sha256": "f4d388f5dca1d31d287e2d5a4a139e7a4aa8b73eea4358aa64eec6a3cbcb2302",
       "registrySha256": null
     }
   ],
   "deployBuild": {
-    "releaseId": "sha256:1d31c2c1510de1cf002e86cf6891018ff11bad47602a890731093ae09de58d6d",
+    "releaseId": "sha256:f222c2dc8aef8f32d0b5117699d5db1df51d89e93ed7bf16f0a0acc0d9c107c0",
     "targetProfileId": "local-dev-sqlite-ibex",
     "activationEligible": false,
     "componentCount": 20,
@@ -93,6 +106,7 @@
     "materializedTarballInstall": true,
     "stagedRegistryAliasResolution": true,
     "publicRegistryAliasResolution": false,
+    "latestRootCandidateClosure": false,
     "publicRegistryTarballDigestMatch": false,
     "registryTarballCount": 0,
     "noSiblingSourceCheckout": true,
@@ -103,14 +117,681 @@
     "repositoryRelativePublicationPaths": true,
     "packagedCliIntrospection": true,
     "packagedRuntimeDoctor": true,
+    "packagedComparatorProfile": true,
     "packagedScaffoldAndOfflineGenerate": true,
     "packagedDeployBuildAndVerify": true,
     "packagedManagedDevReadyAttachWatchAndStop": true,
     "packedReactWebTypecheckTestBuildAndLiveAcceptance": true,
+    "packedReactOneCommandBackendViteJourney": true,
+    "packedReactRealBrowserSeedLiveReload": true,
+    "browserPrivateSurfaceAbsence": true,
     "packedReactExpoTypecheckAndIosExport": true,
+    "packagedViteRelativeVersionedSeedSeam": true,
     "browserAdapterBundle": true,
-    "resolvedDependencyCount": 9,
-    "browserBundleBytes": 575939
+    "resolvedDependencyCount": 18,
+    "browserBundleBytes": 601738
+  },
+  "browserJourney": {
+    "schemaVersion": "snapback.package-browser-journey.v1",
+    "browserPackage": "playwright",
+    "browserPackageVersion": "1.62.0",
+    "engine": "chromium",
+    "engineVersion": "151.0.7922.34",
+    "headless": true,
+    "initialSeededTodoCount": 1,
+    "postMutationTodoCount": 2,
+    "reloadedTodoCount": 2,
+    "liveFramesAfterMutation": 1,
+    "browserReadableSurfaceCount": 145,
+    "forbiddenMarkerKindsChecked": [
+      "admin-token",
+      "admin-token-file",
+      "backend-origin",
+      "browser-secret-canary",
+      "database-path",
+      "impersonation-capability-file",
+      "ready-file",
+      "repository-path",
+      "runtime-path",
+      "secret-read-root-file"
+    ],
+    "capture": {
+      "schemaVersion": "snapback.package-browser-capture.v1",
+      "sourceRevision": "a1ad254599ac4d35f70d65f44563dabd6a539c45",
+      "startedAtMs": 1785277214249,
+      "completedAtMs": 1785277217272,
+      "maxSurfaceBytes": 16777216,
+      "maxTotalBytes": 134217728,
+      "totalBytesScanned": 11659887,
+      "surfaceManifest": [
+        {
+          "kind": "request",
+          "bytesScanned": 402
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 303
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 450
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 450
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 452
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 496
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 360
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 493
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 504
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 504
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 503
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 481
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 461
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 499
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 500
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 496
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 509
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 3858
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 365
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 379
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 412
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 544
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 111894
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 1590
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 130087
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 398
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 359
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 475
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 18567
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 421
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 545
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 5773
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 11267
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 400
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 394
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 26497
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 4331
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 429
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 374
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 427
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 422
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 6221
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 6780
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 34713
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 218771
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 425
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 539
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 2819303
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 415
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 363
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 424
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 487
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 385
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 423
+        },
+        {
+          "kind": "websocket-url",
+          "bytesScanned": 39
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 48822
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 209711
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 2329802
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 3478
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 955
+        },
+        {
+          "kind": "websocket-frame-received",
+          "bytesScanned": 20
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 611
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 1051
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 754
+        },
+        {
+          "kind": "websocket-url",
+          "bytesScanned": 105
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 1060
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 10933
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 194
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 444
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 603
+        },
+        {
+          "kind": "websocket-frame-received",
+          "bytesScanned": 411
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 1055
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 437
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 402
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 252
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 507
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 506
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 509
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 229
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 496
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 543
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 229
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 198
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 412
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 209
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 425
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 209
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 421
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 208
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 422
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 537
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 517
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 555
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 557
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 552
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 214
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 427
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 249
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 429
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 231
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 244
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 415
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 250
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 424
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 254
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 248
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 228
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 531
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 266
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 267
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 263
+        },
+        {
+          "kind": "websocket-url",
+          "bytesScanned": 39
+        },
+        {
+          "kind": "websocket-frame-received",
+          "bytesScanned": 20
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 243
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 423
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 130087
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 0
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 2819303
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 11267
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 218771
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 955
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 34713
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 6221
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 48822
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 2329802
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 611
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 1051
+        },
+        {
+          "kind": "request",
+          "bytesScanned": 754
+        },
+        {
+          "kind": "websocket-url",
+          "bytesScanned": 105
+        },
+        {
+          "kind": "response-metadata",
+          "bytesScanned": 1060
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 10933
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 194
+        },
+        {
+          "kind": "response-body",
+          "bytesScanned": 593
+        },
+        {
+          "kind": "page-state",
+          "bytesScanned": 2247
+        },
+        {
+          "kind": "cache-metadata",
+          "bytesScanned": 17
+        },
+        {
+          "kind": "indexeddb-metadata",
+          "bytesScanned": 16
+        }
+      ],
+      "coverage": {
+        "responseBodiesObserved": 45,
+        "responseBodiesScanned": 45,
+        "workersObserved": 0,
+        "workersScanned": 0,
+        "serviceWorkersObserved": 0,
+        "serviceWorkersScanned": 0,
+        "cacheEntriesObserved": 0,
+        "cacheEntriesScanned": 0,
+        "indexedDbRecordsObserved": 0,
+        "indexedDbRecordsScanned": 0,
+        "scanTruncated": false
+      },
+      "browser": {
+        "packageVersion": "1.62.0",
+        "packageTreeSha256": "8b6c36350ad287b9b507a6094d9e8c2169bc5e0336fba96ee5c4b4902b69a66f",
+        "executableSha256": "7687bff7cb2db075f250e6d5848bbc8838cac3802ac3952a899c574f8eccab45",
+        "executableBytes": 163329264
+      },
+      "forbiddenMarkerKindsChecked": [
+        "admin-token",
+        "admin-token-file",
+        "backend-origin",
+        "browser-secret-canary",
+        "database-path",
+        "impersonation-capability-file",
+        "ready-file",
+        "repository-path",
+        "runtime-path",
+        "secret-read-root-file"
+      ],
+      "captureSanitized": true,
+      "forbiddenValueRetention": "none"
+    },
+    "captureSha256": "8fe54d2832b2ac461cc213ec04d7cb037faf0c0444ab983262e449ec5459cf6a",
+    "checks": {
+      "realBrowserRendered": true,
+      "renderedSeededTodo": true,
+      "generatedMutationPerformed": true,
+      "nativeLiveUpdateObserved": true,
+      "webSocketLiveFrameObserved": true,
+      "reloadPreservedMutation": true,
+      "browserReadableBackendOriginAbsent": true,
+      "browserReadableAdminTokenAbsent": true,
+      "browserReadableFilesystemPathsAbsent": true,
+      "browserReadableCanaryAbsent": true
+    }
   },
   "nonclaims": [
     {
