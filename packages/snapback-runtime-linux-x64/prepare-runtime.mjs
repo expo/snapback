@@ -14,8 +14,11 @@ import {
   readSync,
   rmSync,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(packageRoot, '..', '..');
@@ -76,6 +79,34 @@ if (elfMachine(sourceBinary) !== 62 || elfMachine(sourceHermes) !== 62) {
   fail(
     'SNAPBACK_RUNTIME_ARTIFACT_PLATFORM_MISMATCH',
     'runtime-linux-x64 inputs must both be x86-64 ELF artifacts',
+  );
+}
+
+const sourceTestStaging = process.argv.includes('--source-test-staging');
+const identityResult = spawnSync(sourceBinary, ['build-identity'], {
+  encoding: 'utf8',
+  env: {
+    ...process.env,
+    LD_LIBRARY_PATH: [
+      dirname(sourceHermes),
+      process.env.LD_LIBRARY_PATH,
+    ].filter(Boolean).join(':'),
+  },
+  timeout: 15_000,
+});
+if (identityResult.status !== 0) {
+  fail(
+    'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+    `could not inspect the runtime build distribution: ${identityResult.stderr.trim()}`,
+  );
+}
+try {
+  const identity = JSON.parse(identityResult.stdout);
+  if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
+} catch (error) {
+  fail(
+    error?.code ?? 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+    error?.message ?? 'runtime build identity was malformed',
   );
 }
 

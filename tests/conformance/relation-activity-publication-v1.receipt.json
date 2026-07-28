@@ -68,5 +68,15 @@
       "hosted target corpus",
       "hosted capability-publication family"
     ]
+  },
+  "publicPackage": {
+    "status": "withheld-structured-gaps",
+    "buildDistribution": "public-package",
+    "authority": null,
+    "capabilityGaps": [
+      "bounded_children_v1",
+      "write_activity_v1"
+    ],
+    "reason": "PackageCapabilityAttestationV1 is not embedded and release-key verified"
   }
 }

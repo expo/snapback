@@ -1023,6 +1023,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 serde_json::to_string(&json!({
                     "schemaVersion": "snapback.binary-identity.v1",
                     "binary": crate::identity::binary_identity(),
+                    "buildDistribution": crate::identity::build_distribution(),
                 }))?
             );
             Ok(())

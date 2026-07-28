@@ -20,6 +20,18 @@ use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
+pub const BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE: &str = "contributor-source";
+pub const BUILD_DISTRIBUTION_PUBLIC_PACKAGE: &str = "public-package";
+
+/// Compile-time distribution class used by capability authorities whose trust
+/// root differs between a reviewed checkout and a public native package.
+pub const fn build_distribution() -> &'static str {
+    match option_env!("SNAPBACK_BUILD_DISTRIBUTION") {
+        Some(distribution) => distribution,
+        None => BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+    }
+}
+
 /// The server-binary identity carried on the ungated `/health` payload.
 ///
 /// Fields are camelCase on the wire to match the camelCase inspect payload the
@@ -88,6 +100,10 @@ mod tests {
         assert_eq!(a.crate_version, env!("CARGO_PKG_VERSION"));
         assert!(!a.crate_version.is_empty());
         assert!(matches!(a.build_profile.as_str(), "debug" | "release"));
+        assert!(matches!(
+            build_distribution(),
+            BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE | BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+        ));
         assert!(!a.startup_nonce.is_empty());
         // Same process -> same nonce (the "still the same process" signal).
         let b = binary_identity();

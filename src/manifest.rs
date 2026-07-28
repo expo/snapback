@@ -5499,7 +5499,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:af304214a6888c3884560661b4f3c9695976bccbc60bc34e66e5eca1837676a0";
+    "sha256:7d7f553fbd4daaa83719c73d0d5cb8ee392746eef93e20256d6319983c62cf87";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 
@@ -5538,22 +5538,33 @@ fn sha256_prefixed(bytes: &[u8]) -> String {
 /// evidence receipt, and the implementation/schema source bytes.
 /// @ref LLP 0108#6-acceptance — carrier and registry tampering must withhold
 /// runtime support while leaving the static maturity assignment intact.
-fn local_relation_activity_publication_verified() -> bool {
-    if sha256_prefixed(LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES)
-        != LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256
-    {
+fn local_relation_activity_publication_verified_for(
+    build_distribution: &str,
+    carrier_bytes: &[u8],
+    expected_carrier_sha256: &str,
+    qualification_receipt_bytes: &[u8],
+) -> bool {
+    // Public packages cannot inherit the contributor trust root. Until the
+    // loader embeds and verifies PackageCapabilityAttestationV1, one
+    // distribution predicate closes every substitution/tamper path as a GAP.
+    //
+    // @ref LLP 0104#local-and-packaged-publication-authority — package support
+    // requires the release-key-signed binary/triple/ledger/source/carrier
+    // binding; absence or mismatch withholds the atomic pair.
+    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
         return false;
     }
-    let Ok(carrier) = serde_json::from_slice::<LocalRelationActivityPublicationV1>(
-        LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
-    ) else {
+    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+        return false;
+    }
+    let Ok(carrier) = serde_json::from_slice::<LocalRelationActivityPublicationV1>(carrier_bytes)
+    else {
         return false;
     };
     carrier.schema_version == "snapback.local-capability-publication.v1"
         && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         && carrier.capability_ids == ["bounded_children_v1", "write_activity_v1"].map(str::to_owned)
-        && carrier.qualification_receipt_sha256
-            == sha256_prefixed(LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES)
+        && carrier.qualification_receipt_sha256 == sha256_prefixed(qualification_receipt_bytes)
         && carrier.executor_source_sha256
             == BTreeMap::from([
                 (
@@ -5575,6 +5586,15 @@ fn local_relation_activity_publication_verified() -> bool {
             )])
         && carrier.package_closure_sha256.is_none()
         && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
+fn local_relation_activity_publication_verified() -> bool {
+    local_relation_activity_publication_verified_for(
+        crate::identity::build_distribution(),
+        LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
+        LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
+        LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+    )
 }
 
 /// Code-owned implementation facts not representable by existing capability
@@ -5605,8 +5625,17 @@ pub struct TargetCapabilityFacts {
 
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
+        Self::local_auth_aware_for_distribution(crate::identity::build_distribution())
+    }
+
+    fn local_auth_aware_for_distribution(build_distribution: &str) -> Self {
         let local_relation_activity_publication_v1_verified =
-            local_relation_activity_publication_verified();
+            local_relation_activity_publication_verified_for(
+                build_distribution,
+                LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
+                LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
+                LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+            );
         // @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0103 remains Review, so registry maturity
@@ -6023,11 +6052,19 @@ impl CapabilityManifest {
         Self::local_v0(local_v0_default_capability_gaps())
     }
 
-    pub fn local_v0(mut capability_gaps: Vec<String>) -> Self {
-        let capability_facts = TargetCapabilityFacts::local_auth_aware();
+    pub fn local_v0(capability_gaps: Vec<String>) -> Self {
+        Self::local_v0_with_facts(capability_gaps, TargetCapabilityFacts::local_auth_aware())
+    }
+
+    fn local_v0_with_facts(
+        mut capability_gaps: Vec<String>,
+        capability_facts: TargetCapabilityFacts,
+    ) -> Self {
         if capability_facts.local_relation_activity_publication_v1_verified {
             capability_gaps
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
+        } else {
+            ensure_relation_activity_capability_gaps(&mut capability_gaps);
         }
         let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
@@ -6905,6 +6942,99 @@ mod membership_manifest_grammar_tests {
                     .contains(&TargetCapabilityId::WriteActivityV1),
             "target facts, not manifest fields from an app artifact, own publication authority",
         );
+    }
+
+    #[test]
+    fn packaged_relation_activity_publication_withholds_atomic_pair_as_structured_gaps() {
+        let facts = TargetCapabilityFacts::local_auth_aware_for_distribution(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+        );
+        let manifest =
+            CapabilityManifest::local_v0_with_facts(local_v0_default_capability_gaps(), facts);
+
+        for (id, gap) in [
+            (TargetCapabilityId::BoundedChildrenV1, "bounded_children_v1"),
+            (TargetCapabilityId::WriteActivityV1, "write_activity_v1"),
+        ] {
+            assert!(!manifest.supported_capabilities.contains(&id));
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|candidate| candidate == gap),
+                "public package must retain the structured {gap} GAP",
+            );
+            assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+        }
+    }
+
+    #[test]
+    fn compiled_build_distribution_owns_relation_activity_publication() {
+        let manifest = CapabilityManifest::local_v0_declared();
+        let source_authority = crate::identity::build_distribution()
+            == crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE;
+        for (id, gap) in [
+            (TargetCapabilityId::BoundedChildrenV1, "bounded_children_v1"),
+            (TargetCapabilityId::WriteActivityV1, "write_activity_v1"),
+        ] {
+            assert_eq!(
+                manifest.supported_capabilities.contains(&id),
+                source_authority
+            );
+            assert_eq!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|candidate| candidate == gap),
+                !source_authority,
+            );
+        }
+    }
+
+    #[test]
+    fn relation_activity_publication_tamper_and_package_substitutions_fail_closed() {
+        let mut tampered_carrier = LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES.to_vec();
+        tampered_carrier[0] ^= 1;
+        assert!(!local_relation_activity_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &tampered_carrier,
+            LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
+            LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+        ));
+
+        let mut stale_receipt = LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES.to_vec();
+        stale_receipt.push(b'\n');
+        assert!(!local_relation_activity_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
+            LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
+            &stale_receipt,
+        ));
+
+        // @ref LLP 0104#local-and-packaged-publication-authority — until a
+        // release-key verifier and exact PackageCapabilityAttestationV1 are
+        // embedded, the public-package distribution cut must reject every
+        // mandatory negative before any carrier detail can become authority.
+        for attempted_substitution in [
+            "tampered embedded carrier",
+            "another binary sha256",
+            "another target triple",
+            "stale installed graph",
+            "old package closure",
+            "unknown signing key",
+            "rollback-incompatible package",
+            "candidate artifact substitution",
+        ] {
+            assert!(
+                !local_relation_activity_publication_verified_for(
+                    crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                    LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
+                    LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
+                    LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+                ),
+                "{attempted_substitution} must not cross the package GAP",
+            );
+        }
     }
 
     fn write_activity_plan_fixture() -> WriteWithActivityPlan {

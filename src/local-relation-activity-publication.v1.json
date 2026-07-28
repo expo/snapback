@@ -5,7 +5,7 @@
     "bounded_children_v1",
     "write_activity_v1"
   ],
-  "qualificationReceiptSha256": "sha256:5a1df20706d91583b39df1acb42e281ef717a7f682fe84459873d9a1312e8f56",
+  "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
     "src/local.rs": "sha256:9f63775465f1f2f030d93b3dfd20a32b4e4d584642e7213b3b236da9ad7c769d",
     "src/storage.rs": "sha256:f637f9fdee2b28c224923d55d41016cbe4b1eb68f91138051004a3f102879e8f"

@@ -42,8 +42,8 @@ with the Snapback label and `guide-gap` in the title.
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
-| backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; the exact local source target advertises it only through the embedded atomic relation/activity carrier and requiring artifacts must acknowledge it | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (signed public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
-| backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; the exact local source target advertises it only through the embedded atomic relation/activity carrier and requiring artifacts must acknowledge it | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (signed public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
+| backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
+| backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable indexed term, phrase, prefix, exclusion, and equality-filter search with deterministic integer ranking, bounded highlights, public/owner visibility partitions, and AEAD current-keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
@@ -2674,8 +2674,9 @@ can prove structure; it cannot prove who may see or mutate a row.
 ## Design reference: write plus one activity row
 
 `defineWriteWithActivity` and `defineBoundedChildrenQuery` are experimental
-local profiles. The exact `local-dev-sqlite-ibex` target advertises both as one
-atomic source publication only when its private embedded
+local profiles. A contributor source build of the exact
+`local-dev-sqlite-ibex` target advertises both as one atomic source publication
+only when its private embedded
 `LocalCapabilityPublicationV1` carrier still matches the committed
 qualification receipt and the executor/schema source bytes. Application
 artifacts cannot supply that carrier. They must explicitly acknowledge
@@ -2694,8 +2695,12 @@ refusal after parent deletion and ID reuse. Run
 tracked carrier, receipt, source digests, cursor golden, and first-party queue
 ownership together. Remote-service, conformance-workerd, Cloudflare, and
 hosted profiles retain both GAPs; this local source carrier does not authorize
-them. A separately signed package attestation is also still required before a
-public runtime package may inherit the claim.
+them. Public runtime packages are deliberately compiled as `public-package`
+and retain both structured GAPs because the loader does not yet embed and
+verify the release-key-signed `PackageCapabilityAttestationV1`. Package
+assembly refuses a contributor-source binary, so placing the same executable
+under `node_modules` cannot launder the source trust root into a published
+claim.
 
 The helper makes one existing-owner transaction reviewable:
 
@@ -2960,14 +2965,15 @@ under `issues/`.
 
 ## Design reference: one bounded child page
 
-`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program,
-but it is **review-gated and not an advertised capability**. Do not select it
-for production based on code presence. The capability index remains a GAP
-until the paired-store, restore/backfill, cursor-vector, result-contract,
-first-party client, and hosted-target gates named by LLP 0104 pass without
-skips.
+`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program.
+A contributor source build advertises it experimentally only when the tracked
+atomic local carrier matches the receipt and exact implementation bytes, and a
+requiring artifact acknowledges it. Public runtime packages, remote services,
+and hosted targets retain a structured GAP: the public package loader does not
+yet verify `PackageCapabilityAttestationV1`. Do not select it for a deployed
+package based on source-build code presence.
 
-The local executor is not declaration-only:
+The source-build local executor is not declaration-only:
 `node demos/backend-bakeoff/tests/snapback.mjs` exercises owner, invisible,
 missing, and inactive parents plus a two-page `sbbc1` traversal against the
 persisted server. That local proof is green; the remaining GAP is the Spec's

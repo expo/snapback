@@ -161,8 +161,9 @@ can prove structure; it cannot prove who may see or mutate a row.
 ## Design reference: write plus one activity row
 
 `defineWriteWithActivity` and `defineBoundedChildrenQuery` are experimental
-local profiles. The exact `local-dev-sqlite-ibex` target advertises both as one
-atomic source publication only when its private embedded
+local profiles. A contributor source build of the exact
+`local-dev-sqlite-ibex` target advertises both as one atomic source publication
+only when its private embedded
 `LocalCapabilityPublicationV1` carrier still matches the committed
 qualification receipt and the executor/schema source bytes. Application
 artifacts cannot supply that carrier. They must explicitly acknowledge
@@ -181,8 +182,12 @@ refusal after parent deletion and ID reuse. Run
 tracked carrier, receipt, source digests, cursor golden, and first-party queue
 ownership together. Remote-service, conformance-workerd, Cloudflare, and
 hosted profiles retain both GAPs; this local source carrier does not authorize
-them. A separately signed package attestation is also still required before a
-public runtime package may inherit the claim.
+them. Public runtime packages are deliberately compiled as `public-package`
+and retain both structured GAPs because the loader does not yet embed and
+verify the release-key-signed `PackageCapabilityAttestationV1`. Package
+assembly refuses a contributor-source binary, so placing the same executable
+under `node_modules` cannot launder the source trust root into a published
+claim.
 
 The helper makes one existing-owner transaction reviewable:
 

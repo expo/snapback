@@ -185,14 +185,15 @@ under `issues/`.
 
 ## Design reference: one bounded child page
 
-`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program,
-but it is **review-gated and not an advertised capability**. Do not select it
-for production based on code presence. The capability index remains a GAP
-until the paired-store, restore/backfill, cursor-vector, result-contract,
-first-party client, and hosted-target gates named by LLP 0104 pass without
-skips.
+`defineBoundedChildrenQuery` is present for the LLP 0104 conformance program.
+A contributor source build advertises it experimentally only when the tracked
+atomic local carrier matches the receipt and exact implementation bytes, and a
+requiring artifact acknowledges it. Public runtime packages, remote services,
+and hosted targets retain a structured GAP: the public package loader does not
+yet verify `PackageCapabilityAttestationV1`. Do not select it for a deployed
+package based on source-build code presence.
 
-The local executor is not declaration-only:
+The source-build local executor is not declaration-only:
 `node demos/backend-bakeoff/tests/snapback.mjs` exercises owner, invisible,
 missing, and inactive parents plus a two-page `sbbc1` traversal against the
 persisted server. That local proof is green; the remaining GAP is the Spec's

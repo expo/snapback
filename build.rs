@@ -239,6 +239,7 @@ fn emit_macos_rpath(dir: &Path) {
 fn emit_build_identity() {
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
+    println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_DISTRIBUTION");
 
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
@@ -300,6 +301,22 @@ fn emit_build_identity() {
     if let Some(dirty) = dirty {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_DIRTY={dirty}");
     }
+
+    // @ref LLP 0104#local-and-packaged-publication-authority — contributor
+    // source builds may consume the source-embedded relation/activity carrier,
+    // while public packages must carry a release-key attestation. The current
+    // package pipeline has no such attestation, so it compiles an explicit
+    // fail-closed distribution fact that withholds both capabilities.
+    let distribution = env_nonempty("SNAPBACK_BUILD_DISTRIBUTION")
+        .unwrap_or_else(|| "contributor-source".to_owned());
+    assert!(
+        matches!(
+            distribution.as_str(),
+            "contributor-source" | "public-package"
+        ),
+        "SNAPBACK_BUILD_DISTRIBUTION must be contributor-source or public-package"
+    );
+    println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
 }
 
 fn env_nonempty(name: &str) -> Option<String> {

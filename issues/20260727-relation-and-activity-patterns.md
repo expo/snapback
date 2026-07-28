@@ -129,3 +129,21 @@ guide names the acknowledgment and target boundary. Public-package attestation
 and hosted claim-family publication remain distinct deployment work under LLP
 0108. Final ticket disposition waits for the complete program-level
 publication review.
+
+## Public-package authority fallback — 2026-07-28
+
+The package audit found no embedded release public key or
+`PackageCapabilityAttestationV1` loader capable of binding the final binary,
+target triple, tarball/publication-ledger lineage, source revision, and local
+carrier digest. The package path therefore takes LLP 0104's honest fallback:
+release binaries are compiled with the code-owned `public-package`
+distribution fact and withhold both capabilities as structured GAPs.
+
+Native package assembly now refuses a contributor-source, dirty, debug, or
+unidentified binary. Rust tests prove the exact package distribution retains
+both GAPs and that carrier/receipt tampering fails closed; packaging tests
+cover distribution-identity substitution. The conformance receipt records the
+public-package GAP separately from the positive contributor-source carrier.
+This closes the package overclaim defect without claiming the missing signed
+attestation. The ticket remains open for its separately gated hosted
+publication and any later positive public-package attestation implementation.

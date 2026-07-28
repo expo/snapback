@@ -27,6 +27,13 @@ assert.deepEqual(
   receipt.publication.capabilityIds,
   ['bounded_children_v1', 'write_activity_v1'],
 );
+assert.deepEqual(receipt.publicPackage, {
+  status: 'withheld-structured-gaps',
+  buildDistribution: 'public-package',
+  authority: null,
+  capabilityGaps: ['bounded_children_v1', 'write_activity_v1'],
+  reason: 'PackageCapabilityAttestationV1 is not embedded and release-key verified',
+});
 
 assert.equal(carrier.schemaVersion, 'snapback.local-capability-publication.v1');
 assert.equal(carrier.targetProfileId, 'local-dev-sqlite-ibex');
@@ -34,7 +41,7 @@ assert.deepEqual(carrier.capabilityIds, ['bounded_children_v1', 'write_activity_
 assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
 assert.equal(
   sha256(carrierBytes),
-  'sha256:af304214a6888c3884560661b4f3c9695976bccbc60bc34e66e5eca1837676a0',
+  'sha256:7d7f553fbd4daaa83719c73d0d5cb8ee392746eef93e20256d6319983c62cf87',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,
@@ -200,6 +207,10 @@ console.log(JSON.stringify({
       carrierSha256: sha256(carrierBytes),
       acknowledgmentRequired: receipt.publication.acknowledgmentRequired,
       hostedAuthority: receipt.publication.hostedAuthority,
+    },
+    publicPackagePublication: {
+      status: receipt.publicPackage.status,
+      capabilityGaps: receipt.publicPackage.capabilityGaps,
     },
     crossLanguageSbbc1: 'passed',
     canonicalBoundaryOrdering: 'passed',

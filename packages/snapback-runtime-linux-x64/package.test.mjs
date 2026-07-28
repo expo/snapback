@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+
 const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 assert.equal(manifest.name, '@snapback/runtime-linux-x64');
 assert.deepEqual(manifest.os, ['linux']);
@@ -33,5 +35,12 @@ if (existsSync(binary) || existsSync(hermes)) {
     0,
     `packaged Linux binary must launch via its loader-relative rpath: ${launched.stderr}`,
   );
+  const identity = spawnSync(binary, ['build-identity'], {
+    encoding: 'utf8',
+    env: environment,
+    timeout: 15_000,
+  });
+  assert.equal(identity.status, 0, identity.stderr);
+  assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
 }
 console.log('package.test.mjs: Linux x64 package identity and relocatable closure pass');
