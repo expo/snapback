@@ -149,7 +149,9 @@ function sha256(path) {
 
 function sha256TarEntry(path, entry) {
   return createHash('sha256')
-    .update(execFileSync('tar', ['-xzOf', path, entry]))
+    .update(execFileSync('tar', ['-xzOf', path, entry], {
+      maxBuffer: 64 * 1024 * 1024,
+    }))
     .digest('hex');
 }
 
