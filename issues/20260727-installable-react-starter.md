@@ -67,3 +67,30 @@ The ticket remains open until the Linux x64 cold run passes and the complete
 versioned closure is published and read back from the decided
 `@ccheever/snapback-*` public aliases. The retained local receipt deliberately
 marks public-registry and separately provisioned clean-machine claims false.
+
+## First-rerun developer-loop correction — 2026-07-28
+
+The first bakeoff rerun found two package-loop defects before browser
+acceptance:
+
+- ordinary `snapback dev` did not infer that a generated sessions-mode app
+  must establish its complete schema/functions pair through startup artifacts;
+  the comparator happened to pass a private option while the author-facing
+  command fell into the dev-only raw host-load path; and
+- a selected runtime built before the current route artifact shape reduced an
+  unknown `registerGroupEligible` field to the server's generic invalid-JSON
+  diagnostic, hiding the actual runtime/codegen identity mismatch.
+
+The CLI now infers sessions mode from the generated schema, supplies the
+closed startup carrier on initial start and restart, and sends subsequent
+sessions changes through the complete admin-authorized provisioning pair.
+`packages/snapback-cli/sessions-dev-loop.test.mjs` proves that one-command path
+without the comparator option. Artifact decoder refusals now become
+`SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH`, naming the selected binary and
+independent build stamp plus safe same-revision rebuild and explicit override
+guidance. The Guide now makes the current React command, one-command
+Vite/backend ownership, versioned-seed behavior, installed package closure,
+and public-versus-staged nonclaims discoverable.
+
+This correction adds no browser claim. The ticket remains open on the same
+public expanded-closure and browser acceptance gates above.

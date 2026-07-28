@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "92e793e701199b7ea3a046cbc94819aed65cd1ea"
+    "commit": "1d57f9dd31d2bc62fe9cbe5b2d1c330eb41159dc"
   },
   "nav": {
     ".": [
@@ -940,9 +940,9 @@
         "tests/conformance/versioned-seed-v1.manifest.json"
       ],
       "examples": [],
-      "reviewed": "2026-07-27",
+      "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "f73e56274ee31478536c70b750deedb34b0d0d4666c1235289d31a584ab59066",
+      "sha256": "bc0602cc20667a07032d2b578600821a15050c2f94a4e6a7fb572dc413613792",
       "snippets": []
     },
     "meta.capabilities": {
@@ -968,7 +968,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "c85b3e1d650969894c1017c1ceb42411b0c4803a17f26619940ef016ac990ddd",
+      "sha256": "09bcc6158db331a50ccb21d8a245841753fdc4c2b04e8ebbab4396f01495cf46",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1452,12 +1452,14 @@
       ],
       "examples": [
         "packages/snapback-cli/templates/todo-contract",
+        "packages/snapback-cli/templates/react",
+        "packages/snapback-cli/sessions-dev-loop.test.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-07-21",
-      "reviewedCommit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1",
-      "sha256": "aaf31658780cda7bef8199a6887d9e5e88f7dc1d92989bb17b8c720f78646286",
+      "reviewed": "2026-07-28",
+      "reviewedCommit": "HEAD",
+      "sha256": "1e331f1b192ef2bfbdab1aba2a46fc6d4a9b951d7800e78d02f70b3ad87fbd4a",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1490,7 +1492,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "7ba2956debf3da973176df3e0cbfd07359d95e08d645df85f9dce2adc7b74b24",
+      "sha256": "00f595939f82418a532592c941d3783bc8f2f18eff7e7dd22455cf31c07203bc",
       "snippets": [
         {
           "lang": "js",
@@ -1565,7 +1567,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "1614671380600702f51466cdca35c50f738595b442b60f5ecb6a1670f5cfb6d4",
+      "sha256": "effe1026223c4e27b3f28a760bb63a9f33817dcf1aecd55cfbb41471fd7b5f08",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2134,5 +2136,5 @@
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "67556cb16711e1d82d61a789296acb079ae2959df2da447d57cca241c60266d2"
+  "contentHash": "153b5e8aa60c5ef4146caa262ddef4960d0189a30f0bd9dc180db6c2b68b1360"
 }

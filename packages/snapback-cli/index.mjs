@@ -1251,6 +1251,60 @@ function requireNativeSuccess(result, code, operation) {
   return result;
 }
 
+const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?:json|type)|expected (?:struct|map|sequence|string)|did not match any variant|data did not match|SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH|SNAPBACK_STALE_(?:SCHEMA|FUNCTION)_ARTIFACT_(?:KIND|VERSION)/i;
+
+function generatedArtifactDecodeFailure(error) {
+  const diagnostic = error?.diagnostic ?? {};
+  const evidence = [
+    error?.message,
+    diagnostic.message,
+    diagnostic.details?.error,
+    diagnostic.details?.stdout,
+    diagnostic.details?.stderr,
+  ].filter((value) => typeof value === 'string' && value.length > 0).join('\n');
+  return (
+    diagnostic.code === 'SNAPBACK_REQUEST_JSON_INVALID'
+    || (
+      (
+        diagnostic.code === 'SNAPBACK_DEV_SERVER_LOAD_FAILED'
+        || diagnostic.code === 'SNAPBACK_DEV_SERVER_START_FAILED'
+      )
+      && ARTIFACT_DECODE_EVIDENCE.test(evidence)
+    )
+  );
+}
+
+function refineGeneratedArtifactFailure(error, {
+  binary,
+  runtime = null,
+  runtimeIdentity = null,
+  artifacts = [],
+} = {}) {
+  if (!generatedArtifactDecodeFailure(error)) return error;
+  const causeDiagnostic = error?.diagnostic ?? null;
+  const mismatch = diagnosticError(
+    'SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH',
+    'the selected Snapback runtime could not deserialize artifacts emitted by the current codegen; use a runtime built from the same Snapback revision/package closure',
+    {
+      selectedBinary: resolve(binary),
+      selectedRuntimeSource: runtime?.source ?? null,
+      selectedRuntimeStamp: runtimeIdentity?.stamp ?? null,
+      artifacts: artifacts.map((path) => resolve(path)),
+      causeCode: causeDiagnostic?.code ?? error?.code ?? null,
+      decoderEvidence: typeof causeDiagnostic?.details?.error === 'string'
+        ? causeDiagnostic.details.error.slice(0, 1_000)
+        : null,
+      recovery: {
+        contributorRebuild: 'scripts/bootstrap-ibex-runtime && cargo build --bin snapback',
+        compatibleOverride: 'SNAPBACK_RUNTIME_BINARY=/absolute/path/to/compatible/snapback snapback dev <backend>',
+        safety: 'do not delete generated fields or hand-edit artifacts to fit an older runtime',
+      },
+    },
+  );
+  mismatch.cause = error;
+  return mismatch;
+}
+
 export function managedAdminToken(descriptor, database) {
   const declared = descriptor?.adminTokenFile;
   if (typeof declared !== 'string') return null;
@@ -1295,11 +1349,52 @@ export async function waitForReady(path, child, timeoutMs = 15_000) {
     if (child.exitCode !== null) {
       throw diagnosticError('SNAPBACK_DEV_SERVER_START_FAILED', `Snapback exited before writing ${path}`, {
         status: child.exitCode,
+        stdout: child.__snapbackCapturedOutput?.stdout?.slice(-4_000) ?? '',
+        stderr: child.__snapbackCapturedOutput?.stderr?.slice(-4_000) ?? '',
       });
     }
     await new Promise((resolveWait) => setTimeout(resolveWait, 50));
   }
   throw diagnosticError('SNAPBACK_DEV_SERVER_READY_TIMEOUT', `Snapback did not write ${path} within ${timeoutMs}ms`, { path });
+}
+
+function spawnManagedRuntime(binary, args, {
+  cwd,
+  env,
+  stdio = ['ignore', 2, 2],
+} = {}) {
+  const requested = Array.isArray(stdio) ? stdio : ['ignore', stdio, stdio];
+  const child = spawn(binary, args, {
+    cwd,
+    env: scrubDynamicLoaderEnvironment(env),
+    // Capture bounded startup diagnostics so a strict artifact decoder
+    // refusal can be classified. Forwarding below preserves the caller's
+    // requested human/test output behavior.
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const captured = { stdout: '', stderr: '' };
+  Object.defineProperty(child, '__snapbackCapturedOutput', {
+    value: captured,
+    enumerable: false,
+  });
+  const attach = (stream, name, destination) => {
+    stream?.on('data', (chunk) => {
+      const text = chunk.toString('utf8');
+      captured[name] = `${captured[name]}${text}`.slice(-8_000);
+      if (destination === 'inherit') {
+        (name === 'stdout' ? process.stdout : process.stderr).write(chunk);
+      } else if (destination === 1) {
+        process.stdout.write(chunk);
+      } else if (destination === 2) {
+        process.stderr.write(chunk);
+      } else if (destination && typeof destination.write === 'function') {
+        destination.write(chunk);
+      }
+    });
+  };
+  attach(child.stdout, 'stdout', requested[1]);
+  attach(child.stderr, 'stderr', requested[2]);
+  return child;
 }
 
 export async function loadGenerated(
@@ -1308,7 +1403,13 @@ export async function loadGenerated(
   backendRoot,
   readyFile,
   adminToken,
-  { seed = false, database = null, skipSchemaFunctions = false } = {},
+  {
+    seed = false,
+    database = null,
+    skipSchemaFunctions = false,
+    runtime = null,
+    runtimeIdentity = null,
+  } = {},
 ) {
   const generated = join(backendRoot, 'generated');
   const targetArgs = ['--ready-file', readyFile, ...(adminToken ? ['--token', adminToken] : [])];
@@ -1325,6 +1426,7 @@ export async function loadGenerated(
   const schemaPath = resolveGeneratedArtifact(generated, 'schema.manifest.json');
   const functionsPath = resolveGeneratedArtifact(generated, 'functions.manifest.json');
   const schemaManifest = JSON.parse(readFileSync(schemaPath, 'utf8'));
+  const functionsManifest = JSON.parse(readFileSync(functionsPath, 'utf8'));
   const requestedMode = schemaManifest?.auth?.mode ?? 'dev';
   if (requestedMode !== 'dev' && requestedMode !== 'sessions') {
     throw diagnosticError(
@@ -1354,14 +1456,23 @@ export async function loadGenerated(
       );
     }
   }
-  if (!skipSchemaFunctions) {
-    requireNativeSuccess(native(binary, [
-      'load', ...targetArgs,
-      '--schema', schemaPath,
-      '--functions', functionsPath,
-    ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
+  if (!skipSchemaFunctions && requestedMode === 'dev') {
+    try {
+      requireNativeSuccess(native(binary, [
+        'load', ...targetArgs,
+        '--schema', schemaPath,
+        '--functions', functionsPath,
+      ], { cwd: projectRoot }), 'SNAPBACK_DEV_SERVER_LOAD_FAILED', 'schema/function load');
+    } catch (error) {
+      throw refineGeneratedArtifactFailure(error, {
+        binary,
+        runtime,
+        runtimeIdentity,
+        artifacts: [schemaPath, functionsPath],
+      });
+    }
   }
-  if (artifact || routes) {
+  if (requestedMode === 'sessions' || artifact || routes) {
     const descriptor = validateDevTarget(readReadyDescriptor(readyFile), {
       readyFile,
       database,
@@ -1383,12 +1494,32 @@ export async function loadGenerated(
     });
     try {
       if (authCoordinator) await client.authSession();
-      if (routes) {
-        await client.ensureApp({
-          routes,
-          ...(requestedMode === 'sessions'
-            ? { intent: 'provision', requestedMode }
-            : {}),
+      try {
+        if (requestedMode === 'sessions') {
+          // @ref LLP 0058#cold-startup-artifact-carrier — sessions
+          // deployments are established at process start and every later
+          // update re-enters through the complete, coordinator-owned
+          // provisioning pair; the raw v0 host-load verbs are dev-only.
+          await client.ensureApp({
+            intent: 'provision',
+            requestedMode,
+            schema: schemaManifest,
+            functions: functionsManifest,
+            ...(routes ? { routes } : {}),
+          });
+        } else if (routes) {
+          await client.ensureApp({ routes });
+        }
+      } catch (error) {
+        throw refineGeneratedArtifactFailure(error, {
+          binary,
+          runtime,
+          runtimeIdentity,
+          artifacts: [
+            schemaPath,
+            functionsPath,
+            ...(routesPath ? [routesPath] : []),
+          ],
         });
       }
       // @ref LLP 0103#31-new-appensure-intent — a versioned install/reset
@@ -1413,10 +1544,9 @@ export async function loadGenerated(
       await client.closeAuth();
       await authCoordinator?.close();
     }
-    return;
   }
   const seedPath = join(backendRoot, 'seed.json');
-  if (seed && existsSync(seedPath)) {
+  if (!artifact && seed && existsSync(seedPath)) {
     requireNativeSuccess(
       native(binary, ['reset', ...targetArgs, '--seed', seedPath], { cwd: projectRoot }),
       'SNAPBACK_DEV_SERVER_SEED_FAILED',
@@ -1485,23 +1615,51 @@ export async function runDev(options = {}) {
   const clientArm = resolveClientArm(options.client, projectRoot);
   const generated = await generateApp(backendRoot);
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
-  let startupArtifacts = null;
-  if (options.bootstrapGeneratedAtStart === true) {
-    const generatedRoot = join(backendRoot, 'generated');
+  const generatedRoot = join(backendRoot, 'generated');
+  const generatedSchemaPath = resolveGeneratedArtifact(
+    generatedRoot,
+    'schema.manifest.json',
+  );
+  const generatedFunctionsPath = resolveGeneratedArtifact(
+    generatedRoot,
+    'functions.manifest.json',
+  );
+  const generatedAuthMode = JSON.parse(
+    readFileSync(generatedSchemaPath, 'utf8'),
+  )?.auth?.mode ?? 'dev';
+  const forcedStartupArtifacts = options.bootstrapGeneratedAtStart === true;
+  let startupArtifacts = forcedStartupArtifacts || generatedAuthMode === 'sessions'
+    ? join(dirname(readyFile), 'startup-artifacts.json')
+    : null;
+  let startupArtifactSources = [generatedSchemaPath, generatedFunctionsPath];
+  const refreshStartupArtifacts = () => {
+    const currentSchemaPath = resolveGeneratedArtifact(
+      generatedRoot,
+      'schema.manifest.json',
+    );
+    const currentFunctionsPath = resolveGeneratedArtifact(
+      generatedRoot,
+      'functions.manifest.json',
+    );
+    startupArtifactSources = [currentSchemaPath, currentFunctionsPath];
+    const currentAuthMode = JSON.parse(
+      readFileSync(currentSchemaPath, 'utf8'),
+    )?.auth?.mode ?? 'dev';
+    if (!forcedStartupArtifacts && currentAuthMode !== 'sessions') {
+      startupArtifacts = null;
+      return;
+    }
     startupArtifacts = join(dirname(readyFile), 'startup-artifacts.json');
     writeFileSync(startupArtifacts, `${JSON.stringify({
       formatVersion: 1,
-      schema: JSON.parse(readFileSync(
-        resolveGeneratedArtifact(generatedRoot, 'schema.manifest.json'),
-        'utf8',
-      )),
-      functions: JSON.parse(readFileSync(
-        resolveGeneratedArtifact(generatedRoot, 'functions.manifest.json'),
-        'utf8',
-      )),
+      schema: JSON.parse(readFileSync(currentSchemaPath, 'utf8')),
+      functions: JSON.parse(readFileSync(currentFunctionsPath, 'utf8')),
     })}\n`, { mode: 0o600 });
-  }
-
+  };
+  // @ref LLP 0058#cold-startup-artifact-carrier — an ordinary dev command
+  // infers sessions mode from the generated schema and establishes that
+  // deployment before listener bind. Callers do not need a hidden comparator
+  // option to avoid the dev-only raw host-load path.
   let managed = false;
   let child = null;
   let descriptor;
@@ -1511,7 +1669,8 @@ export async function runDev(options = {}) {
     if (options.attach === true) {
       throw diagnosticError('SNAPBACK_DEV_READY_FILE_REQUIRED', `--attach requires ${readyFile}`, { readyFile });
     }
-    child = spawn(runtime.binary, [
+    refreshStartupArtifacts();
+    child = spawnManagedRuntime(runtime.binary, [
       'start',
       '--ready-file', readyFile,
       '--db', database,
@@ -1526,7 +1685,14 @@ export async function runDev(options = {}) {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
       if (child.exitCode === null) child.kill('SIGTERM');
-      throw error;
+      throw refineGeneratedArtifactFailure(error, {
+        binary: runtime.binary,
+        runtime,
+        runtimeIdentity,
+        artifacts: startupArtifacts
+          ? [startupArtifacts, ...startupArtifactSources]
+          : startupArtifactSources,
+      });
     }
   }
   const closeManaged = () => {
@@ -1563,6 +1729,8 @@ export async function runDev(options = {}) {
       seed: managed && !databaseExistedBeforeStart,
       database,
       skipSchemaFunctions: managed && startupArtifacts !== null,
+      runtime,
+      runtimeIdentity,
     });
   } catch (error) {
     closeManaged();
@@ -1602,6 +1770,14 @@ export async function runDev(options = {}) {
     try {
       next = await generateApp(backendRoot);
     } catch (error) {
+      const refined = refineGeneratedArtifactFailure(error, {
+        binary: runtime.binary,
+        runtime,
+        runtimeIdentity,
+        artifacts: startupArtifacts
+          ? [startupArtifacts, ...startupArtifactSources]
+          : startupArtifactSources,
+      });
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: false,
@@ -1623,6 +1799,8 @@ export async function runDev(options = {}) {
     try {
       await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
         database,
+        runtime,
+        runtimeIdentity,
       });
       return emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename, ...extra });
     } catch (error) {
@@ -1875,7 +2053,13 @@ export async function runDev(options = {}) {
       }
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
-      child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+      refreshStartupArtifacts();
+      child = spawnManagedRuntime(runtime.binary, [
+        'start',
+        '--ready-file', readyFile,
+        '--db', database,
+        ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
+      ], {
         cwd: projectRoot,
         env: scrubDynamicLoaderEnvironment(options.env),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
@@ -1901,11 +2085,11 @@ export async function runDev(options = {}) {
         state: 'restart-failed',
         verb: 'restart',
         ...tag,
-        diagnostics: [error.diagnostic ?? {
-          code: error.code ?? 'SNAPBACK_DEV_RESTART_FAILED',
+        diagnostics: [refined.diagnostic ?? {
+          code: refined.code ?? 'SNAPBACK_DEV_RESTART_FAILED',
           severity: 'error',
           subsystem: 'cli',
-          message: error.message,
+          message: refined.message,
         }],
       });
     } finally {

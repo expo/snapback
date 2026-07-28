@@ -9,7 +9,7 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-27
+reviewed: 2026-07-28
 reviewed-commit: HEAD
 ---
 
@@ -57,6 +57,15 @@ same client methods. They preflight `versioned_seed_install_v1` or
 `versioned_seed_reset_v1` and never fall back to legacy `ensure`, `seed`, or
 `reset(seed)`. A watch reload therefore matches or reports drift; it does not
 reset a populated database.
+
+For `snapback dev`, “seed on first run” means the database did not exist when
+that command created its managed server. The CLI installs the generated
+artifact through the versioned protocol, then subsequent starts and watch
+reloads make only the non-destructive `matched` observation. Existing
+databases are never guessed to be fresh. A sessions-mode app is established
+from its closed schema/functions startup carrier first; versioned seed remains
+outside the legacy startup `seed` member and runs through the named
+administrative operation after activation.
 
 The direct administrative routes are
 `/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}`.

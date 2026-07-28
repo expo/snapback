@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -50,6 +51,10 @@ const makeRecordingRuntime = (root) => {
 
 const jsonResponse = (body) => new Response(JSON.stringify(body), {
   status: 200,
+  headers: { 'content-type': 'application/json' },
+});
+const jsonErrorResponse = (status, body) => new Response(JSON.stringify(body), {
+  status,
   headers: { 'content-type': 'application/json' },
 });
 
@@ -208,6 +213,15 @@ try {
       const path = new URL(url).pathname;
       requests.push({ path, init });
       if (path === '/auth/session') return jsonResponse(handshake);
+      if (path === '/app/ensure') {
+        return jsonResponse({
+          schema: 'matched',
+          functions: 'matched',
+          seed: 'skipped-absent',
+          routes: 'skipped-absent',
+          profile: 'dev',
+        });
+      }
       if (path === '/inspect') {
         return jsonResponse({
           capabilityManifest: {
@@ -256,6 +270,24 @@ try {
       assert.equal(headers.get('x-snapback-auth-client-protocol'), '1');
       assert.equal(headers.get('authorization'), null);
     }
+    const provisions = requests.filter(({ path }) => path === '/app/ensure');
+    assert.equal(provisions.length, 2, 'sessions reloads use the complete provision carrier');
+    for (const { init } of provisions) {
+      const body = JSON.parse(init.body);
+      assert.equal(body.intent, 'provision');
+      assert.equal(body.requestedMode, 'sessions');
+      assert.equal(body.schema.appId, appId);
+      assert.equal(body.functions.appId, appId);
+      assert.equal(
+        new Headers(init.headers).get('x-snapback-admin-token'),
+        'sessions-admin-token',
+      );
+    }
+    assert.equal(
+      existsSync(runtime.log),
+      false,
+      'sessions updates never use the dev-only raw schema/functions load verbs',
+    );
     const ensureBody = JSON.parse(
       requests.find(({ path }) => path === '/_snapback/api/app/seed/ensure-v1').init.body,
     );
@@ -284,7 +316,100 @@ try {
     );
   }
 
-  console.log('load-generated.test.mjs: routes and sessions seed custody passed');
+  {
+    const projectRoot = join(root, 'runtime-artifact-mismatch');
+    const backendRoot = join(projectRoot, 'snapback');
+    const readyFile = join(projectRoot, '.snapback', 'dev.ready.json');
+    writeLegacyGeneratedGraph(backendRoot, {
+      'schema.manifest.json': {
+        artifactKind: 'schemaManifest',
+        appId: 'runtime-artifact-mismatch',
+        auth: { mode: 'dev' },
+      },
+      'functions.manifest.json': {
+        artifactKind: 'functionManifest',
+        appId: 'runtime-artifact-mismatch',
+      },
+      'routes.manifest.json': {
+        formatVersion: 1,
+        app: 'runtime-artifact-mismatch',
+        routes: [{
+          pattern: '/',
+          queries: [],
+          registerGroupEligible: true,
+        }],
+      },
+    });
+    writeReady(readyFile, 'http://snapback-runtime-mismatch.test');
+    const runtime = makeRecordingRuntime(projectRoot);
+    globalThis.fetch = async () => jsonErrorResponse(422, {
+      ok: false,
+      diagnostic: {
+        code: 'SNAPBACK_REQUEST_JSON_INVALID',
+        severity: 'error',
+        subsystem: 'server',
+        message: 'request body was not valid JSON for this operation',
+        details: {
+          error: 'unknown field `registerGroupEligible`, expected `pattern` or `queries`',
+        },
+      },
+    });
+
+    await assert.rejects(
+      loadGenerated(
+        runtime.binary,
+        projectRoot,
+        backendRoot,
+        readyFile,
+        'dev-admin-token',
+        {
+          runtime: {
+            source: '@snapback/runtime-darwin-arm64',
+          },
+          runtimeIdentity: {
+            stamp: {
+              gitCommit: 'old-runtime-commit',
+              gitDirty: false,
+              crateVersion: '0.1.0',
+              buildProfile: 'release',
+            },
+          },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH');
+        assert.equal(error.diagnostic.code, error.code);
+        assert.equal(error.diagnostic.details.selectedBinary, runtime.binary);
+        assert.equal(
+          error.diagnostic.details.selectedRuntimeSource,
+          '@snapback/runtime-darwin-arm64',
+        );
+        assert.equal(
+          error.diagnostic.details.selectedRuntimeStamp.gitCommit,
+          'old-runtime-commit',
+        );
+        assert.match(
+          error.diagnostic.details.decoderEvidence,
+          /registerGroupEligible/u,
+        );
+        assert.match(
+          error.diagnostic.details.recovery.contributorRebuild,
+          /bootstrap-ibex-runtime/u,
+        );
+        assert.match(
+          error.diagnostic.details.recovery.compatibleOverride,
+          /SNAPBACK_RUNTIME_BINARY/u,
+        );
+        assert.match(
+          error.diagnostic.details.recovery.safety,
+          /do not delete generated fields/u,
+        );
+        return true;
+      },
+    );
+  }
+
+  console.log('load-generated.test.mjs: dev routes, sessions provisioning, and runtime/artifact mismatch diagnostics passed');
 } finally {
   globalThis.fetch = originalFetch;
   rmSync(root, { recursive: true, force: true });

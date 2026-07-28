@@ -23,6 +23,12 @@ A Snapback backend is a directory — conventionally `<app>/snapback/` —
 holding a handful of source-authored `.mjs` files plus a generated review
 manifest and an ignored, regenerable artifact materialization:
 
+For the current source/packed React path, start with
+`snapback new my-app --template react`, install the generated dependencies,
+and run `bun run dev`. That one script owns both this backend loop and Vite;
+the exact public-versus-staged package boundary and seed-on-new-database
+behavior are in [the authoring loop](./the-authoring-loop.md).
+
 ```text
 myapp/
   snapback/

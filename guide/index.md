@@ -51,7 +51,8 @@ you never build around a feature because you didn't know it existed.
   functions, handlers, seed, codegen, load, query.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
   regenerate → acceptance test → inspect, including the packaged
-  `new`/`generate`/`dev`/`doctor` loop.
+  `new`/`generate`/`dev`/`doctor` loop and the current one-command React/Vite
+  starter.
 - [Generated artifact custody and review](./getting-started/generated-artifacts.md)
   — the committed review manifest, policy projections, ignored input-hash
   cache, summaries, and fail-closed resolution.

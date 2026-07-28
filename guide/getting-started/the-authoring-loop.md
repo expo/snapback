@@ -5,12 +5,12 @@ order: 2
 audience: agent-first
 capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
 authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
-examples: [packages/snapback-cli/templates/todo-contract, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
+examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-21
-reviewed-commit: e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1
+reviewed: 2026-07-28
+reviewed-commit: HEAD
 ---
 
 # The authoring loop
@@ -25,34 +25,55 @@ The cycle you repeat while building on Snapback:
 edit snapback/*.mjs  ->  regenerate  ->  run the acceptance suite  ->  inspect
 ```
 
-From an installed package, start with the same loop through the public CLI:
+The current source and packed-package React path is:
 
 ```sh
 snapback doctor --json
-snapback new my-app --template todo-contract
+snapback new my-app --template react
 cd my-app
 bun install
-snapback dev snapback
+bun run dev
 ```
 
-The source package `@snapback/cli` supplies the `snapback` command. The first
-public registry alias is `@ccheever/snapback-cli`; its staged manifest preserves
-the same bin and maps internal `@snapback/*` dependencies to the corresponding
-`@ccheever/snapback-*` artifacts. On Apple-silicon macOS the mapped runtime
-package carries the prebuilt server and Hermes framework. `doctor` first
-launches that relocated binary with
+The generated `dev` script is one supervisor:
+`snapback dev snapback --client . --client-command vite`. It generates the
+backend, starts or attaches to the native server, loads the app, then starts
+Vite and watches both sides. Browser code uses only Vite's relative
+`/__snapback` relay; it does not receive the loopback origin, admin token,
+runtime path, or repository path. The template uses generated query/mutation
+references and the first-party React provider/hooks; it does not add
+application-owned subscription cleanup.
+
+The source package `@snapback/cli` supplies the `snapback` command. Public
+version `0.1.0` is installed under the alias
+`@ccheever/snapback-cli`; its published manifest preserves the same bin and
+maps internal `@snapback/*` dependencies to the corresponding
+`@ccheever/snapback-*` artifacts. The byte-verified public closure contains
+the macOS/arm64 and Linux/x64 runtimes plus Contract, client, codegen, React,
+app CLI, and developer-loop CLI packages. Clean GitHub-hosted machines on both
+supported runtime tuples installed that exact closure and passed the original
+`todo-contract` scaffold/generate/dev/watch proof.
+
+Do not infer that the public `0.1.0` bytes contain every surface described by
+the current source tree. In particular, the current React scaffold depends on
+`@snapback/vite`, and its retained cold proof is a staged, dirty-source
+checkpoint on macOS/arm64. `@snapback/vite`, the current React starter, the
+current versioned-seed integration, and the Linux run of that expanded starter
+still need one newly versioned public closure before this page can call the
+React command a public-registry path.
+
+On each supported tuple the mapped runtime package carries the prebuilt server
+and Hermes runtime. `doctor` first launches that relocated binary with
 ambient dynamic-loader overrides removed, then creates a disposable app and
 database, generates and loads its bundle, invokes a query, commits a mutation,
 opens and closes a live subscription, stops the owned server through its ready
 descriptor, and removes the temporary state. Its `snapback.cli-doctor.v2`
 result reports one stable code per completed boundary; a launch-only result is
-test instrumentation and never the installed-product claim. Other host tuples currently report
-`SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks disguised
-as installs. Public registry publication is still pending. The `@snapback/cli`
-npm identity belongs to an unrelated product, so release probes use labeled
-`@ccheever/snapback-*` prereleases while keeping the documented source imports
-through npm aliases. The retained proof distinguishes immutable-tarball and
-public-registry modes and will not treat one as evidence for the other.
+test instrumentation and never the installed-product claim. Other host tuples
+report `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks
+disguised as installs. The `@snapback/cli` npm identity belongs to an unrelated
+product, so application imports remain `@snapback/*` through npm aliases while
+publication uses `@ccheever/snapback-*`.
 
 ## 1. Edit
 
@@ -73,13 +94,30 @@ snapback generate snapback
 
 `snapback dev snapback` runs that generation first, starts or attaches to the
 native server via `.snapback/dev.ready.json`, loads the generated schema and
-functions, seeds only a newly created managed database, and watches source
-changes through one coalesced generation at a time. The attach path validates
-the database target before reading the managed owner-only token. A different
-target fails with `SNAPBACK_DEV_SERVER_TARGET_MISMATCH`. If initial attach/load
-fails, a server started by this command is stopped. If later generation
-succeeds but live load fails, the event state is `generated-but-not-loaded`;
-generation errors are the distinct `generation-failed` state.
+functions, installs a generated versioned seed only for a newly created
+managed database, and watches source changes through one coalesced generation
+at a time. Later starts and watch reloads require the exact installed seed
+identity to match; they do not reset or restore user data. A changed
+`seedVersion` therefore reports `SNAPBACK_SEED_MIGRATION_REQUIRED` until you
+choose migration or an explicit destructive reset-install.
+
+The command infers `dev` versus `sessions` from the generated schema.
+Sessions-mode managed starts supply the complete closed schema/functions
+startup carrier before listener bind, including on backend restart; later
+reloads use the complete admin-authorized provisioning pair instead of the
+dev-only raw host-load verbs. The attach path validates the database target
+before reading the managed owner-only token. A different target fails with
+`SNAPBACK_DEV_SERVER_TARGET_MISMATCH`. If initial attach/load fails, a server
+started by this command is stopped. If later generation succeeds but live load
+fails, the event state is `generated-but-not-loaded`; generation errors are
+the distinct `generation-failed` state.
+
+If a selected native runtime predates the generated artifact shape, the loop
+reports `SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` with the exact selected
+binary, its independent build stamp when available, the artifact paths, and
+two safe recovery paths: rebuild from the same source revision or point
+`SNAPBACK_RUNTIME_BINARY` at a compatible binary. Do not delete generated
+fields or hand-edit artifacts to fit an older runtime.
 
 Codegen is deterministic and **fails closed** — on error it writes nothing
 and exits 1 with stable diagnostic codes on stderr, so there is never

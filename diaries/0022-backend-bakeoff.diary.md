@@ -338,3 +338,40 @@ successor stays live while predecessor handles, republishers, listeners,
 barrier registrations, and timers drain to zero. That closed the last evidence
 gap in the first-class React ticket rather than relying on a headless test as a
 proxy.
+
+## 2026-07-28 — first rerun exposed the author/comparator dev-loop split
+
+The first rerun did useful damage before it reached UI acceptance. The
+comparator started the sessions-mode Signal Desk backend by passing an
+internal `bootstrapGeneratedAtStart` option. The ordinary `snapback dev`
+command did not infer the same requirement from the generated schema, so the
+product path attempted dev-only raw schema/function hot-load. That is exactly
+the kind of benchmark accommodation that should become product behavior
+rather than remain harness lore.
+
+The corrected loop reads the generated auth mode. A managed sessions start
+and restart carry the complete schema/functions pair before listener bind;
+subsequent edits re-enter the coordinator-owned explicit provisioning path.
+A package-level real-server test invokes ordinary `runDev` with no comparator
+switch and observes a settled sessions deployment. The versioned seed remains
+outside the legacy startup carrier: a newly created managed database receives
+the named versioned install after activation, while restarts and watch reloads
+match the identity without resetting user data.
+
+The rerun also selected a native binary older than the newly generated route
+manifest and received only “invalid JSON” for the
+`registerGroupEligible` field. That diagnostic made a compatible product
+boundary look like malformed application data. The CLI now classifies this as
+`SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH`, reports the exact selected
+binary and its build stamp, and gives safe rebuild/override instructions while
+explicitly warning against deleting fields from generated artifacts.
+
+The Guide had a related discoverability problem: it still led with the
+Contract template and said public publication was pending even though the
+original eight-package `0.1.0` closure has authoritative macOS/arm64 and
+Linux/x64 public-install evidence. It now leads with the current React command
+and its one backend/Vite supervisor, but keeps the important nonclaim: the
+current `@snapback/vite`-dependent React scaffold is newer than those public
+bytes and still needs an expanded versioned public closure and browser pass.
+
+No browser evidence was gathered in this correction, so none is claimed.
