@@ -20,6 +20,13 @@ import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import {
+  sha256File,
+  validateCandidateLedger,
+  validateQualifiedPlatformReceipts,
+  validateQualifiedStagingLedger,
+  validateQualifiedTarballs,
+} from './snapback-publish-core.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -31,16 +38,17 @@ const commonPackages = [
   'snapback-contract',
   'snapback-client',
   'snapback-codegen',
-  'snapback-vite',
   'snapback-react',
   'snapback-app-cli',
   'snapback-cli',
+  'snapback-vite',
 ];
 const allPackages = [...runtimePackages.values(), ...commonPackages];
 
 const usage = `usage: node scripts/snapback-publish.mjs [--version <semver>]
   [--scope-preset <identity|ccheever>] [--tag <tag>] [--out <dir>]
   [--runtime-platforms <host|all|comma-list>]
+  [--qualified-ledger <path>] [--platform-receipt <path>]
   [--publish] [--otp <code>] [--allow-dirty]
 
 Default mode packs and runs npm publish --dry-run only. A real publish requires
@@ -48,7 +56,8 @@ both --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really, and publishes the
 complete runtime matrix under an immutable non-default candidate tag. Moving
 the default tag is a separate, externally leased promotion. Cross-host release
 assembly supplies explicit runtime artifact paths to each platform package's
-prepare script.`;
+prepare script. A real publication consumes, without restaging, one
+self-digested qualified ledger and clean staged receipts from both platforms.`;
 
 function fail(message, code = 1) {
   console.error(`snapback-publish: ${message}`);
@@ -71,6 +80,8 @@ function parseArgs(argv) {
     publish: false,
     otp: null,
     allowDirty: false,
+    qualifiedLedger: null,
+    platformReceipts: [],
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -85,6 +96,8 @@ function parseArgs(argv) {
     else if (arg === '--out') options.out = resolve(take());
     else if (arg === '--runtime-platforms') options.runtimePlatforms = take();
     else if (arg === '--otp') options.otp = take();
+    else if (arg === '--qualified-ledger') options.qualifiedLedger = resolve(take());
+    else if (arg === '--platform-receipt') options.platformReceipts.push(resolve(take()));
     else if (arg === '--publish') options.publish = true;
     else if (arg === '--allow-dirty') options.allowDirty = true;
     else if (arg === '--help' || arg === '-h') {
@@ -132,6 +145,12 @@ function publishedName(sourceName, preset) {
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function sha256TarEntry(path, entry) {
+  return createHash('sha256')
+    .update(execFileSync('tar', ['-xzOf', path, entry]))
+    .digest('hex');
 }
 
 function sourceDirty() {
@@ -283,6 +302,17 @@ function stage(options) {
         optionalDependencies: packedManifest.optionalDependencies ?? {},
         tarball: record.filename,
         sha256: sha256(tarballPath),
+        runtimeBinarySha256: directory.startsWith('snapback-runtime-')
+          ? sha256TarEntry(tarballPath, 'package/bin/snapback')
+          : null,
+        runtimeSupportSha256: directory === 'snapback-runtime-darwin-arm64'
+          ? sha256TarEntry(
+            tarballPath,
+            'package/Frameworks/hermesvm.framework/Versions/1/hermesvm',
+          )
+          : directory === 'snapback-runtime-linux-x64'
+            ? sha256TarEntry(tarballPath, 'package/lib/libhermesvm.so')
+            : null,
         files: record.entryCount,
         unpackedSize: record.unpackedSize,
         status: 'packed',
@@ -304,6 +334,15 @@ if (options.publish && options.runtimePlatforms.length !== runtimePackages.size)
 if (options.publish && options.scopePreset !== 'ccheever') {
   fail('real publication is limited to the decided @ccheever public closure');
 }
+if (options.publish && !options.qualifiedLedger) {
+  fail('real publication requires --qualified-ledger; it never restages release bytes');
+}
+if (options.publish && options.platformReceipts.length !== 2) {
+  fail('real publication requires exactly two --platform-receipt proofs');
+}
+if (!options.publish && (options.qualifiedLedger || options.platformReceipts.length > 0)) {
+  fail('--qualified-ledger and --platform-receipt are real-publication inputs only');
+}
 if (options.publish
     && !/^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)) {
   fail('real publication requires a non-default candidate tag bakeoff-<version>-<source-sha12>');
@@ -321,10 +360,78 @@ if (options.publish) {
     fail(`candidate tag must be ${expectedCandidateTag} for this exact version and source revision`);
   }
 }
-const rows = stage(options);
-const ledger = {
+let qualifiedLedger = null;
+let qualifiedPlatformReceipts = null;
+let qualifiedRoot = null;
+let rows;
+if (options.publish) {
+  qualifiedLedger = JSON.parse(readFileSync(options.qualifiedLedger, 'utf8'));
+  try {
+    validateQualifiedStagingLedger(qualifiedLedger);
+  } catch (error) {
+    fail(`qualified ledger refused: ${error.message}`);
+  }
+  if (
+    qualifiedLedger.revision !== revision
+    || qualifiedLedger.version !== options.version
+    || qualifiedLedger.tag !== options.tag
+  ) {
+    fail('qualified ledger does not bind this exact source revision/version/tag');
+  }
+  qualifiedRoot = dirname(options.qualifiedLedger);
+  try {
+    validateQualifiedTarballs({ ledger: qualifiedLedger, root: qualifiedRoot });
+  } catch (error) {
+    fail(error.message);
+  }
+  const records = options.platformReceipts.map((path) => ({
+    path,
+    sha256: sha256File(path),
+    receipt: JSON.parse(readFileSync(path, 'utf8')),
+  }));
+  try {
+    qualifiedPlatformReceipts = validateQualifiedPlatformReceipts({
+      ledger: qualifiedLedger,
+      records,
+    });
+  } catch (error) {
+    fail(`qualified platform receipts refused: ${error.message}`);
+  }
+  rows = qualifiedLedger.packages.map((row) => ({
+    ...row,
+    status: 'qualified',
+    candidateTagVerified: false,
+    registrySha256: null,
+    registryIntegrity: null,
+    registryShasum: null,
+  }));
+} else {
+  rows = stage(options);
+}
+const qualifiedShape = !options.publish
+  && options.scopePreset === 'ccheever'
+  && options.runtimePlatforms.length === runtimePackages.size
+  && /^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)
+  && options.tag === `bakeoff-${options.version.replaceAll('.', '-')}-${revision.slice(0, 12)}`;
+const ledger = options.publish ? {
   schemaVersion: 'snapback.package-candidate-ledger.v1',
-  mode: options.publish ? 'publish' : 'dry-run',
+  mode: 'publish',
+  revision,
+  sourceDirty: false,
+  version: options.version,
+  tag: options.tag,
+  registry: publicRegistry,
+  scopePreset: 'ccheever',
+  runtimePlatforms: [...qualifiedLedger.runtimePlatforms],
+  qualifiedLedgerSha256: qualifiedLedger.stagedLedgerSha256,
+  qualifiedPlatformReceipts,
+  packages: rows,
+  candidateLedgerSha256: null,
+} : {
+  schemaVersion: qualifiedShape
+    ? 'snapback.package-qualified-staging-ledger.v1'
+    : 'snapback.package-candidate-ledger.v1',
+  mode: 'dry-run',
   revision,
   sourceDirty: dirty,
   version: options.version,
@@ -333,8 +440,12 @@ const ledger = {
   scopePreset: options.scopePreset,
   runtimePlatforms: options.runtimePlatforms,
   packages: rows,
+  ...(qualifiedShape ? { stagedLedgerSha256: null } : {}),
 };
 const ledgerPath = join(options.out, 'publish-ledger.json');
+if (options.publish && resolve(ledgerPath) === resolve(options.qualifiedLedger)) {
+  fail('candidate ledger output must not overwrite the immutable qualified ledger');
+}
 
 if (options.publish) {
   const who = run('npm', ['whoami', '--registry', publicRegistry]);
@@ -351,7 +462,7 @@ if (options.publish) {
       continue;
     }
     const args = [
-      'publish', join(options.out, row.tarball),
+      'publish', join(qualifiedRoot, row.tarball),
       '--access', 'public', '--tag', options.tag,
       '--registry', publicRegistry,
     ];
@@ -402,7 +513,22 @@ if (options.publish) {
   if (incomplete.length > 0) {
     fail(`candidate ledger is incomplete for ${incomplete.map((row) => row.name).join(', ')}`);
   }
-  ledger.candidateLedgerSha256 = sha256Hex(canonicalJcs(ledger));
+  // Compute over the exact closed object with only its digest omitted.
+  const { candidateLedgerSha256: _digest, ...candidateWithoutDigest } = ledger;
+  ledger.candidateLedgerSha256 = sha256Hex(canonicalJcs(candidateWithoutDigest));
+  try {
+    validateCandidateLedger(ledger);
+  } catch (error) {
+    fail(`candidate ledger closure refused: ${error.message}`);
+  }
+} else if (qualifiedShape) {
+  const { stagedLedgerSha256: _digest, ...stagingWithoutDigest } = ledger;
+  ledger.stagedLedgerSha256 = sha256Hex(canonicalJcs(stagingWithoutDigest));
+  try {
+    validateQualifiedStagingLedger(ledger);
+  } catch (error) {
+    fail(`qualified staging ledger closure refused: ${error.message}`);
+  }
 }
 writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
 for (const row of rows) {

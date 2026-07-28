@@ -1,0 +1,238 @@
+name: qualified-package-staging
+
+# @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — assemble one
+# immutable nine-package candidate from native artifacts built at the same
+# clean source revision, then prove those exact tarballs on both promised
+# platforms before any registry mutation is eligible.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact semver to stage under the source-bound candidate tag
+        required: true
+        default: 0.1.1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualified-package-staging-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  linux-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install build dependencies
+        run: |
+          bun install --frozen-lockfile
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+
+      - name: Build the source-bound Linux runtime
+        run: |
+          scripts/bootstrap-ibex-runtime
+          cargo build --release --bin snapback
+          node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
+          packages/snapback-runtime-linux-x64/bin/snapback --version
+          test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Retain Linux inputs for the single assembly job
+        run: |
+          mkdir -p "$RUNNER_TEMP/snapback-linux-runtime"
+          cp packages/snapback-runtime-linux-x64/bin/snapback \
+            "$RUNNER_TEMP/snapback-linux-runtime/snapback"
+          cp packages/snapback-runtime-linux-x64/lib/libhermesvm.so \
+            "$RUNNER_TEMP/snapback-linux-runtime/libhermesvm.so"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-linux-runtime-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-linux-runtime
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  assemble:
+    needs: linux-runtime
+    runs-on: macos-15
+    outputs:
+      candidate_tag: ${{ steps.identity.outputs.candidate_tag }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: snapback-linux-runtime-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-linux-runtime
+
+      - name: Bind the immutable release identity
+        id: identity
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node -e '
+            const version = process.env.RELEASE_VERSION;
+            if (!/^\d+\.\d+\.\d+$/.test(version)) {
+              throw new Error("this workflow requires an exact stable semver");
+            }
+          '
+          candidate_tag="bakeoff-${RELEASE_VERSION//./-}-${GITHUB_SHA:0:12}"
+          printf 'candidate_tag=%s\n' "$candidate_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Build the source-bound macOS runtime
+        run: |
+          bun install --frozen-lockfile
+          scripts/bootstrap-ibex-runtime
+          cargo build --release --bin snapback
+          node packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs
+          packages/snapback-runtime-darwin-arm64/bin/snapback --version
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Assemble and dry-run the exact public closure
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          CANDIDATE_TAG: ${{ steps.identity.outputs.candidate_tag }}
+          SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-qualified
+          SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY: ${{ runner.temp }}/snapback-linux-runtime/snapback
+          SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY: ${{ runner.temp }}/snapback-linux-runtime/libhermesvm.so
+        run: |
+          node scripts/snapback-publish.mjs \
+            --scope-preset ccheever \
+            --runtime-platforms all \
+            --version "$RELEASE_VERSION" \
+            --tag "$CANDIDATE_TAG" \
+            --out "$SNAPBACK_PACKAGE_OUT"
+          node -e '
+            const fs = require("node:fs");
+            const ledger = JSON.parse(fs.readFileSync(
+              process.env.SNAPBACK_PACKAGE_OUT + "/publish-ledger.json",
+              "utf8",
+            ));
+            if (ledger.schemaVersion !== "snapback.package-qualified-staging-ledger.v1"
+                || ledger.mode !== "dry-run"
+                || ledger.sourceDirty !== false
+                || ledger.revision !== process.env.GITHUB_SHA
+                || ledger.tag !== process.env.CANDIDATE_TAG
+                || ledger.packages.length !== 9) {
+              throw new Error("qualified staging ledger did not close");
+            }
+          '
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-qualified-tarballs-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-qualified
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  staged-proof:
+    needs: assemble
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: darwin-arm64
+            runner: macos-15
+          - id: linux-x64
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: snapback-qualified-tarballs-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-qualified
+
+      - name: Cold-install the exact qualified tarballs
+        env:
+          RECEIPT_PATH: ${{ runner.temp }}/snapback-${{ matrix.id }}-staged-receipt.json
+        run: |
+          node scripts/snapback-package-cold-install.mjs \
+            --ledger "$RUNNER_TEMP/snapback-qualified/publish-ledger.json" \
+            --install-source staged \
+            --root-selector exact \
+            --receipt "$RECEIPT_PATH"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-${{ matrix.id }}-staged-receipt-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-${{ matrix.id }}-staged-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  qualified-release:
+    needs: staged-proof
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: snapback-qualified-tarballs-${{ github.sha }}
+          path: ${{ runner.temp }}/qualified-release
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: snapback-*-staged-receipt-${{ github.sha }}
+          path: ${{ runner.temp }}/qualified-release/receipts
+          merge-multiple: true
+
+      - name: Require the complete retained qualification
+        run: |
+          test -f "$RUNNER_TEMP/qualified-release/publish-ledger.json"
+          test -f "$RUNNER_TEMP/qualified-release/receipts/snapback-darwin-arm64-staged-receipt.json"
+          test -f "$RUNNER_TEMP/qualified-release/receipts/snapback-linux-x64-staged-receipt.json"
+          test "$(find "$RUNNER_TEMP/qualified-release" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')" = 9
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapback-qualified-release-${{ github.sha }}
+          path: ${{ runner.temp }}/qualified-release
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

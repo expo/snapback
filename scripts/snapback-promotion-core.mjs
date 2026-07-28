@@ -6,6 +6,17 @@ import {
 
 const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v1\0');
 const PACKAGE_COUNT = 9;
+const PROMOTION_PACKAGE_NAMES = [
+  '@ccheever/snapback-runtime-darwin-arm64',
+  '@ccheever/snapback-runtime-linux-x64',
+  '@ccheever/snapback-contract',
+  '@ccheever/snapback-client',
+  '@ccheever/snapback-codegen',
+  '@ccheever/snapback-vite',
+  '@ccheever/snapback-react',
+  '@ccheever/snapback-app-cli',
+  '@ccheever/snapback-cli',
+];
 const LEASE_KEYS = [
   'candidateLedgerSha256',
   'candidateTag',
@@ -20,6 +31,49 @@ const LEASE_KEYS = [
   'signature',
 ];
 const LEASE_PACKAGE_KEYS = ['expectedPriorVersion', 'name', 'newVersion'];
+const AUTHORITY_TRANSITION_KEYS = [
+  'leaseSha256',
+  'operationId',
+  'outcome',
+  'publicationLedgerSha256',
+  'publicationEpoch',
+  'publisherInstanceId',
+  'schemaVersion',
+  'vectorSha256',
+];
+const AUTHORITY_RECEIPT_KEYS = [
+  'closed',
+  'leaseSha256',
+  'operationId',
+  'outcome',
+  'publicationLedgerSha256',
+  'publicationEpoch',
+  'schemaVersion',
+  'vectorSha256',
+];
+const POST_PROMOTION_LEDGER_KEYS = [
+  'candidateTag',
+  'defaultTag',
+  'finalVector',
+  'latestRootReceipts',
+  'operationId',
+  'packages',
+  'postPromotionLedgerSha256',
+  'previousLedgerSha256',
+  'publicationEpoch',
+  'publisherInstanceId',
+  'schemaVersion',
+  'tagEvents',
+];
+const POST_PROMOTION_PACKAGE_KEYS = [
+  'candidateTarballSha256',
+  'defaultTagVersion',
+  'name',
+  'registryIntegrity',
+  'registryTarballSha256',
+  'sourceName',
+  'version',
+];
 
 export function canonicalJcs(value) {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {
@@ -131,6 +185,9 @@ export function validatePublicationLease({
     }
     if (names.has(row.name)) throw new Error(`duplicate package ${row.name}`);
     names.add(row.name);
+    if (row.name !== PROMOTION_PACKAGE_NAMES[index]) {
+      throw new Error(`publication lease package order/inventory drift at index ${index}`);
+    }
     if (row.expectedPriorVersion !== null
         && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(row.expectedPriorVersion ?? '')) {
       throw new Error(`invalid expectedPriorVersion for ${row.name}`);
@@ -178,6 +235,168 @@ function requireLeaseHead(head, lease) {
   }
 }
 
+function requireCurrentLease(lease, now) {
+  const issuedAt = parseTimestamp(lease.issuedAt, 'issuedAt');
+  const expiresAt = parseTimestamp(lease.expiresAt, 'expiresAt');
+  if (now < issuedAt || now >= expiresAt) {
+    throw new Error('publication lease expired during vector transition');
+  }
+}
+
+export function publicationAuthorityTransition({
+  lease,
+  outcome,
+  vector,
+  publicationLedgerSha256 = null,
+}) {
+  if (!['acquired', 'promoted', 'rolled-back'].includes(outcome)) {
+    throw new TypeError('unsupported publication authority transition outcome');
+  }
+  const vectorSha256 = sha256Hex(canonicalJcs(vector));
+  if (outcome === 'promoted') {
+    assertHexSha256(publicationLedgerSha256, 'publicationLedgerSha256');
+  } else if (publicationLedgerSha256 !== null) {
+    throw new TypeError('non-promoted authority transition cannot bind a publication ledger');
+  }
+  return {
+    schemaVersion: 'snapback.publication-authority-transition.v1',
+    operationId: lease.operationId,
+    publicationEpoch: lease.publicationEpoch,
+    publisherInstanceId: lease.publisherInstanceId,
+    leaseSha256: leaseSha256(lease),
+    outcome,
+    publicationLedgerSha256,
+    vectorSha256,
+  };
+}
+
+export function validatePublicationAuthorityReceipt({
+  receipt,
+  transition,
+}) {
+  requireExactKeys(transition, AUTHORITY_TRANSITION_KEYS, 'publication authority transition');
+  requireExactKeys(receipt, AUTHORITY_RECEIPT_KEYS, 'publication authority receipt');
+  if (
+    receipt.schemaVersion !== 'snapback.publication-authority-transition-receipt.v1'
+    || receipt.closed !== (transition.outcome !== 'acquired')
+  ) {
+    throw new Error('publication authority transition receipt state mismatch');
+  }
+  for (const field of [
+    'operationId',
+    'publicationEpoch',
+    'leaseSha256',
+    'outcome',
+    'publicationLedgerSha256',
+    'vectorSha256',
+  ]) {
+    if (receipt[field] !== transition[field]) {
+      throw new Error(`publication authority transition receipt ${field} mismatch`);
+    }
+  }
+  return receipt;
+}
+
+export function buildPostPromotionLedger({
+  candidateLedger,
+  lease,
+  events,
+  vector,
+  latestRootReceipts,
+}) {
+  if (
+    candidateLedger?.candidateLedgerSha256 !== lease.candidateLedgerSha256
+    || !Array.isArray(candidateLedger.packages)
+    || candidateLedger.packages.length !== PACKAGE_COUNT
+    || !Array.isArray(events)
+    || !Array.isArray(latestRootReceipts)
+    || latestRootReceipts.length !== 2
+  ) {
+    throw new TypeError('post-promotion ledger inputs are not closed');
+  }
+  const ledger = {
+    schemaVersion: 'snapback.package-post-promotion-ledger.v1',
+    previousLedgerSha256: candidateLedger.candidateLedgerSha256,
+    operationId: lease.operationId,
+    publicationEpoch: lease.publicationEpoch,
+    publisherInstanceId: lease.publisherInstanceId,
+    candidateTag: lease.candidateTag,
+    defaultTag: lease.defaultTag,
+    packages: candidateLedger.packages.map((row) => ({
+      sourceName: row.sourceName,
+      name: row.name,
+      version: row.version,
+      candidateTarballSha256: row.sha256,
+      registryIntegrity: row.registryIntegrity,
+      registryTarballSha256: row.registrySha256,
+      defaultTagVersion: vector[row.name],
+    })),
+    tagEvents: structuredClone(events),
+    finalVector: structuredClone(vector),
+    latestRootReceipts: structuredClone(latestRootReceipts),
+  };
+  ledger.postPromotionLedgerSha256 = sha256Hex(canonicalJcs(ledger));
+  return validatePostPromotionLedger(ledger);
+}
+
+export function validatePostPromotionLedger(ledger) {
+  requireExactKeys(ledger, POST_PROMOTION_LEDGER_KEYS, 'post-promotion ledger');
+  assertHexSha256(ledger.previousLedgerSha256, 'previousLedgerSha256');
+  assertHexSha256(ledger.postPromotionLedgerSha256, 'postPromotionLedgerSha256');
+  const { postPromotionLedgerSha256, ...withoutDigest } = ledger;
+  if (postPromotionLedgerSha256 !== sha256Hex(canonicalJcs(withoutDigest))) {
+    throw new Error('post-promotion ledger self-digest mismatch');
+  }
+  if (
+    !Array.isArray(ledger.packages)
+    || ledger.packages.length !== PACKAGE_COUNT
+    || !Array.isArray(ledger.latestRootReceipts)
+    || ledger.latestRootReceipts.length !== 2
+    || !Array.isArray(ledger.tagEvents)
+    || ledger.tagEvents.length !== PACKAGE_COUNT
+  ) {
+    throw new Error('post-promotion ledger closure is incomplete');
+  }
+  const packageNames = new Set();
+  for (const [index, row] of ledger.packages.entries()) {
+    requireExactKeys(row, POST_PROMOTION_PACKAGE_KEYS, `post-promotion package ${index}`);
+    if (!PROMOTION_PACKAGE_NAMES.includes(row.name) || packageNames.has(row.name)) {
+      throw new Error(`post-promotion package ${index} is invalid`);
+    }
+    packageNames.add(row.name);
+    if (row.sourceName !== `@snapback/${row.name.slice('@ccheever/snapback-'.length)}`) {
+      throw new Error(`post-promotion package ${index} source alias drifted`);
+    }
+    for (const field of ['candidateTarballSha256', 'registryTarballSha256']) {
+      assertHexSha256(row[field], `post-promotion package ${index}.${field}`);
+    }
+    if (
+      row.defaultTagVersion !== row.version
+      || ledger.finalVector[row.name] !== row.version
+      || typeof row.registryIntegrity !== 'string'
+      || row.registryIntegrity.length < 16
+    ) {
+      throw new Error(`post-promotion package ${index} default tag drifted`);
+    }
+  }
+  for (const [index, event] of ledger.tagEvents.entries()) {
+    if (
+      event?.phase !== 'promote'
+      || event.package !== PROMOTION_PACKAGE_NAMES[index]
+    ) {
+      throw new Error(`post-promotion tag event ${index} drifted`);
+    }
+  }
+  for (const [index, platform] of ['darwin-arm64', 'linux-x64'].entries()) {
+    const receipt = ledger.latestRootReceipts[index];
+    if (receipt?.platform !== platform) {
+      throw new Error(`post-promotion latest receipt ${index} drifted`);
+    }
+    assertHexSha256(receipt.sha256, `post-promotion latest receipt ${index}.sha256`);
+  }
+  return ledger;
+}
+
 /**
  * Execute one complete dependency-first tag vector transition.
  *
@@ -196,6 +415,8 @@ export async function promoteDefaultVector({
   setTag,
   removeTag,
   record = () => {},
+  now = () => Date.now(),
+  afterPromotion = async () => null,
 }) {
   const names = lease.packages.map((row) => row.name);
   let expected = vectorFromLease(lease, 'prior');
@@ -210,10 +431,12 @@ export async function promoteDefaultVector({
     for (const row of lease.packages) {
       const beforeLeaseHead = await readLeaseHead();
       requireLeaseHead(beforeLeaseHead, lease);
+      requireCurrentLease(lease, now());
       const before = await readVector(names);
       if (!vectorsEqual(before, expected, names)) {
         throw new Error(`default-tag vector drift before ${row.name}`);
       }
+      requireCurrentLease(lease, now());
       let mutationError = null;
       try {
         await setTag(row.name, row.newVersion);
@@ -231,12 +454,32 @@ export async function promoteDefaultVector({
         );
       }
       // The official registry proves this operation's intended mutation even
-      // if the command transport returned an ambiguous error. Record it before
-      // the post-mutation lease read so rollback includes it.
+      // if the command transport returned an ambiguous error. Journal both
+      // the changed row and its proven next vector before either fallible
+      // post-mutation authority check so rollback starts from registry truth.
       changed.push(row);
-      const afterLeaseHead = await readLeaseHead();
-      requireLeaseHead(afterLeaseHead, lease);
       expected = next;
+      let afterLeaseHead = null;
+      try {
+        afterLeaseHead = await readLeaseHead();
+        requireLeaseHead(afterLeaseHead, lease);
+        requireCurrentLease(lease, now());
+      } catch (postMutationAuthorityCause) {
+        emit({
+          phase: 'promote',
+          package: row.name,
+          beforeLeaseHead,
+          before,
+          after,
+          afterLeaseHead,
+          commandReportedError: mutationError?.message ?? null,
+          postMutationAuthorityError: {
+            code: 'SNAPBACK_PUBLICATION_POST_MUTATION_AUTHORITY_REFUSED',
+            message: postMutationAuthorityCause.message,
+          },
+        });
+        throw postMutationAuthorityCause;
+      }
       emit({
         phase: 'promote',
         package: row.name,
@@ -248,19 +491,33 @@ export async function promoteDefaultVector({
       });
       if (mutationError) throw mutationError;
     }
-    return { ok: true, events, vector: expected, rollback: [] };
+    const finalization = await afterPromotion({
+      vector: structuredClone(expected),
+      events: structuredClone(events),
+    });
+    return {
+      ok: true,
+      events,
+      vector: expected,
+      rollback: [],
+      finalization,
+    };
   } catch (cause) {
     const rollback = [];
-    let rollbackExpected = await readVector(names);
+    // The last journaled expected vector, not a newly observed drifted vector,
+    // is the only legal first rollback checkpoint.
+    let rollbackExpected = structuredClone(expected);
     for (const row of [...changed].reverse()) {
       try {
         const beforeLeaseHead = await readLeaseHead();
         requireLeaseHead(beforeLeaseHead, lease);
+        requireCurrentLease(lease, now());
         const before = await readVector(names);
         if (!vectorsEqual(before, rollbackExpected, names)
             || (before[row.name] ?? null) !== row.newVersion) {
           throw new Error(`rollback expected-value drift for ${row.name}`);
         }
+        requireCurrentLease(lease, now());
         if (row.expectedPriorVersion === null) await removeTag(row.name);
         else await setTag(row.name, row.expectedPriorVersion);
         const after = await readVector(names);
@@ -272,6 +529,7 @@ export async function promoteDefaultVector({
         }
         const afterLeaseHead = await readLeaseHead();
         requireLeaseHead(afterLeaseHead, lease);
+        requireCurrentLease(lease, now());
         rollbackExpected = next;
         const event = {
           phase: 'rollback',
@@ -294,9 +552,8 @@ export async function promoteDefaultVector({
         };
         rollback.push(event);
         emit(event);
-        // A later reverse step is legal only if its complete expected vector
-        // still matches; retain the observation as the next expected vector.
-        rollbackExpected = event.observed;
+        // Keep the preceding checkpoint. Every earlier reverse step will now
+        // refuse unless the complete vector independently returns to it.
       }
     }
     const error = new Error(cause.message, { cause });

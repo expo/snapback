@@ -1,5 +1,8 @@
 import { spawn } from 'node:child_process';
-import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import {
+  validateCandidateLedger,
+  validateQualifiedStagingLedger,
+} from './snapback-publish-core.mjs';
 
 export const PUBLIC_NPM_REGISTRY = 'https://registry.npmjs.org';
 
@@ -29,6 +32,10 @@ Options:
                     (default) or install the published version from npm
   --registry <url>  Registry used by --install-source public
                     (default: https://registry.npmjs.org)
+  --root-selector <exact|latest>
+                    Install all exact aliases (default), or first install only
+                    @ccheever/snapback-cli@latest and verify its selected
+                    closure/default-tag vector before expanding the proof
   --receipt <path>  Write the retained proof receipt to this path
   --keep            Keep the temporary external application directory
   -h, --help        Print this help without staging or installing packages
@@ -43,6 +50,7 @@ export function parseArguments(args) {
     registry: PUBLIC_NPM_REGISTRY,
     receipt: null,
     keep: false,
+    rootSelector: 'exact',
   };
   const seen = new Set();
   for (let index = 0; index < args.length; index += 1) {
@@ -64,6 +72,7 @@ export function parseArguments(args) {
       || argument === '--receipt'
       || argument === '--install-source'
       || argument === '--registry'
+      || argument === '--root-selector'
     ) {
       if (seen.has(argument)) throw new TypeError(`duplicate argument: ${argument}`);
       seen.add(argument);
@@ -71,7 +80,11 @@ export function parseArguments(args) {
       if (value == null || value.startsWith('-')) {
         throw new TypeError(`${argument} requires a value`);
       }
-      const key = argument === '--install-source' ? 'installSource' : argument.slice(2);
+      const key = argument === '--install-source'
+        ? 'installSource'
+        : argument === '--root-selector'
+          ? 'rootSelector'
+          : argument.slice(2);
       parsed[key] = value;
       index += 1;
       continue;
@@ -80,6 +93,12 @@ export function parseArguments(args) {
   }
   if (!['staged', 'public'].includes(parsed.installSource)) {
     throw new TypeError('--install-source must be staged or public');
+  }
+  if (!['exact', 'latest'].includes(parsed.rootSelector)) {
+    throw new TypeError('--root-selector must be exact or latest');
+  }
+  if (parsed.rootSelector === 'latest' && parsed.installSource !== 'public') {
+    throw new TypeError('--root-selector latest requires --install-source public');
   }
   let registry;
   try {
@@ -116,16 +135,7 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
     throw new TypeError('legacy public ledger must select latest');
   }
   if (candidate) {
-    if (!/^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/u.test(ledger.tag ?? '')) {
-      throw new TypeError('candidate public ledger has an invalid non-default tag');
-    }
-    const { candidateLedgerSha256, ...withoutDigest } = ledger;
-    if (
-      !/^[0-9a-f]{64}$/u.test(candidateLedgerSha256 ?? '')
-      || candidateLedgerSha256 !== sha256Hex(canonicalJcs(withoutDigest))
-    ) {
-      throw new TypeError('candidate public ledger self-digest mismatch');
-    }
+    validateCandidateLedger(ledger);
   }
   if (typeof ledger.revision !== 'string' || !/^[0-9a-f]{40}$/u.test(ledger.revision)) {
     throw new TypeError('publication ledger has no immutable source revision');
@@ -167,6 +177,202 @@ export function validatePublicPublicationLedger(ledger, expectedSourceNames) {
   return bySourceName;
 }
 
+export function validateStagedPublicationLedger(ledger) {
+  if (ledger?.schemaVersion === 'snapback.package-qualified-staging-ledger.v1') {
+    return validateQualifiedStagingLedger(ledger);
+  }
+  if (
+    ledger?.schemaVersion !== 'snapback.package-candidate-ledger.v1'
+    && ledger?.schemaVersion !== 'snapback.package-publication.v1'
+  ) {
+    throw new TypeError('unsupported staged publication ledger');
+  }
+  return ledger;
+}
+
+function collectInstalledSnapbackVersions(node, output = new Map()) {
+  for (const [dependency, child] of Object.entries(node?.dependencies ?? {})) {
+    if (dependency.startsWith('@snapback/')) {
+      if (typeof child?.version !== 'string') {
+        throw new TypeError(`latest-root dependency ${dependency} has no installed version`);
+      }
+      const prior = output.get(dependency);
+      if (prior && prior !== child.version) {
+        throw new TypeError(`latest-root dependency ${dependency} resolved multiple versions`);
+      }
+      output.set(dependency, child.version);
+    }
+    collectInstalledSnapbackVersions(child, output);
+  }
+  return output;
+}
+
+export function validateLatestRootResolution({
+  tree,
+  ledger,
+  hostRuntime,
+  tagVector,
+}) {
+  validateCandidateLedger(ledger);
+  const installed = collectInstalledSnapbackVersions(tree);
+  for (const sourceName of [
+    '@snapback/cli',
+    '@snapback/client',
+    '@snapback/codegen',
+    '@snapback/contract',
+    hostRuntime,
+  ]) {
+    if (installed.get(sourceName) !== ledger.version) {
+      throw new TypeError(`latest root did not resolve ${sourceName}@${ledger.version}`);
+    }
+  }
+  for (const sourceName of installed.keys()) {
+    const row = ledger.packages.find((entry) => entry.sourceName === sourceName);
+    if (!row || installed.get(sourceName) !== row.version) {
+      throw new TypeError(`latest root escaped the candidate ledger at ${sourceName}`);
+    }
+  }
+  if (tagVector === null || typeof tagVector !== 'object' || Array.isArray(tagVector)) {
+    throw new TypeError('latest-root proof has no complete default-tag vector');
+  }
+  for (const row of ledger.packages) {
+    if (tagVector[row.name] !== row.version) {
+      throw new TypeError(`latest default-tag vector drifted for ${row.name}`);
+    }
+  }
+  return {
+    root: '@snapback/cli',
+    selected: ledger.version,
+    installed: Object.fromEntries([...installed.entries()].sort()),
+    defaultTagVector: Object.fromEntries(ledger.packages.map((row) => [
+      row.name,
+      tagVector[row.name],
+    ])),
+  };
+}
+
+export function validateFinalLatestReceipts({ ledger, records }) {
+  validateCandidateLedger(ledger);
+  if (!Array.isArray(records) || records.length !== 2) {
+    throw new TypeError('final promotion requires two latest-root receipts');
+  }
+  const byPlatform = new Map();
+  for (const record of records) {
+    const receipt = record.receipt;
+    const platform = `${receipt?.machine?.platform}-${receipt?.machine?.architecture}`;
+    const hostRuntime = platform === 'darwin-arm64'
+      ? '@snapback/runtime-darwin-arm64'
+      : platform === 'linux-x64'
+        ? '@snapback/runtime-linux-x64'
+        : null;
+    if (
+      receipt?.schemaVersion !== 'snapback.package-cold-install.v1'
+      || receipt.ok !== true
+      || receipt.rootSelector !== 'latest'
+      || receipt.latestRootResolution?.selected !== ledger.version
+      || receipt.candidateLedgerSha256 !== ledger.candidateLedgerSha256
+      || receipt.sourceRevision !== ledger.revision
+      || receipt.sourceDirty !== false
+      || receipt.version !== ledger.version
+      || receipt.scopePreset !== ledger.scopePreset
+      || receipt.installSource !== 'public'
+      || receipt.registry !== PUBLIC_NPM_REGISTRY
+      || receipt.machine?.separatelyProvisionedCleanMachine !== true
+      || receipt.checks?.latestRootCandidateClosure !== true
+      || receipt.checks?.publicRegistryTarballDigestMatch !== true
+    ) {
+      throw new TypeError(`invalid final latest-root receipt: ${platform}`);
+    }
+    if (!['darwin-arm64', 'linux-x64'].includes(platform) || byPlatform.has(platform)) {
+      throw new TypeError(`duplicate or unsupported final latest-root receipt: ${platform}`);
+    }
+    if (receipt.machine.runtimePackage !== hostRuntime) {
+      throw new TypeError(`final latest-root receipt selected the wrong runtime: ${platform}`);
+    }
+    const receiptRows = Array.isArray(receipt.packages) ? receipt.packages : [];
+    const packagesBySource = new Map(
+      receiptRows.map((row) => [row.sourceName, row]),
+    );
+    if (
+      receiptRows.length !== ledger.packages.length
+      || packagesBySource.size !== ledger.packages.length
+    ) {
+      throw new TypeError(`final latest-root package closure drifted: ${platform}`);
+    }
+    for (const candidate of ledger.packages) {
+      const observed = packagesBySource.get(candidate.sourceName);
+      if (
+        observed?.publishedName !== candidate.name
+        || observed.version !== candidate.version
+        || observed.sha256 !== candidate.sha256
+        || observed.registrySha256 !== candidate.registrySha256
+      ) {
+        throw new TypeError(
+          `final latest-root package evidence drifted for ${candidate.sourceName}: ${platform}`,
+        );
+      }
+    }
+    const resolution = receipt.latestRootResolution;
+    if (
+      resolution.root !== '@snapback/cli'
+      || resolution.defaultTagVector === null
+      || typeof resolution.defaultTagVector !== 'object'
+      || Array.isArray(resolution.defaultTagVector)
+      || Object.keys(resolution.defaultTagVector).length !== ledger.packages.length
+    ) {
+      throw new TypeError(`final latest-root tag vector is incomplete: ${platform}`);
+    }
+    for (const candidate of ledger.packages) {
+      if (resolution.defaultTagVector[candidate.name] !== candidate.version) {
+        throw new TypeError(
+          `final latest-root tag vector drifted for ${candidate.name}: ${platform}`,
+        );
+      }
+    }
+    const installed = resolution.installed;
+    if (installed === null || typeof installed !== 'object' || Array.isArray(installed)) {
+      throw new TypeError(`final latest-root installed closure is missing: ${platform}`);
+    }
+    const candidateBySource = new Map(
+      ledger.packages.map((row) => [row.sourceName, row]),
+    );
+    for (const sourceName of [
+      '@snapback/cli',
+      '@snapback/client',
+      '@snapback/codegen',
+      '@snapback/contract',
+      hostRuntime,
+    ]) {
+      if (installed[sourceName] !== candidateBySource.get(sourceName)?.version) {
+        throw new TypeError(
+          `final latest-root installed closure drifted for ${sourceName}: ${platform}`,
+        );
+      }
+    }
+    for (const [sourceName, version] of Object.entries(installed)) {
+      if (candidateBySource.get(sourceName)?.version !== version) {
+        throw new TypeError(
+          `final latest-root installed closure escaped at ${sourceName}: ${platform}`,
+        );
+      }
+    }
+    if (!/^[0-9a-f]{64}$/u.test(record.sha256 ?? '')) {
+      throw new TypeError(`${platform} final receipt has no file digest`);
+    }
+    byPlatform.set(platform, {
+      platform,
+      sha256: record.sha256,
+      machine: receipt.machine,
+      latestRootResolution: resolution,
+    });
+  }
+  return ['darwin-arm64', 'linux-x64'].map((platform) => {
+    const record = byPlatform.get(platform);
+    if (!record) throw new TypeError(`missing final latest-root receipt: ${platform}`);
+    return record;
+  });
+}
+
 export function aggregatePublicPackageProofs({
   ledger,
   expectedSourceNames,
@@ -189,6 +395,8 @@ export function aggregatePublicPackageProofs({
     if (
       receipt.platformClaimSatisfied !== true
       || receipt.installSource !== 'public'
+      || (ledger.schemaVersion === 'snapback.package-candidate-ledger.v1'
+        && receipt.rootSelector !== 'exact')
       || receipt.publicationMode !== 'publish'
       || receipt.registry !== PUBLIC_NPM_REGISTRY
       || receipt.sourceDirty !== false

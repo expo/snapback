@@ -14,6 +14,7 @@ assert.deepEqual(workflowNames, [
   'linux-runtime-package.yml',
   'local-proof.yml',
   'public-package-proof.yml',
+  'qualified-package-staging.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
 ]);
@@ -136,8 +137,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 31, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 10, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 47, 'the reviewed workflow action inventory changed; review and update this count');
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
@@ -253,6 +254,30 @@ assert.match(
   linuxRuntimePackage,
   /actions\/upload-artifact@[0-9a-f]{40}/,
   'Linux runtime workflow must retain its package and cold-install evidence',
+);
+const qualifiedPackageStaging = readFileSync(
+  join(workflowDir, 'qualified-package-staging.yml'),
+  'utf8',
+);
+for (const required of [
+  'SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY',
+  'SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY',
+  '--runtime-platforms all',
+  'snapback.package-qualified-staging-ledger.v1',
+  '--install-source staged',
+  'snapback-darwin-arm64-staged-receipt.json',
+  'snapback-linux-x64-staged-receipt.json',
+  'snapback-qualified-release-${{ github.sha }}',
+]) {
+  assert(
+    qualifiedPackageStaging.includes(required),
+    `qualified package staging must retain ${required}`,
+  );
+}
+assert.match(
+  qualifiedPackageStaging,
+  /candidate_tag="bakeoff-\$\{RELEASE_VERSION\/\/\.\/-\}-\$\{GITHUB_SHA:0:12\}"/,
+  'qualified package staging must bind the candidate tag to version and source SHA',
 );
 const prepareHermesStart = localProof.indexOf('      - name: Prepare exact Hermes runtime');
 const verifyProofStart = localProof.indexOf('      - name: Verify Snapback local proof');

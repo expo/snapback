@@ -32,7 +32,9 @@ import {
   PUBLIC_NPM_REGISTRY,
   runAsync,
   usage,
+  validateLatestRootResolution,
   validatePublicPublicationLedger,
+  validateStagedPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -58,6 +60,7 @@ const installSource = parsedArgs.installSource;
 const registry = parsedArgs.registry;
 const receiptPath = parsedArgs.receipt;
 const keep = parsedArgs.keep;
+const rootSelector = parsedArgs.rootSelector;
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -287,7 +290,15 @@ const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
 if (![
   'snapback.package-publication.v1',
   'snapback.package-candidate-ledger.v1',
+  'snapback.package-qualified-staging-ledger.v1',
 ].includes(ledger.schemaVersion)) fail('unsupported publication ledger');
+if (installSource === 'staged') {
+  try {
+    validateStagedPublicationLedger(ledger);
+  } catch (error) {
+    fail(error.message);
+  }
+}
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
 const runtimePackages = new Map([
@@ -319,19 +330,25 @@ if (installSource === 'public') {
   }
 }
 const tarballs = [];
+const exactDependencies = { ...dependencies };
 for (const entry of ledger.packages ?? []) {
   const runtimePlatform = [...runtimePackages.entries()]
     .find(([, packageName]) => packageName === entry.sourceName)?.[0];
   if (runtimePlatform && runtimePlatform !== hostPlatform) continue;
   if (installSource === 'public') {
-    dependencies[entry.sourceName] = `npm:${entry.name}@${entry.version}`;
+    exactDependencies[entry.sourceName] = `npm:${entry.name}@${entry.version}`;
   } else {
     const tarball = join(ledgerDirectory, entry.tarball);
     if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
     if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
-    dependencies[entry.sourceName] = `file:${tarball}`;
+    exactDependencies[entry.sourceName] = `file:${tarball}`;
     tarballs.push(tarball);
   }
+}
+if (rootSelector === 'latest') {
+  dependencies['@snapback/cli'] = 'npm:@ccheever/snapback-cli@latest';
+} else {
+  Object.assign(dependencies, exactDependencies);
 }
 
 const expectedPackages = [
@@ -345,7 +362,7 @@ const expectedPackages = [
   '@snapback/cli',
 ];
 for (const name of expectedPackages) {
-  if (!dependencies[name]) fail(`publication closure omits ${name}`);
+  if (!exactDependencies[name]) fail(`publication closure omits ${name}`);
 }
 
 const temporary = mkdtempSync(join(tmpdir(), 'snapback-package-cold-'));
@@ -455,6 +472,53 @@ await build({
     cwd: appRoot,
     timeout: 360_000,
   });
+  let latestRootResolution = null;
+  if (rootSelector === 'latest') {
+    const latestTree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
+    const tagVector = {};
+    for (const entry of ledger.packages) {
+      const tags = JSON.parse(run('npm', [
+        'view',
+        entry.name,
+        'dist-tags',
+        '--json',
+        '--registry',
+        registry,
+      ], { cwd: appRoot }));
+      tagVector[entry.name] = tags.latest ?? null;
+    }
+    try {
+      latestRootResolution = validateLatestRootResolution({
+        tree: latestTree,
+        ledger,
+        hostRuntime,
+        tagVector,
+      });
+    } catch (error) {
+      fail(error.message);
+    }
+    // Retain the root-only observation above, then expand this same fresh
+    // directory to the exact candidate vector for the complete product proof.
+    const expandedManifest = JSON.parse(readFileSync(join(appRoot, 'package.json'), 'utf8'));
+    expandedManifest.dependencies = {
+      ...expandedManifest.dependencies,
+      ...exactDependencies,
+    };
+    writeFileSync(
+      join(appRoot, 'package.json'),
+      `${JSON.stringify(expandedManifest, null, 2)}\n`,
+    );
+    await runAsyncOrFail('npm', [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--registry', PUBLIC_NPM_REGISTRY,
+    ], {
+      cwd: appRoot,
+      timeout: 360_000,
+    });
+    Object.assign(dependencies, exactDependencies);
+  }
   for (const name of expectedPackages) {
     const installPath = join(appRoot, 'node_modules', ...name.split('/'));
     if (!existsSync(installPath) || lstatSync(installPath).isSymbolicLink()) {
@@ -716,6 +780,8 @@ await build({
     publicationTag: ledger.tag,
     candidateLedgerSha256: ledger.candidateLedgerSha256 ?? null,
     installSource,
+    rootSelector,
+    latestRootResolution,
     registry: installSource === 'public' ? registry : 'disposable-loopback',
     scopePreset: ledger.scopePreset,
     version: ledger.version,
@@ -751,6 +817,7 @@ await build({
       materializedTarballInstall: true,
       stagedRegistryAliasResolution: installSource === 'staged',
       publicRegistryAliasResolution: installSource === 'public',
+      latestRootCandidateClosure: rootSelector === 'latest',
       publicRegistryTarballDigestMatch: installSource === 'public',
       registryTarballCount: registryTarballs.length,
       noSiblingSourceCheckout: true,

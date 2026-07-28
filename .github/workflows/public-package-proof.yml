@@ -46,9 +46,10 @@ jobs:
             const fs = require("node:fs");
             const path = process.env.LEDGER_PATH;
             const ledger = JSON.parse(fs.readFileSync(path, "utf8"));
-            if (ledger.schemaVersion !== "snapback.package-publication.v1"
+            if (!["snapback.package-publication.v1", "snapback.package-candidate-ledger.v1"]
+                  .includes(ledger.schemaVersion)
                 || ledger.mode !== "publish"
-                || ledger.sourceDirty === true
+                || ledger.sourceDirty !== false
                 || !/^[0-9a-f]{40}$/.test(ledger.revision)) {
               throw new Error("publication ledger is not an eligible immutable source");
             }
@@ -99,6 +100,11 @@ jobs:
         with:
           node-version-file: .node-version
 
+      - name: Preserve the committed publication ledger for aggregation
+        env:
+          LEDGER_PATH: ${{ inputs.ledger_path }}
+        run: cp "$LEDGER_PATH" "$RUNNER_TEMP/snapback-publication-ledger.json"
+
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: snapback-*-public-package-receipt
@@ -107,7 +113,7 @@ jobs:
 
       - name: Aggregate the complete public runtime matrix
         env:
-          LEDGER_PATH: ${{ inputs.ledger_path }}
+          LEDGER_PATH: ${{ runner.temp }}/snapback-publication-ledger.json
           RECEIPT_PATH: ${{ runner.temp }}/step5-packaged-loop.json
         run: |
           node scripts/snapback-package-proof-aggregate.mjs \

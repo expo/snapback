@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,9 +12,17 @@ import {
   parseArguments,
   PUBLIC_NPM_REGISTRY,
   runAsync,
+  validateFinalLatestReceipts,
+  validateLatestRootResolution,
   validatePublicPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import {
+  PACKAGE_INVENTORY,
+  validateQualifiedPlatformReceipts,
+  validateQualifiedStagingLedger,
+  validateQualifiedTarballs,
+} from './snapback-publish-core.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 
@@ -46,6 +55,7 @@ test('--help exits before reading the ledger or staging packages', () => {
   assert.match(result.stdout, /--ledger <path>/u);
   assert.match(result.stdout, /--install-source <staged\|public>/u);
   assert.match(result.stdout, /--registry <url>/u);
+  assert.match(result.stdout, /--root-selector <exact\|latest>/u);
   assert.match(result.stdout, /--receipt <path>/u);
   assert.match(result.stdout, /--keep/u);
   assert.equal(result.stderr, '');
@@ -58,6 +68,7 @@ test('unknown flags and stale positional arguments fail before the proof', () =>
     ['--receipt'],
     ['--install-source', 'somewhere-else'],
     ['--registry', 'file:///tmp/registry'],
+    ['--root-selector', 'latest'],
     ['--help', '--unknown'],
   ]) {
     const result = runCli(args);
@@ -83,9 +94,56 @@ test('public-install arguments are explicit and normalized', () => {
       registry: 'https://registry.example.test',
       receipt: 'proof.json',
       keep: true,
+      rootSelector: 'exact',
     },
   );
 });
+
+function closedCandidateFixture() {
+  const revision = '1'.repeat(40);
+  const version = '0.1.1';
+  const candidate = {
+    schemaVersion: 'snapback.package-candidate-ledger.v1',
+    mode: 'publish',
+    sourceDirty: false,
+    revision,
+    registry: PUBLIC_NPM_REGISTRY,
+    tag: `bakeoff-0-1-1-${revision.slice(0, 12)}`,
+    scopePreset: 'ccheever',
+    version,
+    runtimePlatforms: ['darwin-arm64', 'linux-x64'],
+    qualifiedLedgerSha256: '2'.repeat(64),
+    qualifiedPlatformReceipts: [
+      { platform: 'darwin-arm64', sha256: '3'.repeat(64) },
+      { platform: 'linux-x64', sha256: '4'.repeat(64) },
+    ],
+    packages: PACKAGE_INVENTORY.map(([sourceName, name], publicationOrder) => ({
+      publicationOrder,
+      sourceName,
+      name,
+      version,
+      dependencies: {},
+      optionalDependencies: {},
+      tarball: `package-${publicationOrder}.tgz`,
+      sha256: 'a'.repeat(64),
+      runtimeBinarySha256: sourceName.startsWith('@snapback/runtime-')
+        ? 'b'.repeat(64)
+        : null,
+      runtimeSupportSha256: sourceName.startsWith('@snapback/runtime-')
+        ? 'c'.repeat(64)
+        : null,
+      files: 2,
+      unpackedSize: 100,
+      status: 'published',
+      candidateTagVerified: true,
+      registrySha256: 'a'.repeat(64),
+      registryIntegrity: `sha512-${'d'.repeat(80)}`,
+      registryShasum: 'e'.repeat(40),
+    })),
+  };
+  candidate.candidateLedgerSha256 = sha256Hex(canonicalJcs(candidate));
+  return candidate;
+}
 
 test('public-install ledger validation requires the complete immutable closure', () => {
   const sourceNames = [
@@ -153,31 +211,8 @@ test('public-install ledger validation requires the complete immutable closure',
 });
 
 test('candidate ledger validation binds its non-default tag and self-digest', () => {
-  const sourceNames = [
-    '@snapback/runtime-darwin-arm64',
-    '@snapback/runtime-linux-x64',
-    '@snapback/contract',
-  ];
-  const candidate = {
-    schemaVersion: 'snapback.package-candidate-ledger.v1',
-    mode: 'publish',
-    sourceDirty: false,
-    revision: '1'.repeat(40),
-    registry: PUBLIC_NPM_REGISTRY,
-    tag: `bakeoff-0-1-1-${'1'.repeat(12)}`,
-    scopePreset: 'ccheever',
-    version: '0.1.1',
-    packages: sourceNames.map((sourceName) => ({
-      sourceName,
-      name: `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`,
-      version: '0.1.1',
-      status: 'published',
-      candidateTagVerified: true,
-      sha256: 'a'.repeat(64),
-      registrySha256: 'a'.repeat(64),
-    })),
-  };
-  candidate.candidateLedgerSha256 = sha256Hex(canonicalJcs(candidate));
+  const sourceNames = PACKAGE_INVENTORY.map(([sourceName]) => sourceName);
+  const candidate = closedCandidateFixture();
   assert.equal(
     validatePublicPublicationLedger(candidate, sourceNames).size,
     sourceNames.length,
@@ -195,7 +230,269 @@ test('candidate ledger validation binds its non-default tag and self-digest', ()
   unverified.candidateLedgerSha256 = sha256Hex(canonicalJcs(withoutDigest));
   assert.throws(
     () => validatePublicPublicationLedger(unverified, sourceNames),
-    /candidate tag was not registry-verified/u,
+    /candidate tag was not verified/u,
+  );
+  const open = structuredClone(candidate);
+  open.unreviewed = true;
+  const { candidateLedgerSha256: _openDigest, ...openWithoutDigest } = open;
+  open.candidateLedgerSha256 = sha256Hex(canonicalJcs(openWithoutDigest));
+  assert.throws(
+    () => validatePublicPublicationLedger(open, sourceNames),
+    /unknown or missing members/u,
+  );
+});
+
+test('qualified staging bytes require clean proofs from both platforms', () => {
+  const candidate = closedCandidateFixture();
+  const qualified = {
+    schemaVersion: 'snapback.package-qualified-staging-ledger.v1',
+    mode: 'dry-run',
+    sourceDirty: false,
+    revision: candidate.revision,
+    registry: candidate.registry,
+    tag: candidate.tag,
+    scopePreset: candidate.scopePreset,
+    version: candidate.version,
+    runtimePlatforms: candidate.runtimePlatforms,
+    packages: candidate.packages.map((row) => ({
+      publicationOrder: row.publicationOrder,
+      sourceName: row.sourceName,
+      name: row.name,
+      version: row.version,
+      dependencies: row.dependencies,
+      optionalDependencies: row.optionalDependencies,
+      tarball: row.tarball,
+      sha256: row.sha256,
+      runtimeBinarySha256: row.runtimeBinarySha256,
+      runtimeSupportSha256: row.runtimeSupportSha256,
+      files: row.files,
+      unpackedSize: row.unpackedSize,
+      status: 'dry-run-ok',
+    })),
+  };
+  qualified.stagedLedgerSha256 = sha256Hex(canonicalJcs(qualified));
+  assert.equal(validateQualifiedStagingLedger(qualified), qualified);
+  const record = (platform, architecture, sha256) => ({
+    sha256,
+    receipt: {
+      schemaVersion: 'snapback.package-cold-install.v1',
+      ok: true,
+      installSource: 'staged',
+      rootSelector: 'exact',
+      publicationLedgerSchema: qualified.schemaVersion,
+      sourceRevision: qualified.revision,
+      sourceDirty: false,
+      version: qualified.version,
+      scopePreset: qualified.scopePreset,
+      machine: {
+        platform,
+        architecture,
+        separatelyProvisionedCleanMachine: true,
+      },
+      packages: qualified.packages.map((row) => ({
+        sourceName: row.sourceName,
+        publishedName: row.name,
+        version: row.version,
+        sha256: row.sha256,
+      })),
+      checks: {
+        stagedRegistryAliasResolution: true,
+        noSiblingSourceCheckout: true,
+      },
+    },
+  });
+  const records = [
+    record('darwin', 'arm64', '5'.repeat(64)),
+    record('linux', 'x64', '6'.repeat(64)),
+  ];
+  assert.deepEqual(
+    validateQualifiedPlatformReceipts({ ledger: qualified, records }),
+    [
+      { platform: 'darwin-arm64', sha256: '5'.repeat(64) },
+      { platform: 'linux-x64', sha256: '6'.repeat(64) },
+    ],
+  );
+  records[1].receipt.packages[0].sha256 = '7'.repeat(64);
+  assert.throws(
+    () => validateQualifiedPlatformReceipts({ ledger: qualified, records }),
+    /staged receipt bytes drifted/u,
+  );
+});
+
+test('real publication consumes the exact qualified tarballs without restaging', () => {
+  const candidate = closedCandidateFixture();
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-qualified-bytes-'));
+  try {
+    const bytes = Buffer.from('immutable qualified package bytes');
+    const digest = sha256Hex(bytes);
+    const qualified = {
+      schemaVersion: 'snapback.package-qualified-staging-ledger.v1',
+      mode: 'dry-run',
+      sourceDirty: false,
+      revision: candidate.revision,
+      registry: candidate.registry,
+      tag: candidate.tag,
+      scopePreset: candidate.scopePreset,
+      version: candidate.version,
+      runtimePlatforms: candidate.runtimePlatforms,
+      packages: candidate.packages.map((row) => ({
+        publicationOrder: row.publicationOrder,
+        sourceName: row.sourceName,
+        name: row.name,
+        version: row.version,
+        dependencies: row.dependencies,
+        optionalDependencies: row.optionalDependencies,
+        tarball: row.tarball,
+        sha256: digest,
+        runtimeBinarySha256: row.runtimeBinarySha256,
+        runtimeSupportSha256: row.runtimeSupportSha256,
+        files: row.files,
+        unpackedSize: row.unpackedSize,
+        status: 'dry-run-ok',
+      })),
+    };
+    qualified.stagedLedgerSha256 = sha256Hex(canonicalJcs(qualified));
+    for (const row of qualified.packages) {
+      writeFileSync(join(temporary, row.tarball), bytes);
+    }
+    assert.equal(
+      validateQualifiedTarballs({ ledger: qualified, root: temporary }).length,
+      9,
+    );
+    writeFileSync(join(temporary, qualified.packages[4].tarball), 'restaged drift');
+    assert.throws(
+      () => validateQualifiedTarballs({ ledger: qualified, root: temporary }),
+      /qualified tarball bytes changed/u,
+    );
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('latest-root proof binds the root closure and complete default-tag vector', () => {
+  const candidate = closedCandidateFixture();
+  const tree = {
+    dependencies: {
+      '@snapback/cli': {
+        version: candidate.version,
+        dependencies: {
+          '@snapback/client': {
+            version: candidate.version,
+            dependencies: {
+              '@snapback/contract': { version: candidate.version },
+            },
+          },
+          '@snapback/codegen': { version: candidate.version },
+          '@snapback/runtime-darwin-arm64': { version: candidate.version },
+        },
+      },
+    },
+  };
+  const tagVector = Object.fromEntries(candidate.packages.map((row) => [
+    row.name,
+    row.version,
+  ]));
+  const resolution = validateLatestRootResolution({
+    tree,
+    ledger: candidate,
+    hostRuntime: '@snapback/runtime-darwin-arm64',
+    tagVector,
+  });
+  assert.equal(resolution.selected, candidate.version);
+  assert.equal(Object.keys(resolution.defaultTagVector).length, 9);
+  assert.throws(
+    () => validateLatestRootResolution({
+      tree,
+      ledger: candidate,
+      hostRuntime: '@snapback/runtime-darwin-arm64',
+      tagVector: { ...tagVector, [candidate.packages[0].name]: '0.1.0' },
+    }),
+    /default-tag vector drifted/u,
+  );
+});
+
+test('final latest-root receipts are candidate- and platform-closed', () => {
+  const candidate = closedCandidateFixture();
+  const record = (platform, architecture, receiptSha256) => {
+    const hostRuntime = platform === 'darwin'
+      ? '@snapback/runtime-darwin-arm64'
+      : '@snapback/runtime-linux-x64';
+    return {
+      sha256: receiptSha256,
+      receipt: {
+      schemaVersion: 'snapback.package-cold-install.v1',
+      ok: true,
+      rootSelector: 'latest',
+      latestRootResolution: {
+        root: '@snapback/cli',
+        selected: candidate.version,
+        installed: Object.fromEntries([
+          '@snapback/cli',
+          '@snapback/client',
+          '@snapback/codegen',
+          '@snapback/contract',
+          hostRuntime,
+        ].map((sourceName) => [sourceName, candidate.version])),
+        defaultTagVector: Object.fromEntries(candidate.packages.map((row) => [
+          row.name,
+          row.version,
+        ])),
+      },
+      candidateLedgerSha256: candidate.candidateLedgerSha256,
+      sourceRevision: candidate.revision,
+      sourceDirty: false,
+      version: candidate.version,
+      scopePreset: candidate.scopePreset,
+      installSource: 'public',
+      registry: PUBLIC_NPM_REGISTRY,
+      machine: {
+        platform,
+        architecture,
+        runtimePackage: hostRuntime,
+        separatelyProvisionedCleanMachine: true,
+      },
+      packages: candidate.packages.map((row) => ({
+        sourceName: row.sourceName,
+        publishedName: row.name,
+        version: row.version,
+        sha256: row.sha256,
+        registrySha256: row.registrySha256,
+      })),
+      checks: {
+        latestRootCandidateClosure: true,
+        publicRegistryTarballDigestMatch: true,
+      },
+    },
+    };
+  };
+  const records = [
+    record('darwin', 'arm64', '7'.repeat(64)),
+    record('linux', 'x64', '8'.repeat(64)),
+  ];
+  const final = validateFinalLatestReceipts({
+    ledger: candidate,
+    records,
+  });
+  assert.deepEqual(final.map((row) => row.platform), ['darwin-arm64', 'linux-x64']);
+  const vectorDrift = structuredClone(records);
+  vectorDrift[0].receipt.latestRootResolution.defaultTagVector[
+    candidate.packages[0].name
+  ] = '0.1.0';
+  assert.throws(
+    () => validateFinalLatestReceipts({ ledger: candidate, records: vectorDrift }),
+    /tag vector drifted/u,
+  );
+  const packageDrift = structuredClone(records);
+  packageDrift[1].receipt.packages[2].registrySha256 = '9'.repeat(64);
+  assert.throws(
+    () => validateFinalLatestReceipts({ ledger: candidate, records: packageDrift }),
+    /package evidence drifted/u,
+  );
+  const installedDrift = structuredClone(records);
+  installedDrift[0].receipt.latestRootResolution.installed['@snapback/codegen'] = '0.1.0';
+  assert.throws(
+    () => validateFinalLatestReceipts({ ledger: candidate, records: installedDrift }),
+    /installed closure drifted/u,
   );
 });
 
