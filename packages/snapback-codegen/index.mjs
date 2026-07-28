@@ -133,6 +133,7 @@ const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
   'auth.sessions.v1',
   'bounded_response_stream_v1',
+  'bounded_children_v1',
   'cron',
   'cron_action_run_mutation',
   'full_text_search_v1',
@@ -145,6 +146,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'registered_bundle_boot_v1',
   'relational_query_v1',
   'result_contract_v1',
+  'write_activity_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
@@ -1342,7 +1344,12 @@ export async function generateInProcess(backendDir, options = {}) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         reads: [plan.parentTable, plan.childTable],
-        result: { kind: 'list', row: boundedChildrenRowDescriptor(plan, tables) },
+        result: {
+          kind: 'list',
+          row: boundedChildrenRowDescriptor(plan, tables),
+          minItems: 1,
+          maxItems: 1,
+        },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -3539,7 +3546,13 @@ function providerResultDescriptor(contract) {
     return { shape: 'unknown' };
   };
   if (contract?.kind === 'documents') return { kind: 'list', row: value(contract.document) };
-  if (contract?.kind === 'records') return { kind: 'list', row: value(contract.record) };
+  if (contract?.kind === 'records') {
+    return {
+      kind: 'list',
+      row: value(contract.record),
+      ...(contract.rows ?? {}),
+    };
+  }
   if (contract?.kind === 'legacyQueryRowsV0') return { kind: 'list', row: value(contract.row) };
   return { kind: 'list', row: { shape: 'unknown' } };
 }
@@ -3606,14 +3619,35 @@ function boundedChildrenRowDescriptor(plan, tables) {
     }
     return { shape: 'object', fields };
   };
+  const child = projected(plan.childTable, plan.childProjection);
   return {
-    shape: 'object',
-    fields: {
-      kind: { shape: 'primitive', name: 'string' },
-      parent: { ...projected(plan.parentTable, plan.parentProjection), optional: true },
-      children: { shape: 'array', items: projected(plan.childTable, plan.childProjection) },
-      continuation: { shape: 'primitive', name: 'string', optional: true },
-    },
+    shape: 'union',
+    variants: [
+      {
+        shape: 'object',
+        fields: {
+          kind: { shape: 'literal', value: 'absent' },
+          parent: { shape: 'literal', value: null },
+          children: { shape: 'array', items: child },
+          continuation: { shape: 'literal', value: null },
+        },
+      },
+      {
+        shape: 'object',
+        fields: {
+          kind: { shape: 'literal', value: 'visible' },
+          parent: projected(plan.parentTable, plan.parentProjection),
+          children: { shape: 'array', items: child },
+          continuation: {
+            shape: 'union',
+            variants: [
+              { shape: 'literal', value: null },
+              { shape: 'primitive', name: 'string' },
+            ],
+          },
+        },
+      },
+    ],
   };
 }
 
@@ -4133,6 +4167,25 @@ function requiredCapabilities(fn) {
     return fn.kind === 'LiveQuery'
       ? ['live_subscriptions', ...relational, ...contractCapabilities]
       : [...relational, ...contractCapabilities];
+  }
+  // @ref LLP 0104#first-publication-gate — Review profiles carry dedicated
+  // requirements. Both committed target manifests retain matching GAPs, so
+  // attempting to publish either profile fails before an artifact is written.
+  if (fn.runtime?.HostPlan?.BoundedChildrenQuery) {
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'bounded_children_v1',
+      ...contractCapabilities,
+    ];
+  }
+  if (fn.runtime?.HostPlan?.WriteWithActivity) {
+    return [
+      runtimeCapability,
+      'mutation_read_set_validation',
+      'write_activity_v1',
+      ...contractCapabilities,
+    ];
   }
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability, ...contractCapabilities];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation', ...contractCapabilities];
@@ -6040,7 +6093,11 @@ function renderContractQueryMeta(name, binding) {
   const rowIsTyped = row?.shape === 'object';
   const rowType = `${pascal(name)}Row`;
   const resultType = binding?.result?.kind === 'list'
-    ? (rowIsTyped ? `${rowType}[]` : 'unknown[]')
+    ? (
+        binding.result.minItems === 1 && binding.result.maxItems === 1
+          ? (rowIsTyped ? `readonly [${rowType}]` : 'readonly [unknown]')
+          : (rowIsTyped ? `${rowType}[]` : 'unknown[]')
+      )
     : (rowIsTyped ? rowType : 'unknown');
   return renderQueryMetaModule({
     header: HEADER,

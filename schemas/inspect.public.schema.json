@@ -245,6 +245,9 @@
             "auth.sessions.v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
+            "bounded_children_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
             "bounded_response_stream_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             },
@@ -291,6 +294,9 @@
               "$ref": "#/$defs/CapabilityMaturity"
             },
             "versioned_seed_reset_v1": {
+              "$ref": "#/$defs/CapabilityMaturity"
+            },
+            "write_activity_v1": {
               "$ref": "#/$defs/CapabilityMaturity"
             }
           },
@@ -1022,6 +1028,16 @@
             },
             "record": {
               "$ref": "#/$defs/ResultValueContract"
+            },
+            "rows": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ResultRowsBound"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -2414,6 +2430,26 @@
       ],
       "type": "object"
     },
+    "ResultRowsBound": {
+      "additionalProperties": false,
+      "properties": {
+        "maxItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minItems",
+        "maxItems"
+      ],
+      "type": "object"
+    },
     "ResultValueContract": {
       "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0101#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
       "oneOf": [
@@ -3156,6 +3192,7 @@
       "enum": [
         "auth.sessions.v1",
         "bounded_response_stream_v1",
+        "bounded_children_v1",
         "cron",
         "cron_action_run_mutation",
         "host_plan_runtime",
@@ -3170,7 +3207,8 @@
         "full_text_search_v1",
         "result_contract_v1",
         "versioned_seed_install_v1",
-        "versioned_seed_reset_v1"
+        "versioned_seed_reset_v1",
+        "write_activity_v1"
       ],
       "type": "string"
     }

@@ -82,6 +82,7 @@ export declare const results: {
   documents<const Table extends string>(table: Table): ResultContract<ReadonlyArray<{ readonly _id: string }>>;
   records<const RowValidator extends Validator>(
     validator: RowValidator,
+    options?: { minItems?: number; maxItems?: number },
   ): ResultContract<ReadonlyArray<InferValidator<RowValidator>>>;
   document<const Table extends string>(table: Table): ResultContract<{ readonly _id: string }>;
   value<const ValueValidator extends Validator>(

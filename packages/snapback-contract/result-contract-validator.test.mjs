@@ -26,6 +26,18 @@ assert.deepEqual(
 assert.equal(validator.validate([{ kind: 'item', title: 'too-long!', count: 2 }]).ok, false);
 assert.equal(validator.validate([{ kind: 'item', title: 'hello', extra: true }]).ok, false);
 
+const exactlyOneRow = compileResultContractValidator({
+  kind: 'records',
+  record: row,
+  rows: { minItems: 1, maxItems: 1 },
+});
+assert.equal(exactlyOneRow.validate([]).ok, false);
+assert.equal(exactlyOneRow.validate([{ kind: 'item', title: 'one' }]).ok, true);
+assert.equal(exactlyOneRow.validate([
+  { kind: 'item', title: 'one' },
+  { kind: 'item', title: 'two' },
+]).ok, false);
+
 const union = compileResultContractValidator({
   kind: 'value',
   value: {

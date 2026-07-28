@@ -167,13 +167,17 @@ manifests must continue to report a GAP until the full result-retention,
 fault-injection, paired-authorization, first-party queue-owner, and
 cross-target corpus is green.
 
-The direct session path in
-`node demos/backend-bakeoff/tests/snapback.mjs` proves atomic source/activity
-versions, exact insert and patch replay, storage-equal no-op rollback, and
-refusal of attempted development impersonation. The shared three-backend UI
-keeps its explicit mutation because its persona is not backend-specific
-session custody; this is a deliberate adapter pressure point, not a missing
-local executor.
+The repository evidence is split deliberately. Run
+`node packages/snapback-codegen/relation-activity-authoring.test.mjs` for
+closed authoring, generated relationship assertions, exact-one bounded result
+typing, and dedicated capability refusal. Run
+`cargo test --lib
+relation_incarnation_is_protected_and_delete_recreate_isolated` for the
+transaction-local active-incarnation check, including stale-row patch/delete
+refusal after parent deletion and ID reuse. These Review profiles carry
+`bounded_children_v1` and `write_activity_v1` requirements, while both target
+manifests retain matching GAPs; generation preserves the last good artifacts
+instead of publishing a positive claim.
 
 The helper makes one existing-owner transaction reviewable:
 
@@ -186,6 +190,31 @@ The helper makes one existing-owner transaction reviewable:
    and the scope relation incarnation; and
 5. validate and durably retain the exact LLP 0101 result under LLP 0043's
    client mutation identity.
+
+Declare every non-scope primary table explicitly:
+
+```js
+relations: [{
+  table: tasks,
+  scopeForeignKey: 'incidentId',
+  scopeIncarnation: 'incidentIncarnation',
+}]
+```
+
+Do not author either protected field on an insert. The helper stamps the
+foreign key from the authorized scope and the central writer supplies the
+current incarnation. Before every non-scope `Get`, `Patch`, or `Delete`, the
+generated host plan executes `AssertCurrentRelation` inside the commit
+transaction. It compares the row foreign key and protected stamp with the
+active registry token and collapses missing, cross-scope, and stale-orphan
+rows to `SNAPBACK_ROW_NOT_FOUND`.
+
+`defineBoundedChildrenQuery` returns exactly one row of a sealed union:
+`absent` has `parent: null`, no children, and no continuation; `visible` has
+the projected parent, the bounded child page, and a nullable continuation.
+Projection leaves are `_id` or portable scalar fields only. Optional stored
+scalars remain required keys whose value is `null | Scalar`; optional JSON is
+not admitted as a projection leaf.
 
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation

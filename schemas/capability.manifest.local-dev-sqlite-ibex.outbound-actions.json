@@ -14,9 +14,11 @@
     "hosted_untrusted_code",
     "external_auth",
     "assets",
+    "bounded_children_v1",
     "notifications",
     "ephemeral_hosted_adapter",
-    "ephemeral_multi_instance_sticky_routing"
+    "ephemeral_multi_instance_sticky_routing",
+    "write_activity_v1"
   ],
   "capabilityMaturity": {
     "inline_handler_v1": "experimental",

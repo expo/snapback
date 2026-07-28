@@ -25,13 +25,13 @@ pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> 
     match &function.result_contract {
         FunctionResultContract::Unknown => validate_json_budget(value, 0, &mut budget),
         FunctionResultContract::Documents { document, .. } => {
-            validate_rows(function, value, document, &mut budget)
+            validate_rows(function, value, document, None, &mut budget)
         }
-        FunctionResultContract::Records { record } => {
-            validate_rows(function, value, record, &mut budget)
+        FunctionResultContract::Records { record, rows } => {
+            validate_rows(function, value, record, rows.as_ref(), &mut budget)
         }
         FunctionResultContract::LegacyQueryRowsV0 { row } => {
-            validate_rows(function, value, row, &mut budget)
+            validate_rows(function, value, row, None, &mut budget)
         }
         FunctionResultContract::Document { document, .. } => {
             validate_value(function, value, document, "$", 0, &mut budget)
@@ -47,9 +47,13 @@ fn validate_rows(
     function: &FunctionDefinition,
     value: &Value,
     row: &ResultValueContract,
+    bound: Option<&crate::manifest::ResultRowsBound>,
     budget: &mut ValidationBudget,
 ) -> Result<(), String> {
     let rows = value.as_array().ok_or_else(|| "$".to_owned())?;
+    if bound.is_some_and(|bound| rows.len() < bound.min_items || rows.len() > bound.max_items) {
+        return Err("$".to_owned());
+    }
     for (index, value) in rows.iter().enumerate() {
         validate_value(function, value, row, &format!("$[{index}]"), 1, budget)?;
     }
@@ -334,6 +338,7 @@ mod tests {
                 }],
                 allow_extra: false,
             },
+            rows: None,
         });
         let error = validate_handler_result(
             &function,
@@ -358,8 +363,33 @@ mod tests {
                 }],
                 allow_extra: false,
             },
+            rows: None,
         });
         validate_handler_result(&function, &json!([{"title": "ok"}])).unwrap();
+    }
+
+    #[test]
+    fn exact_record_row_bound_rejects_zero_or_two_rows() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 8 },
+                }],
+                allow_extra: false,
+            },
+            rows: Some(crate::manifest::ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        });
+        assert!(validate_handler_result(&function, &json!([])).is_err());
+        validate_handler_result(&function, &json!([{"title": "one"}])).unwrap();
+        assert!(
+            validate_handler_result(&function, &json!([{"title": "one"}, {"title": "two"}]))
+                .is_err()
+        );
     }
 
     #[test]

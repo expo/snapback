@@ -75,6 +75,8 @@ const TARGET_CAPABILITIES = new Set([
   'mutation_read_set_validation',
   'permission_epoch_resync',
   'full_text_search_v1',
+  'bounded_children_v1',
+  'write_activity_v1',
 ]);
 const SEARCH_INDEX_SPEC_FIELDS = new Set([
   'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
@@ -287,12 +289,36 @@ export const results = Object.freeze({
     assert(typeof table === 'string' && table.length > 0, 'results.documents() expects a table name');
     return Object.freeze({ __resultContract: true, kind: 'documents', table });
   },
-  records(recordValidator) {
+  records(recordValidator, options = {}) {
+    assertKnownSpecFields(options, 'results.records() options', new Set(['minItems', 'maxItems']));
     assert(
-      recordValidator?.__validator === true && recordValidator.primitive === 'object',
-      'results.records() expects v.object(...)',
+      recordValidator?.__validator === true
+        && (
+          recordValidator.primitive === 'object'
+          || (
+            recordValidator.resultKind === 'union'
+            && recordValidator.variants.every((variant) => variant.primitive === 'object')
+          )
+        ),
+      'results.records() expects v.object(...) or a discriminated union of closed v.object(...) variants',
     );
-    return Object.freeze({ __resultContract: true, kind: 'records', validator: recordValidator });
+    const hasBounds = options.minItems !== undefined || options.maxItems !== undefined;
+    if (hasBounds) {
+      assert(
+        Number.isSafeInteger(options.minItems)
+          && Number.isSafeInteger(options.maxItems)
+          && options.minItems >= 0
+          && options.minItems <= options.maxItems
+          && options.maxItems <= 1_024,
+        'results.records() bounds require 0 <= minItems <= maxItems <= 1,024',
+      );
+    }
+    return Object.freeze({
+      __resultContract: true,
+      kind: 'records',
+      validator: recordValidator,
+      ...(hasBounds ? { rows: Object.freeze({ ...options }) } : {}),
+    });
   },
   document(table) {
     assert(typeof table === 'string' && table.length > 0, 'results.document() expects a table name');
@@ -1001,6 +1027,24 @@ function selectedFields(select, where) {
   });
 }
 
+function boundedProjectionValidator(facts, leaf, where) {
+  if (leaf.field === '_id') return v.id(facts.name);
+  const field = facts.fields[leaf.field];
+  assert(field, `${where} projection names unknown field ${facts.name}.${leaf.field}`);
+  const portable = (
+    ['String', 'Boolean', 'Integer', 'Real', 'Principal'].includes(field.fieldType)
+    || field.fieldType?.Id
+  );
+  assert(
+    portable,
+    `${where} projection ${facts.name}.${leaf.field} must be an LLP 0104 portable scalar (JSON, relation-incarnation, object, and array leaves are not admitted)`,
+  );
+  const stored = { ...field, optional: false };
+  // Persisted projections materialize optional storage as a present JSON null;
+  // unlike computed-record optionals, the key is never absent.
+  return field.optional ? v.union([v.null(), stored]) : stored;
+}
+
 /** One visible parent plus one index-bounded child page.
  * @ref LLP 0104#1-bounded-parentchild-query-profile */
 export function defineBoundedChildrenQuery(spec) {
@@ -1042,18 +1086,8 @@ export function defineBoundedChildrenQuery(spec) {
   assert(spec.parentDeletion === 'hide-orphans.v1', 'parentDeletion must be hide-orphans.v1');
   const parentProjection = selectedFields(parent.select, 'parent');
   const childProjection = selectedFields(children.select, 'children');
-  for (const leaf of parentProjection) {
-    assert(
-      leaf.field === '_id' || parentFacts.fields[leaf.field],
-      `parent projection names unknown field ${parentFacts.name}.${leaf.field}`,
-    );
-  }
-  for (const leaf of childProjection) {
-    assert(
-      leaf.field === '_id' || childFacts.fields[leaf.field],
-      `children projection names unknown field ${childFacts.name}.${leaf.field}`,
-    );
-  }
+  for (const leaf of parentProjection) boundedProjectionValidator(parentFacts, leaf, 'parent');
+  for (const leaf of childProjection) boundedProjectionValidator(childFacts, leaf, 'children');
   assert(childProjection.some((leaf) => leaf.field === '_id'), 'children projection must include _id');
   for (const entry of children.order) {
     assert(
@@ -1064,7 +1098,7 @@ export function defineBoundedChildrenQuery(spec) {
   const projectedValidator = (facts, projection) => v.object(Object.fromEntries(
     projection.map((leaf) => [
       leaf.name,
-      leaf.field === '_id' ? v.id(facts.name) : facts.fields[leaf.field],
+      boundedProjectionValidator(facts, leaf, facts === parentFacts ? 'parent' : 'children'),
     ]),
   ));
   const parentResult = projectedValidator(parentFacts, parentProjection);
@@ -1073,18 +1107,27 @@ export function defineBoundedChildrenQuery(spec) {
     [FN]: true,
     __kind: 'LiveQuery',
     auth: visibility.kind === 'owner' ? 'authenticated' : 'public',
-    resultContract: results.records(v.object({
-      kind: v.union([v.literal('absent'), v.literal('visible')]),
-      parent: v.union([v.null(), parentResult]),
-      children: v.array(childResult, { maxItems: spec.take }),
-      continuation: v.union([v.null(), v.string({ maxBytes: 1_024 })]),
-    })),
+    resultContract: results.records(v.union([
+      v.object({
+        kind: v.literal('absent'),
+        parent: v.null(),
+        children: v.array(childResult, { maxItems: 0 }),
+        continuation: v.null(),
+      }),
+      v.object({
+        kind: v.literal('visible'),
+        parent: parentResult,
+        children: v.array(childResult, { maxItems: spec.take }),
+        continuation: v.union([v.null(), v.string({ maxBytes: 1_024 })]),
+      }),
+    ]), { minItems: 1, maxItems: 1 }),
     args: {
       [parent.idArg]: v.id(parentFacts.name),
       cursor: v.optional(v.string({ maxBytes: 1_024 })),
     },
     boundedChildrenPlan: {
       profile: 'bounded-children.v1',
+      requiredCapability: 'bounded_children_v1',
       parentTable: parentFacts.name,
       parentIdArg: parent.idArg,
       parentVisibility: visibility.kind === 'public-read' ? 'publicRead' : { owner: { field: visibility.field } },
@@ -1742,7 +1785,7 @@ export const clientMutation = () => Object.freeze({ kind: 'client-mutation.v1' }
  * @ref LLP 0104#2-closed-write-plus-activity-profile */
 export function defineWriteWithActivity(spec) {
   assertKnownSpecFields(spec, 'WriteWithActivity', new Set([
-    'args', 'scope', 'primary', 'source', 'activity', 'idempotency',
+    'args', 'scope', 'primary', 'relations', 'source', 'activity', 'idempotency',
     'result', 'returns', 'auth',
   ]));
   assert(spec.scope?.__activityScope === true, 'scope must use existingOwner()');
@@ -1754,6 +1797,31 @@ export function defineWriteWithActivity(spec) {
   const activityTable = spec.activity?.table?.__tableName;
   assert(scopeTable && sourceTable && activityTable, 'scope/source/activity tables must be installed schema tables');
   assert(scopeTable !== sourceTable && sourceTable !== activityTable && scopeTable !== activityTable, 'scope, source, and activity tables must be distinct');
+  assert(Array.isArray(spec.relations) && spec.relations.length > 0, 'relations must declare every non-scope primary table');
+  const relations = new Map();
+  for (const [index, relation] of spec.relations.entries()) {
+    const facts = relationalTable(relation?.table, `relations[${index}].table`);
+    assert(facts.name !== scopeTable && facts.name !== activityTable, 'relations may name only non-scope primary tables');
+    assert(!relations.has(facts.name), `relations repeats table ${facts.name}`);
+    const foreignKey = facts.fields[relation.scopeForeignKey];
+    const incarnation = facts.fields[relation.scopeIncarnation];
+    assert(
+      !foreignKey?.optional && foreignKey.fieldType?.Id?.table === scopeTable,
+      `${facts.name}.${String(relation.scopeForeignKey)} must be a required id of ${scopeTable}`,
+    );
+    assert(
+      !incarnation?.optional
+        && incarnation.fieldType?.RelationIncarnation?.foreignKeyField === relation.scopeForeignKey
+        && incarnation.fieldType?.RelationIncarnation?.parentTable === scopeTable,
+      `${facts.name}.${String(relation.scopeIncarnation)} must be the matching required relationIncarnationOf field`,
+    );
+    relations.set(facts.name, {
+      table: facts.name,
+      scopeForeignKey: relation.scopeForeignKey,
+      scopeIncarnation: relation.scopeIncarnation,
+      facts,
+    });
+  }
   const admittedSteps = new Set(['Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let']);
   assert(
     spec.primary.steps.every((step) => admittedSteps.has(Object.keys(step)[0])),
@@ -1785,11 +1853,35 @@ export function defineWriteWithActivity(spec) {
       );
     }
   }
-  const pointReads = spec.primary.steps.filter((step) => Object.hasOwn(step, 'Get')).length;
+  const primaryRelationTables = new Set();
+  for (const step of spec.primary.steps) {
+    const [kind, payload] = Object.entries(step)[0];
+    if (['Get', 'Insert', 'Patch', 'Delete'].includes(kind) && payload.table !== scopeTable) {
+      primaryRelationTables.add(payload.table);
+      assert(
+        relations.has(payload.table),
+        `primary ${kind} on ${payload.table} requires a relations declaration with scopeForeignKey and scopeIncarnation`,
+      );
+    }
+  }
+  assert(
+    [...relations.keys()].every((table) => primaryRelationTables.has(table)),
+    'relations may not contain a table unused by the primary plan',
+  );
+  const pointReads = spec.primary.steps.reduce((count, step) => {
+    const [kind, payload] = Object.entries(step)[0];
+    if (kind === 'Get' && payload.table !== scopeTable) return count + 1;
+    if ((kind === 'Patch' || kind === 'Delete') && payload.table !== scopeTable) return count + 1;
+    return count;
+  }, 0);
   const guardsAndLets = spec.primary.steps.filter((step) => (
     Object.hasOwn(step, 'Guard') || Object.hasOwn(step, 'Let')
   )).length;
-  assert(pointReads <= 8, 'primary admits at most eight auxiliary point reads');
+  const relationshipPointReads = pointReads * 2;
+  assert(
+    relationshipPointReads <= 8,
+    'primary admits at most eight relationship point reads including generated current-relation assertions',
+  );
   assert(guardsAndLets <= 16, 'primary admits at most sixteen Guard/Let steps');
   const sourceOperation = Object.keys(sourceStep)[0].toLowerCase();
   const scopeBinding = '__activityScope';
@@ -1828,15 +1920,89 @@ export function defineWriteWithActivity(spec) {
     'activity visibility scopeIncarnationField must be a relationIncarnationOf field',
   );
   const sourceFacts = relationalTable(spec.source.table, 'source');
-  for (const facts of [sourceFacts, activityFacts]) {
+  const activityRelation = {
+    table: activityTable,
+    scopeForeignKey: visibility.scopeField,
+    scopeIncarnation: visibility.scopeIncarnationField,
+    facts: activityFacts,
+  };
+  for (const relation of [...relations.values(), activityRelation]) {
+    const { facts } = relation;
     for (const index of facts.indexes.filter((candidate) => candidate.unique === true)) {
       assert(
-        index.fields[0] === visibility.scopeField
-          && index.fields[1] === visibility.scopeIncarnationField,
-        `${facts.name} unique index ${index.name} must be scoped by [${visibility.scopeField}, ${visibility.scopeIncarnationField}]`,
+        index.fields[0] === relation.scopeForeignKey
+          && index.fields[1] === relation.scopeIncarnation,
+        `${facts.name} unique index ${index.name} must be scoped by [${relation.scopeForeignKey}, ${relation.scopeIncarnation}]`,
       );
     }
   }
+  assert(relations.has(sourceFacts.name), 'source table must have an explicit relations declaration');
+  const authoredBindings = new Set();
+  for (const step of spec.primary.steps) {
+    const [kind, payload] = Object.entries(step)[0];
+    if (kind === 'Get' || kind === 'Let') authoredBindings.add(payload.bind_as);
+    if (kind === 'Insert' && payload.bind_id_as) authoredBindings.add(payload.bind_id_as);
+  }
+  assert(
+    !authoredBindings.has(scopeBinding)
+      && !authoredBindings.has(activityIdBinding)
+      && [...authoredBindings].every((name) => !name.startsWith('__activityRelation')),
+    'primary binding names may not use the write-with-activity reserved namespace',
+  );
+  const guardedPrimary = [];
+  for (const step of spec.primary.steps) {
+    const [kind, payload] = Object.entries(step)[0];
+    if (!['Get', 'Insert', 'Patch', 'Delete'].includes(kind) || payload.table === scopeTable) {
+      guardedPrimary.push(step);
+      continue;
+    }
+    const relation = relations.get(payload.table);
+    if (kind === 'Insert') {
+      assert(
+        !Object.hasOwn(payload.values, relation.scopeForeignKey)
+          && !Object.hasOwn(payload.values, relation.scopeIncarnation),
+        `primary insert into ${payload.table} may not author protected relation fields`,
+      );
+      guardedPrimary.push({
+        Insert: {
+          ...payload,
+          values: {
+            ...payload.values,
+            [relation.scopeForeignKey]: spec.scope.id,
+          },
+        },
+      });
+      continue;
+    }
+    // @ref LLP 0104#protected-relation-incarnation-and-stamping — the
+    // transaction-local host assertion compares both row axes with the
+    // registry's current active parent incarnation. A non-null historical
+    // stamp alone is insufficient after delete/recreate with an id reuse.
+    guardedPrimary.push({
+      AssertCurrentRelation: {
+        table: payload.table,
+        id: payload.id,
+        scope_table: scopeTable,
+        scope_id: spec.scope.id,
+        foreign_key_field: relation.scopeForeignKey,
+        incarnation_field: relation.scopeIncarnation,
+        else_error: 'SNAPBACK_ROW_NOT_FOUND',
+      },
+    });
+    guardedPrimary.push(kind === 'Get'
+      ? {
+          Get: {
+            ...payload,
+            else_error: payload.else_error ?? 'SNAPBACK_ROW_NOT_FOUND',
+          },
+        }
+      : step);
+  }
+  assert(
+    !Object.hasOwn(spec.activity.values ?? {}, visibility.scopeField)
+      && !Object.hasOwn(spec.activity.values ?? {}, visibility.scopeIncarnationField),
+    'activity values may not author protected relation fields',
+  );
   const values = {
     ...(spec.activity.values ?? {}),
     [provenance.scopeId]: spec.scope.id,
@@ -1853,7 +2019,7 @@ export function defineWriteWithActivity(spec) {
   const steps = [
     get(scopeTable, spec.scope.id, scopeBinding, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
     guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), 'SNAPBACK_ROW_NOT_FOUND'),
-    ...spec.primary.steps,
+    ...guardedPrimary,
     assertSourceChanged(sourceTable, spec.source.id, sourceOperation),
     insert(activityTable, values, { bindIdAs: activityIdBinding }),
   ];
@@ -1874,11 +2040,19 @@ export function defineWriteWithActivity(spec) {
       sourceId: spec.source.id,
       sourceOperation,
       activityTable,
+      activityScopeForeignKey: visibility.scopeField,
+      activityScopeIncarnation: visibility.scopeIncarnationField,
+      requiredCapability: 'write_activity_v1',
+      relations: [...relations.values()].map((relation) => ({
+        table: relation.table,
+        scopeForeignKey: relation.scopeForeignKey,
+        scopeIncarnation: relation.scopeIncarnation,
+      })),
       provenanceFields: provenance,
       effectFormula: {
         scopeReads: 1,
         scopePatches: authoredWrites.some((step) => step.Patch?.table === scopeTable) ? 1 : 0,
-        auxiliaryPointReads: pointReads,
+        auxiliaryPointReads: relationshipPointReads,
         sourceWrites: 1,
         activityInserts: 1,
         runtimeIds: sourceOperation === 'insert' ? 2 : 1,

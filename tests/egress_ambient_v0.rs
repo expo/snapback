@@ -57,6 +57,18 @@ globalThis.__snapbackHandlers = {
       functionReturnThisState: dynamicState(function () { return Function('return this')(); }),
       functionWhitespaceState: dynamicState(function () { return Function('  return this;  ')(); }),
       constructorWalkState: dynamicState(function () { return ({}).constructor.constructor('return this')(); }),
+      computedConstructorWalkState: dynamicState(function () {
+        var name = ['con', 'structor'].join('');
+        return ({})[name][name]('return this')();
+      }),
+      destructuredConstructorState: dynamicState(function () {
+        var Ctor = (function () {
+          var source = async function () {};
+          var { constructor } = source;
+          return constructor;
+        })();
+        return Ctor('return this')();
+      }),
       reflectApplyState: dynamicState(function () { return Reflect.apply(Function, undefined, ['return this'])(); }),
       reflectConstructState: dynamicState(function () { return Reflect.construct(Function, ['return this'])(); }),
       asyncFunctionState: dynamicState(function () { return (async function () {}).constructor('return 1'); }),
@@ -171,6 +183,8 @@ fn egress_action_keeps_the_wide_ambient_surface() {
         ("functionReturnThisState", "blocked"),
         ("functionWhitespaceState", "blocked"),
         ("constructorWalkState", "blocked"),
+        ("computedConstructorWalkState", "blocked"),
+        ("destructuredConstructorState", "blocked"),
         ("reflectApplyState", "blocked"),
         ("reflectConstructState", "blocked"),
         ("asyncFunctionState", "blocked"),

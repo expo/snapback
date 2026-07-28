@@ -370,7 +370,7 @@ export function compileResultContractValidator(descriptor) {
     switch (descriptor?.kind) {
       case 'unknown': return ['kind'];
       case 'documents': return ['kind', 'table', 'document'];
-      case 'records': return ['kind', 'record'];
+      case 'records': return ['kind', 'record', 'rows'];
       case 'document': return ['kind', 'table', 'document'];
       case 'value': return ['kind', 'value'];
       case 'legacyQueryRowsV0': return ['kind', 'row'];
@@ -387,8 +387,26 @@ export function compileResultContractValidator(descriptor) {
     if (descriptor.kind === 'documents') row = descriptor.document;
     else direct = descriptor.document;
   } else if (descriptor.kind === 'records') {
-    if (descriptor.record?.kind !== 'object') {
-      throw invalid('records result must carry an object contract');
+    if (
+      descriptor.record?.kind !== 'object'
+      && !(
+        descriptor.record?.kind === 'union'
+        && descriptor.record.variants.every((variant) => variant?.kind === 'object')
+      )
+    ) {
+      throw invalid('records result must carry an object or discriminated object-union contract');
+    }
+    if (descriptor.rows !== undefined) {
+      exactObject(descriptor.rows, ['minItems', 'maxItems'], 'result contract rows');
+      integer(descriptor.rows.minItems, 'result contract rows.minItems', {
+        max: RESULT_CONTRACT_LIMITS_V1.maxArrayItems,
+      });
+      integer(descriptor.rows.maxItems, 'result contract rows.maxItems', {
+        max: RESULT_CONTRACT_LIMITS_V1.maxArrayItems,
+      });
+      if (descriptor.rows.minItems > descriptor.rows.maxItems) {
+        throw invalid('result contract row bounds require minItems <= maxItems');
+      }
     }
     row = descriptor.record;
   } else if (descriptor.kind === 'legacyQueryRowsV0') row = descriptor.row;
@@ -417,6 +435,13 @@ export function compileResultContractValidator(descriptor) {
       let path = null;
       if (row) {
         if (!Array.isArray(image.value)) path = '$';
+        else if (
+          descriptor.rows
+          && (
+            image.value.length < descriptor.rows.minItems
+            || image.value.length > descriptor.rows.maxItems
+          )
+        ) path = '$';
         else {
           for (let index = 0; index < image.value.length && path === null; index += 1) {
             path = valuePath(row, image.value[index], `$[${index}]`, 1, budget);

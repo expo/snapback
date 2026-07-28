@@ -252,8 +252,12 @@ export const addTaskWithActivity = defineWriteWithActivity({
     id: arg('incidentId'),
     visibility: owner('commanderId'),
   }),
+  relations: [{
+    table: tasks,
+    scopeForeignKey: 'incidentId',
+    scopeIncarnation: 'incidentIncarnation',
+  }],
   primary: mutationPlan(insert('tasks', {
-    incidentId: arg('incidentId'),
     body: arg('body'),
     completed: literal(false),
     assigneeId: arg('actorId'),
@@ -311,12 +315,12 @@ export const toggleTaskWithActivity = defineWriteWithActivity({
     id: arg('incidentId'),
     visibility: owner('commanderId'),
   }),
+  relations: [{
+    table: tasks,
+    scopeForeignKey: 'incidentId',
+    scopeIncarnation: 'incidentIncarnation',
+  }],
   primary: mutationPlan(
-    get('tasks', arg('taskId'), 'task', { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
-    guard(
-      eqv(field(bindingRef('task'), 'incidentId'), arg('incidentId')),
-      'SNAPBACK_ROW_NOT_FOUND',
-    ),
     patch('tasks', arg('taskId'), { completed: arg('completed') }),
   ),
   source: { table: tasks, id: arg('taskId') },

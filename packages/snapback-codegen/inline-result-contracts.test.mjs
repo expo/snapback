@@ -15,7 +15,10 @@ const backend = () => {
   writeFileSync(join(dir, 'schema.mjs'), `
     import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
     export default defineSchema({
-      todos: defineTable({ title: v.string() }).sync(),
+      todos: defineTable({
+        title: v.string(),
+        metadata: v.optional(v.json()),
+      }).sync(),
     });
   `);
   return dir;
@@ -38,6 +41,15 @@ const validFunctions = (suffix = '') => `
       const rows = await ctx.db.query('todos').collect();
       return rows${suffix};
     },
+  });
+  export const exactlyOne = defineJsQuery({
+    args: {},
+    reads: ['todos'],
+    result: results.records(
+      v.object({ kind: v.literal('only') }),
+      { minItems: 1, maxItems: 1 },
+    ),
+    handler: async () => [{ kind: 'only' }],
   });
   export const createTodo = defineJsMutation({
     args: { title: v.string() },
@@ -71,16 +83,57 @@ try {
   const liveQuery = first.functions.find(({ name }) => name === 'watchTodos');
   const mutation = first.functions.find(({ name }) => name === 'createTodo');
   const action = first.functions.find(({ name }) => name === 'echo');
+  const exact = first.functions.find(({ name }) => name === 'exactlyOne');
   assert.equal(query.handlerForm, 'inline');
   assert.equal(query.sourceSpan.file, 'functions.mjs');
   assert.equal(query.resultContract.kind, 'documents');
   assert.equal(query.resultContract.document.allowExtra, false);
+  const optionalJson = query.resultContract.document.fields.find(
+    ({ name }) => name === 'metadata',
+  );
+  assert.equal(optionalJson.required, true);
+  assert.equal(
+    optionalJson.value.kind,
+    'json',
+    'a stored optional JSON field is one JSON contract (which already admits null), not invalid null|json',
+  );
   assert.equal(liveQuery.kind, 'LiveQuery');
   assert.equal(liveQuery.handlerForm, 'inline');
   assert.equal(liveQuery.resultContract.kind, 'documents');
   assert.equal(mutation.resultContract.kind, 'value');
   assert.equal(action.handlerForm, 'inline');
   assert.equal(action.resultContract.kind, 'value');
+  assert.deepEqual(exact.resultContract.rows, { minItems: 1, maxItems: 1 });
+  assert.match(
+    readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8'),
+    /exactlyOne: FunctionReference<[^\n]+readonly \[/u,
+  );
+  assert.match(
+    readFileSync(join(dir, 'generated', 'provider-bindings.d.ts'), 'utf8'),
+    /ExactlyOneResult = readonly \[/u,
+  );
+  assert.match(
+    readFileSync(
+      join(dir, 'generated', 'contract', 'exactlyOne.query.contract-meta.ts'),
+      'utf8',
+    ),
+    /result: 'readonly \[ExactlyOneRow\]'/u,
+  );
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(dir, 'generated', 'provider-introspection.json'), 'utf8'))
+      .operations.queries.find(({ name }) => name === 'exactlyOne').result,
+    {
+      kind: 'list',
+      maxItems: 1,
+      minItems: 1,
+      row: {
+        fields: {
+          kind: { shape: 'literal', value: 'only' },
+        },
+        shape: 'object',
+      },
+    },
+  );
   assert.match(query.implementationHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(query.argsContractHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(query.resultContractHash, /^sha256:[0-9a-f]{64}$/);
@@ -272,6 +325,64 @@ try {
       && /constructor reflection/u.test(message)
     ),
   ), 'static constructor reflection must not become an eval-like escape');
+
+  for (const [label, body] of [
+    [
+      'computed concatenation',
+      `const Ctor = Object['con' + 'structor']; return Ctor('return []')();`,
+    ],
+    [
+      'computed template',
+      "const Ctor = Object[`con${'structor'}`]; return Ctor('return []')();",
+    ],
+    [
+      'computed constant alias',
+      `const key = 'con' + 'structor'; const Ctor = Object[key]; return Ctor('return []')();`,
+    ],
+    [
+      'computed chained constant aliases',
+      `const prefix = 'con'; const key = prefix + 'structor'; const Ctor = Object[key]; return Ctor('return []')();`,
+    ],
+    [
+      'dynamic computed constructor key',
+      `const key = ['con', 'structor'].join(''); const Ctor = Object[key]; return Ctor('return []')();`,
+    ],
+    [
+      'destructured constructor',
+      `const { constructor: Ctor } = async () => {}; return Ctor('return []')();`,
+    ],
+    [
+      'shorthand destructured constructor',
+      `const { constructor } = async () => {}; return constructor('return []')();`,
+    ],
+    [
+      'computed destructured constructor',
+      `const { ['con' + 'structor']: Ctor } = async () => {}; return Ctor('return []')();`,
+    ],
+    [
+      'computed destructured constant alias',
+      `const key = 'con' + 'structor'; const { [key]: Ctor } = async () => {}; return Ctor('return []')();`,
+    ],
+    [
+      'prototype reflection',
+      `const proto = Object.getPrototypeOf(async () => {}); return proto.constructor('return []')();`,
+    ],
+  ]) {
+    writeFileSync(join(dir, 'functions.mjs'), `
+      import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+      export const listTodos = defineJsQuery({
+        args: {},
+        reads: ['todos'],
+        handler: async () => { ${body} },
+      });
+    `);
+    generated = await generate(dir);
+    assert.equal(generated.ok, false, `${label} unexpectedly generated`);
+    assert(generated.diagnostics.some(
+      ({ code }) => code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
+    ), `${label} must fail at the authored handler expression`);
+    assert.equal(readFileSync(manifestPath, 'utf8'), lastGood);
+  }
 
   writeFileSync(join(dir, 'functions.mjs'), `
     import { defineAction, results, v } from ${JSON.stringify(defineUrl)};

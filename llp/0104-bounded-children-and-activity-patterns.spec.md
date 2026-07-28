@@ -5,7 +5,11 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (round-3 author reconciliation: exact LLP 0101-only
+**Revised:** 2026-07-28 (adversarial implementation reconciliation: exact-one
+sealed outer result; portable scalar projections with stored-null optionals;
+transaction-local active-incarnation assertions before every non-scope
+read/write; protected insert stamping; dedicated Review capability
+requirements/GAPs; and last-good publication refusal). 2026-07-27 (round-3 author reconciliation: exact LLP 0101-only
 result dependency; retained relation-incarnation lifecycle; `sbbc1`
 purpose-derived XChaCha cursor; discriminator result; total authority mapping;
 canonical client-mutation-identity digest; source/no-op closure; and an honest
@@ -354,7 +358,9 @@ string/principal field set from the effective subject, and its
 Another source effect is not admitted in that mode.
 
 The primary plan is a point-operation subset of LLP 0051. It may use at most
-eight `Get` point reads, sixteen `Guard`/`Let` steps, one actual source effect
+eight total relationship point reads, counting each generated
+`AssertCurrentRelation` and the selected `Get`/`Patch`/`Delete` row access,
+sixteen authored `Guard`/`Let` steps, one actual source effect
 (`Insert`, `Patch`, or `Delete`), one optional scope-row `Patch`, recorded
 `runtime.id`/`runtime.now` answers, and the closed `ValueExpr` vocabulary. It
 admits no range read, `DeleteWhere`, `InsertEach`, set-oriented step, or other
@@ -1197,8 +1203,11 @@ repository-scoped gates are green. This evidence does not change the Review
 status or publish either capability:
 
 - `node packages/snapback-codegen/relation-activity-authoring.test.mjs`
-  proves the exact relation marker/index plan, source assertion, activity
-  append, LLP 0101 result, and quantitative effect formula;
+  proves the exact relation marker/index plan, generated active-incarnation
+  assertions for every non-scope operation, protected insert stamping, source
+  assertion, activity append, exact-one sealed LLP 0101 result, quantitative
+  effect formula, and transactional refusal against both Review capability
+  GAPs;
 - `node packages/snapback-codegen/provider-introspection.test.mjs` proves the
   literal/array/union result refinements used by the bounded discriminator;
 - `cargo test --lib
@@ -1216,16 +1225,11 @@ status or publish either capability:
   server::tests::s5_d10_all_emitted_diagnostics_have_reviewed_http_status
   -- --exact` proves every new public refusal is deliberately classified;
 - `cargo check --tests` is green; and
-- `node demos/backend-bakeoff/tests/snapback.mjs` passes 7/7 against a freshly
-  rebuilt binary. Its direct session path proves owner/invisible/missing/
-  inactive parent behavior, nullable absent rows, two-page cursor traversal,
-  task/comment/activity projections, atomic source/activity versions, exact
-  insert and patch replay, storage-equal no-op rollback, and attempted
-  development impersonation refusal; and
-- Signal Desk codegen, the shared contract inventory, TypeScript typecheck,
-  and the Vite production build are green with the three bounded collection
-  declarations and two closed activity declarations in the generated review
-  surface.
+- Signal Desk keeps the three bounded collection declarations and two closed
+  activity declarations as the required first-party Review fixture. Because
+  both declarations now carry dedicated unsupported target requirements,
+  ordinary codegen refuses publication and preserves its last-good generated
+  tree until this Spec's publication gate is accepted.
 
 Signal Desk's browser product path continues to use its explicit JS activity
 mutation because the shared demo persona is not backend-specific session
@@ -1273,3 +1277,31 @@ The receipt deliberately records publication as **blocked** and both capability
 facts remain false. The residual gates are the hosted target corpus, full
 Signal Desk product-path adoption, and author acceptance (or an explicit
 decision to narrow the public profile).
+
+## Adversarial closure evidence — 2026-07-28
+
+This reconciliation closes four implementation gaps without accepting the
+Spec:
+
+- `bounded-children.v1` carries `rows: { minItems: 1, maxItems: 1 }` from the
+  Rust-owned result contract through the shared JavaScript validator,
+  provider/operation descriptors, generated API types, provider types, and
+  Contract metadata. Zero or two rows fail at the runtime result boundary;
+  generated TypeScript exposes `readonly [Row]`.
+- The row is a discriminator-sealed union. `absent` fixes `parent`,
+  `children`, and `continuation` to `null`/empty; `visible` carries the bounded
+  projections. Leaves are `_id` or LLP 0104 portable scalars only. Stored
+  optionals remain present `null | Scalar` keys.
+- `write-with-activity.v1` requires one explicit relationship declaration for
+  every non-scope primary table. Inserts cannot author either protected
+  relationship field. Before each selected `Get`, `Patch`, or `Delete`, the
+  generated `AssertCurrentRelation` executes inside the commit transaction
+  and proves the row foreign key and protected stamp equal the selected scope
+  and its *current* active registry incarnation. Missing, cross-scope, and
+  stale-orphan rows all answer `SNAPBACK_ROW_NOT_FOUND`; delete/recreate with
+  the same parent id cannot revive a historical child for patch or deletion.
+- Function requirements now name `bounded_children_v1` and
+  `write_activity_v1`. Both registry entries are Proposed, unsupported by all
+  committed targets, and emitted as structured GAPs. A generation attempt
+  preserves the last-good graph rather than laundering either Review profile
+  into a positive capability claim.

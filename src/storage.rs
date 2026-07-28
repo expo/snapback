@@ -3440,6 +3440,7 @@ impl LocalDatabase {
                 | MutationStep::DeleteWhere { table, .. }
                 | MutationStep::InsertEach { table, .. }
                 | MutationStep::Get { table, .. }
+                | MutationStep::AssertCurrentRelation { table, .. }
                 | MutationStep::AssertSourceChanged { table, .. } => Some(table.as_str()),
                 MutationStep::Guard { .. } | MutationStep::Let { .. } => None,
             };
@@ -3447,7 +3448,9 @@ impl LocalDatabase {
                 touched_tables.insert(target.to_owned());
                 if !matches!(
                     step,
-                    MutationStep::Get { .. } | MutationStep::AssertSourceChanged { .. }
+                    MutationStep::Get { .. }
+                        | MutationStep::AssertCurrentRelation { .. }
+                        | MutationStep::AssertSourceChanged { .. }
                 ) && schema.table(target).is_some_and(|t| t.membership.is_some())
                 {
                     return Err(membership_hostplan_write_denied(target));
@@ -3680,6 +3683,56 @@ impl LocalDatabase {
                                 direct.insert(bind_as.clone(), Value::Null);
                             }
                         }
+                    }
+                }
+                // @ref LLP 0104#protected-relation-incarnation-and-stamping —
+                // this host-owned assertion executes inside the same SQLite
+                // transaction as the following read/write. It compares both
+                // relationship axes to the current active registry token, so
+                // a historical orphan cannot regain authority if its parent
+                // id is later reused.
+                MutationStep::AssertCurrentRelation {
+                    table,
+                    id,
+                    scope_table,
+                    scope_id,
+                    foreign_key_field,
+                    incarnation_field,
+                    else_error,
+                } => {
+                    let table = schema_table(&schema, table)?;
+                    let id = expect_string(
+                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        "current relation row id",
+                    )?;
+                    let scope_id = expect_string(
+                        eval_expr(scope_id, input, &bindings, now_ms, Some(&next_id))?,
+                        "current relation scope id",
+                    )?;
+                    let row = get_document_from_tx(&tx, table, &id, next_version)?;
+                    let active_incarnation: Option<String> = tx
+                        .query_row(
+                            "SELECT incarnation
+                               FROM _snapback_relation_incarnations_v1
+                              WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                            params![scope_table, &scope_id],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                    let admitted = row.as_ref().and_then(Value::as_object).is_some_and(|row| {
+                        row.get(foreign_key_field).and_then(Value::as_str)
+                            == Some(scope_id.as_str())
+                            && row.get(incarnation_field).and_then(Value::as_str)
+                                == active_incarnation.as_deref()
+                            && active_incarnation.is_some()
+                    });
+                    if !admitted {
+                        return Err(SnapbackError::error(
+                            else_error.clone(),
+                            "handler",
+                            "current relation assertion failed",
+                        )
+                        .with_details(json!({ "step": "AssertCurrentRelation" })));
                     }
                 }
                 MutationStep::Guard { cond, else_error } => {
@@ -15660,6 +15713,51 @@ mod guarded_commit_tests {
             )
             .expect("orphan visibility count");
         assert_eq!(visible_old, 0, "old child is not revived by id reuse");
+        db.conn
+            .execute("UPDATE _snapback_version SET version = 4 WHERE id = 1", [])
+            .expect("align direct test writes with the managed storage head");
+
+        let stale_relation_assertion = || MutationStep::AssertCurrentRelation {
+            table: "children".to_owned(),
+            id: ValueExpr::Literal(json!("child-old")),
+            scope_table: "parents".to_owned(),
+            scope_id: ValueExpr::Literal(json!("parent-1")),
+            foreign_key_field: "parentId".to_owned(),
+            incarnation_field: "parentIncarnation".to_owned(),
+            else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+        };
+        for terminal in [
+            MutationStep::Patch {
+                table: "children".to_owned(),
+                id: ValueExpr::Literal(json!("child-old")),
+                values: BTreeMap::from([(
+                    "body".to_owned(),
+                    ValueExpr::Literal(json!("must not patch")),
+                )]),
+            },
+            MutationStep::Delete {
+                table: "children".to_owned(),
+                id: ValueExpr::Literal(json!("child-old")),
+            },
+        ] {
+            let plan = MutationPlan {
+                steps: vec![stale_relation_assertion(), terminal],
+                return_value: None,
+            };
+            let error = db
+                .execute_mutation(&plan, &HandlerInput::default())
+                .expect_err("stale child cannot be patched or deleted after parent id reuse");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
+        }
+        let stale_body: String = db
+            .conn
+            .query_row(
+                "SELECT body FROM children WHERE _id = 'child-old'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("stale child remains unchanged");
+        assert_eq!(stale_body, "old");
     }
 
     // @ref LLP 0104#relation-registry-lifecycle — backup/restore carries the

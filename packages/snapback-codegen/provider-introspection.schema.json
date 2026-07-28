@@ -200,7 +200,9 @@
           "required": ["kind", "row"],
           "properties": {
             "kind": { "const": "list" },
-            "row": { "$ref": "#/$defs/dataType" }
+            "row": { "$ref": "#/$defs/dataType" },
+            "minItems": { "type": "integer", "minimum": 0, "maximum": 1024 },
+            "maxItems": { "type": "integer", "minimum": 0, "maximum": 1024 }
           }
         },
         {

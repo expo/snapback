@@ -335,6 +335,7 @@
       "enum": [
         "auth.sessions.v1",
         "bounded_response_stream_v1",
+        "bounded_children_v1",
         "cron",
         "cron_action_run_mutation",
         "host_plan_runtime",
@@ -349,7 +350,8 @@
         "full_text_search_v1",
         "result_contract_v1",
         "versioned_seed_install_v1",
-        "versioned_seed_reset_v1"
+        "versioned_seed_reset_v1",
+        "write_activity_v1"
       ],
       "type": "string"
     }
@@ -388,6 +390,9 @@
       "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
       "properties": {
         "auth.sessions.v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "bounded_children_v1": {
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "bounded_response_stream_v1": {
@@ -436,6 +441,9 @@
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "versioned_seed_reset_v1": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "write_activity_v1": {
           "$ref": "#/$defs/CapabilityMaturity"
         }
       },

@@ -5,7 +5,10 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (final author reconciliation after the three-round
+**Revised:** 2026-07-28 (adversarial closure: constant-alias and destructuring
+reflection refusal, default-deny dynamic computed member access, runtime
+constructor-walk probes, stored optional JSON normalization, and exact record
+row bounds). 2026-07-27 (final author reconciliation after the three-round
 super-refine limit: narrows inline v1 to statically self-contained expressions,
 removes the proposed per-request compatibility protocol from this landing,
 retains existing replay and 64 KiB settlement limits, and closes effective
@@ -731,3 +734,22 @@ spelling, every result node, schema-only hash changes, all existing operation
 forms, post-JSON adversarial values, 64 KiB settlement versus 4 MiB egress
 boundaries, exact system-field behavior, React inference, total Contract
 projection, public-source custody, and byte-identical regeneration.
+
+## Adversarial implementation closure — 2026-07-28
+
+The inline extractor now rejects `constructor`, `prototype`, and `__proto__`
+through direct access, computed constant expressions, chained `const` aliases,
+computed or aliased destructuring, and the admitted `Object` reflection
+methods. Element access whose property cannot be resolved statically is
+outside `inline_handler_v1`; this intentionally leaves dynamic array indexing
+to a future profile instead of allowing an array-built
+`["con", "structor"].join("")` key to reach a constructor. The Ibex boundary
+continues to deny constructor walks, destructured constructors, `eval`,
+`Function`, `Reflect.apply`, and `Reflect.construct` as the runtime backstop.
+
+Stored optional JSON fields expand to one required `json` contract because
+JSON already admits null; emitting `null | json` would create an overlapping,
+invalid union. Other stored optionals remain required `null | Scalar` keys.
+Records may now carry an optional closed row-count bound. The LLP 0104
+one-envelope profile uses exactly `{ minItems: 1, maxItems: 1 }`; both the Rust
+publication boundary and shared JavaScript validator refuse zero or two rows.

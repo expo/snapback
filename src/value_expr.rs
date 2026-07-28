@@ -604,6 +604,10 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
             }
             MutationStep::Delete { id, .. } => exprs.push(id),
             MutationStep::Get { id, .. } => exprs.push(id),
+            MutationStep::AssertCurrentRelation { id, scope_id, .. } => {
+                exprs.push(id);
+                exprs.push(scope_id);
+            }
             MutationStep::Guard { cond, .. } => exprs.push(cond),
             MutationStep::Let { expr, .. } => exprs.push(expr),
             MutationStep::AssertSourceChanged { id, .. } => exprs.push(id),

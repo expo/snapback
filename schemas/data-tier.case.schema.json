@@ -757,6 +757,51 @@
         },
         {
           "additionalProperties": false,
+          "description": "Host-owned, transaction-local relationship assertion inserted only by\n`write-with-activity.v1`. It checks the selected row's required foreign\nkey and protected stamp against the current active parent incarnation;\nmissing, cross-scope, and stale-orphan rows collapse to `else_error`.",
+          "properties": {
+            "AssertCurrentRelation": {
+              "properties": {
+                "else_error": {
+                  "type": "string"
+                },
+                "foreign_key_field": {
+                  "type": "string"
+                },
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "incarnation_field": {
+                  "type": "string"
+                },
+                "scope_id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "scope_table": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "scope_table",
+                "scope_id",
+                "foreign_key_field",
+                "incarnation_field",
+                "else_error"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssertCurrentRelation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Bind a computed expression for later steps.",
           "properties": {
             "Let": {

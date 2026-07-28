@@ -143,6 +143,7 @@ fn functions() -> FunctionManifest {
                 }],
                 allow_extra: false,
             },
+            rows: None,
         },
     );
 

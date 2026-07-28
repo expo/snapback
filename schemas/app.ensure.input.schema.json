@@ -270,6 +270,9 @@
         "profile": {
           "type": "string"
         },
+        "requiredCapability": {
+          "type": "string"
+        },
         "take": {
           "format": "uint32",
           "minimum": 0,
@@ -278,6 +281,7 @@
       },
       "required": [
         "profile",
+        "requiredCapability",
         "parentTable",
         "parentIdArg",
         "parentVisibility",
@@ -1563,6 +1567,16 @@
             },
             "record": {
               "$ref": "#/$defs/ResultValueContract"
+            },
+            "rows": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ResultRowsBound"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -2417,6 +2431,51 @@
         },
         {
           "additionalProperties": false,
+          "description": "Host-owned, transaction-local relationship assertion inserted only by\n`write-with-activity.v1`. It checks the selected row's required foreign\nkey and protected stamp against the current active parent incarnation;\nmissing, cross-scope, and stale-orphan rows collapse to `else_error`.",
+          "properties": {
+            "AssertCurrentRelation": {
+              "properties": {
+                "else_error": {
+                  "type": "string"
+                },
+                "foreign_key_field": {
+                  "type": "string"
+                },
+                "id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "incarnation_field": {
+                  "type": "string"
+                },
+                "scope_id": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "scope_table": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table",
+                "id",
+                "scope_table",
+                "scope_id",
+                "foreign_key_field",
+                "incarnation_field",
+                "else_error"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AssertCurrentRelation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Bind a computed expression for later steps.",
           "properties": {
             "Let": {
@@ -2872,6 +2931,26 @@
         "name",
         "required",
         "value"
+      ],
+      "type": "object"
+    },
+    "ResultRowsBound": {
+      "additionalProperties": false,
+      "properties": {
+        "maxItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minItems",
+        "maxItems"
       ],
       "type": "object"
     },
@@ -4078,6 +4157,26 @@
       ],
       "type": "object"
     },
+    "WriteActivityRelation": {
+      "additionalProperties": false,
+      "properties": {
+        "scopeForeignKey": {
+          "type": "string"
+        },
+        "scopeIncarnation": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "scopeForeignKey",
+        "scopeIncarnation"
+      ],
+      "type": "object"
+    },
     "WriteWithActivityEffectFormula": {
       "additionalProperties": false,
       "properties": {
@@ -4167,6 +4266,12 @@
       "additionalProperties": false,
       "description": "One normalized `write-with-activity.v1` plan. `mutation` is the complete\nexecutable closed IR including scope/source guards, the host-checked source\neffect assertion, the activity insert, and final result expression.\n\n@ref LLP 0104#total-effect-formulas — the plan carries its mode-indexed,\n  quantitative ceiling rather than reconstructing it from names.",
       "properties": {
+        "activityScopeForeignKey": {
+          "type": "string"
+        },
+        "activityScopeIncarnation": {
+          "type": "string"
+        },
         "activityTable": {
           "type": "string"
         },
@@ -4184,6 +4289,15 @@
         },
         "provenanceFields": {
           "$ref": "#/$defs/WriteActivityProvenanceFields"
+        },
+        "relations": {
+          "items": {
+            "$ref": "#/$defs/WriteActivityRelation"
+          },
+          "type": "array"
+        },
+        "requiredCapability": {
+          "type": "string"
         },
         "scopeId": {
           "$ref": "#/$defs/ValueExpr"
@@ -4206,6 +4320,7 @@
       },
       "required": [
         "profile",
+        "requiredCapability",
         "mode",
         "scopeTable",
         "scopeId",
@@ -4214,6 +4329,9 @@
         "sourceId",
         "sourceOperation",
         "activityTable",
+        "activityScopeForeignKey",
+        "activityScopeIncarnation",
+        "relations",
         "provenanceFields",
         "effectFormula",
         "mutation"

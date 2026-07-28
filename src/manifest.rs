@@ -1439,17 +1439,35 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
             }
             Some(document)
         }
-        FunctionResultContract::Records { record } => {
-            if !matches!(
+        FunctionResultContract::Records { record, rows } => {
+            let closed_object = matches!(
                 record,
                 ResultValueContract::Object {
                     allow_extra: false,
                     ..
                 }
-            ) {
+            );
+            let sealed_object_union = matches!(
+                record,
+                ResultValueContract::Union { variants }
+                    if variants.iter().all(|variant| matches!(
+                        variant,
+                        ResultValueContract::Object { allow_extra: false, .. }
+                    ))
+            );
+            if !closed_object && !sealed_object_union {
                 return Err(invalid_result_contract(
                     function,
-                    "records result must carry a closed object contract",
+                    "records result must carry a closed object or discriminated closed-object union contract",
+                ));
+            }
+            if rows.as_ref().is_some_and(|bound| {
+                bound.min_items > bound.max_items
+                    || bound.max_items > RESULT_CONTRACT_MAX_ARRAY_ITEMS
+            }) {
+                return Err(invalid_result_contract(
+                    function,
+                    "records row bounds require 0 <= minItems <= maxItems <= 1,024",
                 ));
             }
             Some(record)
@@ -1999,6 +2017,18 @@ impl ObservedEffects {
                             self.read(table, "point", None);
                             self.expr(id);
                         }
+                        MutationStep::AssertCurrentRelation {
+                            table,
+                            id,
+                            scope_table,
+                            scope_id,
+                            ..
+                        } => {
+                            self.read(table, "point", None);
+                            self.read(scope_table, "relationIncarnation", None);
+                            self.expr(id);
+                            self.expr(scope_id);
+                        }
                         MutationStep::Guard { cond, .. } => self.expr(cond),
                         MutationStep::Let { expr, .. } => self.expr(expr),
                         MutationStep::AssertSourceChanged { table, id, .. } => {
@@ -2448,6 +2478,7 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
                 .all(|field| !field.name.trim().is_empty() && !field.field.trim().is_empty())
     };
     if plan.profile != "bounded-children.v1"
+        || plan.required_capability != "bounded_children_v1"
         || plan.parent_table.trim().is_empty()
         || plan.parent_id_arg.trim().is_empty()
         || plan.child_table.trim().is_empty()
@@ -2474,12 +2505,31 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
 }
 
 pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> SnapbackResult<()> {
+    let relation_tables: BTreeSet<&str> = plan
+        .relations
+        .iter()
+        .map(|relation| relation.table.as_str())
+        .collect();
     if plan.profile != "write-with-activity.v1"
+        || plan.required_capability != "write_activity_v1"
         || plan.scope_table.trim().is_empty()
         || plan.source_table.trim().is_empty()
         || plan.activity_table.trim().is_empty()
         || plan.source_table == plan.activity_table
         || plan.scope_table == plan.activity_table
+        || plan.activity_scope_foreign_key.trim().is_empty()
+        || plan.activity_scope_incarnation.trim().is_empty()
+        || plan.relations.is_empty()
+        || relation_tables.len() != plan.relations.len()
+        || !relation_tables.contains(plan.source_table.as_str())
+        || plan.relations.iter().any(|relation| {
+            relation.table.trim().is_empty()
+                || relation.table == plan.scope_table
+                || relation.table == plan.activity_table
+                || relation.scope_foreign_key.trim().is_empty()
+                || relation.scope_incarnation.trim().is_empty()
+                || relation.scope_foreign_key == relation.scope_incarnation
+        })
         || plan.effect_formula.source_writes != 1
         || plan.effect_formula.activity_inserts != 1
         || plan.effect_formula.runtime_now != 1
@@ -2632,6 +2682,15 @@ pub struct ResultObjectFieldContract {
     pub value: ResultValueContract,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResultRowsBound {
+    #[serde(rename = "minItems", alias = "min_items")]
+    pub min_items: usize,
+    #[serde(rename = "maxItems", alias = "max_items")]
+    pub max_items: usize,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum FunctionResultContract {
@@ -2643,6 +2702,8 @@ pub enum FunctionResultContract {
     },
     Records {
         record: ResultValueContract,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rows: Option<ResultRowsBound>,
     },
     Document {
         table: String,
@@ -3077,6 +3138,8 @@ pub struct RelationalQueryPlan {
 #[serde(deny_unknown_fields)]
 pub struct BoundedChildrenQueryPlan {
     pub profile: String,
+    #[serde(rename = "requiredCapability", alias = "required_capability")]
+    pub required_capability: String,
     #[serde(rename = "parentTable", alias = "parent_table")]
     pub parent_table: String,
     #[serde(rename = "parentIdArg", alias = "parent_id_arg")]
@@ -3128,6 +3191,8 @@ pub struct BoundedProjectionField {
 #[serde(deny_unknown_fields)]
 pub struct WriteWithActivityPlan {
     pub profile: String,
+    #[serde(rename = "requiredCapability", alias = "required_capability")]
+    pub required_capability: String,
     pub mode: WriteWithActivityMode,
     #[serde(rename = "scopeTable", alias = "scope_table")]
     pub scope_table: String,
@@ -3143,11 +3208,32 @@ pub struct WriteWithActivityPlan {
     pub source_operation: WriteWithActivitySourceOperation,
     #[serde(rename = "activityTable", alias = "activity_table")]
     pub activity_table: String,
+    #[serde(
+        rename = "activityScopeForeignKey",
+        alias = "activity_scope_foreign_key"
+    )]
+    pub activity_scope_foreign_key: String,
+    #[serde(
+        rename = "activityScopeIncarnation",
+        alias = "activity_scope_incarnation"
+    )]
+    pub activity_scope_incarnation: String,
+    pub relations: Vec<WriteActivityRelation>,
     #[serde(rename = "provenanceFields", alias = "provenance_fields")]
     pub provenance_fields: WriteActivityProvenanceFields,
     #[serde(rename = "effectFormula", alias = "effect_formula")]
     pub effect_formula: WriteWithActivityEffectFormula,
     pub mutation: MutationPlan,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WriteActivityRelation {
+    pub table: String,
+    #[serde(rename = "scopeForeignKey", alias = "scope_foreign_key")]
+    pub scope_foreign_key: String,
+    #[serde(rename = "scopeIncarnation", alias = "scope_incarnation")]
+    pub scope_incarnation: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -4015,6 +4101,19 @@ pub enum MutationStep {
         cond: ValueExpr,
         else_error: String,
     },
+    /// Host-owned, transaction-local relationship assertion inserted only by
+    /// `write-with-activity.v1`. It checks the selected row's required foreign
+    /// key and protected stamp against the current active parent incarnation;
+    /// missing, cross-scope, and stale-orphan rows collapse to `else_error`.
+    AssertCurrentRelation {
+        table: String,
+        id: ValueExpr,
+        scope_table: String,
+        scope_id: ValueExpr,
+        foreign_key_field: String,
+        incarnation_field: String,
+        else_error: String,
+    },
     /// Bind a computed expression for later steps.
     Let {
         bind_as: String,
@@ -4737,6 +4836,8 @@ pub enum TargetCapabilityId {
     AuthSessionsV1,
     #[serde(rename = "bounded_response_stream_v1")]
     BoundedResponseStreamV1,
+    #[serde(rename = "bounded_children_v1")]
+    BoundedChildrenV1,
     #[serde(rename = "cron")]
     Cron,
     #[serde(rename = "cron_action_run_mutation")]
@@ -4767,12 +4868,15 @@ pub enum TargetCapabilityId {
     VersionedSeedInstallV1,
     #[serde(rename = "versioned_seed_reset_v1")]
     VersionedSeedResetV1,
+    #[serde(rename = "write_activity_v1")]
+    WriteActivityV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 19] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
+        Self::BoundedChildrenV1,
         Self::Cron,
         Self::CronActionRunMutation,
         Self::HostPlanRuntime,
@@ -4788,12 +4892,14 @@ impl TargetCapabilityId {
         Self::ResultContractV1,
         Self::VersionedSeedInstallV1,
         Self::VersionedSeedResetV1,
+        Self::WriteActivityV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::AuthSessionsV1 => "auth.sessions.v1",
             Self::BoundedResponseStreamV1 => "bounded_response_stream_v1",
+            Self::BoundedChildrenV1 => "bounded_children_v1",
             Self::Cron => "cron",
             Self::CronActionRunMutation => "cron_action_run_mutation",
             Self::HostPlanRuntime => "host_plan_runtime",
@@ -4809,6 +4915,7 @@ impl TargetCapabilityId {
             Self::ResultContractV1 => "result_contract_v1",
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
+            Self::WriteActivityV1 => "write_activity_v1",
         }
     }
 
@@ -4832,6 +4939,7 @@ impl TargetCapabilityId {
         // for every registered id. Artifacts that still acknowledge a
         // promoted id are unaffected (stable acknowledgment is a no-op).
         match self {
+            Self::BoundedChildrenV1 | Self::WriteActivityV1 => CapabilityMaturity::Proposed,
             Self::InlineHandlerV1
             | Self::RegisteredBundleBootV1
             | Self::ResultContractV1
@@ -4860,6 +4968,10 @@ impl TargetCapabilityId {
             Self::BoundedResponseStreamV1 => {
                 manifest.outbound_actions && facts.bounded_response_stream_v1_registered
             }
+            // @ref LLP 0104#first-publication-gate — the Review profiles have
+            // dedicated registry identities and GAPs, but never positive
+            // support before the complete publication matrix and acceptance.
+            Self::BoundedChildrenV1 | Self::WriteActivityV1 => false,
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
             Self::InlineHandlerV1 => facts.inline_handler_v1_registered,
@@ -5360,9 +5472,11 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "assets".to_owned(),
         "outbound_actions".to_owned(),
         "bounded_response_stream_v1".to_owned(),
+        "bounded_children_v1".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
+        "write_activity_v1".to_owned(),
     ]
 }
 

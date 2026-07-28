@@ -14451,6 +14451,190 @@ fn ephemeral_manifest_error(error: crate::ephemeral::EphemeralError) -> Snapback
     SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
 }
 
+fn validate_write_activity_schema_plan(
+    plan: &crate::manifest::WriteWithActivityPlan,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    use crate::manifest::{FieldType, WriteActivityRelation};
+
+    let invalid = |message: String| {
+        SnapbackError::error(
+            "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
+            "mutation",
+            message,
+        )
+    };
+    let table = |name: &str| {
+        schema.table(name).ok_or_else(|| {
+            invalid(format!(
+                "write-with-activity references unknown table {name}"
+            ))
+        })
+    };
+    let validate_relation = |relation: &WriteActivityRelation,
+                             activity: bool|
+     -> SnapbackResult<()> {
+        let declared = table(&relation.table)?;
+        let foreign_key = declared.field(&relation.scope_foreign_key).ok_or_else(|| {
+            invalid(format!(
+                "write-with-activity relation references unknown field {}.{}",
+                relation.table, relation.scope_foreign_key
+            ))
+        })?;
+        let incarnation = declared.field(&relation.scope_incarnation).ok_or_else(|| {
+            invalid(format!(
+                "write-with-activity relation references unknown field {}.{}",
+                relation.table, relation.scope_incarnation
+            ))
+        })?;
+        if foreign_key.optional
+            || foreign_key.field_type
+                != (FieldType::Id {
+                    table: plan.scope_table.clone(),
+                })
+            || incarnation.optional
+            || incarnation.field_type
+                != (FieldType::RelationIncarnation {
+                    foreign_key_field: relation.scope_foreign_key.clone(),
+                    parent_table: plan.scope_table.clone(),
+                })
+        {
+            return Err(invalid(format!(
+                "{} relation {} must be a required id<{}> plus its exact required incarnation stamp",
+                if activity { "activity" } else { "primary" },
+                relation.table,
+                plan.scope_table
+            )));
+        }
+        Ok(())
+    };
+    let relation_by_table: BTreeMap<&str, &WriteActivityRelation> = plan
+        .relations
+        .iter()
+        .map(|relation| (relation.table.as_str(), relation))
+        .collect();
+    for relation in &plan.relations {
+        validate_relation(relation, false)?;
+    }
+    validate_relation(
+        &WriteActivityRelation {
+            table: plan.activity_table.clone(),
+            scope_foreign_key: plan.activity_scope_foreign_key.clone(),
+            scope_incarnation: plan.activity_scope_incarnation.clone(),
+        },
+        true,
+    )?;
+
+    let relation_assertion =
+        |step: Option<&MutationStep>, id: &ValueExpr, relation: &WriteActivityRelation| {
+            matches!(
+                step,
+                Some(MutationStep::AssertCurrentRelation {
+                    table,
+                    id: asserted_id,
+                    scope_table,
+                    scope_id,
+                    foreign_key_field,
+                    incarnation_field,
+                    else_error,
+                }) if table == &relation.table
+                    && asserted_id == id
+                    && scope_table == &plan.scope_table
+                    && scope_id == &plan.scope_id
+                    && foreign_key_field == &relation.scope_foreign_key
+                    && incarnation_field == &relation.scope_incarnation
+                    && else_error == "SNAPBACK_ROW_NOT_FOUND"
+            )
+        };
+
+    let mut used_relations = BTreeSet::new();
+    let mut activity_inserts = 0usize;
+    for (index, step) in plan.mutation.steps.iter().enumerate() {
+        let (name, relation) = match step {
+            MutationStep::Get { table, .. }
+            | MutationStep::Insert { table, .. }
+            | MutationStep::Patch { table, .. }
+            | MutationStep::Delete { table, .. }
+                if table != &plan.scope_table && table != &plan.activity_table =>
+            {
+                let relation = relation_by_table.get(table.as_str()).ok_or_else(|| {
+                    invalid(format!(
+                        "non-scope operation on {table} has no declared relationship"
+                    ))
+                })?;
+                used_relations.insert(table.as_str());
+                (table, *relation)
+            }
+            MutationStep::Insert { table, values, .. } if table == &plan.activity_table => {
+                activity_inserts += 1;
+                if index + 1 != plan.mutation.steps.len()
+                    || values.get(&plan.activity_scope_foreign_key) != Some(&plan.scope_id)
+                    || values.contains_key(&plan.activity_scope_incarnation)
+                {
+                    return Err(invalid(
+                        "activity must be the final insert, scope-stamped by the authorized scope id"
+                            .to_owned(),
+                    ));
+                }
+                continue;
+            }
+            MutationStep::Get { table, .. }
+            | MutationStep::Patch { table, .. }
+            | MutationStep::Delete { table, .. }
+                if table == &plan.activity_table =>
+            {
+                return Err(invalid(
+                    "the activity table admits only the final generated insert".to_owned(),
+                ));
+            }
+            _ => continue,
+        };
+
+        match step {
+            MutationStep::Get { id, else_error, .. } => {
+                if else_error.as_deref() != Some("SNAPBACK_ROW_NOT_FOUND")
+                    || !index
+                        .checked_sub(1)
+                        .and_then(|assertion| plan.mutation.steps.get(assertion))
+                        .is_some_and(|step| relation_assertion(Some(step), id, relation))
+                {
+                    return Err(invalid(format!(
+                        "point read on {name} must be preceded immediately by its current-relation assertion"
+                    )));
+                }
+            }
+            MutationStep::Insert { values, .. } => {
+                if values.get(&relation.scope_foreign_key) != Some(&plan.scope_id)
+                    || values.contains_key(&relation.scope_incarnation)
+                {
+                    return Err(invalid(format!(
+                        "insert on {name} must carry the authorized scope id and may not author the incarnation stamp"
+                    )));
+                }
+            }
+            MutationStep::Patch { id, .. } | MutationStep::Delete { id, .. } => {
+                if !index
+                    .checked_sub(1)
+                    .and_then(|assertion| plan.mutation.steps.get(assertion))
+                    .is_some_and(|step| relation_assertion(Some(step), id, relation))
+                {
+                    return Err(invalid(format!(
+                        "{name} write must be preceded by a matching current-relation assertion"
+                    )));
+                }
+            }
+            _ => {}
+        }
+    }
+    if used_relations.len() != relation_by_table.len() || activity_inserts != 1 {
+        return Err(invalid(
+            "every declared primary relation must be used and exactly one activity insert is required"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as
 /// defense in depth, but a malformed direct artifact must not replace a known
 /// good function/config/cron generation and fail only on its first call.
@@ -14678,6 +14862,18 @@ fn validate_function_schema_references(
                         | MutationStep::AssertSourceChanged { table: name, .. } => {
                             table(name)?;
                         }
+                        MutationStep::AssertCurrentRelation {
+                            table: name,
+                            scope_table,
+                            foreign_key_field,
+                            incarnation_field,
+                            ..
+                        } => {
+                            table(name)?;
+                            table(scope_table)?;
+                            field(name, foreign_key_field)?;
+                            field(name, incarnation_field)?;
+                        }
                         MutationStep::DeleteWhere {
                             table: name,
                             filter: filters,
@@ -14697,15 +14893,205 @@ fn validate_function_schema_references(
                 }
             }
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+                let bounded_record = match &function.result_contract {
+                    crate::manifest::FunctionResultContract::Records {
+                        record,
+                        rows:
+                            Some(crate::manifest::ResultRowsBound {
+                                min_items: 1,
+                                max_items: 1,
+                            }),
+                    } => record,
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_BOUNDED_CHILDREN_RESULT_CONTRACT_INVALID",
+                            "query",
+                            "bounded children requires exactly one sealed result row",
+                        ));
+                    }
+                };
                 let parent = table(&plan.parent_table)?;
                 let child = table(&plan.child_table)?;
                 field(&plan.child_table, &plan.child_foreign_key)?;
                 field(&plan.child_table, &plan.child_relation_incarnation)?;
                 for projection in &plan.parent_projection {
                     field(&parent.name, &projection.field)?;
+                    if projection.field != "_id"
+                        && !parent.field(&projection.field).is_some_and(|declared| {
+                            matches!(
+                                declared.field_type,
+                                crate::manifest::FieldType::String
+                                    | crate::manifest::FieldType::Boolean
+                                    | crate::manifest::FieldType::Integer
+                                    | crate::manifest::FieldType::Real
+                                    | crate::manifest::FieldType::Principal
+                                    | crate::manifest::FieldType::Id { .. }
+                            )
+                        })
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
+                            "query",
+                            format!(
+                                "bounded parent projection {}.{} is not an LLP 0104 portable scalar",
+                                parent.name, projection.field
+                            ),
+                        ));
+                    }
                 }
                 for projection in &plan.child_projection {
                     field(&child.name, &projection.field)?;
+                    if projection.field != "_id"
+                        && !child.field(&projection.field).is_some_and(|declared| {
+                            matches!(
+                                declared.field_type,
+                                crate::manifest::FieldType::String
+                                    | crate::manifest::FieldType::Boolean
+                                    | crate::manifest::FieldType::Integer
+                                    | crate::manifest::FieldType::Real
+                                    | crate::manifest::FieldType::Principal
+                                    | crate::manifest::FieldType::Id { .. }
+                            )
+                        })
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
+                            "query",
+                            format!(
+                                "bounded child projection {}.{} is not an LLP 0104 portable scalar",
+                                child.name, projection.field
+                            ),
+                        ));
+                    }
+                }
+                let projection_contract =
+                    |declared: &crate::manifest::TableManifest,
+                     projections: &[crate::manifest::BoundedProjectionField]|
+                     -> crate::manifest::ResultValueContract {
+                        use crate::manifest::{
+                            FieldType, ResultObjectFieldContract, ResultValueContract,
+                        };
+                        let fields = projections
+                            .iter()
+                            .map(|projection| {
+                                let (optional, scalar) = if projection.field == "_id" {
+                                    (
+                                        false,
+                                        ResultValueContract::Id {
+                                            table: declared.name.clone(),
+                                        },
+                                    )
+                                } else {
+                                    let field = declared
+                                        .field(&projection.field)
+                                        .expect("projection field validated above");
+                                    let scalar = match &field.field_type {
+                                        FieldType::String => ResultValueContract::String {
+                                            max_bytes: 1_048_576,
+                                        },
+                                        FieldType::Boolean => ResultValueContract::Boolean,
+                                        FieldType::Integer => ResultValueContract::Integer {
+                                            min: -9_007_199_254_740_991,
+                                            max: 9_007_199_254_740_991,
+                                        },
+                                        FieldType::Real => ResultValueContract::FiniteReal {
+                                            min: -f64::MAX,
+                                            max: f64::MAX,
+                                        },
+                                        FieldType::Principal => ResultValueContract::Principal,
+                                        FieldType::Id { table } => ResultValueContract::Id {
+                                            table: table.clone(),
+                                        },
+                                        FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                                            unreachable!("non-portable projections refused above")
+                                        }
+                                    };
+                                    (field.optional, scalar)
+                                };
+                                ResultObjectFieldContract {
+                                    name: projection.name.clone(),
+                                    required: true,
+                                    value: if optional {
+                                        ResultValueContract::Union {
+                                            variants: vec![ResultValueContract::Null, scalar],
+                                        }
+                                    } else {
+                                        scalar
+                                    },
+                                }
+                            })
+                            .collect();
+                        ResultValueContract::Object {
+                            fields,
+                            allow_extra: false,
+                        }
+                    };
+                let parent_contract = projection_contract(parent, &plan.parent_projection);
+                let child_contract = projection_contract(child, &plan.child_projection);
+                let object =
+                    |kind: &str,
+                     parent: crate::manifest::ResultValueContract,
+                     children_max: usize,
+                     continuation: crate::manifest::ResultValueContract| {
+                        use crate::manifest::{ResultObjectFieldContract, ResultValueContract};
+                        ResultValueContract::Object {
+                            fields: vec![
+                                ResultObjectFieldContract {
+                                    name: "kind".to_owned(),
+                                    required: true,
+                                    value: ResultValueContract::Literal { value: json!(kind) },
+                                },
+                                ResultObjectFieldContract {
+                                    name: "parent".to_owned(),
+                                    required: true,
+                                    value: parent,
+                                },
+                                ResultObjectFieldContract {
+                                    name: "children".to_owned(),
+                                    required: true,
+                                    value: ResultValueContract::Array {
+                                        element: Box::new(child_contract.clone()),
+                                        max_items: children_max,
+                                    },
+                                },
+                                ResultObjectFieldContract {
+                                    name: "continuation".to_owned(),
+                                    required: true,
+                                    value: continuation,
+                                },
+                            ],
+                            allow_extra: false,
+                        }
+                    };
+                let expected_record = crate::manifest::ResultValueContract::Union {
+                    variants: vec![
+                        object(
+                            "absent",
+                            crate::manifest::ResultValueContract::Null,
+                            0,
+                            crate::manifest::ResultValueContract::Null,
+                        ),
+                        object(
+                            "visible",
+                            parent_contract,
+                            plan.take as usize,
+                            crate::manifest::ResultValueContract::Union {
+                                variants: vec![
+                                    crate::manifest::ResultValueContract::Null,
+                                    crate::manifest::ResultValueContract::String {
+                                        max_bytes: 1_024,
+                                    },
+                                ],
+                            },
+                        ),
+                    ],
+                };
+                if bounded_record != &expected_record {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_BOUNDED_CHILDREN_RESULT_CONTRACT_INVALID",
+                        "query",
+                        "bounded children result contract does not exactly match the sealed absent/visible projection",
+                    ));
                 }
                 let mut exact = vec![
                     plan.child_foreign_key.clone(),
@@ -14723,6 +15109,9 @@ fn validate_function_schema_references(
                 }
             }
             FunctionRuntime::HostPlan(HandlerPlan::Action(_)) | FunctionRuntime::IbexModule(_) => {}
+        }
+        if let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) = &function.runtime {
+            validate_write_activity_schema_plan(plan, schema)?;
         }
         for dependency in function
             .read_set_summary
@@ -15160,6 +15549,7 @@ fn validate_function_against_projection_outputs(
                     | MutationStep::DeleteWhere { table, .. }
                     | MutationStep::InsertEach { table, .. } => Some(table),
                     MutationStep::Get { .. }
+                    | MutationStep::AssertCurrentRelation { .. }
                     | MutationStep::AssertSourceChanged { .. }
                     | MutationStep::Guard { .. }
                     | MutationStep::Let { .. } => None,
@@ -16329,6 +16719,12 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                     }
                     MutationStep::Get { table, .. } => {
                         reads.insert(table.clone());
+                    }
+                    MutationStep::AssertCurrentRelation {
+                        table, scope_table, ..
+                    } => {
+                        reads.insert(table.clone());
+                        reads.insert(scope_table.clone());
                     }
                     MutationStep::AssertSourceChanged { table, .. } => {
                         reads.insert(table.clone());
@@ -20505,6 +20901,7 @@ globalThis.__snapbackHandlers = {
         };
         let relation_plan = BoundedChildrenQueryPlan {
             profile: "bounded-children.v1".to_owned(),
+            required_capability: "bounded_children_v1".to_owned(),
             parent_table: "parents".to_owned(),
             parent_id_arg: "parentId".to_owned(),
             parent_visibility: BoundedParentVisibility::Owner {
@@ -20523,23 +20920,126 @@ globalThis.__snapbackHandlers = {
                 .collect(),
             parent_deletion: "hide-orphans.v1".to_owned(),
         };
-        let relation = FunctionDefinition::new(
-            "parentChildren",
-            FunctionKind::LiveQuery,
-            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(relation_plan.clone())),
-        );
-        let other_relation = FunctionDefinition::new(
-            "otherParentChildren",
-            FunctionKind::LiveQuery,
-            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(relation_plan.clone())),
-        );
+        let result_field = |name: &str, value: crate::manifest::ResultValueContract| {
+            crate::manifest::ResultObjectFieldContract {
+                name: name.to_owned(),
+                required: true,
+                value,
+            }
+        };
+        let parent_result = crate::manifest::ResultValueContract::Object {
+            fields: vec![
+                result_field(
+                    "_id",
+                    crate::manifest::ResultValueContract::Id {
+                        table: "parents".to_owned(),
+                    },
+                ),
+                result_field(
+                    "title",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                ),
+            ],
+            allow_extra: false,
+        };
+        let child_result = crate::manifest::ResultValueContract::Object {
+            fields: vec![
+                result_field(
+                    "_id",
+                    crate::manifest::ResultValueContract::Id {
+                        table: "children".to_owned(),
+                    },
+                ),
+                result_field(
+                    "position",
+                    crate::manifest::ResultValueContract::Integer {
+                        min: -9_007_199_254_740_991,
+                        max: 9_007_199_254_740_991,
+                    },
+                ),
+                result_field(
+                    "label",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                ),
+                result_field("active", crate::manifest::ResultValueContract::Boolean),
+                result_field(
+                    "externalKey",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                ),
+            ],
+            allow_extra: false,
+        };
+        let bounded_variant =
+            |kind: &str,
+             parent: crate::manifest::ResultValueContract,
+             children_max: usize,
+             continuation: crate::manifest::ResultValueContract| {
+                crate::manifest::ResultValueContract::Object {
+                    fields: vec![
+                        result_field(
+                            "kind",
+                            crate::manifest::ResultValueContract::Literal { value: json!(kind) },
+                        ),
+                        result_field("parent", parent),
+                        result_field(
+                            "children",
+                            crate::manifest::ResultValueContract::Array {
+                                element: Box::new(child_result.clone()),
+                                max_items: children_max,
+                            },
+                        ),
+                        result_field("continuation", continuation),
+                    ],
+                    allow_extra: false,
+                }
+            };
+        let bounded_result = crate::manifest::FunctionResultContract::Records {
+            record: crate::manifest::ResultValueContract::Union {
+                variants: vec![
+                    bounded_variant(
+                        "absent",
+                        crate::manifest::ResultValueContract::Null,
+                        0,
+                        crate::manifest::ResultValueContract::Null,
+                    ),
+                    bounded_variant(
+                        "visible",
+                        parent_result,
+                        take as usize,
+                        crate::manifest::ResultValueContract::Union {
+                            variants: vec![
+                                crate::manifest::ResultValueContract::Null,
+                                crate::manifest::ResultValueContract::String { max_bytes: 1_024 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(crate::manifest::ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        let relation_function = |name: &str, plan: BoundedChildrenQueryPlan| {
+            let mut function = FunctionDefinition::new(
+                name,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
+            );
+            function.result_contract = bounded_result.clone();
+            function
+        };
+        let relation = relation_function("parentChildren", relation_plan.clone());
+        let other_relation = relation_function("otherParentChildren", relation_plan.clone());
         let mut public_plan = relation_plan;
         public_plan.parent_visibility = BoundedParentVisibility::PublicRead;
-        let public_relation = FunctionDefinition::new(
-            "publicParentChildren",
-            FunctionKind::LiveQuery,
-            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(public_plan)),
-        );
+        let public_relation = relation_function("publicParentChildren", public_plan);
         let insert = FunctionDefinition::new(
             "addChild",
             FunctionKind::Mutation,

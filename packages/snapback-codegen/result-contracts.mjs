@@ -172,8 +172,23 @@ function validateEffectiveResultContract(contract) {
     }
     value = contract.document;
   } else if (contract.kind === 'records') {
-    if (contract.record.kind !== 'object' || contract.record.allowExtra !== false) {
-      invalidResultContract('records requires a closed object');
+    const closedRecord = contract.record.kind === 'object'
+      && contract.record.allowExtra === false;
+    const sealedRecordUnion = contract.record.kind === 'union'
+      && contract.record.variants.every(
+        (variant) => variant.kind === 'object' && variant.allowExtra === false,
+      );
+    if (!closedRecord && !sealedRecordUnion) {
+      invalidResultContract('records requires a closed object or discriminated union of closed objects');
+    }
+    if (contract.rows !== undefined && (
+      !Number.isSafeInteger(contract.rows.minItems)
+      || !Number.isSafeInteger(contract.rows.maxItems)
+      || contract.rows.minItems < 0
+      || contract.rows.minItems > contract.rows.maxItems
+      || contract.rows.maxItems > RESULT_MAX_ARRAY_ITEMS
+    )) {
+      invalidResultContract('records row bounds require 0 <= minItems <= maxItems <= 1,024');
     }
     value = contract.record;
   } else if (contract.kind === 'value') value = contract.value;
@@ -268,32 +283,25 @@ function tableDocumentValue(table, tables) {
     },
   ];
   for (const field of definition.fields ?? []) {
+    const stored = validatorResultValue({
+      __validator: true,
+      fieldType: field.field_type,
+      primitive: typeof field.field_type === 'string'
+        ? field.field_type.toLowerCase()
+        : 'string',
+      optional: false,
+    });
     fields.push({
       name: field.name,
       // Storage materializes authored optionals as a present null.
       required: true,
       value: field.optional
-        ? scalar('union', {
-            variants: [
-              scalar('null'),
-              validatorResultValue({
-                __validator: true,
-                fieldType: field.field_type,
-                primitive: typeof field.field_type === 'string'
-                  ? field.field_type.toLowerCase()
-                  : 'string',
-                optional: false,
-              }),
-            ],
-          })
-        : validatorResultValue({
-            __validator: true,
-            fieldType: field.field_type,
-            primitive: typeof field.field_type === 'string'
-              ? field.field_type.toLowerCase()
-              : 'string',
-            optional: false,
-          }),
+        // JSON already includes null. Wrapping it in null|json creates an
+        // overlapping union that the closed contract grammar must reject.
+        ? (stored.kind === 'json' ? stored : scalar('union', {
+            variants: [scalar('null'), stored],
+          }))
+        : stored,
     });
   }
   return scalar('object', { fields, allowExtra: false });
@@ -311,7 +319,7 @@ function tableFieldValue(field) {
   // Search stores every declared projection key. An absent optional source
   // value is materialized as JSON null by the Rust authority.
   return field.optional
-    ? scalar('union', { variants: [scalar('null'), value] })
+    ? (value.kind === 'json' ? value : scalar('union', { variants: [scalar('null'), value] }))
     : value;
 }
 
@@ -426,8 +434,20 @@ function authoredContract(spec, tables) {
   }
   if (spec.kind === 'records') {
     const record = validatorResultValue(spec.validator);
-    if (record.kind !== 'object') throw new TypeError('results.records() requires v.object(...)');
-    return { kind: 'records', record };
+    if (
+      record.kind !== 'object'
+      && !(
+        record.kind === 'union'
+        && record.variants.every((variant) => variant.kind === 'object')
+      )
+    ) {
+      throw new TypeError('results.records() requires v.object(...) or a discriminated object union');
+    }
+    return {
+      kind: 'records',
+      record,
+      ...(spec.rows === undefined ? {} : { rows: { ...spec.rows } }),
+    };
   }
   if (spec.kind === 'value') {
     return { kind: 'value', value: validatorResultValue(spec.validator) };
@@ -498,7 +518,12 @@ export function effectiveResultContract({
 export function resultContractType(contract, tableType = (table) => `GeneratedDataModel[${JSON.stringify(table)}]`) {
   if (contract.kind === 'documents') return `ReadonlyArray<${tableType(contract.table)}>`;
   if (contract.kind === 'document') return tableType(contract.table);
-  if (contract.kind === 'records') return `ReadonlyArray<${resultValueType(contract.record)}>`;
+  if (contract.kind === 'records') {
+    const row = resultValueType(contract.record);
+    return contract.rows?.minItems === 1 && contract.rows?.maxItems === 1
+      ? `readonly [${row}]`
+      : `ReadonlyArray<${row}>`;
+  }
   if (contract.kind === 'value') return resultValueType(contract.value);
   if (contract.kind === 'legacyQueryRowsV0') {
     return `ReadonlyArray<${resultValueType(contract.row)}>`;

@@ -83,14 +83,111 @@ function authoredPropertyName(member) {
   return propertyName(member.name);
 }
 
-function isStaticConstructorAccess(node) {
-  if (ts.isPropertyAccessExpression(node)) return node.name.text === 'constructor';
-  if (!ts.isElementAccessExpression(node)) return false;
-  const argument = node.argumentExpression;
-  return (
-    ts.isStringLiteral(argument)
-    || ts.isNoSubstitutionTemplateLiteral(argument)
-  ) && argument.text === 'constructor';
+const REFLECTION_PROPERTY_NAMES = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+
+const OBJECT_REFLECTION_METHODS = new Set([
+  'getOwnPropertyDescriptor',
+  'getOwnPropertyDescriptors',
+  'getOwnPropertyNames',
+  'getOwnPropertySymbols',
+  'getPrototypeOf',
+  'setPrototypeOf',
+]);
+
+function staticString(node, checker = null, boundary = null, seen = new Set()) {
+  if (!node) return null;
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text;
+  }
+  if (ts.isNumericLiteral(node)) return node.text;
+  if (ts.isIdentifier(node) && checker) {
+    const symbol = checker.getSymbolAtLocation(node);
+    const declaration = symbol?.declarations?.find((candidate) => (
+      ts.isVariableDeclaration(candidate)
+      && ts.isIdentifier(candidate.name)
+      && candidate.initializer
+      && ts.isVariableDeclarationList(candidate.parent)
+      && (candidate.parent.flags & ts.NodeFlags.Const) !== 0
+      && (!boundary || (
+        candidate.getStart() >= boundary.getStart()
+        && candidate.end <= boundary.end
+      ))
+    ));
+    if (!declaration || seen.has(declaration)) return null;
+    return staticString(
+      declaration.initializer,
+      checker,
+      boundary,
+      new Set([...seen, declaration]),
+    );
+  }
+  if (ts.isParenthesizedExpression(node)) {
+    return staticString(node.expression, checker, boundary, seen);
+  }
+  if (
+    ts.isBinaryExpression(node)
+    && node.operatorToken.kind === ts.SyntaxKind.PlusToken
+  ) {
+    const left = staticString(node.left, checker, boundary, seen);
+    const right = staticString(node.right, checker, boundary, seen);
+    return left === null || right === null ? null : left + right;
+  }
+  if (
+    ts.isTemplateExpression(node)
+    && node.templateSpans.every(
+      (span) => staticString(span.expression, checker, boundary, seen) !== null,
+    )
+  ) {
+    let value = node.head.text;
+    for (const span of node.templateSpans) {
+      value += staticString(span.expression, checker, boundary, seen);
+      value += span.literal.text;
+    }
+    return value;
+  }
+  return null;
+}
+
+function staticMemberName(node, checker, boundary) {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isElementAccessExpression(node)) {
+    return staticString(node.argumentExpression, checker, boundary);
+  }
+  return null;
+}
+
+function reflectionProblem(node, checker, boundary) {
+  const member = staticMemberName(node, checker, boundary);
+  if (ts.isElementAccessExpression(node) && member === null) {
+    return 'dynamic computed member access is outside inline_handler_v1';
+  }
+  if (member && REFLECTION_PROPERTY_NAMES.has(member)) {
+    return `${member} reflection is outside inline_handler_v1`;
+  }
+  if (
+    member
+    && OBJECT_REFLECTION_METHODS.has(member)
+    && ts.isIdentifier(node.expression)
+    && node.expression.text === 'Object'
+  ) {
+    return `Object.${member} reflection is outside inline_handler_v1`;
+  }
+  return null;
+}
+
+function bindingElementPropertyName(node, checker, boundary) {
+  if (!ts.isBindingElement(node)) return null;
+  if (node.propertyName) {
+    if (ts.isComputedPropertyName(node.propertyName)) {
+      return staticString(node.propertyName.expression, checker, boundary);
+    }
+    return propertyName(node.propertyName);
+  }
+  return ts.isIdentifier(node.name) ? node.name.text : null;
 }
 
 function isDeclarationIdentifier(node) {
@@ -145,10 +242,17 @@ function selfContainedProblems(expression, checker) {
     ) {
       forbidden.push({ node, reason: 'Function construction is forbidden' });
     }
-    if (isStaticConstructorAccess(node)) {
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const reason = reflectionProblem(node, checker, expression);
+      if (reason) {
+        forbidden.push({ node, reason });
+      }
+    }
+    const destructured = bindingElementPropertyName(node, checker, expression);
+    if (destructured && REFLECTION_PROPERTY_NAMES.has(destructured)) {
       forbidden.push({
         node,
-        reason: 'constructor reflection is outside inline_handler_v1',
+        reason: `${destructured} destructuring reflection is outside inline_handler_v1`,
       });
     }
     ts.forEachChild(node, collect);

@@ -431,7 +431,12 @@ export function createProviderBindingMetadata(introspection) {
   };
 
   function renderResultType(result, path, output) {
-    if (result?.kind === 'list') return `ReadonlyArray<${renderType(result.row, `${path}.row`)}>`;
+    if (result?.kind === 'list') {
+      const row = renderType(result.row, `${path}.row`);
+      return result.minItems === 1 && result.maxItems === 1
+        ? `readonly [${row}]`
+        : `ReadonlyArray<${row}>`;
+    }
     if (result?.kind === 'single') {
       const value = renderType(result.value, `${path}.value`);
       return result.nullable === true ? `${value} | null` : value;
@@ -1085,8 +1090,27 @@ function validateResult(result, path, add) {
     return;
   }
   if (result.kind === 'list') {
-    closedObject(result, path, ['kind', 'row'], ['kind', 'row'], add);
+    closedObject(
+      result,
+      path,
+      ['kind', 'row', 'minItems', 'maxItems'],
+      ['kind', 'row'],
+      add,
+    );
     validateDataType(result.row, `${path}.row`, add);
+    if ((result.minItems === undefined) !== (result.maxItems === undefined)) {
+      add(path, 'list bounds must provide both minItems and maxItems');
+    } else if (result.minItems !== undefined) {
+      if (!Number.isSafeInteger(result.minItems) || result.minItems < 0) {
+        add(`${path}.minItems`, 'must be a non-negative safe integer');
+      }
+      if (!Number.isSafeInteger(result.maxItems) || result.maxItems > 1_024) {
+        add(`${path}.maxItems`, 'must be a safe integer no greater than 1,024');
+      }
+      if (result.minItems > result.maxItems) {
+        add(path, 'list bounds require minItems <= maxItems');
+      }
+    }
   } else if (result.kind === 'single') {
     closedObject(result, path, ['kind', 'value', 'nullable'], ['kind', 'value', 'nullable'], add);
     validateDataType(result.value, `${path}.value`, add);
