@@ -221,6 +221,19 @@ try {
     }),
     /unsupported receipt must identify/,
   );
+  assert.throws(
+    () => validateComparatorReceipt({
+      ...green,
+      executorPackages: {
+        ...green.executorPackages,
+        client: {
+          ...green.executorPackages.client,
+          sha256: `sha256:${'0'.repeat(64)}`,
+        },
+      },
+    }),
+    /executing-package identity does not match/,
+  );
 
   const receiptPath = join(root, 'green-receipt.json');
   writeComparatorReceipt(receiptPath, green);

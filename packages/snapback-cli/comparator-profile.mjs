@@ -17,9 +17,11 @@ import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import {
   existsSync,
+  lstatSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -27,8 +29,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@snapback/client';
 
@@ -75,6 +77,48 @@ const INFRASTRUCTURE_CODES = new Set([
   'SNAPBACK_COMPARATOR_CLEANUP_FAILED',
   'SNAPBACK_COMPARATOR_IDENTITY_MISMATCH',
 ]);
+const comparatorPackageRoot = dirname(fileURLToPath(import.meta.url));
+
+function packageExecutionIdentity(packageRoot) {
+  const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  const files = new Set(['package.json']);
+  const visit = (path) => {
+    const metadata = lstatSync(path);
+    assert(
+      !metadata.isSymbolicLink(),
+      'SNAPBACK_COMPARATOR_SETUP_FAILED',
+      'executing package closure contains a symbolic link',
+    );
+    if (metadata.isDirectory()) {
+      for (const entry of readdirSync(path).sort()) visit(join(path, entry));
+    } else if (metadata.isFile()) {
+      files.add(relative(packageRoot, path));
+    }
+  };
+  for (const entry of manifest.files ?? []) visit(join(packageRoot, entry));
+  const ordered = [...files].sort();
+  const hash = createHash('sha256');
+  for (const file of ordered) {
+    const bytes = readFileSync(join(packageRoot, file));
+    hash.update(`${file}\0${bytes.byteLength}\0`);
+    hash.update(bytes);
+  }
+  return {
+    name: manifest.name,
+    version: manifest.version,
+    algorithm: 'sha256-package-files-path-length-content.v1',
+    files: ordered,
+    sha256: `sha256:${hash.digest('hex')}`,
+  };
+}
+
+function executingPackageIdentity() {
+  const clientEntry = fileURLToPath(import.meta.resolve('@snapback/client'));
+  return {
+    cli: packageExecutionIdentity(comparatorPackageRoot),
+    client: packageExecutionIdentity(dirname(clientEntry)),
+  };
+}
 
 function comparatorError(code, message, details = undefined) {
   const error = new Error(`${code}: ${message}`);
@@ -939,6 +983,7 @@ function baseReceipt(profile, startedAtMs) {
     startedAtMs,
     finishedAtMs: startedAtMs,
     durationMs: 0,
+    executorPackages: executingPackageIdentity(),
     identity: {
       target: null,
       artifact: null,
@@ -1652,6 +1697,7 @@ export function validateComparatorReceipt(receipt, {
     'startedAtMs',
     'finishedAtMs',
     'durationMs',
+    'executorPackages',
     'identity',
     'expectedChecks',
     'checks',
@@ -1691,6 +1737,45 @@ export function validateComparatorReceipt(receipt, {
       && receipt.durationMs === receipt.finishedAtMs - receipt.startedAtMs,
     'SNAPBACK_COMPARATOR_RECEIPT_INVALID',
     'receipt timing fields are inconsistent',
+  );
+  receiptPlainObject(receipt.executorPackages, 'receipt.executorPackages');
+  receiptExactKeys(
+    receipt.executorPackages,
+    new Set(['cli', 'client']),
+    'receipt.executorPackages',
+  );
+  for (const packageName of ['cli', 'client']) {
+    const identity = receipt.executorPackages[packageName];
+    receiptPlainObject(identity, `receipt.executorPackages.${packageName}`);
+    receiptExactKeys(
+      identity,
+      new Set(['name', 'version', 'algorithm', 'files', 'sha256']),
+      `receipt.executorPackages.${packageName}`,
+    );
+    receiptString(identity.name, `receipt.executorPackages.${packageName}.name`);
+    receiptString(identity.version, `receipt.executorPackages.${packageName}.version`);
+    assert(
+      identity.algorithm === 'sha256-package-files-path-length-content.v1'
+        && /^sha256:[0-9a-f]{64}$/u.test(identity.sha256)
+        && Array.isArray(identity.files)
+        && identity.files.length > 0
+        && identity.files.every(
+          (file, index, files) => (
+            typeof file === 'string'
+            && file.length > 0
+            && !file.startsWith('/')
+            && !file.includes('..')
+            && (index === 0 || files[index - 1] < file)
+          ),
+        ),
+      'SNAPBACK_COMPARATOR_RECEIPT_INVALID',
+      `receipt.executorPackages.${packageName} is not a closed package identity`,
+    );
+  }
+  assert(
+    sameValue(receipt.executorPackages, executingPackageIdentity()),
+    'SNAPBACK_COMPARATOR_RECEIPT_INVALID',
+    'comparator receipt executing-package identity does not match the verifier package graph',
   );
   assertReceiptIdentity(receipt.identity);
   assert(

@@ -659,6 +659,8 @@ Acceptance requires committed, rerunnable evidence for:
 - service-intermediate wrong-purpose/domain/root/serial/generation/time
   negatives and publication request/scope substitution;
 - candidate-ledger embedding and final-ledger lineage across all nine packages;
+- comparator receipts binding the exact executing CLI and client package-file
+  closures, with verification refusing any later byte or inventory drift;
 - failed provisional CAS leaving the active graph, database, claims, and
   runtime-support observations unchanged;
 - provisional activation exposing support only to the exact observation
