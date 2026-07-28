@@ -39,6 +39,21 @@ declare const searchIncidents: SnapbackFunctionReference<
     string & { readonly __snapbackIdTable: 'incidents' }
   >
 >;
+declare const searchShapedOrdinaryQuery: SnapbackFunctionReference<
+  'searchShapedOrdinaryQuery',
+  'Query',
+  SearchRequestV1,
+  Readonly<{
+    items: readonly Readonly<{
+      rowId: string;
+      score: number;
+      fields: Readonly<{ title: string }>;
+      highlights: readonly [];
+    }>[];
+    cursor: string | null;
+    hasMore: boolean;
+  }>
+>;
 type GeneratedId<Table extends string> =
   string & { readonly __snapbackIdTable: Table };
 
@@ -88,6 +103,16 @@ client.search(searchIncidents, { query: searchQuery }).then((page) => {
   page.items[0]?.fields.summary?.toUpperCase();
   page.cursor?.toUpperCase();
 });
+client.query(searchShapedOrdinaryQuery, { args: { query: searchQuery } }).then((output) => {
+  // A structurally page-shaped ordinary query is still one object-valued row,
+  // not the search operation's QueryOutput rows/cursor transport projection.
+  output.rows.items[0]?.fields.title.toUpperCase();
+  output.rows.cursor?.toUpperCase();
+  // @ts-expect-error the unbranded ordinary result is not transformed to an item array.
+  output.rows[0];
+});
+// @ts-expect-error a structurally page-shaped ordinary query lacks the search phantom brand.
+client.search(searchShapedOrdinaryQuery, { query: searchQuery });
 // @ts-expect-error ordinary query refs are not search operation refs.
 client.search(listTodos, { query: searchQuery });
 // @ts-expect-error search requires a generated ref, not an unbranded function string.

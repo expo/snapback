@@ -176,10 +176,13 @@ export interface SearchItemV1<
   readonly fields: Fields;
   readonly highlights: readonly SearchHighlightV1[];
 }
+declare const searchPageV1Brand: unique symbol;
 export interface SearchPageV1<
   Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
   RowId extends string = string,
 > {
+  /** Generated operation phantom; no runtime response is expected to carry it. */
+  readonly [searchPageV1Brand]: true;
   readonly items: readonly SearchItemV1<Fields, RowId>[];
   readonly cursor: string | null;
   readonly hasMore: boolean;

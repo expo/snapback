@@ -5757,8 +5757,14 @@ function renderApiTypes(
   providerBindingMetadata,
   routesManifest,
 ) {
+  const hasSearchFunction = functions.some(
+    (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
+  );
   const lines = [
     HEADER,
+    ...(hasSearchFunction
+      ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@snapback/client';"]
+      : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
@@ -5776,9 +5782,13 @@ function renderApiTypes(
     'export interface SearchMatchRangeV1 { start: number; end: number }',
     'export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }',
     // @ref LLP 0073#ranking-order-and-cursors — each generated search ref
-    // instantiates these carriers with its closed stored-field and row-id types.
+    // instantiates the client-owned nominal page phantom with its closed
+    // stored-field and row-id types. The shared alias prevents an ordinary
+    // structurally page-shaped query from entering client.search().
     'export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }',
-    'export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }',
+    hasSearchFunction
+      ? 'export type SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientSearchPageV1<Fields, RowId>;'
+      : 'export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",

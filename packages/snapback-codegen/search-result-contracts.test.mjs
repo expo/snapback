@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -15,6 +22,17 @@ const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const backend = mkdtempSync(join(tmpdir(), 'snapback-search-result-contract-'));
 
 try {
+  // Generated declarations consume the public client package. Model that
+  // dependency explicitly so an unresolved type-only import cannot silently
+  // degrade to `any` under --skipLibCheck.
+  const snapbackModules = join(backend, 'node_modules', '@snapback');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(
+    join(repositoryRoot, 'packages', 'snapback-client'),
+    join(snapbackModules, 'client'),
+    'dir',
+  );
+
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 
@@ -124,6 +142,14 @@ export const searchIncidents = defineSearchQuery({
   );
 
   const apiTypes = readFileSync(join(backend, 'generated', 'api.d.ts'), 'utf8');
+  assert.match(
+    apiTypes,
+    /import type \{ SearchPageV1 as ClientSearchPageV1 \} from '@snapback\/client';/u,
+  );
+  assert.match(
+    apiTypes,
+    /export type SearchPageV1<[^;]+> = ClientSearchPageV1<Fields, RowId>;/u,
+  );
   assert.match(
     apiTypes,
     /searchIncidents: FunctionReference<'searchIncidents', 'Query', SearchRequestV1, SearchPageV1<\{ "open": boolean; "summary": null \| string; "title": string; "updatedAt": number \}, Id<"incidents">>>;/u,
