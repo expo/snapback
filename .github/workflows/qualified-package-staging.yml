@@ -52,10 +52,14 @@ jobs:
 
       - name: Build the source-bound Linux runtime
         run: |
-          scripts/bootstrap-ibex-runtime
+          SNAPBACK_BOOTSTRAP_CHECK=0 scripts/bootstrap-ibex-runtime
+          node scripts/runtime-link-smoke.mjs \
+            --timeout-ms 900000 \
+            --target-dir "$PWD/target" \
+            --keep-target
           cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
-          packages/snapback-runtime-linux-x64/bin/snapback --version
+          packages/snapback-runtime-linux-x64/bin/snapback build-identity
           test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
           test -z "$(git status --porcelain --untracked-files=all)"
 
@@ -120,10 +124,14 @@ jobs:
       - name: Build the source-bound macOS runtime
         run: |
           bun install --frozen-lockfile
-          scripts/bootstrap-ibex-runtime
+          SNAPBACK_BOOTSTRAP_CHECK=0 scripts/bootstrap-ibex-runtime
+          node scripts/runtime-link-smoke.mjs \
+            --timeout-ms 900000 \
+            --target-dir "$PWD/target" \
+            --keep-target
           cargo build --release --bin snapback
           node packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs
-          packages/snapback-runtime-darwin-arm64/bin/snapback --version
+          packages/snapback-runtime-darwin-arm64/bin/snapback build-identity
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Assemble and dry-run the exact public closure

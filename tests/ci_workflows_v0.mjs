@@ -279,6 +279,26 @@ assert.match(
   /candidate_tag="bakeoff-\$\{RELEASE_VERSION\/\/\.\/-\}-\$\{GITHUB_SHA:0:12\}"/,
   'qualified package staging must bind the candidate tag to version and source SHA',
 );
+assert.equal(
+  qualifiedPackageStaging.match(/SNAPBACK_BOOTSTRAP_CHECK=0 scripts\/bootstrap-ibex-runtime/g)?.length,
+  2,
+  'qualified native builds must materialize Hermes before their extended exact-link proof',
+);
+assert.equal(
+  qualifiedPackageStaging.match(/--timeout-ms 900000/g)?.length,
+  2,
+  'qualified native builds must allow a cold exact-link proof to finish on hosted runners',
+);
+assert.equal(
+  qualifiedPackageStaging.match(/bin\/snapback build-identity/g)?.length,
+  2,
+  'qualified native builds must launch both packaged binaries through a supported identity command',
+);
+assert.doesNotMatch(
+  qualifiedPackageStaging,
+  /bin\/snapback --version/,
+  'qualified native builds must not call the unsupported Snapback --version flag',
+);
 const prepareHermesStart = localProof.indexOf('      - name: Prepare exact Hermes runtime');
 const verifyProofStart = localProof.indexOf('      - name: Verify Snapback local proof');
 assert(
