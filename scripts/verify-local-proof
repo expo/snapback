@@ -176,6 +176,15 @@ run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback
 # native binary through a real Vite dev server (managed spawn, /__snapback
 # allowlist, WS relay); it needs the debug binary for the same reason.
 run env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback-vite test
+# @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate — the
+# closed versioned-seed dispatcher is a revision-bound local
+# proof gate, not an ignored receipt cited as durable repository evidence.
+# It stamps the exact source revision into the binary, runs all 20 mandatory
+# cases plus the hosted GAP, and refuses a stale/mismatched binary.
+run env SNAPBACK_BINARY="$runtime_binary" \
+    node tests/conformance/run-versioned-seed-v1.mjs \
+    --receipt target/conformance/versioned-seed-v1.receipt.json \
+    --quiet
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 # LLP 0090 rollout step 7 (ENG-25458): Channel C consumption — the

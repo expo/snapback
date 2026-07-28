@@ -16,7 +16,28 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// @ref LLP 0103#166-the-manifest-is-an-executable-advertisement-gate —
+// conformance evidence is meaningful only when the exercised binary is bound
+// to the exact source revision that invoked the closed dispatcher.
+const sourceRevision = spawnSync('git', ['rev-parse', 'HEAD'], {
+  cwd: root,
+  encoding: 'utf8',
+});
+const sourceStatus = spawnSync('git', ['status', '--porcelain'], {
+  cwd: root,
+  encoding: 'utf8',
+});
+const sourceGitCommit = sourceRevision.stdout.trim();
+const sourceGitDirty = sourceStatus.stdout.length > 0;
+if (
+  sourceRevision.status !== 0
+  || sourceStatus.status !== 0
+  || !/^[0-9a-f]{40}$/u.test(sourceGitCommit)
+) {
+  throw new Error('SNAPBACK_SEED_CONFORMANCE_REVISION_UNAVAILABLE');
+}
 const receiptAt = process.argv.indexOf('--receipt');
+const quiet = process.argv.includes('--quiet');
 const receiptPath = receiptAt >= 0 ? resolve(process.argv[receiptAt + 1]) : null;
 if (receiptAt >= 0 && !process.argv[receiptAt + 1]) {
   throw new Error('SNAPBACK_SEED_CONFORMANCE_RECEIPT_PATH_REQUIRED');
@@ -93,7 +114,11 @@ const suite = spawnSync(
   {
     cwd: root,
     encoding: 'utf8',
-    env: process.env,
+    env: {
+      ...process.env,
+      SNAPBACK_BUILD_GIT_COMMIT: sourceGitCommit,
+      SNAPBACK_BUILD_GIT_DIRTY: String(sourceGitDirty),
+    },
     maxBuffer: 64 * 1024 * 1024,
   },
 );
@@ -174,10 +199,20 @@ try {
 } catch {
   currentBinary = { unavailable: true };
 }
+const binaryIdentity = currentBinary?.buildIdentity?.binary ?? null;
+const revisionBinding = {
+  sourceGitCommit,
+  sourceGitDirty,
+  binaryGitCommit: binaryIdentity?.gitCommit ?? null,
+  binaryGitDirty: binaryIdentity?.gitDirty ?? null,
+  matched: binaryIdentity?.gitCommit === sourceGitCommit
+    && binaryIdentity?.gitDirty === sourceGitDirty,
+};
 const receipt = {
   artifactKind: 'snapback.versioned-seed-conformance-receipt.v1',
   formatVersion: 1,
   manifestDigest: createHash('sha256').update(bytes).digest('hex'),
+  revisionBinding,
   currentBinary,
   outcomes,
   capabilitiesAdmitted: admitted,
@@ -188,5 +223,18 @@ if (receiptPath) {
   mkdirSync(dirname(receiptPath), { recursive: true });
   writeFileSync(receiptPath, encodedReceipt, { mode: 0o600 });
 }
-process.stdout.write(encodedReceipt);
-if (outcomes.some(({ outcome }) => outcome === 'failed')) process.exitCode = 1;
+if (quiet) {
+  const passed = outcomes.filter(({ outcome }) => outcome === 'passed').length;
+  const failed = outcomes.filter(({ outcome }) => outcome === 'failed').map(({ id }) => id);
+  const gaps = outcomes.filter(({ outcome }) => outcome === 'gap').length;
+  process.stdout.write(
+    `[versioned-seed-conformance] ${passed} passed, ${failed.length} failed, `
+      + `${gaps} GAP; revision=${revisionBinding.matched ? 'matched' : 'mismatched'}`
+      + `${failed.length ? `; failed=${failed.join(',')}` : ''}\n`,
+  );
+} else {
+  process.stdout.write(encodedReceipt);
+}
+if (!revisionBinding.matched || outcomes.some(({ outcome }) => outcome === 'failed')) {
+  process.exitCode = 1;
+}

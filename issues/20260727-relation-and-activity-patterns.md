@@ -1,6 +1,6 @@
 # Bounded parent/child reads and transactional activity patterns
 
-**Status:** Resolved  
+**Status:** Open
 **Impact:** 4  
 **Urgency:** 3  
 **Ease:** 1  
@@ -89,3 +89,15 @@ therefore remain false. The additional paired-store/restore vectors,
 cross-language cursor goldens, hosted corpus, and full retained-settlement
 publication matrix are capability-publication evidence tracked by the LLP,
 not open work in this repository ticket.
+
+## Reopened — 2026-07-27
+
+An independent completed-lane audit found that the resolution above was
+narrower than this ticket's own acceptance criteria. The local executor and
+Signal Desk declaration/acceptance path are real, but a false capability fact
+means the helper is not yet an ordinary supported authoring choice. This ticket
+therefore remains open until the LLP 0104 publication evidence is complete:
+paired-store noninterference, restore/backfill vectors, cross-language cursor
+goldens, retained-settlement boundaries and queue-owner coverage, the hosted
+target corpus, full Signal Desk product adoption, and author acceptance or an
+equally explicit decision to narrow the public profile.

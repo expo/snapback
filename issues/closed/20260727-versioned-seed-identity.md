@@ -70,12 +70,19 @@ artifacts. The implementation now includes:
   empty-array occupancy, sessions membership refusal, effect bounds, and the
   exact predecessor binary.
 
-The official dispatcher receipt at
-`target/conformance/versioned-seed-v1.receipt.json` records 20 mandatory
-passes, one explicit hosted GAP, both Experimental local capability ids, the
-target binary identity/digest, and the full predecessor
-`3db3185a8325b5e8209b637080ab65d775c880ea` build identity/digest. It is
-owner-only and contains no credential patterns.
+The closed dispatcher is now part of `scripts/verify-local-proof`. Every clone
+therefore rebuilds and runs all 20 mandatory cases plus the explicit hosted
+GAP, stamps the exact source revision and dirty state into the current binary,
+and refuses a stale or mismatched binary. The executable manifest, dispatcher,
+case runner, predecessor identity, and proof invocation are committed; they
+are the reproducible repository evidence.
+
+An invocation may additionally write the full owner-only receipt to
+`target/conformance/versioned-seed-v1.receipt.json`. That ignored file records
+the detailed assertions, both Experimental local capability ids, current
+binary digest/revision binding, and the full predecessor
+`3db3185a8325b5e8209b637080ab65d775c880ea` build identity/digest. It is a local
+run artifact, not clone-stable or version-control evidence.
 
 LLP 0103 intentionally remains Review pending author acceptance; the SQLite
 capability ids are Experimental, and hosted compiled-seed custody remains an
